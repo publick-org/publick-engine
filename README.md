@@ -289,7 +289,7 @@ python -m pipeline.deploy rollback [--town <town>] [--build <build>] # back to t
 python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete old builds and unused files
 ```
 
-Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout. Run `prune` only when no publish is running.
+Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
 Setup, once for the network:
 
