@@ -52,19 +52,38 @@ class SeeClickFix:
     def __init__(self, config: dict, client):
         self.source = config["seeclickfix"]
         self.client = client
+        self._codes: set[str] | None = None
+
+    def base_url(self) -> str:
+        return f"{self.source['open311_base'].rstrip('/')}/{self.source['organization_id']}"
 
     def requests_url(self, **params) -> str:
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{self.source['open311_base'].rstrip('/')}/{self.source['organization_id']}/requests.json?{query}"
+        return f"{self.base_url()}/requests.json?{query}"
+
+    def service_codes(self) -> set[str] | None:
+        """The request types of the departments listed in [seeclickfix] departments,
+        from the organization's own list of services; None when the town takes
+        every department's requests."""
+        departments = self.source.get("departments")
+        if not departments:
+            return None
+        if self._codes is None:
+            services = self.client.get(f"{self.base_url()}/services.json").json()
+            self._codes = {str(s["service_code"]) for s in services if s.get("organization") in departments}
+            if not self._codes:
+                raise FetchError(f"SeeClickFix lists no request types for {', '.join(departments)}")
+        return self._codes
 
     def list_requests(self, **params) -> list[dict]:
+        codes = self.service_codes()
         items = []
         for page in range(1, MAX_PAGES + 1):
             batch = self.client.get(self.requests_url(page_size=PAGE_SIZE, page=page, **params)).json()
             items.extend(batch)
             if len(batch) < PAGE_SIZE:
                 break
-        return [seeclickfix.parse_open311(i) for i in items]
+        return [seeclickfix.parse_open311(i) for i in items if codes is None or str(i.get("service_code")) in codes]
 
     def issue(self, issue_id: str) -> dict:
         url = f"{self.source['api_base'].rstrip('/')}/issues/{issue_id}"

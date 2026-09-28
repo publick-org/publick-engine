@@ -10,6 +10,7 @@ PUBLICK_TOWN_DIR pointing at it.
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from pathlib import Path
 
@@ -40,6 +41,25 @@ def load_config(town: str) -> dict:
         config = tomllib.load(f)
     config["slug"] = town
     return config
+
+
+# The site's colors, as CSS custom properties. The defaults match site.css; a
+# town sets its own in [site.colors]. "network" is the network's name in the
+# masthead and share image (Publick slate), the same for every town.
+DEFAULT_COLORS = {"primary": "#1e3e80", "primary_dark": "#011536", "primary_soft": "#e8edf6",
+                  "accent": "#581824", "network": "#2c4a63"}
+
+
+def colors(config: dict) -> dict:
+    """The town's colors: the defaults, with any set in [site.colors]."""
+    town = config["site"].get("colors", {})
+    unknown = set(town) - set(DEFAULT_COLORS)
+    if unknown:
+        raise SystemExit(f"Unknown [site.colors] {', '.join(sorted(unknown))}; use {', '.join(DEFAULT_COLORS)}.")
+    for name, value in town.items():
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(value)):
+            raise SystemExit(f'[site.colors] {name} = "{value}" is not a color like "#12469a".')
+    return {**DEFAULT_COLORS, **town}
 
 
 def configured(config: dict, table: str) -> bool:

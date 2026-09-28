@@ -9,6 +9,9 @@
 <div class="page-head">
   <h1>311 Requests</h1>
   <p class="lede">How the City of {{ town.name }} responds to public service requests on SeeClickFix.</p>
+  {% if config.seeclickfix.scope_note is defined %}
+  <p>{{ config.seeclickfix.scope_note }}</p>
+  {% endif %}
   {% if sc %}
   <p class="source-note">Requests submitted {{ sc.window.start | date("plain") }} to {{ sc.window.end | date("plain") }}. Updated <time datetime="{{ sc.generated_at }}">{{ sc.generated_at | timestamp }}</time>.</p>
   {% endif %}

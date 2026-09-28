@@ -30,7 +30,7 @@ import markdown
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from markupsafe import Markup, escape
 
-from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, load_config
+from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import streets as streets_mod
@@ -532,6 +532,10 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     shutil.copytree(STATIC_DIR, out_static)
     if town_static.is_dir():
         shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+    if config["site"].get("colors"):
+        palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
+        with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
+            f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
 
     env = Environment(
         loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR]),
@@ -576,7 +580,12 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     # Versioned, so sites that cache link previews pick up a redrawn image.
     share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
                    if share_path.exists() else None)
-    common = dict(config=config, site=site, town=config["town"], sections=sections, share_image=share_image, search_url=search_url,
+    # Where the ward boundaries come from, named on the 311 pages and the About page.
+    # The defaults are Gloucester's, from before towns set their own.
+    sc = config.get("seeclickfix", {})
+    wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
+             "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
+    common = dict(config=config, site=site, town=config["town"], sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))

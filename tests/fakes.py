@@ -52,8 +52,9 @@ class FakeJSONResponse(FakeResponse):
 class FakeSeeClickFix:
     """Serves saved Open311 pages and a single-issue record for any id."""
 
-    def __init__(self, open_items=None, window_items=None, issue=None, missing_ids=()):
+    def __init__(self, open_items=None, window_items=None, issue=None, missing_ids=(), services=()):
         import json
+        self.services = list(services)
         self.open_items = open_items if open_items is not None else json.loads((FIXTURES / "open311_open_page.json").read_text())
         self.window_items = window_items if window_items is not None else json.loads((FIXTURES / "open311_window_page.json").read_text())
         self.issue = issue or json.loads((FIXTURES / "scf_issue_acknowledged.json").read_text())
@@ -65,6 +66,8 @@ class FakeSeeClickFix:
         from pipeline.http import FetchError
         self.urls.append(url)
         self.request_count += 1
+        if url.endswith("/services.json"):
+            return FakeJSONResponse(self.services)
         if "/requests.json" in url:
             page = int(url.split("page=")[1].split("&")[0])
             items = self.open_items if "status=open" in url else self.window_items
