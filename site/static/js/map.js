@@ -35,9 +35,11 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
     }).addTo(map);
     var bounds = [];
+    // Markers in the town's primary color, from the stylesheet.
+    var fill = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#1e3e80";
     points.forEach(function (p) {
       L.circleMarker([p.lat, p.lng], {
-        radius: p.size || 7, color: "#ffffff", weight: 2, fillColor: "#1e3e80", fillOpacity: 0.85
+        radius: p.size || 7, color: "#ffffff", weight: 2, fillColor: fill, fillOpacity: 0.85
       }).bindPopup(popup(p)).addTo(map);
       bounds.push([p.lat, p.lng]);
     });

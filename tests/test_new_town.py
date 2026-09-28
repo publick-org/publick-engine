@@ -154,3 +154,43 @@ def test_share_image_names_the_street_lookup_only_when_built():
     from pipeline.make_share_image import share_html
     assert "Your street" in share_html(load_config("gloucester"))
     assert "Your street" not in share_html(indicators_only(load_config("gloucester")))
+
+
+def test_town_colors_are_added_to_the_stylesheet(tmp_path, data_dir, monkeypatch):
+    town = indicators_only(load_config("gloucester"))
+    town["site"]["colors"] = {"primary": "#12469a", "primary_dark": "#14284b"}
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("newtown", out, data_dir=data_dir, now=BUILT_AT)
+    css = (out / "static" / "css" / "site.css").read_text()
+    palette = css[css.rindex(":root"):]
+    assert "--primary: #12469a;" in palette and "--primary-dark: #14284b;" in palette
+    assert "--network: #2c4a63;" in palette and "--accent: #581824;" in palette  # defaults kept
+    # The page links the stylesheet with a version that changes with the colors.
+    engine_css = (build_site.STATIC_DIR / "css" / "site.css").read_bytes()
+    import hashlib
+    assert f"site.css?v={hashlib.sha256(engine_css).hexdigest()[:10]}" not in (out / "index.html").read_text()
+
+
+def test_a_town_without_colors_serves_the_engine_stylesheet(site_dir):
+    assert (site_dir / "static" / "css" / "site.css").read_bytes() == (build_site.STATIC_DIR / "css" / "site.css").read_bytes()
+    assert ".brand span { color: var(--network); }" in (site_dir / "static" / "css" / "site.css").read_text()
+
+
+@pytest.mark.parametrize("colors, message", [({"primary": "blue"}, "is not a color"),
+                                             ({"primary": "#12469a; } body { display: none"}, "is not a color"),
+                                             ({"secondary": "#12469a"}, "Unknown")])
+def test_town_colors_are_checked(colors, message):
+    from pipeline.config import colors as town_colors
+    town = load_config("gloucester")
+    town["site"]["colors"] = colors
+    with pytest.raises(SystemExit, match=message):
+        town_colors(town)
+
+
+def test_share_image_uses_the_town_ink_and_network_slate():
+    from pipeline.make_share_image import share_html
+    town = load_config("gloucester")
+    town["site"]["colors"] = {"primary_dark": "#14284b"}
+    html = share_html(town)
+    assert "color: #14284b;" in html and ".name span { color: #2c4a63; }" in html and "#581824" not in html

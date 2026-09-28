@@ -30,7 +30,7 @@ import markdown
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from markupsafe import Markup, escape
 
-from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, load_config
+from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import streets as streets_mod
@@ -532,6 +532,10 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     shutil.copytree(STATIC_DIR, out_static)
     if town_static.is_dir():
         shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+    if config["site"].get("colors"):
+        palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
+        with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
+            f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
 
     env = Environment(
         loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR]),
