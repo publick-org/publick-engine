@@ -41,6 +41,10 @@ SUMMARY_RULES = """Summary rules:
 - Plain English at about an 8th-grade reading level. Short sentences, one idea each.
 - Keep names, dollar amounts, dates, and case or application numbers exactly as written."""
 
+# Run limits for a town whose [summaries] table leaves them out.
+DEFAULT_MAX_PER_RUN = 50
+DEFAULT_MAX_COST_PER_RUN = 5.0
+
 # Each kind of document has its own instructions and output. Bump a kind's
 # version when its prompt or schema changes; cached results from an older
 # version (or another model) are regenerated on the next run.
@@ -194,13 +198,23 @@ def cost(usage: dict, settings: dict) -> float:
     return (usage["input_tokens"] * settings["input_price"] + usage["output_tokens"] * settings["output_price"]) / 1e6
 
 
+def summary_settings(config: dict) -> dict:
+    """The town's [summaries] table, with the run limits filled in when it leaves them out."""
+    return {"max_per_run": DEFAULT_MAX_PER_RUN, "max_cost_per_run": DEFAULT_MAX_COST_PER_RUN, **config["summaries"]}
+
+
 def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None = None) -> dict:
-    settings = config["summaries"]
+    settings = summary_settings(config)
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     todo = pending_documents(data_dir, now.date().isoformat(), settings["model"])
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0
-    for kind, meeting, doc in todo[:limit]:
+    batch = todo[:limit]
+    if "input_price" not in settings or "output_price" not in settings:
+        # Without prices the spending limit can't be enforced, so nothing is sent.
+        batch = []
+        errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
+    for kind, meeting, doc in batch:
         if spent >= settings["max_cost_per_run"]:
             errors.append(f"stopped at the ${settings['max_cost_per_run']:.2f} spending limit for one run")
             break
@@ -258,7 +272,7 @@ def main() -> int:
     if not configured(config, "summaries"):
         return 0
     client = anthropic.Anthropic(max_retries=3)
-    summary = run(config, client, args.data, args.limit or config["summaries"]["max_per_run"])
+    summary = run(config, client, args.data, args.limit or summary_settings(config)["max_per_run"])
     print(json.dumps(summary, indent=2))
     for error in summary["errors"]:
         print(f"::warning::{error}")
