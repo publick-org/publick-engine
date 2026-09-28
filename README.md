@@ -71,6 +71,7 @@ To release: merge to `main` with the engine tests passing, then publish a releas
 ```
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
+  update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
   fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
@@ -149,7 +150,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[housing]` | Census and the Subsidized Housing Inventory | Anywhere for the Census parts; leave out `shi_url` outside Massachusetts. Parcel counts need `[finance]` |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
-   | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY` |
+   | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5 |
    | `[freshness]` | Stale-data alerts | List only the sources the town has |
    | `[storage]` | Keeps agenda and minutes PDFs in a bucket instead of git | Recommended for every town; see [Document storage](#document-storage) |
 
