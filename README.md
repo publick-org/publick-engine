@@ -93,6 +93,7 @@ pipeline/                   Python package
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
+  network.py                Runs many towns from one repository (towns/<town>/): plan, run a batch, report
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/static/                CSS, icons, and other files copied as-is (a town's own site/static/ is laid on top)
