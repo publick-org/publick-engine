@@ -1,6 +1,7 @@
 /* Publick town site styles.
-   Mobile first. Colors come from the town's palette (config-independent names
-   below); type is Public Sans, served from this site.
+   Mobile first. The colors below are the defaults; a town sets its own in
+   [site.colors] and the build appends them (pipeline/config.py). Type is
+   Public Sans, served from this site.
    Accessibility: sizes in rem so text scales; text and UI colors meet WCAG AA
    contrast; tap targets are at least 44px; focus is always visible. */
 
@@ -13,9 +14,10 @@
 @font-face { font-family: "Source Serif 4"; font-weight: 700; font-display: swap; src: url(/static/fonts/source-serif-4-700.woff2) format("woff2"); }
 
 :root {
-  --primary: #1e3e80;       /* city navy */
-  --primary-dark: #011536;  /* headings */
-  --accent: #581824;        /* city maroon */
+  --primary: #1e3e80;       /* town: links, buttons, map markers */
+  --primary-dark: #011536;  /* town: headings, rules, masthead */
+  --accent: #581824;        /* town: current page in the menu, flags, notices */
+  --network: #2c4a63;       /* Publick slate: the network's name in the masthead */
   --primary-soft: #e8edf6;
   --ink: #1b1f24;
   --muted: #545c65;
@@ -88,7 +90,7 @@ a.external::after { content: "\2009\2197"; font-size: 0.85em; }
   display: inline-block; color: var(--primary-dark); text-decoration: none;
   font-family: var(--serif); font-size: clamp(1.7rem, 1.3rem + 1.6vw, 2.3rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em;
 }
-.brand span { color: var(--accent); }
+.brand span { color: var(--network); }
 .brand:hover { text-decoration: underline; text-decoration-thickness: 2px; }
 .masthead-line { margin: 0.3rem 0 0; color: var(--ink-soft); font-size: 0.95rem; }
 

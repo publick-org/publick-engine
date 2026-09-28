@@ -141,7 +141,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    |---|---|---|
    | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
-   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix; needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`, like Gloucester's from MassGIS |
+   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget (Mass. DLS) | Massachusetts |
    | `[schools]` | DESE | Massachusetts districts |
    | `[housing]` | Census and the Subsidized Housing Inventory | Anywhere for the Census parts; leave out `shi_url` outside Massachusetts. Parcel counts need `[finance]` |
@@ -167,6 +167,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    - `domain`: the site's address.
    - `network` (optional): the family of sites it belongs to, named in every footer. Leave it out for a stand-alone site.
    - `contact_email`: shown on the About and Accessibility pages and used by the "Report an error" buttons.
+   - `[site.colors]` (optional): the town's own colors, as `"#rrggbb"`. `primary` (links, buttons, map markers), `primary_dark` (headings, rules, the masthead), `primary_soft` (light backgrounds), and `accent` (the current page in the menu, flags, notices). Take them from the city's own website and check each against white for WCAG AA contrast (4.5:1). `network` is the network's name in the masthead and share image; Publick's is slate `#2c4a63`, the same for every town. Unset colors keep the defaults (Gloucester's navy and maroon).
 
    The engine's icon is the Publick "P". A site outside the network draws its own in the town's `site/static/favicon.svg`. Then run `python -m pipeline.make_share_image` for the share image (and PNG icons, for a town with its own icon).
 6. **Deploy** as under [Deploying](#deploying), and set up [Document storage](#document-storage) and the [secrets](#secrets).

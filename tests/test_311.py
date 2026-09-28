@@ -212,3 +212,43 @@ def test_site_explains_requests_with_no_update(site_dir, data_dir, tmp_path):
     assert "Outside wards" in page
     assert "298 with no update in over a year" in (tmp_path / "site" / "index.html").read_text()
     assert "No update in over a year" in (tmp_path / "site" / "311" / "methodology" / "index.html").read_text()
+
+
+def test_departments_limit_requests_to_their_request_types(config, data):
+    """A town that lists departments keeps only their request types, from the
+    organization's own list of services."""
+    config["seeclickfix"]["departments"] = ["Public Works"]
+    services = [{"service_code": 8928, "service_name": "Trash or Recycling", "organization": "Public Works"},
+                {"service_code": 8929, "service_name": "Pothole", "organization": "Public Works"},
+                {"service_code": 8936, "service_name": "Other", "organization": "Police"}]
+    client = FakeSeeClickFix(services=services)
+    fetch_311.run(config, client, data, now=FETCHED_AT, detail_limit=0)
+    categories = {r["category"] for r in load(data).values()}
+    assert categories == {"Trash or Recycling", "Pothole"}
+    assert sum(u.endswith("/547/services.json") for u in client.urls) == 1
+
+
+def test_departments_with_no_request_types_stop_the_fetch(config, data):
+    from pipeline.http import FetchError
+    config["seeclickfix"]["departments"] = ["No Such Department"]
+    with pytest.raises(FetchError, match="no request types for No Such Department"):
+        fetch_311.run(config, FakeSeeClickFix(services=[]), data, now=FETCHED_AT, detail_limit=0)
+    assert not (data / "311" / "requests.json").exists()
+
+
+def test_ward_source_and_scope_note_are_shown(config, data, tmp_path, monkeypatch):
+    from conftest import BUILT_AT, DATA_DIR
+    from pipeline import build_site
+    config["seeclickfix"].update(wards_publisher="NH GRANIT", wards_year=2022, wards_url="https://example.org/wards",
+                                 scope_note="Public Works requests only.")
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=DATA_DIR, now=BUILT_AT)
+    ward = next((out / "311" / "ward").glob("*/index.html")).read_text()
+    assert "Wards use the 2022 boundaries from NH GRANIT." in ward
+    methodology = (out / "311" / "methodology" / "index.html").read_text()
+    assert 'href="https://example.org/wards"' in methodology and "2022 NH GRANIT ward boundaries" in methodology
+    assert "<li>Public Works requests only.</li>" in methodology
+    assert "<p>Public Works requests only.</p>" in (out / "311" / "index.html").read_text()
+    about = (out / "about" / "index.html").read_text()
+    assert 'href="https://example.org/wards"' in about and ", 2022 boundaries." in about and "MassGIS" not in about

@@ -51,7 +51,7 @@
   <li><strong>Building and demolition permits:</strong> the city's <a href="{{ config.permits.page_url }}">Inspectional Services permit data</a> on its Data Hub, used for the <a href="/streets/">street lookup</a>.</li>
   {% endif %}
   {% if config.seeclickfix is defined %}
-  <li><strong>Ward maps:</strong> <a href="https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a">MassGIS</a>, 2022 boundaries.</li>
+  <li><strong>Ward maps:</strong> <a href="{{ wards.url }}">{{ wards.publisher }}</a>, {{ wards.year }} boundaries.</li>
   <li><strong>Street maps:</strong> <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, drawn with <a href="https://leafletjs.com">Leaflet</a>. Map images load from OpenStreetMap's servers.</li>
   {% endif %}
 </ul>
