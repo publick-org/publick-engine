@@ -2,7 +2,7 @@
 {% from "macros.html" import meeting_flags, describe_change, ai_credit %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
-{% block title %}{{ m.body }}, {{ m.date | date }}{% endblock %}
+{% block title %}{{ m.body }}, {{ m.date | date }}{% if m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
 {% block description %}{{ m.title }} meeting on {{ m.date | date }}{% if m.start_time %} at {{ m.start_time | time }}{% endif %}: {% if m.minutes_doc %}decisions, minutes, and agenda{% else %}location, how to attend, and agenda{% endif %}.{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, not from the city calendar. #}
@@ -19,11 +19,12 @@
   <p class="lede"><time datetime="{{ m.date }}{% if m.start_time %}T{{ m.start_time }}{% endif %}">{{ m.date | date }}{% if m.start_time %} · {{ m.start_time | time }}{% endif %}</time>{% if m.special %} · Special meeting{% endif %}</p>
   {% if m.status != "scheduled" or not m.listed %}<p>{{ meeting_flags(m) }}</p>{% endif %}
   {% set upcoming = m.date >= built_at.date().isoformat() %}
-  {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc %}
+  {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc or m.documents_url %}
   <div class="actions">
     {% if m.remote_url and upcoming %}<a class="button button-primary" href="{{ m.remote_url }}">Join online (Zoom)</a>{% endif %}
     {% if m.minutes_doc %}<a class="button" href="{{ m.minutes_doc.source_url }}">Minutes (PDF)</a>{% endif %}
-    {% if m.agenda %}<a class="button" href="{{ m.agenda.source_url }}">Agenda (PDF)</a>{% endif %}
+    {% if m.agenda %}<a class="button" href="{{ m.agenda.source_url }}">Agenda (PDF)</a>
+    {% elif m.documents_url %}<a class="button" href="{{ m.documents_url }}">{{ "Agenda and minutes" if m.source == "civicclerk" and not upcoming else "Agenda" }}</a>{% endif %}
   </div>
   {% endif %}
 </div>
@@ -31,12 +32,12 @@
 {% set has_where = m.location_name or m.address or m.location %}
 {% if has_where or m.remote_url or not documents_only %}
 <dl class="facts">
-  <div><dt>Where</dt><dd>{% if m.location_name %}{{ m.location_name }}<br>{% endif %}{{ m.address or m.location or ("Not listed" if documents_only else "Not listed on the city calendar") }}</dd></div>
+  <div><dt>Where</dt><dd>{% if m.location_name %}{{ m.location_name }}{% if m.address or m.location %}<br>{{ m.address or m.location }}{% endif %}{% else %}{{ m.address or m.location or ("Not listed" if documents_only else "Not listed on the " ~ m.listing) }}{% endif %}</dd></div>
   {% if m.remote_url %}<div><dt>Online</dt><dd><a href="{{ m.remote_url }}">Join by Zoom</a></dd></div>{% endif %}
   {% if not m.start_time and not documents_only %}<div><dt>Time</dt><dd>Not listed</dd></div>{% endif %}
   {% if m.end_time %}<div><dt>Scheduled until</dt><dd>{{ m.end_time | time }}</dd></div>{% endif %}
 </dl>
-{% if not documents_only and m.agenda %}<p class="small">Location from the city calendar. The posted agenda is the official notice; check it if the two differ.</p>{% endif %}
+{% if not documents_only and m.agenda %}<p class="small">Location from the {{ m.listing }}. The posted agenda is the official notice; check it if the two differ.</p>{% endif %}
 {% endif %}
 
 {% set part = config.get("participation", {}).get(m.body, {}) %}
@@ -50,13 +51,26 @@
   {% if m.remote_url %}<li>Watch or take part online: <a href="{{ m.remote_url }}">join by Zoom</a>.</li>{% endif %}
   {% if part.get("comment") %}<li>{{ part.comment }} Source: <a href="{{ part.source_url }}">{{ part.source_title }}</a>.</li>{% endif %}
   {% if part.get("video_url") %}<li>Meetings are broadcast and recorded by <a href="{{ part.video_url }}">{{ part.video_title }}</a>.</li>{% endif %}
-  {% if m.agenda %}<li>The <a href="{{ m.agenda.source_url }}">posted agenda</a> is the official notice. It may give instructions for public comment.</li>{% endif %}
-  <li>For official email or text alerts about this board, sign up for the city's <a href="{{ config.meetings.base_url }}/list.aspx">Notify Me</a> service.</li>
+  {% if m.agenda or m.documents_url %}<li>The <a href="{{ m.agenda.source_url if m.agenda else m.documents_url }}">posted agenda</a> is the official notice. It may give instructions for public comment.</li>{% endif %}
+  {% if meeting_links.notify %}<li>For official email or text alerts about this board, sign up for the city's <a href="{{ meeting_links.notify }}">Notify Me</a> service.</li>{% endif %}
 </ul>
 {% elif part.get("video_url") %}
 <p>Recordings of {{ m.body }} meetings: <a href="{{ part.video_url }}">{{ part.video_title }}</a>.</p>
 {% endif %}
 
+{% if not meeting_links.documents %}
+{# A town that doesn't collect agendas and minutes yet links to where the city posts them. #}
+<h2 id="agenda">Agenda and minutes</h2>
+{% if m.documents_url and m.source == "civicclerk" %}
+<p>{{ "The agenda is" if upcoming else "The agenda and minutes are" }} on the <a href="{{ m.documents_url }}">city's meeting portal</a>.{% if not upcoming %} Minutes are posted after the board approves them, usually at a later meeting.{% endif %}</p>
+{% elif m.documents_url %}
+<p>The <a href="{{ m.documents_url }}">agenda</a> is posted on the city website.{% if not upcoming and meeting_links.archive %} Minutes are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.{% endif %}</p>
+{% elif upcoming %}
+<p>No agenda posted yet.</p>
+{% elif meeting_links.archive %}
+<p>Agendas and minutes are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>
+{% endif %}
+{% else %}
 {% if m.minutes_doc %}
 {% set ms = m.minutes_summary %}
 <h2 id="minutes">What was decided</h2>
@@ -136,11 +150,12 @@
 {% elif m.date >= built_at.date().isoformat() %}
 <p>No agenda posted yet.</p>
 {% elif m.source == "archive" %}
-<p>Agenda not recorded here. It may be in the city's <a href="{{ config.meetings.base_url }}/Archive.aspx">Archive Center</a>.</p>
+<p>Agenda not recorded here. It may be in the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>
 {% elif m.source == "drive" %}
 <p>Agenda not recorded here. It may be on the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>.</p>
 {% else %}
 <p>No agenda was posted.</p>
+{% endif %}
 {% endif %}
 
 {% if m.glossary %}
@@ -154,7 +169,7 @@
 <h2 id="changes">Changes since posting</h2>
 <ul class="timeline">
   {% for h in m.history | reverse %}
-  <li><time datetime="{{ h.at }}">{{ h.at | timestamp }}</time>{{ describe_change(h) }}</li>
+  <li><time datetime="{{ h.at }}">{{ h.at | timestamp }}</time>{{ describe_change(h, m.listing) }}</li>
   {% endfor %}
 </ul>
 {% endif %}
@@ -164,6 +179,8 @@
 <p>This meeting is known from its <a href="{{ m.minutes_doc.source_url }}">minutes in the City of {{ town.name }} Archive Center</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% elif m.source == "drive" %}
 <p>This meeting is known from the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>. It was not found on the City of {{ town.name }} calendar. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
+{% elif m.source == "civicclerk" %}
+<p><a href="{{ m.source_url }}">This meeting on the City of {{ town.name }}'s meeting portal</a> (CivicClerk). First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% else %}
 <p><a href="{{ m.source_url }}">This meeting on the City of {{ town.name }} calendar</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% endif %}

@@ -1,10 +1,16 @@
-"""Collect public meetings from the city calendar and archive their agendas.
+"""Collect public meetings from the city's calendars and archive their agendas.
 
 Writes data/meetings/meetings.json (one record per meeting, never deleted) and
 saves each posted agenda PDF under data/meetings/agendas/ (or in the town's
 bucket; see pipeline/documents.py). Changes the city
 makes after posting (new time, new place, revised agenda, cancellation) are
 recorded in each meeting's history so they stay visible.
+
+A town's calendars are the tables in [meetings]: a CivicPlus calendar feed
+(calendar_feed, which also saves agendas), a CivicClerk portal ([meetings.civicclerk])
+and a DotNetNuke city calendar ([meetings.dnn]). A town can have several;
+Manchester's aldermanic meetings are on CivicClerk and its other boards on the
+city calendar.
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -18,13 +24,15 @@ import io
 import json
 import re
 import sys
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Callable
 from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import civicplus
+from pipeline import civicclerk, civicplus, dnn
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
@@ -138,6 +146,115 @@ def adopt_drive_meeting(store: dict, event: dict) -> dict | None:
     return None
 
 
+@dataclass
+class Calendar:
+    """One place the city lists its meetings.
+
+    events(client, today, store) returns the meetings it lists now. owns(meeting)
+    says whether a recorded meeting came from it, so one that drops off can be
+    marked as removed. details(client, meeting, storage, stamp), if any, reads
+    an upcoming meeting's own page."""
+    name: str
+    events: Callable[..., list[dict]]
+    owns: Callable[[dict], bool]
+    details: Callable[..., None] | None = None
+
+
+def matches(settings: dict, title: str) -> bool:
+    """Whether a calendar entry is a public meeting, by the calendar's
+    include_pattern and exclude_pattern (both optional)."""
+    include, exclude = settings.get("include_pattern"), settings.get("exclude_pattern")
+    return (not include or bool(re.search(include, title, re.I))) and not (exclude and re.search(exclude, title, re.I))
+
+
+def civicplus_calendar(config: dict) -> Calendar:
+    """The CivicPlus calendar feed, with each event page's location and agenda."""
+    source = config["meetings"]
+    base_url = source["base_url"]
+
+    def events(client, today, store):
+        feed = client.get(base_url.rstrip("/") + "/" + source["calendar_feed"].lstrip("/"))
+        return [e for e in civicplus.parse_calendar_feed(feed.content, base_url) if matches(source, e["title"])]
+
+    def details(client, meeting, storage, stamp):
+        page = client.get(meeting["source_url"])
+        found = civicplus.parse_event_page(page.text, base_url)
+        merge(meeting, {k: found[k] for k in ("location_name", "address", "remote_url") if found.get(k)}, stamp, track=True)
+        fetch_agenda(client, meeting, found, storage, stamp)
+
+    return Calendar("city calendar", events, lambda m: m.get("source", "calendar") == "calendar" and not m["id"].startswith("dnn-"), details)
+
+
+def civicclerk_calendar(config: dict) -> Calendar:
+    """Meetings on the city's CivicClerk portal ([meetings.civicclerk])."""
+    source = config["meetings"]
+    settings = source["civicclerk"]
+    states = {config["town"]["state"]: config["town"]["state_abbr"]}
+
+    def events(client, today, store):
+        since = date.fromisoformat(settings["since"])
+        # The first run collects every meeting since `since`. Later runs re-read
+        # the last few weeks and everything ahead, where changes happen.
+        if any(m.get("source") == "civicclerk" for m in store.values()):
+            since = max(since, today - timedelta(days=settings.get("recheck_days", 60)))
+        url, found = civicclerk.events_url(settings["api_url"], since), []
+        for _ in range(settings.get("max_pages", 200)):
+            data = client.get(url).json()
+            found += civicclerk.parse_events(data, settings["portal_url"], source.get("boards", []), source.get("aliases", {}), states)
+            url = civicclerk.next_page(data)
+            if not url:
+                break
+        return [e for e in found if matches(settings, e["title"])]
+
+    return Calendar("CivicClerk", events, lambda m: m.get("source") == "civicclerk")
+
+
+def dnn_calendar(config: dict) -> Calendar:
+    """Meetings on a DotNetNuke city calendar ([meetings.dnn]), month by month."""
+    source = config["meetings"]
+    settings = source["dnn"]
+    calendar_url = settings["calendar_url"]
+    # Meetings this calendar links to CivicClerk are collected from CivicClerk.
+    portal = source.get("civicclerk", {}).get("portal_url")
+
+    def events(client, today, store):
+        month = today.replace(day=1)
+        if not any(m["id"].startswith("dnn-") for m in store.values()):
+            month = date.fromisoformat(settings.get("since", month.isoformat())).replace(day=1)
+        last = today.replace(day=1)
+        for _ in range(settings.get("months_ahead", 1)):
+            last = (last + timedelta(days=32)).replace(day=1)
+        found = {}
+        while month <= last:
+            page = client.get(dnn.month_url(calendar_url, settings["module_id"], month))
+            for e in dnn.parse_month(page.text, calendar_url, source.get("boards", []), source.get("aliases", {})):
+                links = e.pop("links")
+                if (portal and any(link["url"].startswith(portal) for link in links)) or not matches(settings, e["title"]):
+                    continue
+                e["documents_url"] = next((link["url"] for link in links if "agenda" in link["text"].lower()), None)
+                found[e["id"]] = e
+            month = (month + timedelta(days=32)).replace(day=1)
+        return list(found.values())
+
+    def details(client, meeting, storage, stamp):
+        merge(meeting, dnn.parse_event_page(client.get(meeting["source_url"]).text), stamp, track=True)
+
+    return Calendar("city calendar", events, lambda m: m["id"].startswith("dnn-"), details)
+
+
+def calendars(config: dict) -> list[Calendar]:
+    """The town's meeting calendars, by the tables in [meetings]."""
+    source = config["meetings"]
+    found = []
+    if "calendar_feed" in source:
+        found.append(civicplus_calendar(config))
+    if "civicclerk" in source:
+        found.append(civicclerk_calendar(config))
+    if "dnn" in source:
+        found.append(dnn_calendar(config))
+    return found
+
+
 def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
     """Update the meetings store. Returns a summary for logging."""
     tz = ZoneInfo(config["site"]["timezone"])
@@ -145,70 +262,84 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     stamp = now.isoformat(timespec="seconds")
     today = now.date()
     source = config["meetings"]
-    base_url = source["base_url"]
-    include = re.compile(source["include_pattern"], re.I)
     aliases = source.get("aliases", {})
 
     store = load_store(data_dir)
     storage = open_documents(config, data_dir)
-    feed = client.get(base_url.rstrip("/") + "/" + source["calendar_feed"].lstrip("/"))
-    events = [e for e in civicplus.parse_calendar_feed(feed.content, base_url) if include.search(e["title"])]
-
-    seen = set()
+    status_path = meetings_dir(data_dir) / "status.json"
+    previous = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
+    # Each calendar's last successful check, kept when a check fails.
+    checked = {name: c for name, c in previous.get("calendars", {}).items()}
+    errors, failed = [], []
+    seen: dict[str, Calendar] = {}
     new_count = 0
-    for event in events:
-        seen.add(event["id"])
-        event["body"] = normalize_body(event["body"], aliases)
-        event.pop("raw_title", None)
-        meeting = store.get(event["id"]) or adopt_drive_meeting(store, event)
-        if meeting is None:
-            meeting = store[event["id"]] = {
-                "id": event["id"],
-                "first_seen": stamp,
-                "slug": unique_slug(f"{event['date']}-{slugify(event['body'])}", store),
-            }
-            new_count += 1
-        merge(meeting, {**event, "listed": True}, stamp, track=True)
-        meeting["last_seen"] = stamp
-
-    # A future meeting that drops out of the feed while other meetings on or
-    # after its date are still listed was most likely removed by the city.
-    latest_listed = max((e["date"] for e in events), default=None)
-    for meeting in store.values():
-        if meeting["id"] in seen or not meeting.get("listed", True):
+    for calendar in calendars(config):
+        try:
+            events = calendar.events(client, today, store)
+        except FetchError as e:
+            # Keep what is recorded; the site shows when meetings were last checked.
+            errors.append(f"{calendar.name}: {e}")
+            failed.append(calendar.name)
             continue
-        if meeting["date"] >= today.isoformat() and latest_listed and meeting["date"] <= latest_listed:
-            merge(meeting, {"listed": False}, stamp, track=True)
+        checked[calendar.name] = {"updated_at": stamp, "listed": len(events)}
+        for event in events:
+            seen[event["id"]] = calendar
+            event["body"] = normalize_body(event["body"], aliases)
+            event.pop("raw_title", None)
+            meeting = store.get(event["id"]) or adopt_drive_meeting(store, event)
+            if meeting is None:
+                meeting = store[event["id"]] = {
+                    "id": event["id"],
+                    "first_seen": stamp,
+                    "slug": unique_slug(f"{event['date']}-{slugify(event['body'])}", store),
+                }
+                new_count += 1
+            merge(meeting, {**event, "listed": True}, stamp, track=True)
+            meeting["last_seen"] = stamp
 
-    # Event pages hold the agenda link and full location. Only upcoming
-    # meetings are re-checked, so a run makes a few dozen requests at most.
-    errors = []
+        # A future meeting that drops off its calendar while other meetings on
+        # or after its date are still listed was most likely removed by the city.
+        latest_listed = max((e["date"] for e in events), default=None)
+        for meeting in store.values():
+            if meeting["id"] in seen or not meeting.get("listed", True) or not calendar.owns(meeting):
+                continue
+            if meeting["date"] >= today.isoformat() and latest_listed and meeting["date"] <= latest_listed:
+                merge(meeting, {"listed": False}, stamp, track=True)
+
+    # Event pages hold details the listing leaves out (location, agenda). Only
+    # upcoming meetings are re-checked, so a run makes a few dozen requests at most.
     pages = 0
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"])):
-        if meeting["id"] not in seen or meeting["date"] < today.isoformat():
+        calendar = seen.get(meeting["id"])
+        if not calendar or not calendar.details or meeting["date"] < today.isoformat():
             continue
         if pages >= source.get("max_event_pages", 40):
             break
         try:
-            page = client.get(meeting["source_url"])
             pages += 1
-            details = civicplus.parse_event_page(page.text, base_url)
-            merge(meeting, {k: details[k] for k in ("location_name", "address", "remote_url") if details.get(k)}, stamp, track=True)
-            fetch_agenda(client, meeting, details, storage, stamp)
+            calendar.details(client, meeting, storage, stamp)
             meeting["checked_at"] = stamp
         except FetchError as e:
             errors.append(str(e))
 
     save_json(meetings_dir(data_dir) / "meetings.json", store)
+    names = [c.name for c in calendars(config)]
+    checked = {name: c for name, c in checked.items() if name in names}
+    # Meetings are as fresh as the calendar checked longest ago, so the site's
+    # "checked" date and the stale-data alert (pipeline/freshness.py) notice
+    # one calendar failing day after day. One never checked counts from the last update.
+    since_last = previous.get("updated_at", stamp)
     status = {
-        "updated_at": stamp,
-        "listed_in_feed": len(events),
+        "updated_at": min([checked[n]["updated_at"] if n in checked else since_last for n in names], default=stamp),
+        "listed_in_feed": sum(checked[n]["listed"] for n in names if n in checked and n not in failed),
+        "calendars": checked,
         "new_meetings": new_count,
         "event_pages_checked": pages,
         "requests": getattr(client, "request_count", None),
         "errors": errors,
+        "failed_calendars": failed,
     }
-    save_json(meetings_dir(data_dir) / "status.json", status)
+    save_json(status_path, status)
     return status
 
 
@@ -221,15 +352,14 @@ def main() -> int:
     if not configured(config, "meetings"):
         return 0
     client = PoliteClient(config["site"]["user_agent"], delay=config["meetings"].get("request_delay", 3.0))
-    try:
-        status = run(config, client, args.data)
-    except FetchError as e:
-        # Keep the existing data; the site shows when it was last updated.
-        print(f"::error::Meetings feed could not be fetched: {e}")
-        return 1
+    status = run(config, client, args.data)
     print(json.dumps(status, indent=2))
     for error in status["errors"]:
         print(f"::warning::{error}")
+    if status["failed_calendars"]:
+        # Other calendars' updates are kept; the site shows when meetings were last checked.
+        print(f"::error::Meetings could not be fetched from: {', '.join(status['failed_calendars'])}")
+        return 1
     return 0
 
 

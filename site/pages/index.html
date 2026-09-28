@@ -5,7 +5,7 @@
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
 <h1>This week in {{ town.name }}</h1>
 {% if config.meetings is defined %}
-<p class="lede">What's coming up at City Hall, what was decided, and how the city is doing. Updated every morning.</p>
+<p class="lede">What's coming up at City Hall,{% if meeting_links.documents %} what was decided,{% endif %} and how the city is doing. Updated every morning.</p>
 {% else %}
 <p class="lede">How the city is doing, from public data. Updated every morning.</p>
 {% endif %}
@@ -43,7 +43,7 @@
 {% else %}
 <p>No public meetings are listed on the city calendar for the next seven days.</p>
 {% endif %}
-<p class="small">For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ config.meetings.base_url }}/list.aspx">Notify Me</a> service.</p>
+{% if meeting_links.notify %}<p class="small">For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ meeting_links.notify }}">Notify Me</a> service.</p>{% endif %}
 
 {# ---- Decided ---- #}
 {% if meetings.final %}
@@ -89,7 +89,7 @@
   {% endfor %}
 </ul>
 <ul class="link-row">
-  {% if config.meetings is defined %}
+  {% if config.meetings is defined and meeting_links.documents %}
   <li><a href="/feed.xml">Follow City Hall updates by RSS</a></li>
   {% endif %}
   <li><a href="{{ town.official_site }}">City services and news</a></li>
