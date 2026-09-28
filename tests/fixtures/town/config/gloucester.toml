@@ -1,0 +1,334 @@
+# Site configuration for one town. Everything town-specific lives here so the
+# same code can build another town's site from another file in this folder.
+# Build with: python -m pipeline.build_site --town gloucester
+
+[site]
+name = "Gloucester Publick"
+# The masthead shows name_prefix in dark ink and name_suffix in maroon: the
+# town, then the network. The icon (site/static/favicon.svg) is the network's
+# P in the headline font, the same for every town.
+name_prefix = "Gloucester "
+name_suffix = "Publick"
+domain = "gloucester-ma.publick.org"
+# The network of town sites this one belongs to, named in every page footer.
+# network_url links the name once the network has its own home page.
+network = "Publick"
+# network_url = "https://publick.org"
+tagline = "Public data on how Gloucester, Massachusetts responds, decides, and spends. Updated daily."
+# One line under the name at the top of every page.
+masthead = "An independent guide to city government in Gloucester, Massachusetts"
+repo_url = "https://github.com/publick-org/gloucester-ma"
+# Public contact address. Shown on the About and Accessibility pages when set.
+contact_email = "gloucester-ma@publick.org"
+timezone = "America/New_York"
+user_agent = "gloucester-ma.publick.org (+https://gloucester-ma.publick.org/about/)"
+
+[town]
+name = "Gloucester"
+state = "Massachusetts"
+state_abbr = "MA"
+official_site = "https://gloucester-ma.gov"
+
+# Sections appear in the main navigation in this order. Each one is a folder
+# under site/pages/<slug>/ and is served at https://<domain>/<slug>/.
+# status: "planned" shows an "In development" label; "live" removes it.
+[[sections]]
+slug = "meetings"
+title = "Meetings"
+summary = "Every board and committee meeting on the city calendar, with agendas, and minutes from late June 2026 on."
+status = "live"
+
+[[sections]]
+slug = "311"
+title = "311 Requests"
+nav = "311"
+summary = "How fast the city responds to service requests, by category and ward."
+status = "live"
+
+[[sections]]
+slug = "schools"
+title = "Schools"
+summary = "Graduation, attendance, and MCAS results compared with the state, and a link to the Gloucester Schools Report."
+status = "live"
+
+[[sections]]
+slug = "budget"
+title = "City budget"
+nav = "Budget"
+summary = "Where general fund money comes from and how it is spent, reserves, and the property tax limit."
+status = "live"
+
+[[sections]]
+slug = "housing"
+title = "Housing"
+summary = "New homes permitted, home values and rents, affordable housing, and the housing stock."
+status = "live"
+
+[[sections]]
+slug = "about"
+title = "About"
+summary = "Data sources, update schedule, metric definitions, and corrections."
+status = "live"
+
+# Page view counting with GoatCounter (goatcounter.com): no cookies, no
+# personal data, and never what someone searched for. Set goatcounter to the
+# account's code (the "xyz" in xyz.goatcounter.com) to turn it on; leave it
+# empty to count nothing. public_stats is the account's public dashboard URL,
+# if it has one; the About page links it.
+[analytics]
+goatcounter = "opengloucester"
+public_stats = ""
+
+# Public meetings, from the city's CivicPlus calendar.
+[meetings]
+base_url = "https://www.gloucester-ma.gov"
+calendar_feed = "RSSFeed.aspx?ModID=58&CID=All-calendar.xml"
+# Calendar entries whose title matches this are public meetings; the rest
+# (festivals, community events) are skipped.
+include_pattern = '\b(board|commission|committee|subcommittee|council|authority|trust|meeting|hearing)\b'
+request_delay = 3.0
+max_event_pages = 40
+
+# Calendar names mapped to one consistent name per public body.
+[meetings.aliases]
+"Gloucester Historical Commission" = "Historical Commission"
+"Ordinances & Administration" = "City Council Ordinances & Administration Committee"
+"Planning & Development" = "City Council Planning & Development Committee"
+"Budget & Finance" = "City Council Budget & Finance Committee"
+"Program Subcommittee" = "School Committee Program Subcommittee"
+
+# 311 requests, from SeeClickFix (public requests only).
+[seeclickfix]
+organization_id = 547
+open311_base = "https://seeclickfix.com/open311/v2"
+api_base = "https://seeclickfix.com/api/v2"
+report_url = "https://www.gloucester-ma.gov/835/Citizen-Request"
+# SeeClickFix documents a limit of 20 requests per minute.
+request_delay = 3.2
+recent_days = 21
+max_details_per_run = 700
+time_budget_seconds = 2400
+# The month the full history starts (python -m pipeline.fetch_311 --backfill).
+# Older requests are included only while they are still open.
+history_since = "2024-01"
+precincts_file = "gloucester-precincts-2022.geojson"
+
+# Repeat locations: requests in the same category within radius_m meters and
+# window_days days of each other are grouped as one place.
+[seeclickfix.repeats]
+radius_m = 50
+window_days = 60
+recent_open_days = 30
+
+# Plain-English agenda text and previews, written by a language model and
+# labeled as AI-generated on the site. Cached by document hash.
+[storage]
+# Agenda and minutes PDFs live in this Cloudflare R2 bucket, not in git (see
+# pipeline/documents.py). Keys: STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY.
+endpoint = "https://6bbfee5a3892553c7993dbfa4b4e8453.r2.cloudflarestorage.com"
+bucket = "publick-documents"
+public_url = "https://files.publick.org"
+prefix = "gloucester-ma"
+
+[summaries]
+model = "claude-sonnet-5"
+max_per_run = 50
+# Prices per million tokens, for the spending limit below.
+input_price = 2.0
+output_price = 10.0
+max_cost_per_run = 5.0
+
+# Context for unusual months on the 311 scorecard. Each note must cite a source.
+[[seeclickfix.annotations]]
+month = "2025-07"
+text = "Republic Services trash and recycling workers went on strike July 1, 2025, and pickups were missed in parts of Gloucester."
+source_title = "WBUR, July 21, 2025"
+source_url = "https://www.wbur.org/news/2025/07/21/gloucester-massachusetts-republic-services-garbage-worker-strike"
+
+[[seeclickfix.annotations]]
+month = "2025-09"
+text = "The Republic Services strike that began July 1 went on until a deal was reached September 19, 2025."
+source_title = "WBUR, September 19, 2025"
+source_url = "https://www.wbur.org/news/2025/09/19/massachusetts-republic-teamsters-trash-strike-ends"
+
+# How residents can take part, per board, shown on its meeting pages. Only
+# what the city itself has published; each entry names its source.
+[participation."City Council"]
+comment = "The Council hears from residents during \"oral communications\" and at public hearings."
+source_title = "City Council FAQ"
+source_url = "https://gloucester-ma.gov/faq.aspx?TID=40"
+video_title = "1623 Studios"
+video_url = "https://1623studios.org/watch-content/government/"
+
+[participation."School Committee"]
+comment = "The public can attend School Committee meetings in person at Gloucester High School or remotely."
+source_title = "School Committee website"
+source_url = "https://schoolcommittee.gloucesterschools.com/"
+
+# Terms that come up on agendas and minutes, explained on each meeting page
+# where they appear. Acronyms match exactly; other terms ignore case. Use
+# "bodies" for a term that means something different at other boards.
+[[glossary]]
+term = "executive session"
+definition = "A part of a public meeting closed to the public. State law allows it only for specific reasons, such as lawsuits, negotiations, or personnel matters."
+
+[[glossary]]
+term = "M.G.L."
+definition = "Massachusetts General Laws, the state's laws."
+
+[[glossary]]
+term = "ADA"
+definition = "Americans with Disabilities Act, the federal law on access for people with disabilities."
+
+[[glossary]]
+term = "CPA"
+definition = "Community Preservation Act. A local property tax surcharge, with state matching money, that pays for open space, historic preservation, affordable housing, and recreation."
+
+[[glossary]]
+term = "ZBA"
+definition = "Zoning Board of Appeals."
+
+[[glossary]]
+term = "MACRIS"
+definition = "Massachusetts Cultural Resource Information System, the state's inventory of historic buildings and places."
+
+[[glossary]]
+term = "COA"
+definition = "Certificate of Appropriateness: the commission's approval for exterior changes to a building in a historic district."
+bodies = ["Historic District Commission"]
+
+[[glossary]]
+term = "PERAC"
+definition = "Public Employee Retirement Administration Commission, the state agency that oversees Massachusetts public retirement systems."
+
+[[glossary]]
+term = "PRIT"
+definition = "Pension Reserves Investment Trust, the state-run investment fund that local retirement systems can invest in."
+
+[[glossary]]
+term = "PRIM"
+definition = "Pension Reserves Investment Management Board, which manages the PRIT fund."
+
+[[glossary]]
+term = "warrant"
+definition = "The list of payments, such as pension checks and bills, that the board approves."
+bodies = ["Gloucester Retirement Board"]
+
+[[glossary]]
+term = "superannuation"
+definition = "Retirement based on age and years of service, rather than disability."
+bodies = ["Gloucester Retirement Board"]
+
+[[glossary]]
+term = "creditable service"
+definition = "Time worked that counts toward a pension."
+bodies = ["Gloucester Retirement Board"]
+
+[[glossary]]
+term = "COLA"
+definition = "Cost-of-living adjustment: an increase to retirees' pensions."
+bodies = ["Gloucester Retirement Board"]
+
+# Minutes from the city's Archive Center. Minutes for meetings on or after
+# minutes_since are collected; earlier ones can be added by moving the date back.
+[archive]
+index = "Archive.aspx"
+minutes_since = "2026-06-28"
+
+# Archive collection names mapped to the names used on the calendar.
+[archive.aliases]
+"Budget and Finance Standing Committee" = "City Council Budget & Finance Committee"
+"Budget and Finance Committee Annual Budget Review" = "City Council Budget & Finance Committee"
+"Ordinances and Administration Standing Committee" = "City Council Ordinances & Administration Committee"
+"Planning and Development Standing Committee" = "City Council Planning & Development Committee"
+"Contributory Retirement System" = "Gloucester Retirement Board"
+"Council on Aging" = "Council on Aging Board"
+
+# School district figures from the state's education data portal (DESE).
+# The schools page links to report_url for school-by-school detail.
+[schools]
+district_code = "01070000"
+district_name = "Gloucester Public Schools"
+portal = "https://educationtocareer.data.mass.gov"
+report_name = "Gloucester Schools Report"
+report_url = "https://gloucesterschoolsreport.com"
+
+# Tax bill and budget figures (Mass. Division of Local Services). Some DLS
+# reports take the name, others the DOR code.
+[finance]
+dls_municipality = "Gloucester"
+dls_code = "107"
+# The city's own budget documents, linked from the budget page.
+budget_documents_url = "https://www.gloucester-ma.gov/559/Budgets"
+
+# Housing: Census building permits (state and place FIPS codes), American
+# Community Survey through Census Reporter (geo ids), and the state's
+# Subsidized Housing Inventory PDF (the town's name as the PDF lists it).
+[housing]
+bps_region = "Northeast Region"
+bps_prefix = "ne"
+bps_state = "25"
+bps_place = "26150"
+census_geo = "16000US2526150"
+state_geo = "04000US25"
+shi_url = "https://www.mass.gov/doc/subsidized-housing-inventory-2/download"
+shi_name = "Gloucester"
+
+# Building and demolition permits, from the city's Data Hub: a CSV of every
+# Inspectional Services permit in a public Google Drive folder, linked from
+# page_url. Used by the street lookup.
+[permits]
+page_url = "https://gloucester-ma.gov/839/Inspectional-Services-Permit-Data"
+drive_folder = "1hsAMC0wjHIQZEsNre2DgGX7TnQSZEAQJ"
+file_prefix = "PublicData---InspSrvcs"
+types = ["Building Permit", "Building Permit (2017-2023)", "Demolition Permit"]
+years = 3
+
+# Unemployment rate (BLS Local Area Unemployment Statistics). City rates are
+# not seasonally adjusted; the state series is shown for context.
+[labor]
+local_series = "LAUCT252615000000003"
+state_series = "LAUST250000000000003"
+
+# How often each data source should update. The daily run fails (and GitHub
+# emails the owner) when one goes longer than max_days, and the About page
+# lists them. Daily sources allow one missed day; weekly ones, one missed week.
+[freshness]
+summary_grace_days = 2
+sources = [
+  { label = "Meetings calendar", file = "meetings/status.json", max_days = 2 },
+  { label = "311 requests", file = "311/status.json", max_days = 2 },
+  { label = "311 scorecard", file = "311/scorecard.json", field = "generated_at", max_days = 2 },
+  { label = "Unemployment rate (BLS)", file = "labor/unemployment.json", max_days = 3 },
+  { label = "School figures (DESE)", file = "schools/schools.json", max_days = 3 },
+  { label = "Average tax bill (Mass. DLS)", file = "finance/tax_bill.json", max_days = 7 },
+  { label = "City budget (Mass. DLS)", file = "finance/budget.json", max_days = 15 },
+  { label = "Housing figures", file = "housing/housing.json", max_days = 15 },
+  { label = "Building permits (city Data Hub)", file = "permits/permits.json", max_days = 15 },
+  { label = "School Committee documents (Google Drive)", file = "meetings/drive_status.json", max_days = 2 },
+]
+
+# School Committee and subcommittee agendas and minutes. The school district
+# posts them in public Google Drive folders, linked from the School Committee
+# website, rather than in the city's Archive Center. bodies maps the start of
+# each committee's folder name to the name used on the city calendar;
+# abbreviations are the committees' short names in file names.
+[drive_meetings]
+source_name = "Gloucester Public Schools"
+posted_on = "the School Committee's Google Drive"
+page_url = "https://schoolcommittee.gloucesterschools.com/"
+agendas_folder = "1u0gqwhSFwcyDGzaTmXkdV-yLzgevHozW"
+minutes_folder = "1uDibz6g_fSFrl7MwqyU_bt__Sb2C_iPB"
+since = "2026-06-28"
+# The district's list of meeting dates for the year; upcoming meetings are
+# shown from it up to schedule_days_ahead days out, before agendas are posted.
+schedule_url = "https://schoolcommittee.gloucesterschools.com/meeting-schedule"
+schedule_days_ahead = 45
+abbreviations = ["SC", "B&F", "B & F", "Program", "Personnel", "Ad Hoc Communications", "Communications"]
+
+[drive_meetings.bodies]
+"School Committee" = "School Committee"
+"Program Subcommittee" = "School Committee Program Subcommittee"
+"Building & Finance Subcommittee" = "School Committee Building & Finance Subcommittee"
+"Personnel Subcommittee" = "School Committee Personnel Subcommittee"
+"Ad Hoc Communications Subcommittee" = "School Committee Ad Hoc Communications Subcommittee"
