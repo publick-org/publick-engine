@@ -1,0 +1,31 @@
+name: Engine tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          python -m playwright install --with-deps chromium
+
+      # Pipeline parsing, page structure, links, and WCAG 2.2 AA checks, offline,
+      # against saved Gloucester data (tests/fixtures/).
+      - name: Test
+        run: python -m pytest
