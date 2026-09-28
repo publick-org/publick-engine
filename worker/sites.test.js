@@ -1,8 +1,9 @@
-// Run with: node --test worker/index.test.js
+// Run with: node --test worker/sites.test.js
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 
-import worker, { MANIFEST_TTL_MS, clearManifests, loadManifest, resolve } from "./index.js";
+import worker from "./index.js";
+import { MANIFEST_TTL_MS, clearManifests, loadManifest, resolve } from "./sites.js";
 
 function entry(blob, type = "text/html; charset=utf-8") {
   return { blob, type, size: `content ${blob}`.length };
@@ -134,4 +135,11 @@ test("resolve", () => {
   assert.deepEqual(resolve(files, "/about"), { redirect: "/about/" });
   assert.deepEqual(resolve(files, "/feed.xml"), { key: "feed.xml" });
   assert.deepEqual(resolve(files, "/%zz"), {});
+});
+
+test("the Worker's module exports only its handler", async () => {
+  // Workers treat every export of the main module as an entry point, and refuse anything else.
+  const module = await import("./index.js");
+  assert.deepEqual(Object.keys(module), ["default"]);
+  assert.equal(typeof module.default.fetch, "function");
 });
