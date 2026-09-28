@@ -1,0 +1,29 @@
+# When a release such as v1.2.0 is published, move its major tag (v1) to the
+# same commit, so towns pinned to @v1 take it on their next run.
+name: Move major version tag
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Move the major tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^(v[0-9]+)\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag $RELEASE_TAG is not vMAJOR.MINOR.PATCH; not moving a major tag."
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+          git tag -f "$major" "$RELEASE_TAG^{commit}"
+          git push -f origin "refs/tags/$major"
+          echo "Moved $major to $RELEASE_TAG."
