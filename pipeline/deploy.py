@@ -10,19 +10,20 @@ The bucket (Cloudflare R2, or any S3-compatible store) holds:
   sites/<domain>/current.json          the live build's manifest; the Worker
                                        (worker/index.js) reads this
 
-Publishing uploads only the blobs the bucket doesn't already have, writes the
-build's manifest, then replaces current.json in one write, so a visitor sees
-the old site or the new one, never a mix. Rolling back writes an earlier
-manifest to current.json.
+Publishing uploads every file the live build doesn't already use (on a daily
+run, only what changed), writes the build's manifest, then replaces
+current.json in one write, so a visitor sees the old site or the new one,
+never a mix. Rolling back writes an earlier manifest to current.json.
 
     python -m pipeline.deploy publish  [--town gloucester] [--site _site] [--domain ...]
     python -m pipeline.deploy rollback [--town gloucester] [--build BUILD] [--domain ...]
     python -m pipeline.deploy prune    [--keep 10] [--dry-run]
 
 prune deletes build manifests beyond the newest --keep for each site (never
-the live one), then blobs no remaining manifest uses. It must not run while a
-publish is running, since a publish may reuse a blob before its manifest
-exists; the network workflow runs it after its deploys, one run at a time.
+the live one), then blobs no remaining manifest uses and that are older than
+two days. It is safe while a publish runs: a publish relies only on blobs its
+site's live build uses, which prune keeps, and on blobs it has just uploaded,
+which are too new to delete.
 
 The bucket comes from the SITES_ENDPOINT and SITES_BUCKET environment
 variables, and its keys from SITES_ACCESS_KEY_ID and SITES_SECRET_ACCESS_KEY.
@@ -53,7 +54,8 @@ TYPES = {".js": "text/javascript", ".mjs": "text/javascript", ".json": "applicat
 TEXT = ("text/", "application/json", "application/geo+json", "application/manifest+json", "application/xml",
         "image/svg+xml")
 # A blob nothing uses is kept this long before prune deletes it, so a publish
-# that has uploaded blobs but not yet written its manifest keeps them.
+# that has uploaded blobs but not yet written its manifest keeps them. Must be
+# longer than any publish takes.
 BLOB_GRACE = timedelta(days=2)
 UPLOAD_THREADS = 16
 
@@ -132,7 +134,9 @@ def publish(client, bucket: str, site_dir: Path, domain: str, town: str = "",
     for rel, path in files.items():
         entries[rel] = {"blob": sha256(path), "type": content_type(rel), "size": path.stat().st_size}
 
-    # Blobs the live build uses are known to exist; ask about the rest, and upload what's missing.
+    # Blobs the live build uses are kept by prune, so they're safe to reuse. Everything else is
+    # uploaded, even if the bucket may have it: an old blob could be pruned before this build's
+    # manifest is written, and uploading it again makes it new.
     live = get_json(client, bucket, site_key(domain, "current.json"))
     known = {e["blob"] for e in (live or {}).get("files", {}).values()}
     paths = {}
@@ -140,16 +144,14 @@ def publish(client, bucket: str, site_dir: Path, domain: str, town: str = "",
         if entry["blob"] not in known:
             paths.setdefault(entry["blob"], files[rel])
 
-    def upload(item) -> bool:
+    def upload(item) -> None:
         blob, path = item
-        if blob_exists(client, bucket, blob):
-            return False
         client.put_object(Bucket=bucket, Key=f"blobs/{blob}", Body=path.read_bytes(),
                           ContentType="application/octet-stream")
-        return True
 
     with ThreadPoolExecutor(UPLOAD_THREADS) as pool:
-        uploaded = sum(pool.map(upload, paths.items()))
+        list(pool.map(upload, paths.items()))
+    uploaded = len(paths)
 
     digest = hashlib.sha256(json.dumps(entries, sort_keys=True).encode()).hexdigest()[:10]
     build = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{digest}"

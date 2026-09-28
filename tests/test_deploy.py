@@ -1,5 +1,6 @@
 """Publishing built sites to the sites bucket, rolling back, and pruning."""
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -104,7 +105,33 @@ def test_sites_share_identical_files(bucket, tmp_path):
     a = make_site(tmp_path / "a", {"static/site.css": "body{}"})
     b = make_site(tmp_path / "b", {"static/site.css": "body{}", "index.html": "<h1>B</h1>"})
     deploy.publish(bucket, "b", a, "a.publick.org", now=NOW)
-    assert deploy.publish(bucket, "b", b, "b.publick.org", now=NOW)["uploaded"] == 1
+    deploy.publish(bucket, "b", b, "b.publick.org", now=NOW)
+    assert len([k for k in bucket.objects if k.startswith("blobs/")]) == 3
+
+
+def test_publish_reuploads_a_file_prune_could_take(bucket, tmp_path):
+    """A file no build uses may be pruned at any moment. Publishing it again makes it new, so a prune running
+    before this build's manifest is written keeps it."""
+    site = make_site(tmp_path, {})
+    deploy.publish(bucket, "b", site, "t.publick.org", now=NOW)
+    old = "blobs/" + hashlib.sha256(b"<h1>Back again</h1>").hexdigest()
+    bucket.put_object(Bucket="b", Key=old, Body=b"<h1>Back again</h1>")
+    bucket.objects[old]["modified"] = NOW - timedelta(days=30)
+    (site / "index.html").write_text("<h1>Back again</h1>")
+    bucket.clock = NOW + timedelta(days=1)
+    real_put = deploy.put_json
+
+    def prune_before_manifest(client, bucket_name, key, data):
+        if key.endswith(".json") and "/builds/" in key:
+            deploy.prune(client, bucket_name, now=bucket.clock)
+        real_put(client, bucket_name, key, data)
+
+    deploy.put_json = prune_before_manifest
+    try:
+        deploy.publish(bucket, "b", site, "t.publick.org", now=bucket.clock)
+    finally:
+        deploy.put_json = real_put
+    assert old in bucket.objects
 
 
 def test_needs_a_built_site(bucket, tmp_path):

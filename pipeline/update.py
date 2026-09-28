@@ -77,7 +77,7 @@ def run_step(source: Source, town: str, timeout: float | None) -> dict:
         code = subprocess.run(command(source, town), env=step_env(source), timeout=timeout).returncode
         error = None if code == 0 else f"exited with status {code}"
     except subprocess.TimeoutExpired:
-        error = f"stopped after {timeout:.0f} seconds"
+        error = f"stopped after {timeout:g} seconds"
     return {"name": source.name, "ok": error is None, "required": source.required,
             "error": error, "seconds": round(time.monotonic() - started, 1)}
 

@@ -11,12 +11,15 @@ if git diff --cached --quiet; then
   exit 0
 fi
 git commit -m "$message $(TZ=America/New_York date +%Y-%m-%d)"
-# Code may have been pushed while this job ran; replay the data commit on top.
-for attempt in 1 2 3; do
+# Code, or another job's data, may have been pushed while this job ran; replay
+# the data commit on top. COMMIT_ATTEMPTS raises the tries for a workflow with
+# many jobs pushing at once; the random wait keeps them from retrying together.
+attempts="${COMMIT_ATTEMPTS:-3}"
+for attempt in $(seq 1 "$attempts"); do
   if git pull --rebase origin main && git push; then
     exit 0
   fi
-  sleep $((attempt * 10))
+  sleep $((attempt * 10 + RANDOM % 10))
 done
 echo "Could not push data commit." >&2
 exit 1
