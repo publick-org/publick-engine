@@ -17,7 +17,7 @@
   <p class="lede">Next meeting: {{ b.next.date | date }}{% if b.next.start_time %} at {{ b.next.start_time | time }}{% endif %}</p>
   <div class="actions"><a class="button button-primary" href="{{ b.next.url }}">Next meeting details</a></div>
   {% else %}
-  <p class="lede">No upcoming meetings are listed on the city calendar.</p>
+  <p class="lede">No upcoming meetings are listed on the {{ b.meetings[0].listing }}.</p>
   {% endif %}
 </div>
 
@@ -26,8 +26,8 @@
 <ul>
   {% if part.get("comment") %}<li>{{ part.comment }} Source: <a href="{{ part.source_url }}">{{ part.source_title }}</a>.</li>{% endif %}
   {% if part.get("video_url") %}<li>Meetings are broadcast and recorded by <a href="{{ part.video_url }}">{{ part.video_title }}</a>.</li>{% endif %}
-  <li>For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ config.meetings.base_url }}/list.aspx">Notify Me</a> service.</li>
-  <li>New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.</li>
+  {% if meeting_links.notify %}<li>For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ meeting_links.notify }}">Notify Me</a> service.</li>{% endif %}
+  {% if meeting_links.documents %}<li>New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.</li>{% endif %}
 </ul>
 
 <h2>All recorded meetings</h2>
@@ -35,5 +35,5 @@
   {% for m in b.meetings %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
 </ul>
 {% set drive = (b.meetings | selectattr("source", "equalto", "drive") | list)[:1] %}
-<p class="source-note">Meetings recorded here start in {{ meetings.all[0].date | date("month") }}. Earlier meetings are on the {% if drive %}<a href="{{ drive[0].source_url }}">{{ drive[0].source_name }} website</a>{% else %}<a href="{{ config.meetings.base_url }}/Archive.aspx">city's Archive Center</a>{% endif %}.</p>
+<p class="source-note">Meetings recorded here start in {{ meetings.all[0].date | date("month") }}. {% if drive %}Earlier meetings are on the <a href="{{ drive[0].source_url }}">{{ drive[0].source_name }} website</a>.{% elif meeting_links.archive %}Earlier meetings are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.{% endif %}</p>
 {% endblock %}

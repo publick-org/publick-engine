@@ -5,14 +5,14 @@
 {% block content %}
 <div class="page-head">
   <h1>Meetings</h1>
-  <p class="lede">City Council, boards, and committees: when they meet, what's on the agenda, and what they decided.</p>
+  <p class="lede">{{ meeting_links.governing_body }}, boards, and committees: when they meet{% if meeting_links.documents %}, what's on the agenda, and what they decided{% endif %}.</p>
   <ul class="link-row">
     <li><a href="/meetings/boards/">Boards and committees</a></li>
-    <li><a href="/meetings/decisions/">Decisions</a></li>
-    <li><a href="/streets/">Your street</a></li>
+    {% if meeting_links.documents %}<li><a href="/meetings/decisions/">Decisions</a></li>{% endif %}
+    {% if street_sources %}<li><a href="/streets/">Your street</a></li>{% endif %}
     <li><a href="/meetings/past/">Past meetings</a></li>
   </ul>
-  {{ search_form() }}
+  {% if meeting_links.documents %}{{ search_form() }}{% endif %}
 </div>
 
 <h2 id="upcoming">Upcoming</h2>
@@ -21,6 +21,6 @@
 {% else %}
 <p>No upcoming meetings are listed on the city calendar right now.</p>
 {% endif %}
-<p class="source-note">From the <a href="{{ config.meetings.base_url }}/calendar.aspx">city calendar</a>. Community events are left out.{% if meetings.status %} Checked <time datetime="{{ meetings.status.updated_at }}">{{ meetings.status.updated_at | timestamp }}</time>.{% endif %}</p>
+<p class="source-note">From the <a href="{{ meeting_links.calendar }}">city calendar</a>{% if meeting_links.portal %} and the city's <a href="{{ meeting_links.portal }}">meeting portal</a>{% endif %}. Community events are left out.{% if meetings.status %} Checked <time datetime="{{ meetings.status.updated_at }}">{{ meetings.status.updated_at | timestamp }}</time>.{% endif %}</p>
 
 {% endblock %}

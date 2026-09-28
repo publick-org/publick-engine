@@ -17,5 +17,5 @@
 {% else %}
 <p>No past meetings have been recorded yet. This list fills in as meetings take place.</p>
 {% endif %}
-<p class="source-note">Meetings before this site began recording are on the <a href="{{ config.meetings.base_url }}/Archive.aspx">city's Archive Center</a>.</p>
+{% if meeting_links.archive %}<p class="source-note">Meetings before this site began recording are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>{% endif %}
 {% endblock %}
