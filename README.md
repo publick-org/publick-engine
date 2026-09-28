@@ -141,7 +141,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    |---|---|---|
    | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
-   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix; needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`, like Gloucester's from MassGIS |
+   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget (Mass. DLS) | Massachusetts |
    | `[schools]` | DESE | Massachusetts districts |
    | `[housing]` | Census and the Subsidized Housing Inventory | Anywhere for the Census parts; leave out `shi_url` outside Massachusetts. Parcel counts need `[finance]` |
