@@ -18,7 +18,7 @@ import hashlib
 import json
 import re
 import shutil
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 from email.utils import format_datetime
 from pathlib import Path
@@ -299,6 +299,9 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     for m in meetings:
         for key, default in optional.items():
             m.setdefault(key, default)
+        m.setdefault("documents_url", None)
+        # Where the meeting is listed, in sentences like "Removed from the city calendar".
+        m["listing"] = "city's meeting portal" if m["source"] == "civicclerk" else "city calendar"
         m["url"] = f"/meetings/{m['slug']}/"
         m["body_slug"] = slugify(m["body"])
         m["body_url"] = f"/meetings/boards/{m['body_slug']}/"
@@ -323,6 +326,12 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             " ".join([m["preview"].get("summary") or "", m["preview"].get("transcript") or "", *m["preview"].get("items", [])])))
         m["preview_line"] = preview_line(m)
         m["glossary"] = glossary_for(m, glossary or [])
+
+    # A board that meets more than once in a day (a hearing, then its regular
+    # meeting) needs each meeting told apart in page titles and lists.
+    per_day = Counter((m["date"], m["body_slug"]) for m in meetings)
+    for m in meetings:
+        m["same_day"] = per_day[(m["date"], m["body_slug"])] > 1
 
     today_s = today.isoformat()
     upcoming = [m for m in meetings if m["date"] >= today_s]
@@ -352,6 +361,27 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "status": status,
         "tracking_since": min((m["first_seen"] for m in meetings), default=None),
     }
+
+
+def meeting_links(config: dict) -> dict:
+    """The city's own meeting pages, linked from this site's, and whether the
+    town collects agendas and minutes ([meetings] documents, default true). The
+    defaults are a CivicPlus site's addresses."""
+    m = config.get("meetings", {})
+    base = m.get("base_url", "").rstrip("/")
+    return {
+        "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
+        "portal": m.get("civicclerk", {}).get("portal_url"),
+        "archive": m.get("archive_url") or (f"{base}/Archive.aspx" if base else None),
+        "archive_name": m.get("archive_name", "city's Archive Center"),
+        "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
+        "governing_body": m.get("governing_body", "City Council"),
+        "documents": m.get("documents", True),
+    }
+
+
+# Pages about agendas and minutes, left out for a town that doesn't collect them yet.
+DOCUMENT_PAGES = {"meetings/decisions/index.html", "meetings/search/index.html"}
 
 
 def plain_text(transcript: str | None) -> str:
@@ -503,9 +533,12 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
+    links = meeting_links(config)
+    # Agendas and minutes: saved and searchable, or (for a town with a calendar only) not yet.
+    documents = "meetings" in config and links["documents"]
     # What the street lookup covers, as a phrase: "agenda items, building permits, and 311 requests".
     # A town with none of these sources has no street lookup.
-    street_sources = ((["agenda items"] if "meetings" in config else []) + (["building permits"] if "permits" in config else [])
+    street_sources = ((["agenda items"] if documents else []) + (["building permits"] if "permits" in config else [])
                       + (["311 requests"] if "seeclickfix" in config else []))
     street_sources = (", ".join(street_sources[:-1]) + ("," if len(street_sources) > 2 else "") + " and " + street_sources[-1]
                       if len(street_sources) > 1 else "".join(street_sources))
@@ -586,6 +619,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, site=site, town=config["town"], sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+                  meeting_links=links,
                   streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
@@ -608,6 +642,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         rel = page_path.relative_to(PAGES_DIR)
         if len(rel.parts) > 1 and rel.parts[0] not in built_folders:
             continue
+        if rel.as_posix() in DOCUMENT_PAGES and not documents:
+            continue
         render(rel.as_posix(), url_for(rel))
 
     if "meetings" in config:
@@ -615,6 +651,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
             render("meeting.html", m["url"], meeting=m)
         for b in meetings["boards"]:
             render("board.html", b["url"], board=b)
+    if documents:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
@@ -634,7 +671,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
                    "in_5_plus_unit_buildings", "partly_estimated"],
                   [[y["year"], y["units"], *y["by_size"].values(), y["estimated"]] for y in housing["permits"]["years"]])
 
-    if "meetings" in config:
+    if documents:
         for folder in ("agendas", "minutes"):
             src = data_dir / "meetings" / folder
             if src.exists():

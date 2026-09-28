@@ -17,15 +17,15 @@
   <datalist id="street-names"></datalist>
 </form>
 
-<div id="street" data-index="{{ streets_url }}" data-sources="{{ ((["meetings"] if config.meetings is defined else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
+<div id="street" data-index="{{ streets_url }}" data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
   <p id="street-status" role="status" aria-live="polite"></p>
   <div id="street-results"></div>
 </div>
-<noscript><p>The street lookup needs JavaScript.{% if config.meetings is defined %} You can also <a href="/meetings/search/">search agendas and minutes</a>.{% endif %}</p></noscript>
+<noscript><p>The street lookup needs JavaScript.{% if config.meetings is defined and meeting_links.documents %} You can also <a href="/meetings/search/">search agendas and minutes</a>.{% endif %}</p></noscript>
 
 <h2 id="sources">Where this comes from</h2>
 <ul>
-  {% if config.meetings is defined %}
+  {% if config.meetings is defined and meeting_links.documents %}
   <li><strong>Agendas and minutes:</strong> any line naming an address on the street, from the documents saved on this site's <a href="/meetings/">meeting pages</a>.</li>
   {% endif %}
   {% if config.permits is defined %}

@@ -10,7 +10,7 @@
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
 {%- if m.status != "scheduled" %}{% set _ = parts.append(m.status | capitalize) %}{% endif -%}
-{%- if not m.listed %}{% set _ = parts.append("Removed from the " ~ m.source_name ~ " schedule" if m.get("source") == "drive" else "Removed from city calendar") %}{% endif -%}
+{%- if not m.listed %}{% set _ = parts.append("Removed from the " ~ m.source_name ~ " schedule" if m.get("source") == "drive" else "Removed from " ~ m.get("listing", "city calendar")) %}{% endif -%}
 {%- for p in parts %}<span class="flag">{{ p }}</span>{% if not loop.last %} · {% endif %}{% endfor -%}
 {%- endmacro %}
 
@@ -36,11 +36,11 @@
     {%- else %}<span class="small">Time TBA</span>{% endif -%}
   </span>
   <div class="meeting-main">
-    <a class="meeting-link" href="{{ m.url }}">{% if show_body %}{{ m.body }}{% else %}{{ m.title }}{% endif %}</a>
+    <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% endif %}</a>
     {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
     {% if show_date %}{% set _ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
-    {% if m.minutes_doc %}{% set _ = meta.append("Minutes posted") %}{% elif m.agenda %}{% set _ = meta.append("Agenda posted") %}{% elif m.date >= today and m.status == "scheduled" %}{% set _ = meta.append("No agenda posted yet") %}{% endif %}
+    {% if m.minutes_doc %}{% set _ = meta.append("Minutes posted") %}{% elif m.agenda or m.get("documents_url") %}{% set _ = meta.append("Agenda posted") %}{% elif m.date >= today and m.status == "scheduled" %}{% set _ = meta.append("No agenda posted yet") %}{% endif %}
     {% if m.remote_url and m.date >= today %}{% set _ = meta.append("Online option") %}{% endif %}
     {% if m.special %}{% set _ = meta.append("Special meeting") %}{% endif %}
     {% set flags = meeting_flags(m) %}
@@ -59,12 +59,12 @@
 </section>
 {%- endmacro %}
 
-{% macro describe_change(h) -%}
+{% macro describe_change(h, listing="city calendar") -%}
 {#- Plain sentence describing one recorded change. -#}
 {% if h.field == "start_time" %}Start time changed from {{ h.old | time or "not listed" }} to {{ h.new | time or "not listed" }}.
 {% elif h.field == "date" %}Date changed from {{ h.old | date }} to {{ h.new | date }}.
-{% elif h.field == "listed" %}{% if h.new %}Listed on the city calendar again.{% else %}Removed from the city calendar.{% endif %}
-{% elif h.field == "status" %}Marked {{ h.new }} on the city calendar.
+{% elif h.field == "listed" %}{% if h.new %}Listed on the {{ listing }} again.{% else %}Removed from the {{ listing }}.{% endif %}
+{% elif h.field == "status" %}Marked {{ h.new }} on the {{ listing }}.
 {% elif h.field == "agenda" %}A revised agenda was posted.
 {% elif h.field == "minutes" %}Revised minutes were posted.
 {% elif h.field == "location_name" %}Location changed from {{ h.old or "not listed" }} to {{ h.new or "not listed" }}.
