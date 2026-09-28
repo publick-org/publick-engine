@@ -20,6 +20,11 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
 
+      # For the network's Worker (worker/), and the test that serves a published site through it.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt -r requirements-dev.txt
@@ -29,3 +34,6 @@ jobs:
       # against saved Gloucester data (tests/fixtures/).
       - name: Test
         run: python -m pytest
+
+      - name: Test Worker
+        run: node --test worker/index.test.js

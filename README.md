@@ -92,6 +92,7 @@ pipeline/                   Python package
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
+  deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/static/                CSS, icons, and other files copied as-is (a town's own site/static/ is laid on top)
@@ -99,6 +100,7 @@ site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
+worker/                     The Cloudflare Worker that serves every site published with deploy.py, by hostname
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's tests, on every push and pull request
 ```
@@ -277,6 +279,25 @@ GitHub Pages serves one custom domain per repository, so when a site moves, its 
 
 If nobody relies on the old domain, deleting its GitHub records is enough; don't leave them pointing at GitHub Pages with no repository claiming the domain.
 
+### Serving many sites from one bucket
+
+GitHub Pages serves one custom domain per repository. A network that runs many towns from one repository publishes each built site to a Cloudflare R2 bucket instead, and one Cloudflare Worker (`worker/index.js`) serves them all, choosing the site by hostname:
+
+```sh
+python -m pipeline.deploy publish [--town <town>] [--site _site]   # the site goes live at its config's domain
+python -m pipeline.deploy rollback [--town <town>] [--build <build>] # back to the previous build, or a named one
+python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete old builds and unused files
+```
+
+Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout. Run `prune` only when no publish is running.
+
+Setup, once for the network:
+
+1. **Create a bucket** for sites (**R2 object storage → Create bucket**), separate from the documents bucket and with no public address: only the Worker reads it.
+2. **Create an API token** with *Object Read & Write* on that bucket only. Set the secrets `SITES_ACCESS_KEY_ID` and `SITES_SECRET_ACCESS_KEY`, and `SITES_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`) and `SITES_BUCKET`.
+3. **Deploy the Worker** from `worker/index.js` with an R2 binding named `SITES` to that bucket.
+4. **Route the sites to it:** a proxied (orange cloud) DNS record for each site's hostname, or one wildcard such as `*.example.org`, and a Worker route such as `*.example.org/*`. A site's specific DNS record takes precedence over the wildcard, so delete a town's GitHub Pages `CNAME` to move it to the Worker.
+
 ## Document storage
 
 Agenda and minutes PDFs average well over a megabyte, git keeps every version forever, and a GitHub Pages site may be at most 1 GB. Without a `[storage]` table they're committed under `data/meetings/` and copied into the site, which works for a small or short-lived town. With one, they go to an S3-compatible bucket and pages link to the bucket's public address. Git keeps each document's text, summary and SHA-256 hash, so the site is still rebuilt entirely from the repository.
@@ -314,6 +335,7 @@ Set these under the repository's **Settings → Secrets and variables → Action
 
 - `ANTHROPIC_API_KEY` (optional): enables agenda and minutes text and summaries. Without it the step is skipped.
 - `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (needed with `[storage]`): an R2 API token for the documents bucket. See [Document storage](#document-storage).
+- `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY` (needed to publish to the sites bucket): see [Serving many sites from one bucket](#serving-many-sites-from-one-bucket).
 - `BLS_API_KEY` (optional): free key from bls.gov/developers for the unemployment rate. Without it the job uses BLS's keyless limit, then falls back to the bulk data file.
 
 ## How Publick runs it
