@@ -246,3 +246,30 @@ class FakeDrive:
         if "uc?export=download&id=" in url:
             return FakeResponse(self.pdf + f"\n% drive file {url.rsplit('=', 1)[1]}\n".encode())
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakeManchester:
+    """Manchester's two meeting calendars, saved as served: the CivicClerk API
+    (two pages of meetings from August 2026) and the city's DotNetNuke calendar
+    (September and October 2026; other months are empty), with one saved event
+    page served for every event."""
+    EMPTY_MONTH = b"<div>No events</div>"
+
+    def __init__(self, civicclerk_pages: list[dict] | None = None):
+        import json
+        self.pages = civicclerk_pages or [json.loads((FIXTURES / f"civicclerk_events_{n}.json").read_text()) for n in (1, 2)]
+        self.urls = []
+        self.request_count = 0
+
+    def get(self, url):
+        self.urls.append(url)
+        self.request_count += 1
+        if "api.civicclerk.com" in url:
+            return FakeJSONResponse(self.pages[1] if "skiptoken" in url else self.pages[0])
+        if "/mctl/EventMonth/selecteddate/" in url:
+            month = url.rsplit("/", 1)[1]  # 09-01-2026
+            page = FIXTURES / f"dnn_calendar_{month[6:]}-{month[:2]}.html"
+            return FakeResponse(page.read_bytes() if page.exists() else self.EMPTY_MONTH)
+        if "/mctl/EventDetails" in url:
+            return FakeResponse((FIXTURES / "dnn_event.html").read_bytes())
+        raise AssertionError(f"unexpected URL {url}")

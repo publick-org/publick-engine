@@ -71,7 +71,7 @@ To release: merge to `main` with the engine tests passing, then publish a releas
 ```
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
-  fetch_meetings.py         Daily: city calendar -> data/meetings/
+  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> readable text + summaries (AI) -> data/summaries/
@@ -86,7 +86,8 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: fails the run when a data source stops updating
-  civicplus.py, seeclickfix.py   Source parsers
+  civicplus.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
+  meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
@@ -140,6 +141,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | Table | Source | Works for |
    |---|---|---|
    | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
+   | `[meetings.civicclerk]`, `[meetings.dnn]` | A CivicClerk meeting portal, and a DotNetNuke (DNN Events) city calendar | Towns whose meetings are on either or both, like Manchester. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget (Mass. DLS) | Massachusetts |
@@ -173,6 +175,42 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
 6. **Deploy** as under [Deploying](#deploying), and set up [Document storage](#document-storage) and the [secrets](#secrets).
 
 Page text is written for a Massachusetts city. A town (rather than a city), or a town outside Massachusetts, needs a read through the page wording.
+
+## Meetings from other calendars
+
+A town whose website isn't on CivicPlus lists its calendars as tables inside `[meetings]`, instead of `base_url` and `calendar_feed`. It can have both; Manchester's are below.
+
+```toml
+[meetings]
+calendar_url = "https://www.manchesternh.gov/Government/City-Calendars"   # linked as "the city calendar"
+archive_url = "https://www.manchesternh.gov/Departments/City-Clerk/Meeting-Minutes-and-Agendas"
+archive_name = "city's Meeting Minutes and Agendas page"   # where earlier agendas and minutes are
+governing_body = "Board of Mayor and Aldermen"             # "City Council" if left out
+# notify_url = "..."                                       # the city's meeting alerts, if it has them
+documents = false   # agendas and minutes aren't collected yet: see below
+boards = ["Board of Mayor and Aldermen", "Planning Board", ...]
+
+[meetings.aliases]
+"ZBA" = "Zoning Board of Adjustment"
+
+# The city's CivicClerk portal (the address its agenda links go to), through its public API.
+[meetings.civicclerk]
+api_url = "https://manchesternh.api.civicclerk.com/v1"
+portal_url = "https://manchesternh.portal.civicclerk.com"
+since = "2026-01-01"   # the first run collects meetings from here; later runs re-read the last 60 days (recheck_days) and ahead
+
+# A DotNetNuke city calendar: the month view's address, and the module number in its event links.
+[meetings.dnn]
+calendar_url = "https://www.manchesternh.gov/Government/City-Calendars"
+module_id = 3737
+since = "2026-01-01"   # the first run reads each month from here; later runs this month and months_ahead (default 1)
+exclude_pattern = '...' # entries to skip; include_pattern keeps only matching ones
+```
+
+- **Board names.** Calendar names that aren't uniform ("PH-1 Board of Mayor and Aldermen", "Special Meeting-Board of Mayor and Aldermen") are matched to the longest name in `boards` (or key in `[meetings.aliases]`) that they contain, ignoring case, punctuation and "&"/"and". A name that matches none is cleaned up by rule: status words, "Special Meeting of the", and endings such as "Meeting" or "Public Hearings" are removed. A board whose own name starts with "Special" ("Special Committee on Airport Activities") should be listed, or it reads as a special meeting of another committee.
+- **Both calendars.** Meetings the DNN calendar links to the CivicClerk portal are collected from CivicClerk only. Use `exclude_pattern` for the rest of those boards' entries.
+- **CivicClerk times** are local, although the API marks them UTC.
+- **`documents = false`** is for a town with a calendar but no agendas and minutes collected yet. Each meeting page links to its agenda (and minutes) where the city posts them, and the pages that need the documents are left out: decisions, search, the RSS feed, and agenda items in the street lookup.
 
 ## Adding a section
 
