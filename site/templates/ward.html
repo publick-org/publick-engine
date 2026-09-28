@@ -40,5 +40,5 @@
   {% for r in w.oldest %}<li><a href="{{ r.url }}">{{ r.category }}</a><span class="item-detail">{{ r.address or "No street address" }} · Open since <time datetime="{{ r.created_at }}">{{ r.created_at[:10] | date("plain") }}</time></span></li>{% endfor %}
 </ol>
 {% endif %}
-<p class="source-note">Wards use the 2022 boundaries from MassGIS. Differences between wards reflect how often residents report problems as well as how the city responds. <a href="/311/methodology/">Methodology</a>.</p>
+<p class="source-note">Wards use the {{ wards.year }} boundaries from {{ wards.publisher }}. Differences between wards reflect how often residents report problems as well as how the city responds. <a href="/311/methodology/">Methodology</a>.</p>
 {% endblock %}
