@@ -1,4 +1,4 @@
-"""Collect posted meeting minutes from the city's Archive Center.
+"""Collect posted meeting minutes from the city's Archive Center or Agenda Center.
 
 One request to the Archive Center's main page lists the newest documents in
 every board's collection. Minutes dated on or after the configured start
@@ -7,6 +7,10 @@ bucket; see pipeline/documents.py), and attached to the
 matching meeting in data/meetings/meetings.json. A meeting that was never on
 the calendar feed (usually because it predates this site) gets a record
 built from its minutes.
+
+A town with an Agenda Center ([meetings.agenda_center]) lists each meeting's
+minutes link with its agenda; pipeline.fetch_meetings records the link, and
+this downloads the minutes of meetings since the table's `since` date.
 
 Usage:
     python -m pipeline.fetch_minutes [--town gloucester]
@@ -134,23 +138,56 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     return {"minutes_added": added, "meetings_created": created, "errors": errors}
 
 
+def run_agenda_center(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
+    """Download the minutes linked from Agenda Center meetings that don't have them yet."""
+    tz = ZoneInfo(config["site"]["timezone"])
+    now = now or datetime.now(tz)
+    stamp = now.isoformat(timespec="seconds")
+    settings = config["meetings"]["agenda_center"]
+    store = load_store(data_dir)
+    storage = open_documents(config, data_dir)
+    waiting = sorted((m for m in store.values() if m.get("source") == "agendacenter" and m.get("minutes_url")
+                      and m["date"] >= settings["since"] and not m.get("minutes")),
+                     key=lambda m: m["date"], reverse=True)
+    added, errors = 0, []
+    # The first run can find months of minutes; the rest come on later runs.
+    for meeting in waiting[:settings.get("max_minutes_per_run", 60)]:
+        number = meeting["id"].removeprefix("agendacenter-")
+        item = {"id": f"agendacenter-{number}", "title": meeting.get("posted_title") or meeting["title"],
+                "url": meeting["minutes_url"]}
+        try:
+            meeting["minutes"] = [save_document(client, item, storage, stamp)]
+        except FetchError as e:
+            errors.append(str(e))
+            continue
+        added += 1
+    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    return {"minutes_added": added, "minutes_waiting": max(len(waiting) - added, 0), "errors": errors}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--town", default=DEFAULT_TOWN)
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     args = parser.parse_args()
     config = load_config(args.town)
-    if not configured(config, "archive"):
+    agenda_center = "agenda_center" in config.get("meetings", {})
+    if not agenda_center and not configured(config, "archive"):
         return 0
     client = PoliteClient(config["site"]["user_agent"], delay=config["meetings"].get("request_delay", 3.0))
-    try:
-        summary = run(config, client, args.data)
-    except FetchError as e:
-        print(f"::error::Archive Center could not be fetched: {e}")
-        return 1
-    print(json.dumps(summary, indent=2))
-    for error in summary["errors"]:
-        print(f"::warning::{error}")
+    summaries = []
+    if "archive" in config:
+        try:
+            summaries.append(run(config, client, args.data))
+        except FetchError as e:
+            print(f"::error::Archive Center could not be fetched: {e}")
+            return 1
+    if agenda_center:
+        summaries.append(run_agenda_center(config, client, args.data))
+    for summary in summaries:
+        print(json.dumps(summary, indent=2))
+        for error in summary["errors"]:
+            print(f"::warning::{error}")
     return 0
 
 
