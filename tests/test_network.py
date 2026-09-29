@@ -170,3 +170,14 @@ def test_real_step_reports_exit_status_and_timeout(tmp_path):
 def test_engine_dir_is_this_checkout():
     assert (network.ENGINE_DIR / "pipeline" / "network.py").exists()
     assert Path(network.__file__).resolve().parent.parent == network.ENGINE_DIR
+
+
+def test_daily_runs_sample_the_browser_checks(tmp_path, steps, monkeypatch):
+    calls, _ = steps
+    monkeypatch.setenv("PUBLICK_CHECK_PAGES", "sample")  # left over in the environment: must not sample a full run
+    root = make_root(tmp_path)
+    network.run_town(root, "gloucester-ma", fetch=False, deploy=False, reports=None)
+    network.run_town(root, "salem-ma", fetch=False, deploy=False, reports=None, sample_checks=True)
+    checks = [c["env"] for c in calls if c["name"] == "Check site"]
+    assert "PUBLICK_CHECK_PAGES" not in checks[0]
+    assert checks[1]["PUBLICK_CHECK_PAGES"] == "sample"

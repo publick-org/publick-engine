@@ -1,6 +1,6 @@
-"""One town's built site: every page and link is in place, and every page passes
-the automated WCAG 2.2 AA checks in light and dark mode, at desktop and phone
-widths. The engine's own tests (tests/) cover the same ground in more depth
+"""One town's built site: every page and link is in place, and every page (or,
+on a daily run, a sample of them: see pages.py) passes the automated WCAG 2.2 AA
+checks in light and dark mode, at desktop and phone widths. The engine's own tests (tests/) cover the same ground in more depth
 against saved Gloucester data."""
 
 import time
@@ -9,11 +9,12 @@ from urllib.parse import urlparse
 
 import pytest
 
-from site_checks.conftest import PAGE_PATHS
+from site_checks.conftest import BROWSER_PATHS
 
 WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
 VIEWPORTS = {"desktop": {"width": 1280, "height": 900}, "phone": {"width": 320, "height": 640}}
-PATHS = PAGE_PATHS + ["/no-such-page/"]
+# Every page, or a sample on a daily run (site_checks/pages.py).
+PATHS = BROWSER_PATHS + ["/no-such-page/"]
 
 
 class PageParser(HTMLParser):
