@@ -18,4 +18,5 @@ STATE = State(
     },
     tax_source="Mass. Division of Local Services",
     housing="pipeline.states.ma.housing",
+    pages="pipeline.states.ma.pages",
 )

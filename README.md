@@ -79,7 +79,8 @@ pipeline/                   Python package
   fetch_311.py              Daily: SeeClickFix -> data/311/requests.json (also --backfill YYYY-MM)
   compute_311.py            Daily: requests -> data/311/scorecard.json
   fetch_finance.py, fetch_budget.py, fetch_schools.py   Tax bill, budget, school figures, from the town's state's source -> data/finance/, data/schools/
-  states/                   What differs by state (see States below): states/ma/ is Massachusetts (DLS, DESE)
+  states/                   What differs by state (see States below): states/ma/ is Massachusetts (DLS, DESE),
+                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
   fetch_permits.py          Building and demolition permits (city Data Hub) -> data/permits/
   fetch_housing.py          Housing (Census, plus the state's own figures: Massachusetts's SHI and parcels) -> data/housing/
@@ -150,7 +151,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[meetings.civicclerk]`, `[meetings.dnn]` | A CivicClerk meeting portal, and a DotNetNuke (DNN Events) city calendar | Towns whose meetings are on either or both, like Manchester. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
-   | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts). Its keys are the state's own; see [States](#states) |
+   | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
    | `[schools]` | School district figures, from the state | As `[finance]` |
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
@@ -202,6 +203,32 @@ in a state that already has a package needs only its config, and adding a state
 means adding its package and pages, with no changes elsewhere. A town in a state
 without one still gets everything else. Its config lists only sections its
 state can fill; the build stops with a message naming what's missing otherwise.
+Each state package's docstring lists its config keys.
+
+A figure Publick calculates, rather than takes as published, carries a
+`calculated` note in its data saying how, and its page shows that note under
+"Calculated by Publick" (the `calculated` macro in `site/templates/macros.html`).
+
+### New Hampshire's yearly figures
+
+New Hampshire's Department of Revenue Administration and Department of
+Education publish tax rates, graduation rates, test results, and cost per pupil
+as statewide files once a year, and their websites refuse automated requests.
+So the files are downloaded by hand and saved into the engine:
+
+```sh
+python -m pipeline.states.nh.extract ~/Downloads/*.xlsx ~/Downloads/*.csv   # the list of files is in extract.py
+python -m pipeline.states.nh.extract --population                          # Census estimates, fetched directly
+```
+
+This writes `pipeline/states/nh/figures/`, every town's and district's rows in
+a few small files; commit them and every New Hampshire town reads its own rows
+from the next release on. A town's `[freshness]` table can list
+`{ label = "New Hampshire state figures (yearly)", file = "finance/budget.json", field = "figures_extracted_at", max_days = 400 }`
+so the status page says when a new year is due. The average single-family tax
+bill is calculated daily from those rates and NH GRANIT's parcel map (which
+answers automated requests), and held back after a revaluation until the DRA's
+figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).
 
 ## Meetings from other calendars
 

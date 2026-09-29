@@ -26,7 +26,7 @@ from pathlib import Path
 from types import ModuleType
 
 # States with a package here, by their two-letter code.
-PACKAGES = {"MA": "pipeline.states.ma"}
+PACKAGES = {"MA": "pipeline.states.ma", "NH": "pipeline.states.nh"}
 
 # The kinds of state source, with the plain name used in messages.
 KINDS = {"tax_bill": "Tax bill", "budget": "Budget figures", "schools": "School figures"}
@@ -61,6 +61,9 @@ class State:
     # Extra housing figures from state sources: a module with keys (the housing.json keys it adds),
     # parts(config) (those this town has), client(config), and sources(config, client, state_client, now).
     housing: str | None = None
+    # What the state's pages need from the build: a module with TEMPLATE_GLOBALS (helpers for
+    # site/states/<state>/ templates) and write_files(out_dir, data), for their downloadable tables.
+    pages: str | None = None
 
     @property
     def templates(self) -> str:
@@ -71,6 +74,9 @@ class State:
         """The state's source of this kind, if the state has one and the town's config has its table."""
         source = self.sources.get(kind)
         return source if source and source.table in config else None
+
+    def pages_module(self) -> ModuleType | None:
+        return import_module(self.pages) if self.pages else None
 
     def housing_module(self) -> ModuleType | None:
         return import_module(self.housing) if self.housing else None

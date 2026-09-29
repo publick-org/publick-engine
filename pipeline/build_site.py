@@ -156,6 +156,8 @@ def format_money(n: float | int | None, style: str = "long") -> str:
     thousands too ('$139K'); long gives amounts under a million in full."""
     if n is None:
         return "–"
+    if n < 0:
+        return "−" + format_money(-n, style)
     if abs(n) >= 1_000_000:
         return f"${n / 1_000_000:,.1f}" + ("M" if style == "short" else " million")
     if style == "short" and abs(n) >= 10_000:
@@ -491,10 +493,14 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         if prior:
             pct = (latest["average_bill"] - prior["average_bill"]) / prior["average_bill"] * 100
             change = change_text(pct, "%", "last year", 1)
+        # A state that names years otherwise (New Hampshire's tax years) says so in the record's period.
+        period = latest.get("period") or f"Fiscal year {latest['fiscal_year']}"
+        # A calculated figure links to the page that says how, where the town has it.
+        explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
             "label": "Average single-family tax bill", "value": f"${latest['average_bill']:,}",
-            "href": tax["source_url"], "change": change,
-            "source": f"Fiscal year {latest['fiscal_year']} · {state.tax_source}",
+            "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
+            "source": f"{period} · {state.tax_source}",
         })
     labor_path = data_dir / "labor" / "unemployment.json"
     if "labor" in config and labor_path.exists():
@@ -571,6 +577,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     scorecard = section_data("311", "311/scorecard.json")
     schools = section_data("schools", "schools/schools.json")
     budget = section_data("budget", "finance/budget.json")
+    tax_bill = section_data("budget", "finance/tax_bill.json")
     housing = section_data("housing", "housing/housing.json")
     # Housing figures from the town's state's own sources (pipeline/states/), shown only for a town that has them.
     state_housing = state.housing_parts(config)
@@ -614,9 +621,13 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     env.globals["report_link"] = lambda page_url, what: report_link(site, base_url, page_url, what)
     # A state's own template (site/states/<state>/<name>); a part a state doesn't have is included with "ignore missing".
     env.globals["state_template"] = lambda name: f"{state.templates}/{name}"
+    # And the helpers its pages use.
+    state_pages = state.pages_module()
+    if state_pages:
+        env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
-    env.globals.update(group_by=group_by, reserve_rows=reserve_rows, today=built_at.date().isoformat(), css_version=css_version, plural=plural,
+    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, plural=plural,
                        change=lambda diff, since: change_text(diff, "", since))
 
     own_hosts = {site["domain"], "www." + site["domain"]}
@@ -643,7 +654,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     common = dict(config=config, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links,
                   streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
-                  built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, housing=housing,
+                  built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
 
@@ -685,8 +696,9 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         for c in scorecard.get("categories", []):
             render("category.html", f"/311/category/{c['slug']}/", category=c)
         write_311_csvs(out_dir / "311" / "data", scorecard)
-    if budget:
-        write_budget_csvs(out_dir / "budget" / "data", budget)
+    if state_pages:
+        # The downloadable tables behind the state's own pages.
+        state_pages.write_files(out_dir, {"budget": budget, "schools": schools, "tax_bill": tax_bill})
     if housing and housing.get("permits"):
         write_csv(out_dir / "housing" / "data" / "permits.csv",
                   ["year", "homes", "in_1_unit_buildings", "in_2_unit_buildings", "in_3_4_unit_buildings",
@@ -814,28 +826,6 @@ def write_csv(path: Path, header: list[str], rows: list[list]) -> None:
         writer = csv.writer(f)
         writer.writerow(header)
         writer.writerows(rows)
-
-
-def write_budget_csvs(folder: Path, b: dict) -> None:
-    """Downloadable tables behind the budget page. Amounts are in dollars."""
-    functions = list(b["spending"][-1]["functions"]) if b["spending"] else []
-    write_csv(folder / "spending.csv", ["fiscal_year", "total", *functions],
-              [[y["fiscal_year"], y["total"], *(y["functions"].get(f) for f in functions)] for y in b["spending"]])
-    sources = list(b["revenue"][-1]["sources"]) if b["revenue"] else []
-    write_csv(folder / "revenue.csv", ["fiscal_year", "total", *sources],
-              [[y["fiscal_year"], y["total"], *(y["sources"].get(s) for s in sources)] for y in b["revenue"]])
-    write_csv(folder / "levy.csv", ["fiscal_year", "levy", "max_allowable_levy", "unused_levy_capacity", "levy_ceiling", "assessed_value"],
-              [[y["fiscal_year"], y["levy"], y["max_levy"], y["excess_capacity"], y["levy_ceiling"], y["assessed_value"]]
-               for y in b["levy"]])
-    write_csv(folder / "reserves.csv", ["fiscal_year", "free_cash", "stabilization_fund"],
-              [[y, *rv] for y, rv in reserve_rows(b)])
-
-
-def reserve_rows(b: dict) -> list[tuple[int, tuple]]:
-    """[(fiscal_year, (free_cash, stabilization))], oldest first; None where not reported."""
-    free = {y["fiscal_year"]: y["amount"] for y in b["free_cash"]}
-    stab = {y["fiscal_year"]: y["amount"] for y in b["stabilization"]}
-    return [(y, (free.get(y), stab.get(y))) for y in sorted(set(free) | set(stab))]
 
 
 def write_311_csvs(folder: Path, sc: dict) -> None:
