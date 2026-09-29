@@ -17,7 +17,8 @@ the network's status page reads. report reads every town's result and fails
 once, for the whole run, if any town needs attention.
 
     python -m pipeline.network plan   [--root .] [--slots 4 --slot N] [--towns a,b] [--changed FILE] [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch] [--deploy] [--sample-checks] [--reports DIR]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
+                                      [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
 
 Towns are spread over --slots runs a day by a stable hash of their folder
@@ -144,7 +145,7 @@ def trim_sources(rows: list[dict]) -> list[dict]:
 
 
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
-             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False) -> dict:
+             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all") -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -157,8 +158,8 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
 
     if fetch:
         update_report = town_dir / ".update-report.json"
-        steps.append(step("Fetch new data", [python, "-m", "pipeline.update", "--town", town, "--step-timeout",
-                                             str(step_timeout), "--report", str(update_report)],
+        steps.append(step("Fetch new data", [python, "-m", "pipeline.update", "--town", town, "--sources", sources,
+                                             "--step-timeout", str(step_timeout), "--report", str(update_report)],
                           env, town_dir, None))
         if update_report.exists():
             result["update"] = json.loads(update_report.read_text())
@@ -178,7 +179,8 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
                       env, town_dir, BUILD_TIMEOUT))
     if steps[-1]["ok"]:
-        steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q",
+        # The browser checks take most of a town's time, so they run on every core (pytest-xdist).
+        steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q", "-n", "auto",
                                          str(ENGINE_DIR / "site_checks")],
                           {**env, "PUBLICK_SITE_DIR": str(site),
                            **({"PUBLICK_CHECK_PAGES": "sample"} if sample_checks else {})}, town_dir, BUILD_TIMEOUT))
@@ -226,6 +228,8 @@ def main() -> int:
     r.add_argument("--root", type=Path, default=Path.cwd())
     r.add_argument("--towns", required=True, help="town folders, comma- or space-separated")
     r.add_argument("--fetch", action="store_true", help="fetch new data first")
+    r.add_argument("--sources", choices=["all", "meetings", "figures", "311"], default="all",
+                   help="with --fetch, which data to fetch (pipeline.update's groups)")
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
     r.add_argument("--reports", type=Path, help="folder for each town's result")
     r.add_argument("--step-timeout", type=float, default=STEP_TIMEOUT)
@@ -244,7 +248,8 @@ def main() -> int:
         return 0
     if args.command == "run":
         root = args.root.resolve()
-        results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks)
+        results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks,
+                            args.sources)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:

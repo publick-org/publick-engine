@@ -36,7 +36,9 @@ def workflow_steps() -> list[dict]:
 
 def test_town_workflow_runs_the_same_sources():
     """town.yml runs each source as its own step; pipeline.update runs the same list."""
-    group_condition = {"meetings": "inputs.sources != '311'", "311": "inputs.sources != 'meetings'"}
+    # town.yml offers all, meetings, and 311; the figures run under meetings, as they always have.
+    group_condition = {"meetings": "inputs.sources != '311'", "figures": "inputs.sources != '311'",
+                       "311": "inputs.sources != 'meetings'"}
     steps = [s for s in workflow_steps() if s["module"] != "pipeline.freshness"]
     expected = [{"name": s.name, "module": s.module, "args": s.args, "if": group_condition[s.group],
                  "continue_on_error": not s.required, "secrets": tuple(sorted(s.secrets))}
@@ -95,6 +97,10 @@ def test_sources_pick_a_group(fake_steps):
     assert [s["name"] for s in only_311] == ["Fetch 311 requests", "Compute 311 scorecard"]
     meetings = update.run("gloucester", sources="meetings")["steps"]
     assert len(meetings) + len(only_311) == len(update.SOURCES)
+    figures = [s["name"] for s in update.run("gloucester", sources="figures")["steps"]]
+    assert figures == ["Fetch tax bill", "Fetch unemployment", "Fetch school figures", "Fetch budget figures",
+                       "Fetch housing figures", "Fetch building permits"]
+    assert set(figures) < {s["name"] for s in meetings}, "meetings is still everything but 311"
 
 
 def test_each_key_goes_only_to_its_step(fake_steps, monkeypatch, tmp_path):
