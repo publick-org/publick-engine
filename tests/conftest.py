@@ -26,6 +26,7 @@ from fakes import (FIXTURES, FakeAnthropic, FakeBudgetDLS, FakeCityClient, FakeD
 from pipeline import (build_site, compute_311, fetch_311, fetch_budget, fetch_drive_meetings,  # noqa: E402
                       fetch_housing, fetch_meetings, fetch_minutes, fetch_permits, fetch_schools, summarize)
 from pipeline.config import DATA_DIR as REAL_DATA_DIR  # noqa: E402
+from pipeline.states.ma import housing as ma_housing  # noqa: E402
 from pipeline.config import load_config  # noqa: E402
 
 TZ = ZoneInfo("America/New_York")
@@ -60,11 +61,11 @@ def make_fixture_data(data_dir: Path) -> None:
             {"year": 2025, "month": 7, "rate": 5.3}, {"year": 2026, "month": 7, "rate": 4.8, "preliminary": True}]})
     fetch_schools.run(config, FakeDESE(), data_dir, now=FETCHED_AT)
     fetch_budget.run(config, FakeBudgetDLS(), data_dir, now=FETCHED_AT)
-    real_pdf_text, fetch_housing.pdf_text = fetch_housing.pdf_text, shi_pdf_text
+    real_pdf_text, ma_housing.pdf_text = ma_housing.pdf_text, shi_pdf_text
     try:
         fetch_housing.run(config, FakeHousing(), data_dir, now=FETCHED_AT)
     finally:
-        fetch_housing.pdf_text = real_pdf_text
+        ma_housing.pdf_text = real_pdf_text
     fetch_permits.run(config, FakePermits(), data_dir, now=FETCHED_AT)
     fetch_311.run(config, FakeSeeClickFix(), data_dir, now=FETCHED_AT, detail_limit=80)
     fetch_311.save_json(data_dir / "311" / "scorecard.json", compute_311.compute(config, data_dir, now=FETCHED_AT))

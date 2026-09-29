@@ -11,7 +11,7 @@ so GitHub emails the site's owner; the site is still built and deployed. The
 About page shows the same table.
 
 Usage:
-    python -m pipeline.freshness [--town gloucester]
+    python -m pipeline.freshness [--town gloucester] [--report rows.json]
 """
 
 from __future__ import annotations
@@ -73,8 +73,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--town", default=DEFAULT_TOWN)
     parser.add_argument("--data", type=Path, default=DATA_DIR)
+    parser.add_argument("--report", type=Path, help="also write the rows to this JSON file")
     args = parser.parse_args()
     rows = check(load_config(args.town), args.data)
+    if args.report:
+        args.report.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
     lines = ["| Source | Last updated | Allowed age | Status |", "|---|---|---|---|"]
     for r in rows:
         when = r["updated_at"][:16].replace("T", " ") if r["updated_at"] else "–"
