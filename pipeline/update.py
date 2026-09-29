@@ -9,9 +9,14 @@ This is the list of sources a town's daily update runs. The engine's
 town.yml runs the same steps one by one (tests/test_update.py keeps the two
 in step), and the network workflow runs this command for each town.
 
+A figure source with a rhythm (pipeline/rhythms.py: the tax bill, budget,
+school figures, unemployment, housing) is checked only when it's due, weekly
+or monthly by how often it publishes; --force checks everything. Each step's
+run of failures is kept in data/checks.json.
+
 Usage:
     python -m pipeline.update [--town gloucester] [--sources all|meetings|figures|311]
-                              [--step-timeout SECONDS] [--report report.json]
+                              [--step-timeout SECONDS] [--report report.json] [--force]
 """
 
 from __future__ import annotations
@@ -26,7 +31,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline.config import DEFAULT_TOWN
+from pipeline import rhythms
+from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 
 
 @dataclass(frozen=True)
@@ -85,17 +91,33 @@ def run_step(source: Source, town: str, timeout: float | None) -> dict:
             "error": error, "seconds": round(time.monotonic() - started, 1)}
 
 
-def run(town: str, sources: str = "all", timeout: float | None = None) -> dict:
+def run(town: str, sources: str = "all", timeout: float | None = None, config: dict | None = None,
+        data_dir: Path | None = None, force: bool = False, now: datetime | None = None) -> dict:
+    """Run the town's update steps. With its config and data folder, figure steps that aren't due are
+    skipped, and each step's result is added to data/checks.json."""
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now = now or datetime.now(timezone.utc)
+    by_step = {r.step: r for r in rhythms.for_town(config)} if config is not None else {}
     steps = []
     for source in (s for s in SOURCES if s.group in GROUPS[sources]):
+        rhythm = by_step.get(source.name)
+        cadence = rhythm.cadence if rhythm else "continuous"
+        if rhythm and data_dir is not None and not force:
+            due, why = rhythms.due(rhythm, data_dir, now)
+            if not due:
+                print(f"{source.name}: skipped, {why}.", flush=True)
+                steps.append({"name": source.name, "ok": True, "required": source.required, "error": None,
+                              "seconds": 0, "cadence": cadence, "skipped": why})
+                continue
         print(f"::group::{source.name}", flush=True)
-        step = run_step(source, town, timeout)
+        step = {**run_step(source, town, timeout), "cadence": cadence}
         print("::endgroup::", flush=True)
         if not step["ok"]:
             level = "error" if source.required else "warning"
             print(f"::{level}::{town}: {source.name} {step['error']}", flush=True)
         steps.append(step)
+    if data_dir is not None:
+        rhythms.record_checks(data_dir, steps, started)
     return {"town": town, "sources": sources, "started_at": started,
             "ok": all(s["ok"] for s in steps if s["required"]), "steps": steps}
 
@@ -106,16 +128,20 @@ def main() -> int:
     parser.add_argument("--sources", choices=list(GROUPS), default="all")
     parser.add_argument("--step-timeout", type=float, help="seconds before a step is stopped (default: no limit)")
     parser.add_argument("--report", type=Path, help="write each step's result to this JSON file")
+    parser.add_argument("--force", action="store_true", help="check every figure source, due or not")
+    parser.add_argument("--data", type=Path, default=DATA_DIR)
     args = parser.parse_args()
     if not args.town:
         raise SystemExit("Pass --town or set TOWN.")
-    result = run(args.town, args.sources, args.step_timeout)
+    result = run(args.town, args.sources, args.step_timeout, config=load_config(args.town), data_dir=args.data,
+                 force=args.force)
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     failed = [s["name"] for s in result["steps"] if not s["ok"]]
+    skipped = [s["name"] for s in result["steps"] if s.get("skipped")]
     print(f"{args.town}: {len(result['steps']) - len(failed)} of {len(result['steps'])} steps succeeded"
-          + (f"; failed: {', '.join(failed)}" if failed else ""))
+          + (f" ({len(skipped)} not due)" if skipped else "") + (f"; failed: {', '.join(failed)}" if failed else ""))
     return 0 if result["ok"] else 1
 
 

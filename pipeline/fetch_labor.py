@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.rhythms import Part, Rhythm, add_months, month_of, month_period
 
 API_V1 = "https://api.bls.gov/publicAPI/v1/timeseries/data/"
 API_V2 = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
@@ -31,6 +32,14 @@ BULK = "https://download.bls.gov/pub/time.series/la/"
 # The state's bulk file, named in [labor] bulk_file; this is Massachusetts's.
 BULK_FILE = "la.data.28.Massachusetts"
 MONTHS_KEPT = 37
+
+
+# BLS publishes a month's rates for New England cities and towns about five
+# weeks after the month ends.
+RHYTHM = Rhythm("Unemployment rate (BLS)", "labor/unemployment.json", "Fetch unemployment", "monthly", (
+    Part(lambda data: max((month_period(m["year"], m["month"]) for m in data.get("months", [])), default=None),
+         lambda p: add_months(month_of(p), 2).replace(day=10), lambda p: f"{month_of(p):%B %Y} rate"),
+))
 
 
 def from_api(client, series: list[str], now: datetime) -> dict[str, list[dict]]:

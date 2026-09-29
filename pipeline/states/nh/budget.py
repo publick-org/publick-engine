@@ -28,12 +28,22 @@ from zoneinfo import ZoneInfo
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 from pipeline.states.nh import figures
+from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 RATE_FIELDS = ("set_on", "municipal", "county", "state_education", "local_education", "total", "valuation", "commitment")
 # What the property tax raised, by part, as the DRA names them.
 EFFORT_FIELDS = {"town_tax_effort": "City", "local_school_tax_effort": "Local schools",
                  "state_education_tax_effort": "State education tax", "county_tax_effort": "County",
                  "village_tax_effort": "Village districts"}
+
+
+# The city adopts a fiscal year's budget in June, before the year starts July 1.
+# Tax rates as for the tax bill (tax_bill.py).
+RHYTHM = Rhythm("City budget", "finance/budget.json", "Fetch budget figures", "yearly", (
+    Part(latest_year("city_budget.years", "fiscal_year"), on(7, years_after=-1),
+         lambda y: f"Fiscal year {y} city budget"),
+    Part(latest_year("rates", "tax_year"), on(2, years_after=1), lambda y: f"Tax year {y} tax rates"),
+))
 
 
 def client(config: dict) -> PoliteClient:
