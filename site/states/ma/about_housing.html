@@ -1,0 +1,2 @@
+{#- The About page's housing sources: the state's own, after the Census Bureau's. -#}
+{% if "shi" in state_housing %}, the state's <a href="https://www.mass.gov/info-details/subsidized-housing-inventory-shi">Subsidized Housing Inventory</a>{% endif %}{% if "parcels" in state_housing %}, and Division of Local Services parcel counts{% endif %}

@@ -40,6 +40,9 @@ def load_config(town: str) -> dict:
     with path.open("rb") as f:
         config = tomllib.load(f)
     config["slug"] = town
+    # What goes in the state-specific tables ([finance], [schools]) depends on the town's state.
+    from pipeline import states
+    states.check(config)
     return config
 
 

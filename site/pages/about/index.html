@@ -41,17 +41,13 @@
   {% if config.drive_meetings is defined %}
   <li><strong>School Committee agendas and minutes:</strong> {{ config.drive_meetings.source_name }}, from the public folders linked on the <a href="{{ config.drive_meetings.page_url }}">School Committee website</a>, from {{ config.drive_meetings.since | date("month") }} on.</li>
   {% endif %}
-  {% if config.finance is defined %}
-  <li><strong>Tax bill and city budget:</strong> Mass. <a href="https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=AverageSingleTaxBill.SingleFamTaxBill_wRange">Division of Local Services</a> Municipal Databank, from the city's filings with the state.</li>
-  {% endif %}
+  {% include state_template("about_finance.html") ignore missing %}
   {% if config.labor is defined %}
   <li><strong>Unemployment:</strong> U.S. <a href="https://www.bls.gov/lau/">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.</li>
   {% endif %}
-  {% if config.schools is defined %}
-  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data.{% if config.schools.report_url is defined %} School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.{% endif %}</li>
-  {% endif %}
+  {% include state_template("about_schools.html") ignore missing %}
   {% if config.housing is defined %}
-  <li><strong>Housing:</strong> U.S. Census Bureau <a href="https://www.census.gov/construction/bps/">Building Permits Survey</a> and <a href="https://www.census.gov/programs-surveys/acs">American Community Survey</a> (through <a href="https://censusreporter.org">Census Reporter</a>){% if config.housing.shi_url is defined %}, the state's <a href="https://www.mass.gov/info-details/subsidized-housing-inventory-shi">Subsidized Housing Inventory</a>{% endif %}{% if config.finance is defined %}, and Division of Local Services parcel counts{% endif %}.</li>
+  <li><strong>Housing:</strong> U.S. Census Bureau <a href="https://www.census.gov/construction/bps/">Building Permits Survey</a> and <a href="https://www.census.gov/programs-surveys/acs">American Community Survey</a> (through <a href="https://censusreporter.org">Census Reporter</a>){% include state_template("about_housing.html") ignore missing %}.</li>
   {% endif %}
   {% if config.permits is defined %}
   <li><strong>Building and demolition permits:</strong> the city's <a href="{{ config.permits.page_url }}">Inspectional Services permit data</a> on its Data Hub, used for the <a href="/streets/">street lookup</a>.</li>
