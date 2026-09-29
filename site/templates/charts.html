@@ -27,10 +27,10 @@
 </figure>
 {%- endmacro %}
 
-{# Horizontal bars. rows: [{label, value, text, href?}] #}
-{% macro bars(rows, label, wide_numbers=false) -%}
+{# Horizontal bars. rows: [{label, value, text, href?}]. wide_labels: room for long words ("Development"). #}
+{% macro bars(rows, label, wide_numbers=false, wide_labels=false) -%}
 {% set peak = rows | map(attribute="value") | max %}
-<ul class="hbars{% if wide_numbers %} wide-n{% endif %}" aria-label="{{ label }}">
+<ul class="hbars{% if wide_numbers %} wide-n{% endif %}{% if wide_labels %} wide-l{% endif %}" aria-label="{{ label }}">
   {% for r in rows %}
   <li class="hbar">
     <span>{% if r.get("href") %}<a href="{{ r.href }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}</span>

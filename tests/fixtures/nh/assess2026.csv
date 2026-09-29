@@ -1,0 +1,79 @@
+DenominatorType,yearid,Level of Data,Subject,District,School,Grade,Subgroup,Total FAY Students,level1%,level2%,level3%,level4%,Above prof% (lvl 3&4),Participate%,Mean SGP,Avg Score,Report Date
+Regular,2026,School Level,mat,Bedford,Bedford High School,All grades,All students,315 - 320,< 10 %,30,41,22,63,94,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,Bedford High School,All grades,All students,315 - 320,< 10 %,< 10 %,55,31,86,94,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Bedford,Bedford High School,All grades,All students,315 - 320,12,13,55,19,74,94,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,mat,Bedford,District Data,All grades,All students,"2,060 - 2,065",< 10 %,18,29,46,75,97,54,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,rea,Bedford,District Data,All grades,All students,"2,055 - 2,060",< 10 %,14,43,36,80,97,52,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,sci,Bedford,District Data,All grades,All students,905 - 910,14,17,42,27,69,95,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,McKelvie Intermediate School,All grades,All students,575 - 580,< 10 %,19,26,49,74,98,54,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,McKelvie Intermediate School,All grades,All students,575 - 580,< 10 %,16,43,35,77,98,48,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Bedford,McKelvie Intermediate School,All grades,All students,290 - 295,15,20,32,34,65,98,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Memorial School,All grades,All students,140 - 145,< 10 %,16,28,51,79,99,67,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,Memorial School,All grades,All students,140 - 145,10,18,32,40,72,99,61,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Peter Woodbury School,All grades,All students,195 - 200,< 10 %,< 10 %,30,57,87,98,60,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,Peter Woodbury School,All grades,All students,195 - 200,< 10 %,14,25,54,79,98,58,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Riddle Brook School,All grades,All students,210 - 215,< 10 %,< 10 %,38,52,90,99,53,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,Riddle Brook School,All grades,All students,210 - 215,< 10 %,10,30,57,86,99,56,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Ross A. Lurgio Middle School,All grades,All students,610 - 615,< 10 %,19,24,49,73,97,52,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Bedford,Ross A. Lurgio Middle School,All grades,All students,605 - 610,< 10 %,16,52,27,79,97,54,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Bedford,Ross A. Lurgio Middle School,All grades,All students,290 - 295,15,16,38,30,68,95,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Bakersville School,All grades,All students,95 - 100,45,22,25,< 10 %,33,98,46,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Bakersville School,All grades,All students,95 - 100,57,15,20,< 10 %,28,98,48,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Beech Street School,All grades,All students,170 - 175,68,24,< 10 %,< 10 %,< 10 %,99,41,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Beech Street School,All grades,All students,165 - 170,73,15,11,< 10 %,13,99,42,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,mat,Manchester,District Data,All grades,All students,"5,585 - 5,590",55,25,13,< 10 %,20,96,44,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,rea,Manchester,District Data,All grades,All students,"5,560 - 5,565",46,23,23,< 10 %,31,96,46,Not applicable,8/21/2026 9:08
+Regular,2026,District Level,sci,Manchester,District Data,All grades,All students,"2,240 - 2,245",69,14,13,< 10 %,17,92,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Gossler Park School,All grades,All students,120 - 125,60,21,17,< 10 %,19,98,52,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Gossler Park School,All grades,All students,120 - 125,63,20,13,< 10 %,18,100,47,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Green Acres School,All grades,All students,140 - 145,23,27,29,21,50,99,53,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Green Acres School,All grades,All students,140 - 145,33,22,26,19,45,99,54,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Henry J. McLaughlin Jr. Middle School,All grades,All students,785 - 790,62,22,11,< 10 %,16,98,45,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Henry J. McLaughlin Jr. Middle School,All grades,All students,780 - 785,47,26,23,< 10 %,27,98,50,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Henry J. McLaughlin Jr. Middle School,All grades,All students,385 - 390,69,13,14,< 10 %,18,99,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Highland-Goffes Falls School,All grades,All students,110 - 115,29,33,19,19,38,100,47,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Highland-Goffes Falls School,All grades,All students,110 - 115,34,21,22,23,46,100,50,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Hillside Middle School,All grades,All students,950 - 955,61,25,< 10 %,< 10 %,14,98,41,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Hillside Middle School,All grades,All students,940 - 945,51,22,22,< 10 %,28,98,42,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Hillside Middle School,All grades,All students,500 - 505,70,15,11,< 10 %,15,98,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Jewett School,All grades,All students,165 - 170,39,23,28,11,38,100,55,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Jewett School,All grades,All students,165 - 170,40,22,26,12,38,100,55,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Manchester Central High School,All grades,All students,195 - 200,56,28,12,< 10 %,15,83,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Manchester Central High School,All grades,All students,190 - 195,41,24,31,< 10 %,36,83,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Manchester Central High School,All grades,All students,170 - 175,66,15,17,< 10 %,19,73,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Manchester Memorial High School,All grades,All students,300 - 305,45,42,11,< 10 %,14,93,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Manchester Memorial High School,All grades,All students,300 - 305,35,22,37,< 10 %,43,93,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Manchester Memorial High School,All grades,All students,305 - 310,74,14,11,< 10 %,13,95,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Manchester School of Technology (High School),All grades,All students,55 - 60,58,36,< 10 %,< 10 %,< 10 %,92,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Manchester School of Technology (High School),All grades,All students,55 - 60,24,31,44,< 10 %,45,92,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Manchester School of Technology (High School),All grades,All students,60 - 65,63,22,15,< 10 %,15,100,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Manchester West High School,All grades,All students,115 - 120,63,31,< 10 %,< 10 %,< 10 %,71,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Manchester West High School,All grades,All students,115 - 120,47,20,31,< 10 %,33,71,* n < 11,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Manchester West High School,All grades,All students,100 - 105,61,13,25,< 10 %,26,62,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,McDonough School,All grades,All students,215 - 220,54,25,16,< 10 %,21,97,51,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,McDonough School,All grades,All students,215 - 220,47,30,16,< 10 %,23,97,47,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Middle School At Parkside,All grades,All students,715 - 720,66,21,< 10 %,< 10 %,13,98,41,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Middle School At Parkside,All grades,All students,710 - 715,52,23,19,< 10 %,25,97,43,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Middle School At Parkside,All grades,All students,375 - 380,69,14,12,< 10 %,17,98,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Northwest Elementary School,All grades,All students,180 - 185,44,26,22,< 10 %,29,99,53,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Northwest Elementary School,All grades,All students,175 - 180,41,25,25,< 10 %,34,99,48,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Parker-Varney School,All grades,All students,130 - 135,46,24,20,11,30,99,66,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Parker-Varney School,All grades,All students,130 - 135,46,21,24,10,34,100,63,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Smyth Road School,All grades,All students,115 - 120,23,29,31,16,47,96,42,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Smyth Road School,All grades,All students,115 - 120,34,24,28,15,42,96,38,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Southside Middle School,All grades,All students,695 - 700,60,21,11,< 10 %,19,99,42,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Southside Middle School,All grades,All students,695 - 700,42,26,26,< 10 %,32,99,47,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,sci,Manchester,Southside Middle School,All grades,All students,320 - 325,66,15,14,< 10 %,18,99,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Webster School,All grades,All students,110 - 115,34,25,21,20,42,100,63,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Webster School,All grades,All students,110 - 115,34,18,26,23,49,100,65,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Manchester,Weston Elementary School,All grades,All students,135 - 140,39,28,25,< 10 %,33,99,52,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,rea,Manchester,Weston Elementary School,All grades,All students,135 - 140,39,23,25,13,39,99,53,Not applicable,8/21/2026 9:08
+Regular,2026,State Level,mat,State Data,State Data,All grades,All students,"79,820 - 79,825",28,29,24,20,44,95,50,Not applicable,8/21/2026 9:08
+Regular,2026,State Level,rea,State Data,State Data,All grades,All students,"79,570 - 79,575",22,23,36,18,55,95,50,Not applicable,8/21/2026 9:08
+Regular,2026,State Level,sci,State Data,State Data,All grades,All students,"32,700 - 32,705",42,19,27,12,38,91,Not applicable,Not applicable,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,All students,315 - 320,< 10 %,30,41,22,63,94,Not applicable,561,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,Asian+PI+Hawaiian,30 - 35,< 10 %,< 10 %,30,67,> 90 %,94,Not applicable,670,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,Black, 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,100,Not applicable,* n < 11,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,EL - Current, 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,83,Not applicable,* n < 11,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,Female,160 - 165,< 10 %,32,43,17,60,93,Not applicable,547,8/21/2026 9:08
+Regular,2026,School Level,mat,Bedford,Bedford High School,11,Foster, 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,50,Not applicable,* n < 11,8/21/2026 9:08

@@ -100,3 +100,10 @@
   </ul>
 </nav>
 {%- endmacro %}
+
+{# Under every figure Publick calculates rather than takes as published: that it did, and how. #}
+{% macro calculated(how) -%}
+<div class="credit calculated">
+  <p><strong>Calculated by Publick.</strong> {{ how }}</p>
+</div>
+{%- endmacro %}

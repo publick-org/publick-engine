@@ -1,0 +1,99 @@
+yearid,Level of Data,Subject,District,School,Grade,Subgroup,Total FAY Students,level1%,level2%,level3%,level4%,Above prof% (lvl 3&4),Participate%,Mean SGP,Avg Score,% of total tested DLM - state,% of total tested EL First Yr,Report Date
+2019,District Level,mat,Bedford,District Data,All grades,All students             ,"2,400 - 2,405",<10,17,31,47,78,99,56,Not available,Not available,Not available,10/2/2019
+11-Jul,District Level,rea,Bedford,District Data,All grades,All students             ,"2,390 - 2,395",<10,14,43,36,79,98,54,Not available,Not available,Not available,10/2/2019
+2019,District Level,sci,Bedford,District Data,All grades,All students             ,"1,025 - 1,030",21,22,41,16,57,97,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,Bedford High School,All grades,All students             ,345 - 350,<10,31,41,22,63,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,Bedford High School,All grades,All students             ,345 - 350,<10,10,56,29,85,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Bedford,Bedford High School,All grades,All students             ,340 - 345,27,16,48,<10,57,94,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,McKelvie Intermediate School,All grades,All students             ,680 - 685,<10,17,29,48,77,98,55,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,McKelvie Intermediate School,All grades,All students             ,680 - 685,<10,17,44,30,75,98,49,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Bedford,McKelvie Intermediate School,All grades,All students             ,325 - 330,17,28,34,22,55,99,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,Memorial School,All grades,All students             ,140 - 145,<10,<10,35,58,>90,99,68,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,Memorial School,All grades,All students             ,140 - 145,<10,<10,38,53,>90,99,65,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,Peter Woodbury School,All grades,All students             ,230 - 235,<10,17,27,52,79,100,65,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,Peter Woodbury School,All grades,All students             ,225 - 230,<10,16,31,46,78,99,65,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,Riddle Brook School,All grades,All students             ,280 - 285,<10,<10,31,60,90,100,57,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,Riddle Brook School,All grades,All students             ,280 - 285,<10,13,25,60,85,100,66,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Bedford,Ross A. Lurgio Middle School,All grades,All students             ,710 - 715,<10,15,28,50,77,99,54,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Bedford,Ross A. Lurgio Middle School,All grades,All students             ,705 - 710,<10,13,49,29,78,99,54,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Bedford,Ross A. Lurgio Middle School,All grades,All students             ,355 - 360,19,21,42,17,59,98,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,District Level,mat,Manchester,District Data,All grades,All students             ,"6,070 - 6,075",45,31,17,<10,24,91,49,Not available,Not available,Not available,10/2/2019
+2019,District Level,rea,Manchester,District Data,All grades,All students             ,"6,010 - 6,015",41,25,26,<10,34,91,50,Not available,Not available,Not available,10/2/2019
+2019,District Level,sci,Manchester,District Data,All grades,All students             ,"2,310 - 2,315",61,20,15,<10,18,80,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Bakersville School,All grades,All students             ,135 - 140,50,28,16,<10,22,99,40,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Bakersville School,All grades,All students             ,135 - 140,53,26,15,<10,21,99,41,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Bakersville School,All grades,All students             ,45 - 50,69,16,16,<10,16,100,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Beech Street School,All grades,All students             ,250 - 255,71,21,<10,<10,<10,99,44,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Beech Street School,All grades,All students             ,235 - 240,72,18,<10,<10,<10,96,42,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Beech Street School,All grades,All students             ,70 - 75,80,14,<10,<10,<10,100,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Gossler Park School,All grades,All students             ,215 - 220,56,26,14,<10,18,98,45,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Gossler Park School,All grades,All students             ,215 - 220,57,22,14,<10,21,98,44,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Gossler Park School,All grades,All students             ,55 - 60,74,17,<10,<10,<10,97,* n < 11,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,mat,Manchester,Green Acres School,All grades,All students             ,230 - 235,26,35,23,17,39,99,59,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Green Acres School,All grades,All students             ,230 - 235,30,20,32,19,51,99,56,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Green Acres School,All grades,All students             ,90 - 95,42,25,22,11,33,98,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Hallsville School,All grades,All students             ,125 - 130,32,34,19,15,34,100,68,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Hallsville School,All grades,All students             ,125 - 130,33,26,31,10,41,100,63,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Hallsville School,All grades,All students             ,55 - 60,54,29,15,<10,17,100,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Henry J. McLaughlin Middle School,All grades,All students             ,640 - 645,47,31,16,<10,22,96,50,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Henry J. McLaughlin Middle School,All grades,All students             ,630 - 635,37,30,29,<10,33,95,47,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Henry J. McLaughlin Middle School,All grades,All students             ,210 - 215,56,26,17,<10,18,95,* n < 11,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,mat,Manchester,Highland-Goffes Falls School,All grades,All students             ,200 - 205,30,30,25,14,39,97,64,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Highland-Goffes Falls School,All grades,All students             ,200 - 205,30,22,31,17,48,96,62,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Highland-Goffes Falls School,All grades,All students             ,75 - 80,49,22,19,10,29,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Hillside Middle School,All grades,All students             ,525 - 530,48,27,20,<10,25,70,46,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Hillside Middle School,All grades,All students             ,525 - 530,42,26,27,<10,32,70,46,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Hillside Middle School,All grades,All students             ,120 - 125,58,19,18,<10,23,51,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Jewett School,All grades,All students             ,165 - 170,39,40,14,<10,21,94,47,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Jewett School,All grades,All students             ,165 - 170,42,22,27,<10,35,94,54,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Jewett School,All grades,All students             ,50 - 55,63,22,<10,<10,15,93,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Manchester Central High School,All grades,All students             ,290 - 295,34,38,22,<10,28,86,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Manchester Central High School,All grades,All students             ,290 - 295,28,23,40,<10,49,86,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Manchester Central High School,All grades,All students             ,220 - 225,63,16,19,<10,22,65,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Manchester Memorial High School,All grades,All students             ,270 - 275,31,43,23,<10,26,81,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Manchester Memorial High School,All grades,All students             ,270 - 275,24,25,46,<10,51,81,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Manchester Memorial High School,All grades,All students             ,165 - 170,58,21,20,<10,21,49,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Manchester School of Technology (High School),All grades,All students             ,65 - 70,42,37,18,<10,22,94,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Manchester School of Technology (High School),All grades,All students             ,65 - 70,31,31,37,<10,38,94,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Manchester School of Technology (High School),All grades,All students             ,55 - 60,71,14,13,<10,14,78,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Manchester West High School,All grades,All students             ,115 - 120,44,39,16,<10,17,76,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Manchester West High School,All grades,All students             ,115 - 120,39,27,30,<10,34,76,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Manchester West High School,All grades,All students             ,115 - 120,77,13,<10,<10,10,74,* n < 11,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,mat,Manchester,McDonough School,All grades,All students             ,220 - 225,38,33,20,<10,29,97,50,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,McDonough School,All grades,All students             ,220 - 225,36,26,26,12,38,97,50,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,sci,Manchester,McDonough School,All grades,All students             ,80 - 85,51,32,<10,<10,17,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Middle School At Parkside,All grades,All students             ,560 - 565,47,28,15,10,25,95,52,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Middle School At Parkside,All grades,All students             ,560 - 565,37,29,27,<10,34,95,55,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Middle School At Parkside,All grades,All students             ,175 - 180,57,20,19,<10,23,93,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Northwest Elementary School,All grades,All students             ,285 - 290,38,29,21,12,33,96,49,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Northwest Elementary School,All grades,All students             ,285 - 290,44,19,26,10,36,96,43,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Northwest Elementary School,All grades,All students             ,85 - 90,42,20,28,10,38,91,* n < 11,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,mat,Manchester,Parker-Varney School,All grades,All students             ,195 - 200,38,34,22,<10,28,99,46,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Parker-Varney School,All grades,All students             ,195 - 200,40,26,26,<10,34,99,45,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Parker-Varney School,All grades,All students             ,65 - 70,66,24,<10,<10,10,100,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Smyth Road School,All grades,All students             ,155 - 160,31,33,23,13,36,90,64,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Smyth Road School,All grades,All students             ,155 - 160,33,23,30,14,44,89,60,Not available,Not available,Not available,10/2/2019
+11-Jul,School Level,sci,Manchester,Smyth Road School,All grades,All students             ,50 - 55,43,22,26,<10,35,87,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Southside Middle School,All grades,All students             ,675 - 680,55,28,12,<10,17,97,42,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Southside Middle School,All grades,All students             ,670 - 675,43,29,24,<10,28,96,48,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Southside Middle School,All grades,All students             ,240 - 245,73,19,<10,<10,<10,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Webster School,All grades,All students             ,200 - 205,35,31,22,12,34,97,49,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Webster School,All grades,All students             ,185 - 190,36,29,24,11,36,91,53,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Webster School,All grades,All students             ,60 - 65,53,27,14,<10,20,96,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Weston School,All grades,All students             ,205 - 210,35,35,18,11,30,97,57,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Weston School,All grades,All students             ,200 - 205,40,25,24,10,34,96,56,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Weston School,All grades,All students             ,75 - 80,50,30,14,<10,20,99,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,School Level,mat,Manchester,Wilson School,All grades,All students             ,195 - 200,71,21,<10,<10,<10,99,37,Not available,Not available,Not available,10/2/2019
+2019,School Level,rea,Manchester,Wilson School,All grades,All students             ,195 - 200,63,21,13,<10,16,98,41,Not available,Not available,Not available,10/2/2019
+2019,School Level,sci,Manchester,Wilson School,All grades,All students             ,70 - 75,79,15,<10,<10,<10,100,* n < 11,Not available,Not available,Not available,10/2/2019
+2019,State Level,mat,State Data,State Data,All grades,All students             ,"91,045 - 91,050",22,30,28,20,48,96,50,Not available,NULL,Not available,10/2/2019
+2019,State Level,rea,State Data,State Data,All grades,All students             ,"90,780 - 90,785",20,23,38,18,56,96,50,Not available,NULL,Not available,10/2/2019
+2019,State Level,sci,State Data,State Data,All grades,All students             ,"37,715 - 37,720",37,23,31,<10,40,91,* n < 11,Not available,NULL,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,All students             ,315 - 320,<10,12,28,56,84,99,* n < 11,457,Not available,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,Am. Indian               , 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,Asian+PI+Hawaiian        ,25 - 30,<10,<10,32,64,>90,* N< 40 ,* n < 11,463,Not available,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,Black                    , 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,EL - Curr + Monitor Yr1-4, 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
+2019,District Level,mat,Bedford,District Data,3,EL - Current             , 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
+11-Jul,District Level,mat,Academy for Science and Design Charter School,District Data,7,SES                      , 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
+11-Jul,District Level,mat,Academy for Science and Design Charter School,District Data,8,Hispanic                 , 0 - 10,* n < 11,* n < 11,* n < 11,* n < 11,* n < 11,* N< 40 ,* n < 11,* n < 11,Not available,Not available,10/2/2019
