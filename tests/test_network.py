@@ -93,6 +93,43 @@ def test_run_builds_checks_and_publishes_a_town(tmp_path, steps):
     assert json.loads((tmp_path / "reports" / "gloucester-ma.json").read_text()) == result
 
 
+def test_a_fetching_run_records_its_result_for_the_status_page(tmp_path, steps, monkeypatch):
+    calls, failing = steps
+    rows = [{"label": "311 requests", "updated_at": "2026-09-28T23:45:55-04:00", "max_days": 2, "stale": False},
+            {"label": "Meeting summaries", "updated_at": None, "max_days": 2, "stale": True,
+             "waiting": [f"agenda {i}" for i in range(25)]}]
+    fake = network.step
+
+    def step(name, cmd, env, cwd, timeout):
+        if name == "Check data freshness":
+            Path(cmd[cmd.index("--report") + 1]).write_text(json.dumps(rows))
+        return fake(name, cmd, env, cwd, timeout)
+
+    monkeypatch.setattr(network, "step", step)
+    failing.update({"Check data freshness", "Publish site"})
+    root = make_root(tmp_path)
+    (root / "engine-version").write_text("v1.5.0\n")
+    town = root / "towns" / "gloucester-ma"
+    (town / "data").mkdir()
+    result = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
+    record = json.loads((town / "data" / network.RUN_RECORD).read_text())
+    assert record == result
+    assert record["engine"] == "v1.5.0" and record["started_at"] <= record["finished_at"]
+    assert record["stale"] and not record["ok"] and not record["deployed"]
+    summaries = record["sources"][1]
+    assert len(summaries["waiting"]) == network.WAITING_KEPT and summaries["waiting_count"] == 25
+    assert record["sources"][0] == rows[0]
+    assert not (town / ".freshness-report.json").exists()
+
+
+def test_a_run_without_fetching_records_nothing(tmp_path, steps):
+    root = make_root(tmp_path)
+    (root / "towns" / "gloucester-ma" / "data").mkdir()
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=False, reports=None)
+    assert result["engine"] is None and result["sources"] is None
+    assert not (root / "towns" / "gloucester-ma" / "data" / network.RUN_RECORD).exists()
+
+
 def test_a_town_that_fails_its_checks_is_not_published(tmp_path, steps):
     calls, failing = steps
     failing.add("Check site")
