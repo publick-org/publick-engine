@@ -1,95 +1,85 @@
 # Roadmap: from a few towns to a thousand
 
-Today every town is its own repository: a config file, its data, and a short
-workflow that calls the engine at a pinned version, deployed to GitHub Pages.
-That works for a handful of towns. At hundreds it means hundreds of
+Publick's towns started as one repository each: a config file, its data, and a
+short workflow that calls the engine at a pinned version, deployed to GitHub
+Pages. That works for a handful of towns. At hundreds it means hundreds of
 repositories to create, schedule, pin, and watch.
 
-**Decision: towns move into one repository.** Publick runs the towns itself,
-so there is no need for each town to have a repository of its own. One
-network repository holds every town's config and data, one workflow runs them
-in batches, and Cloudflare serves every site. The engine stays its own
-repository with its own tests and releases, and a single-town repository
-calling `town.yml` keeps working, so a town that wants to run its own site
-later can.
+**Decision, now done: towns live in one repository.** Publick runs the towns
+itself, so there is no need for each town to have a repository of its own. The
+network repository, [publick-org/publick.org](https://github.com/publick-org/publick.org),
+holds every town's config and data (Gloucester, Malden, and Manchester so far),
+one workflow runs them in batches, and Cloudflare serves every site. The engine
+stays its own repository with its own tests and releases, and a single-town
+repository calling `town.yml` keeps working, so a town that wants to run its
+own site later can.
 
-The first section describes the network repository. The numbered items are
-what still has to change inside it, each with what breaks, the plan, and when
-it matters. Items are numbered for reference, not order; the suggested order
-is at the end.
+The first section describes the network repository as built. The numbered
+items are what still has to change, each with what breaks, the plan, what's
+done, and when it matters. Items are numbered for reference, not order; the
+suggested order is at the end.
 
 ## The network repository
 
 **Layout.**
 
 ```
-publick-org/towns
-  engine-version              the engine release every town runs, e.g. v1.4.0
+publick-org/publick.org
+  engine-version              the engine release every town runs, e.g. v1.5.0
   towns/gloucester-ma/
     config/gloucester.toml
-    data/
+    data/                     including run.json, the last daily run's result
     site/static/share/gloucester.png
-  towns/manchester-nh/...
+  towns/malden-ma/, towns/manchester-nh/
+  home/                       the publick.org homepage
+  scripts/                    build_home.py (its town lists), build_status.py (publick.org/status/)
   .github/workflows/network.yml
 ```
 
-The engine already reads a town's config, data, and static files from
+The engine reads a town's config, data, and static files from
 `PUBLICK_TOWN_DIR`, so each town's commands run unchanged with it set to the
-town's folder. `TOWN_DIR` is read once at import, so each town runs in its own
-process, as the commands already do.
+town's folder, each town in its own process (`pipeline/network.py`).
 
-**The daily run.** `network.yml` runs every hour across the early morning.
+**The daily run.** `network.yml` runs four times across the early morning.
 
-1. A first job assigns each town an hour from a stable hash of its slug and
-   lists the towns due now. (Not Python's `hash()`, which changes between
-   runs.)
-2. A shared job fetches statewide and national sources once (item 2) and
-   hands them to the town jobs.
-3. Town jobs run in a matrix, a few towns per job, each checking out only
-   its towns' folders. Python packages and Playwright are installed once per
-   job, not once per town. `max-parallel` keeps the run inside the
-   organization's limit on concurrent jobs.
-4. Each job uploads its towns' changed `data/` folders; a final job commits
-   them together in one commit. Dozens of jobs each rebasing and pushing to
-   `main`, as `commit-data.sh` does for one town, would fight over the branch.
-5. Each town that built and passed its site checks is deployed on its own. A
-   town that fails keeps its last good site.
+1. A first job gives each town one of the four runs, from a stable hash of its
+   folder name, and splits the run's towns into batches.
+2. Town jobs run in a matrix, four towns per job, each checking out only its
+   towns' folders. Python packages and Playwright are installed once per job.
+   `max-parallel` keeps the run inside the organization's limit on concurrent
+   jobs.
+3. Each town fetches new data, is built and checked, and is published on its
+   own if its checks pass; a town that fails keeps its last good site. Each
+   job commits its towns' data, retrying against the other jobs' pushes.
+4. A report job writes one table of every town in the run and fails the run
+   once if any town needs attention, so GitHub sends one email per run.
+5. The homepage and the status page are rebuilt from `main`, with the run's
+   data, and published.
 
 A pull request that changes a town's folder builds and checks only that town.
 Adding a town is a pull request that adds its folder.
 
-**Hosting.** Every site is already at `<town>-<state>.publick.org`.
+**Hosting.** Every site is at `<town>-<state>.publick.org`.
 
 - One wildcard DNS record, `*.publick.org`, points at one Cloudflare Worker.
   There is no DNS record, custom domain, or certificate to set up per town.
-- Each build is uploaded to R2 under `sites/<town>/<build>/`.
+- Each build goes to an R2 bucket, with files stored once by content and
+  shared across sites.
 - The Worker finds the town from the hostname, looks up that town's current
   build, and serves the file (`/meetings/` serves `meetings/index.html`).
 - A deploy uploads the new build, then points the town at it, so no one sees
-  a half-uploaded site. Rolling back points it at the previous build, for one
-  town or all of them. Old builds are deleted after a few days.
+  a half-uploaded site. Rolling back points it at the previous build. Builds
+  beyond the newest ten are deleted daily.
 
 **Secrets.** One set, at the organization or repository level: the Anthropic
-key, the storage keys, the BLS key. Nothing is set per town.
+key, the storage keys, the sites bucket keys, the BLS key. Nothing is set per
+town.
 
-**Moving the existing towns.**
-
-1. Build `network.yml`, the batching script, the R2 deploy step, and the
-   Worker.
-2. Copy one town's `config/`, `data/`, and `site/static/` into the network
-   repository, without its git history; the old repository stays, archived,
-   as the record.
-3. Run it alongside the old repository for a few days at a test address, then
-   add the wildcard record, delete that town's `CNAME` (a specific record
-   takes precedence over the wildcard), and turn off the old schedule.
-4. Move the other towns the same way, one at a time.
-
-**What this replaces.** Staggered cron lines in each town's workflow, a
-command that creates repositories and Pages settings through the GitHub and
-Cloudflare APIs, warnings for towns pinned to odd engine versions, and
-re-enabling town workflows that GitHub turned off after 60 quiet days. None
-of those are needed with one repository, one pin, and one schedule that
-commits every day.
+**What this replaced.** Staggered cron lines in each town's workflow, a
+command to create repositories and Pages settings, warnings for towns pinned
+to odd engine versions, and re-enabling town workflows that GitHub turned off
+after 60 quiet days. None of those are needed with one repository, one pin,
+and one schedule that commits every day.
 
 ## 1. Data grows in git
 
@@ -120,11 +110,16 @@ every town in the state, from the same GitHub addresses. SeeClickFix already
 blocked us twice in one day for one town; the keyless BLS API allows a couple
 of dozen requests a day per address.
 
-**Plan.** The network run's shared job fetches each statewide or national
+**Plan.** A shared job in the network run fetches each statewide or national
 file once and passes it to the town jobs. Town fetchers use the shared copy
 when it's there and go to the source only if it isn't. Town-specific sources
 (meetings, 311, a city's permits) stay per town, spread across the morning
 by the schedule.
+
+*Done so far: New Hampshire's statewide files (tax rates, school figures)
+are saved once a year into the engine (`pipeline/states/nh/figures/`), because
+the state's websites refuse automated requests; every New Hampshire town reads
+its rows from there. The other shared sources are still fetched per town.*
 
 **Matters at:** tens of towns in one state.
 
@@ -135,15 +130,18 @@ emails the owner. With every town in one workflow, a run with any failing
 town fails, several times a morning, with no overview of which towns are
 behind or why.
 
-**Plan.**
+**Plan and progress.**
 - A town's failure doesn't fail the run. Each town job records what happened
   (every source's last update, the engine version, build and deploy result).
-  *Done: a fetching run writes it to the town's `data/run.json`.*
+  *Done: a fetching run writes it to the town's `data/run.json`. Not done:
+  a failing town still fails its run.*
 - The final job of each run writes a network status page on publick.org: one
   table of towns behind, towns whose runs failed, and totals, plus the
   repository size (item 1) and summary spending (item 4). *Done, without the
-  size and spending: publick.org/status/, built by the network repository's
-  `scripts/build_status.py` after each run.*
+  size and spending: [publick.org/status/](https://publick.org/status/), built by
+  the network repository's `scripts/build_status.py` after each run. It's public,
+  so it says in plain words which data on a site may be out of date and leaves
+  the run's internals to the run's summary.*
 - Once a day, the run fails if any town is behind, so GitHub sends one email
   a day rather than one per failure.
 - If the network run itself stops, every town stops at once. A scheduled
@@ -172,8 +170,10 @@ network, not to each town.
   rate limits still bite, move summaries to one network job that uses the
   Batches API, which is also cheaper.
 
-**Matters at:** the default, now; the rest as soon as several towns have
-summaries turned on.
+*Done: the default per-run limit ($5, and 50 documents). Not done: the
+ledger, monthly limits, and the Batches API.*
+
+**Matters at:** the rest as soon as several towns have summaries turned on.
 
 ## 5. A bad release reaches every site at once
 
@@ -188,13 +188,19 @@ checks a whole site for a town that uses them, or for a New Hampshire town.
   system (CivicPlus, CivicClerk, and DotNetNuke meetings; SeeClickFix with
   and without departments; Massachusetts and non-Massachusetts sources),
   from saved data, and run the site checks on each.
-- Releasing is automatic: a merge that bumps a `VERSION` file creates the
-  release, so no one has to click through GitHub's release page.
+- Releasing is automatic: when the engine tests pass on `main` after a merge,
+  that commit is released, so no one has to click through GitHub's release
+  page.
 - A few canary towns in the network repository run the newest release;
   `engine-version` moves for everyone else after a day with the canaries
   green. Moving it is a one-line pull request, which a bot can open.
 - Rolling back is moving `engine-version` back and pointing sites at their
   previous builds.
+
+*Done: automatic releases (a pull request's label picks a patch, major, or no
+release). The engine's tests build Gloucester (Massachusetts, CivicPlus) and a
+New Hampshire site. Not done: whole-site builds for CivicClerk, DotNetNuke,
+and Agenda Center towns, and canary towns.*
 
 **Matters at:** as soon as more than one town uses a reader.
 
@@ -211,19 +217,22 @@ own site, it gets its own repository calling `town.yml`, as towns do today.
 
 ## Suggested order
 
-1. The default summary spending limit (item 4); it's small.
-2. Sample towns in the engine's tests and automatic releases (item 5), so the
-   move itself is covered by tests.
-3. The network repository: `network.yml`, batching, the R2 deploy, and the
-   Worker, with one town moved in and run alongside its old repository.
-4. The status page and the outside check (item 3), before the second town
-   moves in.
-5. `[storage]` for every town, then move the rest of the towns one at a time
-   (item 1).
-6. Canary towns on the newest release (item 5).
-7. The shared statewide fetch, once a state has more than a few towns
+Done: the default summary spending limit (item 4); automatic releases (item 5);
+the network repository, with all three towns moved in and a `[storage]` table
+each; the status page (item 3).
+
+Next:
+
+1. The rest of item 3: a town's failure doesn't fail the run, one email a day
+   when a town is behind, and the outside check that the status page is still
+   being updated.
+2. Whole-site test builds for the other meeting systems (item 5).
+3. Canary towns on the newest release (item 5).
+4. The repository's size and growth on the status page, then moving
+   fast-growing files to the bucket as that shows the need (item 1).
+5. The shared statewide fetch, once a state has more than a few towns
    (item 2).
-8. The cost ledger and monthly limits, once more towns have summaries
+6. The cost ledger and monthly limits, once more towns have summaries
    (item 4).
-9. Moving fast-growing files to the bucket, as the size tracking shows the
-   need (item 1).
+7. `CODEOWNERS` and branch protection, before the first editor from outside
+   Publick (item 6).
