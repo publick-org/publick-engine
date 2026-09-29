@@ -6,7 +6,7 @@ Each site is static HTML built by a small Python pipeline and deployed to GitHub
 
 This repository holds the code, page templates, styles, tests, and the daily workflow. Each town has its own small repository with only what is specific to it, and calls this engine at a pinned version. A fix made here reaches every town when it moves to the new version.
 
-The code is MIT-licensed, so anyone can run a site like this for their own town, on their own domain and accounts: see [Starting a site for another town](#starting-a-site-for-another-town). The Publick name and "P" icon identify the Publick network's sites, so a site outside the network should use its own. [How Publick runs it](#how-publick-runs-it) lists the network's own setup.
+The code is licensed under the [GNU Affero General Public License](LICENSE), version 3 or later, so anyone can run a site like this for their own town, on their own domain and accounts, as long as they publish the source of any changes they make: see [Starting a site for another town](#starting-a-site-for-another-town). The Publick name and "P" icon identify the Publick network's sites, so a site outside the network should use its own. [How Publick runs it](#how-publick-runs-it) lists the network's own setup.
 
 ## How a town uses the engine
 
@@ -337,7 +337,7 @@ The files remain in the repository's git history. Shrinking the history means re
 
 ## Data and licenses
 
-The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
+Copyright (C) 2026 Publick contributors. The code is under the [GNU Affero General Public License](LICENSE), version 3 or later (AGPL-3.0-or-later): you can use, change and share it, and anyone who runs a changed version as a website must offer its visitors that version's source. Releases up to and including `v1.4.0` were published under the MIT License, and those copies keep it. Data keeps the terms of its source; each town's `data/README.md` lists its sources. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
 
 ## Email
 
