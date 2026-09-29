@@ -154,3 +154,18 @@ def test_minutes_per_run_limit(malden, tmp_path):
     assert summary == {"minutes_added": 1, "minutes_waiting": 2, "errors": []}
     # The newest first.
     assert load_store(tmp_path)["agendacenter-4400"].get("minutes")
+
+
+def test_same_day_meetings_without_times_are_numbered(malden, tmp_path):
+    """Agenda Center has no times, so two agendas for one board on one day are told apart by order."""
+    from pipeline import build_site
+    page = PAGE.replace("4452", "9452")
+    page = page.replace("Joint Finance Rules and Ordinance Agenda", "Finance Committee Agenda (second posting)")
+    fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    meetings = build_site.load_meetings(tmp_path, NOW.date())["all"]
+    finance = sorted((m for m in meetings if m["date"] == "2026-09-29" and m["body"] == "City Council Finance Committee"),
+                     key=lambda m: m["day_part"])
+    assert [m["day_part"] for m in finance] == ["1 of 2", "2 of 2"]
+    assert [m["id"] for m in finance] == ["agendacenter-4453", "agendacenter-9452"]
+    alone = next(m for m in meetings if m["id"] == "agendacenter-4441")
+    assert not alone["same_day"] and alone["day_part"] is None

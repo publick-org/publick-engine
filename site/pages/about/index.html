@@ -46,7 +46,7 @@
   <li><strong>Unemployment:</strong> U.S. <a href="https://www.bls.gov/lau/">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.</li>
   {% endif %}
   {% if config.schools is defined %}
-  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data. School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.</li>
+  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data.{% if config.schools.report_url is defined %} School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.{% endif %}</li>
   {% endif %}
   {% if config.housing is defined %}
   <li><strong>Housing:</strong> U.S. Census Bureau <a href="https://www.census.gov/construction/bps/">Building Permits Survey</a> and <a href="https://www.census.gov/programs-surveys/acs">American Community Survey</a> (through <a href="https://censusreporter.org">Census Reporter</a>){% if config.housing.shi_url is defined %}, the state's <a href="https://www.mass.gov/info-details/subsidized-housing-inventory-shi">Subsidized Housing Inventory</a>{% endif %}{% if config.finance is defined %}, and Division of Local Services parcel counts{% endif %}.</li>
