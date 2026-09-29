@@ -2,9 +2,14 @@
 
 The shared code behind the Publick network's town sites, such as [Gloucester Publick](https://gloucester-ma.publick.org) and [Manchester Publick](https://manchester-nh.publick.org): independent, read-only sites that publish public data about a town: how the city responds to 311 requests, what is on upcoming meeting agendas, the budget, schools, housing, and more.
 
-Each site is static HTML built by a small Python pipeline and deployed to GitHub Pages by GitHub Actions. There is no server and no database.
+Each site is static HTML built by a small Python pipeline in GitHub Actions. There is no server and no database.
 
-This repository holds the code, page templates, styles, tests, and the daily workflow. Each town has its own small repository with only what is specific to it, and calls this engine at a pinned version. A fix made here reaches every town when it moves to the new version.
+This repository holds the code, page templates, styles, tests, and the workflows. What's specific to a town (its config, its data, its share image) lives elsewhere, and runs this engine at a pinned version, in one of two ways:
+
+- **A network of towns in one repository**, as Publick runs its own: [publick-org/publick.org](https://github.com/publick-org/publick.org) holds every town's folder, runs them in daily batches (`pipeline/network.py`), and serves every site from a Cloudflare R2 bucket through one Worker. See [Serving many sites from one bucket](#serving-many-sites-from-one-bucket).
+- **One repository for one town**, deployed to GitHub Pages by the engine's `town.yml`, described next.
+
+A fix made here reaches every town when it moves to the new version.
 
 The code is MIT-licensed, so anyone can run a site like this for their own town, on their own domain and accounts: see [Starting a site for another town](#starting-a-site-for-another-town). The Publick name and "P" icon identify the Publick network's sites, so a site outside the network should use its own. [How Publick runs it](#how-publick-runs-it) lists the network's own setup.
 
@@ -408,12 +413,12 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 
 | What | Publick's value |
 |---|---|
-| GitHub organization | `publick-org`: this engine, and one repository per town named `<town>-<state>` (e.g. `gloucester-ma`) |
-| Site addresses | `<town>-<state>.publick.org`, a `CNAME` to `publick-org.github.io`; `publick.org` is verified for the organization |
+| GitHub organization | `publick-org`: this engine, and the network repository [`publick.org`](https://github.com/publick-org/publick.org), with each town in `towns/<town>-<state>/` and the publick.org homepage and status page |
+| Site addresses | `<town>-<state>.publick.org`, served by one Cloudflare Worker from the sites bucket through a wildcard `*.publick.org` record; `publick.org` is the homepage, with [publick.org/status/](https://publick.org/status/) |
 | DNS and registrar | Cloudflare |
 | Site names | `<Town> Publick` (`name_prefix = "<Town> "`, `name_suffix = "Publick"`, `network = "Publick"`), sharing the Publick "P" icon |
 | Documents bucket | R2 bucket `publick-documents` at `https://files.publick.org`, `prefix = "<town>-<state>"` |
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
-| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `BLS_API_KEY` |
+| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, set once on the network repository |
 
-Adding a town to the network: a new `publick-org/<town>-<state>` repository ([Starting a site for another town](#starting-a-site-for-another-town)), a `CNAME` for `<town>-<state>` in publick.org's DNS, a `[storage]` table with the town's prefix, and a `<town>-<state>@publick.org` routing rule.
+Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.
