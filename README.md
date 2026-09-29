@@ -64,7 +64,7 @@ The engine's workflow checks out the engine at the same version as the workflow 
 
 Releases are tagged `v1.0.0`, `v1.1.0` and so on, with a `v1` tag that moves to the newest `v1.x` release. A town pinned to `@v1` takes each compatible release on its next run; one pinned to an exact tag moves when its pin is bumped, which Dependabot can do with a `github-actions` entry in the town's `.github/dependabot.yml`. A change that needs every town's config edited gets a new major version.
 
-To release: merge to `main` with the engine tests passing, then publish a release on GitHub (**Releases → Draft a new release**) with a new tag such as `v1.2.0` on `main`. The release workflow (`.github/workflows/release.yml`) then moves `v1` to the same commit.
+Releasing is automatic. When the engine tests pass on `main` after a merge, `.github/workflows/release.yml` releases that commit as the next minor version (`v1.4.0` → `v1.5.0`) and moves `v1` to it. Label the pull request `patch` for a patch version, `major` for a change that needs every town's config edited (`v2.0.0`; towns on `@v1` stay there until they move), or `no release` to release nothing. A release published by hand (**Releases → Draft a new release**) also moves its major tag.
 
 ## Layout
 
