@@ -87,7 +87,7 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: fails the run when a data source stops updating
-  civicplus.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
+  civicplus.py, agendacenter.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
@@ -214,6 +214,17 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 - **Board names.** Calendar names that aren't uniform ("PH-1 Board of Mayor and Aldermen", "Special Meeting-Board of Mayor and Aldermen") are matched to the longest name in `boards` (or key in `[meetings.aliases]`) that they contain, ignoring case, punctuation and "&"/"and". A name that matches none is cleaned up by rule: status words, "Special Meeting of the", and endings such as "Meeting" or "Public Hearings" are removed. A board whose own name starts with "Special" ("Special Committee on Airport Activities") should be listed, or it reads as a special meeting of another committee.
 - **Both calendars.** Meetings the DNN calendar links to the CivicClerk portal are collected from CivicClerk only. Use `exclude_pattern` for the rest of those boards' entries.
 - **CivicClerk times** are local, although the API marks them UTC.
+- **CivicPlus Agenda Center.** A CivicPlus town that posts its boards' agendas and minutes in the Agenda Center rather than on the calendar (Malden) uses `[meetings.agenda_center]`. One request to its search page lists every board's meetings for a date range; upcoming meetings' agendas are saved, and a revised agenda (same number, new posted time) is recorded in the meeting's history. `fetch_minutes` downloads the minutes linked from each meeting since `since`, up to `max_minutes_per_run` (default 60) a run. The board is the Agenda Center category (renamed by `[meetings.aliases]` if listed); `committees` names the committees whose meetings are posted under another board's category, matched in the row's title as `boards` are. There are no times or places in the listing, so meeting pages show the date only.
+
+  ```toml
+  [meetings.agenda_center]
+  base_url = "https://www.cityofmalden.org"
+  since = "2026-01-01"     # the first run lists meetings from here; later runs re-read the last 60 days (recheck_days) and 60 ahead (days_ahead)
+  exclude_categories = ["Community Outreach"]
+
+  [meetings.agenda_center.committees."City Council"]
+  "Finance Committee" = "City Council Finance Committee"
+  ```
 - **`documents = false`** is for a town with a calendar but no agendas and minutes collected yet. Each meeting page links to its agenda (and minutes) where the city posts them, and the pages that need the documents are left out: decisions, search, the RSS feed, and agenda items in the street lookup.
 
 ## Adding a section

@@ -7,10 +7,11 @@ makes after posting (new time, new place, revised agenda, cancellation) are
 recorded in each meeting's history so they stay visible.
 
 A town's calendars are the tables in [meetings]: a CivicPlus calendar feed
-(calendar_feed, which also saves agendas), a CivicClerk portal ([meetings.civicclerk])
-and a DotNetNuke city calendar ([meetings.dnn]). A town can have several;
-Manchester's aldermanic meetings are on CivicClerk and its other boards on the
-city calendar.
+(calendar_feed, which also saves agendas), a CivicPlus Agenda Center
+([meetings.agenda_center], which also saves agendas and lists minutes), a
+CivicClerk portal ([meetings.civicclerk]) and a DotNetNuke city calendar
+([meetings.dnn]). A town can have several; Manchester's aldermanic meetings
+are on CivicClerk and its other boards on the city calendar.
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -32,7 +33,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import civicclerk, civicplus, dnn
+from pipeline import agendacenter, civicclerk, civicplus, dnn
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
@@ -185,6 +186,30 @@ def civicplus_calendar(config: dict) -> Calendar:
     return Calendar("city calendar", events, lambda m: m.get("source", "calendar") == "calendar" and not m["id"].startswith("dnn-"), details)
 
 
+def agenda_center_calendar(config: dict) -> Calendar:
+    """Every board's agendas in a CivicPlus Agenda Center ([meetings.agenda_center])."""
+    source = config["meetings"]
+    settings = source["agenda_center"]
+    excluded = {c.lower() for c in settings.get("exclude_categories", [])}
+
+    def events(client, today, store):
+        # The first run lists every meeting since `since`. Later runs re-read
+        # the last few weeks (for minutes and late changes) and the weeks ahead.
+        start = date.fromisoformat(settings["since"])
+        if any(m.get("source") == "agendacenter" for m in store.values()):
+            start = max(start, today - timedelta(days=settings.get("recheck_days", 60)))
+        end = today + timedelta(days=settings.get("days_ahead", 60))
+        page = client.get(agendacenter.search_url(settings["base_url"], start, end))
+        rows = agendacenter.parse_listing(page.text, settings["base_url"])
+        return [agendacenter.to_event(r, source.get("aliases", {}), settings.get("committees", {}))
+                for r in rows if r["category"].lower() not in excluded]
+
+    def details(client, meeting, storage, stamp):
+        fetch_agenda(client, meeting, meeting, storage, stamp)
+
+    return Calendar("Agenda Center", events, lambda m: m.get("source") == "agendacenter", details)
+
+
 def civicclerk_calendar(config: dict) -> Calendar:
     """Meetings on the city's CivicClerk portal ([meetings.civicclerk])."""
     source = config["meetings"]
@@ -248,6 +273,8 @@ def calendars(config: dict) -> list[Calendar]:
     found = []
     if "calendar_feed" in source:
         found.append(civicplus_calendar(config))
+    if "agenda_center" in source:
+        found.append(agenda_center_calendar(config))
     if "civicclerk" in source:
         found.append(civicclerk_calendar(config))
     if "dnn" in source:
