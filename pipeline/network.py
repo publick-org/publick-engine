@@ -9,12 +9,13 @@ repository is (config/, data/, site/static/):
 plan picks the towns for one run and splits them into batches, printed as a
 GitHub Actions matrix. run takes one batch and, for each town in turn, fetches
 new data (pipeline.update), checks its freshness, builds the site, checks it
-(site_checks/), and publishes it (pipeline.deploy). Every step runs in its own
+(site_checks/; with --sample-checks, the browser checks run on a sample of
+pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
 process, so one town's failure never stops the next. report reads every
 town's result and fails once, for the whole run, if any town needs attention.
 
     python -m pipeline.network plan   [--root .] [--slots 4 --slot N] [--towns a,b] [--changed FILE] [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch] [--deploy] [--reports DIR]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch] [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
 
 Towns are spread over --slots runs a day by a stable hash of their folder
@@ -95,7 +96,8 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
 
 
 def town_env(root: Path, name: str) -> dict:
-    env = {k: v for k, v in os.environ.items() if k != SUMMARY_ENV}
+    # The check step sets PUBLICK_CHECK_PAGES itself, so a full run is never sampled by accident.
+    env = {k: v for k, v in os.environ.items() if k not in (SUMMARY_ENV, "PUBLICK_CHECK_PAGES")}
     env.update(PUBLICK_TOWN_DIR=str(root / TOWNS / name), TOWN=slug(root, name),
                PYTHONPATH=os.pathsep.join(filter(None, [str(ENGINE_DIR), os.environ.get("PYTHONPATH")])))
     return env
@@ -120,7 +122,7 @@ def restore(folder: Path) -> None:
 
 
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
-             step_timeout: float = STEP_TIMEOUT) -> dict:
+             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False) -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -149,7 +151,8 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     if steps[-1]["ok"]:
         steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q",
                                          str(ENGINE_DIR / "site_checks")],
-                          {**env, "PUBLICK_SITE_DIR": str(site)}, town_dir, BUILD_TIMEOUT))
+                          {**env, "PUBLICK_SITE_DIR": str(site),
+                           **({"PUBLICK_CHECK_PAGES": "sample"} if sample_checks else {})}, town_dir, BUILD_TIMEOUT))
     checked = any(s["name"] == "Check site" and s["ok"] for s in steps)
     if deploy and checked:
         steps.append(step("Publish site", [python, "-m", "pipeline.deploy", "publish", "--town", town,
@@ -194,6 +197,8 @@ def main() -> int:
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
     r.add_argument("--reports", type=Path, help="folder for each town's result")
     r.add_argument("--step-timeout", type=float, default=STEP_TIMEOUT)
+    r.add_argument("--sample-checks", action="store_true",
+                   help="run the browser checks on a sample of pages (site_checks/pages.py), as a daily run does")
     s = sub.add_parser("report")
     s.add_argument("reports", type=Path)
     args = parser.parse_args()
@@ -207,7 +212,7 @@ def main() -> int:
         return 0
     if args.command == "run":
         root = args.root.resolve()
-        results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout)
+        results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:

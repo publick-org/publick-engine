@@ -236,6 +236,8 @@ New pages are picked up by the tests and the site checks automatically. A sectio
 
 The site targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) Level AA. Every build runs axe-core against each page in light and dark mode at desktop and 320px widths, and checks reflow, text resizing, and keyboard access. A failing check blocks deployment.
 
+A network's daily runs set `PUBLICK_CHECK_PAGES=sample` to run the axe checks on a sample of each town's pages instead: every hand-written page, and the first and largest page of each record template (a meeting, a board, a ward, a 311 category). The same templates render every page of a kind, so the sample covers each template, and the largest page is the likeliest to hold data that breaks a layout. Structure and link checks still cover every page, and any change to the engine or a town's config gets the full run (`site_checks/pages.py`).
+
 Rules for new pages:
 
 - One `<h1>` per page, with headings in order.
