@@ -39,7 +39,7 @@ month**.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs, e.g. v1.7.0
+  engine-version              the engine release every town runs, e.g. v1.8.0
   towns/gloucester-ma/
     config/gloucester.toml
     data/                     including run.json, the last fetching run's result
@@ -186,11 +186,12 @@ inbox.
 
 **What breaks.** Each run's spending limit is per town (`max_cost_per_run`),
 so the network-wide worst case grows with the number of towns: $5,000 a day at
-a thousand. The network's budget is $50 a month. Today Gloucester, Malden, and
-Manchester are each at $5 a run while their first backlogs clear (set back to
-$1 once little remains), so the three towns alone could spend $15 a day, and a
-month at that rate would be nine times the budget. Summaries have cost about 2
-to 12 cents each so far. All towns share one Anthropic key, and its rate
+a thousand. The network's budget is $50 a month. Gloucester, Malden, and
+Manchester (summaries since 2026-09-29) are each at $5 a run while their first
+backlogs clear, to be set back to $1 on 2026-10-02, so the three towns alone
+could spend $15 a day, and a month at that rate would be nine times the
+budget. Summaries have cost about 2 to 12 cents each so far (Manchester's
+first 37: $3.31). All towns share one Anthropic key, and its rate
 limits apply to the whole network, not to each town.
 
 **Plan.**
@@ -309,7 +310,10 @@ fetchers skip within 7 days of the last fetch, as before.
 concurrency group (`network-update`) in which only one run can wait: a newer
 run replaces the waiting one, silently. That day a manual run for Manchester
 replaced a waiting scheduled run, so that run's town would have gone a day
-without an update if it hadn't been refreshed by hand that morning.
+without an update if it hadn't been refreshed by hand that morning. The same
+day, a manual run queued behind a scheduled run for the same town started
+from the commit it was queued at, and its data commit collided with the
+first run's and was lost (37 new summaries).
 
 **Plan.**
 - **Runs pick towns by need, not by slot.** A run takes the towns whose last
@@ -328,7 +332,12 @@ without an update if it hadn't been refreshed by hand that morning.
   secret.
 - The same Worker checks the status page (item 3).
 
-*Done: nothing yet.*
+*Done: runs don't lose data when two update the same town (engine v1.7.1).
+Town jobs check out the latest `main` when they start, not the commit the run
+was queued at, and `commit-data.sh` recovers from a collision: it keeps both
+runs' changes, and the later run's lines where both changed the same lines.
+Not done: towns picked by need, towns queued separately, and the Cloudflare
+start.*
 
 **Matters at:** now. Towns picked by need and queued separately first, since
 they need nothing set up; then the Cloudflare start.
@@ -368,17 +377,19 @@ Done: the network repository, with all three towns moved in and a `[storage]`
 table each; the status page (item 3); the default summary limit (item 4);
 automatic releases (item 5); faster runs, with one town per job on manual
 runs and checks on every core (item 9); Manchester's summaries, and the
-agendas its city calendar links (engine v1.7.0).
+agendas its city calendar links (engine v1.7.0); runs that don't lose data
+when two update the same town (item 8, engine v1.7.1); figure sources on
+their own rhythm, with the DLS retry (item 7, engine v1.8.0).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too.
 
 1. The network summary budget of $50 a month, with the ledger and one
    priority order (item 4). Until it's in, keep the per-town limits low: back
-   to $1 a run once the first backlogs clear.
+   to $1 a run on 2026-10-02.
 2. Towns picked by need and queued separately (item 8).
-3. Sources on their own rhythm and the DLS retry (item 7, done), then
-   statewide sources fetched once per state (item 2).
+3. Statewide sources fetched once per state (item 2); the rhythms they build
+   on are done (item 7).
 4. One alert a day for stale towns, and a town's failure not failing the run
    (item 3).
 5. The Cloudflare Worker that starts the runs and checks the status page
