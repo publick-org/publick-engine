@@ -18,7 +18,7 @@ import hashlib
 import json
 import re
 import shutil
-from collections import Counter, defaultdict
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from email.utils import format_datetime
 from pathlib import Path
@@ -328,10 +328,18 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["glossary"] = glossary_for(m, glossary or [])
 
     # A board that meets more than once in a day (a hearing, then its regular
-    # meeting) needs each meeting told apart in page titles and lists.
-    per_day = Counter((m["date"], m["body_slug"]) for m in meetings)
+    # meeting) needs each meeting told apart in page titles and lists: by start
+    # time when each has its own, or else by order ("1 of 2"), as for a town
+    # whose listings have no times.
+    per_day = defaultdict(list)
     for m in meetings:
-        m["same_day"] = per_day[(m["date"], m["body_slug"])] > 1
+        per_day[(m["date"], m["body_slug"])].append(m)
+    for group in per_day.values():
+        times = [m.get("start_time") for m in group]
+        by_time = all(times) and len(set(times)) == len(group)
+        for i, m in enumerate(sorted(group, key=lambda m: (m.get("start_time") or "", len(m["id"]), m["id"])), 1):
+            m["same_day"] = len(group) > 1
+            m["day_part"] = f"{i} of {len(group)}" if m["same_day"] and not by_time else None
 
     today_s = today.isoformat()
     upcoming = [m for m in meetings if m["date"] >= today_s]
