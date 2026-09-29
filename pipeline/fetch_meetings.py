@@ -215,23 +215,32 @@ def civicclerk_calendar(config: dict) -> Calendar:
     source = config["meetings"]
     settings = source["civicclerk"]
     states = {config["town"]["state"]: config["town"]["state_abbr"]}
+    # A town that collects documents ([meetings] documents, default true) saves
+    # agendas here and minutes in pipeline.fetch_minutes.
+    api_url = settings["api_url"] if source.get("documents", True) else None
 
     def events(client, today, store):
         since = date.fromisoformat(settings["since"])
         # The first run collects every meeting since `since`. Later runs re-read
-        # the last few weeks and everything ahead, where changes happen.
-        if any(m.get("source") == "civicclerk" for m in store.values()):
+        # the last few weeks and everything ahead, where changes happen. So does
+        # the first run after documents are turned on, for earlier meetings' files.
+        recorded = [m for m in store.values() if m.get("source") == "civicclerk"]
+        if recorded and (not api_url or any("agenda_id" in m for m in recorded)):
             since = max(since, today - timedelta(days=settings.get("recheck_days", 60)))
         url, found = civicclerk.events_url(settings["api_url"], since), []
         for _ in range(settings.get("max_pages", 200)):
             data = client.get(url).json()
-            found += civicclerk.parse_events(data, settings["portal_url"], source.get("boards", []), source.get("aliases", {}), states)
+            found += civicclerk.parse_events(data, settings["portal_url"], source.get("boards", []), source.get("aliases", {}),
+                                             states, api_url)
             url = civicclerk.next_page(data)
             if not url:
                 break
         return [e for e in found if matches(settings, e["title"])]
 
-    return Calendar("CivicClerk", events, lambda m: m.get("source") == "civicclerk")
+    def details(client, meeting, storage, stamp):
+        fetch_agenda(client, meeting, meeting, storage, stamp)
+
+    return Calendar("CivicClerk", events, lambda m: m.get("source") == "civicclerk", details if api_url else None)
 
 
 def dnn_calendar(config: dict) -> Calendar:

@@ -8,9 +8,11 @@ matching meeting in data/meetings/meetings.json. A meeting that was never on
 the calendar feed (usually because it predates this site) gets a record
 built from its minutes.
 
-A town with an Agenda Center ([meetings.agenda_center]) lists each meeting's
-minutes link with its agenda; pipeline.fetch_meetings records the link, and
-this downloads the minutes of meetings since the table's `since` date.
+A town with an Agenda Center ([meetings.agenda_center]) or a CivicClerk portal
+([meetings.civicclerk]) lists each meeting's minutes with its agenda;
+pipeline.fetch_meetings records the link, and this downloads the minutes of
+meetings since the table's `since` date (a town with [meetings] documents =
+false downloads none).
 
 Usage:
     python -m pipeline.fetch_minutes [--town gloucester]
@@ -138,31 +140,51 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     return {"minutes_added": added, "meetings_created": created, "errors": errors}
 
 
-def run_agenda_center(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
-    """Download the minutes linked from Agenda Center meetings that don't have them yet."""
+# Meeting sources whose listings link each meeting's minutes, by the [meetings]
+# table that configures them. Each table's `since` is where minutes start.
+LINKED = {"agendacenter": "agenda_center", "civicclerk": "civicclerk"}
+
+
+def run_linked(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
+    """Download the minutes that Agenda Center and CivicClerk meetings link to,
+    for meetings since each source's `since`, newest first, up to
+    max_minutes_per_run (default 60) per source a run. Minutes republished under
+    a new number replace the old ones, and the change is recorded."""
     tz = ZoneInfo(config["site"]["timezone"])
     now = now or datetime.now(tz)
     stamp = now.isoformat(timespec="seconds")
-    settings = config["meetings"]["agenda_center"]
+    tables = {source: config["meetings"][table] for source, table in LINKED.items() if table in config["meetings"]}
     store = load_store(data_dir)
     storage = open_documents(config, data_dir)
-    waiting = sorted((m for m in store.values() if m.get("source") == "agendacenter" and m.get("minutes_url")
-                      and m["date"] >= settings["since"] and not m.get("minutes")),
-                     key=lambda m: m["date"], reverse=True)
-    added, errors = 0, []
-    # The first run can find months of minutes; the rest come on later runs.
-    for meeting in waiting[:settings.get("max_minutes_per_run", 60)]:
-        number = meeting["id"].removeprefix("agendacenter-")
-        item = {"id": f"agendacenter-{number}", "title": meeting.get("posted_title") or meeting["title"],
-                "url": meeting["minutes_url"]}
-        try:
-            meeting["minutes"] = [save_document(client, item, storage, stamp)]
-        except FetchError as e:
-            errors.append(str(e))
-            continue
-        added += 1
+
+    def minutes_id(meeting):
+        # Agenda Center minutes are named for the meeting's agenda number.
+        return meeting.get("minutes_id") or f"agendacenter-{meeting['id'].removeprefix('agendacenter-')}"
+
+    added, waiting_count, errors = 0, 0, []
+    for source, settings in tables.items():
+        waiting = sorted((m for m in store.values() if m.get("source") == source and m.get("minutes_url")
+                          and m["date"] >= settings["since"]
+                          and minutes_id(m) not in {d["id"] for d in m.get("minutes", [])}),
+                         key=lambda m: m["date"], reverse=True)
+        # The first run can find months of minutes; the rest come on later runs.
+        batch = waiting[:settings.get("max_minutes_per_run", 60)]
+        for meeting in batch:
+            item = {"id": minutes_id(meeting), "title": meeting.get("posted_title") or meeting["title"],
+                    "url": meeting["minutes_url"]}
+            try:
+                doc = save_document(client, item, storage, stamp)
+            except FetchError as e:
+                errors.append(str(e))
+                continue
+            minutes = meeting.setdefault("minutes", [])
+            if minutes:
+                record_change(meeting, "minutes", minutes[-1]["id"], doc["id"], stamp)
+            minutes.append(doc)
+            added += 1
+        waiting_count += len(waiting) - len(batch)
     save_json(meetings_dir(data_dir) / "meetings.json", store)
-    return {"minutes_added": added, "minutes_waiting": max(len(waiting) - added, 0), "errors": errors}
+    return {"minutes_added": added, "minutes_waiting": waiting_count, "errors": errors}
 
 
 def main() -> int:
@@ -171,8 +193,9 @@ def main() -> int:
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     args = parser.parse_args()
     config = load_config(args.town)
-    agenda_center = "agenda_center" in config.get("meetings", {})
-    if not agenda_center and not configured(config, "archive"):
+    meetings = config.get("meetings", {})
+    linked = meetings.get("documents", True) and any(table in meetings for table in LINKED.values())
+    if not linked and not configured(config, "archive"):
         return 0
     client = PoliteClient(config["site"]["user_agent"], delay=config["meetings"].get("request_delay", 3.0))
     summaries = []
@@ -182,8 +205,8 @@ def main() -> int:
         except FetchError as e:
             print(f"::error::Archive Center could not be fetched: {e}")
             return 1
-    if agenda_center:
-        summaries.append(run_agenda_center(config, client, args.data))
+    if linked:
+        summaries.append(run_linked(config, client, args.data))
     for summary in summaries:
         print(json.dumps(summary, indent=2))
         for error in summary["errors"]:
