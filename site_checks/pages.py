@@ -1,7 +1,7 @@
 """Which pages the browser checks run on.
 
 Every page is checked for structure and links, which is quick. The browser
-checks (axe, in light and dark mode at two widths) take seconds a page, so a
+checks (axe, at two widths) take a second or two a page, so a
 daily run checks a sample: every page written by hand (one per file under
 site/pages/), and of the pages made from each record template (a meeting, a
 board, a ward, a 311 category) the first and the largest. Record pages of one
