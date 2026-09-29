@@ -9,8 +9,9 @@ recorded in each meeting's history so they stay visible.
 A town's calendars are the tables in [meetings]: a CivicPlus calendar feed
 (calendar_feed, which also saves agendas), a CivicPlus Agenda Center
 ([meetings.agenda_center], which also saves agendas and lists minutes), a
-CivicClerk portal ([meetings.civicclerk]) and a DotNetNuke city calendar
-([meetings.dnn]). A town can have several; Manchester's aldermanic meetings
+CivicClerk portal ([meetings.civicclerk], which also saves agendas) and a
+DotNetNuke city calendar ([meetings.dnn], which also saves agendas linked as
+PDFs named for the meeting's date). A town can have several; Manchester's aldermanic meetings
 are on CivicClerk and its other boards on the city calendar.
 
 Usage:
@@ -250,6 +251,7 @@ def dnn_calendar(config: dict) -> Calendar:
     calendar_url = settings["calendar_url"]
     # Meetings this calendar links to CivicClerk are collected from CivicClerk.
     portal = source.get("civicclerk", {}).get("portal_url")
+    documents = source.get("documents", True)
 
     def events(client, today, store):
         month = today.replace(day=1)
@@ -266,12 +268,16 @@ def dnn_calendar(config: dict) -> Calendar:
                 if (portal and any(link["url"].startswith(portal) for link in links)) or not matches(settings, e["title"]):
                     continue
                 e["documents_url"] = next((link["url"] for link in links if "agenda" in link["text"].lower()), None)
+                if documents:
+                    e.update(dnn.agenda_file(links, e["date"]) or {})
                 found[e["id"]] = e
             month = (month + timedelta(days=32)).replace(day=1)
         return list(found.values())
 
     def details(client, meeting, storage, stamp):
         merge(meeting, dnn.parse_event_page(client.get(meeting["source_url"]).text), stamp, track=True)
+        if documents:
+            fetch_agenda(client, meeting, meeting, storage, stamp)
 
     return Calendar("city calendar", events, lambda m: m["id"].startswith("dnn-"), details)
 
