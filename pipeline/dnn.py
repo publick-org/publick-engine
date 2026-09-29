@@ -6,14 +6,20 @@ HTML at an address per month (.../ModuleID/<module>/mctl/EventMonth/selecteddate
 header gives the name and times ("Planning Board Public Hearings - 10/1/2026
 6:00 PM - 10/1/2026 10:00 PM") and whose body is the city's description, often
 with a link to the agenda. The event page adds the location ("City Hall").
+
+Some boards link their agenda as a PDF named for the meeting's date
+("2026-10-01_PB_AGENDA.PDF", "2026-09-10 ZBA Agenda.pdf"); others link a page
+or a file that serves the whole year (the Manchester Development Corporation's
+meeting schedule). Only the first kind is one meeting's agenda (agenda_file).
 """
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 from datetime import date, datetime
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin, urlsplit
 
 from pipeline.civicplus import clean_text
 from pipeline.meeting_names import find_board, parse_name
@@ -70,6 +76,20 @@ def parse_month(page: str, base_url: str, boards: list[str] | None = None, alias
 def links_in(fragment: str, base_url: str) -> list[dict]:
     return [{"url": urljoin(base_url, html.unescape(url).strip()), "text": clean_text(text)}
             for url, text in LINK.findall(fragment)]
+
+
+def agenda_file(links: list[dict], day: str) -> dict | None:
+    """The meeting's own agenda among an event's links, as agenda_id and
+    agenda_url fields: a PDF whose file name has the meeting's date (2026-10-01,
+    2026_10_01 or 20261001). A revised agenda is posted under a new address (the
+    file name or its ?ver= changes), so the address names the file."""
+    year, month, day_ = day.split("-")
+    dated = re.compile(rf"{year}[-_ ]?{month}[-_ ]?{day_}")
+    for link in links:
+        name = unquote(urlsplit(link["url"]).path.rsplit("/", 1)[-1])
+        if name.lower().endswith(".pdf") and dated.search(name):
+            return {"agenda_id": "dnn-" + hashlib.sha256(link["url"].encode()).hexdigest()[:16], "agenda_url": link["url"]}
+    return None
 
 
 def parse_event_page(page: str) -> dict:

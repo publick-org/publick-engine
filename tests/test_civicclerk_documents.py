@@ -1,4 +1,5 @@
-"""Agendas and minutes from a CivicClerk portal (Manchester's, saved), for a town that collects documents."""
+"""Agendas and minutes from a CivicClerk portal and agendas from a DotNetNuke city calendar
+(Manchester's, saved), for a town that collects documents."""
 
 import json
 from datetime import datetime
@@ -27,7 +28,7 @@ class FakeManchesterFiles(FakeManchester):
         self.pdf = (FIXTURES / "civicplus_agenda_scanned.pdf").read_bytes()
 
     def get(self, url):
-        if "GetMeetingFileStream" in url:
+        if "GetMeetingFileStream" in url or "manchesternh.gov/Portals/" in url:
             self.urls.append(url)
             return FakeResponse(self.pdf + f"\n% {url}\n".encode(), {"content-disposition": "attachment; filename=1.pdf"})
         return super().get(url)
@@ -123,3 +124,31 @@ def test_turning_documents_on_rereads_from_since(config, tmp_path):
     client = FakeManchesterFiles()
     fetch_meetings.run(config, client, tmp_path, now=AFTER.replace(day=28))
     assert "2026-07-30" in client.urls[0]  # then back to 60 days
+
+
+# Early September: the city calendar's September meetings are upcoming.
+SEPTEMBER = datetime(2026, 9, 5, 7, 0, tzinfo=TZ)
+
+
+def test_city_calendar_agendas_are_saved(config, tmp_path):
+    config["meetings"]["max_event_pages"] = 200
+    client = FakeManchesterFiles()
+    status = fetch_meetings.run(config, client, tmp_path, now=SEPTEMBER)
+    assert not [e for e in status["errors"] if "manchesternh.gov" in e]
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    city = {(m["title"], m["date"]): m for m in store.values() if m["id"].startswith("dnn-")}
+    zba = city["ZBA Public Hearing", "2026-09-10"]
+    assert zba["agendas"][0]["source_url"].split("?")[0].endswith("/2026-09-10 ZBA Agenda.pdf")
+    assert (tmp_path / "meetings" / "agendas" / zba["agendas"][0]["file"]).exists()
+    assert city["Trustees of Trust Funds", "2026-09-15"]["agendas"]
+    # A link to the year's schedule or a board's page is not saved as an agenda.
+    assert "agendas" not in city["Manchester Development Corporation Board of Directors Meeting", "2026-09-10"]
+    assert "agendas" not in city["Highway Commission", "2026-09-14"]
+    assert not any("MDC 2026 Website" in u for u in client.urls)
+
+
+def test_city_calendar_documents_off_saves_nothing(config, tmp_path):
+    config["meetings"]["documents"] = False
+    client = FakeManchesterFiles()
+    fetch_meetings.run(config, client, tmp_path, now=SEPTEMBER)
+    assert not any("/Portals/" in u for u in client.urls)

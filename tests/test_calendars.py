@@ -264,3 +264,30 @@ def test_same_day_meetings_of_one_board_are_told_apart(manchester_site):
     assert any("7:00" in t for t in titles)
     past = (manchester_site / "meetings" / "past" / "index.html").read_text()
     assert "Special Meeting of the Board of Mayor and Aldermen - Public Hearing: CDBG Funds</a>" in past
+
+
+def test_dnn_agenda_file_is_a_pdf_named_for_the_meeting():
+    events = dnn.parse_month((FIXTURES / "dnn_calendar_2026-09.html").read_text(), CALENDAR, BOARDS, ALIASES)
+    agendas = {e["title"]: dnn.agenda_file(e["links"], e["date"]) for e in events}
+    zba = agendas["ZBA Public Hearing"]
+    assert zba["agenda_url"].split("?")[0].endswith("/2026-09-10 ZBA Agenda.pdf")
+    assert zba["agenda_id"].startswith("dnn-")
+    assert agendas["Trustees of Trust Funds"]["agenda_url"].endswith("/2026-09-15_TRUST_AGENDA.PDF")
+    # The Development Corporation links its schedule for the year, and the
+    # Highway Commission a web page: neither is that meeting's agenda.
+    assert agendas["Manchester Development Corporation Board of Directors Meeting"] is None
+    assert agendas["Highway Commission"] is None
+
+
+def test_dnn_agenda_file_needs_the_meeting_date():
+    link = [{"url": "https://www.manchesternh.gov/Portals/2/2026-09-17_PB_AGENDA.PDF", "text": "Agenda"}]
+    assert dnn.agenda_file(link, "2026-09-17")
+    assert dnn.agenda_file(link, "2026-10-01") is None
+    underscored = [{"url": "https://www.manchesternh.gov/Portals/2/MDC%202026_08_13%20Special%20Meeting%20Agenda.pdf", "text": "Agenda"}]
+    assert dnn.agenda_file(underscored, "2026-08-13")
+
+
+def test_dnn_revised_agenda_gets_a_new_id():
+    first = [{"url": "https://www.manchesternh.gov/Portals/2/2026-09-10 ZBA Agenda.pdf?ver=1", "text": "Agenda"}]
+    revised = [{"url": "https://www.manchesternh.gov/Portals/2/2026-09-10 ZBA Agenda.pdf?ver=2", "text": "Agenda"}]
+    assert dnn.agenda_file(first, "2026-09-10")["agenda_id"] != dnn.agenda_file(revised, "2026-09-10")["agenda_id"]
