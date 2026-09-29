@@ -31,6 +31,7 @@ from pipeline import states
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.rhythms import Part, Rhythm, add_months, latest_year, month_of, month_period, on
 
 REFRESH_DAYS = 7
 PERMIT_YEARS = 10
@@ -41,6 +42,38 @@ ACS_TABLES = ["B25002", "B25003", "B25004", "B25064", "B25070", "B25077"]
 
 
 # ---- Building permits ----
+
+def _year_to_date(data: dict) -> int | None:
+    ytd = (data.get("permits") or {}).get("year_to_date")
+    return month_period(ytd["year"], ytd["through_month"]) if ytd else None
+
+
+def _acs_year(data: dict) -> int | None:
+    release = (data.get("acs") or {}).get("release") or ""
+    return int(release.split()[1]) if release.startswith("ACS ") else None
+
+
+def _parcels_year(data: dict) -> int | None:
+    return (data.get("parcels") or {}).get("fiscal_year")
+
+
+# Census posts a month's permits by place the next month and the year's final
+# file in May; the ACS 5-year estimates come in December. Massachusetts parcel
+# counts come with the fiscal year's tax rates. The Subsidized Housing
+# Inventory changes irregularly, so it has no expected date.
+HOUSING_PARTS = (
+    Part(latest_year("permits.years", "year"), on(6, years_after=1), lambda y: f"{y} building permits"),
+    Part(_year_to_date, lambda p: add_months(month_of(p), 2), lambda p: f"{month_of(p):%B %Y} building permits"),
+    Part(_acs_year, on(12, 15, years_after=1), lambda y: f"ACS {y} 5-year estimates"),
+)
+PARCELS_PART = Part(_parcels_year, on(3), lambda y: f"Fiscal year {y} parcel counts")
+
+
+def rhythm(state_parts: set[str]) -> Rhythm:
+    """Housing's rhythm for a town with these state housing parts (pipeline.states)."""
+    parts = HOUSING_PARTS + ((PARCELS_PART,) if "parcels" in state_parts else ())
+    return Rhythm("Housing figures", "housing/housing.json", "Fetch housing figures", "monthly", parts)
+
 
 def bps_url(config: dict, name: str) -> str:
     h = config["housing"]

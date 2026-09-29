@@ -2,9 +2,14 @@
 
 Most update steps are allowed to fail without stopping the daily run, so a
 source that breaks (a moved file, a changed page, a server that stops
-answering) would otherwise go stale quietly. This compares each source's last
-update with how often it should update, and also looks for agendas still
-waiting for a summary (a sign the AI summary step is failing).
+answering) would otherwise go stale quietly. Sources that change daily
+(meetings, 311: [freshness] sources in the town's config) are judged by when
+they were last updated. Figure sources (the tax bill, budget, school figures,
+unemployment, housing) are judged by the period they cover: they're behind
+only when a newer period should have been published by now (pipeline/rhythms.py).
+A figure source whose checks keep failing is marked as failing, for the
+maintainer, without being behind. This also looks for agendas still waiting for
+a summary (a sign the AI summary step is failing).
 
 In the daily workflow it runs last and fails the run when anything is stale,
 so GitHub emails the site's owner; the site is still built and deployed. The
@@ -24,7 +29,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import summarize
+from pipeline import rhythms, summarize
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 
 
@@ -53,15 +58,23 @@ def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: f
 
 
 def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dict]:
-    """One row per source: its label, last update, allowed age, and whether it is stale."""
+    """One row per source: its label, last update, and whether it is stale. A daily source's row has
+    its allowed age (max_days); a figure source's has its latest period, the next and when it usually
+    appears, why it's behind if it is, and failing (its run of failed checks, from three)."""
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
-    fresh = {"sources": [], "summary_grace_days": 2, **config.get("freshness", {})}
+    fresh = {"sources": [], "summary_grace_days": 2, "grace_months": rhythms.GRACE_MONTHS,
+             **config.get("freshness", {})}
+    checks = rhythms.load_checks(data_dir)
+    figures = rhythms.for_town(config)
     rows = []
-    for source in fresh["sources"]:
+    # A config row for a file a rhythm covers (from before rhythms) is left out: the rhythm's row replaces it.
+    covered = {r.file for r in figures}
+    for source in (s for s in fresh["sources"] if s["file"] not in covered):
         updated = last_update(data_dir, source)
         age = (now - updated).total_seconds() / 86400 if updated else None
         rows.append({"label": source["label"], "updated_at": updated.isoformat() if updated else None,
                      "max_days": source["max_days"], "stale": age is None or age > source["max_days"]})
+    rows += [rhythms.row(r, data_dir, now, fresh["grace_months"], checks) for r in figures]
     if "summaries" in config:
         waiting = waiting_summaries(config, data_dir, now, fresh["summary_grace_days"])
         rows.append({"label": "Meeting summaries", "updated_at": None, "max_days": fresh["summary_grace_days"],
@@ -78,14 +91,22 @@ def main() -> int:
     rows = check(load_config(args.town), args.data)
     if args.report:
         args.report.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
-    lines = ["| Source | Last updated | Allowed age | Status |", "|---|---|---|---|"]
+    lines = ["| Source | Last checked | Expected | Status |", "|---|---|---|---|"]
     for r in rows:
         when = r["updated_at"][:16].replace("T", " ") if r["updated_at"] else "–"
         extra = f" ({len(r['waiting'])} waiting)" if r.get("waiting") else ""
-        lines.append(f"| {r['label']} | {when} | {r['max_days']} days | {'STALE' if r['stale'] else 'OK'}{extra} |")
+        expected = f"{r['max_days']} days" if r.get("max_days") else (r.get("next") or "–")
+        status = "STALE" if r["stale"] else "OK"
+        if r.get("failing"):
+            status += f"; last {r['failing']} checks failed"
+        lines.append(f"| {r['label']} | {when} | {expected} | {status}{extra} |")
         if r["stale"]:
-            detail = "; ".join(r["waiting"][:5]) if r.get("waiting") else f"last updated {when}"
-            print(f"::error::{r['label']} is not updating: {detail}")
+            detail = ("; ".join(r["waiting"][:5]) if r.get("waiting")
+                      else r.get("behind") or f"last updated {when}")
+            print(f"::error::{r['label']} is behind: {detail}")
+        if r.get("failing"):
+            print(f"::warning::{r['label']}: the last {r['failing']} checks failed; the data may be current, "
+                  f"but new figures won't arrive until a check succeeds.")
     report = "\n".join(lines)
     print(report)
     if os.environ.get("GITHUB_STEP_SUMMARY"):

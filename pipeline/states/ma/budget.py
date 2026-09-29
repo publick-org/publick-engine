@@ -23,6 +23,7 @@ import openpyxl
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.rhythms import Part, Rhythm, latest_year, on
 from pipeline.states.ma.tax_bill import REPORT_URL, dls_get, not_a_workbook
 
 YEARS = 10
@@ -33,6 +34,14 @@ FUNCTIONS = ["General Government", "Public Safety", "Education", "Public Works",
 FUNCTION_LABELS = {"Intergov Assessments": "State and county assessments", "Other Expenditures": "Other",
                    "Fixed Costs": "Fixed costs"}
 REVENUE = {"Tax Levy": "Property tax", "State Aid": "State aid", "Local Receipts": "Local receipts", "All Other": "Other"}
+
+
+
+# A fiscal year's spending (Schedule A) reaches the Databank once the town has
+# filed it (due November 30) and DLS has approved it: for most towns by spring.
+RHYTHM = Rhythm("City budget (Mass. DLS)", "finance/budget.json", "Fetch budget figures", "yearly", (
+    Part(latest_year("spending", "fiscal_year"), on(6, years_after=1), lambda y: f"Fiscal year {y} spending"),
+))
 
 
 def page_url(report: str) -> str:
