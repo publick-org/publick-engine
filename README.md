@@ -93,6 +93,7 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: fails the run when a data source stops updating
+  rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
@@ -162,7 +163,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
    | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5 |
-   | `[freshness]` | Stale-data alerts | List only the sources the town has |
+   | `[freshness]` | Stale-data alerts | List the sources that change daily (meetings, 311, a city's permits); figure sources (tax bill, budget, schools, unemployment, housing) are judged by their rhythms in the engine (`pipeline/rhythms.py`). `grace_months` (default 2) is how long after a new period's usual date before it counts as behind |
    | `[storage]` | Keeps agenda and minutes PDFs in a bucket instead of git | Recommended for every town; see [Document storage](#document-storage) |
 
    Rewrite the hand-written content for the new town from its own sources: `[meetings.aliases]`, `[archive.aliases]`, `[participation.*]`, `[[glossary]]` and `[[seeclickfix.annotations]]`.
@@ -228,9 +229,10 @@ python -m pipeline.states.nh.extract --population                          # Cen
 
 This writes `pipeline/states/nh/figures/`, every town's and district's rows in
 a few small files; commit them and every New Hampshire town reads its own rows
-from the next release on. A town's `[freshness]` table can list
-`{ label = "New Hampshire state figures (yearly)", file = "finance/budget.json", field = "figures_extracted_at", max_days = 400 }`
-so the status page says when a new year is due. The average single-family tax
+from the next release on. The status page says when a new year is due: each
+figure's rhythm (in `tax_bill.py`, `budget.py` and `schools.py`) knows when the
+state usually publishes it, and marks the town behind two months after that
+if the new year isn't in the saved figures. The average single-family tax
 bill is calculated daily from those rates and NH GRANIT's parcel map (which
 answers automated requests), and held back after a revaluation until the DRA's
 figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).

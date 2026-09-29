@@ -254,7 +254,7 @@ own site, it gets its own repository calling `town.yml`, as towns do today.
 
 **Matters at:** the first editor from outside Publick.
 
-## 7. Every source is checked every day
+## 7. Every source was checked every day
 
 **What breaks.** Every source is fetched and judged the same way: each run
 asks every source for new data, and the status page asks "was this checked in
@@ -266,29 +266,38 @@ even though its figures are the latest published. On 2026-09-29 Gloucester and
 Malden showed "Some data delayed" because DLS refused the daily tax bill
 check, while both had the latest certified year.
 
-**Plan.** Each source has a rhythm, set in the engine (by the source's state
-package, since the Massachusetts tax bill behaves the same for every
-Massachusetts town), which a town can override:
+**Plan and progress.** Each figure source has a rhythm (`pipeline/rhythms.py`),
+defined once with its fetcher (a state's package for state sources, so every
+Massachusetts town shares Massachusetts's), with when each new period usually
+appears, from the sources' own release history:
 
 | Rhythm | Sources | Checked | Behind when |
 |---|---|---|---|
-| Continuous | Meetings, agendas, minutes, School Committee documents, 311 | Daily | A check fails, or the data is over 2 days old |
-| Monthly | Unemployment rate (BLS) | Weekly | The latest month is further behind than BLS usually runs |
-| Yearly | Tax rate and bill, city budget, school figures, most housing figures | Monthly, or only in the months a new year is expected | A new year should be out and we don't have it |
+| Continuous | Meetings, agendas, minutes, School Committee documents, 311, a city's permit file | Every run | A check fails, or the data is over 2 days old (`[freshness]` sources) |
+| Monthly | Unemployment rate (BLS), building permits so far this year | Weekly | The next month is two months past its usual date |
+| Yearly | Tax rate and bill, city budget, school figures, annual permits, ACS estimates, parcel counts | Monthly; weekly from two months before a new period's usual date | The next period is two months past its usual date (`grace_months`) |
 
-A failed check of a yearly or monthly source goes in the run's summary, not
-on the public status page, unless the data is actually behind. The status
-page can then say what matters to readers ("The 2027 tax bill hasn't been
-published yet"). The work includes finding when each yearly source actually
-publishes, from its own history, and whether each housing figure is yearly
-or monthly (Census building permits may be monthly).
+The grace is generous because release dates slip: most yearly sources fill in
+town by town over months, and 2026's were delayed by the federal shutdown and
+a Census hold.
 
-The DLS fetcher also waits and retries when DLS answers 202 with nothing, and
-records the reason it gives (its load balancer's bot-filter header), so a
-refusal is diagnosed rather than guessed at.
+*Done:*
+- Rhythms for every figure source; `pipeline.update` skips a figure step that
+  isn't due (`--force` checks everything), and keeps each step's run of
+  failures in `data/checks.json`.
+- `pipeline.freshness` judges figure sources by period. A figure source whose
+  last three checks failed is reported in the run's report (it needs
+  attention) but isn't behind.
+- The About page's data table shows each source's latest period and when the
+  next usually appears.
+- DLS: a 202 with nothing is asked again after 30, 60 and 120 seconds, and a
+  refusal's error lists the headers that say why. The tax bill asks only for
+  years not saved yet (and the newest saved), not six years every check.
 
-*Done: nothing yet. Budget, housing, and permit fetchers already skip a
-fetch within 7 days of the last one.*
+*Not done:* the network status page's wording (in the network repository);
+statewide sources fetched once per state (item 2). The single-town workflow,
+`town.yml`, still runs every step daily; its budget, housing, and permit
+fetchers skip within 7 days of the last fetch, as before.
 
 **Matters at:** now: it's what makes the status page trustworthy.
 
@@ -368,8 +377,8 @@ towns too.
    priority order (item 4). Until it's in, keep the per-town limits low: back
    to $1 a run once the first backlogs clear.
 2. Towns picked by need and queued separately (item 8).
-3. Sources on their own rhythm, with statewide sources fetched once per state,
-   and the DLS retry (items 7 and 2).
+3. Sources on their own rhythm and the DLS retry (item 7, done), then
+   statewide sources fetched once per state (item 2).
 4. One alert a day for stale towns, and a town's failure not failing the run
    (item 3).
 5. The Cloudflare Worker that starts the runs and checks the status page

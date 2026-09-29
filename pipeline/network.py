@@ -152,7 +152,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     python = sys.executable
     site = town_dir / "_site"
     result = {"town": town, "folder": name, "started_at": now(), "finished_at": None,
-              "engine": engine_version(root), "steps": [], "update": None, "stale": False, "sources": None,
+              "engine": engine_version(root), "steps": [], "update": None, "stale": False, "sources": None, "failing": [],
               "deployed": False}
     steps = result["steps"]
 
@@ -175,6 +175,8 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         if freshness_report.exists():
             result["sources"] = trim_sources(json.loads(freshness_report.read_text()))
             freshness_report.unlink()
+            # Figure sources whose checks keep failing: not behind yet, but the maintainer should know.
+            result["failing"] = [r["label"] for r in result["sources"] if r.get("failing")]
 
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
                       env, town_dir, BUILD_TIMEOUT))
@@ -207,9 +209,11 @@ def report(reports: Path) -> tuple[str, bool]:
         failed = [s["name"] for s in r["steps"] if not s["ok"]]
         failed += [f"{s['name']} (fetch)" for s in (r.get("update") or {}).get("steps", []) if not s["ok"]]
         status = ("published" if r["deployed"] else "built") if r["ok"] else "**failed**"
-        lines.append(f"| {r['folder']} | {status} | {'**stale**' if r['stale'] else 'fresh'} | "
-                     f"{', '.join(failed) or '–'} |")
-    bad = [r for r in results if not r["ok"] or r["stale"]]
+        data = "**stale**" if r["stale"] else "fresh"
+        if r.get("failing"):
+            data += f"; **checks failing**: {', '.join(r['failing'])}"
+        lines.append(f"| {r['folder']} | {status} | {data} | {', '.join(failed) or '–'} |")
+    bad = [r for r in results if not r["ok"] or r["stale"] or r.get("failing")]
     heading = f"{len(results)} towns; {len(bad)} need attention" if results else "No towns ran"
     return f"## {heading}\n\n" + "\n".join(lines) + "\n", not bad
 

@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 from pipeline.states.nh import figures
+from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 PARCELS = ("https://services9.arcgis.com/wnvDDrXX8EouLkZP/arcgis/rest/services/"
            "NH_Parcels_BEA_Public_View/FeatureServer/0/query")
@@ -37,6 +38,13 @@ SINGLE_FAMILY = "(SLU = '11' OR SLU LIKE '11-%')"
 # property exempt from tax, which the valuation leaves out, so the ratio is a little over 1 (Manchester's
 # is 1.12 for 2025). A revaluation not yet in the DRA's figures puts it far outside.
 VALUE_CHECK = (0.9, 1.3)
+
+
+# The DRA sets each town's tax rate in the fall and finishes the year's list in
+# January; the rates reach the engine's figures when they're extracted (extract.py).
+RHYTHM = Rhythm("Tax bill (calculated)", "finance/tax_bill.json", "Fetch tax bill", "yearly", (
+    Part(latest_year("years", "tax_year"), on(2, years_after=1), lambda y: f"Tax year {y}"),
+))
 
 
 def client(config: dict) -> PoliteClient:

@@ -59,13 +59,13 @@
 </ul>
 
 <h2 id="data-status">Data status</h2>
-<p>Each source and when this site last updated it. A source marked "Behind" has stopped updating; the maintainer is alerted automatically.</p>
-<div class="table-wrap">
+<p>Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; the maintainer is alerted automatically.</p>
+<div class="table-wrap" role="region" aria-labelledby="data-status" tabindex="0">
 <table class="data-table">
-  <thead><tr><th scope="col">Source</th><th scope="col">Last updated</th><th scope="col">Status</th></tr></thead>
+  <thead><tr><th scope="col">Source</th><th scope="col">Latest</th><th scope="col">Last checked</th><th scope="col">Status</th></tr></thead>
   <tbody>
   {% for r in data_status %}
-    <tr><th scope="row">{{ r.label }}</th><td>{% if r.updated_at %}<time datetime="{{ r.updated_at }}">{{ r.updated_at | timestamp }}</time>{% else %}–{% endif %}</td><td>{% if r.stale %}<strong class="flag">Behind</strong>{% if r.get("waiting") %} ({{ plural(r.waiting | length, "document") }} waiting){% endif %}{% else %}Up to date{% endif %}</td></tr>
+    <tr><th scope="row">{{ r.label }}</th><td>{{ r.get("latest") or "–" }}</td><td>{% if r.updated_at %}<time datetime="{{ r.updated_at }}">{{ r.updated_at | timestamp }}</time>{% else %}–{% endif %}</td><td>{% if r.stale %}<strong class="flag">Behind</strong>{% if r.get("waiting") %} ({{ plural(r.waiting | length, "document") }} waiting){% elif r.get("behind") %}: {{ r.behind }}{% endif %}{% else %}Up to date{% if r.get("next") %}. Next: {{ r.next }}.{% endif %}{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>

@@ -20,10 +20,23 @@ from zoneinfo import ZoneInfo
 from pipeline.fetch_meetings import save_json
 from pipeline.http import PoliteClient
 from pipeline.states.nh import figures
+from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 YEARS_KEPT = 8
 # NH SAS subject codes.
 SUBJECTS = {"ela": "rea", "math": "mat"}
+
+
+# The Department of Education posts state test results in September, a class's
+# graduation rate the next spring, and cost per pupil the January after the
+# fiscal year. They reach the engine's figures when they're extracted (extract.py).
+RHYTHM = Rhythm("School figures", "schools/schools.json", "Fetch school figures", "yearly", (
+    Part(latest_year("measures.graduation.years", "year"), on(6, years_after=1),
+         lambda y: f"Class of {y} graduation rate"),
+    Part(latest_year("measures.sas_ela.years", "year"), on(10), lambda y: f"Spring {y} state test results"),
+    Part(latest_year("measures.cost_per_pupil.years", "year"), on(2, years_after=1),
+         lambda y: f"{y - 1}–{y % 100:02d} cost per pupil"),
+))
 
 
 def client(config: dict) -> PoliteClient:

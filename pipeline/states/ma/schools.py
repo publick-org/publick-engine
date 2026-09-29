@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 STATE_CODE = "00000000"
 YEARS_KEPT = 8
@@ -42,6 +43,16 @@ MEASURES = {
         "where": "test_grade = 'ALL (03-08)' AND subject_code = 'MATH'",
     },
 }
+
+
+# DESE posts MCAS results and the year's attendance in late September, and a
+# class's graduation rate the next spring. Years are school years' ending years.
+RHYTHM = Rhythm("School figures (DESE)", "schools/schools.json", "Fetch school figures", "yearly", (
+    Part(latest_year("measures.graduation.years", "year"), on(5, years_after=1),
+         lambda y: f"Class of {y} graduation rate"),
+    Part(latest_year("measures.mcas_ela.years", "year"), on(10), lambda y: f"Spring {y} MCAS results"),
+    Part(latest_year("measures.absenteeism.years", "year"), on(10), lambda y: f"{y - 1}–{y % 100:02d} attendance"),
+))
 
 
 def query_url(portal: str, dataset: str, district: str, where: str, value: str) -> str:
