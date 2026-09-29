@@ -91,6 +91,18 @@ def test_run_builds_checks_and_publishes_a_town(tmp_path, steps):
     assert "GITHUB_STEP_SUMMARY" not in env
     assert calls[3]["env"]["PUBLICK_SITE_DIR"] == str(root / "towns" / "gloucester-ma" / "_site")
     assert json.loads((tmp_path / "reports" / "gloucester-ma.json").read_text()) == result
+    assert calls[0]["cmd"][calls[0]["cmd"].index("--sources") + 1] == "all"
+    assert calls[3]["cmd"][calls[3]["cmd"].index("-n") + 1] == "auto", "the browser checks run on every core"
+
+
+def test_a_run_can_fetch_only_some_sources(tmp_path, steps, monkeypatch):
+    calls, _ = steps
+    root = make_root(tmp_path)
+    monkeypatch.setattr("sys.argv", ["network", "run", "--root", str(root), "--towns", "salem-ma", "--fetch",
+                                     "--sources", "figures"])
+    network.main()
+    fetch = calls[0]["cmd"]
+    assert fetch[fetch.index("--sources") + 1] == "figures"
 
 
 def test_a_fetching_run_records_its_result_for_the_status_page(tmp_path, steps, monkeypatch):

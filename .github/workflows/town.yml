@@ -172,9 +172,9 @@ jobs:
       - name: Build site
         run: python -m pipeline.build_site --town "$TOWN"
 
-      # This town's pages: structure, links, and WCAG 2.2 AA checks. A failure blocks deploy.
+      # This town's pages: structure, links, and WCAG 2.2 AA checks, on every core. A failure blocks deploy.
       - name: Check site
-        run: python -m pytest -p no:cacheprovider .publick-engine/site_checks
+        run: python -m pytest -p no:cacheprovider -n auto .publick-engine/site_checks
 
       - uses: actions/upload-pages-artifact@v4
         with:
