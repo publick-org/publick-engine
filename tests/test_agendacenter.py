@@ -129,7 +129,7 @@ def test_excluded_categories_are_skipped(malden, tmp_path):
 def test_minutes_are_downloaded_for_meetings_since_the_start(malden, tmp_path):
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     client = FakeAgendaCenter()
-    summary = fetch_minutes.run_agenda_center(malden, client, tmp_path, now=NOW)
+    summary = fetch_minutes.run_linked(malden, client, tmp_path, now=NOW)
     assert summary == {"minutes_added": 3, "minutes_waiting": 0, "errors": []}
     store = load_store(tmp_path)
     appeal = store["agendacenter-4400"]
@@ -137,20 +137,20 @@ def test_minutes_are_downloaded_for_meetings_since_the_start(malden, tmp_path):
     assert appeal["minutes"][0]["source_url"] == f"{BASE}/AgendaCenter/ViewFile/Minutes/_09162026-4400"
     assert (tmp_path / "meetings" / "minutes" / "agendacenter-4400.pdf").exists()
     # Already saved: nothing is downloaded again.
-    assert fetch_minutes.run_agenda_center(malden, FakeAgendaCenter(), tmp_path, now=NOW)["minutes_added"] == 0
+    assert fetch_minutes.run_linked(malden, FakeAgendaCenter(), tmp_path, now=NOW)["minutes_added"] == 0
 
 
 def test_minutes_before_the_start_are_left(malden, tmp_path):
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     malden["meetings"]["agenda_center"]["since"] = "2026-09-01"
-    summary = fetch_minutes.run_agenda_center(malden, FakeAgendaCenter(), tmp_path, now=NOW)
+    summary = fetch_minutes.run_linked(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     assert summary["minutes_added"] == 2  # 8/19 is before the start
 
 
 def test_minutes_per_run_limit(malden, tmp_path):
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     malden["meetings"]["agenda_center"]["max_minutes_per_run"] = 1
-    summary = fetch_minutes.run_agenda_center(malden, FakeAgendaCenter(), tmp_path, now=NOW)
+    summary = fetch_minutes.run_linked(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     assert summary == {"minutes_added": 1, "minutes_waiting": 2, "errors": []}
     # The newest first.
     assert load_store(tmp_path)["agendacenter-4400"].get("minutes")
