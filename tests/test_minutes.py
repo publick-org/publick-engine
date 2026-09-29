@@ -108,3 +108,21 @@ def test_spending_limit_stops_run(config, tmp_path):
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
     assert result["summarized"] == 0
     assert "spending limit" in result["errors"][0]
+
+
+def test_run_limits_default_when_left_out(config, tmp_path):
+    fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    for key in ("max_per_run", "max_cost_per_run"):
+        config["summaries"].pop(key)
+    assert summarize.summary_settings(config)["max_cost_per_run"] == summarize.DEFAULT_MAX_COST_PER_RUN
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] > 0 and not result["errors"]
+
+
+def test_missing_prices_send_nothing(config, tmp_path):
+    fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    del config["summaries"]["input_price"]
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert not client.calls and result["summarized"] == 0 and result["remaining"] > 0
+    assert "input_price" in result["errors"][0]
