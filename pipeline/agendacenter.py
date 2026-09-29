@@ -111,6 +111,7 @@ def to_event(row: dict, aliases: dict | None = None, committees: dict | None = N
         "special": parsed["special"],
         "documents_url": row["agenda_url"],
         "minutes_url": row["minutes_url"],
+        "minutes_id": f"agendacenter-{row['number']}" if row["minutes_url"] else None,
         # A revised agenda keeps its number but gets a new posted time.
         "agenda_id": f"{row['number']}-{posted}" if posted else row["number"],
         "agenda_url": row["agenda_url"],

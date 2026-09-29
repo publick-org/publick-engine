@@ -31,6 +31,8 @@
   {% endif %}
   {% if config.meetings is defined and config.meetings.agenda_center is defined %}
   <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ config.meetings.agenda_center.base_url }}/AgendaCenter">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ config.meetings.agenda_center.since | date("month") }} on.</li>
+  {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.civicclerk is defined %}
+  <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a> and its <a href="{{ meeting_links.portal }}">meeting portal</a> (CivicClerk). Agendas and minutes of the meetings on the portal are saved when posted, from {{ config.meetings.civicclerk.since | date("month") }} on; other meetings link to their agendas where the city posts them.</li>
   {% elif config.meetings is defined and meeting_links.documents %}
   <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a> and <a href="{{ meeting_links.archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ config.archive.minutes_since | date("month") }} on.</li>
   {% elif config.meetings is defined %}

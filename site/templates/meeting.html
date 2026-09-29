@@ -153,6 +153,8 @@
 <p>Agenda not recorded here. It may be in the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>
 {% elif m.source == "drive" %}
 <p>Agenda not recorded here. It may be on the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>.</p>
+{% elif m.get("agenda_url") %}
+<p>A copy of the agenda wasn't saved here. It is on the <a href="{{ m.agenda_url }}">city website</a>.</p>
 {% else %}
 <p>No agenda was posted.</p>
 {% endif %}
