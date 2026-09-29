@@ -29,7 +29,9 @@
   {% if config.seeclickfix is defined %}
   <li><strong>311 requests:</strong> <a href="https://seeclickfix.com">SeeClickFix</a>, public requests only, under a <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license. <a href="/311/methodology/">How the 311 numbers work</a>.</li>
   {% endif %}
-  {% if config.meetings is defined and meeting_links.documents %}
+  {% if config.meetings is defined and config.meetings.agenda_center is defined %}
+  <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ config.meetings.agenda_center.base_url }}/AgendaCenter">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ config.meetings.agenda_center.since | date("month") }} on.</li>
+  {% elif config.meetings is defined and meeting_links.documents %}
   <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a> and <a href="{{ meeting_links.archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ config.archive.minutes_since | date("month") }} on.</li>
   {% elif config.meetings is defined %}
   <li><strong>Meetings:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a>{% if meeting_links.portal %} and its <a href="{{ meeting_links.portal }}">meeting portal</a> (CivicClerk){% endif %}{% if meetings.all %}, from {{ meetings.all[0].date | date("month") }} on{% endif %}. Each meeting page links to its agenda and minutes where the city posts them.</li>
@@ -44,7 +46,7 @@
   <li><strong>Unemployment:</strong> U.S. <a href="https://www.bls.gov/lau/">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.</li>
   {% endif %}
   {% if config.schools is defined %}
-  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data. School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.</li>
+  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data.{% if config.schools.report_url is defined %} School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.{% endif %}</li>
   {% endif %}
   {% if config.housing is defined %}
   <li><strong>Housing:</strong> U.S. Census Bureau <a href="https://www.census.gov/construction/bps/">Building Permits Survey</a> and <a href="https://www.census.gov/programs-surveys/acs">American Community Survey</a> (through <a href="https://censusreporter.org">Census Reporter</a>){% if config.housing.shi_url is defined %}, the state's <a href="https://www.mass.gov/info-details/subsidized-housing-inventory-shi">Subsidized Housing Inventory</a>{% endif %}{% if config.finance is defined %}, and Division of Local Services parcel counts{% endif %}.</li>

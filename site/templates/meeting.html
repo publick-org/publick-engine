@@ -2,7 +2,7 @@
 {% from "macros.html" import meeting_flags, describe_change, ai_credit %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
-{% block title %}{{ m.body }}, {{ m.date | date }}{% if m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
+{% block title %}{{ m.body }}, {{ m.date | date }}{% if m.day_part %}, meeting {{ m.day_part }}{% elif m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
 {% block description %}{{ m.title }} meeting on {{ m.date | date }}{% if m.start_time %} at {{ m.start_time | time }}{% endif %}: {% if m.minutes_doc %}decisions, minutes, and agenda{% else %}location, how to attend, and agenda{% endif %}.{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, not from the city calendar. #}
