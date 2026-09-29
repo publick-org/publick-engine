@@ -36,7 +36,7 @@
     {%- else %}<span class="small">Time TBA</span>{% endif -%}
   </span>
   <div class="meeting-main">
-    <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% endif %}</a>
+    <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}{% endif %}</a>
     {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
     {% if show_date %}{% set _ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
