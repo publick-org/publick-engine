@@ -3,10 +3,8 @@
 - New homes permitted each year, from the Census Bureau Building Permits Survey.
 - Home value, rent, and rent burden, from the Census Bureau's American Community
   Survey (5-year estimates, with margins of error), through Census Reporter.
-- Massachusetts only: the share of year-round homes on the state's Subsidized
-  Housing Inventory (Chapter 40B), from the state's PDF, when [housing] has
-  shi_url; and residential parcels by type, from the Mass. Division of Local
-  Services, when the town has a [finance] table.
+- Figures from the town's state, where its package in pipeline/states/ has
+  them (Massachusetts: the Subsidized Housing Inventory and parcels by type).
 
 Writes data/housing/housing.json. Each source is fetched separately; if one
 fails, its last saved figures are kept. The figures change a few times a year,
@@ -23,19 +21,14 @@ import csv
 import io
 import json
 import math
-import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote, urlencode
 from zoneinfo import ZoneInfo
 
-import requests
-from pypdf import PdfReader
-
+from pipeline import states
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
-from pipeline.fetch_budget import REPORT_URL, rows as dls_rows
-from pipeline.fetch_finance import dls_get
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 
@@ -45,14 +38,6 @@ BPS_URL = "https://www2.census.gov/econ/bps/Place"
 BPS_PAGE = "https://www.census.gov/construction/bps/"
 CENSUS_REPORTER = "https://api.censusreporter.org/1.0/data/show/latest"
 ACS_TABLES = ["B25002", "B25003", "B25004", "B25064", "B25070", "B25077"]
-SHI_PAGE = "https://www.mass.gov/info-details/subsidized-housing-inventory-shi"
-PARCELS_REPORT = "PropertyTaxInformation.LA4.Parcel_counts_vals"
-# DLS parcel columns shown on the page, with plain names. Parcels, not homes:
-# a condominium building has one parcel per unit, an apartment building one in all.
-PARCEL_TYPES = {"Single Family 101": "Single-family homes", "Condominiums 102": "Condominiums",
-                "Two Family 104": "Two-family homes", "Three Family 105": "Three-family homes",
-                "Apartment 111-125": "Apartment buildings (4 or more units)",
-                "Miscellaneous Residential 103,109": "Other residential"}
 
 
 # ---- Building permits ----
@@ -170,59 +155,8 @@ def acs(client, config: dict) -> dict:
     }
 
 
-# ---- Subsidized Housing Inventory ----
-
-def pdf_text(pdf: bytes) -> str:
-    return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(pdf)).pages)
-
-
-def parse_shi(text: str, town: str) -> dict:
-    """The town's row of the inventory: year-round homes, development units, SHI units, percent."""
-    as_of = re.search(r"as of ([A-Z][a-z]+ \d{1,2}, \d{4})", text)
-    row = re.search(rf"^{re.escape(town)} \d+ ([\d,]+) ([\d,]+) ([\d,]+) ([\d.]+)%", text, re.M)
-    if not row or not as_of:
-        raise FetchError(f"{town} not found in the Subsidized Housing Inventory")
-    as_of_date = datetime.strptime(as_of.group(1), "%B %d, %Y").date().isoformat()
-    census = re.search(r"(\d{4}) Census", text)
-    return {
-        "as_of": as_of_date,
-        "census_year": int(census.group(1)) if census else None,
-        "year_round_homes": int(row.group(1).replace(",", "")),
-        "development_units": int(row.group(2).replace(",", "")),
-        "shi_units": int(row.group(3).replace(",", "")),
-        "percent": float(row.group(4)),
-        "goal_percent": 10,
-    }
-
-
-def shi(client, config: dict) -> dict:
-    h = config["housing"]
-    response = client.get(h["shi_url"])
-    if not response.content.startswith(b"%PDF"):
-        raise FetchError("the Subsidized Housing Inventory link did not return a PDF")
-    return {**parse_shi(pdf_text(response.content), h["shi_name"]), "source_url": SHI_PAGE}
-
-
-# ---- Parcels by type ----
-
-def parcels(client, config: dict, now: datetime) -> dict:
-    name = config["finance"]["dls_municipality"]
-    newest = now.year + 1 if now.month >= 7 else now.year
-    for fy in (newest, newest - 1, newest - 2):
-        url = REPORT_URL + "?" + urlencode({
-            "rdReport": PARCELS_REPORT, "rdReportFormat": "NativeExcel", "rdExportTableID": "xtParcels",
-            "rdExcelOutputFormat": "Excel2007", "iclMuni": name, "islYear": fy})
-        found = dls_rows(dls_get(client, url))
-        if found and found[0].get("Single Family 101"):
-            row = found[0]
-            return {"fiscal_year": int(row["Fiscal Year"]),
-                    "types": {label: int(row[col] or 0) for col, label in PARCEL_TYPES.items()},
-                    "source_url": f"{REPORT_URL}?rdReport={PARCELS_REPORT}"}
-    raise FetchError("no parcel counts returned")
-
-
 def run(config: dict, client, data_dir: Path, now: datetime | None = None, force: bool = False,
-        shi_client=None) -> dict:
+        state_client=None) -> dict:
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     path = data_dir / "housing" / "housing.json"
     saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -231,20 +165,19 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     data = {"updated_at": now.isoformat(timespec="seconds"), "bps_page": BPS_PAGE}
     problems = []
     sources = [("permits", lambda: permits(client, config, now)), ("acs", lambda: acs(client, config))]
-    # Massachusetts only: the state's inventory, and parcel counts from the town's DLS filings.
-    if "shi_url" in config["housing"]:
-        sources.append(("shi", lambda: shi(shi_client or client, config)))
-    if "finance" in config:
-        sources.append(("parcels", lambda: parcels(client, config, now)))
-    for key in ("shi", "parcels"):
-        data[key] = None
+    # The state's own figures, if it has any.
+    state = states.for_town(config).housing_module()
+    if state:
+        sources += state.sources(config, client, state_client, now)
+        for key in state.keys:
+            data[key] = None
     for key, fetch in sources:
         try:
             data[key] = fetch()
         except (FetchError, KeyError, ValueError) as e:
             problems.append(f"{key}: {e}")
             data[key] = saved.get(key)
-    if not any(data[k] for k in ("permits", "acs", "shi", "parcels")):
+    if not any(data[k] for k, _ in sources):
         raise FetchError("; ".join(problems))
     save_json(path, data)
     return {"problems": problems, "requests": getattr(client, "request_count", None)}
@@ -260,11 +193,9 @@ def main() -> int:
     if not configured(config, "housing"):
         return 0
     client = PoliteClient(config["site"]["user_agent"], delay=2.0, timeout=60.0)
-    # mass.gov refuses the site's usual User-Agent but accepts the HTTP
-    # library's own, so this one request sends that plus the site's domain.
-    shi_client = PoliteClient(f"{requests.utils.default_user_agent()} ({config['site']['domain']})", timeout=60.0)
+    state = states.for_town(config).housing_module()
     try:
-        result = run(config, client, args.data, force=args.force, shi_client=shi_client)
+        result = run(config, client, args.data, force=args.force, state_client=state.client(config) if state else None)
     except FetchError as e:
         print(f"::error::Housing figures could not be fetched: {e}")
         return 1

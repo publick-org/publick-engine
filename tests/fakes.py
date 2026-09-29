@@ -151,7 +151,7 @@ class FakeDESE:
     def get(self, url):
         import json
         from urllib.parse import unquote_plus
-        from pipeline.fetch_schools import MEASURES
+        from pipeline.states.ma.schools import MEASURES
         self.urls.append(url)
         query = unquote_plus(url)
         name = next(n for n, m in MEASURES.items() if m["dataset"] in url and m["where"] in query)
@@ -185,7 +185,7 @@ class FakeBudgetDLS:
 
 class FakeHousing:
     """Serves trimmed Census permit files, a saved Census Reporter response, a
-    stand-in PDF, and DLS parcel counts. Patch fetch_housing.pdf_text with
+    stand-in PDF, and DLS parcel counts. Patch pipeline.states.ma.housing.pdf_text with
     shi_pdf_text so the stand-in PDF reads as the saved inventory text."""
 
     def __init__(self):

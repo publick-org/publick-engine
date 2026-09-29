@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
+from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import summarize
 from pipeline.fetch_meetings import slugify
@@ -40,6 +41,8 @@ from pipeline.seeclickfix import short_address
 
 SITE_DIR = ENGINE_DIR / "site"
 PAGES_DIR = SITE_DIR / "pages"
+# Each state's own pages and page parts: site/states/<state>/ (see pipeline/states/).
+STATES_DIR = SITE_DIR / "states"
 STATIC_DIR = SITE_DIR / "static"
 
 # Built but kept out of the sitemap.
@@ -480,7 +483,8 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
             "value": format_duration(overall["time_to_acknowledge"]["median"]), "href": "/311/#speed", "change": change,
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
-    if "finance" in config and tax_path.exists():
+    state = states.for_town(config)
+    if state.source("tax_bill", config) and tax_path.exists():
         tax = json.loads(tax_path.read_text(encoding="utf-8"))
         latest, prior = tax["years"][-1], (tax["years"][-2] if len(tax["years"]) > 1 else None)
         change = ""
@@ -490,7 +494,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         numbers.append({
             "label": "Average single-family tax bill", "value": f"${latest['average_bill']:,}",
             "href": tax["source_url"], "change": change,
-            "source": f"Fiscal year {latest['fiscal_year']} · Mass. Division of Local Services",
+            "source": f"Fiscal year {latest['fiscal_year']} · {state.tax_source}",
         })
     labor_path = data_dir / "labor" / "unemployment.json"
     if "labor" in config and labor_path.exists():
@@ -535,6 +539,13 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     """Render every page and write supporting files. Returns the page URLs built."""
     config = load_config(town)
     site = config["site"]
+    state = states.for_town(config)
+    for section in config["sections"]:
+        kind = states.SECTIONS.get(section["slug"])
+        if kind and not (state.source(kind, config) and (STATES_DIR / state.templates / f"{section['slug']}.html").exists()):
+            raise SystemExit(f"The {section['slug']} section needs {state.name}'s {states.KINDS[kind].lower()}: "
+                             f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
+                             f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
     built_at = now or datetime.now(ZoneInfo(site["timezone"]))
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
@@ -561,10 +572,11 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     schools = section_data("schools", "schools/schools.json")
     budget = section_data("budget", "finance/budget.json")
     housing = section_data("housing", "housing/housing.json")
-    if housing:
-        # The Massachusetts-only parts, shown only for a town that has them.
-        housing["shi"] = housing.get("shi") if "shi_url" in config.get("housing", {}) else None
-        housing["parcels"] = housing.get("parcels") if "finance" in config else None
+    # Housing figures from the town's state's own sources (pipeline/states/), shown only for a town that has them.
+    state_housing = state.housing_parts(config)
+    if housing and state.housing_module():
+        for key in state.housing_module().keys:
+            housing[key] = housing.get(key) if key in state_housing else None
 
     # The engine's static files, then the town's own on top (its share image, or its own icon).
     if out_dir.exists():
@@ -579,7 +591,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
             f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
 
     env = Environment(
-        loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR]),
+        loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR, STATES_DIR]),
         autoescape=True,
         undefined=StrictUndefined,
         trim_blocks=True,
@@ -600,6 +612,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         return f"{path}?v={digest}"
     env.filters["versioned"] = versioned
     env.globals["report_link"] = lambda page_url, what: report_link(site, base_url, page_url, what)
+    # A state's own template (site/states/<state>/<name>); a part a state doesn't have is included with "ignore missing".
+    env.globals["state_template"] = lambda name: f"{state.templates}/{name}"
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
     env.globals.update(group_by=group_by, reserve_rows=reserve_rows, today=built_at.date().isoformat(), css_version=css_version, plural=plural,
@@ -626,7 +640,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     sc = config.get("seeclickfix", {})
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
-    common = dict(config=config, site=site, town=config["town"], sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+    common = dict(config=config, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links,
                   streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, housing=housing,
