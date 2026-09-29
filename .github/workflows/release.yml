@@ -1,16 +1,77 @@
-# When a release such as v1.2.0 is published, move its major tag (v1) to the
-# same commit, so towns pinned to @v1 take it on their next run.
-name: Move major version tag
+# Releases, by themselves. When the engine tests pass on main after a merge,
+# the merged commit becomes the next release and its major tag (v1) moves to
+# it, so towns pinned to @v1 take it on their next run.
+#
+# The next version is a minor one (v1.4.0 -> v1.5.0) unless the merged pull
+# request is labeled:
+#   patch       v1.4.0 -> v1.4.1
+#   major       v1.4.0 -> v2.0.0, for a change that needs every town's config
+#               edited; @v1 towns stay on v1 until they move
+#   no release  nothing is released
+#
+# A release published by hand (Releases -> Draft a new release) still moves its
+# major tag.
+name: Release
 
 on:
+  workflow_run:
+    workflows: ["Engine tests"]
+    types: [completed]
+    branches: [main]
   release:
     types: [published]
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
-  tag:
+  release:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Release the tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if git tag --points-at "$SHA" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "$SHA is already released as $(git tag --points-at "$SHA" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')."
+            exit 0
+          fi
+          labels=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq '[.[].labels[].name] | join(",")')
+          echo "Labels on the merged pull request: ${labels:-none}"
+          if [[ ",$labels," == *",no release,"* ]]; then
+            echo "Labeled 'no release'; not releasing."
+            exit 0
+          fi
+          latest=$(git tag --list 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          if [[ ",$labels," == *",major,"* ]]; then
+            version="v$((major + 1)).0.0"
+          elif [[ ",$labels," == *",patch,"* ]]; then
+            version="v$major.$minor.$((patch + 1))"
+          else
+            version="v$major.$((minor + 1)).0"
+          fi
+          gh release create "$version" --target "$SHA" --title "$version" --generate-notes --notes-start-tag "$latest"
+          # A release made with this workflow's token doesn't start other workflows, so the major tag moves here.
+          git fetch --tags --force
+          git tag -f "${version%%.*}" "$SHA"
+          git push -f origin "refs/tags/${version%%.*}"
+          echo "Released $version (after $latest) and moved ${version%%.*} to it."
+
+  # A release published by hand.
+  major-tag:
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
