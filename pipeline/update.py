@@ -10,7 +10,7 @@ town.yml runs the same steps one by one (tests/test_update.py keeps the two
 in step), and the network workflow runs this command for each town.
 
 Usage:
-    python -m pipeline.update [--town gloucester] [--sources all|meetings|311]
+    python -m pipeline.update [--town gloucester] [--sources all|meetings|figures|311]
                               [--step-timeout SECONDS] [--report report.json]
 """
 
@@ -33,7 +33,9 @@ from pipeline.config import DEFAULT_TOWN
 class Source:
     name: str
     module: str
-    # "meetings" (meetings and the indicators) or "311"; the workflow's sources input picks one or both.
+    # "meetings", "figures" (the indicators: tax, budget, schools, unemployment, housing, permits), or "311".
+    # --sources picks them (GROUPS): "meetings" is everything but 311, and "figures" the indicators alone,
+    # which are quick, for a run that only needs a town's figures refreshed.
     group: str
     args: tuple[str, ...] = ()
     # A required step failing fails the run; any other failure is a warning.
@@ -47,18 +49,19 @@ SOURCES = [
     Source("Fetch minutes", "pipeline.fetch_minutes", "meetings"),
     Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings"),
     Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",)),
-    Source("Fetch tax bill", "pipeline.fetch_finance", "meetings"),
-    Source("Fetch unemployment", "pipeline.fetch_labor", "meetings", secrets=("BLS_API_KEY",)),
-    Source("Fetch school figures", "pipeline.fetch_schools", "meetings"),
-    Source("Fetch budget figures", "pipeline.fetch_budget", "meetings"),
-    Source("Fetch housing figures", "pipeline.fetch_housing", "meetings"),
-    Source("Fetch building permits", "pipeline.fetch_permits", "meetings"),
+    Source("Fetch tax bill", "pipeline.fetch_finance", "figures"),
+    Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",)),
+    Source("Fetch school figures", "pipeline.fetch_schools", "figures"),
+    Source("Fetch budget figures", "pipeline.fetch_budget", "figures"),
+    Source("Fetch housing figures", "pipeline.fetch_housing", "figures"),
+    Source("Fetch building permits", "pipeline.fetch_permits", "figures"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",)),
     Source("Fetch 311 requests", "pipeline.fetch_311", "311"),
     Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True),
 ]
 
-GROUPS = {"all": ("meetings", "311"), "meetings": ("meetings",), "311": ("311",)}
+GROUPS = {"all": ("meetings", "figures", "311"), "meetings": ("meetings", "figures"), "figures": ("figures",),
+          "311": ("311",)}
 SECRETS = {key for source in SOURCES for key in source.secrets}
 
 
