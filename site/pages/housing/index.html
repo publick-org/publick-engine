@@ -2,12 +2,12 @@
 {% from "macros.html" import on_this_page %}
 {% from "charts.html" import year_columns, chart_links %}
 {% block title %}Housing{% endblock %}
-{% block description %}New homes permitted, home values and rents, {% if config.housing.shi_url is defined %}affordable housing, {% endif %}and the housing stock in {{ town.name }}, from {% if config.housing.shi_url is defined or config.finance is defined %}federal and state{% else %}federal{% endif %} data.{% endblock %}
+{% block description %}New homes permitted, home values and rents, {% if "shi" in state_housing %}affordable housing, {% endif %}and the housing stock in {{ town.name }}, from {% if state_housing %}federal and state{% else %}federal{% endif %} data.{% endblock %}
 {% set h = housing %}
 {% block content %}
 <div class="page-head">
   <h1>Housing</h1>
-  <p class="lede">New homes permitted, home values and rents, {% if config.housing.shi_url is defined %}affordable housing, {% endif %}and the housing stock, from {% if config.housing.shi_url is defined or config.finance is defined %}federal and state{% else %}federal{% endif %} data.</p>
+  <p class="lede">New homes permitted, home values and rents, {% if "shi" in state_housing %}affordable housing, {% endif %}and the housing stock, from {% if state_housing %}federal and state{% else %}federal{% endif %} data.</p>
   {% if h %}
   <p class="source-note">Checked <time datetime="{{ h.updated_at }}">{{ h.updated_at | timestamp }}</time>. Each source updates once or twice a year.</p>
   {% endif %}
@@ -40,7 +40,7 @@
     <span class="stat-change">A month, {{ acs_years }} · State {{ acs.state.median_rent.value | money }}</span>
   </a></li>
   {% endif %}
-  {% if h.shi %}
+  {% if h.get("shi") %}
   <li class="stat"><a href="#affordable">
     <span class="stat-label">Homes counted as affordable</span>
     <span class="stat-value">{{ h.shi.percent }}%</span>
@@ -48,7 +48,7 @@
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page(([("permits", "New homes")] if pm else []) + ([("costs", "Values and rents")] if acs else []) + ([("affordable", "Affordable housing")] if h.shi else []) + [("stock", "Housing stock")]) }}
+{{ on_this_page(([("permits", "New homes")] if pm else []) + ([("costs", "Values and rents")] if acs else []) + ([("affordable", "Affordable housing")] if h.get("shi") else []) + [("stock", "Housing stock")]) }}
 
 {# ---- Permits ---- #}
 {% if pm %}
@@ -93,7 +93,7 @@
 {% endif %}
 
 {# ---- Affordable housing ---- #}
-{% if h.shi %}{% set s = h.shi %}
+{% if h.get("shi") %}{% set s = h.shi %}
 <h2 id="affordable">Affordable housing</h2>
 <p>Massachusetts counts homes that are kept affordable to lower-income households on its Subsidized Housing Inventory. Under Chapter 40B, the goal is for {{ s.goal_percent }}% of each community's year-round homes to be on the list.</p>
 <p>Below {{ s.goal_percent }}%, a developer whose project includes affordable homes can get a single permit to build more densely than local zoning allows. If the city denies it, the state can overturn that decision on appeal.</p>
@@ -119,7 +119,7 @@
 </div>
 <p class="small">Estimates from the American Community Survey. Source: <a href="{{ acs.source_url }}">U.S. Census Bureau via Census Reporter</a>.</p>
 {% endif %}
-{% if h.parcels %}{% set pc = h.parcels %}
+{% if h.get("parcels") %}{% set pc = h.parcels %}
 <h3 id="parcels">Residential property by type</h3>
 <p>Properties on the assessor's list, fiscal year {{ pc.fiscal_year }}. These are parcels, not homes: each condominium is its own parcel, while an apartment building is one parcel.</p>
 <div class="table-wrap">

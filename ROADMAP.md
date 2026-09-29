@@ -138,9 +138,12 @@ behind or why.
 **Plan.**
 - A town's failure doesn't fail the run. Each town job records what happened
   (every source's last update, the engine version, build and deploy result).
+  *Done: a fetching run writes it to the town's `data/run.json`.*
 - The final job of each run writes a network status page on publick.org: one
   table of towns behind, towns whose runs failed, and totals, plus the
-  repository size (item 1) and summary spending (item 4).
+  repository size (item 1) and summary spending (item 4). *Done, without the
+  size and spending: publick.org/status/, built by the network repository's
+  `scripts/build_status.py` after each run.*
 - Once a day, the run fails if any town is behind, so GitHub sends one email
   a day rather than one per failure.
 - If the network run itself stops, every town stops at once. A scheduled

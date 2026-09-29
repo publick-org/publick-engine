@@ -11,8 +11,10 @@ GitHub Actions matrix. run takes one batch and, for each town in turn, fetches
 new data (pipeline.update), checks its freshness, builds the site, checks it
 (site_checks/; with --sample-checks, the browser checks run on a sample of
 pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
-process, so one town's failure never stops the next. report reads every
-town's result and fails once, for the whole run, if any town needs attention.
+process, so one town's failure never stops the next. A run that fetches also
+writes its result to the town's data/run.json, committed with the data, which
+the network's status page reads. report reads every town's result and fails
+once, for the whole run, if any town needs attention.
 
     python -m pipeline.network plan   [--root .] [--slots 4 --slot N] [--towns a,b] [--changed FILE] [--batch-size 4]
     python -m pipeline.network run    [--root .] --towns a,b [--fetch] [--deploy] [--sample-checks] [--reports DIR]
@@ -31,6 +33,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pipeline.config import ENGINE_DIR
@@ -46,6 +49,10 @@ STEP_TIMEOUT = 3000
 BUILD_TIMEOUT = 1800
 # The run's summary page: report writes one table for every town, so town steps don't write to it.
 SUMMARY_ENV = "GITHUB_STEP_SUMMARY"
+# A fetching run's result, in the town's data/, for the status page.
+RUN_RECORD = "run.json"
+# Agendas waiting for a summary kept in that record; the rest are counted.
+WAITING_KEPT = 10
 
 
 def town_dirs(root: Path) -> list[str]:
@@ -121,6 +128,21 @@ def restore(folder: Path) -> None:
     subprocess.run(["git", "clean", "-fdq", "--", "."], cwd=folder, check=False)
 
 
+def now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def engine_version(root: Path) -> str | None:
+    path = root / "engine-version"
+    return (path.read_text().strip() or None) if path.exists() else None
+
+
+def trim_sources(rows: list[dict]) -> list[dict]:
+    """Freshness rows for the run record, with long lists of waiting summaries cut short."""
+    return [{**r, "waiting": r["waiting"][:WAITING_KEPT], "waiting_count": len(r["waiting"])} if "waiting" in r else r
+            for r in rows]
+
+
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
              step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False) -> dict:
     town_dir = root / TOWNS / name
@@ -128,7 +150,9 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     town = env["TOWN"]
     python = sys.executable
     site = town_dir / "_site"
-    result = {"town": town, "folder": name, "steps": [], "update": None, "stale": False, "deployed": False}
+    result = {"town": town, "folder": name, "started_at": now(), "finished_at": None,
+              "engine": engine_version(root), "steps": [], "update": None, "stale": False, "sources": None,
+              "deployed": False}
     steps = result["steps"]
 
     if fetch:
@@ -142,9 +166,14 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         # As in town.yml: without a scorecard, the 311 data isn't committed.
         if not steps[-1]["ok"] and (town_dir / "data" / "311").is_dir():
             restore(town_dir / "data" / "311")
-        freshness = step("Check data freshness", [python, "-m", "pipeline.freshness", "--town", town],
-                         env, town_dir, BUILD_TIMEOUT)
+        freshness_report = town_dir / ".freshness-report.json"
+        freshness_report.unlink(missing_ok=True)
+        freshness = step("Check data freshness", [python, "-m", "pipeline.freshness", "--town", town,
+                                                  "--report", str(freshness_report)], env, town_dir, BUILD_TIMEOUT)
         result["stale"] = not freshness["ok"]
+        if freshness_report.exists():
+            result["sources"] = trim_sources(json.loads(freshness_report.read_text()))
+            freshness_report.unlink()
 
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
                       env, town_dir, BUILD_TIMEOUT))
@@ -159,6 +188,9 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
                                            "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
         result["deployed"] = steps[-1]["ok"]
     result["ok"] = all(s["ok"] for s in steps)
+    result["finished_at"] = now()
+    if fetch and (town_dir / "data").is_dir():
+        (town_dir / "data" / RUN_RECORD).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if reports:
         reports.mkdir(parents=True, exist_ok=True)
         (reports / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")

@@ -30,6 +30,17 @@ def test_stale_and_missing_sources_are_reported(tmp_path):
     assert rows["Old"]["stale"] and rows["Missing"]["stale"]
 
 
+def test_report_writes_the_rows(tmp_path, monkeypatch):
+    report = tmp_path / "rows.json"
+    monkeypatch.setattr("sys.argv", ["freshness", "--town", "gloucester", "--data", str(tmp_path / "none"),
+                                     "--report", str(report)])
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    assert freshness.main() == 1
+    rows = json.loads(report.read_text())
+    assert rows[0] == {"label": "Meetings calendar", "updated_at": None, "max_days": 2, "stale": True}
+    assert all(r["updated_at"] is None for r in rows)
+
+
 def test_about_page_shows_data_status(site_dir):
     about = (site_dir / "about" / "index.html").read_text()
     assert 'id="data-status"' in about and "Meetings calendar" in about

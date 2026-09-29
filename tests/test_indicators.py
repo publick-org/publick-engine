@@ -7,13 +7,17 @@ from zoneinfo import ZoneInfo
 from conftest import FIXTURES
 from fakes import FakeResponse
 from pipeline import build_site, fetch_finance, fetch_labor
+from pipeline.states.ma import budget as ma_budget
+from pipeline.states.ma import housing as ma_housing
+from pipeline.states.ma import schools as ma_schools
+from pipeline.states.ma import tax_bill as ma_tax_bill
 from pipeline.config import load_config
 
 NOW = datetime(2026, 9, 26, 12, tzinfo=ZoneInfo("America/New_York"))
 
 
 def test_parse_tax_bill_workbook():
-    record = fetch_finance.parse_workbook((FIXTURES / "dls_tax_bill.xlsx").read_bytes())
+    record = ma_tax_bill.parse_workbook((FIXTURES / "dls_tax_bill.xlsx").read_bytes())
     assert record == {"fiscal_year": 2026, "average_bill": 9502, "average_value": 1020656, "parcels": 7226, "state_rank": 79}
 
 
@@ -64,7 +68,7 @@ def test_school_figures_compare_like_with_like(tmp_path):
     assert latest["absenteeism"]["year"] == 2026 and latest["mcas_math"]["town"] == 29.0
     saved = json.loads((tmp_path / "schools" / "schools.json").read_text())
     years = [y["year"] for y in saved["measures"]["mcas_ela"]["years"]]
-    assert years == sorted(years) and 2020 not in years and len(years) <= fetch_schools.YEARS_KEPT
+    assert years == sorted(years) and 2020 not in years and len(years) <= ma_schools.YEARS_KEPT
 
 
 def test_school_year_label():
@@ -85,7 +89,7 @@ def test_budget_fetch(tmp_path):
     assert sum(fy25["functions"].values()) == fy25["total"]
     assert b["revenue"][-1] == {"fiscal_year": 2026, "total": 153398542, "sources": {
         "Property tax": 109650852, "State aid": 17960146, "Local receipts": 19102669, "Other": 6684875}}
-    assert len(b["revenue"]) == fetch_budget.YEARS
+    assert len(b["revenue"]) == ma_budget.YEARS
     assert b["levy"][-1]["excess_capacity"] == 139295
     assert b["free_cash"][-1] == {"fiscal_year": 2026, "amount": 4112161}
     assert b["stabilization"][-1] == {"fiscal_year": 2025, "amount": 3802715}
@@ -104,10 +108,9 @@ def test_budget_fetch(tmp_path):
 
 def test_budget_rejects_error_page():
     import pytest
-    from pipeline import fetch_budget
     from pipeline.http import FetchError
     with pytest.raises(FetchError):
-        fetch_budget.rows(b"<html>ORA-01722</html>")
+        ma_budget.rows(b"<html>ORA-01722</html>")
 
 
 def test_money_format():
@@ -121,7 +124,7 @@ def test_money_format():
 def test_housing_fetch(tmp_path, monkeypatch):
     from fakes import FakeHousing, shi_pdf_text
     from pipeline import fetch_housing
-    monkeypatch.setattr(fetch_housing, "pdf_text", shi_pdf_text)
+    monkeypatch.setattr(ma_housing, "pdf_text", shi_pdf_text)
     config = load_config("gloucester")
     result = fetch_housing.run(config, FakeHousing(), tmp_path, now=NOW)
     assert result["problems"] == []
@@ -147,7 +150,7 @@ def test_housing_keeps_last_figures_when_a_source_fails(tmp_path, monkeypatch):
     from fakes import FakeHousing, shi_pdf_text
     from pipeline import fetch_housing
     from pipeline.http import FetchError
-    monkeypatch.setattr(fetch_housing, "pdf_text", shi_pdf_text)
+    monkeypatch.setattr(ma_housing, "pdf_text", shi_pdf_text)
     config = load_config("gloucester")
     fetch_housing.run(config, FakeHousing(), tmp_path, now=NOW)
 
@@ -167,12 +170,12 @@ def test_dls_error_page_is_reported():
     import pytest
     from pipeline.http import FetchError
     with pytest.raises(FetchError, match="not a workbook: 'Access denied'"):
-        fetch_finance.parse_workbook(b"<html><title>Access denied</title></html>")
+        ma_tax_bill.parse_workbook(b"<html><title>Access denied</title></html>")
 
 
 def test_dls_download_retried_when_empty(monkeypatch):
     """DLS can answer an export's download link with nothing if the file isn't written yet."""
-    monkeypatch.setattr(fetch_finance.time, "sleep", lambda s: None)
+    monkeypatch.setattr(ma_tax_bill.time, "sleep", lambda s: None)
     sheet = (FIXTURES / "dls_tax_bill.xlsx").read_bytes()
 
     class Response:
@@ -189,14 +192,14 @@ def test_dls_download_retried_when_empty(monkeypatch):
             return Response(b"" if len(self.urls) < 3 else sheet, link)
 
     client = Client()
-    assert fetch_finance.dls_get(client, "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?x=1") == sheet
+    assert ma_tax_bill.dls_get(client, "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?x=1") == sheet
     assert len(client.urls) == 3 and client.urls[1].endswith("/rdExport-1/file")
 
 
 def test_dls_empty_reply_is_an_error_with_details(monkeypatch):
     import pytest
     from pipeline.http import FetchError
-    monkeypatch.setattr(fetch_finance.time, "sleep", lambda s: None)
+    monkeypatch.setattr(ma_tax_bill.time, "sleep", lambda s: None)
 
     class Response:
         content, url, status_code = b"", "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?x=1", 200
@@ -207,7 +210,7 @@ def test_dls_empty_reply_is_an_error_with_details(monkeypatch):
             return Response()
 
     with pytest.raises(FetchError, match=r"0 bytes.*HTTP 200 from https://dls-gw.*Server: Microsoft-IIS/10.0"):
-        fetch_finance.dls_get(Client(), Response.url)
+        ma_tax_bill.dls_get(Client(), Response.url)
 
 
 def test_housing_outside_massachusetts_skips_state_sources(tmp_path):
