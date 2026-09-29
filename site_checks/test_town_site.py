@@ -1,6 +1,8 @@
 """One town's built site: every page and link is in place, and every page (or,
 on a daily run, a sample of them: see pages.py) passes the automated WCAG 2.2 AA
-checks in light and dark mode, at desktop and phone widths. The engine's own tests (tests/) cover the same ground in more depth
+checks at desktop and phone widths. The sites have only a light theme, and every
+page says so (color-scheme: light), so a reader in dark mode sees the same page;
+the checks hold every page to that rather than running the browser checks twice. The engine's own tests (tests/) cover the same ground in more depth
 against saved Gloucester data."""
 
 import time
@@ -67,6 +69,8 @@ def test_every_page_has_accessible_structure(page_files):
         assert p.tags.count("h1") == 1 and p.tags.count("main") == 1, f"{path}: needs one <h1> and one <main>"
         assert next(a for t, a in p.attrs if t == "a").get("href") == "#main", f"{path}: skip link must come first"
         assert all("alt" in a for t, a in p.attrs if t == "img"), f"{path}: <img> without alt"
+        assert ("meta", {"name": "color-scheme", "content": "light"}) in p.attrs, \
+            f"{path}: must declare color-scheme light, or dark mode needs the browser checks again"
 
 
 def test_internal_links_resolve(site_dir, page_files):
@@ -104,18 +108,17 @@ def axe():
     return axe_module.Axe()
 
 
-@pytest.mark.parametrize("scheme", ["light", "dark"])
 @pytest.mark.parametrize("viewport", VIEWPORTS)
 @pytest.mark.parametrize("path", PATHS)
-def test_axe_no_violations(browser, axe, server_url, path, viewport, scheme):
-    context = browser.new_context(viewport=VIEWPORTS[viewport], color_scheme=scheme)
+def test_axe_no_violations(browser, axe, server_url, path, viewport):
+    context = browser.new_context(viewport=VIEWPORTS[viewport])
     page = context.new_page()
     page.goto(server_url + path)
     results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     context.close()
     problems = "\n".join(f"- [{v['impact']}] {v['id']}: {v['help']}" for v in results.response["violations"])
-    assert results.violations_count == 0, f"{path} ({viewport}, {scheme}):\n{problems}"
+    assert results.violations_count == 0, f"{path} ({viewport}):\n{problems}"
     assert overflow <= 0, f"{path} scrolls sideways by {overflow}px ({viewport})"
 
 
