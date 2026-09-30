@@ -189,7 +189,10 @@ inbox.
   daily runs open, update, or close one issue, assigned to the owner.*
 - If the network run itself stops, every town stops at once. The scheduled
   Cloudflare Worker that starts the runs (item 8) also checks that the status
-  page was updated in the last day, and raises the alert if not.
+  page was updated in the last day, and raises the alert if not. *Built
+  (`worker/scheduler.js`): it reads the status page's last daily run, and
+  opens (and later closes) a "network stopped" issue after 30 hours without
+  one.*
 - At hundreds of towns the status page needs search and filters, and the
   daily alert becomes a digest.
 
@@ -367,11 +370,16 @@ first run's and was lost (37 new summaries).
 Town jobs check out the latest `main` when they start, not the commit the run
 was queued at, and `commit-data.sh` recovers from a collision: it keeps both
 runs' changes, and the later run's lines where both changed the same lines.
-Not done: towns picked by need, towns queued separately, and the Cloudflare
-start.*
+Towns are picked by need: a daily run (the GitHub schedule, or a start with
+`daily`) takes the towns whose last fetching run finished more than 18 hours
+ago, oldest first (`pipeline.network plan --due-hours`). The Cloudflare
+start is built (`worker/scheduler.js`, deployed as its own Worker,
+`publick-scheduler`): it starts a daily run every hour of the morning, and
+goes live when its GitHub token is set. Not done: towns queued separately;
+with towns picked by need, a run that replaces a waiting one only delays its
+towns to the next start.*
 
-**Matters at:** now. Towns picked by need and queued separately first, since
-they need nothing set up; then the Cloudflare start.
+**Matters at:** now.
 
 ## 9. Runner capacity
 
@@ -420,11 +428,12 @@ builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5).
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too.
 
-1. Towns picked by need and queued separately (item 8).
+1. The Cloudflare Worker that starts the runs and checks the status page
+   (items 8 and 3): built; live once its GitHub token is set.
 2. Statewide sources fetched once per state (item 2); the rhythms they build
    on are done (item 7).
-3. The Cloudflare Worker that starts the runs and checks the status page
-   (items 8 and 3), once there's a token for it.
+3. Towns queued separately (item 8), if replaced runs turn out to delay
+   towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
 

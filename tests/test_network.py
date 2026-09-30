@@ -321,3 +321,20 @@ def test_summary_budget_splits_whats_left_of_the_month(tmp_path):
 def test_network_reads_the_ledger_summarize_writes():
     from pipeline import summarize
     assert network.SUMMARY_LEDGER == summarize.LEDGER
+
+
+def test_a_daily_run_takes_the_towns_that_are_due(tmp_path):
+    from datetime import datetime, timezone
+    root = make_root(tmp_path)
+    at = datetime(2026, 10, 2, 9, 0, tzinfo=timezone.utc)
+    write_record(root, "gloucester-ma", finished_at="2026-10-01T10:00:00+00:00")  # 23 hours ago: due
+    write_record(root, "manchester-nh", finished_at="2026-10-02T08:00:00+00:00")  # an hour ago: not due
+    # salem-ma has never run: due, and first.
+    assert batches(network.plan(root, due_hours=18, at=at)) == [["salem-ma", "gloucester-ma"]]
+    # A second start finds nothing more to do once they've run.
+    write_record(root, "gloucester-ma", finished_at="2026-10-02T09:30:00+00:00")
+    write_record(root, "salem-ma", finished_at="2026-10-02T09:40:00+00:00")
+    assert network.plan(root, due_hours=18, at=datetime(2026, 10, 2, 10, 0, tzinfo=timezone.utc))["include"] == []
+    # Named towns are only taken when due too.
+    assert batches(network.plan(root, only=["manchester-nh", "salem-ma"], due_hours=18,
+                                at=datetime(2026, 10, 3, 9, 0, tzinfo=timezone.utc))) == [["manchester-nh", "salem-ma"]]
