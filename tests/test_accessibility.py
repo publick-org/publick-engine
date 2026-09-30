@@ -8,7 +8,12 @@ checks are still needed when new sections are added.
 import time
 
 import pytest
-from conftest import PAGE_PATHS
+from conftest import PAGE_PATHS, serve
+from test_sample_towns import malden_site, manchester_site  # noqa: F401 (fixtures)
+from test_site_check_pages import HAND_WRITTEN
+
+from pipeline import build_site
+from site_checks.pages import sample
 
 playwright_api = pytest.importorskip("playwright.sync_api")
 axe_module = pytest.importorskip("axe_playwright_python.sync_playwright")
@@ -124,3 +129,28 @@ def test_meeting_search_results(browser, axe, server_url, viewport):
     context.close()
     assert results.violations_count == 0, format_violations(results)
     assert overflow <= 0
+
+
+# The sample towns' own pages (tests/test_sample_towns.py): the home page and meetings,
+# from meeting systems other than Gloucester's, and Manchester's New Hampshire budget and
+# schools pages. The rest are Gloucester's data, checked above. As on a daily run
+# (site_checks/pages.py), every hand-written page and the first and largest of each record
+# template, in light mode only, as site_checks/ checks a town.
+OWN_PAGES = {"manchester": ("/meetings/", "/budget/", "/schools/"), "malden": ("/meetings/",)}
+
+
+@pytest.mark.parametrize("viewport", VIEWPORTS)
+@pytest.mark.parametrize("town", OWN_PAGES)
+def test_sample_town_pages(browser, axe, town, viewport, request):
+    site = request.getfixturevalue(f"{town}_site").dir
+    paths = [build_site.url_for(p.relative_to(site)) for p in site.rglob("*.html") if p.name != "404.html"]
+    paths = [p for p in paths if p == "/" or p.startswith(OWN_PAGES[town])]
+
+    def size(path):
+        return (site / path.lstrip("/") / "index.html").stat().st_size
+
+    with serve(site) as url:
+        for path in sample(paths, size, HAND_WRITTEN):
+            test_axe_no_violations(browser, axe, url, path, viewport, "light")
+            if viewport == "phone":
+                test_reflows_without_horizontal_scroll(browser, url, path)
