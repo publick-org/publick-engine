@@ -22,15 +22,20 @@ any town does.
 budget splits what's left of the month's summary budget among the towns in a
 run, from each town's data/summary-costs.json (pipeline.summarize).
 
-    python -m pipeline.network plan   [--root .] [--slots 4 --slot N] [--towns a,b] [--changed FILE] [--batch-size 4]
+    python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
+                                      [--batch-size 4]
     python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
                                       [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
 
-Towns are spread over --slots runs a day by a stable hash of their folder
-name, so a town keeps its slot as others are added.
+A daily run takes the towns that are due (--due-hours): those whose last run
+that fetched their data finished more than that many hours ago, or never ran,
+oldest first. So a run that starts late, twice, or not at all does no harm: a
+second start finds nothing due, and the next run makes up a missed one. (Towns
+can also be spread over --slots runs a day by a stable hash of their folder
+name.)
 """
 
 from __future__ import annotations
@@ -67,6 +72,9 @@ RUN_RECORD = "run.json"
 WAITING_KEPT = 10
 # Hours without a good update before a town is listed as behind.
 BEHIND_HOURS = 30
+# Hours after a town's last fetching run before a daily run takes it again. Under a day, so each
+# morning's runs take every town once, even one that finished late the day before.
+DUE_HOURS = 18
 # The part of the monthly summary budget older documents can't use, kept for new ones.
 NEW_DOCUMENTS_RESERVE = 0.2
 # Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
@@ -107,8 +115,23 @@ def changed_towns(files: list[str], towns: list[str]) -> list[str]:
     return sorted(touched)
 
 
+def last_fetched(root: Path, name: str) -> str | None:
+    """When the town's last run that fetched its data finished (its run record), or None if none has."""
+    path = root / TOWNS / name / "data" / RUN_RECORD
+    return json.loads(path.read_text()).get("finished_at") if path.exists() else None
+
+
+def due(root: Path, towns: list[str], hours: float, at: datetime | None = None) -> list[str]:
+    """The towns whose last fetching run finished more than `hours` ago, or never ran, oldest first."""
+    at = at or datetime.now(timezone.utc)
+    last = {t: last_fetched(root, t) for t in towns}
+    waiting = [t for t in towns if not last[t] or datetime.fromisoformat(last[t]) <= at - timedelta(hours=hours)]
+    return sorted(waiting, key=lambda t: (last[t] is not None, last[t] or ""))
+
+
 def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str] | None = None,
-         changed: list[str] | None = None, batch_size: int = 4) -> dict:
+         changed: list[str] | None = None, batch_size: int = 4, due_hours: float | None = None,
+         at: datetime | None = None) -> dict:
     towns = town_dirs(root)
     unknown = sorted(set(only or []) - set(towns))
     if unknown:
@@ -119,6 +142,8 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
         towns = changed_towns(changed, towns)
     if run_slot is not None:
         towns = [t for t in towns if slot(t, slots) == run_slot]
+    if due_hours is not None:
+        towns = due(root, towns, due_hours, at)
     batches = [towns[i:i + batch_size] for i in range(0, len(towns), batch_size)]
     return {"include": [{"towns": " ".join(b), "name": b[0] + (f" +{len(b) - 1}" if len(b) > 1 else "")}
                         for b in batches]}
@@ -336,6 +361,7 @@ def main() -> int:
     p.add_argument("--towns", help="only these town folders, comma-separated")
     p.add_argument("--changed", type=Path, help="a file listing changed paths; only towns they touch")
     p.add_argument("--batch-size", type=int, default=4)
+    p.add_argument("--due-hours", type=float, help="only towns whose last fetching run finished this many hours ago")
     r = sub.add_parser("run")
     r.add_argument("--root", type=Path, default=Path.cwd())
     r.add_argument("--towns", required=True, help="town folders, comma- or space-separated")
@@ -363,7 +389,8 @@ def main() -> int:
             raise SystemExit(f"--slot must be between 0 and {args.slots - 1}")
         changed = args.changed.read_text().split() if args.changed else None
         only = args.towns.split(",") if args.towns else None
-        print(json.dumps(plan(args.root.resolve(), args.slots, args.slot, only, changed, max(args.batch_size, 1))))
+        print(json.dumps(plan(args.root.resolve(), args.slots, args.slot, only, changed, max(args.batch_size, 1),
+                              args.due_hours)))
         return 0
     if args.command == "run":
         root = args.root.resolve()
