@@ -8,8 +8,10 @@ they were last updated. Figure sources (the tax bill, budget, school figures,
 unemployment, housing) are judged by the period they cover: they're behind
 only when a newer period should have been published by now (pipeline/rhythms.py).
 A figure source whose checks keep failing is marked as failing, for the
-maintainer, without being behind. This also looks for agendas still waiting for
-a summary (a sign the AI summary step is failing).
+maintainer, without being behind. This also looks for new agendas and minutes
+still waiting for a summary (a sign the AI summary step is failing); older
+documents are summarized a little each day, within the network's budget, so
+they don't count.
 
 In the daily workflow it runs last and fails the run when anything is stale,
 so GitHub emails the site's owner; the site is still built and deployed. The
@@ -42,10 +44,13 @@ def last_update(data_dir: Path, source: dict) -> datetime | None:
 
 
 def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: float) -> list[str]:
-    """Agendas and minutes posted more than grace_days ago with no summary at all.
+    """New agendas and minutes (summarize.is_new) posted more than grace_days ago with no summary at all.
 
-    A summary from an older prompt still shows on the site while its newer
-    version waits, so only documents with nothing to show are counted.
+    New documents are summarized first, so one still waiting means the summary step
+    isn't working. Older ones are left out: they're worked through a little each day,
+    within the network's budget, and waiting is expected. A summary from an older
+    prompt still shows on the site while its newer version waits, so only documents
+    with nothing to show are counted.
     """
     model = config.get("summaries", {}).get("model")
     if not model:
@@ -54,6 +59,7 @@ def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: f
     return [f"{doc_kind} for {meeting['body']}, {meeting['date']}"
             for doc_kind, meeting, doc in summarize.pending_documents(data_dir, now.date().isoformat(), model)
             if datetime.fromisoformat(doc["fetched_at"]) < cutoff
+            and summarize.is_new((doc_kind, meeting, doc), now)
             and not summarize.cached(data_dir, doc["sha256"], model, doc_kind, current=False)]
 
 

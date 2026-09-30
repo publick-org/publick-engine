@@ -195,3 +195,32 @@ def test_allowances_come_from_the_environment(monkeypatch):
     monkeypatch.delenv(summarize.BACKLOG_ALLOWANCE_ENV, raising=False)
     assert summarize.dollars(summarize.ALLOWANCE_ENV) == 3.25
     assert summarize.dollars(summarize.BACKLOG_ALLOWANCE_ENV) is None
+
+
+def test_upcoming_agenda_is_read_again_for_its_time_and_place(tmp_path):
+    config = setup(tmp_path)
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    upcoming = next(m for m in store.values() if m.get("agendas") and m["date"] >= FETCHED_AT.date().isoformat())
+    upcoming["start_time"] = None  # as an Agenda Center lists it
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(store))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
+    path = tmp_path / "summaries" / f"{upcoming['agendas'][-1]['sha256']}.json"
+    record = json.loads(path.read_text())
+    # A summary from before agendas gave a time and place is made again, once, while the meeting is upcoming.
+    for key in ("start_time", "location"):
+        del record[key]
+    path.write_text(json.dumps(record))
+    today = FETCHED_AT.date().isoformat()
+    model = config["summaries"]["model"]
+    assert [d["sha256"] for _, _, d in summarize.pending_documents(tmp_path, today, model)] == [upcoming["agendas"][-1]["sha256"]]
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
+    assert summarize.pending_documents(tmp_path, today, model) == []
+    # Once the meeting is past, an old summary isn't made again for it.
+    path.write_text(json.dumps(record))
+    assert summarize.pending_documents(tmp_path, "2026-12-31", model) == []
+
+
+def test_agenda_summary_asks_for_the_meetings_time_and_place():
+    schema = summarize.KINDS["agenda"]["schema"]
+    assert {"start_time", "location"} <= set(schema["required"])
+    assert "24-hour HH:MM" in summarize.KINDS["agenda"]["prompt"]

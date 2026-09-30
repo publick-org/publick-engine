@@ -46,6 +46,7 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from pipeline.config import ENGINE_DIR
 
@@ -71,6 +72,9 @@ NEW_DOCUMENTS_RESERVE = 0.2
 # Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
 # there: the network's plan and report jobs run without the engine's packages installed.
 SUMMARY_LEDGER = "summary-costs.json"
+# Towns file each summary's cost under the month in their own time zone, so the budget's month is
+# the network's (every town so far is Eastern), not UTC's, which starts a month 4 or 5 hours early.
+NETWORK_TZ = ZoneInfo("America/New_York")
 
 
 def town_dirs(root: Path) -> list[str]:
@@ -280,7 +284,7 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
     backlog_allowance paces older documents over the rest of the month: what's
     left beyond a reserve for new documents, spread over the days left and every
     town in the network (each has one daily run). Both are rounded down to the cent."""
-    today = today or datetime.now(timezone.utc).date()
+    today = today or datetime.now(NETWORK_TZ).date()
     month = today.strftime("%Y-%m")
     towns = town_dirs(root)
     spent = 0.0

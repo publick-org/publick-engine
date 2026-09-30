@@ -252,3 +252,8 @@ def test_ward_source_and_scope_note_are_shown(config, data, tmp_path, monkeypatc
     assert "<p>Public Works requests only.</p>" in (out / "311" / "index.html").read_text()
     about = (out / "about" / "index.html").read_text()
     assert 'href="https://example.org/wards"' in about and ", 2022 boundaries." in about and "MassGIS" not in about
+
+
+def test_wards_are_in_number_order():
+    from pipeline.compute_311 import ward_order
+    assert sorted(["10", "2", "outside", "1", "12", "3"], key=ward_order) == ["1", "2", "3", "10", "12", "outside"]
