@@ -31,7 +31,7 @@
   <link rel="alternate" type="application/rss+xml" title="{{ site.name }}: City Hall updates" href="/feed.xml">
   {% endif %}
   <link rel="stylesheet" href="/static/css/site.css?v={{ css_version }}">
-  {% if counter %}<script src="{{ "/static/js/count.js" | versioned }}" data-endpoint="{{ counter }}/count" data-title="{{ self.title() }}" defer></script>{% endif %}
+  {% if counter %}<script src="{{ "/static/js/count.js" | versioned }}" data-endpoint="{{ counter }}/count"{% if config.analytics.get("prefix") %} data-prefix="{{ config.analytics.prefix }}"{% endif %} data-title="{{ self.title() }}" defer></script>{% endif %}
   {% block head %}{% endblock %}
 </head>
 <body>
