@@ -7,30 +7,22 @@ python -m pipeline.fetch_finance, for a town with a [finance] table.
 
 from __future__ import annotations
 
-import io
 import json
-import re
-import time
+import time  # noqa: F401 (tests pause dls_get's waits through it)
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
-
-import openpyxl
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 from pipeline.rhythms import Part, Rhythm, latest_year, on
+from pipeline.states.ma import dls
+from pipeline.states.ma.dls import REFUSED_WAITS, REPORT_URL, dls_get, export_url, not_a_workbook  # noqa: F401
 
-REPORT_URL = "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx"
-REPORT_PAGE = REPORT_URL + "?rdReport=AverageSingleTaxBill.SingleFamTaxBill_wRange"
+REPORT = "AverageSingleTaxBill.SingleFamTaxBill_wRange"
+TABLE = "tblSinglefamtaxbill"
+REPORT_PAGE = dls.page_url(REPORT)
 YEARS = 5
-# Waits, in seconds, before asking again when DLS answers 202 with nothing (dls_get).
-REFUSED_WAITS = (30, 60, 120)
-# Response headers worth keeping in an error: the server, and anything that says why a request was refused.
-REFUSAL_HEADERS = ("Server", "Content-Type", "Content-Length", "Location", "Retry-After", "x-amzn-waf-action",
-                   "x-amzn-ErrorType", "x-amzn-RequestId", "X-Cache", "Via")
-
 
 
 # DLS adds a fiscal year's figures for each town once its tax rate is approved:
@@ -41,62 +33,11 @@ RHYTHM = Rhythm("Average tax bill (Mass. DLS)", "finance/tax_bill.json", "Fetch 
 
 
 def report_url(municipality: str, fiscal_year: int) -> str:
-    return REPORT_URL + "?" + urlencode({
-        "rdReport": "AverageSingleTaxBill.SingleFamTaxBill_wRange",
-        "rdReportFormat": "NativeExcel",
-        "rdExportTableID": "tblSinglefamtaxbill",
-        "rdExcelOutputFormat": "Excel2007",
-        "iclMuni": municipality,
-        "iclYear": fiscal_year,
-    })
+    return export_url(REPORT, TABLE, iclMuni=municipality, iclYear=fiscal_year)
 
 
-def not_a_workbook(content: bytes) -> FetchError:
-    """An error that shows the start of what DLS sent back, to tell a block page from an error page."""
-    text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", content[:3000].decode("utf-8", "replace"))).strip()
-    return FetchError(f"DLS returned {len(content)} bytes that are not a workbook: {text[:200]!r}")
-
-
-def dls_get(client, url: str) -> bytes:
-    """A DLS export. The report builds the file, then redirects to a download link;
-    a fast client can reach the link before the file is written and get an empty
-    reply, so the link is tried again after a pause.
-
-    DLS's gateway also sometimes answers the report itself with HTTP 202 and
-    nothing else, as it did for GitHub's runners on 2026-09-29, while serving
-    the same report to other addresses. That's asked again after longer
-    waits (REFUSED_WAITS); if it keeps refusing, the error lists the headers
-    that say why (a load balancer or bot filter names itself in them)."""
-    for wait in (*REFUSED_WAITS, None):
-        response = client.get(url)
-        for attempt in range(3):
-            download = getattr(response, "url", "") or ""
-            if response.content.startswith(b"PK") or "rdDownload" not in download:
-                break
-            time.sleep(2 * (attempt + 1))
-            response = client.get(download)
-        if response.content.startswith(b"PK"):
-            return response.content
-        if getattr(response, "status_code", None) != 202 or response.content or wait is None:
-            break
-        print(f"DLS answered 202 with nothing; asking again in {wait} seconds.", flush=True)
-        time.sleep(wait)
-    headers = getattr(response, "headers", {}) or {}
-    detail = ", ".join(f"{k}: {headers.get(k)}" for k in REFUSAL_HEADERS if headers.get(k))
-    status = getattr(response, "status_code", "?")
-    raise FetchError(f"{not_a_workbook(response.content)} (HTTP {status} from {getattr(response, 'url', url)}; {detail})")
-
-
-def parse_workbook(content: bytes) -> dict | None:
-    """Read the one data row of the report. None if the year has no certified figures."""
-    if not content.startswith(b"PK"):
-        raise not_a_workbook(content)
-    sheet = openpyxl.load_workbook(io.BytesIO(content), read_only=True).worksheets[0]
-    rows = list(sheet.iter_rows(values_only=True))
-    if len(rows) < 2:
-        return None
-    header = [str(h or "").strip() for h in rows[0]]
-    row = dict(zip(header, rows[1]))
+def parse_row(row: dict) -> dict | None:
+    """A town's row of the report. None if the year has no certified figures."""
     bill = row.get("Single-Family Tax Bill")
     if bill in (None, ""):
         return None
@@ -107,6 +48,12 @@ def parse_workbook(content: bytes) -> dict | None:
         "parcels": int(row["Single-Family Parcels"]) if row.get("Single-Family Parcels") else None,
         "state_rank": int(row["Rank"]) if row.get("Rank") not in (None, "") else None,
     }
+
+
+def parse_workbook(content: bytes) -> dict | None:
+    """Read the one data row of a town's report. None if the year has no certified figures."""
+    found = dls.rows(content)
+    return parse_row(found[0]) if found else None
 
 
 def client(config: dict) -> PoliteClient:
@@ -129,7 +76,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
             continue
         if len(years) >= YEARS and fy < min(years):
             break
-        record = parse_workbook(dls_get(client, report_url(municipality, fy)))
+        found = dls.table(client, REPORT, TABLE, ("iclMuni", municipality), iclYear=fy)
+        record = parse_row(found[0]) if found else None
         if record:
             years[record["fiscal_year"]] = record
     if not years:

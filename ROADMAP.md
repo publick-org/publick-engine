@@ -156,7 +156,16 @@ year.
 *Done so far: New Hampshire's statewide files (tax rates, school figures)
 are saved once a year into the engine (`pipeline/states/nh/figures/`), because
 the state's websites refuse automated requests; every New Hampshire town reads
-its rows from there. The other shared sources are still fetched per town.*
+its rows from there. Massachusetts's DLS reports (the tax bill, the budget
+figures, and parcel counts) are fetched once for every municipality by the
+network's statewide step (`pipeline.network states`, `pipeline/states/ma/dls.py`)
+into the network repository's `states/ma/`, when an export isn't saved or is
+over a week old: 27 requests cover all 351 municipalities, against about 20
+per town before. Each town's steps read their rows from there. If DLS refuses,
+the towns keep what was saved, and three failures in a row put the state in
+the daily alert. Not done: the Subsidized Housing Inventory and DESE (phase
+2), and BLS and the Census, once for the country (phase 3). The other shared
+sources are still fetched per town.*
 
 **Matters at:** tens of towns in one state; DLS matters now.
 
@@ -423,16 +432,18 @@ every town on one GoatCounter site (v1.9.0); the network summary budget of
 $50 a month, with its ledger and priority order (item 4), one daily alert
 for towns behind, a town's failure not failing a daily run (item 3), and each
 town's data size on the status page (item 1) (v1.10.0); whole-site test
-builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5).
+builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5); daily
+runs that take the towns that are due, started on time by the
+publick-scheduler Worker, which also watches that they finish (items 8 and
+3, v1.12.0).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too.
 
-1. The Cloudflare Worker that starts the runs and checks the status page
-   (items 8 and 3): built; live once its GitHub token is set.
-2. Statewide sources fetched once per state (item 2); the rhythms they build
-   on are done (item 7).
-3. Towns queued separately (item 8), if replaced runs turn out to delay
+1. Statewide sources fetched once per state (item 2): Massachusetts's DLS
+   reports are done; the Subsidized Housing Inventory and DESE next, then BLS
+   and the Census once for the country.
+2. Towns queued separately (item 8), if replaced runs turn out to delay
    towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
