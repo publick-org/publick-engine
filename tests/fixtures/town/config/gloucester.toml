@@ -73,10 +73,14 @@ status = "live"
 # Page view counting with GoatCounter (goatcounter.com): no cookies, no
 # personal data, and never what someone searched for. Set goatcounter to the
 # account's code (the "xyz" in xyz.goatcounter.com) to turn it on; leave it
-# empty to count nothing. public_stats is the account's public dashboard URL,
-# if it has one; the About page links it.
+# empty to count nothing. When several sites share one GoatCounter site, as
+# the Publick network's do, prefix names this one (the town's folder, e.g.
+# "malden-ma"): it goes in front of every page path and event, so the shared
+# dashboard can tell the sites apart. public_stats is the account's public
+# dashboard URL, if it has one; the About page links it.
 [analytics]
-goatcounter = "opengloucester"
+goatcounter = "publick"
+prefix = "gloucester-ma"
 public_stats = ""
 
 # Public meetings, from the city's CivicPlus calendar.
