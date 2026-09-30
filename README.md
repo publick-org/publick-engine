@@ -80,19 +80,21 @@ pipeline/                   Python package
   fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
-  summarize.py              Daily: agenda and minutes PDFs -> readable text + summaries (AI) -> data/summaries/
+  summarize.py              Daily: agenda and minutes PDFs -> readable text + summaries (AI) -> data/summaries/,
+                            new documents first, with each month's cost in data/summary-costs.json
   fetch_311.py              Daily: SeeClickFix -> data/311/requests.json (also --backfill YYYY-MM)
   compute_311.py            Daily: requests -> data/311/scorecard.json
   fetch_finance.py, fetch_budget.py, fetch_schools.py   Tax bill, budget, school figures, from the town's state's source -> data/finance/, data/schools/
   states/                   What differs by state (see States below): states/ma/ is Massachusetts (DLS, DESE),
-                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT)
+                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT);
+                            states/ma/dls.py can fetch each DLS report once for every town (a network's states/)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
   fetch_permits.py          Building and demolition permits (city Data Hub) -> data/permits/
   fetch_housing.py          Housing (Census, plus the state's own figures: Massachusetts's SHI and parcels) -> data/housing/
   documents.py              Where agenda and minutes PDFs live: the town's bucket, or data/meetings/
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
-  freshness.py              Daily: fails the run when a data source stops updating
+  freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
@@ -100,8 +102,9 @@ pipeline/                   Python package
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
-  network.py                Runs many towns from one repository (towns/<town>/): plan, run a batch, report;
-                            a fetching run writes each town's result to its data/run.json (the network's status page)
+  network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
+                            run a batch, report, behind (the daily alert), budget (the summary budget's shares),
+                            states (statewide sources); a fetching run writes each town's result to its data/run.json
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/states/<state>/        Each state's own pages (schools, budget) and page parts (its About page sources)
@@ -110,7 +113,8 @@ site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
-worker/                     The Cloudflare Worker that serves every site published with deploy.py, by hostname
+worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by
+                            hostname; scheduler-index.js starts a network's daily runs on time and watches they finish
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's tests, on every push and pull request
 ```
@@ -162,7 +166,8 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
-   | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5 |
+   | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5. New documents (upcoming agendas, and those posted in the last two weeks for a recent meeting) go first. In a network, the run also gives each town its share of a monthly budget (`pipeline/summarize.py`) |
+   | `[analytics]` | Page view counts, with GoatCounter (no cookies, never what was searched) | Anywhere. `goatcounter` is the account's code; `prefix` (optional) goes in front of every counted path, so towns sharing one GoatCounter site can be told apart; `public_stats` links its public dashboard from the About page |
    | `[freshness]` | Stale-data alerts | List the sources that change daily (meetings, 311, a city's permits); figure sources (tax bill, budget, schools, unemployment, housing) are judged by their rhythms in the engine (`pipeline/rhythms.py`). `grace_months` (default 2) is how long after a new period's usual date before it counts as behind |
    | `[storage]` | Keeps agenda and minutes PDFs in a bucket instead of git | Recommended for every town; see [Document storage](#document-storage) |
 
@@ -362,6 +367,8 @@ python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete ol
 
 Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
+GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
+
 Setup, once for the network:
 
 1. **Create a bucket** for sites (**R2 object storage → Create bucket**), separate from the documents bucket and with no public address: only the Worker reads it.
@@ -421,6 +428,9 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Site names | `<Town> Publick` (`name_prefix = "<Town> "`, `name_suffix = "Publick"`, `network = "Publick"`), sharing the Publick "P" icon |
 | Documents bucket | R2 bucket `publick-documents` at `https://files.publick.org`, `prefix = "<town>-<state>"` |
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
-| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, set once on the network repository |
+| Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
+| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries share a $50 monthly budget. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
+| Alerts | One GitHub issue, "Towns need attention", kept up to date by each daily run and assigned to the maintainer; the scheduler opens "The network's daily runs have stopped" after 30 hours without one |
+| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, set once on the network repository |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.
