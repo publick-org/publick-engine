@@ -241,9 +241,9 @@ own, within its share), and the Batches API.
 
 **What breaks.** The network repository runs every town on one engine
 version, so a bad release breaks every site that uses the broken part the
-next morning. The engine's tests build only Gloucester's site and a New
-Hampshire site from saved data. CivicClerk and DotNetNuke parsing is tested,
-but no test builds and checks a whole site for a town that uses them. At a
+next morning. The engine's tests built only Gloucester's site and a New
+Hampshire site from saved data. CivicClerk and DotNetNuke parsing was tested,
+but no test built and checked a whole site for a town that uses them. At a
 thousand towns, a pull request that moves `engine-version` builds and checks
 every town, which takes hours for each release.
 
@@ -263,9 +263,14 @@ every town, which takes hours for each release.
   previous builds.
 
 *Done: automatic releases (a pull request's label picks a patch, major, or no
-release). The engine's tests build Gloucester (Massachusetts, CivicPlus) and a
-New Hampshire site. Not done: whole-site builds for CivicClerk, DotNetNuke,
-and Agenda Center towns, and canary towns.*
+release). The engine's tests build Gloucester (Massachusetts, CivicPlus
+calendar), a New Hampshire site, and two sample towns
+(`tests/test_sample_towns.py`): Manchester (New Hampshire, CivicClerk and
+DotNetNuke) and Malden (Massachusetts, Agenda Center). Their meetings,
+agendas, and minutes come from saved pages through the real fetchers, and
+each site gets Gloucester's page and link checks, with the browser checks on
+a sample of its own pages. Not done: a sample town with SeeClickFix
+departments (the sample towns' 311 data is Gloucester's), and canary towns.*
 
 **Matters at:** as soon as more than one town uses a reader; the sampled
 upgrade checks at about 50 towns.
@@ -409,7 +414,8 @@ their own rhythm, with the DLS retry (item 7, engine v1.8.0); page views for
 every town on one GoatCounter site (v1.9.0); the network summary budget of
 $50 a month, with its ledger and priority order (item 4), one daily alert
 for towns behind, a town's failure not failing a daily run (item 3), and each
-town's data size on the status page (item 1) (v1.10.0).
+town's data size on the status page (item 1) (v1.10.0); whole-site test
+builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too.
@@ -419,7 +425,6 @@ towns too.
    on are done (item 7).
 3. The Cloudflare Worker that starts the runs and checks the status page
    (items 8 and 3), once there's a token for it.
-4. Whole-site test builds for the other meeting systems (item 5).
 
 **Stage 2: about 20 to 50 towns.**
 
