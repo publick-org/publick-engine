@@ -11,14 +11,12 @@ from __future__ import annotations
 import io
 import re
 from datetime import datetime
-from urllib.parse import urlencode
 
 import requests
 from pypdf import PdfReader
 
 from pipeline.http import FetchError, PoliteClient
-from pipeline.states.ma.budget import rows as dls_rows
-from pipeline.states.ma.tax_bill import REPORT_URL, dls_get
+from pipeline.states.ma.dls import REPORT_URL, table
 
 # The housing.json keys these add.
 keys = ("shi", "parcels")
@@ -89,10 +87,7 @@ def parcels(client, config: dict, now: datetime) -> dict:
     name = config["finance"]["dls_municipality"]
     newest = now.year + 1 if now.month >= 7 else now.year
     for fy in (newest, newest - 1, newest - 2):
-        url = REPORT_URL + "?" + urlencode({
-            "rdReport": PARCELS_REPORT, "rdReportFormat": "NativeExcel", "rdExportTableID": "xtParcels",
-            "rdExcelOutputFormat": "Excel2007", "iclMuni": name, "islYear": fy})
-        found = dls_rows(dls_get(client, url))
+        found = table(client, PARCELS_REPORT, "xtParcels", ("iclMuni", name), islYear=fy)
         if found and found[0].get("Single Family 101"):
             row = found[0]
             return {"fiscal_year": int(row["Fiscal Year"]),
