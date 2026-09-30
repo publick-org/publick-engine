@@ -121,7 +121,9 @@ clone gets slow long before that. A thousand jobs a day pushing to `main`
 also means constant push conflicts and retries.
 
 **Plan.** Measure first: the status page (item 3) reports the repository's
-size and daily growth, by town. Keep data files line-stable (sorted keys, one
+size and daily growth, by town. *Done: each fetching run records the size of
+the town's data and what the run added (`data/run.json`), and the status page
+shows them with the repository's size on GitHub.* Keep data files line-stable (sorted keys, one
 field per line) so daily changes stay small. Then move each town's working
 data to R2, as agenda and minutes PDFs already are, with git keeping config
 and code, and sites built from the bucket. Every town already has a
@@ -169,18 +171,22 @@ inbox.
 **Plan and progress.**
 - A town's failure doesn't fail the run. Each town job records what happened
   (every source's last update, the engine version, build and deploy result).
-  *Done: a fetching run writes it to the town's `data/run.json`. Not done:
-  a failing town still fails its run.*
+  *Done: a fetching run writes it to the town's `data/run.json`, with when
+  the town last had a good update (published, with fresh data), and doesn't
+  fail when a town does. A run that only builds, as for a pull request, still
+  fails, so a broken site can't be merged.*
 - The final job of each run writes a network status page on publick.org: one
   table of towns behind, towns whose runs failed, and totals, plus the
   repository size (item 1) and summary spending (item 4). *Done, without the
-  size and spending: [publick.org/status/](https://publick.org/status/), built by
+  size and spending, now there too: [publick.org/status/](https://publick.org/status/), built by
   the network repository's `scripts/build_status.py` after each run. It's public,
   so it says in plain words which data on a site may be out of date and leaves
   the run's internals to the run's summary.*
 - One alert a day, not one per failure: if any town has gone more than about
   30 hours without a successful update, open (or update) one GitHub issue
-  listing them, which emails the owner.
+  listing them, which emails the owner. *Done: `pipeline.network behind`
+  lists them, with towns whose figure checks keep failing, and the network's
+  daily runs open, update, or close one issue, assigned to the owner.*
 - If the network run itself stops, every town stops at once. The scheduled
   Cloudflare Worker that starts the runs (item 8) also checks that the status
   page was updated in the last day, and raises the alert if not.
@@ -191,14 +197,13 @@ inbox.
 
 ## 4. AI summary costs
 
-**What breaks.** Each run's spending limit is per town (`max_cost_per_run`),
-so the network-wide worst case grows with the number of towns: $5,000 a day at
-a thousand. The network's budget is $50 a month. Gloucester, Malden, and
-Manchester (summaries since 2026-09-29) are each at $5 a run while their first
-backlogs clear, to be set back to $1 on 2026-10-02, so the three towns alone
-could spend $15 a day, and a month at that rate would be nine times the
-budget. Summaries have cost about 2 to 12 cents each so far (Manchester's
-first 37: $3.31). All towns share one Anthropic key, and its rate
+**What broke.** Each run's spending limit was per town (`max_cost_per_run`),
+so the network-wide worst case grew with the number of towns: $5,000 a day at
+a thousand. The network's budget is $50 a month. At $5 a run each, Gloucester,
+Malden, and Manchester alone could spend $15 a day, nine times the budget over
+a month. The network budget below is now the main control, and $5 a run stays
+as each town's ceiling. Summaries have cost about 2 to 12 cents each so far
+(September's 173: $14.05). All towns share one Anthropic key, and its rate
 limits apply to the whole network, not to each town.
 
 **Plan.**
@@ -212,9 +217,23 @@ limits apply to the whole network, not to each town.
 - If rate limits bite, or to cut the cost, summaries move to one network job
   that uses the Batches API, which is cheaper.
 
-*Done: the default per-run limit ($5, and 50 documents). Not done: the
-ledger, the network budget, the network-wide priority order, and the Batches
-API.*
+*Done:*
+- The ledger: `data/summary-costs.json`, each month's cost and documents,
+  recounted from the saved summaries (which now record their cost), plus
+  what cut-off responses cost, which leave no summary.
+- The network budget: each run, the network's plan job adds up the month
+  across towns and gives each town in the run an equal share of what's left
+  (`pipeline.network budget`). A town stops at its share, or at its own
+  per-run limit ($5, and 50 documents, by default), whichever comes first.
+- The priority order, within each town: upcoming agendas, then documents
+  fetched in the last two weeks for a meeting in the last two months, then
+  the backlog. The backlog is paced: it may use what's left beyond a fifth of
+  the budget (kept for new documents), spread over the rest of the month and
+  every town.
+- The month's spending against the budget, on the status page.
+
+*Not done:* one priority order across towns (today each town orders its
+own, within its share), and the Batches API.
 
 **Matters at:** now, at $50 a month.
 
@@ -386,27 +405,26 @@ automatic releases (item 5); faster runs, with one town per job on manual
 runs and checks on every core (item 9); Manchester's summaries, and the
 agendas its city calendar links (engine v1.7.0); runs that don't lose data
 when two update the same town (item 8, engine v1.7.1); figure sources on
-their own rhythm, with the DLS retry (item 7, engine v1.8.0).
+their own rhythm, with the DLS retry (item 7, engine v1.8.0); page views for
+every town on one GoatCounter site (v1.9.0); the network summary budget of
+$50 a month, with its ledger and priority order (item 4), one daily alert
+for towns behind, a town's failure not failing a daily run (item 3), and each
+town's data size on the status page (item 1) (v1.10.0).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too.
 
-1. The network summary budget of $50 a month, with the ledger and one
-   priority order (item 4). Until it's in, keep the per-town limits low: back
-   to $1 a run on 2026-10-02.
-2. Towns picked by need and queued separately (item 8).
-3. Statewide sources fetched once per state (item 2); the rhythms they build
+1. Towns picked by need and queued separately (item 8).
+2. Statewide sources fetched once per state (item 2); the rhythms they build
    on are done (item 7).
-4. One alert a day for stale towns, and a town's failure not failing the run
-   (item 3).
-5. The Cloudflare Worker that starts the runs and checks the status page
+3. The Cloudflare Worker that starts the runs and checks the status page
    (items 8 and 3), once there's a token for it.
-6. Whole-site test builds for the other meeting systems (item 5).
+4. Whole-site test builds for the other meeting systems (item 5).
 
 **Stage 2: about 20 to 50 towns.**
 
-1. The repository's size and growth on the status page, then town data moved
-   to R2, with git keeping config and code (item 1).
+1. Town data moved to R2, with git keeping config and code (item 1), when
+   the status page's sizes say it's time.
 2. Canary towns on the newest release, and sampled checks when
    `engine-version` moves (item 5).
 3. `CODEOWNERS` and branch protection, before the first editor from outside

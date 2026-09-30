@@ -13,13 +13,21 @@ new data (pipeline.update), checks its freshness, builds the site, checks it
 pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
 process, so one town's failure never stops the next. A run that fetches also
 writes its result to the town's data/run.json, committed with the data, which
-the network's status page reads. report reads every town's result and fails
-once, for the whole run, if any town needs attention.
+the network's status page reads. report writes one table of every town in the
+run. A run that fetches doesn't fail when a town does: behind lists the towns
+without a good update (published, with fresh data) in the last day or so, and
+those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
+any town does.
+
+budget splits what's left of the month's summary budget among the towns in a
+run, from each town's data/summary-costs.json (pipeline.summarize).
 
     python -m pipeline.network plan   [--root .] [--slots 4 --slot N] [--towns a,b] [--changed FILE] [--batch-size 4]
     python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
                                       [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
+    python -m pipeline.network behind [--root .] [--hours 30]
+    python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
 
 Towns are spread over --slots runs a day by a stable hash of their folder
 name, so a town keeps its slot as others are added.
@@ -28,13 +36,15 @@ name, so a town keeps its slot as others are added.
 from __future__ import annotations
 
 import argparse
+import calendar
 import hashlib
 import json
+import math
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from pipeline.config import ENGINE_DIR
@@ -54,6 +64,13 @@ SUMMARY_ENV = "GITHUB_STEP_SUMMARY"
 RUN_RECORD = "run.json"
 # Agendas waiting for a summary kept in that record; the rest are counted.
 WAITING_KEPT = 10
+# Hours without a good update before a town is listed as behind.
+BEHIND_HOURS = 30
+# The part of the monthly summary budget older documents can't use, kept for new ones.
+NEW_DOCUMENTS_RESERVE = 0.2
+# Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
+# there: the network's plan and report jobs run without the engine's packages installed.
+SUMMARY_LEDGER = "summary-costs.json"
 
 
 def town_dirs(root: Path) -> list[str]:
@@ -152,9 +169,10 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     python = sys.executable
     site = town_dir / "_site"
     result = {"town": town, "folder": name, "started_at": now(), "finished_at": None,
-              "engine": engine_version(root), "steps": [], "update": None, "stale": False, "sources": None, "failing": [],
-              "deployed": False}
+              "engine": engine_version(root), "fetched": fetch, "steps": [], "update": None, "stale": False,
+              "sources": None, "failing": [], "deployed": False}
     steps = result["steps"]
+    data_before = folder_bytes(town_dir / "data")
 
     if fetch:
         update_report = town_dir / ".update-report.json"
@@ -194,15 +212,95 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     result["ok"] = all(s["ok"] for s in steps)
     result["finished_at"] = now()
     if fetch and (town_dir / "data").is_dir():
-        (town_dir / "data" / RUN_RECORD).write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        record = town_dir / "data" / RUN_RECORD
+        previous = json.loads(record.read_text()) if record.exists() else {}
+        result["last_good_at"] = result["finished_at"] if good(result) else last_good(previous)
+        # What the town's data takes up, and how much this run added, for the status page.
+        result["data_bytes"] = folder_bytes(town_dir / "data")
+        result["data_bytes_added"] = result["data_bytes"] - data_before
+        record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if reports:
         reports.mkdir(parents=True, exist_ok=True)
         (reports / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
 
 
+def folder_bytes(folder: Path) -> int:
+    return sum(f.stat().st_size for f in folder.rglob("*") if f.is_file()) if folder.is_dir() else 0
+
+
+def good(record: dict) -> bool:
+    """A good update: the site was published, and the data isn't behind."""
+    return bool(record.get("deployed")) and not record.get("stale")
+
+
+def last_good(record: dict) -> str | None:
+    """When a town last had a good update, from its run record (older records don't say, but may be one)."""
+    if record.get("last_good_at"):
+        return record["last_good_at"]
+    return record.get("finished_at") if record.get("fetched", True) and good(record) else None
+
+
+def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) -> list[dict]:
+    """Towns without a good update in the last `hours`, or whose figure checks keep failing (not behind
+    yet, but the maintainer should know), with what their last run says went wrong."""
+    at = at or datetime.now(timezone.utc)
+    rows = []
+    for name in town_dirs(root):
+        path = root / TOWNS / name / "data" / RUN_RECORD
+        record = json.loads(path.read_text()) if path.exists() else {}
+        last = last_good(record)
+        if last and datetime.fromisoformat(last) >= at - timedelta(hours=hours) and not record.get("failing"):
+            continue
+        problems = [s["name"] for s in record.get("steps", []) if not s["ok"]]
+        problems += [f"{r['label']} behind" for r in record.get("sources") or [] if r.get("stale")]
+        problems += [f"{label}: checks failing" for label in record.get("failing") or []]
+        rows.append({"folder": name, "last_good_at": last, "last_run_at": record.get("finished_at"),
+                     "problems": problems})
+    return rows
+
+
+def behind_text(rows: list[dict], hours: float) -> str:
+    """The daily alert's text: one line per town behind, or nothing."""
+    if not rows:
+        return ""
+    lines = [f"{len(rows)} of the network's towns need attention: no good update (published, with fresh data) "
+             f"in the last {hours:g} hours, or a figure source whose checks keep failing. This issue is updated "
+             f"after each daily run and closed when every town is caught up.", "", "| Town | Last good update | Last run | What went wrong |", "|---|---|---|---|"]
+    for r in rows:
+        lines.append(f"| {r['folder']} | {r['last_good_at'] or 'never'} | {r['last_run_at'] or 'never'} | "
+                     f"{', '.join(r['problems']) or 'no run since'} |")
+    return "\n".join(lines) + "\n"
+
+
+def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | None = None) -> dict:
+    """Each town's share, for one run, of what's left of the month's summary budget.
+
+    allowance is what's left, split among the run's towns, which run side by side.
+    backlog_allowance paces older documents over the rest of the month: what's
+    left beyond a reserve for new documents, spread over the days left and every
+    town in the network (each has one daily run). Both are rounded down to the cent."""
+    today = today or datetime.now(timezone.utc).date()
+    month = today.strftime("%Y-%m")
+    towns = town_dirs(root)
+    spent = 0.0
+    for name in towns:
+        path = root / TOWNS / name / "data" / SUMMARY_LEDGER
+        if path.exists():
+            row = json.loads(path.read_text()).get(month, {})
+            spent += row.get("cost", 0.0) + row.get("failed_cost", 0.0)
+    left = max(monthly - spent, 0.0)
+    allowance = left / max(towns_in_run, 1)
+    days_left = calendar.monthrange(today.year, today.month)[1] - today.day + 1
+    backlog = max(left - monthly * NEW_DOCUMENTS_RESERVE, 0.0) / days_left / max(len(towns), 1)
+    cents = lambda x: math.floor(x * 100) / 100
+    return {"month": month, "budget": monthly, "spent": round(spent, 2), "left": round(left, 2),
+            "allowance": cents(allowance), "backlog_allowance": cents(min(backlog, allowance))}
+
+
 def report(reports: Path) -> tuple[str, bool]:
-    """A table of every town in the run, and whether the run succeeded."""
+    """A table of every town in the run, and whether the run succeeded: a run that fetches always
+    does (the daily alert lists the towns behind); one that only builds fails if a town does."""
     results = sorted((json.loads(p.read_text()) for p in reports.glob("*.json")), key=lambda r: r["folder"])
     lines = ["| Town | Result | Data | Failed steps |", "|---|---|---|---|"]
     for r in results:
@@ -215,7 +313,13 @@ def report(reports: Path) -> tuple[str, bool]:
         lines.append(f"| {r['folder']} | {status} | {data} | {', '.join(failed) or '–'} |")
     bad = [r for r in results if not r["ok"] or r["stale"] or r.get("failing")]
     heading = f"{len(results)} towns; {len(bad)} need attention" if results else "No towns ran"
-    return f"## {heading}\n\n" + "\n".join(lines) + "\n", not bad
+    failed = [r for r in results if not r["ok"] and not fetched(r)]
+    return f"## {heading}\n\n" + "\n".join(lines) + "\n", not failed
+
+
+def fetched(record: dict) -> bool:
+    # Records from before "fetched" was kept: a fetching run's has the update's result.
+    return record.get("fetched", record.get("update") is not None)
 
 
 def main() -> int:
@@ -241,6 +345,13 @@ def main() -> int:
                    help="run the browser checks on a sample of pages (site_checks/pages.py), as a daily run does")
     s = sub.add_parser("report")
     s.add_argument("reports", type=Path)
+    b = sub.add_parser("behind")
+    b.add_argument("--root", type=Path, default=Path.cwd())
+    b.add_argument("--hours", type=float, default=BEHIND_HOURS)
+    m = sub.add_parser("budget")
+    m.add_argument("--root", type=Path, default=Path.cwd())
+    m.add_argument("--monthly", type=float, required=True, help="the network's monthly summary budget, in dollars")
+    m.add_argument("--towns-in-run", type=int, required=True)
     args = parser.parse_args()
 
     if args.command == "plan":
@@ -257,8 +368,16 @@ def main() -> int:
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:
-                print(f"::error::{result['folder']}: " + ", ".join(s["name"] for s in result["steps"] if not s["ok"]))
-        return 0 if all(r["ok"] for r in results) else 1
+                level = "warning" if args.fetch else "error"
+                print(f"::{level}::{result['folder']}: " + ", ".join(s["name"] for s in result["steps"] if not s["ok"]))
+        # A fetching run keeps going when a town fails: its data is committed, and the daily alert says so.
+        return 0 if args.fetch or all(r["ok"] for r in results) else 1
+    if args.command == "behind":
+        print(behind_text(behind(args.root.resolve(), args.hours), args.hours), end="")
+        return 0
+    if args.command == "budget":
+        print(json.dumps(summary_budget(args.root.resolve(), args.monthly, args.towns_in_run)))
+        return 0
     table, ok = report(args.reports)
     print(table)
     if os.environ.get(SUMMARY_ENV):
