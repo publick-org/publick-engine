@@ -291,6 +291,23 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
     return found
 
 
+# Where each source lists a meeting, for sentences like "Not listed on the city calendar".
+LISTINGS = {"civicclerk": "city's meeting portal", "agendacenter": "city's Agenda Center"}
+
+
+def from_agenda(m: dict) -> None:
+    """Fill in a meeting's time and place from its agenda summary when its listing has neither,
+    as an Agenda Center's doesn't. m["from_agenda"] says so, for the page to say where they're from."""
+    preview = m.get("preview") or {}
+    m["from_agenda"] = False
+    if not m["start_time"] and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", preview.get("start_time") or ""):
+        m["start_time"] = preview["start_time"]
+        m["from_agenda"] = True
+    if not (m["location_name"] or m["address"] or m["location"]) and (preview.get("location") or "").strip():
+        m["location"] = preview["location"].strip()
+        m["from_agenda"] = True
+
+
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None) -> dict:
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -306,7 +323,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m.setdefault(key, default)
         m.setdefault("documents_url", None)
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
-        m["listing"] = "city's meeting portal" if m["source"] == "civicclerk" else "city calendar"
+        m["listing"] = LISTINGS.get(m["source"], "city calendar")
         m["url"] = f"/meetings/{m['slug']}/"
         m["body_slug"] = slugify(m["body"])
         m["body_url"] = f"/meetings/boards/{m['body_slug']}/"
@@ -314,6 +331,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # The latest saved summary is shown, even one from an older prompt or
         # model; the next summarize run replaces those.
         m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], summary_model, "agenda", current=False) if m["agenda"] and summary_model else None
+        from_agenda(m)
         m.setdefault("minutes", [])
         m["minutes_doc"] = m["minutes"][-1] if m["minutes"] else None
         m["minutes_summary"] = (
