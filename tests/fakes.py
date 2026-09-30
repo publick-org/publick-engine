@@ -97,6 +97,8 @@ class FakeAnthropic:
         "headline": "ADA compliance with the city's operations director and a draft plan for recruiting a student member.",
         "summary": "The commission will meet with the city's Assistant Director of Operations about ADA compliance and review a draft description for recruiting a student member.",
         "items": ["ADA compliance with Joe Lucido", "Student member recruitment description", "Community updates"],
+        "start_time": "",
+        "location": "",
     }
     MINUTES = {
         "transcript": "# Planning Board Minutes\n\nMotion to approve the site plan at 12 Main St. Vote 5-0.",
@@ -106,7 +108,7 @@ class FakeAnthropic:
         "decisions": ["Approved the site plan for 12 Main St, 5-0"],
     }
 
-    def __init__(self, stop_reason: str = "end_turn"):
+    def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None):
         from types import SimpleNamespace
         self.calls = []
         outer = self
@@ -115,7 +117,7 @@ class FakeAnthropic:
             import json
             outer.calls.append(kwargs)
             is_minutes = "decisions" in kwargs["output_config"]["format"]["schema"]["properties"]
-            payload = FakeAnthropic.MINUTES if is_minutes else FakeAnthropic.PREVIEW
+            payload = FakeAnthropic.MINUTES if is_minutes else preview or FakeAnthropic.PREVIEW
             return SimpleNamespace(
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload))],

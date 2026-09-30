@@ -3,7 +3,7 @@
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {% block title %}{{ m.body }}, {{ m.date | date }}{% if m.day_part %}, meeting {{ m.day_part }}{% elif m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
-{% block description %}{{ m.title }} meeting on {{ m.date | date }}{% if m.start_time %} at {{ m.start_time | time }}{% endif %}: {% if m.minutes_doc %}decisions, minutes, and agenda{% else %}location, how to attend, and agenda{% endif %}.{% endblock %}
+{% block description %}{{ m.title }}{% if not m.title.lower().endswith(("meeting", "hearing")) %} meeting{% endif %} on {{ m.date | date }}{% if m.start_time %} at {{ m.start_time | time }}{% endif %}: {% if m.minutes_doc %}decisions, minutes, and agenda{% else %}location, how to attend, and agenda{% endif %}.{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, not from the city calendar. #}
 {% set documents_only = m.source in ("archive", "drive") %}
@@ -37,7 +37,8 @@
   {% if not m.start_time and not documents_only %}<div><dt>Time</dt><dd>Not listed</dd></div>{% endif %}
   {% if m.end_time %}<div><dt>Scheduled until</dt><dd>{{ m.end_time | time }}</dd></div>{% endif %}
 </dl>
-{% if not documents_only and m.agenda %}<p class="small">Location from the {{ m.listing }}. The posted agenda is the official notice; check it if the two differ.</p>{% endif %}
+{% if m.from_agenda %}<p class="small">From the posted agenda, as read by AI. The agenda is the official notice; check it before you go.</p>
+{% elif not documents_only and m.agenda and has_where %}<p class="small">Location from the {{ m.listing }}. The posted agenda is the official notice; check it if the two differ.</p>{% endif %}
 {% endif %}
 
 {% set part = config.get("participation", {}).get(m.body, {}) %}
@@ -97,7 +98,7 @@
 {% elif m.minutes_too_large %}
 <p>Minutes are posted. The file is too large to summarize automatically; the minutes are linked below.</p>
 {% else %}
-<p>Minutes are posted. A summary will be added in the next update.</p>
+<p>Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and older ones a few each day.</p>
 {% endif %}
 <ul>
   <li><a href="{{ m.minutes_doc.source_url }}">Minutes on {{ m.minutes_doc.get("posted_on") or "the city website" }}</a> · PDF, {{ m.minutes_doc.bytes | filesize }}</li>
@@ -181,6 +182,8 @@
 <p>This meeting is known from its <a href="{{ m.minutes_doc.source_url }}">minutes in the City of {{ town.name }} Archive Center</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% elif m.source == "drive" %}
 <p>This meeting is known from the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>. It was not found on the City of {{ town.name }} calendar. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
+{% elif m.source == "agendacenter" %}
+<p><a href="{{ m.source_url }}">This meeting's agenda in the City of {{ town.name }}'s Agenda Center</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% elif m.source == "civicclerk" %}
 <p><a href="{{ m.source_url }}">This meeting on the City of {{ town.name }}'s meeting portal</a> (CivicClerk). First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% else %}

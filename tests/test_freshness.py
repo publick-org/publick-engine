@@ -44,3 +44,19 @@ def test_report_writes_the_rows(tmp_path, monkeypatch):
 def test_about_page_shows_data_status(site_dir):
     about = (site_dir / "about" / "index.html").read_text()
     assert 'id="data-status"' in about and "Meetings calendar" in about
+
+
+def test_only_new_documents_wait_for_a_summary(tmp_path):
+    from fakes import FakeCityClient
+    from pipeline import fetch_meetings, fetch_minutes
+    config = load_config("gloucester")
+    fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    fetch_minutes.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    # Five days after they were fetched, none has a summary. The minutes of meetings in the last two months
+    # (and the upcoming agenda) are new: summarized first, so waiting means the summary step is failing.
+    # Minutes from July are backlog, worked through within the budget, so they don't count.
+    waiting = freshness.waiting_summaries(config, tmp_path, FETCHED_AT + timedelta(days=5), 2)
+    assert waiting and not any("2026-07" in w for w in waiting)
+    assert any("2026-08-05" in w for w in waiting)
+    # Within the grace days, nothing is waiting yet.
+    assert freshness.waiting_summaries(config, tmp_path, FETCHED_AT + timedelta(days=1), 2) == []
