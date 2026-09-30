@@ -230,3 +230,94 @@ def test_daily_runs_sample_the_browser_checks(tmp_path, steps, monkeypatch):
     checks = [c["env"] for c in calls if c["name"] == "Check site"]
     assert "PUBLICK_CHECK_PAGES" not in checks[0]
     assert checks[1]["PUBLICK_CHECK_PAGES"] == "sample"
+
+
+def test_a_fetching_run_succeeds_when_a_town_fails(tmp_path, steps, monkeypatch, capsys):
+    _, failing = steps
+    failing.add("Build site")
+    root = make_root(tmp_path)
+    monkeypatch.setattr("sys.argv", ["network", "run", "--root", str(root), "--towns", "salem-ma", "--fetch"])
+    # The data is still committed, and the daily alert lists the town; the run doesn't fail for it.
+    assert network.main() == 0
+    assert "::warning::salem-ma: Build site" in capsys.readouterr().out
+
+
+def test_report_fails_only_for_a_town_that_failed_without_fetching(tmp_path):
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    fetched = {"town": "salem", "folder": "salem-ma", "ok": False, "stale": True, "deployed": False,
+               "fetched": True, "update": {"steps": []}, "steps": [{"name": "Build site", "ok": False}]}
+    (reports / "salem-ma.json").write_text(json.dumps(fetched))
+    table, ok = network.report(reports)
+    assert ok and "| salem-ma | **failed** | **stale** | Build site |" in table
+
+
+def test_run_record_keeps_the_last_good_update_and_the_datas_size(tmp_path, steps):
+    _, failing = steps
+    root = make_root(tmp_path)
+    data = root / "towns" / "gloucester-ma" / "data"
+    data.mkdir()
+    (data / "a.json").write_text("x" * 100)
+    first = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
+    assert first["last_good_at"] == first["finished_at"]
+    assert first["data_bytes"] == 100 and first["data_bytes_added"] == 0
+    failing.add("Check site")
+    second = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
+    assert not second["deployed"] and second["last_good_at"] == first["finished_at"]
+    # The first run's record counts as data too; this run's steps (stand-ins) added nothing.
+    assert second["data_bytes"] > 100 and second["data_bytes_added"] == 0
+
+
+def write_record(root, name, **record):
+    path = root / "towns" / name / "data" / network.RUN_RECORD
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record))
+
+
+def test_behind_lists_towns_without_a_good_update(tmp_path):
+    from datetime import datetime, timezone
+    root = make_root(tmp_path)
+    at = datetime(2026, 10, 2, 12, 0, tzinfo=timezone.utc)
+    write_record(root, "gloucester-ma", finished_at="2026-10-02T09:00:00+00:00", deployed=True, stale=False,
+                 fetched=True, steps=[])
+    write_record(root, "manchester-nh", finished_at="2026-10-02T10:00:00+00:00", deployed=False, stale=True,
+                 fetched=True, last_good_at="2026-09-30T10:00:00+00:00",
+                 steps=[{"name": "Check site", "ok": False}],
+                 sources=[{"label": "Meetings", "stale": True}, {"label": "311 requests", "stale": False}])
+    rows = network.behind(root, 30, at)
+    assert [r["folder"] for r in rows] == ["manchester-nh", "salem-ma"]
+    assert rows[0]["problems"] == ["Check site", "Meetings behind"]
+    assert rows[1] == {"folder": "salem-ma", "last_good_at": None, "last_run_at": None, "problems": []}
+    text = network.behind_text(rows, 30)
+    assert "2 of the network's towns need attention" in text and "| salem-ma | never | never | no run since |" in text
+    assert network.behind_text([], 30) == ""
+    write_record(root, "gloucester-ma", finished_at="2026-10-02T09:00:00+00:00", deployed=True, stale=False,
+                 fetched=True, steps=[], failing=["Average tax bill (Mass. DLS)"])
+    assert network.behind(root, 30, at)[0]["problems"] == ["Average tax bill (Mass. DLS): checks failing"]
+
+
+def test_an_older_run_record_counts_as_a_good_update_when_it_was_one(tmp_path):
+    record = {"finished_at": "2026-09-29T17:38:19+00:00", "deployed": True, "stale": False, "update": {}}
+    assert network.last_good(record) == "2026-09-29T17:38:19+00:00"
+    assert network.last_good({**record, "stale": True}) is None
+
+
+def test_summary_budget_splits_whats_left_of_the_month(tmp_path):
+    from datetime import date
+    root = make_root(tmp_path)
+    for name, cost in (("gloucester-ma", 6.97), ("manchester-nh", 4.5)):
+        path = root / "towns" / name / "data" / network.SUMMARY_LEDGER
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"2026-08": {"cost": 30.0}, "2026-10": {"cost": cost, "failed_cost": 0.53}}))
+    budget = network.summary_budget(root, 50.0, towns_in_run=2, today=date(2026, 10, 11))
+    assert budget["spent"] == 12.53 and budget["left"] == 37.47
+    assert budget["allowance"] == 18.73
+    # (37.47 - 10 kept for new documents) over 21 days left and 3 towns in the network.
+    assert budget["backlog_allowance"] == 0.43
+    spent = network.summary_budget(root, 12.0, towns_in_run=1, today=date(2026, 10, 11))
+    assert spent["left"] == 0 and spent["allowance"] == 0 and spent["backlog_allowance"] == 0
+
+
+def test_network_reads_the_ledger_summarize_writes():
+    from pipeline import summarize
+    assert network.SUMMARY_LEDGER == summarize.LEDGER
