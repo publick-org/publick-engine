@@ -1,3 +1,4 @@
+import contextlib
 import functools
 import http.server
 import os
@@ -126,11 +127,20 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
             super().send_error(code, message, explain)
 
 
-@pytest.fixture(scope="session")
-def server_url(site_dir):
+@contextlib.contextmanager
+def serve(site_dir):
+    """A built site on a local port, for the browser checks."""
     handler = functools.partial(_Handler, directory=str(site_dir))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    yield f"http://127.0.0.1:{server.server_port}"
-    server.shutdown()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+
+
+@pytest.fixture(scope="session")
+def server_url(site_dir):
+    with serve(site_dir) as url:
+        yield url
