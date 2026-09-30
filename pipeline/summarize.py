@@ -67,7 +67,10 @@ RECENT_MEETING_DAYS = 60
 
 # Each kind of document has its own instructions and output. Bump a kind's
 # version when its prompt or schema changes; cached results from an older
-# version (or another model) are regenerated on the next run.
+# version (or another model) are regenerated on the next run. An agenda's
+# start_time and location were added without a bump, so older agendas aren't all
+# made again: only an upcoming meeting's agenda, when the meeting's listing has
+# no time (an Agenda Center's doesn't), is (needs_time).
 KINDS = {
     "agenda": {
         "version": 4,
@@ -81,7 +84,9 @@ Return:
 - transcript: the full text of the agenda in reading order, as Markdown. Use headings for the document's own headings and lists for its lists. Leave out stamps, seals, and page decorations, but keep the clerk's posting date if shown.
 - headline: one sentence of at most 25 words saying what the meeting will take up, naming the main business. Start with the business itself, not with who is meeting (write "Public hearing on the 2026 Housing Compass Plan.", not "Board will hold a public hearing on ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 or 2 short sentences on what the meeting will cover. Name the main business items. Do not repeat the board's name, the date, the time, or the place.
-- items: each agenda item, in order, as short plain-English phrases. Skip routine items such as call to order, roll call, approval of minutes, and adjournment.""",
+- items: each agenda item, in order, as short plain-English phrases. Skip routine items such as call to order, roll call, approval of minutes, and adjournment.
+- start_time: when the meeting starts, as the agenda gives it, in 24-hour HH:MM form (for example 19:00 for 7:00 PM). An empty string if the agenda gives no time.
+- location: where the meeting is held, as the agenda gives it, on one line: the room and building, and the street address if shown. For a meeting held only online, the service it names (for example "Zoom"). An empty string if the agenda gives no place.""",
         "schema": {
             "type": "object",
             "properties": {
@@ -89,8 +94,10 @@ Return:
                 "headline": {"type": "string"},
                 "summary": {"type": "string"},
                 "items": {"type": "array", "items": {"type": "string"}},
+                "start_time": {"type": "string"},
+                "location": {"type": "string"},
             },
-            "required": ["transcript", "headline", "summary", "items"],
+            "required": ["transcript", "headline", "summary", "items", "start_time", "location"],
             "additionalProperties": False,
         },
     },
@@ -157,6 +164,12 @@ def cached(data_dir: Path, sha256: str, model: str, kind: str = "agenda", curren
     return record
 
 
+def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
+    """An upcoming meeting with no time listed, whose agenda summary is from before agendas gave one."""
+    return (kind == "agenda" and meeting["date"] >= today and not meeting.get("start_time")
+            and "start_time" not in record)
+
+
 def pending_documents(data_dir: Path, today: str, model: str) -> list[tuple[str, dict, dict]]:
     """Latest agenda and minutes of each meeting without a current summary.
 
@@ -171,7 +184,10 @@ def pending_documents(data_dir: Path, today: str, model: str) -> list[tuple[str,
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
-            if doc["sha256"] in seen or too_large(doc) or cached(data_dir, doc["sha256"], model, kind):
+            if doc["sha256"] in seen or too_large(doc):
+                continue
+            record = cached(data_dir, doc["sha256"], model, kind)
+            if record and not needs_time(kind, meeting, record, today):
                 continue
             seen.add(doc["sha256"])
             todo.append((kind, meeting, doc))

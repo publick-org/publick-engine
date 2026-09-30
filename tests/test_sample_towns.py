@@ -29,6 +29,8 @@ from pipeline.config import load_config
 from pipeline.states.nh import figures
 
 TOWNS = ["manchester", "malden"]
+# What Malden's sample agendas say about when and where.
+AGENDA_WHEN_WHERE = {"start_time": "18:30", "location": "Malden Government Center, 215 Pleasant St., Room 105"}
 # Before the fixtures' first meetings, when their agendas are posted; their minutes are collected at FETCHED_AT.
 EARLY = datetime(2026, 8, 1, 7, 0, tzinfo=TZ)
 
@@ -85,13 +87,13 @@ def gloucester_data(data_dir, base, *left_out):
     return data
 
 
-def collect_meetings(town, client_class, data) -> None:
+def collect_meetings(town, client_class, data, summaries=None) -> None:
     """Two daily runs' meetings steps: the calendars with their upcoming agendas, the minutes they link, then summaries."""
     for now in (EARLY, FETCHED_AT):
         status = fetch_meetings.run(town, client_class(), data, now=now)
         assert not status["errors"] and not status["failed_calendars"], status
     assert not fetch_minutes.run_linked(town, client_class(), data, now=FETCHED_AT)["errors"]
-    assert not summarize.run(town, FakeAnthropic(), data, limit=100, now=FETCHED_AT)["errors"]
+    assert not summarize.run(town, summaries or FakeAnthropic(), data, limit=100, now=FETCHED_AT)["errors"]
 
 
 def build(town, base, data) -> SimpleNamespace:
@@ -122,7 +124,8 @@ def manchester_site(tmp_path_factory, data_dir):
 def malden_site(tmp_path_factory, data_dir):
     town, base = malden(), tmp_path_factory.mktemp("malden")
     data = gloucester_data(data_dir, base, "permits")
-    collect_meetings(town, FakeAgendaCenter, data)
+    # The Agenda Center lists no times or places; its towns' agendas give them.
+    collect_meetings(town, FakeAgendaCenter, data, FakeAnthropic(preview={**FakeAnthropic.PREVIEW, **AGENDA_WHEN_WHERE}))
     return build(town, base, data)
 
 
@@ -232,3 +235,12 @@ def test_malden_meeting_has_its_minutes(malden_site):
 
 def test_malden_cancelled_meeting(malden_site):
     assert "Cancelled" in meeting_page(malden_site, "agendacenter-4392")
+
+
+def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
+    finance = meeting_page(malden_site, "agendacenter-4453")
+    assert "6:30 PM" in finance and "Room 105" in finance
+    assert "From the posted agenda, as read by AI." in finance
+    assert "Not listed on the" not in finance and "calendar" not in finance
+    assert "This meeting's agenda in the City of Malden's Agenda Center" in finance
+    assert 'content="City Council Finance Committee Meeting on ' in finance

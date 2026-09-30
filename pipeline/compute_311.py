@@ -34,6 +34,11 @@ BACKLOG_BUCKETS = [(7, "Under 1 week"), (30, "1 week to 1 month"), (90, "1 to 3 
 NO_UPDATE_DAYS = 365
 
 
+def ward_order(ward: str) -> tuple:
+    """Wards in number order (2 before 10), with requests outside every ward last."""
+    return (ward == "outside", int(ward) if ward.isdigit() else float("inf"), ward)
+
+
 def parse(ts: str | None) -> datetime | None:
     return datetime.fromisoformat(ts) if ts else None
 
@@ -286,11 +291,11 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
         categories.append({
             "category": c, "slug": slugify(c), **summarize(rs),
             "monthly": month_counts(rs, last_months),
-            "by_ward": [{"ward": w, **summarize(ws)} for w, ws in sorted(wards.items(), key=lambda x: (x[0] == "outside", x[0]))],
+            "by_ward": [{"ward": w, **summarize(ws)} for w, ws in sorted(wards.items(), key=lambda x: ward_order(x[0]))],
             "oldest": oldest_open([r for r in open_records if r["category"] == c], now, link_base, town),
         })
     wards_detail = []
-    for w, rs in sorted(by_ward.items(), key=lambda x: (x[0] == "outside", x[0])):
+    for w, rs in sorted(by_ward.items(), key=lambda x: ward_order(x[0])):
         cats = defaultdict(list)
         for r in rs:
             cats[r["category"]].append(r)
@@ -319,7 +324,7 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
         "by_ward": [
             {"ward": w, "population_2020": population.get(w), **summarize(rs),
              "per_1000_residents": round(len(rs) / population[w] * 1000, 1) if population.get(w) else None}
-            for w, rs in sorted(by_ward.items(), key=lambda x: (x[0] == "outside", x[0]))
+            for w, rs in sorted(by_ward.items(), key=lambda x: ward_order(x[0]))
         ],
         "monthly": [
             {"month": m, **summarize(rs), "top_category": top_category(rs),
