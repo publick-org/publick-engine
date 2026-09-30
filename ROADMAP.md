@@ -519,8 +519,8 @@ towns too. Next, in this order (as of 2026-09-30):
 4. A status page with search and filters, and a daily digest instead of an
    alert (item 3).
 
-**Later, not scheduled: a weekly digest for readers.** Build it in this order, stopping
-when a step is enough: an `.ics` meetings calendar; a static
+**Later, not scheduled: a weekly digest for readers.** Build it in this order,
+stopping when a step is enough: an `.ics` meetings calendar; a static
 `/digest/<week>/` page with its own weekly feed (upcoming meetings, and
 decisions from minutes posted that week; no AI calls); then email sent from
 that feed by a provider such as Buttondown. Build sending into the engine only
