@@ -39,38 +39,50 @@ month**.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs, e.g. v1.8.0
+  engine-version              the engine release every town runs, e.g. v1.13.0
   towns/gloucester-ma/
     config/gloucester.toml
-    data/                     including run.json, the last fetching run's result
+    data/                     including run.json (the last fetching run's result)
+                              and summary-costs.json (what its AI summaries cost, by month)
     site/static/share/gloucester.png
   towns/malden-ma/, towns/manchester-nh/
+  states/ma/                  statewide sources, fetched once for every town (Massachusetts's DLS reports)
   home/                       the publick.org homepage
   scripts/                    build_home.py (its town lists), build_status.py (publick.org/status/)
-  .github/workflows/network.yml
+  wrangler.toml               the Worker that serves every site
+  wrangler.scheduler.toml     the Worker that starts the daily runs on time
+  .github/workflows/network.yml, worker.yml
 ```
 
 The engine reads a town's config, data, and static files from
 `PUBLICK_TOWN_DIR`, so each town's commands run unchanged with it set to the
 town's folder, each town in its own process (`pipeline/network.py`).
 
-**The daily run.** `network.yml` is scheduled four times across the early
-morning.
+**The daily run.** The publick-scheduler Worker (a Cloudflare Cron Trigger,
+which fires on time) starts `network.yml` every hour from 09:05 to 14:05 UTC;
+four GitHub schedules in the same hours are a backup, since GitHub starts
+those late or not at all.
 
-1. A first job gives each town one of the four runs, from a stable hash of its
-   folder name, and splits the run's towns into jobs: four towns a job on a
-   scheduled run, one town a job otherwise.
-2. Town jobs run in a matrix, each checking out only its towns' folders.
-   Python packages and Playwright are installed once per job, and the browser
-   checks use every core.
-3. Each town fetches new data, is built and checked (a sample of pages on a
+1. A first job takes the towns that are due (their last fetching run finished
+   more than 18 hours ago), oldest first, so a late or doubled start does
+   nothing more, and splits them into jobs: four towns a job on a daily run,
+   one town a job otherwise. It shares out what's left of the month's $50
+   summary budget among them.
+2. A statewide job fetches the sources every town in a state shares, once for
+   all of them, into `states/` (only what isn't saved or is over a week old).
+3. Town jobs run in a matrix, each checking out only its towns' folders and
+   `states/`. Python packages and Playwright are installed once per job, and
+   the browser checks use every core.
+4. Each town fetches new data, is built and checked (a sample of pages on a
    daily run, every page on a pull request), and is published on its own if
    its checks pass; a town that fails keeps its last good site. Each job
    commits its towns' data, retrying against the other jobs' pushes.
-4. A report job writes one table of every town in the run and fails the run
-   once if any town needs attention, so GitHub sends one email per run.
-5. The homepage and the status page are rebuilt from `main`, with the run's
-   data, and published.
+5. A report job writes one table of every town in the run. A daily run
+   doesn't fail for a town; a pull request's run does.
+6. The homepage and the status page are rebuilt from `main`, with the run's
+   data, and published, and one GitHub issue ("Towns need attention") is
+   opened, updated, or closed. The scheduler opens its own issue if no daily
+   run has finished for 30 hours.
 
 A pull request that changes a town's folder builds and checks only that town;
 one that changes `engine-version` or a workflow builds and checks every town.
@@ -93,8 +105,11 @@ takes minutes; 311 is the slow part).
   each town's prefix, served at files.publick.org.
 
 **Secrets.** One set, at the organization or repository level: the Anthropic
-key, the storage keys, the sites bucket keys, the BLS key. Nothing is set per
-town.
+key, the storage keys, the sites bucket keys, the BLS key, the Cloudflare
+deploy token, and the scheduler's GitHub token (`SCHEDULER_GITHUB_TOKEN`: a
+fine-grained token for the network repository, Actions and Issues read and
+write, made 2026-09-30 for 366 days, so it expires about 2027-10-01).
+Nothing is set per town.
 
 **Page views.** Every town counts on one GoatCounter site, `publick` (no
 cookies, and never what was searched). Each town's `[analytics]` table sets
@@ -419,6 +434,29 @@ on every core, which took Manchester's full check from 481 to 168 seconds.*
 
 **Matters at:** about 100 towns on the free plan.
 
+## 10. Adding a town
+
+**What breaks.** Every town so far was moved in from a repository of its own,
+whose config was written by hand over weeks. From here, each new town starts
+from nothing: which meeting system its city uses (a CivicPlus calendar, an
+Agenda Center, CivicClerk, DotNetNuke, or one the engine doesn't read yet),
+its DLS name and code and school district, its SeeClickFix organization and
+ward map, its BLS series, its colors. Finding these by hand takes hours a
+town, which is fine for the next few and not for hundreds.
+
+**Plan.**
+- A checklist in the network repository's README, from an empty folder to
+  the first published site.
+- A helper that finds what it can for a town and state: its DLS name and
+  code and DESE district from the statewide files in `states/`, its BLS
+  series, whether the city's website is CivicPlus (with a calendar or an
+  Agenda Center), and its SeeClickFix organization. It writes a starting
+  config with the rest marked to fill in.
+- A town whose meeting system the engine doesn't read yet is found the same
+  way, and that reader becomes its own piece of work.
+
+**Matters at:** the next town.
+
 ## Stages
 
 Done: the network repository, with all three towns moved in and a `[storage]`
@@ -435,15 +473,30 @@ town's data size on the status page (item 1) (v1.10.0); whole-site test
 builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5); daily
 runs that take the towns that are due, started on time by the
 publick-scheduler Worker, which also watches that they finish (items 8 and
-3, v1.12.0).
+3, v1.12.0); Massachusetts's DLS reports fetched once for every town
+(item 2, v1.13.0).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
-towns too.
+towns too. Next, in this order (as of 2026-09-30):
 
-1. Statewide sources fetched once per state (item 2): Massachusetts's DLS
-   reports are done; the Subsidized Housing Inventory and DESE next, then BLS
-   and the Census once for the country.
-2. Towns queued separately (item 8), if replaced runs turn out to delay
+1. Check the first full daily cycle with everything on (2026-10-01, from the
+   scheduler's 09:05 UTC start): the statewide step, the summary budget's
+   split, the "Towns need attention" issue, each town's data size on the
+   status page, Malden's meeting times and places from its agendas, and
+   Manchester's wards in order. Fix what it shows before building more.
+2. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+   statewide PDF every Massachusetts town downloads whole today) and DESE's
+   school figures (its data portal answers statewide queries), into
+   `states/ma/` as the DLS reports are.
+3. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+   request) and the Census's permits and estimates, once for the country.
+4. Adding a town from scratch (item 10): the checklist, then the helper.
+5. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+   it), and renew the scheduler's GitHub token before it expires (about
+   2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
+   back to GitHub's own schedule, and the "network stopped" check can't open
+   its issue.
+6. Towns queued separately (item 8), only if replaced runs turn out to delay
    towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
