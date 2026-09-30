@@ -108,8 +108,8 @@ takes minutes; 311 is the slow part).
 key, the storage keys, the sites bucket keys, the BLS key, the Cloudflare
 deploy token, and the scheduler's GitHub token (`SCHEDULER_GITHUB_TOKEN`: a
 fine-grained token for the network repository, Actions and Issues read and
-write, made 2026-09-30; its expiry is on its GitHub settings page). Nothing
-is set per town.
+write, made 2026-09-30 for 366 days, so it expires about 2027-10-01).
+Nothing is set per town.
 
 **Page views.** Every town counts on one GoatCounter site, `publick` (no
 cookies, and never what was searched). Each town's `[analytics]` table sets
@@ -492,10 +492,10 @@ towns too. Next, in this order (as of 2026-09-30):
    request) and the Census's permits and estimates, once for the country.
 4. Adding a town from scratch (item 10): the checklist, then the helper.
 5. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
-   it), and a reminder a couple of weeks before the scheduler's GitHub token
-   expires (made 2026-09-30; the date is on its GitHub settings page). When it
-   lapses, runs fall back to GitHub's own schedule, and the "network stopped"
-   check can't open its issue.
+   it), and renew the scheduler's GitHub token before it expires (about
+   2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
+   back to GitHub's own schedule, and the "network stopped" check can't open
+   its issue.
 6. Towns queued separately (item 8), only if replaced runs turn out to delay
    towns in practice.
 
