@@ -11,20 +11,16 @@ python -m pipeline.fetch_budget [--force], for a town with a [finance] table.
 
 from __future__ import annotations
 
-import io
 import json
 import statistics
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
-
-import openpyxl
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 from pipeline.rhythms import Part, Rhythm, latest_year, on
-from pipeline.states.ma.tax_bill import REPORT_URL, dls_get, not_a_workbook
+from pipeline.states.ma.dls import page_url, rows, table  # noqa: F401 (rows: for tests)
 
 YEARS = 10
 REFRESH_DAYS = 7
@@ -44,30 +40,6 @@ RHYTHM = Rhythm("City budget (Mass. DLS)", "finance/budget.json", "Fetch budget 
 ))
 
 
-def page_url(report: str) -> str:
-    return f"{REPORT_URL}?rdReport={report}"
-
-
-def export_url(report: str, table: str, **params) -> str:
-    return REPORT_URL + "?" + urlencode({
-        "rdReport": report, "rdReportFormat": "NativeExcel", "rdExportTableID": table,
-        "rdExcelOutputFormat": "Excel2007", **params,
-    })
-
-
-def rows(content: bytes) -> list[dict]:
-    """Workbook rows as dicts keyed by the header row (the first row with 'DOR Code')."""
-    if not content.startswith(b"PK"):
-        raise not_a_workbook(content)
-    sheet = openpyxl.load_workbook(io.BytesIO(content), read_only=True).worksheets[0]
-    table = list(sheet.iter_rows(values_only=True))
-    start = next((i for i, r in enumerate(table) if str(r[0] or "").strip().upper() == "DOR CODE"), None)
-    if start is None:
-        return []
-    header = [str(h or "").strip() for h in table[start]]
-    return [dict(zip(header, r)) for r in table[start + 1:] if str(r[0] or "").strip() not in ("", "Totals:")]
-
-
 def number(value) -> float | None:
     """123, '123', '$4,487', or '29,952' -> float. None for blanks."""
     if value in (None, ""):
@@ -83,8 +55,8 @@ def spending(client, code: str, newest: int) -> list[dict]:
     """Schedule A general fund spending by function, latest YEARS fiscal years."""
     years = []
     for fy in range(newest, newest - YEARS - 3, -1):
-        found = rows(dls_get(client, export_url("ScheduleA.GeneralFund", "xtGenFund",
-                                               iclMuni=code, islYear=fy, islAmountType="Expenditures")))
+        found = table(client, "ScheduleA.GeneralFund", "xtGenFund", ("iclMuni", code),
+                      islYear=fy, islAmountType="Expenditures")
         row = found[0] if found else None
         # Years not yet reported come back as zeros.
         if row and number(row.get("Total Expenditures")):
@@ -99,8 +71,8 @@ def spending(client, code: str, newest: int) -> list[dict]:
 
 
 def revenue(client, municipality: str, first: int, last: int) -> list[dict]:
-    found = rows(dls_get(client, export_url("RevenueBySource.RBS.RevbySource2", "dtCurrent",
-                                           iclMuni2=municipality, iclYear2=years_param(first, last))))
+    found = table(client, "RevenueBySource.RBS.RevbySource2", "dtCurrent", ("iclMuni2", municipality),
+                  iclYear2=years_param(first, last))
     out = []
     for r in found:
         sources = {label: round(number(r.get(col)) or 0) for col, label in REVENUE.items()}
@@ -111,8 +83,8 @@ def revenue(client, municipality: str, first: int, last: int) -> list[dict]:
 
 
 def levy(client, municipality: str, first: int, last: int) -> list[dict]:
-    found = rows(dls_get(client, export_url("Prop2.5.ExcessLevyCapandOverride_10_pres", "tblExcess",
-                                           iclMuni=municipality, iclYear=years_param(first, last))))
+    found = table(client, "Prop2.5.ExcessLevyCapandOverride_10_pres", "tblExcess", ("iclMuni", municipality),
+                  iclYear=years_param(first, last))
     return sorted(({
         "fiscal_year": int(r["Fiscal Year"]),
         "levy": round(number(r["Total Tax Levy"])),
@@ -125,8 +97,7 @@ def levy(client, municipality: str, first: int, last: int) -> list[dict]:
 
 def free_cash(client, municipality: str, first: int, last: int) -> list[dict]:
     """The report has one column per fiscal year."""
-    found = rows(dls_get(client, export_url("FreeCash2", "xtblFreeCash",
-                                           iclMuni=municipality, iclYear=years_param(first, last))))
+    found = table(client, "FreeCash2", "xtblFreeCash", ("iclMuni", municipality), iclYear=years_param(first, last))
     if not found:
         return []
     return [{"fiscal_year": int(k), "amount": round(number(v))}
@@ -134,8 +105,8 @@ def free_cash(client, municipality: str, first: int, last: int) -> list[dict]:
 
 
 def stabilization(client, municipality: str, first: int, last: int) -> list[dict]:
-    found = rows(dls_get(client, export_url("Dashboard.TrendAnalysisReports.StabFund", "tblStabilization",
-                                           iclMuni=municipality, iclYear=years_param(first, last))))
+    found = table(client, "Dashboard.TrendAnalysisReports.StabFund", "tblStabilization", ("iclMuni", municipality),
+                  iclYear=years_param(first, last))
     return sorted(({"fiscal_year": int(r["Fiscal Year"]), "amount": round(number(r["Stabilization Fund Amount"]))}
                    for r in found if number(r.get("Stabilization Fund Amount")) is not None),
                   key=lambda y: y["fiscal_year"])[-YEARS:]
@@ -145,8 +116,8 @@ def bond_ratings(client, municipality: str, first: int, last: int) -> list[dict]
     """Latest rating from each agency. Ratings are listed only for years with a bond sale."""
     out = []
     for agency, name in (("Moodys", "Moody's"), ("S&P", "S&P")):
-        found = rows(dls_get(client, export_url("DLS_Bond_Ratings", "xtblBondRatings", iclMuni=municipality,
-                                               iclYear=years_param(first, last), islCompany=agency)))
+        found = table(client, "DLS_Bond_Ratings", "xtblBondRatings", ("iclMuni", municipality),
+                      iclYear=years_param(first, last), islCompany=agency)
         rated = sorted((int(k), v) for k, v in (found[0].items() if found else []) if k.isdigit() and v)
         if rated:
             out.append({"agency": name, "rating": rated[-1][1], "fiscal_year": rated[-1][0]})
@@ -158,7 +129,8 @@ def per_resident(client, code: str) -> dict | None:
 
     Uses the latest year the town has reported in which nearly all communities have too.
     """
-    found = rows(dls_get(client, export_url("351GenFunperCapita", "tblGenFundPerCap")))
+    # Every municipality, for the state median.
+    found = table(client, "351GenFunperCapita", "tblGenFundPerCap", None)
     by_year = {}
     for r in found:
         value = number(r.get("Total General Fund Expenditures per Capita"))

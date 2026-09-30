@@ -22,6 +22,11 @@ any town does.
 budget splits what's left of the month's summary budget among the towns in a
 run, from each town's data/summary-costs.json (pipeline.summarize).
 
+states fetches the statewide sources the network's towns use, once per state
+for all of them, into states/ (for Massachusetts, the DLS exports: see
+pipeline/states/ma/dls.py); each town's steps read their rows from there. A
+state's statewide checks that keep failing are listed by behind.
+
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
     python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
@@ -29,6 +34,7 @@ run, from each town's data/summary-costs.json (pipeline.summarize).
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
+    python -m pipeline.network states [--root .]
 
 A daily run takes the towns that are due (--due-hours): those whose last run
 that fetched their data finished more than that many hours ago, or never ran,
@@ -56,7 +62,14 @@ from zoneinfo import ZoneInfo
 from pipeline.config import ENGINE_DIR
 
 TOWNS = "towns"
-# A change to the engine version or the workflows rebuilds every town.
+# Statewide sources, fetched once per state for every town (states/<state>/), and the environment
+# variable that tells a town's steps where they are (pipeline.states.ma.dls.STORE_ENV).
+STATES = "states"
+STATE_DIR_ENV = "PUBLICK_STATE_DIR"
+# The states with statewide sources, and the module that fetches them (refresh(state_dir, configs, client)).
+STATEWIDE = {"MA": "pipeline.states.ma.dls"}
+# A state's statewide checks count as failing, in the daily alert, after this many in a row.
+STATE_FAILURES = 3# A change to the engine version or the workflows rebuilds every town.
 SHARED_FILES = ("engine-version",)
 SHARED_FOLDERS = (".github/",)
 # Seconds before one fetch step is stopped. fetch_311 spends up to 40 minutes
@@ -154,6 +167,8 @@ def town_env(root: Path, name: str) -> dict:
     env = {k: v for k, v in os.environ.items() if k not in (SUMMARY_ENV, "PUBLICK_CHECK_PAGES")}
     env.update(PUBLICK_TOWN_DIR=str(root / TOWNS / name), TOWN=slug(root, name),
                PYTHONPATH=os.pathsep.join(filter(None, [str(ENGINE_DIR), os.environ.get("PYTHONPATH")])))
+    if (root / STATES).is_dir():
+        env[STATE_DIR_ENV] = str(root / STATES)
     return env
 
 
@@ -286,6 +301,56 @@ def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) 
         problems += [f"{label}: checks failing" for label in record.get("failing") or []]
         rows.append({"folder": name, "last_good_at": last, "last_run_at": record.get("finished_at"),
                      "problems": problems})
+    return rows + failing_states(root)
+
+
+def town_config(root: Path, name: str) -> dict:
+    import tomllib
+    path = next((root / TOWNS / name / "config").glob("*.toml"))
+    return {**tomllib.loads(path.read_text(encoding="utf-8")), "slug": path.stem}
+
+
+def refresh_states(root: Path, now: datetime | None = None) -> dict:
+    """Fetch the statewide sources for every state with towns in the network, into states/<state>/, and
+    record how it went in states/<state>/status.json. A failure is recorded, not raised: the towns keep
+    what was saved, and behind lists a state whose checks keep failing."""
+    from importlib import import_module
+
+    from pipeline.http import PoliteClient
+
+    now = now or datetime.now(timezone.utc)
+    configs = [town_config(root, name) for name in town_dirs(root)]
+    results = {}
+    for code, module_name in STATEWIDE.items():
+        towns = [c for c in configs if c.get("town", {}).get("state_abbr", "").upper() == code and "finance" in c]
+        if not towns:
+            continue
+        module = import_module(module_name)
+        status_path = root / STATES / code.lower() / "status.json"
+        previous = json.loads(status_path.read_text()) if status_path.exists() else {}
+        status = {"state": code, "checked_at": now.isoformat(timespec="seconds")}
+        try:
+            result = module.refresh(root / STATES, towns, PoliteClient(module.USER_AGENT, delay=2.0), now)
+            status.update(ok=True, failures=0, error=None, last_ok_at=status["checked_at"], **result)
+        except Exception as e:  # recorded for the daily alert; the towns keep what was saved
+            status.update(ok=False, failures=previous.get("failures", 0) + 1, error=str(e)[:300],
+                          last_ok_at=previous.get("last_ok_at"))
+            print(f"::warning::{code} statewide sources: {e}")
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+        status_path.write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+        results[code] = status
+    return results
+
+
+def failing_states(root: Path) -> list[dict]:
+    """Rows for the daily alert: states whose statewide checks have failed STATE_FAILURES times in a row."""
+    rows = []
+    for path in sorted((root / STATES).glob("*/status.json")):
+        status = json.loads(path.read_text())
+        if status.get("failures", 0) >= STATE_FAILURES:
+            rows.append({"folder": f"{status['state']} statewide sources", "last_good_at": status.get("last_ok_at"),
+                         "last_run_at": status.get("checked_at"),
+                         "problems": [f"checks failing ({status['failures']} in a row): {status.get('error')}"]})
     return rows
 
 
@@ -378,6 +443,8 @@ def main() -> int:
     b = sub.add_parser("behind")
     b.add_argument("--root", type=Path, default=Path.cwd())
     b.add_argument("--hours", type=float, default=BEHIND_HOURS)
+    st = sub.add_parser("states")
+    st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
     m.add_argument("--root", type=Path, default=Path.cwd())
     m.add_argument("--monthly", type=float, required=True, help="the network's monthly summary budget, in dollars")
@@ -405,6 +472,9 @@ def main() -> int:
         return 0 if args.fetch or all(r["ok"] for r in results) else 1
     if args.command == "behind":
         print(behind_text(behind(args.root.resolve(), args.hours), args.hours), end="")
+        return 0
+    if args.command == "states":
+        print(json.dumps(refresh_states(args.root.resolve()), indent=2))
         return 0
     if args.command == "budget":
         print(json.dumps(summary_budget(args.root.resolve(), args.monthly, args.towns_in_run)))
