@@ -96,6 +96,13 @@ takes minutes; 311 is the slow part).
 key, the storage keys, the sites bucket keys, the BLS key. Nothing is set per
 town.
 
+**Page views.** Every town counts on one GoatCounter site, `publick` (no
+cookies, and never what was searched). Each town's `[analytics]` table sets
+`prefix` to its folder name, which goes in front of every page path and event,
+so the one dashboard can tell the towns apart and there's nothing to set up
+per town but that line. GoatCounter is free for this; at millions of page
+views a day it would mean self-hosting it.
+
 **What this replaced.** Staggered cron lines in each town's workflow, a
 command to create repositories and Pages settings, warnings for towns pinned
 to odd engine versions, and re-enabling town workflows that GitHub turned off
