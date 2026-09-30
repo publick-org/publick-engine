@@ -144,7 +144,8 @@ def test_run_report_flags_failing_checks(tmp_path):
               "failing": ["Average tax bill (Mass. DLS)"]}
     (tmp_path / "gloucester-ma.json").write_text(json.dumps(record))
     text, ok = network.report(tmp_path)
-    assert not ok and "checks failing" in text and "1 need attention" in text
+    # Reported, and listed in the daily alert (network.behind), but the run doesn't fail for it.
+    assert ok and "checks failing" in text and "1 need attention" in text
 
 
 class Refused:
