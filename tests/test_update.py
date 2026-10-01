@@ -103,6 +103,7 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
     result = update.run("gloucester", config=config)
     skipped = {s["name"]: s["skipped"] for s in result["steps"] if s.get("skipped")}
     assert skipped == {"Fetch School Committee documents": "no [drive_meetings] in the config",
+                       "Fetch school board meetings": "no [finalsite_meetings] in the config",
                        "Fetch building permits": "no [permits] in the config",
                        "Fetch 311 requests": "no [seeclickfix] in the config",
                        "Compute 311 scorecard": "no [seeclickfix] in the config"}

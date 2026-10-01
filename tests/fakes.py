@@ -282,3 +282,44 @@ class FakeManchester:
         if "/mctl/EventDetails" in url:
             return FakeResponse((FIXTURES / "dnn_event.html").read_bytes())
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakeFinalsite:
+    """A school district's Finalsite board page and the posts on it (Wallingford's Board of
+    Education, saved as served), and the Google Docs they link. A post with no saved body
+    links only its agenda. Every Doc exports as a distinct PDF; `edits` gives a Doc other
+    content, as editing it in place would, and `posts` replaces a post's body."""
+    PAGE_URL = "https://www.wallingford.k12.ct.us/board-of-education/board-of-education-meetings"
+
+    def __init__(self, page: str | None = None, posts: dict | None = None, edits: dict | None = None):
+        self.page = page or (FIXTURES / "finalsite_board.html").read_text(encoding="utf-8")
+        self.posts = posts or {}
+        self.edits = edits or {}
+        self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
+        self.urls = []
+        self.request_count = 0
+
+    @staticmethod
+    def agenda_only(post_id: str) -> str:
+        return (f'<div class="fsElement fsPostElement fsPost  fsSingleItem" id="fsEl_23192"><div class="fsElementContent">'
+                f'<article class="fsStyleAutoclear fsBoard-30 " data-post-id="{post_id}"><div class="fsTitle ">A meeting</div>'
+                f'<div class="fsBody"><p><a href="https://docs.google.com/document/d/agenda-of-post-{post_id}-0000000/edit'
+                f'?usp=sharing" target="_blank">Agenda</a></p></div></article></div></div>')
+
+    def get(self, url):
+        import re
+        self.urls.append(url)
+        self.request_count += 1
+        if url == self.PAGE_URL:
+            return FakeResponse(self.page.encode())
+        if url.startswith("https://www.wallingford.k12.ct.us/fs/elements/23192?"):
+            post_id = re.search(r"post_id=(\d+)", url).group(1)
+            saved = FIXTURES / f"finalsite_post_{post_id}.html"
+            body = self.posts.get(post_id) or (saved.read_text(encoding="utf-8") if saved.exists() else self.agenda_only(post_id))
+            return FakeResponse(body.encode())
+        doc = re.fullmatch(r"https://docs\.google\.com/document/d/([\w-]+)/export\?format=pdf", url)
+        if doc:
+            content = self.pdf + f"\n% doc {doc.group(1)} {self.edits.get(doc.group(1), '')}\n".encode()
+            return FakeResponse(content, {"content-disposition": "attachment; filename=\"AGENDA.pdf\"; "
+                                                                 "filename*=UTF-8''AGENDA%20SEPTEMBER%2030%2C%202026%20.pdf"})
+        raise AssertionError(f"unexpected URL {url}")
