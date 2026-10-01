@@ -62,15 +62,15 @@
   <thead><tr><th scope="col">Year</th><th scope="col" class="num">Homes</th><th scope="col" class="num">In buildings of 5+</th></tr></thead>
   <tbody>
   {% for y in pm.years | reverse %}
-    <tr><th scope="row">{{ y.year }}{% if y.estimated %}<span class="cell-note"> partly estimated</span>{% endif %}</th><td class="num">{{ y.units | number }}</td><td class="num">{{ y.by_size["5+ units"] | number }}</td></tr>
+    <tr><th scope="row">{{ y.year }}{% if y.get("months_reported") == 0 %}<span class="cell-note"> estimated</span>{% elif y.estimated %}<span class="cell-note"> partly estimated</span>{% endif %}</th><td class="num">{{ y.units | number }}</td><td class="num">{{ y.by_size["5+ units"] | number }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
 {% if pm.year_to_date %}{% set ytd = pm.year_to_date %}
-<p>So far in {{ ytd.year }}, through {{ ("%d-%02d" | format(ytd.year, ytd.through_month)) | month }}: {{ ytd.units | number }} homes{% if ytd.estimated %}, partly estimated{% endif %}.</p>
+<p>So far in {{ ytd.year }}, through {{ ("%d-%02d" | format(ytd.year, ytd.through_month)) | month }}: {{ ytd.units | number }} homes{% if ytd.get("months_reported") == 0 %}, estimated{% elif ytd.estimated %}, partly estimated{% endif %}.</p>
 {% endif %}
-<p class="small">Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated". Source: <a href="{{ h.bps_page }}">U.S. Census Bureau, Building Permits Survey</a>.</p>
+<p class="small">Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated"{% if h.permits.years | selectattr("months_reported", "defined") | selectattr("months_reported", "equalto", 0) | list %}, and years with no reports at all "estimated"{% endif %}. Source: <a href="{{ h.bps_page }}">U.S. Census Bureau, Building Permits Survey</a>.</p>
 {{ chart_links("permits", "/housing/data/permits.csv") }}
 {% endif %}
 
