@@ -2,7 +2,7 @@
 {% from "macros.html" import on_this_page %}
 {% set o = officials %}
 {% block title %}Who represents you{% endblock %}
-{% block description %}Elected officials in {{ town.name }}, by office and by ward, and how to reach them.{% endblock %}
+{% block description %}Elected officials in {{ town.name }}, by office{% if officials.wards %} and by ward{% endif %}, and how to reach them.{% endblock %}
 {% block head %}
 {% if wards_url %}
 <link rel="stylesheet" href="{{ "/static/vendor/leaflet/leaflet.css" | versioned }}">
@@ -13,7 +13,7 @@
 {% block content %}
 <div class="page-head">
   <h1>Who represents you</h1>
-  <p class="lede">Elected officials in {{ town.name }}, by office and by ward, and how to reach them.</p>
+  <p class="lede">Elected officials in {{ town.name }}, by office{% if officials.wards %} and by ward{% endif %}, and how to reach them.</p>
   <p class="source-note">Checked {{ o.checked | date("plain") }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.</p>
 </div>
 
