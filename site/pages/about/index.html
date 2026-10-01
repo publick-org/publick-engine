@@ -76,7 +76,8 @@
 
 {% if config.summaries is defined %}
 <h2 id="ai">AI summaries</h2>
-<p>Meeting summaries, and the readable text of scanned agendas and minutes, are written by AI ({{ config.summaries.model | model_name }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.</p>
+<p>Meeting summaries are written by AI ({{ config.summaries.model | model_name }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.</p>
+<p>Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.</p>
 {% endif %}
 
 {% if config.get("analytics", {}).get("goatcounter") %}

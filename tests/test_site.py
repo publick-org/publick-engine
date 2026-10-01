@@ -180,6 +180,31 @@ def test_ai_preview_is_labeled_and_linked(site_dir):
     assert "Read the full agenda" in page
     assert "https://www.gloucester-ma.gov/Archive.aspx?ADID=20124" in page
     assert "<script" not in page.split("transcript-body")[1][:2000]
+    # The fixture agenda is a scan, so its full text is a labeled AI transcription.
+    assert "Transcribed by AI from the city's PDF. Check the original before relying on it." in page
+
+
+@pytest.mark.parametrize("record, shown, hidden", [
+    ({"transcript": "# Minutes\n\nApproved.", "transcript_source": "pdf"},
+     "From the city's PDF, word for word.", "Transcribed by AI"),
+    ({"transcript": "# Minutes\n\nApproved.", "transcript_source": "ai"},
+     "Transcribed by AI from the city's PDF.", "word for word"),
+    # Saved before the source was recorded: those were all transcribed by AI.
+    ({"transcript": "# Minutes\n\nApproved."}, "Transcribed by AI from the city's PDF.", "word for word"),
+    # A scan, waiting for its transcription.
+    ({"plain_text": "", "needs_transcript": True}, "The minutes are a scanned document. A readable version of the full text will be added here",
+     "Read the full minutes"),
+    # A PDF with text a screen reader can read: it's the full text.
+    ({"plain_text": "Approved.", "needs_transcript": False}, "The full text is in the city's PDF, linked below.",
+     "Read the full minutes"),
+])
+def test_full_text_says_where_it_came_from(record, shown, hidden):
+    from jinja2 import Environment, FileSystemLoader
+    env = Environment(loader=FileSystemLoader(str(build_site.SITE_DIR / "templates")), autoescape=True)
+    env.filters.update(markdown=build_site.render_markdown, date=build_site.format_date, time=build_site.format_time,
+                       timestamp=build_site.format_timestamp, filesize=build_site.format_bytes)
+    html = env.from_string('{% from "macros.html" import full_text %}{{ full_text("minutes", r) }}').render(r=record)
+    assert shown in html and hidden not in html
 
 
 def test_scorecard_page(site_dir):
