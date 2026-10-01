@@ -257,10 +257,20 @@ limits apply to the whole network, not to each town.
   the backlog. The backlog is paced: it may use what's left beyond a fifth of
   the budget (kept for new documents), spread over the rest of the month and
   every town.
-- The month's spending against the budget, on the status page.
+- What a summary costs, cut by more than half: summaries no longer have the
+  model retype each document as well (about 60% of the cost, and why the
+  longest minutes were cut off and never summarized). A document's full text
+  is its own, laid out from its PDF, for a style the engine supports
+  (`pipeline/pdftext.py`; Legistar's to start), free; a scan, which screen
+  readers can't read, is transcribed by the model, after every summary
+  waiting and from what's left of the budget; any other PDF has text a
+  screen reader can read, and the page links it. A style is added once for
+  every town whose documents come from the same software, so the share of
+  free full text grows with the network, not the cost.
 
 *Not done:* one priority order across towns (today each town orders its
-own, within its share), and the Batches API.
+own, within its share), the Batches API, and more supported styles
+(Manchester's, from Foxit, is next by count).
 
 **Matters at:** now, at $50 a month.
 
