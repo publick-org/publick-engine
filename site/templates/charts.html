@@ -44,8 +44,8 @@
 {# Links under a chart or table: its own link and its data. #}
 {% macro chart_links(anchor, csv=None) -%}
 <ul class="link-row">
-  {% if csv %}<li><a href="{{ csv }}" download>Download CSV</a></li>{% endif %}
-  <li><a href="#{{ anchor }}">Link to this</a></li>
+  {% if csv %}<li><a href="{{ csv }}" download>{{ _("Download CSV") }}</a></li>{% endif %}
+  <li><a href="#{{ anchor }}">{{ _("Link to this") }}</a></li>
 </ul>
 {%- endmacro %}
 

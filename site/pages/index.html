@@ -1,36 +1,42 @@
 {% extends "base.html" %}
 {% from "macros.html" import day_group, meeting_item %}
-{% block title %}This week in {{ town.name }}{% endblock %}
+{% block title %}{% trans town=town.name %}This week in {{ town }}{% endtrans %}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
-<h1>This week in {{ town.name }}</h1>
+<h1>{% trans town=town.name %}This week in {{ town }}{% endtrans %}</h1>
 {% if config.meetings is defined %}
-<p class="lede">What's coming up at City Hall,{% if meeting_links.documents %} what was decided,{% endif %} and how the city is doing. Updated every morning.</p>
+{% if meeting_links.documents %}
+<p class="lede">{{ _("What's coming up at City Hall, what was decided, and how the city is doing.") }} {{ _("Updated every morning.") }}</p>
 {% else %}
-<p class="lede">How the city is doing, from public data. Updated every morning.</p>
+<p class="lede">{{ _("What's coming up at City Hall, and how the city is doing.") }} {{ _("Updated every morning.") }}</p>
+{% endif %}
+{% else %}
+<p class="lede">{{ _("How the city is doing, from public data.") }} {{ _("Updated every morning.") }}</p>
 {% endif %}
 
 {% if street_sources %}
 <form class="street-box" role="search" action="/streets/" method="get">
-  <label for="home-street">What's happening on your street?</label>
+  <label for="home-street">{{ _("What's happening on your street?") }}</label>
   <div class="search-row">
     <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-describedby="home-street-hint">
-    <button class="button button-primary" type="submit">Look up</button>
+    <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
   </div>
-  <p class="small" id="home-street-hint">{{ street_sources | capitalize_first }} on any street{% if street_example %}, such as "{{ street_example }}"{% endif %}.</p>
+  {# Translators: %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311 requests"; %(example)s is a street's name. #}
+  <p class="small" id="home-street-hint">{% if street_example %}{% trans sources=street_sources | capitalize_first, example=street_example %}{{ sources }} on any street, such as "{{ example }}".{% endtrans %}
+  {%- else %}{% trans sources=street_sources | capitalize_first %}{{ sources }} on any street.{% endtrans %}{% endif %}</p>
 </form>
 {% endif %}
 
 {% if config.meetings is defined %}
 {# ---- Coming up ---- #}
 <div class="section-head">
-  <h2 id="coming-up">Coming up</h2>
-  <a href="/meetings/">All meetings</a>
+  <h2 id="coming-up">{{ _("Coming up") }}</h2>
+  <a href="/meetings/">{{ _("All meetings") }}</a>
 </div>
 {% set hearings = meetings.upcoming | selectattr("public_hearing") | list %}
 {% if hearings %}
 <div class="notice">
-  <h3>Public {{ "hearing" if hearings | length == 1 else "hearings" }}: residents can speak</h3>
+  <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
     <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% if m.preview_line %} · {{ m.preview_line }}{% endif %}</span></li>
@@ -41,17 +47,17 @@
 {% if meetings.this_week %}
 {% for day, items in group_by(meetings.this_week, "date") %}{{ day_group(day, items) }}{% endfor %}
 {% else %}
-<p>No public meetings are listed on the city calendar for the next seven days.</p>
+<p>{{ _("No public meetings are listed on the city calendar for the next seven days.") }}</p>
 {% endif %}
-{% if meeting_links.notify %}<p class="small">For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ meeting_links.notify }}">Notify Me</a> service.</p>{% endif %}
+{% if meeting_links.notify %}<p class="small">{% trans url=meeting_links.notify %}For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</p>{% endif %}
 
 {# ---- Decided ---- #}
 {% if meetings.final %}
 <div class="section-head">
-  <h2 id="decided">Recently decided</h2>
-  <a href="/meetings/decisions/">All decisions</a>
+  <h2 id="decided">{{ _("Recently decided") }}</h2>
+  <a href="/meetings/decisions/">{{ _("All decisions") }}</a>
 </div>
-<p class="small">From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.</p>
+<p class="small">{{ _("From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
 <ul class="meeting-list">
   {% for m in meetings.final[:5] %}{{ meeting_item(m, show_date=true) }}{% endfor %}
 </ul>
@@ -61,7 +67,7 @@
 {# ---- Numbers ---- #}
 {% if headline %}
 <div class="section-head">
-  <h2 id="numbers">How the city is doing</h2>
+  <h2 id="numbers">{{ _("How the city is doing") }}</h2>
 </div>
 <ul class="stats">
   {% for n in headline %}
@@ -77,7 +83,7 @@
 {% endif %}
 
 {# ---- Sections ---- #}
-<h2 id="explore">Explore</h2>
+<h2 id="explore">{{ _("Explore") }}</h2>
 <ul class="meeting-list">
   {% for s in sections if s.slug != "about" %}
   <li class="meeting-item single">
@@ -90,8 +96,8 @@
 </ul>
 <ul class="link-row">
   {% if config.meetings is defined and meeting_links.documents %}
-  <li><a href="/feed.xml">Follow City Hall updates by RSS</a></li>
+  <li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>
   {% endif %}
-  <li><a href="{{ town.official_site }}">City services and news</a></li>
+  <li><a href="{{ town.official_site }}">{{ _("City services and news") }}</a></li>
 </ul>
 {% endblock %}

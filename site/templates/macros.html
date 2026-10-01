@@ -1,24 +1,32 @@
 {% macro status_label(section) -%}
-{% if section.status != "live" %}<span class="status">In development</span>{% endif %}
+{% if section.status != "live" %}<span class="status">{{ _("In development") }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro contact(site) -%}
-{% if site.contact_email %}email <a href="mailto:{{ site.contact_email }}">{{ site.contact_email }}</a> or {% endif %}open an issue on the <a href="{{ site.repo_url }}/issues">project's public issue tracker</a>
+{# Translators: the end of a sentence, such as "If something is hard to use, email ... or open an issue ...". #}
+{% if site.contact_email %}{% trans email=site.contact_email, issues=site.repo_url ~ "/issues" %}email <a href="mailto:{{ email }}">{{ email }}</a> or open an issue on the <a href="{{ issues }}">project's public issue tracker</a>{% endtrans %}
+{%- else %}{% trans issues=site.repo_url ~ "/issues" %}open an issue on the <a href="{{ issues }}">project's public issue tracker</a>{% endtrans %}{% endif %}
 {%- endmacro %}
 
 {# Status words for a meeting, as plain text. #}
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
-{%- if m.status != "scheduled" %}{% set _ = parts.append(m.status | capitalize) %}{% endif -%}
-{%- if not m.listed %}{% set _ = parts.append("Removed from the " ~ m.source_name ~ " schedule" if m.get("source") == "drive" else "Removed from " ~ m.get("listing", "city calendar")) %}{% endif -%}
+{%- if m.status != "scheduled" %}{% set __ = parts.append(m.status | capitalize) %}{% endif -%}
+{%- if not m.listed %}
+{#- Translators: %(source)s is who keeps the schedule, such as a school district's name. -#}
+{%- if m.get("source") == "drive" %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
+{#- Translators: %(listing)s is where the city lists meetings, such as "city's meeting portal". -#}
+{%- else %}{% set __ = parts.append(_("Removed from %(listing)s", listing=m.get("listing", "city calendar"))) %}{% endif %}{% endif -%}
 {%- for p in parts %}<span class="flag">{{ p }}</span>{% if not loop.last %} · {% endif %}{% endfor -%}
 {%- endmacro %}
 
 {# The quiet credit line under AI-written text. #}
 {% macro ai_credit(doc_label, url, report_url, posted_by=none) -%}
 <div class="credit">
-  <p>Summary written by AI from the {% if posted_by %}<a href="{{ url }}">{{ doc_label }} posted by {{ posted_by }}</a>{% else %}<a href="{{ url }}">city's {{ doc_label }}</a>{% endif %}. Check the original before relying on it. <a href="/about/#ai">About AI summaries</a></p>
-  {{ report_button(report_url, "Report an error in this summary") }}
+  {# Translators: %(label)s is "agenda" or "minutes"; %(by)s is who posted it, such as a school district's name. #}
+  <p>{% if posted_by %}{% trans label=doc_label, by=posted_by %}Summary written by AI from the <a href="{{ url }}">{{ label }} posted by {{ by }}</a>.{% endtrans %}
+  {%- else %}{% trans label=doc_label %}Summary written by AI from the <a href="{{ url }}">city's {{ label }}</a>.{% endtrans %}{% endif %} {{ _("Check the original before relying on it.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  {{ report_button(report_url, _("Report an error in this summary")) }}
 </div>
 {%- endmacro %}
 
@@ -28,18 +36,24 @@
 {% macro full_text(doc_label, rec) -%}
 {% if rec.get("transcript") %}
 <details class="expand">
-  <summary>Read the full {{ doc_label }}</summary>
+  {# Translators: %(label)s is "agenda" or "minutes". #}
+  <summary>{% trans label=doc_label %}Read the full {{ label }}{% endtrans %}</summary>
   {% if rec.get("transcript_source") == "pdf" %}
-  <p class="source-note">From the city's PDF, word for word.</p>
+  <p class="source-note">{{ _("From the city's PDF, word for word.") }}</p>
   {% else %}
-  <p class="source-note">Transcribed by AI from the city's PDF. Check the original before relying on it.</p>
+  <p class="source-note">{{ _("Transcribed by AI from the city's PDF. Check the original before relying on it.") }}</p>
   {% endif %}
   <div class="transcript-body">{{ rec.transcript | markdown }}</div>
 </details>
 {% elif rec.get("needs_transcript") %}
-<p class="small">The {{ doc_label }} {{ "are" if doc_label == "minutes" else "is" }} a scanned document. A readable version of the full text will be added here; until then, the city's PDF is linked below.</p>
+{% if doc_label == "minutes" %}
+<p class="small">{% trans %}The minutes are a scanned document. A readable version of the full text will be added here; until then, the city's PDF is linked below.{% endtrans %}</p>
 {% else %}
-<p class="small">The full text is in the city's PDF, linked below.</p>
+{# Translators: %(label)s is a document, such as "agenda". #}
+<p class="small">{% trans label=doc_label %}The {{ label }} is a scanned document. A readable version of the full text will be added here; until then, the city's PDF is linked below.{% endtrans %}</p>
+{% endif %}
+{% else %}
+<p class="small">{{ _("The full text is in the city's PDF, linked below.") }}</p>
 {% endif %}
 {%- endmacro %}
 
@@ -52,7 +66,7 @@
    not filled, so it's easy to find without competing with the page's figures. #}
 {% macro city_report_button(config) -%}
 {% if config.seeclickfix is defined and config.seeclickfix.report_url is defined %}
-<div class="actions"><a class="button" href="{{ config.seeclickfix.report_url }}">Report a problem to the city</a></div>
+<div class="actions"><a class="button" href="{{ config.seeclickfix.report_url }}">{{ _("Report a problem to the city") }}</a></div>
 {% endif %}
 {%- endmacro %}
 
@@ -62,16 +76,16 @@
   <span class="meeting-when">
     {%- if show_date %}<time datetime="{{ m.date }}">{{ m.date | date("mon") }} {{ m.date | date("day") }}</time>
     {%- elif m.start_time %}<time datetime="{{ m.date }}T{{ m.start_time }}">{{ m.start_time | time }}</time>
-    {%- else %}<span class="small">Time TBA</span>{% endif -%}
+    {%- else %}<span class="small">{{ _("Time TBA") }}</span>{% endif -%}
   </span>
   <div class="meeting-main">
     <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}{% endif %}</a>
     {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
-    {% if show_date %}{% set _ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
-    {% if m.minutes_doc %}{% set _ = meta.append("Minutes posted") %}{% elif m.agenda or m.get("documents_url") %}{% set _ = meta.append("Agenda posted") %}{% elif m.date >= today and m.status == "scheduled" %}{% set _ = meta.append("No agenda posted yet") %}{% endif %}
-    {% if m.remote_url and m.date >= today %}{% set _ = meta.append("Online option") %}{% endif %}
-    {% if m.special %}{% set _ = meta.append("Special meeting") %}{% endif %}
+    {% if show_date %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
+    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
+    {% if m.remote_url and m.date >= today %}{% set __ = meta.append(_("Online option")) %}{% endif %}
+    {% if m.special %}{% set __ = meta.append(_("Special meeting")) %}{% endif %}
     {% set flags = meeting_flags(m) %}
     {% if meta or flags %}<span class="meeting-meta">{% if flags %}{{ flags }}{% if meta %} · {% endif %}{% endif %}{{ meta | join(" · ") }}</span>{% endif %}
   </div>
@@ -90,32 +104,38 @@
 
 {% macro describe_change(h, listing="city calendar") -%}
 {#- Plain sentence describing one recorded change. -#}
-{% if h.field == "start_time" %}Start time changed from {{ h.old | time or "not listed" }} to {{ h.new | time or "not listed" }}.
-{% elif h.field == "date" %}Date changed from {{ h.old | date }} to {{ h.new | date }}.
-{% elif h.field == "listed" %}{% if h.new %}Listed on the {{ listing }} again.{% else %}Removed from the {{ listing }}.{% endif %}
-{% elif h.field == "status" %}Marked {{ h.new }} on the {{ listing }}.
-{% elif h.field == "agenda" %}A revised agenda was posted.
-{% elif h.field == "minutes" %}Revised minutes were posted.
-{% elif h.field == "location_name" %}Location changed from {{ h.old or "not listed" }} to {{ h.new or "not listed" }}.
-{% elif h.field == "address" %}Address changed from {{ h.old or "not listed" }} to {{ h.new or "not listed" }}.
-{% elif h.field == "title" %}Title changed from "{{ h.old }}" to "{{ h.new }}".
-{% else %}{{ h.field }} changed.
+{#- Translators: %(old)s and %(new)s are start times, or "not listed" when the listing gave none. -#}
+{% if h.field == "start_time" %}{% trans old=h.old | time or pgettext("start time", "not listed"), new=h.new | time or pgettext("start time", "not listed") %}Start time changed from {{ old }} to {{ new }}.{% endtrans +%}
+{% elif h.field == "date" %}{% trans old=h.old | date, new=h.new | date %}Date changed from {{ old }} to {{ new }}.{% endtrans +%}
+{# Translators: %(listing)s is where the city lists meetings, such as "city calendar" or "city's meeting portal". #}
+{% elif h.field == "listed" %}{% if h.new %}{% trans %}Listed on the {{ listing }} again.{% endtrans %}{% else %}{% trans %}Removed from the {{ listing }}.{% endtrans %}{% endif %}
+{# Translators: %(status)s is a meeting's status as stored, such as "cancelled"; %(listing)s is where the city lists meetings, such as "city calendar". #}
+{% elif h.field == "status" %}{% trans status=h.new %}Marked {{ status }} on the {{ listing }}.{% endtrans +%}
+{% elif h.field == "agenda" %}{{ _("A revised agenda was posted.") }}
+{% elif h.field == "minutes" %}{{ _("Revised minutes were posted.") }}
+{# Translators: %(old)s and %(new)s are places, or "not listed" when the listing gave none. #}
+{% elif h.field == "location_name" %}{% trans old=h.old or pgettext("location", "not listed"), new=h.new or pgettext("location", "not listed") %}Location changed from {{ old }} to {{ new }}.{% endtrans +%}
+{# Translators: %(old)s and %(new)s are street addresses, or "not listed" when the listing gave none. #}
+{% elif h.field == "address" %}{% trans old=h.old or pgettext("address", "not listed"), new=h.new or pgettext("address", "not listed") %}Address changed from {{ old }} to {{ new }}.{% endtrans +%}
+{% elif h.field == "title" %}{% trans old=h.old, new=h.new %}Title changed from "{{ old }}" to "{{ new }}".{% endtrans +%}
+{# Translators: %(field)s is the stored name of a meeting's detail that changed, such as "end_time". #}
+{% else %}{% trans field=h.field %}{{ field }} changed.{% endtrans +%}
 {% endif %}
 {%- endmacro %}
 
 {% macro freshness(meetings, town, city_site) -%}
 <p class="source-note">
-  Source: <a href="{{ city_site }}/calendar.aspx">City of {{ town.name }} calendar</a>.
-  {% if meetings.status %}Last checked <time datetime="{{ meetings.status.updated_at }}">{{ meetings.status.updated_at | timestamp }}</time>.{% endif %}
+  {%+ trans url=city_site ~ "/calendar.aspx", town=town.name %}Source: <a href="{{ url }}">City of {{ town }} calendar</a>.{% endtrans +%}
+  {% if meetings.status %}{% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Last checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}
 </p>
 {%- endmacro %}
 
 {% macro search_form() -%}
 <form class="search-form" role="search" action="/meetings/search/" method="get">
-  <label for="search-q">Search agendas and minutes</label>
+  <label for="search-q">{{ _("Search agendas and minutes") }}</label>
   <div class="search-row">
     <input id="search-q" name="q" type="search" autocomplete="off" spellcheck="false">
-    <button class="button button-primary" type="submit">Search</button>
+    <button class="button button-primary" type="submit">{{ _("Search") }}</button>
   </div>
 </form>
 {%- endmacro %}
@@ -123,7 +143,7 @@
 {# Jump links to a long page's sections. links: [(id, label)] #}
 {% macro on_this_page(links) -%}
 <nav class="jump" aria-labelledby="jump-label">
-  <p class="jump-label" id="jump-label">On this page</p>
+  <p class="jump-label" id="jump-label">{{ _("On this page") }}</p>
   <ul>
     {% for id, label in links %}<li><a href="#{{ id }}">{{ label }}</a></li>{% endfor %}
   </ul>
@@ -133,6 +153,6 @@
 {# Under every figure Publick calculates rather than takes as published: that it did, and how. #}
 {% macro calculated(how) -%}
 <div class="credit calculated">
-  <p><strong>Calculated by Publick.</strong> {{ how }}</p>
+  <p><strong>{{ _("Calculated by Publick.") }}</strong> {{ how }}</p>
 </div>
 {%- endmacro %}
