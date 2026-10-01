@@ -1,4 +1,4 @@
 {#- The About page's sources list: the tax bill and budget. -#}
 {% if config.finance is defined %}
-  <li><strong>Tax bill and city budget:</strong> Mass. <a href="https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=AverageSingleTaxBill.SingleFamTaxBill_wRange">Division of Local Services</a> Municipal Databank, from the city's filings with the state.</li>
+  <li>{% trans url="https://dls-gw.dor.state.ma.us/reports/rdPage.aspx?rdReport=AverageSingleTaxBill.SingleFamTaxBill_wRange" %}<strong>Tax bill and city budget:</strong> Mass. <a href="{{ url }}">Division of Local Services</a> Municipal Databank, from the city's filings with the state.{% endtrans %}</li>
 {% endif %}
