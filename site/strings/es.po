@@ -31,9 +31,17 @@ msgstr ""
 msgid "%(agency)s: <strong>%(rating)s</strong> (latest rating, fiscal year %(year)s)"
 msgstr ""
 
-#: site/pages/officials/index.html
+#. %(board)s is a board's name, such as "City Council".
+#: site/pages/officials/index.html site/templates/board.html
 #, python-format
 msgid "%(board)s meetings"
+msgstr ""
+
+#. a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date,
+#. and %(part)s which meeting it is, such as "1 of 2".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(body)s, %(when)s, meeting %(part)s"
 msgstr ""
 
 #: site/templates/category.html
@@ -65,6 +73,33 @@ msgstr ""
 #, python-format
 msgid "%(category)s: 311 requests"
 msgstr ""
+
+#. %(council)s is the town's governing body, such as "City Council".
+#: site/pages/meetings/index.html
+#, python-format
+msgid "%(council)s, boards, and committees: when they meet, what's on the agenda, and what they decided."
+msgstr ""
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid "%(council)s, boards, and committees: when they meet."
+msgstr ""
+
+#. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid "%(count)s more decisions"
+msgid_plural "%(count)s more decisions"
+msgstr[0] ""
+msgstr[1] ""
+
+#. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid "%(count)s more recommendations"
+msgid_plural "%(count)s more recommendations"
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/states/ct/schools.html
 #, python-format
@@ -132,6 +167,13 @@ msgstr ""
 msgid "%(num)s closed"
 msgstr ""
 
+#: site/pages/about/index.html
+#, python-format
+msgid "%(num)s document waiting"
+msgid_plural "%(num)s documents waiting"
+msgstr[0] ""
+msgstr[1] ""
+
 #: site/pages/311/index.html
 #, python-format
 msgid "%(num)s has no map location and is only in the list."
@@ -175,6 +217,13 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid "%(num)s procedural step: minutes, continuances, referrals"
+msgid_plural "%(num)s procedural steps: minutes, continuances, referrals"
+msgstr[0] ""
+msgstr[1] ""
+
 #: site/pages/311/index.html
 #, python-format
 msgid "%(num)s request from the past %(days)s days is still open."
@@ -197,6 +246,22 @@ msgstr ""
 #: site/states/ma/budget.html
 #, python-format
 msgid "%(pct)s%% of the maximum"
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+#, python-format
+msgid ""
+"%(site)s aims to meet <a href=\"%(url)s\">WCAG 2.2</a> Level AA. That includes the WCAG 2.1 AA "
+"standard the 2024 ADA rule sets for state and local government websites."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"%(site)s is one of the %(network)s sites, which publish the public record of towns and cities "
+"every day. The name comes from <cite>Publick Occurrences Both Forreign and Domestick</cite>, the "
+"first newspaper in the American colonies. It was printed in Boston in 1690 and shut down after "
+"one issue for printing without permission."
 msgstr ""
 
 #: site/pages/streets/index.html
@@ -223,11 +288,56 @@ msgstr ""
 msgid "%(sources)s on any street."
 msgstr ""
 
+#. %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(title)s meeting"
+msgstr ""
+
 #: site/states/nh/budget.html
 #, python-format
 msgid ""
 "%(town)s's adopted budget, its property tax rate and where the tax goes, and the average single-"
 "family tax bill."
+msgstr ""
+
+#. %(what)s is a meeting, such as "City Council meeting".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(what)s on %(when)s at %(time)s: decisions, minutes, and agenda."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "%(what)s on %(when)s at %(time)s: location, how to attend, and agenda."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "%(what)s on %(when)s: decisions, minutes, and agenda."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "%(what)s on %(when)s: location, how to attend, and agenda."
+msgstr ""
+
+#. %(who)s is who posted the document: "The city" or a school district's name.
+#: site/templates/meeting.html
+#, python-format
+msgid "%(who)s filed a different document here instead of minutes. Minutes may be posted later."
+msgstr ""
+
+#. %(who)s is who posted the document: "The city" or a school district's name.
+#: site/templates/meeting.html
+#, python-format
+msgid "%(who)s filed an agenda here instead of minutes. Minutes may be posted later."
+msgstr ""
+
+#. %(who)s is who posted the agenda: "The city" or a school district's name.
+#: site/templates/meeting.html
+#, python-format
+msgid "%(who)s posted this as a scanned image."
 msgstr ""
 
 #. a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward,
@@ -237,8 +347,34 @@ msgstr ""
 msgid "(Wards %(wards)s and %(last)s)"
 msgstr ""
 
+#: pipeline/build_site.py
+msgid "(opens in new tab)"
+msgstr ""
+
 #: site/pages/311/index.html
 msgid "(recent)"
+msgstr ""
+
+#. Continues a list of housing sources: "U.S. Census Bureau Building Permits Survey and American
+#. Community Survey (through Census Reporter)".
+#: site/states/ma/about_housing.html
+msgid ", and Division of Local Services parcel counts"
+msgstr ""
+
+#. Continues a list of housing sources: "U.S. Census Bureau Building Permits Survey and American
+#. Community Survey (through Census Reporter)".
+#: site/states/ma/about_housing.html
+#, python-format
+msgid ", the state's <a href=\"%(url)s\">Subsidized Housing Inventory</a>"
+msgstr ""
+
+#. Continues a list of housing sources: "U.S. Census Bureau Building Permits Survey and American
+#. Community Survey (through Census Reporter)".
+#: site/states/ma/about_housing.html
+#, python-format
+msgid ""
+", the state's <a href=\"%(url)s\">Subsidized Housing Inventory</a>, and Division of Local "
+"Services parcel counts"
 msgstr ""
 
 #: site/templates/category.html
@@ -286,8 +422,71 @@ msgstr ""
 msgid "311 requests placed in Ward %(ward)s over the past 12 months."
 msgstr ""
 
+#. %(where)s is where the agenda was posted, such as "the city website".
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Agenda on %(where)s</a>"
+msgstr ""
+
+#. %(where)s is where the minutes were posted, such as "the city website".
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Minutes on %(where)s</a>"
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"<a href=\"%(url)s\">Saved copy of the agenda</a> · saved <time "
+"datetime=\"%(iso)s\">%(when)s</time>"
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"<a href=\"%(url)s\">Saved copy of the minutes</a> · saved <time "
+"datetime=\"%(iso)s\">%(when)s</time>"
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting on the City of %(town)s calendar</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting on the City of %(town)s's meeting portal</a> (CivicClerk)."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting's agenda in the City of %(town)s's Agenda Center</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Version saved <time datetime=\"%(iso)s\">%(when)s</time></a>"
+msgstr ""
+
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
+msgstr ""
+
+#. %(board)s is a board's name, such as "School Committee". %(source)s names where the meetings are
+#. posted, such as "the school district's website". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> %(source)s, from the meetings posted "
+"on its <a href=\"%(url)s\">website</a>, from %(since)s on."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>311 requests:</strong> <a href=\"%(scf)s\">SeeClickFix</a>, public requests only, under a"
+" <a href=\"%(license)s\">CC BY-NC-SA 3.0</a> license. <a href=\"%(methodology)s\">How the 311 "
+"numbers work</a>."
 msgstr ""
 
 #: site/pages/streets/index.html
@@ -300,6 +499,13 @@ msgstr ""
 msgid ""
 "<strong>Agendas and minutes:</strong> any line naming an address on the street, from the "
 "documents saved on this site's <a href=\"/meetings/\">meeting pages</a>."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Building and demolition permits:</strong> the city's <a href=\"%(url)s\">Inspectional "
+"Services permit data</a> on its Data Hub, used for the <a href=\"%(streets)s\">street lookup</a>."
 msgstr ""
 
 #. %(since)s is a month and year.
@@ -318,6 +524,13 @@ msgid ""
 "Services permit data</a>."
 msgstr ""
 
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Elected officials:</strong> listed by hand from official city and school websites, last "
+"checked %(checked)s. See <a href=\"%(url)s\">Who represents you</a>."
+msgstr ""
+
 #: site/states/ma/schools.html
 #, python-format
 msgid ""
@@ -325,10 +538,177 @@ msgid ""
 "site built on the same public data."
 msgstr ""
 
+#. %(state_sources)s is the state's own housing sources, if any, each after a comma, such as ", the
+#. state's Subsidized Housing Inventory".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Housing:</strong> U.S. Census Bureau <a href=\"%(bps)s\">Building Permits Survey</a> and "
+"<a href=\"%(acs)s\">American Community Survey</a> (through <a href=\"%(reporter)s\">Census "
+"Reporter</a>)%(state_sources)s."
+msgstr ""
+
+#. %(archive)s is the name of the city's archive of documents, such as "Document Center". %(since)s is
+#. a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the <a href=\"%(calendar)s\">meetings "
+"calendar</a> and the <a href=\"%(url)s\">%(archive)s</a>. Copies of agendas are saved when "
+"posted. Minutes are collected from %(since)s on."
+msgstr ""
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(calendar)s\">calendar</a>"
+" and <a href=\"%(archive)s\">Archive Center</a>. Copies are saved when posted. Minutes are "
+"collected from %(since)s on."
+msgstr ""
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(calendar)s\">calendar</a>"
+" and its <a href=\"%(portal)s\">meeting portal</a> (CivicClerk). Agendas and minutes of the "
+"meetings on the portal are saved when posted, from %(since)s on; other meetings link to their "
+"agendas where the city posts them."
+msgstr ""
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(url)s\">Agenda "
+"Center</a>. Copies of agendas are saved when posted. Minutes are collected from %(since)s on."
+msgstr ""
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings:</strong> the city's <a href=\"%(calendar)s\">calendar</a> and its <a "
+"href=\"%(portal)s\">meeting portal</a> (CivicClerk), from %(since)s on. Each meeting page links "
+"to its agenda and minutes where the city posts them."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings:</strong> the city's <a href=\"%(calendar)s\">calendar</a> and its <a "
+"href=\"%(portal)s\">meeting portal</a> (CivicClerk). Each meeting page links to its agenda and "
+"minutes where the city posts them."
+msgstr ""
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings:</strong> the city's <a href=\"%(calendar)s\">calendar</a>, from %(since)s on. "
+"Each meeting page links to its agenda and minutes where the city posts them."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings:</strong> the city's <a href=\"%(calendar)s\">calendar</a>. Each meeting page "
+"links to its agenda and minutes where the city posts them."
+msgstr ""
+
+#. %(source)s names where the documents are kept, such as "the School Committee's Google Drive".
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>School Committee agendas and minutes:</strong> %(source)s, from the public folders linked"
+" on the <a href=\"%(url)s\">School Committee website</a>, from %(since)s on."
+msgstr ""
+
+#: site/states/ma/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> Mass. <a href=\"%(url)s\">Department of Elementary and Secondary "
+"Education</a> open data."
+msgstr ""
+
+#: site/states/nh/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> the <a href=\"%(url)s\">New Hampshire Department of Education</a>'s "
+"graduation rates, state test (NH SAS) results, and cost per pupil reports."
+msgstr ""
+
+#: site/states/ct/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> the Connecticut State Department of Education's <a "
+"href=\"%(url)s\">EdSight</a> data portal: graduation rates, chronic absenteeism, Smarter Balanced"
+" test results, and per pupil expenditures."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Street maps:</strong> <a href=\"%(osm)s\">OpenStreetMap</a>, drawn with <a "
+"href=\"%(leaflet)s\">Leaflet</a>. Map images load from OpenStreetMap's servers."
+msgstr ""
+
+#: site/states/ma/about_finance.html
+#, python-format
+msgid ""
+"<strong>Tax bill and city budget:</strong> Mass. <a href=\"%(url)s\">Division of Local "
+"Services</a> Municipal Databank, from the city's filings with the state."
+msgstr ""
+
+#: site/states/nh/about_finance.html
+#, python-format
+msgid ""
+"<strong>Tax rate and property tax:</strong> the New Hampshire <a href=\"%(url)s\">Department of "
+"Revenue Administration</a>'s municipal tax rates and tax rate calculations."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid ""
+"<strong>This agenda includes a public hearing.</strong> At a public hearing, residents can speak "
+"on the matter before the board decides."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Unemployment:</strong> U.S. <a href=\"%(url)s\">Bureau of Labor Statistics</a>. City "
+"rates aren't seasonally adjusted, so each month is compared with the same month last year."
+msgstr ""
+
+#. %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year.
+#: site/pages/about/index.html
+#, python-format
+msgid "<strong>Ward maps:</strong> <a href=\"%(url)s\">%(publisher)s</a>, %(year)s boundaries."
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 msgid ""
 "A closed request isn't always a fixed problem. Duplicates and requests outside the city's "
 "responsibility also get closed."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "A copy of the agenda wasn't saved here. It is on the <a href=\"%(url)s\">city website</a>."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+msgid ""
+"A document's text is added once it has been read, usually the morning after it's posted. Scanned "
+"pages may be missed."
+msgstr ""
+
+#. The median rent above is a month's. %(years)s is the survey's years, such as "2020–2024".
+#: site/pages/housing/index.html
+#, python-format
+msgid "A month, %(years)s"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -346,11 +726,15 @@ msgstr ""
 msgid "ACS {year} 5-year estimates"
 msgstr ""
 
-#: site/templates/base.html
+#: site/pages/about/index.html
+msgid "AI summaries"
+msgstr ""
+
+#: site/pages/about/accessibility/index.html site/pages/about/index.html site/templates/base.html
 msgid "About"
 msgstr ""
 
-#: site/templates/macros.html
+#: site/pages/meetings/decisions/index.html site/templates/macros.html
 msgid "About AI summaries"
 msgstr ""
 
@@ -358,7 +742,7 @@ msgstr ""
 msgid "Absenteeism"
 msgstr ""
 
-#: site/templates/base.html
+#: site/pages/about/accessibility/index.html site/templates/base.html
 msgid "Accessibility"
 msgstr ""
 
@@ -402,12 +786,40 @@ msgstr ""
 msgid "Adopted budget by function, fiscal year %(year)s"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Affordable housing"
+msgstr ""
+
 #: site/pages/311/repeat-locations/index.html
 msgid "After a close"
 msgstr ""
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "Agenda"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Agenda (PDF)"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Agenda and minutes"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Agenda items"
+msgstr ""
+
+#. %(name)s is where the city keeps older documents, such as "city's Archive Center".
+#: site/templates/meeting.html
+#, python-format
+msgid "Agenda not recorded here. It may be in the <a href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+
+#. %(name)s is a school district, such as "Beverly Public Schools".
+#: site/templates/meeting.html
+#, python-format
+msgid "Agenda not recorded here. It may be on the <a href=\"%(url)s\">%(name)s website</a>."
 msgstr ""
 
 #: site/templates/macros.html
@@ -416,6 +828,12 @@ msgstr ""
 
 #: pipeline/build_site.py
 msgid "Agenda posted."
+msgstr ""
+
+#. %(name)s is where the city keeps older documents, such as "city's Archive Center".
+#: site/templates/meeting.html
+#, python-format
+msgid "Agendas and minutes are on the <a href=\"%(url)s\">%(name)s</a>."
 msgstr ""
 
 #: site/pages/index.html
@@ -441,8 +859,16 @@ msgid ""
 "published by DESE."
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "All homes"
+msgstr ""
+
 #: site/pages/index.html
 msgid "All meetings"
+msgstr ""
+
+#: site/templates/board.html
+msgid "All recorded meetings"
 msgstr ""
 
 #: site/pages/311/index.html
@@ -458,6 +884,13 @@ msgstr ""
 msgid ""
 "An independent project. Not affiliated with or endorsed by the City of %(town)s. Official "
 "information: <a href=\"%(url)s\">%(site)s</a>."
+msgstr ""
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"An independent site tracking public data about the City of %(town)s. Not run by or affiliated "
+"with the city."
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -485,6 +918,18 @@ msgstr ""
 #: site/pages/311/methodology/index.html
 msgctxt "311 status"
 msgid "Archived"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"As of %(when)s, %(units)s of %(town)s's %(homes)s year-round homes were on the list: "
+"<strong>%(percent)s%%</strong>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Attend in person at %(place)s."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -524,12 +969,32 @@ msgid ""
 "boundaries</a>."
 msgstr ""
 
+#: site/pages/about/index.html
+msgctxt "data status"
+msgid "Behind"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"Below %(goal)s%%, a developer whose project includes affordable homes can get a single permit to "
+"build more densely than local zoning allows. If the city denies it, the state can overturn that "
+"decision on appeal."
+msgstr ""
+
+#: site/pages/meetings/boards/index.html site/pages/meetings/index.html site/templates/board.html
+msgid "Boards and committees"
+msgstr ""
+
 #: site/states/ma/budget.html
 msgid "Bond ratings"
 msgstr ""
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
-#: site/templates/category.html site/templates/ward.html
+#: site/pages/about/accessibility/index.html site/pages/meetings/boards/index.html
+#: site/pages/meetings/decisions/index.html site/pages/meetings/past/index.html
+#: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
+#: site/templates/meeting.html site/templates/ward.html
 msgid "Breadcrumb"
 msgstr ""
 
@@ -583,6 +1048,10 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "Changes since posting"
+msgstr ""
+
 #: site/templates/macros.html
 msgid "Check the original before relying on it."
 msgstr ""
@@ -594,10 +1063,15 @@ msgid ""
 " when a seat is filled; those websites are the official record."
 msgstr ""
 
-#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
-#: site/states/nh/budget.html
+#: site/pages/meetings/index.html site/states/ct/schools.html site/states/ma/budget.html
+#: site/states/ma/schools.html site/states/nh/budget.html
 #, python-format
 msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>. Each source updates once or twice a year."
 msgstr ""
 
 #: site/states/ct/schools.html site/states/ma/schools.html
@@ -606,6 +1080,20 @@ msgstr ""
 
 #: site/states/ct/schools.html site/states/ma/schools.html
 msgid "Chronically absent"
+msgstr ""
+
+#. "partly estimated" and "estimated" are the notes on years in the table above.
+#: site/pages/housing/index.html
+msgid ""
+"Cities and towns report permits to the Census Bureau monthly or once a year. For months without a"
+" report, the Bureau estimates the count; those years are marked \"partly estimated\", and years "
+"with no reports at all \"estimated\"."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid ""
+"Cities and towns report permits to the Census Bureau monthly or once a year. For months without a"
+" report, the Bureau estimates the count; those years are marked \"partly estimated\"."
 msgstr ""
 
 #: site/states/nh/budget.html
@@ -667,8 +1155,20 @@ msgstr ""
 msgid "Closed requests are archived after 7 days. Counts as closed."
 msgstr ""
 
+#: site/pages/about/accessibility/index.html
+msgid "Color is never the only way information is shown."
+msgstr ""
+
 #: site/pages/index.html
 msgid "Coming up"
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "Committee recommendations to the City Council"
+msgstr ""
+
+#: site/pages/meetings/index.html
+msgid "Community events are left out."
 msgstr ""
 
 #: site/pages/officials/index.html
@@ -680,12 +1180,33 @@ msgstr ""
 msgid "Correction: {page}"
 msgstr ""
 
+#: site/pages/about/index.html
+msgid "Corrections and contact"
+msgstr ""
+
 #: site/states/nh/schools.html
 msgid "Cost per pupil"
 msgstr ""
 
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"Counting is done by <a href=\"%(url)s\">GoatCounter</a>, a privacy-friendly service. It notes the"
+" page, the site that linked here, and your screen size, along with the browser type and rough "
+"location (such as the country or state) that every website can see. We only look at the totals."
+msgstr ""
+
 #: site/states/nh/budget.html
 msgid "County"
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+#, python-format
+msgid "Covers meetings since <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+msgid "Covers meetings."
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -708,6 +1229,10 @@ msgid ""
 "href=\"https://creativecommons.org/licenses/by-nc-sa/3.0/\">CC BY-NC-SA 3.0</a> license."
 msgstr ""
 
+#: site/pages/about/index.html
+msgid "Data status"
+msgstr ""
+
 #: site/templates/macros.html
 #, python-format
 msgid "Date changed from %(old)s to %(new)s."
@@ -727,8 +1252,29 @@ msgctxt "month"
 msgid "December"
 msgstr ""
 
+#: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
+msgid "Decisions"
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Decisions recorded"
+msgstr ""
+
 #: site/templates/charts.html
 msgid "Download CSV"
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "Download all decisions (CSV)"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Each %(town)s figure has a margin of error (±) because it comes from a sample."
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -737,6 +1283,35 @@ msgstr ""
 
 #: site/pages/311/repeat-locations/index.html
 msgid "Each location links to its latest request on SeeClickFix. The CSV lists every request."
+msgstr ""
+
+#. "Behind" is the status the table below shows for such a source.
+#: site/pages/about/index.html
+msgid ""
+"Each source, the latest figures this site has, and when it last checked. Meetings and requests "
+"are checked every day. Figures that are published monthly or yearly are checked weekly or "
+"monthly, and are marked \"Behind\" only when newer figures should have been published by now; the"
+" maintainer is alerted automatically."
+msgstr ""
+
+#. %(name)s is a school district, such as "Beverly Public Schools".
+#: site/templates/board.html
+#, python-format
+msgid "Earlier meetings are on the <a href=\"%(url)s\">%(name)s website</a>."
+msgstr ""
+
+#. %(name)s is where the city keeps older documents, such as "city's Archive Center".
+#: site/templates/board.html
+#, python-format
+msgid "Earlier meetings are on the <a href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Earlier versions of these minutes:"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Earlier versions of this agenda:"
 msgstr ""
 
 #: site/pages/officials/index.html
@@ -772,9 +1347,35 @@ msgstr ""
 msgid "Estimated costs are as the applicant gave them."
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Estimates from the American Community Survey."
+msgstr ""
+
+#. %(town)s is the town's name.
+#: site/pages/meetings/boards/index.html
+#, python-format
+msgid ""
+"Every %(town)s board, commission, and committee with a meeting on the city calendar, and when "
+"each meets next."
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+msgid "Every chart has a table with the same numbers."
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "Every number links to where it came from."
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 #, python-format
 msgid "Every public request since %(since)s, plus older ones still open, checked daily."
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+msgid ""
+"Every update is checked automatically on every page, at phone and desktop sizes, and isn't "
+"published if it fails. New sections are also checked by hand with a keyboard and screen reader."
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -806,8 +1407,8 @@ msgstr ""
 msgid "Figures will appear here after the first data collection."
 msgstr ""
 
-#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
-#: site/states/nh/budget.html site/states/nh/schools.html
+#: site/pages/housing/index.html site/states/ct/schools.html site/states/ma/budget.html
+#: site/states/ma/schools.html site/states/nh/budget.html site/states/nh/schools.html
 msgid "Figures will appear here after the next data update."
 msgstr ""
 
@@ -817,6 +1418,12 @@ msgstr ""
 
 #: site/pages/officials/index.html
 msgid "Find your ward"
+msgstr ""
+
+#. %(site)s is this website's name.
+#: site/templates/meeting.html
+#, python-format
+msgid "First recorded by %(site)s on <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr ""
 
 #: site/states/ma/budget.html site/states/nh/budget.html
@@ -867,10 +1474,24 @@ msgstr ""
 msgid "For each one: category, location, and when it was submitted, acknowledged, closed, or reopened."
 msgstr ""
 
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"For official email or text alerts about this board, sign up for the city's <a "
+"href=\"%(url)s\">Notify Me</a> service."
+msgstr ""
+
 #: site/pages/index.html
 #, python-format
 msgid ""
 "For official email or text alerts when a board posts a meeting, sign up for the city's <a "
+"href=\"%(url)s\">Notify Me</a> service."
+msgstr ""
+
+#: site/templates/board.html
+#, python-format
+msgid ""
+"For official email or text alerts when this board posts a meeting, sign up for the city's <a "
 "href=\"%(url)s\">Notify Me</a> service."
 msgstr ""
 
@@ -899,6 +1520,61 @@ msgctxt "weekday"
 msgid "Friday"
 msgstr ""
 
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid ""
+"From minutes posted in the <a href=\"%(url)s\">city's Agenda Center</a>, for meetings since "
+"%(since)s."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid ""
+"From minutes posted on the <a href=\"%(url)s\">city's Archive Center</a> and the <a "
+"href=\"%(school_url)s\">School Committee website</a>, for meetings since %(since)s."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid ""
+"From minutes posted on the <a href=\"%(url)s\">city's Archive Center</a>, for meetings since "
+"%(since)s."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid ""
+"From minutes posted on the city's <a href=\"%(url)s\">meeting portal</a> (CivicClerk), for "
+"meetings since %(since)s."
+msgstr ""
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid ""
+"From the <a href=\"%(calendar)s\">city calendar</a> and the city's <a href=\"%(portal)s\">meeting"
+" portal</a>."
+msgstr ""
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid "From the <a href=\"%(calendar)s\">city calendar</a>."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"From the Census Bureau's American Community Survey, which samples households each year "
+"(%(years)s)."
+msgstr ""
+
+#. %(years)s is the survey's years, such as "2020–2024" or "2023".
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"From the Census Bureau's American Community Survey, which samples households over five years "
+"(%(years)s)."
+msgstr ""
+
 #: site/templates/macros.html
 msgid "From the city's PDF, word for word."
 msgstr ""
@@ -907,6 +1583,10 @@ msgstr ""
 msgid ""
 "From the latest minutes the city has posted. Minutes come out after a board approves them, "
 "usually a few weeks after the meeting."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "From the posted agenda, as read by AI. The agenda is the official notice; check it before you go."
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -964,13 +1644,55 @@ msgid ""
 "Massachusetts's MCAS."
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid ""
+"Home value is what owners estimate their home would sell for. Rent is gross rent, including "
+"utilities the renter pays."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Home values and rents"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Homes"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid ""
+"Homes approved for construction each year by building permit, counted in housing units: a duplex "
+"is two. Some permitted homes are never built, and others take years to finish."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Homes counted as affordable"
+msgstr ""
+
+#. %(years)s is the survey's years, such as "2020–2024".
+#: site/pages/housing/index.html
+#, python-format
+msgid "Homes in %(town)s by who lives in them, %(years)s."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Housing"
+msgstr ""
+
 #: pipeline/fetch_housing.py
 msgid "Housing figures"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Housing stock"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
 #, python-format
 msgid "How %(site)s collects %(town)s's 311 requests from SeeClickFix and calculates each number."
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "How it works"
 msgstr ""
 
 #: site/pages/311/index.html
@@ -1003,6 +1725,39 @@ msgstr ""
 
 #: site/pages/311/index.html site/templates/category.html
 msgid "How these numbers are calculated"
+msgstr ""
+
+#: site/templates/board.html
+msgid "How to follow this board"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "How to take part"
+msgstr ""
+
+#. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
+#. project's public issue tracker".
+#: site/pages/about/accessibility/index.html
+#, python-format
+msgid ""
+"If something is hard to use, %(contact)s, with the page address. If you need information in "
+"another format, ask."
+msgstr ""
+
+#. "Find my ward" is the label of the button that finds the reader's ward.
+#: site/pages/about/index.html
+msgid ""
+"If you use \"Find my ward,\" your location is checked on your device. It isn't sent anywhere or "
+"saved."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "In %(year)s"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "In buildings of 5+"
 msgstr ""
 
 #: site/templates/macros.html
@@ -1040,6 +1795,14 @@ msgctxt "month"
 msgid "January"
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "Join by Zoom"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Join online (Zoom)"
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Jul"
@@ -1064,9 +1827,28 @@ msgstr ""
 msgid "Keep in mind"
 msgstr ""
 
+#: site/pages/about/accessibility/index.html
+msgid "Known issue"
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "Last checked"
+msgstr ""
+
 #: site/templates/macros.html
 #, python-format
 msgid "Last checked <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#. %(when)s is a date, such as "September 27, 2026".
+#: site/pages/about/accessibility/index.html
+#, python-format
+msgid "Last reviewed <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/about/index.html
+msgctxt "data status"
+msgid "Latest"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -1094,6 +1876,10 @@ msgstr ""
 msgid "Listed on the %(listing)s again."
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Lived in by the owner"
+msgstr ""
+
 #: site/states/nh/budget.html
 msgid "Local education"
 msgstr ""
@@ -1110,6 +1896,14 @@ msgstr ""
 #: site/templates/macros.html
 #, python-format
 msgid "Location changed from %(old)s to %(new)s."
+msgstr ""
+
+#. %(listing)s is where the meeting is listed, such as "city calendar".
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"Location from the %(listing)s. The posted agenda is the official notice; check it if the two "
+"differ."
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -1148,6 +1942,13 @@ msgstr ""
 
 #: site/templates/base.html
 msgid "Main"
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+msgid ""
+"Many agendas and minutes the city posts are scanned images, which screen readers can't read. "
+"Where a document is a scanned image, this site includes its full text as a readable version, "
+"transcribed by AI and labeled that way."
 msgstr ""
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
@@ -1203,6 +2004,14 @@ msgstr ""
 msgid "Mass. Division of Local Services"
 msgstr ""
 
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"Massachusetts counts homes that are kept affordable to lower-income households on its Subsidized "
+"Housing Inventory. Under Chapter 40B, the goal is for %(goal)s%% of each community's year-round "
+"homes to be on the list."
+msgstr ""
+
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
 msgid "Math"
 msgstr ""
@@ -1221,8 +2030,16 @@ msgctxt "month, short"
 msgid "May"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Measure"
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 msgid "Measures"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Median home value"
 msgstr ""
 
 #: site/templates/category.html site/templates/ward.html
@@ -1243,12 +2060,52 @@ msgstr ""
 msgid "Median of closed requests"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Median rent"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Median rent, per month"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Median, past 12 months"
 msgstr ""
 
 #: pipeline/freshness.py
 msgid "Meeting summaries"
+msgstr ""
+
+#. %(model)s is an AI model's name, such as "Claude Sonnet 5".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"Meeting summaries are written by AI (%(model)s, by Anthropic). They aren't checked by a person "
+"before posting. The city's document is the official record, and every summary links to it."
+msgstr ""
+
+#: site/pages/meetings/boards/index.html site/pages/meetings/decisions/index.html
+#: site/pages/meetings/index.html site/pages/meetings/past/index.html
+#: site/pages/meetings/search/index.html site/templates/board.html site/templates/meeting.html
+msgid "Meetings"
+msgstr ""
+
+#. %(title)s is a local TV station or video channel.
+#: site/templates/board.html site/templates/meeting.html
+#, python-format
+msgid "Meetings are broadcast and recorded by <a href=\"%(url)s\">%(title)s</a>."
+msgstr ""
+
+#. %(name)s is where the city keeps older documents, such as "city's Archive Center".
+#: site/pages/meetings/past/index.html
+#, python-format
+msgid "Meetings before this site began recording are on the <a href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+
+#. %(month)s is a month and year, such as "January 2026".
+#: site/templates/board.html
+#, python-format
+msgid "Meetings recorded here start in %(month)s."
 msgstr ""
 
 #: site/pages/officials/index.html
@@ -1265,8 +2122,44 @@ msgstr ""
 msgid "Methodology"
 msgstr ""
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/pages/meetings/decisions/index.html
 msgid "Minutes"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Minutes (PDF)"
+msgstr ""
+
+#. %(name)s is where the city keeps older documents, such as "city's Archive Center".
+#: site/templates/meeting.html
+#, python-format
+msgid "Minutes are on the <a href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Minutes are posted after the board approves them, usually at a later meeting."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid ""
+"Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and "
+"older ones a few each day."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid ""
+"Minutes are posted. The file is too large to summarize automatically; the minutes are linked "
+"below."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid ""
+"Minutes come out after a board approves them, usually a few weeks after the meeting. Committee "
+"recommendations are listed separately. They become final only when the City Council votes."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Minutes not posted yet. They usually come out after the board approves them at a later meeting."
 msgstr ""
 
 #: site/templates/macros.html
@@ -1275,6 +2168,10 @@ msgstr ""
 
 #: pipeline/build_site.py
 msgid "Minutes posted."
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "Mistakes are corrected openly, with a note on the page."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -1310,6 +2207,79 @@ msgid ""
 "states' tests. No tests were given in spring 2020."
 msgstr ""
 
+#: site/pages/about/index.html
+#, python-format
+msgid "New agendas and minutes are in an <a href=\"%(url)s\">RSS feed</a>."
+msgstr ""
+
+#: site/templates/board.html
+msgid "New agendas and minutes from every board are in this site's <a href=\"/feed.xml\">RSS feed</a>."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "New homes"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "New homes permitted"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "New homes permitted by year"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"New homes permitted, home values and rents, affordable housing, and the housing stock in "
+"%(town)s, from federal and state data."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid ""
+"New homes permitted, home values and rents, affordable housing, and the housing stock, from "
+"federal and state data."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"New homes permitted, home values and rents, and the housing stock in %(town)s, from federal and "
+"state data."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "New homes permitted, home values and rents, and the housing stock in %(town)s, from federal data."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "New homes permitted, home values and rents, and the housing stock, from federal and state data."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "New homes permitted, home values and rents, and the housing stock, from federal data."
+msgstr ""
+
+#: site/pages/meetings/boards/index.html
+#, python-format
+msgid "Next meeting <time datetime=\"%(iso)s\">%(when)s</time>"
+msgstr ""
+
+#: site/templates/board.html
+msgid "Next meeting details"
+msgstr ""
+
+#: site/templates/board.html
+#, python-format
+msgid "Next meeting: %(when)s"
+msgstr ""
+
+#: site/templates/board.html
+#, python-format
+msgid "Next meeting: %(when)s at %(time)s"
+msgstr ""
+
 #: site/states/ma/schools.html
 msgid ""
 "No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and "
@@ -1320,10 +2290,34 @@ msgstr ""
 msgid "No agenda posted yet"
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "No agenda posted yet."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "No agenda was posted."
+msgstr ""
+
 #. {since} is a time, such as "last week" or "August 2025".
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "No change from {since}"
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "No cookies, no ads, and no tracking across other sites."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "No decisions have been recorded yet. This page fills in as minutes are posted."
+msgstr ""
+
+#: site/pages/meetings/boards/index.html
+msgid "No meetings have been recorded yet."
+msgstr ""
+
+#: site/pages/meetings/past/index.html
+msgid "No past meetings have been recorded yet. This list fills in as meetings take place."
 msgstr ""
 
 #: site/pages/index.html
@@ -1348,6 +2342,20 @@ msgstr ""
 msgid "No street address"
 msgstr ""
 
+#: site/pages/meetings/boards/index.html
+msgid "No upcoming meeting listed"
+msgstr ""
+
+#. %(listing)s is where meetings are listed, such as "city calendar".
+#: site/templates/board.html
+#, python-format
+msgid "No upcoming meetings are listed on the %(listing)s."
+msgstr ""
+
+#: site/pages/meetings/index.html
+msgid "No upcoming meetings are listed on the city calendar right now."
+msgstr ""
+
 #: site/pages/311/index.html site/pages/311/methodology/index.html
 msgid "No update in over a year"
 msgstr ""
@@ -1360,6 +2368,26 @@ msgstr ""
 msgid "Not enough data"
 msgstr ""
 
+#: site/templates/meeting.html
+msgctxt "meeting place"
+msgid "Not listed"
+msgstr ""
+
+#: site/templates/meeting.html
+msgctxt "meeting time"
+msgid "Not listed"
+msgstr ""
+
+#. %(listing)s is where the meeting is listed, such as "city calendar".
+#: site/templates/meeting.html
+#, python-format
+msgid "Not listed on the %(listing)s"
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "Nothing that identifies you is kept, not even your IP address."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Nov"
@@ -1368,6 +2396,10 @@ msgstr ""
 #: pipeline/i18n.py
 msgctxt "month"
 msgid "November"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Number"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -1391,6 +2423,10 @@ msgstr ""
 
 #: site/templates/macros.html
 msgid "On this page"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Online"
 msgstr ""
 
 #: site/templates/macros.html
@@ -1456,8 +2492,22 @@ msgstr ""
 msgid "Page: {url}"
 msgstr ""
 
+#: site/pages/about/accessibility/index.html
+msgid "Pages work without JavaScript."
+msgstr ""
+
 #: site/states/ma/budget.html
 msgid "Paid by property tax"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Parcels"
+msgstr ""
+
+#. %(network)s is the name of the network of sites, such as "Publick".
+#: site/pages/about/index.html
+#, python-format
+msgid "Part of %(network)s"
 msgstr ""
 
 #: site/templates/base.html
@@ -1477,6 +2527,16 @@ msgstr ""
 
 #: site/pages/311/index.html
 msgid "Past 30 days"
+msgstr ""
+
+#: site/pages/meetings/index.html site/pages/meetings/past/index.html
+msgid "Past meetings"
+msgstr ""
+
+#. %(town)s is the town and %(state)s its state's abbreviation, such as "MA".
+#: site/pages/meetings/past/index.html
+#, python-format
+msgid "Past public meetings in %(town)s, %(state)s, by month, with saved agendas."
 msgstr ""
 
 #: site/states/nh/budget.html
@@ -1529,10 +2589,21 @@ msgstr ""
 msgid "Population: %(population)s."
 msgstr ""
 
+#: site/pages/about/index.html
+msgid "Privacy"
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 msgid ""
 "Private requests and internal work orders aren't public, so they aren't counted. Requests later "
 "deleted or made private are removed."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"Properties on the assessor's list, fiscal year %(year)s. These are parcels, not homes: each "
+"condominium is its own parcel, while an apartment building is one parcel."
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -1591,6 +2662,11 @@ msgstr ""
 msgid "Recently decided"
 msgstr ""
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Recordings of %(body)s meetings: <a href=\"%(url)s\">%(title)s</a>."
+msgstr ""
+
 #. %(listing)s is where the city lists meetings, such as "city's meeting portal".
 #: site/templates/macros.html
 #, python-format
@@ -1608,6 +2684,20 @@ msgstr ""
 msgid "Removed from the %(source)s schedule"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Rented"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Renters paying 30%% or more of income on rent"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Renters paying 50%% or more"
+msgstr ""
+
 #: site/pages/311/repeat-locations/index.html
 msgid "Repeat 311 locations"
 msgstr ""
@@ -1620,12 +2710,20 @@ msgstr ""
 msgid "Repeat locations"
 msgstr ""
 
+#: site/pages/about/accessibility/index.html
+msgid "Report a problem"
+msgstr ""
+
 #: site/templates/macros.html
 msgid "Report a problem to the city"
 msgstr ""
 
 #: site/templates/base.html
 msgid "Report a problem with this page"
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "Report an error in a decision"
 msgstr ""
 
 #: site/templates/macros.html
@@ -1693,6 +2791,10 @@ msgstr ""
 msgid "Reserves and bond ratings"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "Residential property by type"
+msgstr ""
+
 #: site/states/ma/budget.html
 msgid "Revenue"
 msgstr ""
@@ -1711,6 +2813,17 @@ msgctxt "weekday"
 msgid "Saturday"
 msgstr ""
 
+#: site/pages/about/index.html
+msgid ""
+"Scanned agendas and minutes, which screen readers can't read, get a readable version of their "
+"full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, "
+"the full text is the city's own words instead. Every page links the city's PDF."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Scheduled until"
+msgstr ""
+
 #: pipeline/states/nh/schools.py
 msgid "School figures"
 msgstr ""
@@ -1725,6 +2838,13 @@ msgstr ""
 
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
 msgid "School year"
+msgstr ""
+
+#. %(report)s is the name of a report on each of the city's schools, such as "Gloucester Schools
+#. Report".
+#: site/states/ma/about_schools.html
+#, python-format
+msgid "School-by-school detail is on the <a href=\"%(url)s\">%(report)s</a>."
 msgstr ""
 
 #: site/states/ma/schools.html
@@ -1748,6 +2868,26 @@ msgstr ""
 msgid "Search agendas and minutes"
 msgstr ""
 
+#: site/pages/meetings/search/index.html
+msgid "Search meetings"
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+msgid ""
+"Search needs JavaScript. You can browse <a href=\"/meetings/boards/\">boards and committees</a> "
+"or <a href=\"/meetings/past/\">past meetings</a> instead."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+msgid "Search the full text of agendas and minutes, plus board names and dates."
+msgstr ""
+
+#. %(town)s is the town's name.
+#: site/pages/meetings/search/index.html
+#, python-format
+msgid "Search the text of %(town)s agendas and minutes."
+msgstr ""
+
 #: site/pages/officials/index.html
 msgid "Seat"
 msgstr ""
@@ -1768,6 +2908,10 @@ msgstr ""
 #: pipeline/i18n.py
 msgctxt "month"
 msgid "September"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Share"
 msgstr ""
 
 #: site/states/ma/schools.html
@@ -1804,12 +2948,37 @@ msgstr ""
 msgid "Skip to main content"
 msgstr ""
 
+#. %(month)s is a month, such as "Aug 2026"; %(homes)s is a number of homes.
+#: site/pages/housing/index.html
+#, python-format
+msgid "So far in %(year)s, through %(month)s: %(homes)s homes, estimated."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "So far in %(year)s, through %(month)s: %(homes)s homes, partly estimated."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "So far in %(year)s, through %(month)s: %(homes)s homes."
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
 msgstr ""
 
 #: site/pages/311/repeat-locations/index.html
 msgid "Sorted by requests submitted after an earlier request at the same place was closed."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Source"
+msgstr ""
+
+#: site/pages/about/index.html
+msgctxt "data status"
+msgid "Source"
 msgstr ""
 
 #: site/templates/base.html
@@ -1821,7 +2990,8 @@ msgstr ""
 msgid "Source: <a href=\"%(url)s\">%(source)s</a>."
 msgstr ""
 
-#: site/pages/311/index.html
+#. after the city's own instructions for public comment; %(title)s is the page they come from.
+#: site/pages/311/index.html site/templates/board.html site/templates/meeting.html
 #, python-format
 msgid "Source: <a href=\"%(url)s\">%(title)s</a>."
 msgstr ""
@@ -1901,6 +3071,18 @@ msgstr ""
 msgid "Source: <a href=\"%(url)s\">EdSight, Smarter Balanced Achievement</a>."
 msgstr ""
 
+#: site/pages/housing/index.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Executive Office of Housing and Livable Communities, Subsidized "
+"Housing Inventory</a>."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">Mass. Division of Local Services, parcel counts (LA-4)</a>."
+msgstr ""
+
 #: site/states/nh/schools.html
 #, python-format
 msgid "Source: <a href=\"%(url)s\">New Hampshire Department of Education, assessment data</a>."
@@ -1918,6 +3100,26 @@ msgstr ""
 msgid ""
 "Source: <a href=\"%(url)s\">New Hampshire Department of Education, iPlatform</a> (Cohort Counts "
 "By School)."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">U.S. Census Bureau via Census Reporter</a>."
+msgstr ""
+
+#. %(release)s names the survey's release, such as "ACS 2024 5-year".
+#: site/pages/housing/index.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">U.S. Census Bureau, %(release)s, via Census Reporter</a>."
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">U.S. Census Bureau, Building Permits Survey</a>."
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "Sources"
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -1941,7 +3143,7 @@ msgid ""
 "estimates</a>."
 msgstr ""
 
-#: site/templates/macros.html
+#: site/templates/macros.html site/templates/meeting.html
 msgid "Special meeting"
 msgstr ""
 
@@ -1961,6 +3163,13 @@ msgstr ""
 msgid ""
 "Spending per resident depends on which services a community provides itself, such as its own "
 "school system, trash pickup, or a harbor, and on seasonal population."
+msgstr ""
+
+#. %(contact)s is how to reach the site, written to start a sentence, such as "Email news@example.org
+#. or open an issue on the project's public issue tracker".
+#: site/pages/about/index.html
+#, python-format
+msgid "Spot a mistake or have a question? %(contact)s. Fixes are noted on the page they affect."
 msgstr ""
 
 #: site/pages/officials/index.html
@@ -2028,6 +3237,12 @@ msgstr ""
 msgid "State %(pct)s%%"
 msgstr ""
 
+#. %(value)s is the state's figure, for comparison with the city's.
+#: site/pages/housing/index.html
+#, python-format
+msgid "State %(value)s"
+msgstr ""
+
 #: site/states/nh/schools.html
 msgid "State average"
 msgstr ""
@@ -2051,6 +3266,12 @@ msgstr ""
 msgid ""
 "State figures as of <time datetime=\"%(iso)s\">%(when)s</time>; the DRA publishes each year's tax"
 " rates once they're set, in the fall."
+msgstr ""
+
+#. %(goal)s is a percentage, the share of homes the state wants to be affordable.
+#: site/pages/housing/index.html
+#, python-format
+msgid "State goal %(goal)s%%"
 msgstr ""
 
 #: site/states/ma/budget.html site/states/nh/budget.html
@@ -2080,6 +3301,11 @@ msgstr ""
 
 #: site/states/ct/schools.html site/states/nh/schools.html
 msgid "State tests"
+msgstr ""
+
+#: site/pages/about/index.html
+msgctxt "data status"
+msgid "Status"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -2122,8 +3348,13 @@ msgstr ""
 msgid "Submitted, not yet acknowledged. Counts as open."
 msgstr ""
 
-#: site/pages/311/index.html site/states/ct/schools.html site/states/ma/budget.html
-#: site/states/ma/schools.html site/states/nh/budget.html site/states/nh/schools.html
+#: site/pages/about/index.html
+msgid "Summaries written by AI are labeled on each meeting page."
+msgstr ""
+
+#: site/pages/311/index.html site/pages/housing/index.html site/states/ct/schools.html
+#: site/states/ma/budget.html site/states/ma/schools.html site/states/nh/budget.html
+#: site/states/nh/schools.html
 msgid "Summary"
 msgstr ""
 
@@ -2179,6 +3410,18 @@ msgstr ""
 msgid "Term ends"
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "Terms used here"
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+msgid "Testing"
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+msgid "Text and controls meet contrast requirements."
+msgstr ""
+
 #: site/pages/officials/index.html
 #, python-format
 msgid "The %(board)s's official page"
@@ -2196,12 +3439,71 @@ msgstr ""
 msgid "The 90th percentile: how long the slowest requests take."
 msgstr ""
 
+#: site/templates/meeting.html
+#, python-format
+msgid "The <a href=\"%(url)s\">agenda</a> is posted on the city website."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"The <a href=\"%(url)s\">posted agenda</a> is the official notice. It may give instructions for "
+"public comment."
+msgstr ""
+
 #: site/states/nh/schools.html
 msgid "The Department of Education publishes each figure once a year."
 msgstr ""
 
 #: site/states/ct/schools.html
 msgid "The Department of Education updates each figure once a year."
+msgstr ""
+
+#: site/pages/about/accessibility/index.html
+#, python-format
+msgid "The accessibility standard %(site)s follows, known issues, and how to report a problem."
+msgstr ""
+
+#. %(name)s names where the adopted budget is published, such as "the city's Budget Info page".
+#: site/states/nh/about_finance.html
+#, python-format
+msgid "The adopted budget is from <a href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+
+#: site/states/nh/about_finance.html
+#, python-format
+msgid "The adopted budget is from <a href=\"%(url)s\">the city's website</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The agenda and minutes are on the <a href=\"%(url)s\">city's meeting portal</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The agenda is on the <a href=\"%(url)s\">city's meeting portal</a>."
+msgstr ""
+
+#: site/states/nh/about_finance.html
+#, python-format
+msgid ""
+"The average single-family tax bill is calculated by Publick from the tax rate and assessed values"
+" on <a href=\"%(parcels)s\">NH GRANIT's statewide parcel map</a>, and property tax per resident "
+"from the U.S. Census Bureau's <a href=\"%(population)s\">population estimates</a>."
+msgstr ""
+
+#: site/states/nh/about_finance.html
+#, python-format
+msgid ""
+"The average single-family tax bill is calculated by Publick from the tax rate and assessed values"
+" on <a href=\"%(parcels)s\">NH GRANIT's statewide parcel map</a>, and property tax per resident "
+"from the U.S. Census Bureau's <a href=\"%(population)s\">population estimates</a>; the <a "
+"href=\"%(budget)s\">budget page</a> says how."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "The city"
 msgstr ""
 
 #: site/states/nh/budget.html
@@ -2228,6 +3530,10 @@ msgstr ""
 msgid "The four-year adjusted cohort graduation rate."
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "The full text above is a readable version."
+msgstr ""
+
 #: site/templates/macros.html
 msgid "The full text is in the city's PDF, linked below."
 msgstr ""
@@ -2248,6 +3554,10 @@ msgid ""
 " then, the city's PDF is linked below."
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "The minutes do not record any votes or decisions."
+msgstr ""
+
 #: site/states/nh/budget.html
 msgid ""
 "The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the "
@@ -2264,12 +3574,36 @@ msgstr ""
 msgid "The state average is of district-operated schools."
 msgstr ""
 
+#: site/pages/housing/index.html
+msgid "The state updates the list about every two years, with some changes in between."
+msgstr ""
+
 #: site/pages/streets/index.html
 msgid "The street lookup needs JavaScript."
 msgstr ""
 
+#. "They" are the visit totals of the sentence before.
+#: site/pages/about/index.html
+#, python-format
+msgid "They're <a href=\"%(url)s\">public</a>."
+msgstr ""
+
 #: site/pages/311/repeat-locations/index.html
 msgid "This list will appear after the next data update."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"This meeting is known from its <a href=\"%(url)s\">minutes in the City of %(town)s Archive "
+"Center</a>."
+msgstr ""
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"This meeting is known from the <a href=\"%(url)s\">%(name)s website</a>. It was not found on the "
+"City of %(town)s calendar."
 msgstr ""
 
 #: site/pages/404.html
@@ -2293,6 +3627,10 @@ msgstr ""
 #: pipeline/i18n.py
 msgctxt "weekday"
 msgid "Thursday"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Time"
 msgstr ""
 
 #: site/templates/macros.html
@@ -2337,6 +3675,11 @@ msgstr ""
 #: pipeline/i18n.py
 msgctxt "weekday"
 msgid "Tuesday"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgctxt "property"
+msgid "Type"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -2399,13 +3742,64 @@ msgstr ""
 msgid "Unused levy capacity"
 msgstr ""
 
+#: site/pages/about/index.html
+msgctxt "data status"
+msgid "Up to date"
+msgstr ""
+
+#. %(next)s says when newer figures are expected, such as "August 2026 rate usually by October 10,
+#. 2026".
+#: site/pages/about/index.html
+#, python-format
+msgid "Up to date. Next: %(next)s."
+msgstr ""
+
+#: site/pages/meetings/index.html
+msgctxt "meetings"
+msgid "Upcoming"
+msgstr ""
+
+#. %(town)s is the town and %(board)s a board's name, such as "City Council".
+#: site/templates/board.html
+#, python-format
+msgid "Upcoming and past meetings of the %(town)s %(board)s, with agendas."
+msgstr ""
+
+#. %(town)s is the town and %(state)s its state's abbreviation, such as "MA".
+#: site/pages/meetings/index.html
+#, python-format
+msgid ""
+"Upcoming public meetings in %(town)s, %(state)s, with times, places, how to attend, agendas, and "
+"what was decided."
+msgstr ""
+
 #: site/templates/base.html
 #, python-format
 msgid "Updated <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr ""
 
+#: site/pages/about/index.html
+msgid "Updated every morning from public sources."
+msgstr ""
+
 #: site/pages/index.html
 msgid "Updated every morning."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Vacant"
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Values and rents"
+msgstr ""
+
+#. %(town)s is the town's name.
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid ""
+"Votes and other decisions recorded in the minutes of %(town)s's City Council, boards, and "
+"committees, newest meeting first."
 msgstr ""
 
 #: site/pages/311/index.html site/pages/311/methodology/index.html
@@ -2443,6 +3837,15 @@ msgid ""
 " residents report problems as well as how the city responds."
 msgstr ""
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Watch or take part online: <a href=\"%(url)s\">join by Zoom</a>."
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "We count visits so we know which pages are useful. That's all."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "weekday, short"
 msgid "Wed"
@@ -2453,6 +3856,11 @@ msgctxt "weekday"
 msgid "Wednesday"
 msgstr ""
 
+#: site/pages/about/index.html
+#, python-format
+msgid "What %(site)s is, where its data comes from, and how to report a mistake."
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "What it should say, and where you saw it (if you know):"
 msgstr ""
@@ -2460,6 +3868,10 @@ msgstr ""
 #: site/states/nh/budget.html
 #, python-format
 msgid "What the %(year)s property tax raised for each part, in all."
+msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "What the City Council, boards, and committees decided, from their minutes, newest meeting first."
 msgstr ""
 
 #: site/states/nh/budget.html
@@ -2479,6 +3891,14 @@ msgstr ""
 msgid ""
 "What the district spends to run its schools for each student, from all sources: local, state, and"
 " federal. It leaves out construction, debt, transportation, and tuition paid to other districts."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "What was decided"
+msgstr ""
+
+#: site/pages/about/index.html
+msgid "What you search for, and which street you look up, is never recorded."
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -2501,6 +3921,10 @@ msgstr ""
 msgid "What's happening on your street?"
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "What's on the agenda"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "What's wrong:"
 msgstr ""
@@ -2509,6 +3933,14 @@ msgstr ""
 msgid ""
 "When a city revalues its property, assessed values jump and the rate falls to match, so a lower "
 "rate doesn't by itself mean lower bills."
+msgstr ""
+
+#: site/pages/meetings/boards/index.html
+msgid "When each board and committee meets next."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "Where"
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -2541,6 +3973,20 @@ msgstr ""
 msgid "Who represents you"
 msgstr ""
 
+#: site/pages/about/accessibility/index.html
+#, python-format
+msgid "Works with screen readers, keyboards, and zoom up to 200%%."
+msgstr ""
+
+#: site/pages/housing/index.html
+msgid "Year"
+msgstr ""
+
+#: site/pages/housing/index.html
+#, python-format
+msgid "Year-round homes are from the %(year)s Census."
+msgstr ""
+
 #: site/states/ma/budget.html
 #, python-format
 msgid ""
@@ -2558,7 +4004,7 @@ msgid ""
 "isn't sent to Publick or anyone else, and it isn't saved."
 msgstr ""
 
-#: site/pages/streets/index.html
+#: site/pages/meetings/index.html site/pages/streets/index.html
 msgid "Your street"
 msgstr ""
 
@@ -2588,6 +4034,12 @@ msgstr ""
 msgid ""
 "email <a href=\"mailto:%(email)s\">%(email)s</a> or open an issue on the <a "
 "href=\"%(issues)s\">project's public issue tracker</a>"
+msgstr ""
+
+#. Said of a year's count of new homes in the table.
+#: site/pages/housing/index.html
+msgctxt "year's count"
+msgid "estimated"
 msgstr ""
 
 #: site/states/ma/budget.html
@@ -2622,13 +4074,27 @@ msgctxt "start time"
 msgid "not listed"
 msgstr ""
 
+#. A part of the vacant homes in the row above.
+#: site/pages/housing/index.html
+msgid "of which seasonal or vacation homes"
+msgstr ""
+
 #: site/templates/macros.html
 #, python-format
 msgid "open an issue on the <a href=\"%(issues)s\">project's public issue tracker</a>"
 msgstr ""
 
+#: site/pages/housing/index.html
+msgctxt "year's count"
+msgid "partly estimated"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "school district's website"
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "the city website"
 msgstr ""
 
 #: pipeline/build_site.py

@@ -105,6 +105,8 @@ pipeline/                   Python package
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
+  i18n.py                   The sites' wording in other languages: the language being built, and
+                            `python -m pipeline.i18n update` to keep site/strings/ current
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
   network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
@@ -113,6 +115,7 @@ pipeline/                   Python package
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/states/<state>/        Each state's own pages (schools, budget) and page parts (its About page sources)
+site/strings/<language>.po  Each language's translation of the English wording marked in templates and code
 site/static/                CSS, icons, and other files copied as-is (a town's own site/static/ is laid on top)
 site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause)
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
