@@ -80,8 +80,9 @@ pipeline/                   Python package
   fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
-  summarize.py              Daily: agenda and minutes PDFs -> readable text + summaries (AI) -> data/summaries/,
+  summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             new documents first, with each month's cost in data/summary-costs.json
+  pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   fetch_311.py              Daily: SeeClickFix -> data/311/requests.json (also --backfill YYYY-MM)
   compute_311.py            Daily: requests -> data/311/scorecard.json
   fetch_finance.py, fetch_budget.py, fetch_schools.py   Tax bill, budget, school figures, from the town's state's source -> data/finance/, data/schools/
