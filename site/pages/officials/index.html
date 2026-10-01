@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "macros.html" import on_this_page %}
+{% set o = officials %}
+{% block title %}Who represents you{% endblock %}
+{% block description %}Elected officials in {{ town.name }}, by office and by ward, and how to reach them.{% endblock %}
+{% block head %}
+{% if wards_url %}
+<link rel="stylesheet" href="{{ "/static/vendor/leaflet/leaflet.css" | versioned }}">
+<script src="{{ "/static/vendor/leaflet/leaflet.js" | versioned }}" defer></script>
+<script src="{{ "/static/js/wards.js" | versioned }}" defer></script>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Who represents you</h1>
+  <p class="lede">Elected officials in {{ town.name }}, by office and by ward, and how to reach them.</p>
+  <p class="source-note">Checked {{ o.checked | date("plain") }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.</p>
+</div>
+
+{% set links = [] %}
+{% if o.wards %}{% set _ = links.append(("wards", "Find your ward")) %}{% endif %}
+{% for b in o.bodies %}{% set _ = links.append((b.id, b.name)) %}{% endfor %}
+{{ on_this_page(links) }}
+
+{% if o.wards %}
+<h2 id="wards">Find your ward</h2>
+{% if wards_url %}
+<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-town="{{ town.name }}" role="region" aria-label="Map of {{ town.name }}'s wards" hidden></div>
+<div class="locate" id="locate" hidden>
+  <button class="button" type="button" id="locate-button" aria-describedby="locate-note">Find my ward using my location</button>
+  <p class="small" id="locate-note">Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved.</p>
+</div>
+<div class="ward-result" id="ward-result" role="status" aria-live="polite"></div>
+{% endif %}
+<p>Members elected citywide, such as at-large members, represent every ward. They're listed under each office below.</p>
+<ul class="ward-list">
+  {% for w in o.wards %}
+  <li id="{{ w.id }}" data-ward="{{ w.ward }}">
+    <h3>Ward {{ w.ward }}</h3>
+    {% if w.members %}
+    <ul>
+      {% for m in w.members %}<li>{{ m.body }}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
+    </ul>
+    {% else %}
+    <p class="small">No seat is elected by this ward alone.</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% for b in o.bodies %}
+<h2 id="{{ b.id }}">{{ b.name }}</h2>
+{% if b.get("note") %}<p>{{ b.note }}</p>{% endif %}
+{% if b.board_url or b.get("url") %}
+<ul class="link-row">
+  {% if b.board_url %}<li><a href="{{ b.board_url }}">{{ b.name }} meetings</a></li>{% endif %}
+  {% if b.get("url") %}<li><a href="{{ b.url }}">The {{ b.name }}'s official page</a></li>{% endif %}
+</ul>
+{% endif %}
+<div class="table-wrap">
+<table class="data-table officials">
+  <thead><tr><th scope="col">Seat</th><th scope="col">Member</th><th scope="col">Term ends</th><th scope="col">Contact</th></tr></thead>
+  <tbody>
+  {% for m in b.members %}
+    <tr id="{{ m.anchor }}">
+      <td>{% if m.ward_id %}<a href="#{{ m.ward_id }}">{{ m.seat }}</a>{% else %}{{ m.seat }}{% endif %}</td>
+      <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
+      <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
+      <td>
+        {%- if m.get("email") %}<a href="mailto:{{ m.email }}">Email<span class="visually-hidden"> {{ m.name }}</span></a>{% endif %}
+        {%- if m.get("email") and m.get("phone") %}<br>{% endif %}
+        {%- if m.get("phone") %}<a href="tel:{{ m.phone | replace(" ", "") | replace("(", "") | replace(")", "") }}">{{ m.phone }}</a>{% endif %}
+        {%- if not m.get("email") and not m.get("phone") %}–{% endif -%}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endfor %}
+
+<p class="source-note">Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.</p>
+{% endblock %}

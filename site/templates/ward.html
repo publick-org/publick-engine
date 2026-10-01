@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "charts.html" import month_columns, bars, chart_links %}
+{% from "macros.html" import city_report_button %}
 {% set w = ward %}
 {% block title %}Ward {{ w.ward }}: 311 requests{% endblock %}
 {% block description %}311 requests in Ward {{ w.ward }}, {{ town.name }}: how many, how quickly the city responds, and what kinds.{% endblock %}
@@ -8,6 +9,7 @@
 <div class="page-head">
   <h1>Ward {{ w.ward }}</h1>
   <p class="lede">311 requests placed in Ward {{ w.ward }} over the past 12 months.{% if w.population_2020 %} Population {{ w.population_2020 | number }} (2020 census).{% endif %}</p>
+  {{ city_report_button(config) }}
 </div>
 <ul class="stats">
   <li class="stat"><div><span class="stat-label">Requests</span><span class="stat-value">{{ w.received | number }}</span>{% if w.per_1000_residents %}<span class="stat-change">{{ w.per_1000_residents | round | int }} per 1,000 residents</span>{% endif %}</div></li>

@@ -65,6 +65,13 @@ summary = "New homes permitted, home values and rents, affordable housing, and t
 status = "live"
 
 [[sections]]
+slug = "officials"
+title = "Who represents you"
+nav = "Officials"
+summary = "The mayor, City Council, and School Committee, by office and by ward, and how to reach them."
+status = "live"
+
+[[sections]]
 slug = "about"
 title = "About"
 summary = "Data sources, update schedule, metric definitions, and corrections."
@@ -336,3 +343,41 @@ abbreviations = ["SC", "B&F", "B & F", "Program", "Personnel", "Ad Hoc Communica
 "Building & Finance Subcommittee" = "School Committee Building & Finance Subcommittee"
 "Personnel Subcommittee" = "School Committee Personnel Subcommittee"
 "Ad Hoc Communications Subcommittee" = "School Committee Ad Hoc Communications Subcommittee"
+
+# Who represents you (the Officials page). Kept by hand from official city
+# and school websites: checked is when the list was last checked against them.
+# A member with a ward represents that ward (a ward in the ward file,
+# [seeclickfix] precincts_file, or [officials] wards_file); one without is
+# elected citywide. The names here are examples for the tests.
+[officials]
+checked = "2026-09-15"
+
+[[officials.bodies]]
+name = "Mayor"
+url = "https://gloucester-ma.gov/"
+members = [
+  { name = "Morgan Example", seat = "Citywide", term_ends = "2028-01", email = "mayor@example.org", phone = "(978) 555-0100" },
+]
+
+[[officials.bodies]]
+name = "City Council"
+note = "Five councilors elected by ward and four at-large."
+url = "https://gloucester-ma.gov/"
+members = [
+  { name = "Avery Example", seat = "Ward 1", ward = 1, term_ends = "2028-01", email = "ward1@example.org" },
+  { name = "Blake Example", seat = "Ward 2", ward = 2, term_ends = "2028-01" },
+  { name = "Casey Example", seat = "Ward 3", ward = 3, term_ends = "2028-01", role = "Council President" },
+  { name = "Dana Example", seat = "Ward 4", ward = 4, term_ends = "2028-01" },
+  { name = "Ellis Example", seat = "Ward 5", ward = 5, term_ends = "2028-01" },
+  { name = "Finley Example", seat = "At-large", term_ends = "2028-01" },
+  { name = "Gray Example", seat = "At-large", term_ends = "2028-01" },
+]
+
+[[officials.bodies]]
+name = "School Committee"
+url = "https://gloucester-ma.gov/"
+members = [
+  { name = "Harper Example", seat = "At-large", term_ends = "2030-01" },
+  { name = "Indy Example", seat = "Ward 2", ward = 2, term_ends = "2028-01" },
+  { name = "Morgan Example", seat = "Mayor", role = "Chair", term_ends = "2028-01" },
+]

@@ -457,6 +457,112 @@ town, which is fine for the next few and not for hundreds.
 
 **Matters at:** the next town.
 
+## New information for readers
+
+Items 11 to 13 aren't about scale: they're what the sites could tell readers
+that they don't yet. They don't depend on the number of towns, so they aren't
+in the stages below.
+
+## 11. Who represents you
+
+**What it's for.** Each site has ward maps and a street lookup, but doesn't say
+who sits on the City Council or School Committee, which seat is whose, when
+their terms end, or how to reach them. It's among the first things readers
+look for, and item 12 needs the same list of members.
+
+**Plan.**
+- Each town's config lists its elected bodies and their members: name, seat
+  (a ward, or at-large), term end, and the city's page and contact for each,
+  with the date the list was last checked. Members change at elections and
+  vacancies, rarely enough to keep by hand; the status page flags a list not
+  checked since the town's last election.
+- A page per town for its officials, by body and seat, linked from each board's
+  meeting pages.
+- Finding your ward. The street lookup searches a street name, not an address,
+  and a street can cross wards, so it says which wards a street runs through.
+  A map of the wards (the town's ward file, already used by 311) lets a reader
+  find their own spot, in the browser, with no address sent anywhere.
+
+**What it takes.** A config table, one page, and the ward map, using the ward
+files and map library the sites already have: days, not weeks. Gathering each
+town's members is a few minutes a town, from the city's website.
+
+*Done: the Officials page (`pipeline/officials.py`, the section `officials`),
+from each town's `[officials]` table: each body's members with seat, term end,
+and official email, a list of who represents each ward, and the ward map, whose
+"Find my ward" checks the visitor's location in the browser without sending or
+saving it, or moving the map to it. Gloucester, Malden, and Manchester list
+their mayor, council, and school committee, checked 2026-10-01. Not done: the
+status page flagging a list not checked since the town's last election, and
+the street lookup saying which wards a street runs through.*
+
+**Matters at:** now, for every town.
+
+## 12. Vote records
+
+**What it's for.** How each member voted, motion by motion, from the minutes.
+It's the most direct record of what elected officials do, and the most
+sensitive thing the sites would publish: a wrong vote attributed to a named
+person does real harm, and is read as taking sides. So the rule is that a vote
+is shown only as the minutes record it, by name, with the exact line it came
+from, and nothing is inferred.
+
+**What the minutes give.** Today's minutes summaries list decisions as
+sentences with a tally ("Approved ... 10-1"), not members' votes. Each saved
+summary keeps the document's full text, but that text is the AI's
+transcription of the PDF, so it can't be the evidence for a vote: the PDF's
+own text layer is (the PDFs are in the documents bucket; a scanned PDF with no
+text layer needs a person to check it, or is left out). How minutes record
+votes differs by city:
+- Malden's City Council minutes list roll calls in a fixed form ("Yea: 10 -
+  Colon Hayes, Condon, ... Nay: 1 - O'Malley"; 8 of the 12 sets saved so
+  far), which a parser can read without AI.
+- Manchester's Board of Aldermen minutes name members in sentences ("Aldermen
+  Sapienza, Kantor, and Terrio voted yea").
+- Gloucester's minutes mostly give counts, with names only for some roll
+  calls.
+- Many votes are voice votes or "unanimous", with only who was present.
+
+**Plan.**
+- Start with one town and one body, where minutes name votes in a fixed form
+  (Malden's City Council), read from the PDF's text without AI.
+- For other formats, the summary step extracts each named vote with the line
+  it came from. A vote is kept only if a check that isn't AI confirms it: the
+  quoted line is in the PDF's own text, every name matches the body's member
+  list (item 11), and the counts add up. Anything that fails isn't shown.
+- A unanimous or voice vote is shown as that, with the members the minutes
+  list as present, never as each member voting yes.
+- Pages: each motion's vote on its meeting page, and each member's votes on
+  their page (item 11), every vote linked to its minutes. No scores, rankings,
+  or "voted with" figures.
+- Each vote has the report-an-error link, and a few weeks of a person
+  checking every new vote against the minutes before a town's votes are
+  public.
+
+**Limits to say on the page.** Votes appear only once minutes are posted,
+often weeks after the meeting, and only as far back as the town's saved
+minutes go.
+
+**What it takes.** The member lists (item 11) first. Then Malden's parser and
+the pages, about a week or two; the extraction and its checks for other
+formats, a few weeks more, with a small summary cost for documents already
+saved.
+
+**Matters at:** after item 11, when the summaries have been reliable for a
+while.
+
+## 13. Meeting video summaries (not planned)
+
+**The idea.** Many meetings are recorded (Beverly streams on YouTube,
+Gloucester on 1623 Studios), and a recording has what minutes leave out: who
+said what, and public comment. Summaries could be written from a recording's
+captions, posted weeks before the minutes.
+
+**Why not now.** Automatic captions get names and numbers wrong, a long
+meeting costs several times what its minutes do, and a summary of a heated
+meeting is where an error does the most harm. Not planned unless that changes.
+Linking each meeting's recording from its page is simple and can come first.
+
 ## Stages
 
 Done: the network repository, with all three towns moved in and a `[storage]`

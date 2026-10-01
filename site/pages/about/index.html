@@ -52,6 +52,9 @@
   {% if config.permits is defined %}
   <li><strong>Building and demolition permits:</strong> the city's <a href="{{ config.permits.page_url }}">Inspectional Services permit data</a> on its Data Hub, used for the <a href="/streets/">street lookup</a>.</li>
   {% endif %}
+  {% if officials %}
+  <li><strong>Elected officials:</strong> listed by hand from official city and school websites, last checked {{ officials.checked | date("plain") }}. See <a href="/officials/">Who represents you</a>.</li>
+  {% endif %}
   {% if config.seeclickfix is defined %}
   <li><strong>Ward maps:</strong> <a href="{{ wards.url }}">{{ wards.publisher }}</a>, {{ wards.year }} boundaries.</li>
   <li><strong>Street maps:</strong> <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, drawn with <a href="https://leafletjs.com">Leaflet</a>. Map images load from OpenStreetMap's servers.</li>
@@ -82,6 +85,7 @@
 <ul>
   <li>No cookies, no ads, and no tracking across other sites.</li>
   <li>What you search for, and which street you look up, is never recorded.</li>
+  {% if wards_url %}<li>If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.</li>{% endif %}
   <li>Nothing that identifies you is kept, not even your IP address.</li>
 </ul>
 <p class="small">Counting is done by <a href="https://www.goatcounter.com">GoatCounter</a>, a privacy-friendly service. It notes the page, the site that linked here, and your screen size, along with the browser type and rough location (such as the country or state) that every website can see. We only look at the totals.{% if config.analytics.public_stats %} They're <a href="{{ config.analytics.public_stats }}">public</a>.{% endif %}</p>
