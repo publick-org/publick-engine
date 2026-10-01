@@ -83,9 +83,22 @@ def parse_listing(page: str, base_url: str) -> list[dict]:
     return rows
 
 
+# A category named last-name-first, as many cities' Agenda Centers sort them:
+# "Health, Board of", "Appeals, Zoning Board of", "Aging, Council on".
+INVERTED = re.compile(r"^(?P<subject>[^,]+),\s+(?P<board>.+\b(?:of|on|for))$", re.I)
+
+
+def natural_name(category: str) -> str:
+    """'Health, Board of' -> 'Board of Health'. Other names are kept as they are."""
+    m = INVERTED.match(category.strip())
+    return f"{m['board']} {m['subject']}" if m else category
+
+
 def body_for(row: dict, aliases: dict, committees: dict) -> str:
-    """The category's board, or a committee of it named in the row's title."""
-    body = next((target for name, target in aliases.items() if name.lower() == row["category"].lower()), row["category"])
+    """The category's board (a town's alias for it, or its name the right way round),
+    or a committee of it named in the row's title."""
+    body = next((target for name, target in aliases.items() if name.lower() == row["category"].lower()),
+                natural_name(row["category"]))
     listed = committees.get(row["category"]) or committees.get(body) or {}
     return find_board(row["title"], [], listed) or body
 

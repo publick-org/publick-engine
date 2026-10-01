@@ -291,7 +291,8 @@ main .hbars > li { max-width: none; margin: 0; }
 .hbars.wide-l .hbar { grid-template-columns: 8rem 1fr auto; }
 .hbar a { font-weight: 600; }
 
-.table-wrap { overflow-x: auto; }
+/* Positioned, so screen-reader-only text in a wide table is clipped with it rather than widening the page. */
+.table-wrap { overflow-x: auto; position: relative; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
 .data-table th, .data-table td { padding: 0.65rem 0.5rem 0.65rem 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .data-table thead th {

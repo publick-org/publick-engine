@@ -455,6 +455,16 @@ town, which is fine for the next few and not for hundreds.
 - A town whose meeting system the engine doesn't read yet is found the same
   way, and that reader becomes its own piece of work.
 
+*Done, from preparing Beverly: a town's update skips each step whose config
+table it doesn't have (most towns have no 311, permits file, or School
+Committee folders in Drive) without starting it, and Agenda Center categories
+written last-name-first ("Health, Board of") are turned round in the engine,
+so towns don't each list them. Every lookup the helper needs answered
+Beverly's from a public API: the DOR code from `states/ma/`, the DESE
+district from the state's education data portal, the BLS area (and so the
+Census place) from BLS's area list, and the ward and precinct file from
+MassGIS. Not done: the checklist and the helper.*
+
 **Matters at:** the next town.
 
 ## New information for readers
@@ -492,9 +502,24 @@ from each town's `[officials]` table: each body's members with seat, term end,
 and official email, a list of who represents each ward, and the ward map, whose
 "Find my ward" checks the visitor's location in the browser without sending or
 saving it, or moving the map to it. Gloucester, Malden, and Manchester list
-their mayor, council, and school committee, checked 2026-10-01. Not done: the
-status page flagging a list not checked since the town's last election, and
-the street lookup saying which wards a street runs through.*
+their mayor, council, and school committee, checked 2026-10-01. A seat can be
+elected by several wards (a district of wards), its member listed under each.
+Not done: the status page flagging a list not checked since the town's last
+election, and the street lookup saying which wards a street runs through.*
+
+**At a hundred towns and more.** The lists are kept by hand: about fifteen
+people a town, checked after every election and when a seat changes. Two steps
+keep that manageable:
+- Each town's next municipal election in its config, so the status page flags
+  its list the day after, not months later.
+- A check that compares each town's list with its city's own council and
+  school committee pages (most are CivicPlus, so one reader covers many) and
+  opens one issue listing the differences for a person to confirm. It never
+  changes a list by itself.
+
+Ward files are downloaded town by town today. MassGIS's Wards and Precincts
+file covers every Massachusetts municipality, so it belongs with the
+statewide sources (item 2): fetched once, with each town's wards cut from it.
 
 **Matters at:** now, for every town.
 
@@ -515,10 +540,19 @@ own text layer is (the PDFs are in the documents bucket; a scanned PDF with no
 text layer needs a person to check it, or is left out). How minutes record
 votes differs by city:
 - Malden's City Council minutes list roll calls in a fixed form ("Yea: 10 -
-  Colon Hayes, Condon, ... Nay: 1 - O'Malley"; 8 of the 12 sets saved so
-  far), which a parser can read without AI.
+  <ten surnames> Nay: 1 - <one surname>"), which a parser can read
+  without AI. A test on 2026-10-01 read every Malden council and Committee of
+  the Whole minutes PDF from January to September (21, all with a text
+  layer, from the city's meeting software, which other cities use too): 128
+  roll calls, every group's count matching its names, every name a member.
+  What a parser has to handle: a member present but not named in a vote, with
+  no note (shown as "not recorded in this vote", never as absent or yes);
+  votes written as sentences ("Councillors <three surnames> dissenting",
+  "voted present"); a stated tally that disagrees with the names (left for a
+  person); page headers inside a roll call; and a "minutes" link that serves
+  the agenda.
 - Manchester's Board of Aldermen minutes name members in sentences ("Aldermen
-  Sapienza, Kantor, and Terrio voted yea").
+  <three surnames> voted yea").
 - Gloucester's minutes mostly give counts, with names only for some roll
   calls.
 - Many votes are voice votes or "unanimous", with only who was present.
