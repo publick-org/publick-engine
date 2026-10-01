@@ -9,7 +9,7 @@ import time
 
 import pytest
 from conftest import PAGE_PATHS, serve
-from test_sample_towns import malden_site, manchester_site  # noqa: F401 (fixtures)
+from test_sample_towns import malden_site, manchester_site, wallingford_site  # noqa: F401 (fixtures)
 from test_site_check_pages import HAND_WRITTEN
 
 from pipeline import build_site
@@ -136,7 +136,8 @@ def test_meeting_search_results(browser, axe, server_url, viewport):
 # schools pages. The rest are Gloucester's data, checked above. As on a daily run
 # (site_checks/pages.py), every hand-written page and the first and largest of each record
 # template, in light mode only, as site_checks/ checks a town.
-OWN_PAGES = {"manchester": ("/meetings/", "/budget/", "/schools/"), "malden": ("/meetings/",)}
+OWN_PAGES = {"manchester": ("/meetings/", "/budget/", "/schools/"), "malden": ("/meetings/",),
+             "wallingford": ("/meetings/",)}
 
 
 @pytest.mark.parametrize("viewport", VIEWPORTS)
