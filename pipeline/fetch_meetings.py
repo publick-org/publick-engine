@@ -9,10 +9,13 @@ recorded in each meeting's history so they stay visible.
 A town's calendars are the tables in [meetings]: a CivicPlus calendar feed
 (calendar_feed, which also saves agendas), a CivicPlus Agenda Center
 ([meetings.agenda_center], which also saves agendas and lists minutes), a
-CivicClerk portal ([meetings.civicclerk], which also saves agendas) and a
+CivicClerk portal ([meetings.civicclerk], which also saves agendas), a
 DotNetNuke city calendar ([meetings.dnn], which also saves agendas linked as
-PDFs named for the meeting's date). A town can have several; Manchester's aldermanic meetings
-are on CivicClerk and its other boards on the city calendar.
+PDFs named for the meeting's date) and a town website with a meetings calendar
+and one documents page for every board's agendas and minutes
+([meetings.file_list], which also saves agendas and lists minutes). A town can
+have several; Manchester's aldermanic meetings are on CivicClerk and its other
+boards on the city calendar.
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -34,10 +37,11 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
+from pipeline.meeting_names import words
 
 # Fields whose changes are recorded in a meeting's history.
 TRACKED_FIELDS = ("title", "date", "start_time", "location_name", "address", "status", "listed")
@@ -282,6 +286,43 @@ def dnn_calendar(config: dict) -> Calendar:
     return Calendar("city calendar", events, lambda m: m["id"].startswith("dnn-"), details)
 
 
+def file_list_calendar(config: dict) -> Calendar:
+    """A town website's meetings calendar and its documents page of every board's
+    agendas and minutes ([meetings.file_list]): one request for the documents page
+    and one for each month, this month and months_ahead (default 1). Documents
+    count from `since`; only the boards in [meetings] boards are collected."""
+    source = config["meetings"]
+    settings = source["file_list"]
+    boards, aliases = source.get("boards", []), source.get("aliases", {})
+    if not boards:
+        raise SystemExit("[meetings.file_list] needs [meetings] boards: the boards to collect.")
+    listed_boards = {words(b) for b in boards}
+    documents = source.get("documents", True)
+
+    def events(client, today, store):
+        month, listed = today.replace(day=1), []
+        for _ in range(settings.get("months_ahead", 1) + 1):
+            page = client.get(filelist.month_url(settings["calendar_url"], month))
+            listed += [e for e in filelist.parse_month(page.text, settings["calendar_url"], boards, aliases)
+                       if words(normalize_body(e["body"], aliases)) in listed_boards]
+            month = (month + timedelta(days=32)).replace(day=1)
+        files = filelist.parse_documents(client.get(settings["documents_url"]).text, settings["documents_url"])
+        found = filelist.meeting_documents(files, boards, aliases, settings["since"])
+        folders = {words(b) for f in files if (b := filelist.folder_board(f["folders"][0], boards, aliases))}
+        filelist.adopt(store, listed)
+        recorded = [m for m in store.values() if m.get("source") == filelist.SOURCE]
+        return filelist.combine(listed, found, recorded, settings["documents_url"], folders)
+
+    def details(client, meeting, storage, stamp):
+        # A calendar meeting's own page gives its location; it is read once.
+        if "location_name" not in meeting and meeting["source_url"] != settings["documents_url"]:
+            merge(meeting, filelist.parse_event_page(client.get(meeting["source_url"]).text), stamp, track=True)
+        if documents:
+            fetch_agenda(client, meeting, meeting, storage, stamp)
+
+    return Calendar("town website", events, lambda m: m.get("source") == filelist.SOURCE, details)
+
+
 def calendars(config: dict) -> list[Calendar]:
     """The town's meeting calendars, by the tables in [meetings]."""
     source = config["meetings"]
@@ -294,6 +335,8 @@ def calendars(config: dict) -> list[Calendar]:
         found.append(civicclerk_calendar(config))
     if "dnn" in source:
         found.append(dnn_calendar(config))
+    if "file_list" in source:
+        found.append(file_list_calendar(config))
     return found
 
 
