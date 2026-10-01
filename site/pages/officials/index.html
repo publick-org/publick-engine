@@ -14,7 +14,7 @@
 <div class="page-head">
   <h1>Who represents you</h1>
   <p class="lede">Elected officials in {{ town.name }}, by office and by ward, and how to reach them.</p>
-  <p class="source-note">From {% if o.source_url %}<a href="{{ o.source_url }}">the city's website</a>{% else %}the city's website{% endif %}, checked {{ o.checked | date("plain") }}. Members change after elections and when a seat is filled; the city's website is the official record.</p>
+  <p class="source-note">Checked {{ o.checked | date("plain") }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.</p>
 </div>
 
 {% set links = [] %}
@@ -39,7 +39,7 @@
     <h3>Ward {{ w.ward }}</h3>
     {% if w.members %}
     <ul>
-      {% for m in w.members %}<li>{{ m.body }}: <a href="#{{ m.id }}">{{ m.name }}</a></li>{% endfor %}
+      {% for m in w.members %}<li>{{ m.body }}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
     </ul>
     {% else %}
     <p class="small">No seat is elected by this ward alone.</p>
@@ -55,7 +55,7 @@
 {% if b.board_url or b.get("url") %}
 <ul class="link-row">
   {% if b.board_url %}<li><a href="{{ b.board_url }}">{{ b.name }} meetings</a></li>{% endif %}
-  {% if b.get("url") %}<li><a href="{{ b.url }}">{{ b.name }} on the city's website</a></li>{% endif %}
+  {% if b.get("url") %}<li><a href="{{ b.url }}">The {{ b.name }}'s official page</a></li>{% endif %}
 </ul>
 {% endif %}
 <div class="table-wrap">
@@ -63,7 +63,7 @@
   <thead><tr><th scope="col">Seat</th><th scope="col">Member</th><th scope="col">Term ends</th><th scope="col">Contact</th></tr></thead>
   <tbody>
   {% for m in b.members %}
-    <tr id="{{ m.id }}">
+    <tr id="{{ m.anchor }}">
       <td>{% if m.ward_id %}<a href="#{{ m.ward_id }}">{{ m.seat }}</a>{% else %}{{ m.seat }}{% endif %}</td>
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
       <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>

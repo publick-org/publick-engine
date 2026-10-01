@@ -65,7 +65,9 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
             if term_ends is not None and not re.fullmatch(r"\d{4}-\d{2}", term_ends):
                 raise SystemExit(f'term_ends for {m["name"]} in {where} must be a month, like "2028-01".')
             member = {**m, "ward": ward, "ward_id": f"ward-{slugify(ward)}" if ward and wards else None, "term_ends": term_ends,
-                      "id": slugify(m["name"])}
+                      "id": slugify(m["name"]),
+                      # The member's row: someone on two bodies (the mayor) has a row on each.
+                      "anchor": f"{slugify(body['name'])}-{slugify(m['name'])}"}
             members.append(member)
             if member["ward_id"]:
                 by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]), **member})
@@ -73,7 +75,6 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board)})
     return {
         "checked": checked.isoformat(),
-        "source_url": table.get("source_url"),
         "bodies": bodies,
         # Every ward in the ward file, even one with no ward seat, so the list matches the map.
         "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": by_ward.get(w, [])} for w in wards],

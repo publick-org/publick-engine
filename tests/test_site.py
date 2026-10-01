@@ -388,6 +388,11 @@ def test_officials_page(site_dir, config):
     for ward in range(1, 6):
         assert f'<li id="ward-{ward}" data-ward="{ward}">' in page
     assert '<a href="#ward-3">Ward 3</a>' in page and "Council President" in page
+    assert '<a href="#city-council-casey-example">Casey Example</a>' in page
+    # The mayor is on two bodies: a row on each, with different anchors.
+    assert 'id="mayor-morgan-example"' in page and 'id="school-committee-morgan-example"' in page
+    ids = re.findall(r'\bid="([^"]+)"', page)
+    assert len(ids) == len(set(ids))
     assert "January 2028" in page and 'href="tel:978555-0100"' in page
     # The location note says it never leaves the browser.
     assert "It isn't sent to Publick or anyone else, and it isn't saved." in page
