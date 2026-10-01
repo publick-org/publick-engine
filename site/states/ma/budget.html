@@ -52,13 +52,13 @@
 <h2 id="spending">{{ _("Spending") }}</h2>
 <p>{% trans year=sp.fiscal_year %}General fund spending in fiscal year {{ year }}, by what it paid for.{% endtrans %} {{ _("The general fund covers most city services; water, sewer, and other self-funded services are budgeted separately.") }}</p>
 {% set rows = [] %}
-{% for name, amount in sp.functions | dictsort(by="value", reverse=true) %}{% set _ = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / sp.total * 100) | round | int) ~ "%"}) %}{% endfor %}
+{% for name, amount in sp.functions | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / sp.total * 100) | round | int) ~ "%"}) %}{% endfor %}
 {{ bars(rows, _("General fund spending by function, fiscal year %(year)s", year=sp.fiscal_year), wide_numbers=true) }}
 <p class="small">{{ _("Fixed costs include employee and retiree health insurance, pensions, and other insurance. School employees' benefits are counted there, not under education.") }}</p>
 
 <h3 id="spending-by-year">{{ _("Total by year") }}</h3>
 {% set cols = [] %}
-{% for y in budget.spending %}{% set _ = cols.append({"label": _("fiscal year %(year)s", year=y.fiscal_year), "short": "’" ~ (y.fiscal_year | string)[2:], "value": y.total, "text": y.total | money}) %}{% endfor %}
+{% for y in budget.spending %}{% set ignored = cols.append({"label": _("fiscal year %(year)s", year=y.fiscal_year), "short": "’" ~ (y.fiscal_year | string)[2:], "value": y.total, "text": y.total | money}) %}{% endfor %}
 {{ year_columns(cols, _("General fund spending by fiscal year")) }}
 <div class="table-wrap">
 <table class="data-table">
@@ -78,7 +78,7 @@
 <h2 id="revenue">{{ _("Revenue") }}</h2>
 <p>{% trans year=rv.fiscal_year %}Where general fund money came from in fiscal year {{ year }}, as budgeted when the tax rate was set.{% endtrans %}</p>
 {% set rows = [] %}
-{% for name, amount in rv.sources.items() %}{% set _ = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / rv.total * 100) | round | int) ~ "%"}) %}{% endfor %}
+{% for name, amount in rv.sources.items() %}{% set ignored = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / rv.total * 100) | round | int) ~ "%"}) %}{% endfor %}
 {{ bars(rows, _("General fund revenue by source, fiscal year %(year)s", year=rv.fiscal_year), wide_numbers=true) }}
 <p class="small">{{ _("Local receipts include motor vehicle excise, fees, permits, and meals and room taxes.") }}</p>
 <div class="table-wrap">

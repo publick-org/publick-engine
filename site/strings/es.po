@@ -25,6 +25,236 @@ msgstr ""
 msgid "${amount} million"
 msgstr ""
 
+#. agency is a credit rating agency, such as "Moody's"; rating is its rating, such as "Aa2".
+#: site/states/ma/budget.html
+#, python-format
+msgid "%(agency)s: <strong>%(rating)s</strong> (latest rating, fiscal year %(year)s)"
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "%(board)s meetings"
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "%(category)s requests by month"
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "%(category)s requests by ward"
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "%(category)s requests in %(town)s: how many, how quickly the city responds, and where."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(category)s requests made up %(top)s of the %(received)s requests that month."
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "%(category)s requests over the past 12 months."
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "%(category)s: 311 requests"
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "%(district)s compared with the state, from the Connecticut State Department of Education."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid ""
+"%(district)s compared with the state, from the Massachusetts Department of Elementary and "
+"Secondary Education (DESE)."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "%(district)s compared with the state, from the New Hampshire Department of Education."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "%(district)s compared with the state: graduation rate, chronic absenteeism, and MCAS results."
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid ""
+"%(district)s compared with the state: graduation rate, chronic absenteeism, state test results, "
+"and spending per pupil."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "%(district)s compared with the state: graduation rate, state test results, and cost per pupil."
+msgstr ""
+
+#. %(field)s is the stored name of a meeting's detail that changed, such as "end_time".
+#: site/templates/macros.html
+#, python-format
+msgid "%(field)s changed."
+msgstr ""
+
+#. a place's first and latest request dates.
+#: site/pages/311/repeat-locations/index.html
+#, python-format
+msgid "%(first)s to %(last)s"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(first)s to %(last)s. Striped: recent months, still changing."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(first)s to %(last)s. Striped: recent months, still changing. Maroon: see note below."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "%(graduated)s of %(cohort)s"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s closed"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s has no map location and is only in the list."
+msgid_plural "%(num)s have no map location and are only in the list."
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s more categories"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"%(num)s of the %(open)s open requests haven't been updated on SeeClickFix in over a year: no "
+"status change, comment, or edit. SeeClickFix doesn't show whether these were fixed and never "
+"closed, or never handled."
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "%(num)s per 1,000 residents"
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+#, python-format
+msgid "%(num)s place"
+msgid_plural "%(num)s places"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"%(num)s place had a problem reported again after an earlier request there was closed, in the past"
+" 12 months."
+msgid_plural ""
+"%(num)s places had a problem reported again after an earlier request there was closed, in the "
+"past 12 months."
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s request from the past %(days)s days is still open."
+msgid_plural "%(num)s requests from the past %(days)s days are still open."
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s request, %(again)s after a close"
+msgid_plural "%(num)s requests, %(again)s after a close"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "%(num)s with no update in over a year"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "%(pct)s%% of the maximum"
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-format
+msgid "%(sources)s for one street, from public records."
+msgstr ""
+
+#. %(sources)s lists what the street lookup finds, such as "agendas and minutes, permits and 311
+#. requests".
+#: site/pages/streets/index.html
+#, python-format
+msgid "%(sources)s on any street in %(town)s, from public records."
+msgstr ""
+
+#. %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311
+#. requests"; %(example)s is a street's name.
+#: site/pages/index.html
+#, python-format
+msgid "%(sources)s on any street, such as \"%(example)s\"."
+msgstr ""
+
+#: site/pages/index.html
+#, python-format
+msgid "%(sources)s on any street."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"%(town)s's adopted budget, its property tax rate and where the tax goes, and the average single-"
+"family tax bill."
+msgstr ""
+
+#. a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward,
+#. %(last)s the last.
+#: site/pages/officials/index.html
+#, python-format
+msgid "(Wards %(wards)s and %(last)s)"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "(recent)"
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "1 in 10 over %(p90)s"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "1 in 10 took over"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "1 in 10 took over %(p90)s"
+msgstr ""
+
 #: pipeline/compute_311.py
 msgid "1 to 3 months"
 msgstr ""
@@ -37,8 +267,78 @@ msgstr ""
 msgid "3 to 12 months"
 msgstr ""
 
+#: site/pages/311/index.html site/pages/311/methodology/index.html
+#: site/pages/311/repeat-locations/index.html site/templates/category.html site/templates/ward.html
+msgid "311 Requests"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "311 requests"
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "311 requests in Ward %(ward)s, %(town)s: how many, how quickly the city responds, and what kinds."
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "311 requests placed in Ward %(ward)s over the past 12 months."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid ""
+"<strong>311 requests:</strong> public requests on <a "
+"href=\"https://seeclickfix.com\">SeeClickFix</a> from the past 12 months."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid ""
+"<strong>Agendas and minutes:</strong> any line naming an address on the street, from the "
+"documents saved on this site's <a href=\"/meetings/\">meeting pages</a>."
+msgstr ""
+
+#. %(since)s is a month and year.
+#: site/pages/streets/index.html
+#, python-format
+msgid ""
+"<strong>Building and demolition permits:</strong> the city's <a href=\"%(url)s\">Inspectional "
+"Services permit data</a>, since %(since)s. The city updates the file about weekly; last checked "
+"<time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-format
+msgid ""
+"<strong>Building and demolition permits:</strong> the city's <a href=\"%(url)s\">Inspectional "
+"Services permit data</a>."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid ""
+"<strong>For school-by-school results, budget, and more,</strong> see the %(report)s, a separate "
+"site built on the same public data."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"A closed request isn't always a fixed problem. Duplicates and requests outside the city's "
+"responsibility also get closed."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"A repeat location isn't always the same problem. It can be a problem that came back, a fix that "
+"didn't hold, or a separate problem nearby."
+msgstr ""
+
+#: site/templates/macros.html
+msgid "A revised agenda was posted."
 msgstr ""
 
 #: pipeline/fetch_housing.py
@@ -50,16 +350,107 @@ msgstr ""
 msgid "About"
 msgstr ""
 
+#: site/templates/macros.html
+msgid "About AI summaries"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html
+msgid "Absenteeism"
+msgstr ""
+
 #: site/templates/base.html
 msgid "Accessibility"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgctxt "311 status"
+msgid "Acknowledged"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"Acknowledgment times are known for %(checked)s of %(received)s requests so far. The rest are "
+"being looked up."
+msgstr ""
+
+#. %(old)s and %(new)s are street addresses, or "not listed" when the listing gave none.
+#: site/templates/macros.html
+#, python-format
+msgid "Address changed from %(old)s to %(new)s."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid ""
+"Addresses are matched by street name, so a street that shares its name with another spelling may "
+"need both tried."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Addresses, intersections, and landmarks are shown as they appear on SeeClickFix. Every public "
+"request can appear on the maps and lists, in every category. Requests without a map location are "
+"listed but not mapped."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Adopted budget"
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Adopted budget by function, fiscal year %(year)s"
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "After a close"
 msgstr ""
 
 #: pipeline/build_site.py
 msgid "Agenda"
 msgstr ""
 
+#: site/templates/macros.html
+msgid "Agenda posted"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Agenda posted."
+msgstr ""
+
+#: site/pages/index.html
+msgid "All decisions"
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid ""
+"All figures as published by the <a href=\"%(department)s\">Connecticut State Department of "
+"Education</a> on <a href=\"%(edsight)s\">EdSight</a>, its public data portal."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "All figures as published by the <a href=\"%(url)s\">New Hampshire Department of Education</a>."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid ""
+"All figures from the state's <a href=\"%(url)s\">Education-to-Career (E2C) data hub</a>, "
+"published by DESE."
+msgstr ""
+
+#: site/pages/index.html
+msgid "All meetings"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "All repeat locations"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Amounts are not adjusted for inflation."
 msgstr ""
 
 #: site/templates/base.html
@@ -67,6 +458,18 @@ msgstr ""
 msgid ""
 "An independent project. Not affiliated with or endorsed by the City of %(town)s. Official "
 "information: <a href=\"%(url)s\">%(site)s</a>."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"An open request whose last change on SeeClickFix (a status change, comment, or edit) was more "
+"than a year ago. Some may have been fixed and never closed; others may never have been handled. "
+"The data doesn't show which. They still count as open."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Another %(num)s were closed without being acknowledged first."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -79,6 +482,11 @@ msgctxt "month"
 msgid "April"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgctxt "311 status"
+msgid "Archived"
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Aug"
@@ -89,23 +497,126 @@ msgctxt "month"
 msgid "August"
 msgstr ""
 
-#: pipeline/build_site.py
+#: site/states/nh/budget.html
+msgid "Average bill"
+msgstr ""
+
+#: pipeline/build_site.py site/states/nh/budget.html
 msgid "Average single-family tax bill"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Average tax bill"
 msgstr ""
 
 #: pipeline/states/ma/tax_bill.py
 msgid "Average tax bill (Mass. DLS)"
 msgstr ""
 
+#: site/states/nh/budget.html
+msgid "Average value"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
+"Based on the request's map location and the <a href=\"%(url)s\">%(year)s %(publisher)s ward "
+"boundaries</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Bond ratings"
+msgstr ""
+
+#: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
+#: site/templates/category.html site/templates/ward.html
+msgid "Breadcrumb"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Budget"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid ""
+"Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for "
+"inflation."
+msgstr ""
+
+#: site/pages/311/index.html site/templates/ward.html
+msgid "By category"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "By category and ward"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "By month"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html
+msgid "By ward"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Calculated by Publick"
+msgstr ""
+
 #: pipeline/states/nh/__init__.py
 msgid "Calculated by Publick from state figures"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Calculated by Publick."
+msgstr ""
+
+#: site/templates/category.html
+msgid "Categories"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/ward.html
+msgid "Category"
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+msgid "Change"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Check the original before relying on it."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid ""
+"Checked %(checked)s against official city and school websites. Members change after elections and"
+" when a seat is filled; those websites are the official record."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
+#: site/states/nh/budget.html
+#, python-format
+msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html
+msgid "Chronic absenteeism"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html
+msgid "Chronically absent"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "City"
 msgstr ""
 
 #: site/templates/base.html
 msgid "City Hall updates"
 msgstr ""
 
-#: pipeline/states/nh/budget.py
+#: pipeline/states/nh/budget.py site/states/ma/budget.html site/states/nh/budget.html
 msgid "City budget"
 msgstr ""
 
@@ -113,14 +624,97 @@ msgstr ""
 msgid "City budget (Mass. DLS)"
 msgstr ""
 
+#: site/states/ma/budget.html site/states/nh/budget.html
+#, python-format
+msgid ""
+"City budget documents, including department detail, are on the <a href=\"%(url)s\">city "
+"website</a>."
+msgstr ""
+
+#: site/pages/index.html
+msgid "City services and news"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "City staff acknowledged %(acknowledged)s of %(checked)s requests (%(percent)s%%)."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "City staff marked it as seen. Still counts as open. Only staff can do this."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Class of"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#, python-format
+msgid "Class of %(year)s"
+msgstr ""
+
 #: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/nh/schools.py
 #, python-brace-format
 msgid "Class of {year} graduation rate"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgctxt "311 status"
+msgid "Closed"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Closed requests are archived after 7 days. Counts as closed."
+msgstr ""
+
+#: site/pages/index.html
+msgid "Coming up"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Contact"
+msgstr ""
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "Correction: {page}"
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "Cost per pupil"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "County"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Credit ratings affect how much the city pays to borrow."
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid "DESE updates each figure once a year."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Data from <a href=\"https://seeclickfix.com\">seeclickfix.com</a> under <a "
+"href=\"https://creativecommons.org/licenses/by-nc-sa/3.0/\">CC BY-NC-SA 3.0</a>."
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html
+msgid ""
+"Data from <a href=\"https://seeclickfix.com\">seeclickfix.com</a>, used under the <a "
+"href=\"https://creativecommons.org/licenses/by-nc-sa/3.0/\">CC BY-NC-SA 3.0</a> license."
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Date changed from %(old)s to %(new)s."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Dates"
 msgstr ""
 
 #: pipeline/i18n.py
@@ -133,6 +727,64 @@ msgctxt "month"
 msgid "December"
 msgstr ""
 
+#: site/templates/charts.html
+msgid "Download CSV"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Each figure is certified as of July 1, the start of that year."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Each location links to its latest request on SeeClickFix. The CSV lists every request."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "Elected officials in %(town)s, by office and by ward, and how to reach them."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "Elected officials in %(town)s, by office, and how to reach them."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "Email<span class=\"visually-hidden\"> %(name)s</span>"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "English"
+msgstr ""
+
+#. %(example)s is a street's name.
+#: site/pages/streets/index.html
+#, python-format
+msgid "Enter the street, not a full address, such as \"%(example)s\"."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Enter the street, not a full address."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Estimated costs are as the applicant gave them."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid "Every public request since %(since)s, plus older ones still open, checked daily."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Everything comes from public requests on SeeClickFix, the city's service request system."
+msgstr ""
+
+#: site/pages/index.html
+msgid "Explore"
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Feb"
@@ -141,6 +793,39 @@ msgstr ""
 #: pipeline/i18n.py
 msgctxt "month"
 msgid "February"
+msgstr ""
+
+#. "Not enough data" is what a typical time shows when there are too few requests; use the same words
+#. as its translation.
+#: site/pages/311/index.html
+#, python-format
+msgid "Figures from fewer than %(min)s requests show \"Not enough data\"."
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Figures will appear here after the first data collection."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
+#: site/states/nh/budget.html site/states/nh/schools.html
+msgid "Figures will appear here after the next data update."
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Find my ward using my location"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Find your ward"
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+msgid "Fiscal year"
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+#, python-format
+msgid "Fiscal year %(year)s"
 msgstr ""
 
 #: pipeline/build_site.py pipeline/states/ma/tax_bill.py
@@ -163,6 +848,47 @@ msgstr ""
 msgid "Fiscal year {year} spending"
 msgstr ""
 
+#: site/states/nh/budget.html
+#, python-format
+msgid "Fiscal years start July 1: fiscal year %(year)s runs from July %(start)s to June %(year)s."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid ""
+"Fixed costs include employee and retiree health insurance, pensions, and other insurance. School "
+"employees' benefits are counted there, not under education."
+msgstr ""
+
+#: site/pages/index.html
+msgid "Follow City Hall updates by RSS"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "For each one: category, location, and when it was submitted, acknowledged, closed, or reopened."
+msgstr ""
+
+#: site/pages/index.html
+#, python-format
+msgid ""
+"For official email or text alerts when a board posts a meeting, sign up for the city's <a "
+"href=\"%(url)s\">Notify Me</a> service."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Free cash"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Free cash is listed by the fiscal year it can be spent in."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid ""
+"Free cash is money left from past years that the state certifies as available to spend. The "
+"stabilization fund is a savings account; spending from it takes a two-thirds vote of the City "
+"Council."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "weekday, short"
 msgid "Fri"
@@ -173,8 +899,135 @@ msgctxt "weekday"
 msgid "Friday"
 msgstr ""
 
+#: site/templates/macros.html
+msgid "From the city's PDF, word for word."
+msgstr ""
+
+#: site/pages/index.html
+msgid ""
+"From the latest minutes the city has posted. Minutes come out after a board approves them, "
+"usually a few weeks after the meeting."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "General fund revenue by source, fiscal year %(year)s"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "General fund spending"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "General fund spending by fiscal year"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "General fund spending by function, fiscal year %(year)s"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "General fund spending in fiscal year %(year)s, by what it paid for."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "Go to the %(report)s"
+msgstr ""
+
+#: site/pages/404.html
+msgid "Go to the home page"
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "Graduated"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Graduation"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Graduation rate"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Half took less time, half took more. Unlike an average, a few very old requests don't skew it."
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid ""
+"High school juniors take the SAT instead, so they aren't included. Connecticut sets its own "
+"achievement levels, so these results can't be compared with other states' tests, such as "
+"Massachusetts's MCAS."
+msgstr ""
+
 #: pipeline/fetch_housing.py
 msgid "Housing figures"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid "How %(site)s collects %(town)s's 311 requests from SeeClickFix and calculates each number."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How quickly the City of %(town)s acknowledges and closes public service requests, how many are "
+"still open, by category and ward."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "How repeat locations are found"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "How the 311 numbers work"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "How the City of %(town)s responds to public service requests on SeeClickFix."
+msgstr ""
+
+#: site/pages/index.html
+msgid "How the city is doing"
+msgstr ""
+
+#: site/pages/index.html
+msgid "How the city is doing, from public data."
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html
+msgid "How these numbers are calculated"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "In development"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid ""
+"In fiscal year %(year)s, general fund spending was %(amount)s per resident. The median across "
+"%(communities)s Massachusetts cities and towns was %(median)s."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, %(town)s's property tax came to %(amount)s per resident. The median across "
+"%(communities)s New Hampshire towns and cities was %(median)s."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, the average single-family home in %(town)s was assessed at %(value)s. At "
+"that year's rate of $%(rate)s per $1,000, its tax bill was <strong>%(amount)s</strong>."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -207,12 +1060,122 @@ msgctxt "month"
 msgid "June"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgid "Keep in mind"
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Last checked <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Latest request on SeeClickFix"
 msgstr ""
 
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"Less %(credits)s in veterans' tax credits, the city's total property tax commitment was "
+"%(commitment)s."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Levy"
+msgstr ""
+
+#: site/templates/charts.html
+msgid "Link to this"
+msgstr ""
+
+#. %(listing)s is where the city lists meetings, such as "city calendar" or "city's meeting portal".
+#: site/templates/macros.html
+#, python-format
+msgid "Listed on the %(listing)s again."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Local education"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Local receipts include motor vehicle excise, fees, permits, and meals and room taxes."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Location and category"
+msgstr ""
+
+#. %(old)s and %(new)s are places, or "not listed" when the listing gave none.
+#: site/templates/macros.html
+#, python-format
+msgid "Location changed from %(old)s to %(new)s."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Locations shown"
+msgstr ""
+
+#: site/templates/category.html
+#, python-format
+msgid "Longest-open %(category)s requests"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Longest-open requests"
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "Longest-open requests in Ward %(ward)s"
+msgstr ""
+
+#: site/pages/index.html site/pages/streets/index.html
+msgid "Look up"
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid "MCAS English, grades 3–8"
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid "MCAS math, grades 3–8"
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid "MCAS results"
+msgstr ""
+
 #: site/templates/base.html
 msgid "Main"
+msgstr ""
+
+#: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
+msgid "Map"
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Map data from OpenStreetMap."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "Map of %(town)s's wards"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Map of open requests from the past %(days)s days. The same requests are listed below."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid ""
+"Map of repeat locations. Larger circles had more requests after a close. The same places are "
+"listed below."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Maps and locations"
 msgstr ""
 
 #: pipeline/i18n.py
@@ -225,8 +1188,27 @@ msgctxt "month"
 msgid "March"
 msgstr ""
 
+#. %(status)s is a meeting's status as stored, such as "cancelled"; %(listing)s is where the city lists
+#. meetings, such as "city calendar".
+#: site/templates/macros.html
+#, python-format
+msgid "Marked %(status)s on the %(listing)s."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Marked resolved. Anyone with an account can close a request, including the person who reported it."
+msgstr ""
+
 #: pipeline/states/ma/__init__.py
 msgid "Mass. Division of Local Services"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Math"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Maximum allowable levy"
 msgstr ""
 
 #: pipeline/i18n.py
@@ -239,6 +1221,28 @@ msgctxt "month, short"
 msgid "May"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgid "Measures"
+msgstr ""
+
+#: site/templates/category.html site/templates/ward.html
+#, python-format
+msgid "Median of %(num)s acknowledged"
+msgstr ""
+
+#: site/templates/category.html site/templates/ward.html
+#, python-format
+msgid "Median of %(num)s closed"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Median of acknowledged requests"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Median of closed requests"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Median, past 12 months"
 msgstr ""
@@ -247,8 +1251,26 @@ msgstr ""
 msgid "Meeting summaries"
 msgstr ""
 
+#: site/pages/officials/index.html
+msgid "Member"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid ""
+"Members elected citywide, such as at-large members, represent every ward. They're listed under "
+"each office below."
+msgstr ""
+
+#: site/pages/311/index.html site/templates/ward.html
+msgid "Methodology"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Minutes"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Minutes posted"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -265,14 +1287,73 @@ msgctxt "weekday"
 msgid "Monday"
 msgstr ""
 
+#: site/pages/311/index.html
+msgid "Month"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgctxt "311 status"
+msgid "New"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "New Hampshire doesn't publish an average bill."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "New Hampshire doesn't publish chronic absenteeism."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid ""
+"New Hampshire sets its own proficiency levels, so these results can't be compared with other "
+"states' tests. No tests were given in spring 2020."
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid ""
+"No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and "
+"fewer students took part, so 2021 results aren't directly comparable with other years."
+msgstr ""
+
+#: site/templates/macros.html
+msgid "No agenda posted yet"
+msgstr ""
+
 #. {since} is a time, such as "last week" or "August 2025".
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "No change from {since}"
 msgstr ""
 
-#: pipeline/build_site.py
+#: site/pages/index.html
+msgid "No public meetings are listed on the city calendar for the next seven days."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "No repeat locations in the past 12 months."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "No requests from the past %(days)s days are open."
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "No seat is elected by this ward alone."
+msgstr ""
+
+#: pipeline/build_site.py site/pages/311/index.html site/pages/311/repeat-locations/index.html
+#: site/templates/category.html site/templates/ward.html
 msgid "No street address"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/methodology/index.html
+msgid "No update in over a year"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Not collected: descriptions, photos, or who submitted it."
 msgstr ""
 
 #: pipeline/build_site.py
@@ -289,6 +1370,10 @@ msgctxt "month"
 msgid "November"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgid "Numbers based on fewer than 5 requests aren't shown."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Oct"
@@ -299,17 +1384,80 @@ msgctxt "month"
 msgid "October"
 msgstr ""
 
+#: site/states/ma/budget.html
+#, python-format
+msgid "Of revenue, fiscal year %(year)s"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "On this page"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Online option"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Open 311 requests"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open requests"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open requests by age"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open requests by how long they have been open"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open requests with no update in over a year, by category"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open requests with no update in over a year, by ward"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Open right now"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
+#, python-format
+msgid "Open since <time datetime=\"%(iso)s\">%(when)s</time>"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Opened in the past %(days)s days"
+msgstr ""
+
+#: site/templates/category.html
+msgid "Outside"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Outside wards"
 msgstr ""
 
 #: pipeline/compute_311.py
 msgid "Over 1 year"
 msgstr ""
 
+#: site/pages/404.html
+msgid "Page not found"
+msgstr ""
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "Page: {url}"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Paid by property tax"
 msgstr ""
 
 #: site/templates/base.html
@@ -319,8 +1467,238 @@ msgid ""
 "cities."
 msgstr ""
 
+#: site/pages/311/index.html
+msgid "Past 12 months. \"Typical\" means the median: half took less time, half took more."
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Past 12 months. Differences partly reflect how often people in each ward report problems."
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Past 30 days"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Per $1,000 of assessed value"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Per 1,000"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Per 1,000 residents"
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid ""
+"Per pupil enrolled, including students the district pays to educate elsewhere. Earlier years also"
+" counted minor school construction."
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+msgid "Per resident"
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+#, python-format
+msgid ""
+"Places in %(town)s where a problem was reported to 311 again after an earlier request there was "
+"closed."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Places where a problem was reported again after an earlier request there was closed."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Points are placed within about 10 meters. Map data from <a "
+"href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>. Every place on a map is also "
+"listed on the page."
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "Population %(population)s (2020 census)."
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+#, python-format
+msgid "Population: %(population)s."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Private requests and internal work orders aren't public, so they aren't counted. Requests later "
+"deleted or made private are removed."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Property tax limit"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Property tax per resident"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid ""
+"Property tax per resident depends on how much of a town's tax base is businesses rather than "
+"homes, and on seasonal homes, whose owners pay tax but aren't counted as residents."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Property tax raised by part, tax year %(year)s"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Property tax rate"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Property tax share"
+msgstr ""
+
+#: site/pages/index.html
+msgid "Public hearing: residents can speak"
+msgid_plural "Public hearings: residents can speak"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Public requests only; recorded back to %(since)s."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Rate"
+msgstr ""
+
+#. %(label)s is "agenda" or "minutes".
+#: site/templates/macros.html
+#, python-format
+msgid "Read the full %(label)s"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Recent months will change as requests close."
+msgstr ""
+
+#: site/pages/index.html
+msgid "Recently decided"
+msgstr ""
+
+#. %(listing)s is where the city lists meetings, such as "city's meeting portal".
+#: site/templates/macros.html
+#, python-format
+msgid "Removed from %(listing)s"
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Removed from the %(listing)s."
+msgstr ""
+
+#. %(source)s is who keeps the schedule, such as a school district's name.
+#: site/templates/macros.html
+#, python-format
+msgid "Removed from the %(source)s schedule"
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Repeat 311 locations"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Repeat location"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html
+msgid "Repeat locations"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Report a problem to the city"
+msgstr ""
+
 #: site/templates/base.html
 msgid "Report a problem with this page"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Report an error in this summary"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html site/templates/category.html
+#: site/templates/ward.html
+msgid "Requests"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
+msgid "Requests by month"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Requests divided by the ward's 2020 census population, times 1,000. Ward populations come from "
+"the census, so they differ slightly from the state's newer citywide estimate used on the budget "
+"page."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+#, python-format
+msgid ""
+"Requests in the same category within %(meters)s meters and %(days)s days of each other count as "
+"one place. A new request after a close can mean the problem came back, the first fix didn't hold,"
+" or a separate problem nearby."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
+"Requests in the same category within %(meters)s meters and %(days)s days of each other, in a "
+"chain, count as one place. A place is listed when a request there came in after an earlier "
+"request at that place was closed. Past 12 months."
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Requests on your street"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Requests per 1,000 residents by ward"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Requests per 1,000 residents, by ward"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html
+#, python-format
+msgid "Requests submitted %(start)s to %(end)s. Updated <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Requests, past 12 months"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Reserves"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Reserves and bond ratings"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Revenue"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Revised minutes were posted."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -345,6 +1723,43 @@ msgstr ""
 msgid "School figures (EdSight)"
 msgstr ""
 
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "School year"
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "School-by-school figures and more are on the <a href=\"%(url)s\">%(report)s</a>."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Schools"
+msgstr ""
+
+#: site/states/ma/schools.html
+msgid "Schools closed in spring 2020 and many were remote in 2020–21, which affects those years."
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Search"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Search agendas and minutes"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Seat"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "See as a list"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "See as a table"
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Sep"
@@ -355,12 +1770,227 @@ msgctxt "month"
 msgid "September"
 msgstr ""
 
+#: site/states/ma/schools.html
+msgid "Share of students in grades 3 to 8 who met or exceeded expectations on the state MCAS tests."
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid ""
+"Share of students in grades 3 to 8 who scored at level 3 or 4 (met or exceeded the achievement "
+"standard) on Connecticut's Smarter Balanced tests."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgid "Share of students who graduated high school within four years of starting ninth grade."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html
+#, python-format
+msgid "Share of students who missed 10%% or more of the school days they were enrolled, for any reason."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid ""
+"Share of students who scored proficient or above (levels 3 and 4) on the New Hampshire Statewide "
+"Assessment System (NH SAS). The figures are for every grade tested together: grades 3 to 8, and "
+"11th graders, whose scores come from the SAT."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Short forms like St and Ave work too."
+msgstr ""
+
 #: site/templates/base.html
 msgid "Skip to main content"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgid "Some departments use SeeClickFix more than others."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "Sorted by requests submitted after an earlier request at the same place was closed."
+msgstr ""
+
 #: site/templates/base.html
 msgid "Source code and data"
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">%(source)s</a>."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">%(title)s</a>."
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">City of %(town)s calendar</a>."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DESE High School Graduation Rates</a>."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DESE MCAS Achievement Results</a>."
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DESE Student Attendance</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DLS Bond Ratings</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DLS Excess Levy Capacity</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DLS General Fund per Capita</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DLS Revenue by Source</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DLS Schedule A, general fund</a>."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DRA, municipal tax rates</a>."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">DRA, tax rate calculation data</a>."
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">EdSight, Chronic Absenteeism</a>."
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">EdSight, Four-Year Graduation Rates</a>."
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">EdSight, Per Pupil Expenditures by Function</a>."
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">EdSight, Smarter Balanced Achievement</a>."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">New Hampshire Department of Education, assessment data</a>."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">New Hampshire Department of Education, financial reports</a> (Cost "
+"Per Pupil by District)."
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">New Hampshire Department of Education, iPlatform</a> (Cohort Counts "
+"By School)."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(free_cash)s\">DLS Certified Free Cash</a>, <a href=\"%(stabilization)s\">DLS"
+" Stabilization Fund</a>."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">DRA, municipal tax rates</a>; <a href=\"%(parcels)s\">NH GRANIT, "
+"statewide parcel map</a>."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">DRA</a>; <a href=\"%(population)s\">U.S. Census Bureau population "
+"estimates</a>."
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Special meeting"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Spending"
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid "Spending per pupil"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Spending per resident"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid ""
+"Spending per resident depends on which services a community provides itself, such as its own "
+"school system, trash pickup, or a harbor, and on seasonal population."
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid ""
+"Spot a mistake, or a change the city has made? See <a "
+"href=\"/about/#corrections\">Corrections</a>."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Spot a mistake? See <a href=\"/about/#corrections\">Corrections</a>."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgctxt "season"
+msgid "Spring"
+msgstr ""
+
+#: site/states/ma/schools.html
+#, python-format
+msgid "Spring %(year)s, meeting or exceeding"
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "Spring %(year)s, met or exceeded"
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "Spring %(year)s, proficient or above"
 msgstr ""
 
 #: pipeline/states/ma/schools.py
@@ -371,6 +2001,141 @@ msgstr ""
 #: pipeline/states/ct/schools.py pipeline/states/nh/schools.py
 #, python-brace-format
 msgid "Spring {year} state test results"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Stabilization fund"
+msgstr ""
+
+#. %(old)s and %(new)s are start times, or "not listed" when the listing gave none.
+#: site/templates/macros.html
+#, python-format
+msgid "Start time changed from %(old)s to %(new)s."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+msgctxt "the state as a whole"
+msgid "State"
+msgstr ""
+
+#: site/states/ct/schools.html
+#, python-format
+msgid "State %(amount)s"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#, python-format
+msgid "State %(pct)s%%"
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "State average"
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "State average %(amount)s"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "State education"
+msgstr ""
+
+#: site/states/nh/schools.html
+#, python-format
+msgid "State figures as of <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"State figures as of <time datetime=\"%(iso)s\">%(when)s</time>; the DRA publishes each year's tax"
+" rates once they're set, in the fall."
+msgstr ""
+
+#: site/states/ma/budget.html site/states/nh/budget.html
+#, python-format
+msgid "State median %(amount)s"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/nh/schools.html
+msgid "State test results"
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "State test, English"
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid "State test, English, grades 3–8"
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "State test, math"
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid "State test, math, grades 3–8"
+msgstr ""
+
+#: site/states/ct/schools.html site/states/nh/schools.html
+msgid "State tests"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Statuses"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Still being collected"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html site/templates/category.html
+#: site/templates/ward.html
+msgid "Still open"
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Street name"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Submission to staff acknowledgment. Since only staff can acknowledge, this is the most direct "
+"measure of the city's response. Requests never acknowledged are left out, so the share that were "
+"acknowledged is shown alongside it. Many requests are closed without being acknowledged first."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"Submission to the latest close. If a request was archived without a close time, the archive time "
+"is used. Requests still open are left out, so the typical time to close is for closed requests "
+"only."
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Submitted <time datetime=\"%(iso)s\">%(when)s</time>"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Submitted, not yet acknowledged. Counts as open."
+msgstr ""
+
+#: site/pages/311/index.html site/states/ct/schools.html site/states/ma/budget.html
+#: site/states/ma/schools.html site/states/nh/budget.html site/states/nh/schools.html
+msgid "Summary"
+msgstr ""
+
+#. %(label)s is "agenda" or "minutes"; %(by)s is who posted it, such as a school district's name.
+#: site/templates/macros.html
+#, python-format
+msgid "Summary written by AI from the <a href=\"%(url)s\">%(label)s posted by %(by)s</a>."
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Summary written by AI from the <a href=\"%(url)s\">city's %(label)s</a>."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -387,6 +2152,19 @@ msgstr ""
 msgid "Tax bill (calculated)"
 msgstr ""
 
+#: site/states/nh/budget.html
+msgid "Tax rate"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Tax year"
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "Tax year %(year)s"
+msgstr ""
+
 #: pipeline/build_site.py pipeline/states/nh/tax_bill.py
 #, python-brace-format
 msgid "Tax year {year}"
@@ -397,8 +2175,114 @@ msgstr ""
 msgid "Tax year {year} tax rates"
 msgstr ""
 
+#: site/pages/officials/index.html
+msgid "Term ends"
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "The %(board)s's official page"
+msgstr ""
+
+#. %(label)s is a document, such as "agenda".
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"The %(label)s is a scanned document. A readable version of the full text will be added here; "
+"until then, the city's PDF is linked below."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "The 90th percentile: how long the slowest requests take."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "The Department of Education publishes each figure once a year."
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid "The Department of Education updates each figure once a year."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "The city's budget for fiscal year %(year)s, by what it pays for, as adopted."
+msgstr ""
+
+#: site/states/nh/budget.html
+#, python-format
+msgid "The city's total property tax commitment was %(commitment)s."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid "The data and code are in the <a href=\"%(url)s\">public repository</a>."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "The fiscal year %(year)s figure was certified as of July 1, %(start)s."
+msgstr ""
+
+#: site/states/ct/schools.html site/states/nh/schools.html
+msgid "The four-year adjusted cohort graduation rate."
+msgstr ""
+
+#: site/templates/macros.html
+msgid "The full text is in the city's PDF, linked below."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid ""
+"The general fund covers most city services; water, sewer, and other self-funded services are "
+"budgeted separately."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "The maximum allowable levy is the Proposition 2½ levy limit plus voter-approved debt exclusions."
+msgstr ""
+
+#: site/templates/macros.html
+msgid ""
+"The minutes are a scanned document. A readable version of the full text will be added here; until"
+" then, the city's PDF is linked below."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid ""
+"The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the "
+"city's own, the county's, the statewide education tax, and the local schools'. New Hampshire "
+"names each rate by its tax year, which runs from April 1 to March 31; the DRA sets each town's "
+"rate in the fall."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "The state adds each year's figures after the city files them."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid "The state average is of district-operated schools."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "The street lookup needs JavaScript."
+msgstr ""
+
+#: site/pages/311/repeat-locations/index.html
+msgid "This list will appear after the next data update."
+msgstr ""
+
+#: site/pages/404.html
+msgid "This page doesn't exist. It may have moved, or the link may have a typo."
+msgstr ""
+
 #: site/templates/base.html
 msgid "This week"
+msgstr ""
+
+#: site/pages/index.html
+#, python-format
+msgid "This week in %(town)s"
 msgstr ""
 
 #: pipeline/i18n.py
@@ -411,6 +2295,40 @@ msgctxt "weekday"
 msgid "Thursday"
 msgstr ""
 
+#: site/templates/macros.html
+msgid "Time TBA"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Time to acknowledge"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Time to close"
+msgstr ""
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Time to close counts only the %(closed)s closed requests. The %(open)s still open are left out."
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Total"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Total by year"
+msgstr ""
+
+#: site/templates/macros.html
+msgid "Transcribed by AI from the city's PDF. Check the original before relying on it."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "weekday, short"
 msgid "Tue"
@@ -421,8 +2339,28 @@ msgctxt "weekday"
 msgid "Tuesday"
 msgstr ""
 
+#: site/pages/311/methodology/index.html
+msgid "Typical (median)"
+msgstr ""
+
+#: site/pages/311/index.html
+msgid "Typical acknowledge"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/ward.html
+msgid "Typical close"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Typical time for the city to acknowledge a request"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
+msgid "Typical time to acknowledge"
+msgstr ""
+
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
+msgid "Typical time to close"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -437,6 +2375,14 @@ msgstr ""
 msgid "Under 1 week"
 msgstr ""
 
+#: site/states/ma/budget.html
+#, python-format
+msgid ""
+"Under Proposition 2½, the amount a city raises from property tax (the levy) can grow by 2.5%% a "
+"year plus new construction, unless voters approve more. The difference between the most the city "
+"could levy and what it did levy is its unused levy capacity."
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "Unemployment rate"
 msgstr ""
@@ -445,9 +2391,56 @@ msgstr ""
 msgid "Unemployment rate (BLS)"
 msgstr ""
 
+#: site/states/ma/budget.html
+msgid "Unused"
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "Unused levy capacity"
+msgstr ""
+
 #: site/templates/base.html
 #, python-format
 msgid "Updated <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: site/pages/index.html
+msgid "Updated every morning."
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/methodology/index.html
+msgid "Ward"
+msgstr ""
+
+#: site/pages/311/index.html site/pages/311/repeat-locations/index.html site/pages/officials/index.html
+#: site/templates/category.html site/templates/ward.html
+#, python-format
+msgid "Ward %(ward)s"
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "Ward %(ward)s requests by month"
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid "Ward %(ward)s: 311 requests"
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "Ward differences reflect how often people report problems, not only how the city responds."
+msgstr ""
+
+#: site/templates/ward.html
+msgid "Wards"
+msgstr ""
+
+#: site/templates/ward.html
+#, python-format
+msgid ""
+"Wards use the %(year)s boundaries from %(publisher)s. Differences between wards reflect how often"
+" residents report problems as well as how the city responds."
 msgstr ""
 
 #: pipeline/i18n.py
@@ -464,8 +2457,109 @@ msgstr ""
 msgid "What it should say, and where you saw it (if you know):"
 msgstr ""
 
+#: site/states/nh/budget.html
+#, python-format
+msgid "What the %(year)s property tax raised for each part, in all."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid ""
+"What the city budgets, its property tax rate, and where the tax goes, from the city and the New "
+"Hampshire Department of Revenue Administration (DRA)."
+msgstr ""
+
+#: site/states/ct/schools.html
+msgid ""
+"What the district spends on its schools for each student, regular and special education together."
+" It leaves out debt, construction, adult education, community services, food services paid for by"
+" state or federal funds, and the state's payments to the teachers' retirement fund."
+msgstr ""
+
+#: site/states/nh/schools.html
+msgid ""
+"What the district spends to run its schools for each student, from all sources: local, state, and"
+" federal. It leaves out construction, debt, transportation, and tuition paid to other districts."
+msgstr ""
+
+#: site/pages/311/methodology/index.html
+msgid "What's collected"
+msgstr ""
+
+#: site/pages/index.html
+msgid "What's coming up at City Hall, and how the city is doing."
+msgstr ""
+
+#: site/pages/index.html
+msgid "What's coming up at City Hall, what was decided, and how the city is doing."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "What's happening on your street"
+msgstr ""
+
+#: site/pages/index.html
+msgid "What's happening on your street?"
+msgstr ""
+
 #: pipeline/build_site.py
 msgid "What's wrong:"
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid ""
+"When a city revalues its property, assessed values jump and the rate falls to match, so a lower "
+"rate doesn't by itself mean lower bills."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid ""
+"Where %(town)s's general fund money comes from and how it is spent, from the city's filings with "
+"the state."
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "Where general fund money came from in fiscal year %(year)s, as budgeted when the tax rate was set."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid ""
+"Where the city's general fund money comes from and how it is spent, from the city's annual "
+"filings with the Massachusetts Division of Local Services (DLS)."
+msgstr ""
+
+#: site/states/nh/budget.html
+msgid "Where the property tax goes"
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Where this comes from"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Who represents you"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid ""
+"Years are fiscal years, which start July 1: fiscal year %(year)s runs from July %(start)s to June"
+" %(year)s."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "You can also <a href=\"/meetings/search/\">search agendas and minutes</a>."
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid ""
+"Your browser will ask first. Your location is checked against the ward map on your device. It "
+"isn't sent to Publick or anyone else, and it isn't saved."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "Your street"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -488,7 +2582,20 @@ msgstr ""
 msgid "city's meeting portal"
 msgstr ""
 
-#: pipeline/build_site.py
+#. the end of a sentence, such as "If something is hard to use, email ... or open an issue ...".
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"email <a href=\"mailto:%(email)s\">%(email)s</a> or open an issue on the <a "
+"href=\"%(issues)s\">project's public issue tracker</a>"
+msgstr ""
+
+#: site/states/ma/budget.html
+#, python-format
+msgid "fiscal year %(year)s"
+msgstr ""
+
+#: pipeline/build_site.py site/pages/311/index.html
 msgid "last week"
 msgstr ""
 
@@ -498,6 +2605,26 @@ msgstr ""
 
 #: pipeline/rhythms.py
 msgid "no data yet"
+msgstr ""
+
+#: site/templates/macros.html
+msgctxt "address"
+msgid "not listed"
+msgstr ""
+
+#: site/templates/macros.html
+msgctxt "location"
+msgid "not listed"
+msgstr ""
+
+#: site/templates/macros.html
+msgctxt "start time"
+msgid "not listed"
+msgstr ""
+
+#: site/templates/macros.html
+#, python-format
+msgid "open an issue on the <a href=\"%(issues)s\">project's public issue tracker</a>"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -655,5 +2782,14 @@ msgstr ""
 #: pipeline/fetch_housing.py
 #, python-brace-format
 msgid "{year} building permits"
+msgstr ""
+
+#. the dash (–) is what the table shows in place of a typical time.
+#: site/templates/ward.html
+msgid "– fewer than 5 requests, too few for a typical time."
+msgstr ""
+
+#: site/states/ma/budget.html
+msgid "– means not yet reported."
 msgstr ""
 

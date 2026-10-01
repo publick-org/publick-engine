@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from pipeline import build_site
+from pipeline import build_site, i18n
 
 
 class PageParser(HTMLParser):
@@ -200,7 +200,10 @@ def test_ai_preview_is_labeled_and_linked(site_dir):
 ])
 def test_full_text_says_where_it_came_from(record, shown, hidden):
     from jinja2 import Environment, FileSystemLoader
-    env = Environment(loader=FileSystemLoader(str(build_site.SITE_DIR / "templates")), autoescape=True)
+    env = Environment(loader=FileSystemLoader(str(build_site.SITE_DIR / "templates")), autoescape=True,
+                      extensions=["jinja2.ext.i18n"])
+    env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True, pgettext=i18n.pgettext)
+    env.policies["ext.i18n.trimmed"] = True
     env.filters.update(markdown=build_site.render_markdown, date=build_site.format_date, time=build_site.format_time,
                        timestamp=build_site.format_timestamp, filesize=build_site.format_bytes)
     html = env.from_string('{% from "macros.html" import full_text %}{{ full_text("minutes", r) }}').render(r=record)

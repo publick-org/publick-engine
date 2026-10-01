@@ -56,7 +56,7 @@
 <h2 id="budget">{{ _("Adopted budget") }}</h2>
 <p>{% trans year=latest.fiscal_year %}The city's budget for fiscal year {{ year }}, by what it pays for, as adopted.{% endtrans %} {% trans year=latest.fiscal_year, start=latest.fiscal_year - 1 %}Fiscal years start July 1: fiscal year {{ year }} runs from July {{ start }} to June {{ year }}.{% endtrans %}</p>
 {% set rows = [] %}
-{% for name, amount in latest.lines | dictsort(by="value", reverse=true) %}{% set _ = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / latest.total * 100) | round | int) ~ "%"}) %}{% endfor %}
+{% for name, amount in latest.lines | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / latest.total * 100) | round | int) ~ "%"}) %}{% endfor %}
 {{ bars(rows, _("Adopted budget by function, fiscal year %(year)s", year=latest.fiscal_year), wide_numbers=true, wide_labels=true) }}
 {# The city's rows from its total on, in its order. On a phone, only the total and the change show. #}
 {% set summary = latest.summary | map(attribute="label") | list %}
@@ -96,7 +96,7 @@
 <h3 id="tax-parts">{{ _("Where the property tax goes") }}</h3>
 <p>{% trans year=ef.tax_year %}What the {{ year }} property tax raised for each part, in all.{% endtrans %}</p>
 {% set rows = [] %}
-{% for name, amount in ef.parts | dictsort(by="value", reverse=true) %}{% set _ = rows.append({"label": name, "value": amount, "text": amount | money("short")}) %}{% endfor %}
+{% for name, amount in ef.parts | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": amount | money("short")}) %}{% endfor %}
 {{ bars(rows, _("Property tax raised by part, tax year %(year)s", year=ef.tax_year), wide_numbers=true, wide_labels=true) }}
 <p class="small">{% if ef.veterans_credits %}{% trans credits=ef.veterans_credits | money("short"), commitment=ef.commitment | money("short") %}Less {{ credits }} in veterans' tax credits, the city's total property tax commitment was {{ commitment }}.{% endtrans %}{% else %}{% trans commitment=ef.commitment | money("short") %}The city's total property tax commitment was {{ commitment }}.{% endtrans %}{% endif %} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, tax rate calculation data</a>.{% endtrans %}</p>
 {% endif %}
