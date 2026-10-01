@@ -161,7 +161,9 @@ Return:
 TEXT_PER_RUN = 60
 
 # Documents longer or larger than this are not sent; the page links to the original.
-MAX_PAGES = 60
+# The model reads PDFs of up to 600 pages; 100 keeps one request's input (each page is
+# read as text and as an image) to a few hundred thousand tokens, under a dollar.
+MAX_PAGES = 100
 # The API takes requests up to 32 MB, and base64 makes a PDF a third larger.
 MAX_BYTES = 22_000_000
 

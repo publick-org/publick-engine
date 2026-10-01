@@ -403,3 +403,29 @@ def test_roll_calls_are_read_again_when_the_members_change(tmp_path):
     assert summarize.run(fixed, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["laid_out"] == 1
     assert saved(tmp_path, sha)["votes_members"][0] == "Margaret Crowe"
     assert summarize.run(fixed, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["laid_out"] == 0
+
+
+def blank_pdf(pages):
+    import io
+    from pypdf import PdfWriter
+    writer = PdfWriter()
+    for _ in range(pages):
+        writer.add_blank_page(width=612, height=792)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def test_long_minutes_are_summarized_up_to_100_pages(tmp_path):
+    config = load_config("gloucester")
+    minutes_town(tmp_path, blank_pdf(79))
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 1 and result["errors"] == []
+
+
+def test_minutes_over_100_pages_are_not_sent(tmp_path):
+    config = load_config("gloucester")
+    minutes_town(tmp_path, blank_pdf(101))
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert client.calls == [] and result["errors"] == ["minutes m: 101 pages, over the 100-page limit"]
