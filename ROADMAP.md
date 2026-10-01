@@ -509,9 +509,30 @@ for its state package (`pipeline/states/`): a town in a state without one gets
 meetings, minutes, summaries, officials, unemployment, and housing estimates,
 and the state's tax bill, budget, and school figures follow when its package
 is written. So each state's first town goes live on what the engine reads,
-and its figures come after. Maine, Vermont, and Rhode Island: not researched
-yet; one candidate town each, researched as Wallingford's was, before
-choosing.
+and its figures come after.
+
+Candidates for Maine, Vermont, and Rhode Island (researched 2026-10-01, none
+chosen yet), picked for readers likely to use the site: thin local news, live
+local fights, a college:
+- *Vermont: Burlington* (45,000). CivicClerk with text minutes, and
+  SeeClickFix the city answers: config only. The Free Press no longer covers
+  City Hall; Front Porch Forum started there. Needs its current ward file
+  found; the school board is on Diligent Community, a new reader. Montpelier
+  and Winooski (8,000 each, CivicPlus) are config only too, but have no 311
+  and may be too small for BLS figures.
+- *Maine: Lewiston* (37,000). CivicPlus as Gloucester's, text minutes, the
+  School Committee in Google Drive: config only, schools included; a
+  contentious council; no 311. Portland (68,000) is config only too
+  (CivicClerk, SeeClickFix), with a bigger audience, but 22 boards and its
+  311 volume weigh on the summary budget, and its school board is on
+  BoardDocs.
+- *Rhode Island: South Kingstown* (32,000). CivicClerk and SeeClickFix the
+  town answers: config only; URI's college town, with an overflowing
+  school-cuts meeting in 2026. Pawtucket (76,000) has the bigger audience and
+  needs a reader for the Secretary of State's Open Meetings portal, where
+  every Rhode Island public body posts its agendas and must file its minutes
+  (text PDFs in every sample): one reader of about two days for all 39
+  municipalities. Providence is too big for now.
 
 **Wallingford, Connecticut (researched 2026-10-01).** About 45,000 people, a
 mayor and a nine-member Town Council, all elected at large (no wards), with
