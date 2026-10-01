@@ -1,22 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Boards and committees{% endblock %}
-{% block description %}Every {{ town.name }} board, commission, and committee with a meeting on the city calendar, and when each meets next.{% endblock %}
+{% block title %}{{ _("Boards and committees") }}{% endblock %}
+{# Translators: %(town)s is the town's name. #}
+{% block description %}{% trans town=town.name %}Every {{ town }} board, commission, and committee with a meeting on the city calendar, and when each meets next.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb">
-  <ol><li><a href="/meetings/">Meetings</a></li></ol>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/meetings/">{{ _("Meetings") }}</a></li></ol>
 </nav>
-<h1>Boards and committees</h1>
-<p class="lede">When each board and committee meets next.</p>
+<h1>{{ _("Boards and committees") }}</h1>
+<p class="lede">{{ _("When each board and committee meets next.") }}</p>
 {% if meetings.boards %}
 <ul class="board-list">
   {% for b in meetings.boards %}
   <li>
     <a href="{{ b.url }}">{{ b.name }}</a>
-    <span class="meta">{% if b.next %}Next meeting <time datetime="{{ b.next.date }}">{{ b.next.date | date("short") }}</time>{% else %}No upcoming meeting listed{% endif %}</span>
+    <span class="meta">{% if b.next %}{% trans iso=b.next.date, when=b.next.date | date("short") %}Next meeting <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}{% else %}{{ _("No upcoming meeting listed") }}{% endif %}</span>
   </li>
   {% endfor %}
 </ul>
 {% else %}
-<p>No meetings have been recorded yet.</p>
+<p>{{ _("No meetings have been recorded yet.") }}</p>
 {% endif %}
 {% endblock %}
