@@ -28,24 +28,24 @@
   <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   {% if config.meetings is defined and meeting_links.documents %}
-  <link rel="alternate" type="application/rss+xml" title="{{ site.name }}: City Hall updates" href="/feed.xml">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.name }}: {{ _("City Hall updates") }}" href="/feed.xml">
   {% endif %}
   <link rel="stylesheet" href="/static/css/site.css?v={{ css_version }}">
   {% if counter %}<script src="{{ "/static/js/count.js" | versioned }}" data-endpoint="{{ counter }}/count"{% if config.analytics.get("prefix") %} data-prefix="{{ config.analytics.prefix }}"{% endif %} data-title="{{ self.title() }}" defer></script>{% endif %}
   {% block head %}{% endblock %}
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to main content</a>
+  <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
 
   <header class="site-header">
     <div class="wrap masthead">
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>
     </div>
-    <nav class="site-nav" aria-label="Main">
+    <nav class="site-nav" aria-label="{{ _("Main") }}">
       <div class="wrap">
         <ul class="nav-list">
-          <li><a href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>This week</a></li>
+          <li><a href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ _("This week") }}</a></li>
           {% for s in sections %}
           {% set href = "/" ~ s.slug ~ "/" %}
           <li><a href="{{ href }}"
@@ -67,15 +67,16 @@
     <div class="wrap">
       <p class="footer-brand">{{ site.name }}</p>
       {% if site.get("network") %}
-      <p>Part of {% if site.get("network_url") %}<a href="{{ site.network_url }}">{{ site.network }}</a>{% else %}{{ site.network }}{% endif %}, a network of independent sites publishing the public record of towns and cities.</p>
+      {% set network = ('<a href="%s">%s</a>' | safe) % (site.network_url, site.network) if site.get("network_url") else site.network %}
+      <p>{% trans %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities.{% endtrans %}</p>
       {% endif %}
-      <p>An independent project. Not affiliated with or endorsed by the City of {{ town.name }}. Official information: <a href="{{ town.official_site }}">{{ town.official_site | replace("https://", "") }}</a>.</p>
-      <p>Updated <time datetime="{{ built_at.isoformat(timespec='minutes') }}">{{ built_at.strftime("%A") }}, {{ built_at.strftime("%B") }} {{ built_at.day }}, {{ built_at.year }}</time>.</p>
+      <p>{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %}</p>
+      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
       <ul class="footer-links">
-        <li><a href="/about/">About</a></li>
-        <li><a href="{{ report_link(page_url, self.title()) }}">Report a problem with this page</a></li>
-        <li><a href="/about/accessibility/">Accessibility</a></li>
-        <li><a href="{{ site.repo_url }}">Source code and data</a></li>
+        <li><a href="/about/">{{ _("About") }}</a></li>
+        <li><a href="{{ report_link(page_url, self.title()) }}">{{ _("Report a problem with this page") }}</a></li>
+        <li><a href="/about/accessibility/">{{ _("Accessibility") }}</a></li>
+        <li><a href="{{ site.repo_url }}">{{ _("Source code and data") }}</a></li>
       </ul>
     </div>
   </footer>
