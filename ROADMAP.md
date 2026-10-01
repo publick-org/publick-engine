@@ -583,11 +583,49 @@ elections in November of odd years (next 2027-11-02). What it uses:
   Public Utilities Commission meets twice a month: news none of the other
   towns have.
 
+**The next three Massachusetts towns (from a survey of about 65 Massachusetts city and
+town websites, 2026-10-01),** chosen for the people they reach and how little
+local coverage they have, not only for ease. Salem and Medford were already in
+the works and are left out.
+1. **Lawrence** (about 89,000 people). Most residents are Hispanic, and many
+   read Spanish first, so it launches with the site in Spanish (item 14), and
+   not before the Spanish is good. Its meetings are config only: an Agenda
+   Center with the City Council and School Committee, and minutes with a text
+   layer. The council's minutes are posted late (5 for 2026 by October).
+2. **Lowell** (about 115,000, the state's fourth-largest city). Config only:
+   the City Council (30 agendas and 28 minutes in 2026) and School Committee
+   (23 and 20) in one Agenda Center, minutes with a text layer. Councillors
+   are elected by district, which the Officials page's wards fit.
+3. **Springfield** (about 155,000, the third-largest). On CivicClerk, which
+   the engine reads for Manchester: 428 events from January to September
+   2026. Most are filed under "General", so meetings have to be sorted into
+   boards. Medford is on CivicClerk too, so Springfield comes after it. Nearly
+   half its residents are Hispanic, so it would turn on Spanish as well.
+
+What else the survey found:
+- Config only, after these: Methuen, Chicopee, Waltham, and Fitchburg
+  (Agenda Centers with councils' minutes as text), and a North Shore group
+  next to Beverly and Salem (Swampscott, Saugus, Danvers), each governed by a
+  Select Board and Town Meeting rather than a council.
+- Active Agenda Centers with councils' minutes as scans, so a transcription
+  cost every month: Taunton, Leominster, Westfield, Pittsfield, Weymouth.
+- CivicClerk besides Springfield and Medford: Watertown, Bridgewater.
+- Browser checks or refusals of automated reading: Newton, Arlington,
+  Chelsea, New Bedford, Newburyport, Marblehead, Barnstable; possibly Woburn
+  and Peabody.
+- Platforms the engine doesn't read yet: Lynn, Brockton, Quincy, Fall River,
+  Somerville, Worcester, Cambridge, Haverhill, Revere, Holyoke, Everett.
+  Framingham and Melrose have Agenda Centers that load only with JavaScript.
+- SeeClickFix's issue listing (`/api/v2/issues`) now refuses requests without
+  a login, so the helper can't measure a city's 311 activity from it. The
+  Open311 listing the engine reads still answers; each town's organization ID
+  is found by hand.
+
 **Matters at:** the next town.
 
 ## New information for readers
 
-Items 11 to 13 aren't about scale: they're what the sites could tell readers
+Items 11 to 14 aren't about scale: they're what the sites could tell readers
 that they don't yet. They don't depend on the number of towns, so they aren't
 in the stages below.
 
@@ -743,6 +781,63 @@ meeting costs several times what its minutes do, and a summary of a heated
 meeting is where an error does the most harm. Not planned unless that changes.
 Linking each meeting's recording from its page is simple and can come first.
 
+## 14. Sites in Spanish
+
+**What it's for.** In Lawrence, the next town (item 10), most residents are
+Hispanic and many read Spanish first; an English-only site leaves out much of
+the city. Springfield, Holyoke, Chelsea, and Lynn have large Spanish-speaking
+populations too, so this is an engine feature any town turns on, not
+something built for one town.
+
+**Plan.**
+- A town turns it on in its config (`languages = ["en", "es"]` in `[site]`).
+  The site is built twice from the same data: English as today, and Spanish
+  under `/es/` on the same address (`lawrence-ma.publick.org/es/meetings/`),
+  served by the same Worker. Each page links to its other-language version,
+  with `lang` and `hreflang` set.
+- A visitor always lands in English. A switch in the header goes to the same
+  page in the other language.
+- The sites' own wording (about 10,000 words in the page templates, and the
+  phrases built in Python: dates, plurals, durations, money) moves into one
+  string file per language. English pages come out unchanged, checked by
+  comparing a town's build before and after. The Spanish strings are written
+  once and checked by a person.
+- Summaries are translated from the English summary, never from the PDF
+  again, by Haiku 4.5 (`claude-haiku-4-5-20251001`); summaries themselves stay
+  on the current model. The same rules apply: only what the summary says,
+  neutral, about an 8th-grade reading level, and names, addresses, dollar
+  amounts, dates, and vote counts copied exactly. A check without AI confirms
+  every number in the English is in the Spanish; a translation that fails
+  isn't shown, and the page shows the English summary.
+- Each translation is its own record, keyed by the English summary it came
+  from, so turning Spanish on doesn't regenerate any English summary, and a
+  translation is made again only when its English summary changes.
+- Translations count in the summary budget (item 4) in the same order:
+  upcoming agendas and recent documents first, older ones as the budget
+  allows. A meeting not translated yet shows its English summary, marked as
+  English.
+- Agendas, minutes, and transcripts stay in English: they're the official
+  record. Spanish pages link them with a note that the document is in English.
+- Board names are shown in Spanish with the official English name after them
+  ("Concejo Municipal (City Council)"), so readers can match them to the
+  city's notices. The glossary and 311 categories get Spanish in the town's
+  config.
+- Search covers the Spanish summaries, and the site checks run on both
+  languages.
+
+**Before Lawrence launches.** Haiku is tried first on a sample of Lawrence's
+summaries, checking names, amounts, and votes against the English. A person
+who reads Spanish checks the site's wording and a sample of summaries. Plain
+Spanish that reads naturally to Lawrence's community, which is largely
+Dominican and Puerto Rican, not formal or literal. Lawrence launches only once
+the Spanish is good, in both languages at once.
+
+**Cost.** Writing the Spanish out is most of each translation's cost (output
+costs more than input, and the Spanish is about as long as the English); with
+Haiku that's well under what a summary costs.
+
+**Matters at:** Lawrence, the next town.
+
 ## Stages
 
 Done: the network repository, with all three towns moved in and a `[storage]`
@@ -776,7 +871,11 @@ towns too. Next, in this order (as of 2026-10-01):
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-2. Wallingford, the first Connecticut town (item 10), live on what the
+2. Take the "In the works" list off the publick.org homepage
+   (`home/upcoming.toml` and the section `scripts/build_home.py` writes from
+   it) in the network repository. The towns on it are still planned; the
+   homepage just stops naming towns before they're live.
+3. Wallingford, the first Connecticut town (item 10), live on what the
    engine can read, then the rest:
    1. A reader for the town's website: the documents page and the meetings
       calendar, with each meeting's video linked.
@@ -789,23 +888,27 @@ towns too. Next, in this order (as of 2026-10-01):
       then budget and school figures, then the Appeals List.
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
-3. A town each in Maine, Vermont, and Rhode Island, chosen from the
+4. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
+   languages once a person has checked the Spanish.
+5. Lowell: config only (item 10).
+6. Springfield, after Medford, the first Massachusetts town on CivicClerk:
+   its meetings sorted into boards, and Spanish turned on (items 10 and 14).
+7. A town each in Maine, Vermont, and Rhode Island, chosen from the
    candidates in item 10, preferring towns on software the engine reads.
-4. The next town the engine already reads: config only (item 10).
-5. A reader for the next meeting platform the network needs (item 10).
-6. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+8. A reader for the next meeting platform the network needs (item 10).
+9. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
    statewide PDF every Massachusetts town downloads whole today) and DESE's
    school figures (its data portal answers statewide queries), into
    `states/ma/` as the DLS reports are.
-7. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
-   request) and the Census's permits and estimates, once for the country.
-8. Adding a town from scratch (item 10): the helper.
-9. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
-   it), and renew the scheduler's GitHub token before it expires (about
-   2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
-   back to GitHub's own schedule, and the "network stopped" check can't open
-   its issue.
-10. Towns queued separately (item 8), only if replaced runs turn out to delay
+10. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+    request) and the Census's permits and estimates, once for the country.
+11. Adding a town from scratch (item 10): the helper.
+12. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+    it), and renew the scheduler's GitHub token before it expires (about
+    2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
+    back to GitHub's own schedule, and the "network stopped" check can't open
+    its issue.
+13. Towns queued separately (item 8), only if replaced runs turn out to delay
     towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
