@@ -15,12 +15,51 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
+#. " pts" follows a change in percentage points, such as "↓ 0.4 pts".
+#: pipeline/build_site.py
+msgid " pts"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "${amount} million"
+msgstr ""
+
+#: pipeline/compute_311.py
+msgid "1 to 3 months"
+msgstr ""
+
+#: pipeline/compute_311.py
+msgid "1 week to 1 month"
+msgstr ""
+
+#: pipeline/compute_311.py
+msgid "3 to 12 months"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "311 requests"
+msgstr ""
+
+#: pipeline/fetch_housing.py
+#, python-brace-format
+msgid "ACS {year} 5-year estimates"
+msgstr ""
+
 #: site/templates/base.html
 msgid "About"
 msgstr ""
 
 #: site/templates/base.html
 msgid "Accessibility"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Agenda"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Agenda posted."
 msgstr ""
 
 #: site/templates/base.html
@@ -30,12 +69,247 @@ msgid ""
 "information: <a href=\"%(url)s\">%(site)s</a>."
 msgstr ""
 
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Apr"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "April"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Aug"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "August"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Average single-family tax bill"
+msgstr ""
+
+#: pipeline/states/ma/tax_bill.py
+msgid "Average tax bill (Mass. DLS)"
+msgstr ""
+
+#: pipeline/states/nh/__init__.py
+msgid "Calculated by Publick from state figures"
+msgstr ""
+
 #: site/templates/base.html
 msgid "City Hall updates"
 msgstr ""
 
+#: pipeline/states/nh/budget.py
+msgid "City budget"
+msgstr ""
+
+#: pipeline/states/ma/budget.py
+msgid "City budget (Mass. DLS)"
+msgstr ""
+
+#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/nh/schools.py
+#, python-brace-format
+msgid "Class of {year} graduation rate"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "Correction: {page}"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Dec"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "December"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Feb"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "February"
+msgstr ""
+
+#: pipeline/build_site.py pipeline/states/ma/tax_bill.py
+#, python-brace-format
+msgid "Fiscal year {year}"
+msgstr ""
+
+#: pipeline/states/nh/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} city budget"
+msgstr ""
+
+#: pipeline/fetch_housing.py
+#, python-brace-format
+msgid "Fiscal year {year} parcel counts"
+msgstr ""
+
+#: pipeline/states/ma/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} spending"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Fri"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Friday"
+msgstr ""
+
+#: pipeline/fetch_housing.py
+msgid "Housing figures"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Jan"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "January"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Jul"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "July"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Jun"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "June"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Latest request on SeeClickFix"
+msgstr ""
+
 #: site/templates/base.html
 msgid "Main"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Mar"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "March"
+msgstr ""
+
+#: pipeline/states/ma/__init__.py
+msgid "Mass. Division of Local Services"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "May"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "May"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Median, past 12 months"
+msgstr ""
+
+#: pipeline/freshness.py
+msgid "Meeting summaries"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Minutes"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Minutes posted."
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Mon"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Monday"
+msgstr ""
+
+#. {since} is a time, such as "last week" or "August 2025".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "No change from {since}"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "No street address"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Not enough data"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Nov"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "November"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Oct"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "October"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Open 311 requests"
+msgstr ""
+
+#: pipeline/compute_311.py
+msgid "Over 1 year"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "Page: {url}"
 msgstr ""
 
 #: site/templates/base.html
@@ -49,6 +323,38 @@ msgstr ""
 msgid "Report a problem with this page"
 msgstr ""
 
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Sat"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Saturday"
+msgstr ""
+
+#: pipeline/states/nh/schools.py
+msgid "School figures"
+msgstr ""
+
+#: pipeline/states/ma/schools.py
+msgid "School figures (DESE)"
+msgstr ""
+
+#: pipeline/states/ct/schools.py
+msgid "School figures (EdSight)"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month, short"
+msgid "Sep"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "month"
+msgid "September"
+msgstr ""
+
 #: site/templates/base.html
 msgid "Skip to main content"
 msgstr ""
@@ -57,12 +363,297 @@ msgstr ""
 msgid "Source code and data"
 msgstr ""
 
+#: pipeline/states/ma/schools.py
+#, python-brace-format
+msgid "Spring {year} MCAS results"
+msgstr ""
+
+#: pipeline/states/ct/schools.py pipeline/states/nh/schools.py
+#, python-brace-format
+msgid "Spring {year} state test results"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Sun"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Sunday"
+msgstr ""
+
+#: pipeline/states/nh/tax_bill.py
+msgid "Tax bill (calculated)"
+msgstr ""
+
+#: pipeline/build_site.py pipeline/states/nh/tax_bill.py
+#, python-brace-format
+msgid "Tax year {year}"
+msgstr ""
+
+#: pipeline/states/nh/budget.py
+#, python-brace-format
+msgid "Tax year {year} tax rates"
+msgstr ""
+
 #: site/templates/base.html
 msgid "This week"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Thu"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Thursday"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Tue"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Tuesday"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Typical time for the city to acknowledge a request"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "U.S. Bureau of Labor Statistics"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Under 1 hour"
+msgstr ""
+
+#: pipeline/compute_311.py
+msgid "Under 1 week"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "Unemployment rate"
+msgstr ""
+
+#: pipeline/fetch_labor.py
+msgid "Unemployment rate (BLS)"
 msgstr ""
 
 #: site/templates/base.html
 #, python-format
 msgid "Updated <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday, short"
+msgid "Wed"
+msgstr ""
+
+#: pipeline/i18n.py
+msgctxt "weekday"
+msgid "Wednesday"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "What it should say, and where you saw it (if you know):"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "What's wrong:"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "agenda items"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "building permits"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "city's Agenda Center"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "city's Archive Center"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "city's meeting portal"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "last week"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "last year"
+msgstr ""
+
+#: pipeline/rhythms.py
+msgid "no data yet"
+msgstr ""
+
+#: pipeline/build_site.py
+msgid "school district's website"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{address}. Submitted {date}."
+msgstr ""
+
+#. such as "↑ 7 from last week", or "↓ 0.4 pts from August 2025".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{arrow} {amount}{unit} from {since}"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{board}: agenda for {date}"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{board}: minutes of {date}"
+msgstr ""
+
+#. a place on the map of repeated problems, such as "Potholes. 3 requests, 2 after an earlier one was
+#. closed."
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{category}. {n} request, {again} after an earlier one was closed."
+msgid_plural "{category}. {n} requests, {again} after an earlier one was closed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{days} days"
+msgstr ""
+
+#. a list of two things, such as "agenda items and building permits".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{first} and {last}"
+msgstr ""
+
+#. which of a board's meetings on one day, such as "1 of 2".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{i} of {n}"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{month} (preliminary)"
+msgstr ""
+
+#: pipeline/fetch_housing.py
+#, python-brace-format
+msgid "{month} building permits"
+msgstr ""
+
+#: pipeline/fetch_labor.py
+#, python-brace-format
+msgid "{month} rate"
+msgstr ""
+
+#. a date without the day of the week, such as "October 1, 2026".
+#: pipeline/i18n.py
+#, python-brace-format
+msgid "{month} {day}, {year}"
+msgstr ""
+
+#. a month, such as "October 2026" (or "Oct 2026").
+#: pipeline/i18n.py
+#, python-brace-format
+msgid "{month} {year}"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{n} hour"
+msgid_plural "{n} hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{n} with no update in over a year"
+msgid_plural "{n} with no update in over a year"
+msgstr[0] ""
+msgstr[1] ""
+
+#. the end of a list of three or more, such as "agenda items, building permits, and 311 requests".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{others}, and {last}"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format, python-format
+msgid "{percent}% of requests were acknowledged"
+msgstr ""
+
+#: pipeline/rhythms.py
+#, python-brace-format
+msgid "{period} is later than usual (usually by {date})"
+msgstr ""
+
+#. such as "Fiscal year 2027 usually by February 1, 2027".
+#: pipeline/rhythms.py
+#, python-brace-format
+msgid "{period} usually by {date}"
+msgstr ""
+
+#. a time of day, such as "7:00 PM".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{time} AM"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{time} PM"
+msgstr ""
+
+#. a date in a list, such as "Thu, Oct 1".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{weekday}, {month} {day}"
+msgstr ""
+
+#. a full date, such as "Thursday, October 1, 2026".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{weekday}, {month} {day}, {year}"
+msgstr ""
+
+#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py
+#, python-brace-format
+msgid "{years} attendance"
+msgstr ""
+
+#: pipeline/states/nh/schools.py
+#, python-brace-format
+msgid "{years} cost per pupil"
+msgstr ""
+
+#: pipeline/states/ct/schools.py
+#, python-brace-format
+msgid "{years} spending per pupil"
+msgstr ""
+
+#: pipeline/fetch_housing.py
+#, python-brace-format
+msgid "{year} building permits"
 msgstr ""
 

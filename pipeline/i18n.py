@@ -25,7 +25,7 @@ import io
 import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
-from pathlib import Path
+from datetime import date
 
 from babel.messages.catalog import Catalog
 from babel.messages.extract import extract_from_dir
@@ -97,6 +97,44 @@ def N_(message: str) -> str:
     """Marks a string for translation where it's defined (a module's constant),
     to be translated with _() where it's used."""
     return message
+
+
+# ---- Dates ---------------------------------------------------------------------
+
+def month_name(month: int, short: bool = False) -> str:
+    """1 -> 'January' ('Jan'), in the language being built."""
+    if short:
+        return (pgettext("month, short", "Jan"), pgettext("month, short", "Feb"), pgettext("month, short", "Mar"),
+                pgettext("month, short", "Apr"), pgettext("month, short", "May"), pgettext("month, short", "Jun"),
+                pgettext("month, short", "Jul"), pgettext("month, short", "Aug"), pgettext("month, short", "Sep"),
+                pgettext("month, short", "Oct"), pgettext("month, short", "Nov"), pgettext("month, short", "Dec"))[month - 1]
+    return (pgettext("month", "January"), pgettext("month", "February"), pgettext("month", "March"),
+            pgettext("month", "April"), pgettext("month", "May"), pgettext("month", "June"),
+            pgettext("month", "July"), pgettext("month", "August"), pgettext("month", "September"),
+            pgettext("month", "October"), pgettext("month", "November"), pgettext("month", "December"))[month - 1]
+
+
+def weekday_name(d: date, short: bool = False) -> str:
+    """The day of the week ('Thursday', or 'Thu'), in the language being built."""
+    if short:
+        return (pgettext("weekday, short", "Mon"), pgettext("weekday, short", "Tue"), pgettext("weekday, short", "Wed"),
+                pgettext("weekday, short", "Thu"), pgettext("weekday, short", "Fri"), pgettext("weekday, short", "Sat"),
+                pgettext("weekday, short", "Sun"))[d.weekday()]
+    return (pgettext("weekday", "Monday"), pgettext("weekday", "Tuesday"), pgettext("weekday", "Wednesday"),
+            pgettext("weekday", "Thursday"), pgettext("weekday", "Friday"), pgettext("weekday", "Saturday"),
+            pgettext("weekday", "Sunday"))[d.weekday()]
+
+
+def plain_date(d: date) -> str:
+    """'October 1, 2026'."""
+    # Translators: a date without the day of the week, such as "October 1, 2026".
+    return _("{month} {day}, {year}").format(month=month_name(d.month), day=d.day, year=d.year)
+
+
+def month_year(d: date, short: bool = False) -> str:
+    """'October 2026' ('Oct 2026')."""
+    # Translators: a month, such as "October 2026" (or "Oct 2026").
+    return _("{month} {year}").format(month=month_name(d.month, short), year=d.year)
 
 
 # ---- The string files --------------------------------------------------------
