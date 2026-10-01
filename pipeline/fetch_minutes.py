@@ -8,8 +8,9 @@ matching meeting in data/meetings/meetings.json. A meeting that was never on
 the calendar feed (usually because it predates this site) gets a record
 built from its minutes.
 
-A town with an Agenda Center ([meetings.agenda_center]) or a CivicClerk portal
-([meetings.civicclerk]) lists each meeting's minutes with its agenda;
+A town with an Agenda Center ([meetings.agenda_center]), a CivicClerk portal
+([meetings.civicclerk]) or a documents page of every board's files
+([meetings.file_list]) lists each meeting's minutes with its agenda;
 pipeline.fetch_meetings records the link, and this downloads the minutes of
 meetings since the table's `since` date (a town with [meetings] documents =
 false downloads none).
@@ -142,11 +143,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
 
 # Meeting sources whose listings link each meeting's minutes, by the [meetings]
 # table that configures them. Each table's `since` is where minutes start.
-LINKED = {"agendacenter": "agenda_center", "civicclerk": "civicclerk"}
+LINKED = {"agendacenter": "agenda_center", "civicclerk": "civicclerk", "filelist": "file_list"}
 
 
 def run_linked(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
-    """Download the minutes that Agenda Center and CivicClerk meetings link to,
+    """Download the minutes that Agenda Center, CivicClerk and file list meetings link to,
     for meetings since each source's `since`, newest first, up to
     max_minutes_per_run (default 60) per source a run. Minutes republished under
     a new number replace the old ones, and the change is recorded."""
