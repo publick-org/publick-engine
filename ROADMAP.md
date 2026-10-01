@@ -743,6 +743,57 @@ meeting costs several times what its minutes do, and a summary of a heated
 meeting is where an error does the most harm. Not planned unless that changes.
 Linking each meeting's recording from its page is simple and can come first.
 
+## Others' use of the data
+
+## 14. Open data
+
+**What it's for.** The summaries and decisions Publick writes from agendas
+and minutes are useful beyond its own pages: to local newsrooms, researchers,
+civic groups, and apps. Publick wants credit when they're reused.
+
+**What's there today.** Everything is public, but not packaged for reuse:
+- The network repository holds each town's `data/meetings/meetings.json`
+  and `data/summaries/*.json`, one file per summarized document (headline,
+  summary, decisions with who moved and seconded, the source document's
+  address, the model, and for a scan its transcription). About 370 so far.
+  They're named by the document's hash, so joining them to meetings is left
+  to the reader.
+- Each site publishes `/meetings/data/decisions.csv` (every decision from
+  minutes, with links to the meeting and the minutes), `/feed.xml`,
+  `/meetings/search-index.json`, and its permits and 311 tables as CSV.
+- The network repository has no license for its data, so reuse is unclear.
+  The engine's code is MIT.
+
+**The license (decided 2026-10-01): CC BY 4.0** for what Publick makes: the
+summaries, headlines, decision lists, and the data compiled from public
+sources. It allows any use, a newsroom's included, with credit. The credit
+asked for: "Summary by Publick (publick.org), AI-generated from [the source
+document, linked]", so the AI label and the source travel with the text.
+What isn't Publick's keeps its own terms: 311 data stays under SeeClickFix's
+CC BY-NC-SA 3.0; agendas and minutes are public records; Census and BLS
+figures are public domain. Text written entirely by a model may have little
+copyright protection in the US, so credit for it rests more on custom than
+on law; reusers of CC BY sources mostly give it.
+
+**Plan.**
+- A `LICENSE` in the network repository saying the above, and a line on
+  each site's About page with the credit to give.
+- A per-town export, `/data/meetings.json`, in a fixed, documented format
+  with a version number: each meeting with its board, date, status, links,
+  and its summaries and decisions joined to it. Built with the site, as a
+  static file, so it costs nothing to serve at any number of towns.
+- A Data page on each site describing the files and the credit line, and a
+  list of every town's export on publick.org.
+- What summaries cost (each summary file's `cost` and `usage`) is the
+  maintainer's: left out of the export.
+
+**Limits to say.** The summaries are AI-generated and can be wrong; the
+town's posted documents are the official record, and every summary links to
+its source.
+
+**Matters at:** the license now, before anyone builds on the data; the
+export and the Data page before Publick tells anyone the data is there.
+
 ## Stages
 
 Done: the network repository, with all three towns moved in and a `[storage]`
@@ -791,21 +842,23 @@ towns too. Next, in this order (as of 2026-10-01):
       Google Docs.
 3. A town each in Maine, Vermont, and Rhode Island, chosen from the
    candidates in item 10, preferring towns on software the engine reads.
-4. The next town the engine already reads: config only (item 10).
-5. A reader for the next meeting platform the network needs (item 10).
-6. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+4. Open data (item 14): the CC BY 4.0 license and the credit line now, then
+   each town's `/data/meetings.json` export and a Data page.
+5. The next town the engine already reads: config only (item 10).
+6. A reader for the next meeting platform the network needs (item 10).
+7. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
    statewide PDF every Massachusetts town downloads whole today) and DESE's
    school figures (its data portal answers statewide queries), into
    `states/ma/` as the DLS reports are.
-7. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+8. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
    request) and the Census's permits and estimates, once for the country.
-8. Adding a town from scratch (item 10): the helper.
-9. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
-   it), and renew the scheduler's GitHub token before it expires (about
-   2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
-   back to GitHub's own schedule, and the "network stopped" check can't open
-   its issue.
-10. Towns queued separately (item 8), only if replaced runs turn out to delay
+9. Adding a town from scratch (item 10): the helper.
+10. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+    it), and renew the scheduler's GitHub token before it expires (about
+    2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
+    back to GitHub's own schedule, and the "network stopped" check can't open
+    its issue.
+11. Towns queued separately (item 8), only if replaced runs turn out to delay
     towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
