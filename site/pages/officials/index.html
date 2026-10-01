@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% from "macros.html" import on_this_page %}
 {% set o = officials %}
-{% block title %}Who represents you{% endblock %}
-{% block description %}Elected officials in {{ town.name }}, by office{% if officials.wards %} and by ward{% endif %}, and how to reach them.{% endblock %}
+{% block title %}{{ _("Who represents you") }}{% endblock %}
+{% block description %}{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
 {% block head %}
 {% if wards_url %}
 <link rel="stylesheet" href="{{ "/static/vendor/leaflet/leaflet.css" | versioned }}">
@@ -12,37 +12,37 @@
 {% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Who represents you</h1>
-  <p class="lede">Elected officials in {{ town.name }}, by office{% if officials.wards %} and by ward{% endif %}, and how to reach them.</p>
-  <p class="source-note">Checked {{ o.checked | date("plain") }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.</p>
+  <h1>{{ _("Who represents you") }}</h1>
+  <p class="lede">{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
+  <p class="source-note">{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
 </div>
 
 {% set links = [] %}
-{% if o.wards %}{% set _ = links.append(("wards", "Find your ward")) %}{% endif %}
-{% for b in o.bodies %}{% set _ = links.append((b.id, b.name)) %}{% endfor %}
+{% if o.wards %}{% set __ = links.append(("wards", _("Find your ward"))) %}{% endif %}
+{% for b in o.bodies %}{% set __ = links.append((b.id, b.name)) %}{% endfor %}
 {{ on_this_page(links) }}
 
 {% if o.wards %}
-<h2 id="wards">Find your ward</h2>
+<h2 id="wards">{{ _("Find your ward") }}</h2>
 {% if wards_url %}
-<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-town="{{ town.name }}" role="region" aria-label="Map of {{ town.name }}'s wards" hidden></div>
+<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-town="{{ town.name }}" role="region" aria-label="{% trans town=town.name %}Map of {{ town }}'s wards{% endtrans %}" hidden></div>
 <div class="locate" id="locate" hidden>
-  <button class="button" type="button" id="locate-button" aria-describedby="locate-note">Find my ward using my location</button>
-  <p class="small" id="locate-note">Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved.</p>
+  <button class="button" type="button" id="locate-button" aria-describedby="locate-note">{{ _("Find my ward using my location") }}</button>
+  <p class="small" id="locate-note">{{ _("Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved.") }}</p>
 </div>
 <div class="ward-result" id="ward-result" role="status" aria-live="polite"></div>
 {% endif %}
-<p>Members elected citywide, such as at-large members, represent every ward. They're listed under each office below.</p>
+<p>{{ _("Members elected citywide, such as at-large members, represent every ward. They're listed under each office below.") }}</p>
 <ul class="ward-list">
   {% for w in o.wards %}
   <li id="{{ w.id }}" data-ward="{{ w.ward }}">
-    <h3>Ward {{ w.ward }}</h3>
+    <h3>{% trans ward=w.ward %}Ward {{ ward }}{% endtrans %}</h3>
     {% if w.members %}
     <ul>
       {% for m in w.members %}<li>{{ m.body }}{% if m.wards | length > 1 %} ({{ m.seat }}){% endif %}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
     </ul>
     {% else %}
-    <p class="small">No seat is elected by this ward alone.</p>
+    <p class="small">{{ _("No seat is elected by this ward alone.") }}</p>
     {% endif %}
   </li>
   {% endfor %}
@@ -54,22 +54,24 @@
 {% if b.get("note") %}<p>{{ b.note }}</p>{% endif %}
 {% if b.board_url or b.get("url") %}
 <ul class="link-row">
-  {% if b.board_url %}<li><a href="{{ b.board_url }}">{{ b.name }} meetings</a></li>{% endif %}
-  {% if b.get("url") %}<li><a href="{{ b.url }}">The {{ b.name }}'s official page</a></li>{% endif %}
+  {% if b.board_url %}<li><a href="{{ b.board_url }}">{% trans board=b.name %}{{ board }} meetings{% endtrans %}</a></li>{% endif %}
+  {% if b.get("url") %}<li><a href="{{ b.url }}">{% trans board=b.name %}The {{ board }}'s official page{% endtrans %}</a></li>{% endif %}
 </ul>
 {% endif %}
 <div class="table-wrap">
 <table class="data-table officials">
-  <thead><tr><th scope="col">Seat</th><th scope="col">Member</th><th scope="col">Term ends</th><th scope="col">Contact</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Seat") }}</th><th scope="col">{{ _("Member") }}</th><th scope="col">{{ _("Term ends") }}</th><th scope="col">{{ _("Contact") }}</th></tr></thead>
   <tbody>
   {% for m in b.members %}
     <tr id="{{ m.anchor }}">
       <td>{% if m.wards | length == 1 %}<a href="#{{ m.wards[0].id }}">{{ m.seat }}</a>
-        {%- else %}{{ m.seat }}{% if m.wards %}<span class="cell-note"> (Wards {% for w in m.wards %}<a href="#{{ w.id }}">{{ w.ward }}</a>{{ ", " if not loop.last and loop.revindex > 2 else " and " if loop.revindex == 2 else "" }}{% endfor %})</span>{% endif %}{% endif %}</td>
+        {%- else %}{{ m.seat }}{% if m.wards %}{% set ward_links = [] %}{% for w in m.wards %}{% set __ = ward_links.append(('<a href="#%s">%s</a>' | safe) % (w.id, w.ward)) %}{% endfor %}
+        {#- Translators: a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward, %(last)s the last. -#}
+        <span class="cell-note"> {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}</span>{% endif %}{% endif %}</td>
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
       <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
       <td>
-        {%- if m.get("email") %}<a href="mailto:{{ m.email }}">Email<span class="visually-hidden"> {{ m.name }}</span></a>{% endif %}
+        {%- if m.get("email") %}<a href="mailto:{{ m.email }}">{% trans name=m.name %}Email<span class="visually-hidden"> {{ name }}</span>{% endtrans %}</a>{% endif %}
         {%- if m.get("email") and m.get("phone") %}<br>{% endif %}
         {%- if m.get("phone") %}<a href="tel:{{ m.phone | replace(" ", "") | replace("(", "") | replace(")", "") }}">{{ m.phone }}</a>{% endif %}
         {%- if not m.get("email") and not m.get("phone") %}–{% endif -%}
@@ -81,5 +83,5 @@
 </div>
 {% endfor %}
 
-<p class="source-note">Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.</p>
+<p class="source-note">{% trans %}Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.{% endtrans %}</p>
 {% endblock %}
