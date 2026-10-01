@@ -1,7 +1,8 @@
 """Whole sites for sample towns whose meetings come from the other systems the
 engine reads: Manchester's (a CivicClerk portal and a DotNetNuke city
-calendar, with New Hampshire's figures) and Malden's (a CivicPlus Agenda
-Center). Their meetings, agendas, and minutes are collected from saved pages
+calendar, with New Hampshire's figures), Malden's (a CivicPlus Agenda
+Center) and Wallingford's (a calendar and a documents page, in Connecticut,
+which has no state figures yet). Their meetings, agendas, and minutes are collected from saved pages
 by the real fetchers; the other sections are the Gloucester fixture data. Each
 site gets the checks Gloucester's does (tests/test_site.py, and a sample of its
 own pages in tests/test_accessibility.py), so a release that breaks one of
@@ -21,6 +22,7 @@ from test_agendacenter import ALIASES, BASE, COMMITTEES, FakeAgendaCenter
 from test_calendars import PORTAL
 from test_calendars import manchester as with_manchester_calendars
 from test_civicclerk_documents import API, FakeManchesterFiles
+from test_filelist import BASE as WALLINGFORD, DOCUMENTS_URL, FakeTownSite, wallingford_meetings
 from test_nh import FakeCity, FakeParcels, run_extract
 from test_nh import manchester as in_new_hampshire
 
@@ -28,7 +30,7 @@ from pipeline import build_site, fetch_budget, fetch_finance, fetch_meetings, fe
 from pipeline.config import load_config
 from pipeline.states.nh import figures
 
-TOWNS = ["manchester", "malden"]
+TOWNS = ["manchester", "malden", "wallingford"]
 # What Malden's sample agendas say about when and where.
 AGENDA_WHEN_WHERE = {"start_time": "18:30", "location": "Malden Government Center, 215 Pleasant St., Room 105"}
 # Before the fixtures' first meetings, when their agendas are posted; their minutes are collected at FETCHED_AT.
@@ -77,6 +79,22 @@ def malden() -> dict:
         {"label": "Meetings (Agenda Center)", "file": "meetings/status.json", "max_days": 2},
         {"label": "311 requests", "file": "311/status.json", "max_days": 2}]
     return named(town, "malden", "malden-ma")
+
+
+def wallingford() -> dict:
+    """Every board's meetings, agendas, minutes, and summaries from the town website's
+    calendar and documents page. Connecticut has no state figures yet, so no budget or
+    schools sections."""
+    town = copy.deepcopy(load_config("gloucester"))
+    town["town"].update(name="Wallingford", state="Connecticut", state_abbr="CT", official_site=WALLINGFORD)
+    for table in ("archive", "drive_meetings", "permits", "finance", "schools"):
+        town.pop(table)
+    town["sections"] = [s for s in town["sections"] if s["slug"] not in ("budget", "schools")]
+    town["meetings"] = wallingford_meetings()
+    town["freshness"]["sources"] = [
+        {"label": "Meetings (town website)", "file": "meetings/status.json", "max_days": 2},
+        {"label": "311 requests", "file": "311/status.json", "max_days": 2}]
+    return named(town, "wallingford", "wallingford-ct")
 
 
 def gloucester_data(data_dir, base, *left_out):
@@ -129,6 +147,14 @@ def malden_site(tmp_path_factory, data_dir):
     return build(town, base, data)
 
 
+@pytest.fixture(scope="module")
+def wallingford_site(tmp_path_factory, data_dir):
+    town, base = wallingford(), tmp_path_factory.mktemp("wallingford")
+    data = gloucester_data(data_dir, base, "permits", "finance", "schools")
+    collect_meetings(town, FakeTownSite, data)
+    return build(town, base, data)
+
+
 @pytest.fixture(params=TOWNS)
 def town_site(request):
     return request.getfixturevalue(f"{request.param}_site")
@@ -159,9 +185,11 @@ def test_site_passes_gloucesters_checks(town_site, check):
 
 
 def test_every_section_is_built(town_site):
+    sections = {s["slug"] for s in town_site.config["sections"]}
     for folder in ("meetings/past", "meetings/boards", "meetings/decisions", "meetings/search", "311", "budget", "schools",
                    "housing", "streets", "about"):
-        assert (town_site.dir / folder / "index.html").exists(), folder
+        if folder.split("/")[0] in sections | {"streets"}:
+            assert (town_site.dir / folder / "index.html").exists(), folder
     assert (town_site.dir / "feed.xml").exists() and (town_site.dir / "meetings" / "search-index.json").exists()
     assert "Gloucester" not in page(town_site, "/meetings/")
 
@@ -244,3 +272,30 @@ def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
     assert "Not listed on the" not in finance and "calendar" not in finance
     assert "This meeting's agenda in the City of Malden's Agenda Center" in finance
     assert 'content="City Council Finance Committee Meeting on ' in finance
+
+
+# ---- Wallingford: the town website's calendar and documents page ------------------------------
+
+def test_wallingford_calendar_meeting_has_its_place_and_agenda(wallingford_site):
+    utilities = meeting_page(wallingford_site, "filelist-public-utilities-commission-58")
+    assert "Public Utilities Commission Meeting" in utilities and "6:00 PM" in utilities
+    assert "Robert F. Parisi Council Chambers" in utilities and "45 South Main Street" in utilities
+    assert f"{DOCUMENTS_URL}DownloadFile.aspx?FileID=12194" in utilities
+    assert 'href="/meetings/agendas/filelist-12194.pdf"' in utilities
+    assert "ADA compliance with Joe Lucido" in utilities
+
+
+def test_wallingford_meeting_from_its_documents_has_its_minutes(wallingford_site):
+    council = meeting_page(wallingford_site, "filelist-file-12176")
+    assert "Town Council Meeting" in council and "Not listed on the city calendar" in council
+    assert f"{DOCUMENTS_URL}DownloadFile.aspx?FileID=12188" in council
+    assert 'href="/meetings/minutes/filelist-12188.pdf"' in council
+    assert "What was decided" in council and "Approved the site plan for 12 Main St, 5-0" in council
+    assert "Town Council" in page(wallingford_site, "/meetings/decisions/")
+
+
+def test_wallingford_cancellations_and_sources(wallingford_site):
+    assert "Cancelled" in meeting_page(wallingford_site, "filelist-personnel-and-pension-appeals-board-5")
+    about = page(wallingford_site, "/about/")
+    assert f'href="{DOCUMENTS_URL}"' in about and "Minutes are collected from January 2026 on." in about
+    assert not (wallingford_site.dir / "budget").exists() and not (wallingford_site.dir / "schools").exists()

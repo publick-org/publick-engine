@@ -502,7 +502,88 @@ towns will need:
   found by the Census's town (MCD) code, where Manchester's are by place,
   and school districts without a high school, so without a graduation rate.
 
-**The next three towns (from a survey of about 65 Massachusetts city and
+**A town in every New England state.** The goal for the network's first
+year: Massachusetts and New Hampshire have towns; Connecticut is next, with
+Wallingford, then Maine, Vermont, and Rhode Island. A new state doesn't wait
+for its state package (`pipeline/states/`): a town in a state without one gets
+meetings, minutes, summaries, officials, unemployment, and housing estimates,
+and the state's tax bill, budget, and school figures follow when its package
+is written. So each state's first town goes live on what the engine reads,
+and its figures come after.
+
+Candidates for Maine, Vermont, and Rhode Island (researched 2026-10-01, none
+chosen yet), picked for readers likely to use the site: thin local news, live
+local fights, a college:
+- *Vermont: Burlington* (45,000). CivicClerk with text minutes, and
+  SeeClickFix the city answers: config only. The Free Press no longer covers
+  City Hall; Front Porch Forum started there. Needs its current ward file
+  found; the school board is on Diligent Community, a new reader. Montpelier
+  and Winooski (8,000 each, CivicPlus) are config only too, but have no 311
+  and may be too small for BLS figures.
+- *Maine: Lewiston* (37,000). CivicPlus as Gloucester's, text minutes, the
+  School Committee in Google Drive: config only, schools included; a
+  contentious council; no 311. Portland (68,000) is config only too
+  (CivicClerk, SeeClickFix), with a bigger audience, but 22 boards and its
+  311 volume weigh on the summary budget, and its school board is on
+  BoardDocs.
+- *Rhode Island: South Kingstown* (32,000). CivicClerk and SeeClickFix the
+  town answers: config only; URI's college town, with an overflowing
+  school-cuts meeting in 2026. Pawtucket (76,000) has the bigger audience and
+  needs a reader for the Secretary of State's Open Meetings portal, where
+  every Rhode Island public body posts its agendas and must file its minutes
+  (text PDFs in every sample): one reader of about two days for all 39
+  municipalities. Providence is too big for now.
+
+**Wallingford, Connecticut (researched 2026-10-01).** About 45,000 people, a
+mayor and a nine-member Town Council, all elected at large (no wards), with
+elections in November of odd years (next 2027-11-02). What it uses:
+- *Meetings: the town's own website*, not CivicPlus, so a new reader, used
+  by Wallingford alone unless another town turns out to share the software.
+  It's easy to read: no browser check, and two pages hold everything.
+  `/minutes-and-agendas/` lists every agenda and minutes PDF in one page
+  (3,727, in a folder per board and a folder per year; 37 boards, about 500
+  documents in 2026), titled "Minutes of Regular Meeting - September 22,
+  2026", with the meeting's YouTube video where there is one (the Town
+  Council, Planning and Zoning, Zoning Board of Appeals, Inland Wetlands).
+  The meetings calendar (`/events/meetings/2026/October/`) lists coming
+  meetings, with agendas attached before the documents page has them.
+- *Scans.* From January to June 2026, every Town Council minutes and most
+  agendas were copier scans; since July the regular meetings' minutes have
+  text. The council's "Agenda and Backup" packets are scans of 24 to 117
+  pages, some over the 100-page summary limit. Other boards: about one
+  minutes in six and half the agendas are scans. Summaries start from July,
+  so the town doesn't begin with a year of transcription.
+- *Votes.* The council's minutes are a "Record of Votes and Minutes": each
+  roll call lists every member on a line of their own (`TATTA: NAY`,
+  `ROSSACCI: ABSENT`) with the tallies. The clearest form yet for item 12,
+  once it's picked up again.
+- *Board of Education:* the district's website is Finalsite. Each meeting is
+  a post with its agenda and minutes as Google Docs (exported as text, free,
+  no scans), a Drive folder of backup materials, and a YouTube video. A
+  reader for Finalsite boards, which many districts use, with Google Docs.
+- *No 311* (SeeClickFix has 134 resident reports since 2016, none answered
+  by the town), and no permits file.
+- *Connecticut's figures* are mostly scriptable, from data.ct.gov (one query
+  covers all 169 towns): mill rates (24.57 for FY2027) and the statewide
+  parcel file, for an average bill worked out as New Hampshire's is; adopted
+  budgets and the audited Municipal Fiscal Indicators; EdSight's school
+  figures as CSV without a login (district 1480011). The Affordable Housing
+  Appeals List, Connecticut's counterpart of the Subsidized Housing
+  Inventory, is a yearly PDF or .docx. Unemployment is BLS series
+  `LAUCS097874000000003`. Connecticut replaced its counties with planning
+  regions in 2022, so county codes change midway through every history: the
+  town is `0917078740` in the Census now and `0900978740` before.
+- *Engine changes it needs:* the town website reader; building permits
+  found by the Census's town (MCD) code (Wallingford's place code is
+  `00000`, which today would match the wrong row; New Hampshire's towns need
+  the same change); a Connecticut package, `pipeline/states/ct/` (tax bill,
+  budget, schools, then housing); the Finalsite reader. Officials elected at
+  large, and a state with no package, already work.
+- *Also:* the town owns its electric, water, and sewer utility, and its
+  Public Utilities Commission meets twice a month: news none of the other
+  towns have.
+
+**The next three Massachusetts towns (from a survey of about 65 Massachusetts city and
 town websites, 2026-10-01),** chosen for the people they reach and how little
 local coverage they have, not only for ease. Salem and Medford were already in
 the works and are left out.
@@ -794,26 +875,41 @@ towns too. Next, in this order (as of 2026-10-01):
    (`home/upcoming.toml` and the section `scripts/build_home.py` writes from
    it) in the network repository. The towns on it are still planned; the
    homepage just stops naming towns before they're live.
-3. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
+3. Wallingford, the first Connecticut town (item 10), live on what the
+   engine can read, then the rest:
+   1. A reader for the town's website: the documents page and the meetings
+      calendar, with each meeting's video linked.
+   2. Building permits found by the Census's town (MCD) code, for Wallingford
+      and New Hampshire's towns.
+   3. The town's folder in the network repository: meetings, officials,
+      unemployment, and housing, with summaries from July 2026. The site goes
+      live here.
+   4. The Connecticut package (`pipeline/states/ct/`): the tax bill first,
+      then budget and school figures, then the Appeals List.
+   5. The Board of Education, through a reader for Finalsite boards and
+      Google Docs.
+4. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
    languages once a person has checked the Spanish.
-4. Lowell: config only (item 10).
-5. Springfield, after Medford, the first Massachusetts town on CivicClerk:
+5. Lowell: config only (item 10).
+6. Springfield, after Medford, the first Massachusetts town on CivicClerk:
    its meetings sorted into boards, and Spanish turned on (items 10 and 14).
-6. A reader for the next meeting platform the network needs (item 10).
-7. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+7. A town each in Maine, Vermont, and Rhode Island, chosen from the
+   candidates in item 10, preferring towns on software the engine reads.
+8. A reader for the next meeting platform the network needs (item 10).
+9. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
    statewide PDF every Massachusetts town downloads whole today) and DESE's
    school figures (its data portal answers statewide queries), into
    `states/ma/` as the DLS reports are.
-8. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
-   request) and the Census's permits and estimates, once for the country.
-9. Adding a town from scratch (item 10): the helper.
-10. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+10. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+    request) and the Census's permits and estimates, once for the country.
+11. Adding a town from scratch (item 10): the helper.
+12. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
     it), and renew the scheduler's GitHub token before it expires (about
     2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
     back to GitHub's own schedule, and the "network stopped" check can't open
     its issue.
-11. Towns queued separately (item 8), only if replaced runs turn out to
-    delay towns in practice.
+13. Towns queued separately (item 8), only if replaced runs turn out to delay
+    towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
 

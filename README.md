@@ -77,7 +77,7 @@ Releasing is automatic. When the engine tests pass on `main` after a merge, `.gi
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
-  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke) -> data/meetings/
+  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
@@ -99,7 +99,7 @@ pipeline/                   Python package
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
-  civicplus.py, agendacenter.py, civicclerk.py, dnn.py, seeclickfix.py   Source parsers
+  civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
@@ -162,12 +162,12 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | Table | Source | Works for |
    |---|---|---|
    | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
-   | `[meetings.civicclerk]`, `[meetings.dnn]` | A CivicClerk meeting portal, and a DotNetNuke (DNN Events) city calendar | Towns whose meetings are on either or both, like Manchester. See [Meetings from other calendars](#meetings-from-other-calendars) |
+   | `[meetings.civicclerk]`, `[meetings.dnn]`, `[meetings.file_list]` | A CivicClerk meeting portal, a DotNetNuke (DNN Events) city calendar, and a meetings calendar with one documents page for every board | Towns whose meetings are on these, like Manchester (the first two) and Wallingford, Connecticut (the third). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
    | `[schools]` | School district figures, from the state | As `[finance]` |
-   | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
+   | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. Building permits find the town by its Census place (`bps_place`), or, for a New England town that isn't a Census place (Wallingford), by its town code (`bps_mcd`). In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
    | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5. New documents (upcoming agendas, and those posted in the last two weeks for a recent meeting) go first. In a network, the run also gives each town its share of a monthly budget (`pipeline/summarize.py`) |
@@ -291,6 +291,15 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 
   [meetings.agenda_center.committees."City Council"]
   "Finance Committee" = "City Council Finance Committee"
+  ```
+- **A calendar and a documents page.** A town website with a meetings calendar by month and one page listing every board's agendas and minutes in folders (Wallingford, Connecticut's: `/events/meetings/` and `/minutes-and-agendas/`, on a CMS by Web Solutions) uses `[meetings.file_list]`. Each run reads the documents page once and the calendar's months once each; it saves upcoming meetings' agendas, and `fetch_minutes` downloads the minutes of meetings since `since`, up to `max_minutes_per_run` (default 60) a run. Only the boards in `boards` are collected: a documents folder matches a board (or a key in `[meetings.aliases]`) by its whole name, so an archive folder like "Town Council Archive (1984 - 2022)" isn't the Town Council, and calendar names match as other calendars' do. A document's title gives its kind and the meeting's date ("Amended Agenda of Regular Meeting- January 27, 2026"); documents go with the calendar's meeting of the same board and day, or make a meeting of their own. A meeting's agenda is its newest plain agenda; an agenda with backup (often a long scan) is never saved or summarized, and a meeting with no plain agenda links to it instead; a cancellation notice marks it cancelled. Addenda, applications and reports are left out. A meeting's own calendar page gives its location, read once. A board with no folder on the documents page gets the agenda its calendar entry links. The documents page's YouTube links are kept with each meeting (`video_id`, and `video_start` in seconds), not yet shown.
+
+  ```toml
+  [meetings.file_list]
+  documents_url = "https://www.wallingfordct.gov/minutes-and-agendas/"
+  calendar_url = "https://www.wallingfordct.gov/events/meetings/"
+  since = "2026-01-01"   # documents of meetings from here on; earlier ones are never downloaded
+  # months_ahead = 1     # calendar months read after this one
   ```
 - **`documents = false`** is for a town with a calendar but no agendas and minutes collected yet. Each meeting page links to its agenda (and minutes) where the city posts them, and the pages that need the documents are left out: decisions, search, the RSS feed, and agenda items in the street lookup.
 
