@@ -751,11 +751,9 @@ Spanish that reads naturally to Lawrence's community, which is largely
 Dominican and Puerto Rican, not formal or literal. Lawrence launches only once
 the Spanish is good, in both languages at once.
 
-**What it takes.** Moving the wording into string files and the `/es/` build
-is the largest part, about a week. The translation step, its check, and the
-budget rules are a few days more. Writing the Spanish out is most of each
-translation's cost (output costs more than input, and the Spanish is about as
-long as the English); with Haiku that's well under what a summary costs.
+**Cost.** Writing the Spanish out is most of each translation's cost (output
+costs more than input, and the Spanish is about as long as the English); with
+Haiku that's well under what a summary costs.
 
 **Matters at:** Lawrence, the next town.
 
