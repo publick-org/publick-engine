@@ -208,6 +208,16 @@ def test_311_ward_and_category_pages_and_csv(site_dir):
     assert header.startswith("category,requests,closed,still_open")
 
 
+def test_city_report_button_on_311_and_street_pages(site_dir, config):
+    # The build marks it as off-site (class "external", a new tab, hidden text saying so).
+    button = re.compile(r'<a class="[^"]*\bbutton\b[^"]*" href="' + re.escape(config["seeclickfix"]["report_url"])
+                        + r'"[^>]*>Report a problem to the city<')
+    ward = next((site_dir / "311" / "ward").iterdir())
+    category = next((site_dir / "311" / "category").iterdir())
+    for page in (site_dir / "311", site_dir / "streets", ward, category):
+        assert len(button.findall((page / "index.html").read_text())) == 1, page
+
+
 def test_meeting_list_preview_is_about_the_business(site_dir):
     home = (site_dir / "index.html").read_text()
     assert "operations director and a draft plan for recruiting a student member" in home
