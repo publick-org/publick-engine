@@ -143,7 +143,7 @@ def permits(client, config: dict, now: datetime) -> dict:
         found = parse_bps(text, h["bps_state"], code, column)
         if found:
             ytd = {"year": now.year, "through_month": month, "units": found["units"],
-                   "estimated": found["months_reported"] < month}
+                   "months_reported": found["months_reported"], "estimated": found["months_reported"] < month}
         break
     if not years:
         raise FetchError("no building permit figures found")
