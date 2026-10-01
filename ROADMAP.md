@@ -39,7 +39,7 @@ month**.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs, e.g. v1.13.0
+  engine-version              the engine release every town runs, e.g. v1.19.0
   towns/gloucester-ma/
     config/gloucester.toml
     data/                     including run.json (the last fetching run's result)
@@ -137,8 +137,8 @@ also means constant push conflicts and retries.
 
 **Plan.** Measure first: the status page (item 3) reports the repository's
 size and daily growth, by town. *Done: each fetching run records the size of
-the town's data and what the run added (`data/run.json`), and the status page
-shows them with the repository's size on GitHub.* Keep data files line-stable (sorted keys, one
+the town's data and what the run added (`data/run.json`), for the
+maintainer; the public status page doesn't show sizes.* Keep data files line-stable (sorted keys, one
 field per line) so daily changes stay small. Then move each town's working
 data to R2, as agenda and minutes PDFs already are, with git keeping config
 and code, and sites built from the bucket. Every town already has a
@@ -240,7 +240,8 @@ limits apply to the whole network, not to each town.
 - One priority order across the network: upcoming agendas everywhere first,
   then the newest minutes, then older documents. A backlog (a new town's
   first months of minutes) is worked through with what's left of the month.
-- The status page shows the month's spending against the budget.
+- The month's spending against the budget is for the maintainer: in each
+  town's ledger and the plan job's log. Public pages never show costs.
 - If rate limits bite, or to cut the cost, summaries move to one network job
   that uses the Batches API, which is cheaper.
 
@@ -673,7 +674,7 @@ their own rhythm, with the DLS retry (item 7, engine v1.8.0); page views for
 every town on one GoatCounter site (v1.9.0); the network summary budget of
 $50 a month, with its ledger and priority order (item 4), one daily alert
 for towns behind, a town's failure not failing a daily run (item 3), and each
-town's data size on the status page (item 1) (v1.10.0); whole-site test
+town's data size in its run record (item 1) (v1.10.0); whole-site test
 builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5); daily
 runs that take the towns that are due, started on time by the
 publick-scheduler Worker, which also watches that they finish (items 8 and
@@ -714,7 +715,7 @@ towns too. Next, in this order (as of 2026-10-01):
 **Stage 2: about 20 to 50 towns.**
 
 1. Town data moved to R2, with git keeping config and code (item 1), when
-   the status page's sizes say it's time.
+   the data sizes in the towns' run records say it's time.
 2. Canary towns on the newest release, and sampled checks when
    `engine-version` moves (item 5).
 3. `CODEOWNERS` and branch protection, before the first editor from outside
