@@ -41,8 +41,10 @@ def load_config(town: str) -> dict:
         config = tomllib.load(f)
     config["slug"] = town
     # What goes in the state-specific tables ([finance], [schools]) depends on the town's state.
-    from pipeline import states
+    from pipeline import finalsite, states
     states.check(config)
+    # A meeting source's table that can't work fails here, not partway through a run.
+    finalsite.check(config)
     return config
 
 
