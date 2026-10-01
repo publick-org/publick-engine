@@ -391,6 +391,8 @@ def test_officials_page(site_dir, config):
     assert '<a href="#city-council-casey-example">Casey Example</a>' in page
     # A district of wards is listed under each of its wards, and links them.
     assert page.count('School Committee (District A): <a href="#school-committee-jamie-example">Jamie Example</a>') == 2
+    ward_2 = page.split('<li id="ward-2"')[1].split('<li id="ward-3"')[0]
+    assert ward_2.index("Indy Example") < ward_2.index("Jamie Example")
     assert 'District A<span class="cell-note"> (Wards <a href="#ward-1">1</a> and <a href="#ward-2">2</a>)</span>' in page
     # The mayor is on two bodies: a row on each, with different anchors.
     assert 'id="mayor-morgan-example"' in page and 'id="school-committee-morgan-example"' in page

@@ -378,7 +378,7 @@ name = "School Committee"
 url = "https://gloucester-ma.gov/"
 members = [
   { name = "Harper Example", seat = "At-large", term_ends = "2030-01" },
-  { name = "Indy Example", seat = "Ward 2", ward = 2, term_ends = "2028-01" },
   { name = "Jamie Example", seat = "District A", wards = [1, 2], term_ends = "2028-01" },
+  { name = "Indy Example", seat = "Ward 2", ward = 2, term_ends = "2028-01" },
   { name = "Morgan Example", seat = "Mayor", role = "Chair", term_ends = "2028-01" },
 ]
