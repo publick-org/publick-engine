@@ -1,39 +1,51 @@
 {% extends "base.html" %}
 {% from "macros.html" import meeting_item %}
 {% set b = board %}
-{% block title %}{{ b.name }} meetings{% endblock %}
-{% block description %}Upcoming and past meetings of the {{ town.name }} {{ b.name }}, with agendas.{% endblock %}
+{# Translators: %(board)s is a board's name, such as "City Council". #}
+{% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
+{# Translators: %(town)s is the town and %(board)s a board's name, such as "City Council". #}
+{% block description %}{% trans town=town.name, board=b.name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb">
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>
-    <li><a href="/meetings/">Meetings</a></li>
-    <li><a href="/meetings/boards/">Boards and committees</a></li>
+    <li><a href="/meetings/">{{ _("Meetings") }}</a></li>
+    <li><a href="/meetings/boards/">{{ _("Boards and committees") }}</a></li>
   </ol>
 </nav>
 
 <div class="page-head">
   <h1>{{ b.name }}</h1>
   {% if b.next %}
-  <p class="lede">Next meeting: {{ b.next.date | date }}{% if b.next.start_time %} at {{ b.next.start_time | time }}{% endif %}</p>
-  <div class="actions"><a class="button button-primary" href="{{ b.next.url }}">Next meeting details</a></div>
+  <p class="lede">{% if b.next.start_time %}{% trans when=b.next.date | date, time=b.next.start_time | time %}Next meeting: {{ when }} at {{ time }}{% endtrans %}{% else %}{% trans when=b.next.date | date %}Next meeting: {{ when }}{% endtrans %}{% endif %}</p>
+  <div class="actions"><a class="button button-primary" href="{{ b.next.url }}">{{ _("Next meeting details") }}</a></div>
   {% else %}
-  <p class="lede">No upcoming meetings are listed on the {{ b.meetings[0].listing }}.</p>
+  {# Translators: %(listing)s is where meetings are listed, such as "city calendar". #}
+  <p class="lede">{% trans listing=b.meetings[0].listing %}No upcoming meetings are listed on the {{ listing }}.{% endtrans %}</p>
   {% endif %}
 </div>
 
 {% set part = config.get("participation", {}).get(b.name, {}) %}
-<h2 id="take-part">How to follow this board</h2>
+<h2 id="take-part">{{ _("How to follow this board") }}</h2>
 <ul>
-  {% if part.get("comment") %}<li>{{ part.comment }} Source: <a href="{{ part.source_url }}">{{ part.source_title }}</a>.</li>{% endif %}
-  {% if part.get("video_url") %}<li>Meetings are broadcast and recorded by <a href="{{ part.video_url }}">{{ part.video_title }}</a>.</li>{% endif %}
-  {% if meeting_links.notify %}<li>For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ meeting_links.notify }}">Notify Me</a> service.</li>{% endif %}
-  {% if meeting_links.documents %}<li>New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.</li>{% endif %}
+  {# Translators: after the city's own instructions for public comment; %(title)s is the page they come from. #}
+  {% if part.get("comment") %}<li>{{ part.comment }} {% trans url=part.source_url, title=part.source_title %}Source: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
+  {# Translators: %(title)s is a local TV station or video channel. #}
+  {% if part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
+  {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
+  {% if meeting_links.documents %}<li>{% trans %}New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.{% endtrans %}</li>{% endif %}
 </ul>
 
-<h2>All recorded meetings</h2>
+<h2>{{ _("All recorded meetings") }}</h2>
 <ul class="meeting-list">
   {% for m in b.meetings %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
 </ul>
 {% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite"]) | list)[:1] %}
-<p class="source-note">Meetings recorded here start in {{ meetings.all[0].date | date("month") }}. {% if drive %}Earlier meetings are on the <a href="{{ drive[0].source_url }}">{{ drive[0].source_name }} website</a>.{% elif meeting_links.archive %}Earlier meetings are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.{% endif %}</p>
+{# Translators: %(month)s is a month and year, such as "January 2026". #}
+<p class="source-note">{% trans month=meetings.all[0].date | date("month") %}Meetings recorded here start in {{ month }}.{% endtrans %} {% if drive %}
+{# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}
+{% trans url=drive[0].source_url, name=drive[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}
+{% elif meeting_links.archive %}
+{# Translators: %(name)s is where the city keeps older documents, such as "city's Archive Center". #}
+{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}
+{% endif %}</p>
 {% endblock %}
