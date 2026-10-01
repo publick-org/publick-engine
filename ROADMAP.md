@@ -790,25 +790,29 @@ towns too. Next, in this order (as of 2026-10-01):
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-2. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
+2. Take the "In the works" list off the publick.org homepage
+   (`home/upcoming.toml` and the section `scripts/build_home.py` writes from
+   it) in the network repository. The towns on it are still planned; the
+   homepage just stops naming towns before they're live.
+3. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
    languages once a person has checked the Spanish.
-3. Lowell: config only (item 10).
-4. Springfield, after Medford, the first Massachusetts town on CivicClerk:
+4. Lowell: config only (item 10).
+5. Springfield, after Medford, the first Massachusetts town on CivicClerk:
    its meetings sorted into boards, and Spanish turned on (items 10 and 14).
-5. A reader for the next meeting platform the network needs (item 10).
-6. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+6. A reader for the next meeting platform the network needs (item 10).
+7. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
    statewide PDF every Massachusetts town downloads whole today) and DESE's
    school figures (its data portal answers statewide queries), into
    `states/ma/` as the DLS reports are.
-7. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+8. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
    request) and the Census's permits and estimates, once for the country.
-8. Adding a town from scratch (item 10): the helper.
-9. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
-   it), and renew the scheduler's GitHub token before it expires (about
-   2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
-   back to GitHub's own schedule, and the "network stopped" check can't open
-   its issue.
-10. Towns queued separately (item 8), only if replaced runs turn out to
+9. Adding a town from scratch (item 10): the helper.
+10. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+    it), and renew the scheduler's GitHub token before it expires (about
+    2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
+    back to GitHub's own schedule, and the "network stopped" check can't open
+    its issue.
+11. Towns queued separately (item 8), only if replaced runs turn out to
     delay towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
