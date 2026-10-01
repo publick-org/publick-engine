@@ -66,7 +66,6 @@ def url_for(rel_path: Path) -> str:
 # ---- Links that leave the site ---------------------------------------------
 
 LINK_RE = re.compile(r"<a\b([^>]*)>(.*?)</a>", re.S)
-NEW_TAB_NOTE = '<span class="visually-hidden"> (opens in new tab)</span>'
 
 
 def opens_new_tab(href: str, own_hosts: set[str]) -> bool:
@@ -79,6 +78,7 @@ def opens_new_tab(href: str, own_hosts: set[str]) -> bool:
 
 def mark_new_tab_links(html: str, own_hosts: set[str]) -> str:
     """Add target=_blank, rel=noopener, an arrow icon, and screen-reader text to outbound links."""
+    note = _("(opens in new tab)")
     def fix(match: re.Match) -> str:
         attrs, text = match.group(1), match.group(2)
         href = re.search(r'href="([^"]*)"', attrs)
@@ -88,7 +88,7 @@ def mark_new_tab_links(html: str, own_hosts: set[str]) -> str:
             attrs = attrs.replace('class="', 'class="external ', 1)
         else:
             attrs += ' class="external"'
-        return f'<a{attrs} target="_blank" rel="noopener">{text}{NEW_TAB_NOTE}</a>'
+        return f'<a{attrs} target="_blank" rel="noopener">{text}<span class="visually-hidden"> {note}</span></a>'
     return LINK_RE.sub(fix, html)
 
 
@@ -690,8 +690,6 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     env.globals["document_url"] = open_documents(config, data_dir).url
     env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version,
                        change=lambda diff, since: change_text(diff, "", since))
-    # Until every template counts with {% trans count=... %}, which translates; then removed.
-    env.globals["plural"] = lambda n, word: f"{n:,} {word}{'' if n == 1 else 's'}"
 
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
