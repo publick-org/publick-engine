@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import city_report_button %}
 {% block title %}Your street{% endblock %}
 {% block description %}{{ street_sources | capitalize_first }} on any street in {{ town.name }}, from public records.{% endblock %}
 {% block content %}
@@ -22,6 +23,7 @@
   <div id="street-results"></div>
 </div>
 <noscript><p>The street lookup needs JavaScript.{% if config.meetings is defined and meeting_links.documents %} You can also <a href="/meetings/search/">search agendas and minutes</a>.{% endif %}</p></noscript>
+{{ city_report_button(config) }}
 
 <h2 id="sources">Where this comes from</h2>
 <ul>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import on_this_page, city_report_button %}
 {% from "charts.html" import month_columns, bars, chart_links, map_figure, map_assets %}
 {% block title %}311 Requests{% endblock %}
 {% block description %}How quickly the City of {{ town.name }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endblock %}
@@ -15,11 +15,11 @@
   {% if sc %}
   <p class="source-note">Requests submitted {{ sc.window.start | date("plain") }} to {{ sc.window.end | date("plain") }}. Updated <time datetime="{{ sc.generated_at }}">{{ sc.generated_at | timestamp }}</time>.</p>
   {% endif %}
+  {{ city_report_button(config) }}
   <ul class="link-row">
     <li><a href="/311/methodology/">How these numbers are calculated</a></li>
     <li><a href="/311/repeat-locations/">Repeat locations</a></li>
     <li><a href="/streets/">Requests on your street</a></li>
-    <li><a href="{{ config.seeclickfix.report_url }}">Report a problem to the city</a></li>
   </ul>
 </div>
 

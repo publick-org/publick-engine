@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "charts.html" import month_columns, bars, chart_links %}
+{% from "macros.html" import city_report_button %}
 {% set c = category %}
 {% block title %}{{ c.category }}: 311 requests{% endblock %}
 {% block description %}{{ c.category }} requests in {{ town.name }}: how many, how quickly the city responds, and where.{% endblock %}
@@ -8,6 +9,7 @@
 <div class="page-head">
   <h1>{{ c.category }}</h1>
   <p class="lede">{{ c.category }} requests over the past 12 months.</p>
+  {{ city_report_button(config) }}
 </div>
 <ul class="stats">
   <li class="stat"><div><span class="stat-label">Requests</span><span class="stat-value">{{ c.received | number }}</span></div></li>
