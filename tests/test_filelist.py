@@ -168,10 +168,11 @@ def test_documents_make_meetings_from_the_start_date():
     meetings = found()
     assert all(day >= "2026-01-01" for _, day, _ in meetings)
     assert not any(m["body"] not in BOARDS for m in meetings.values())
-    # The newest plain agenda is the agenda; one with backup only when there's no other.
+    # The newest plain agenda is the agenda; one with backup is never the agenda.
     assert meetings["Town Council", "2026-09-22", False]["agenda"]["file_id"] == 12184
     assert meetings["Town Council", "2026-07-14", False]["agenda"]["file_id"] == 12087
-    assert meetings["Town Council", "2026-05-12", False]["agenda"]["file_id"] == 11974
+    may = meetings["Town Council", "2026-05-12", False]
+    assert may["agenda"] is None and may["packet"]["file_id"] == 11974
     assert meetings["Town Council", "2026-09-22", False]["minutes"]["file_id"] == 12188
     # Corrected minutes replace the first ones; the text amendments aren't documents of the meeting.
     zoning = meetings["Planning & Zoning Commission", "2026-08-10", False]
@@ -374,3 +375,10 @@ def test_boards_must_be_listed(wallingford, tmp_path):
     del wallingford["meetings"]["boards"]
     with pytest.raises(SystemExit, match="boards"):
         fetch_meetings.run(wallingford, FakeTownSite(), tmp_path, now=NOW)
+
+
+def test_a_packet_is_linked_not_saved():
+    # A meeting whose only agenda has backup links to it, with nothing to download.
+    fields = filelist.document_fields(found()["Town Council", "2026-05-12", False])
+    assert "agenda_id" not in fields and "agenda_url" not in fields
+    assert fields["documents_url"].endswith("FileID=11974")
