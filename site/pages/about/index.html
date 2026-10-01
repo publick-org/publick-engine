@@ -43,6 +43,9 @@
   {% if config.drive_meetings is defined %}
   <li><strong>School Committee agendas and minutes:</strong> {{ config.drive_meetings.source_name }}, from the public folders linked on the <a href="{{ config.drive_meetings.page_url }}">School Committee website</a>, from {{ config.drive_meetings.since | date("month") }} on.</li>
   {% endif %}
+  {% if config.finalsite_meetings is defined %}
+  <li><strong>{{ (config.finalsite_meetings.bodies.values() | list)[0] }} meetings, agendas, and minutes:</strong> {{ config.finalsite_meetings.source_name }}, from the meetings posted on its <a href="{{ config.finalsite_meetings.page_url }}">website</a>, from {{ config.finalsite_meetings.since | date("month") }} on.</li>
+  {% endif %}
   {% include state_template("about_finance.html") ignore missing %}
   {% if config.labor is defined %}
   <li><strong>Unemployment:</strong> U.S. <a href="https://www.bls.gov/lau/">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.</li>

@@ -5,8 +5,9 @@
 {% block title %}{{ m.body }}, {{ m.date | date }}{% if m.day_part %}, meeting {{ m.day_part }}{% elif m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
 {% block description %}{{ m.title }}{% if not m.title.lower().endswith(("meeting", "hearing")) %} meeting{% endif %} on {{ m.date | date }}{% if m.start_time %} at {{ m.start_time | time }}{% endif %}: {% if m.minutes_doc %}decisions, minutes, and agenda{% else %}location, how to attend, and agenda{% endif %}.{% endblock %}
 {% block content %}
-{# Meetings known only from their documents, not from the city calendar. #}
-{% set documents_only = m.source in ("archive", "drive") %}
+{# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
+{% set district = m.source in ("drive", "finalsite") %}
+{% set documents_only = m.source == "archive" or district %}
 <nav aria-label="Breadcrumb" class="breadcrumb">
   <ol>
     <li><a href="/meetings/">Meetings</a></li>
@@ -146,7 +147,7 @@
 <p>No agenda posted yet.</p>
 {% elif m.source == "archive" %}
 <p>Agenda not recorded here. It may be in the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>
-{% elif m.source == "drive" %}
+{% elif district %}
 <p>Agenda not recorded here. It may be on the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>.</p>
 {% elif m.get("agenda_url") %}
 <p>A copy of the agenda wasn't saved here. It is on the <a href="{{ m.agenda_url }}">city website</a>.</p>
@@ -174,7 +175,7 @@
 <h2 id="source">Source</h2>
 {% if m.source == "archive" %}
 <p>This meeting is known from its <a href="{{ m.minutes_doc.source_url }}">minutes in the City of {{ town.name }} Archive Center</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
-{% elif m.source == "drive" %}
+{% elif district %}
 <p>This meeting is known from the <a href="{{ m.source_url }}">{{ m.source_name }} website</a>. It was not found on the City of {{ town.name }} calendar. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>
 {% elif m.source == "agendacenter" %}
 <p><a href="{{ m.source_url }}">This meeting's agenda in the City of {{ town.name }}'s Agenda Center</a>. First recorded by {{ site.name }} on <time datetime="{{ m.first_seen }}">{{ m.first_seen | timestamp }}</time>.</p>

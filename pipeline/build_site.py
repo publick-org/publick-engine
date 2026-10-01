@@ -299,7 +299,8 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
-LISTINGS = {"civicclerk": "city's meeting portal", "agendacenter": "city's Agenda Center"}
+LISTINGS = {"civicclerk": "city's meeting portal", "agendacenter": "city's Agenda Center",
+            "finalsite": "school district's website"}
 
 
 def from_agenda(m: dict) -> None:

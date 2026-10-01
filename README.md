@@ -80,6 +80,7 @@ pipeline/                   Python package
   fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page) -> data/meetings/
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
   fetch_drive_meetings.py   Daily: School Committee agendas and minutes (Google Drive) -> data/meetings/
+  fetch_finalsite_meetings.py   Daily: a school board's meetings, agendas and minutes (a Finalsite district website, Google Docs) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             new documents first, with each month's cost in data/summary-costs.json
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
@@ -99,7 +100,7 @@ pipeline/                   Python package
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
-  civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, seeclickfix.py   Source parsers
+  civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, finalsite.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
@@ -164,6 +165,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
    | `[meetings.civicclerk]`, `[meetings.dnn]`, `[meetings.file_list]` | A CivicClerk meeting portal, a DotNetNuke (DNN Events) city calendar, and a meetings calendar with one documents page for every board | Towns whose meetings are on these, like Manchester (the first two) and Wallingford, Connecticut (the third). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
+   | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
    | `[schools]` | School district figures, from the state | Massachusetts, New Hampshire, and Connecticut (EdSight's exports: `edsight_district`, the district's name in EdSight). See [States](#states) |
@@ -312,6 +314,19 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
   calendar_url = "https://www.wallingfordct.gov/events/meetings/"
   since = "2026-01-01"   # documents of meetings from here on; earlier ones are never downloaded
   # months_ahead = 1     # calendar months read after this one
+  ```
+- **A school board on Finalsite.** A school district whose board posts each meeting on a Finalsite page (Wallingford's Board of Education: "September 28, 2026 - Board of Education Meeting", with the agenda and minutes as Google Docs) uses its own table, `[finalsite_meetings]`, fetched by `pipeline.fetch_finalsite_meetings` after the town's calendars. Its meetings are recorded alongside the town's, as the district's own (each page says it is known from the district's website), so its boards shouldn't be in `[meetings] boards` too. Each run reads the page once; a post's body (its links) is read when it's new, and again while its meeting is recent (`recheck_days`, default 60) and has no minutes yet. A title's date and board come from the title; `bodies` maps the names in titles to the site's boards, the longest found winning, and a title with no listed board or no date is reported, not guessed at. "Canceled" marks a meeting cancelled, and its agenda is linked, not saved. Agendas and minutes (links labelled so, to a Google Doc, a Drive file or a PDF) are saved as PDFs, a Doc exported by Google with its text; a Doc "published to the web" (a `/pub` page) has no PDF, so it is linked. A Doc is edited in place, so it is exported again while it can still change, an agenda until its meeting and minutes while the meeting is recent, and saved as a new version only if it changed. Backup folders, presentations and other documents (Wallingford's "Motions") are kept with the meeting as `links`, and the YouTube recording as `video_id`, not yet shown. The page lists the current school year; earlier years' archive pages aren't read.
+
+  ```toml
+  [finalsite_meetings]
+  page_url = "https://www.wallingford.k12.ct.us/board-of-education/board-of-education-meetings"
+  source_name = "Wallingford Public Schools"   # credited on its meetings' pages
+  since = "2026-07-01"   # meetings from here on; earlier posts are never read
+  # recheck_days = 60    # how long after a meeting its post and minutes are checked again
+
+  [finalsite_meetings.bodies]   # names in post titles -> the site's boards
+  "Board of Education" = "Board of Education"
+  "Operations Committee" = "Board of Education Operations Committee"
   ```
 - **`documents = false`** is for a town with a calendar but no agendas and minutes collected yet. Each meeting page links to its agenda (and minutes) where the city posts them, and the pages that need the documents are left out: decisions, search, the RSS feed, and agenda items in the street lookup.
 
