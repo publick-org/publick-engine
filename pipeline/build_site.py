@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
+from pipeline import officials as officials_mod
 from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import summarize
@@ -163,6 +164,12 @@ def format_money(n: float | int | None, style: str = "long") -> str:
     if style == "short" and abs(n) >= 10_000:
         return f"${n / 1000:,.0f}K"
     return f"${n:,.0f}"
+
+
+def format_month_long(value: str) -> str:
+    """'2028-01' -> 'January 2028'."""
+    d = date.fromisoformat(value + "-01")
+    return f"{d.strftime('%B')} {d.year}"
 
 
 def format_month(value: str) -> str:
@@ -623,7 +630,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         lstrip_blocks=True,
     )
     env.filters.update(date=format_date, time=format_time, filesize=format_bytes, timestamp=format_timestamp,
-                       duration=format_duration, number=format_number, money=format_money, month=format_month,
+                       duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
                        markdown=render_markdown, duration_cell=format_duration_cell,
                        street=lambda a: short_address(a, config["town"]["name"]),
                        model_name=model_name, capitalize_first=lambda t: Markup(t[:1].upper() + t[1:]),
@@ -660,6 +667,14 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     streets_json = json.dumps(street_index(meetings["all"], (permits or {}).get("permits", []), requests_311,
                                            built_at.date(), config["town"]), ensure_ascii=False, separators=(",", ":"))
     streets_url = f"/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
+    # Who represents you: the Officials page, and its ward map's shapes.
+    officials = wards_json = wards_url = None
+    if "officials" in built_folders:
+        officials = officials_mod.load(config, data_dir, {b["name"]: b["url"] for b in meetings["boards"]})
+        ward_shapes = officials_mod.map_data(data_dir, config)
+        if ward_shapes:
+            wards_json = json.dumps(ward_shapes, separators=(",", ":"))
+            wards_url = f"/officials/wards.json?v={hashlib.sha256(wards_json.encode()).hexdigest()[:10]}"
     share_path = out_static / "share" / f"{town}.png"
     # Versioned, so sites that cache link previews pick up a redrawn image.
     share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
@@ -670,7 +685,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
-                  meeting_links=links,
+                  meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
@@ -730,6 +745,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
                 shutil.copytree(src, out_dir / "meetings" / folder)
         (out_dir / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
         write_feed(out_dir / "feed.xml", meetings["all"], config, base_url, built_at)
+    if wards_json:
+        (out_dir / "officials" / "wards.json").write_text(wards_json, encoding="utf-8")
     if "streets" in built_folders:
         (out_dir / "streets").mkdir(parents=True, exist_ok=True)
         (out_dir / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
