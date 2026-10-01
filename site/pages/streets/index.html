@@ -14,7 +14,7 @@
     <input id="street-q" name="q" type="search" list="street-names" autocomplete="off" spellcheck="false" aria-describedby="street-hint">
     <button class="button button-primary" type="submit">Look up</button>
   </div>
-  <p class="small" id="street-hint">Enter the street, not a full address, such as "Pleasant Street" or "Main St".</p>
+  <p class="small" id="street-hint">Enter the street, not a full address{% if street_example %}, such as "{{ street_example }}"{% endif %}. Short forms like St and Ave work too.</p>
   <datalist id="street-names"></datalist>
 </form>
 
