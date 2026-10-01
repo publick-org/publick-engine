@@ -22,6 +22,27 @@
 </div>
 {%- endmacro %}
 
+{# A document's full text, under its summary: the city's own words from its PDF, or, for a
+   scan screen readers can't read, a labeled AI transcription. Otherwise the PDF below,
+   which has text a screen reader can read, is the full text. #}
+{% macro full_text(doc_label, rec) -%}
+{% if rec.get("transcript") %}
+<details class="expand">
+  <summary>Read the full {{ doc_label }}</summary>
+  {% if rec.get("transcript_source") == "pdf" %}
+  <p class="source-note">From the city's PDF, word for word.</p>
+  {% else %}
+  <p class="source-note">Transcribed by AI from the city's PDF. Check the original before relying on it.</p>
+  {% endif %}
+  <div class="transcript-body">{{ rec.transcript | markdown }}</div>
+</details>
+{% elif rec.get("needs_transcript") %}
+<p class="small">The {{ doc_label }} {{ "are" if doc_label == "minutes" else "is" }} a scanned document. A readable version of the full text will be added here; until then, the city's PDF is linked below.</p>
+{% else %}
+<p class="small">The full text is in the city's PDF, linked below.</p>
+{% endif %}
+{%- endmacro %}
+
 {# A quiet outlined button that opens a pre-filled correction message. #}
 {% macro report_button(report_url, label) -%}
 <a class="report-link" href="{{ report_url }}"><svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16"><path fill="currentColor" d="M3 1.5a.75.75 0 0 1 .75.75V2.6c1.5-.8 3-.7 4.4-.1 1.2.5 2.4.6 3.8-.1a.75.75 0 0 1 1.05.7v6.6a.75.75 0 0 1-.4.66c-1.9 1-3.5.8-5 .2-1.3-.5-2.5-.6-3.85.2v4.2a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 3 1.5Z"/></svg>{{ label }}</a>

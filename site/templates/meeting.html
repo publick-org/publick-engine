@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_flags, describe_change, ai_credit %}
+{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {% block title %}{{ m.body }}, {{ m.date | date }}{% if m.day_part %}, meeting {{ m.day_part }}{% elif m.same_day and m.start_time %}, {{ m.start_time | time }}{% endif %}{% endblock %}
@@ -91,10 +91,7 @@
 <p>The minutes do not record any votes or decisions.</p>
 {% endif %}
 {{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by")) }}
-<details class="expand">
-  <summary>Read the full minutes</summary>
-  <div class="transcript-body">{{ ms.transcript | markdown }}</div>
-</details>
+{{ full_text("minutes", ms) }}
 {% elif m.minutes_too_large %}
 <p>Minutes are posted. The file is too large to summarize automatically; the minutes are linked below.</p>
 {% else %}
@@ -127,10 +124,7 @@
 </ul>
 {% endif %}
 {{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none) }}
-<details class="expand">
-  <summary>Read the full agenda</summary>
-  <div class="transcript-body">{{ m.preview.transcript | markdown }}</div>
-</details>
+{{ full_text("agenda", m.preview) }}
 {% endif %}
 {% if m.agenda %}
 <ul>

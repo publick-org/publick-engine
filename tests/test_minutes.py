@@ -96,8 +96,11 @@ def test_minutes_summary_records_decisions(config, tmp_path):
     client = FakeAnthropic()
     summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
     documents = sum(len(m.get("minutes", [])) and 1 for m in load(tmp_path).values())
-    assert len(client.calls) == documents
-    assert all("decisions" in c["output_config"]["format"]["schema"]["properties"] for c in client.calls)
+    asked = [set(c["output_config"]["format"]["schema"]["properties"]) for c in client.calls]
+    # A summary of each, then (they're scans, with no text of their own) a transcription of each.
+    summaries = [a for a in asked if "decisions" in a]
+    assert len(summaries) == documents and asked[:documents] == summaries
+    assert asked[documents:] == [{"transcript"}] * documents
     saved = [json.loads(p.read_text()) for p in (tmp_path / "summaries").glob("*.json")]
     assert all(s["kind"] == "minutes" and s["decisions"] for s in saved)
 

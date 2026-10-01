@@ -286,7 +286,7 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
     texts = []
     for doc in (meeting.get("preview"), meeting.get("minutes_summary")):
         if doc:
-            texts += [doc.get("summary") or "", doc.get("transcript") or "", *doc.get("items", []), *doc.get("decisions", [])]
+            texts += [doc.get("summary") or "", doc_text(doc), *doc.get("items", []), *doc.get("decisions", [])]
     text = "\n".join(texts)
     found = []
     for e in entries:
@@ -353,7 +353,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
                 sorted_decisions[decision_kind(d)].append(d)
         m["decisions"] = sorted_decisions
         m["public_hearing"] = bool(m["preview"]) and bool(PUBLIC_HEARING.search(
-            " ".join([m["preview"].get("summary") or "", m["preview"].get("transcript") or "", *m["preview"].get("items", [])])))
+            " ".join([m["preview"].get("summary") or "", doc_text(m["preview"]), *m["preview"].get("items", [])])))
         m["preview_line"] = preview_line(m)
         m["glossary"] = glossary_for(m, glossary or [])
 
@@ -422,6 +422,12 @@ def meeting_links(config: dict) -> dict:
 DOCUMENT_PAGES = {"meetings/decisions/index.html", "meetings/search/index.html"}
 
 
+def doc_text(doc: dict | None) -> str:
+    """A document's text for search, the street lookup, and the glossary: its readable
+    text, or, before it has one, its PDF's plain text."""
+    return (doc or {}).get("transcript") or (doc or {}).get("plain_text") or ""
+
+
 def plain_text(transcript: str | None) -> str:
     """Markdown transcript -> plain lines, for search."""
     lines = (re.sub(r"\s+", " ", re.sub(r"[*_`#>|]+", " ", line)).strip() for line in (transcript or "").splitlines())
@@ -434,11 +440,11 @@ def search_index(meetings: list[dict]) -> list[dict]:
     for m in meetings:
         docs = []
         if m["preview"]:
-            docs.append({"kind": "Agenda", "text": plain_text(m["preview"].get("transcript"))})
+            docs.append({"kind": "Agenda", "text": plain_text(doc_text(m["preview"]))})
         ms = m["minutes_summary"]
         if ms:
             docs.append({"kind": "Minutes" if ms.get("is_minutes", True) else "Agenda",
-                         "text": plain_text(ms.get("transcript"))})
+                         "text": plain_text(doc_text(ms))})
         rows.append({"url": m["url"], "board": m["body"], "date": m["date"],
                      "date_text": format_date(m["date"]), "docs": [d for d in docs if d["text"]]})
     return rows[::-1]
@@ -779,7 +785,7 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
 
     for m in meetings:
         for kind, doc in (("Agenda", m["preview"]), ("Minutes", m["minutes_summary"])):
-            text = (doc or {}).get("transcript") or ""
+            text = doc_text(doc)
             for address in streets_mod.addresses_in(text):
                 num, keys = place(address)
                 if venue_line.search(line_with(text, address)):
