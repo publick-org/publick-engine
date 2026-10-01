@@ -8,7 +8,7 @@ repositories to create, schedule, pin, and watch.
 **Decision, now done: towns live in one repository.** Publick runs the towns
 itself, so there is no need for each town to have a repository of its own. The
 network repository, [publick-org/publick.org](https://github.com/publick-org/publick.org),
-holds every town's config and data (Gloucester, Malden, and Manchester so far),
+holds every town's config and data (Gloucester, Malden, Manchester, and Beverly so far),
 one workflow runs them, and Cloudflare serves every site. The engine stays its
 own repository with its own tests and releases, and a single-town repository
 calling `town.yml` keeps working, so a town that wants to run its own site
@@ -45,10 +45,10 @@ publick-org/publick.org
     data/                     including run.json (the last fetching run's result)
                               and summary-costs.json (what its AI summaries cost, by month)
     site/static/share/gloucester.png
-  towns/malden-ma/, towns/manchester-nh/
+  towns/malden-ma/, towns/manchester-nh/, towns/beverly-ma/
   states/ma/                  statewide sources, fetched once for every town (Massachusetts's DLS reports)
-  home/                       the publick.org homepage
-  scripts/                    build_home.py (its town lists), build_status.py (publick.org/status/)
+  home/                       the publick.org homepage, and the page for a state with 10 or more towns
+  scripts/                    build_home.py (its town lists, by state), build_status.py (publick.org/status/)
   wrangler.toml               the Worker that serves every site
   wrangler.scheduler.toml     the Worker that starts the daily runs on time
   .github/workflows/network.yml, worker.yml
@@ -267,6 +267,8 @@ limits apply to the whole network, not to each town.
   screen reader can read, and the page links it. A style is added once for
   every town whose documents come from the same software, so the share of
   free full text grows with the network, not the cost.
+- Documents of up to 100 pages are summarized (60 before, a limit from when
+  the model retyped every page), so long minutes aren't skipped.
 
 *Not done:* one priority order across towns (today each town orders its
 own, within its share), the Batches API, and more supported styles
@@ -469,11 +471,35 @@ town, which is fine for the next few and not for hundreds.
 table it doesn't have (most towns have no 311, permits file, or School
 Committee folders in Drive) without starting it, and Agenda Center categories
 written last-name-first ("Health, Board of") are turned round in the engine,
-so towns don't each list them. Every lookup the helper needs answered
+so towns don't each list them. (Fetch minutes is tied to `[meetings]`, not
+`[archive]`: Agenda Center and CivicClerk towns get their minutes without an
+Archive Center. Until v1.17.1 it wasn't, and Beverly's first run got none.)
+Every lookup the helper needs answered
 Beverly's from a public API: the DOR code from `states/ma/`, the DESE
 district from the state's education data portal, the BLS area (and so the
 Census place) from BLS's area list, and the ward and precinct file from
-MassGIS. Not done: the checklist and the helper.*
+MassGIS. Beverly went live on 2026-10-01. The checklist is in the network
+repository (`ADDING-A-TOWN.md`). Not done: the helper.*
+
+**What researching three more towns showed (2026-10-01)** about what most new
+towns will need:
+- Some are config only: an Agenda Center city with SeeClickFix, whose School
+  Committee posts in the same Agenda Center.
+- Some cities' websites are on platforms the engine doesn't read yet (a
+  Govstack document manager, an older Drupal-based CivicPlus site). Each is
+  a reader of about two days, written once for every town on that platform.
+- Some cities post their council's minutes as scans, which the model
+  transcribes, at a cost every month.
+- Some websites check each visitor's browser, which stops automated reading
+  of the meeting listings (the PDFs themselves download). The way in is
+  asking the town to allow Publick's crawler, never working around the
+  check.
+- School districts often post on their own websites (ParentSquare, Campus
+  Suite with Google Drive files): each platform a small reader, used by
+  every district on it.
+- New Hampshire towns like these need two engine changes: building permits
+  found by the Census's town (MCD) code, where Manchester's are by place,
+  and school districts without a high school, so without a graduation rate.
 
 **Matters at:** the next town.
 
@@ -511,8 +537,8 @@ town's members is a few minutes a town, from the city's website.
 from each town's `[officials]` table: each body's members with seat, term end,
 and official email, a list of who represents each ward, and the ward map, whose
 "Find my ward" checks the visitor's location in the browser without sending or
-saving it, or moving the map to it. Gloucester, Malden, and Manchester list
-their mayor, council, and school committee, checked 2026-10-01. A seat can be
+saving it, or moving the map to it. Gloucester, Malden, Manchester, and
+Beverly list their mayor, council, and school committee, checked 2026-10-01. A seat can be
 elected by several wards (a district of wards), its member listed under each.
 Not done: the status page flagging a list not checked since the town's last
 election, and the street lookup saying which wards a street runs through.*
@@ -646,29 +672,37 @@ builds for CivicClerk, DotNetNuke, and Agenda Center towns (item 5); daily
 runs that take the towns that are due, started on time by the
 publick-scheduler Worker, which also watches that they finish (items 8 and
 3, v1.12.0); Massachusetts's DLS reports fetched once for every town
-(item 2, v1.13.0).
+(item 2, v1.13.0); the first full daily cycle, checked on 2026-10-01; the
+Officials page (item 11, v1.14.0); towns without 311 and seats elected by
+several wards (v1.15.0); summaries without retyped documents, and full text
+where it's free (item 4, v1.16.0); vote records collected, not shown
+(item 12, v1.17.0); minutes for Agenda Center and CivicClerk towns again, and
+summaries of up to 100 pages (v1.17.1); Beverly, the first town added from
+scratch (item 10); and the homepage by state, with a page for each state
+once it has 10 towns, its counts from each town's run record (v1.18.0).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
-towns too. Next, in this order (as of 2026-09-30):
+towns too. Next, in this order (as of 2026-10-01):
 
-1. Check the first full daily cycle with everything on (2026-10-01, from the
-   scheduler's 09:05 UTC start): the statewide step, the summary budget's
-   split, the "Towns need attention" issue, each town's data size on the
-   status page, Malden's meeting times and places from its agendas, and
-   Manchester's wards in order. Fix what it shows before building more.
-2. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+1. Check the daily run of 2026-10-02, the first with v1.17.1 everywhere:
+   Malden's roll call votes collected, Manchester's long minutes summarized,
+   Beverly's minutes fetched, scans transcribed. Then a person checks the
+   votes with `python -m pipeline.votes` for a few weeks (item 12).
+2. The next town the engine already reads: config only (item 10).
+3. A reader for the next meeting platform the network needs (item 10).
+4. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
    statewide PDF every Massachusetts town downloads whole today) and DESE's
    school figures (its data portal answers statewide queries), into
    `states/ma/` as the DLS reports are.
-3. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+5. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
    request) and the Census's permits and estimates, once for the country.
-4. Adding a town from scratch (item 10): the checklist, then the helper.
-5. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+6. Adding a town from scratch (item 10): the helper.
+7. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
    it), and renew the scheduler's GitHub token before it expires (about
    2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
    back to GitHub's own schedule, and the "network stopped" check can't open
    its issue.
-6. Towns queued separately (item 8), only if replaced runs turn out to delay
+8. Towns queued separately (item 8), only if replaced runs turn out to delay
    towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
