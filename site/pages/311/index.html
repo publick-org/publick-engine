@@ -33,7 +33,7 @@
   <li class="stat" id="open-now"><div>
     <span class="stat-label">{{ _("Open right now") }}</span>
     <span class="stat-value">{{ b.open | number }}</span>
-    <span class="stat-change">{{ change(b.open - b.get("open_week_ago", b.open), "last week") }}</span>
+    <span class="stat-change">{{ change(b.open - b.get("open_week_ago", b.open), _("last week")) }}</span>
     {% if b.get("no_update", {}).get("count") %}<span class="stat-change"><a href="#no-update">{% trans num=b.no_update.count | number %}{{ num }} with no update in over a year{% endtrans %}</a></span>{% endif %}
   </div></li>
   <li class="stat" id="speed"><div>
@@ -146,7 +146,7 @@
 <h2 id="open">{{ _("Open requests by age") }}</h2>
 
 {% set age_rows = [] %}
-{% for bk in b.buckets %}{% set _ = age_rows.append({"label": bk.label, "value": bk.count, "text": bk.count | number}) %}{% endfor %}
+{% for bk in b.buckets %}{% set ignored = age_rows.append({"label": _(bk.label), "value": bk.count, "text": bk.count | number}) %}{% endfor %}
 {{ bars(age_rows, _("Open requests by how long they have been open")) }}
 {{ chart_links("open", "/311/data/open-by-age.csv") }}
 
