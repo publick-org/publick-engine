@@ -75,14 +75,17 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
                       "anchor": f"{slugify(body['name'])}-{slugify(m['name'])}"}
             members.append(member)
             for ward in linked:
-                by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]), **member})
+                by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]),
+                                      "order": (len(bodies), len(linked)), **member})
         board = body.get("board", body["name"])
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board)})
     return {
         "checked": checked.isoformat(),
         "bodies": bodies,
         # Every ward in the ward file, even one with no ward seat, so the list matches the map.
-        "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": by_ward.get(w, [])} for w in wards],
+        # In a ward, each body's member for that ward alone comes before its member for a district of wards.
+        "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": sorted(by_ward.get(w, []), key=lambda m: m["order"])}
+                  for w in wards],
     }
 
 
