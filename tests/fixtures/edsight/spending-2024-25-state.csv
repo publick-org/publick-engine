@@ -1,0 +1,23 @@
+"Per Pupil Expenditures by Function (District), 2024-25"
+"State of Connecticut"
+"Notes:"
+"Expenditures exclude food services not funded by local funds, debt, capital (other than equipment), adult education, community services, and state contributions to Teachers' Retirement."
+"All amounts include regular and special education."
+"This report is based upon data reported by school districts; questions concerning report data should be addressed to the school district."
+
+"Pupil Basis: 1 = Enrollment plus outplaced pupils, 2 = Enrollment in district schools, 3 = Total pupils transported"
+
+"District","District Code","Function","Expenditures","Pupils","Pupil Basis","PPE"
+"State of Connecticut","=""0000000""","Instruction","$7,359,790,680",535309,1,"$13,749"
+"State of Connecticut","=""0000000""","Support services - students","$966,239,743",502249,2,"$1,924"
+"State of Connecticut","=""0000000""","Support services - instruction","$445,419,212",502249,2,"$887"
+"State of Connecticut","=""0000000""","Support services - general administration","$307,057,680",502249,2,"$611"
+"State of Connecticut","=""0000000""","Support services - school based administration","$682,432,533",502249,2,"$1,359"
+"State of Connecticut","=""0000000""","Central and other support services","$405,033,490",502249,2,"$806"
+"State of Connecticut","=""0000000""","Operation and maintenance of plant","$1,129,315,201",502249,2,"$2,249"
+"State of Connecticut","=""0000000""","Student transportation services","$751,418,870",420644,3,"$1,786"
+"State of Connecticut","=""0000000""","Food services","$6,212,535",502249,2,"$12"
+"State of Connecticut","=""0000000""","Enterprise operations","$109,856,258",502249,2,"$219"
+"State of Connecticut","=""0000000""","Minor school construction","N/A","N/A","N/A","N/A"
+"State of Connecticut","=""0000000""","Total","$12,162,776,202",535309,1,"$22,721"
+

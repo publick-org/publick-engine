@@ -166,7 +166,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
    | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
-   | `[schools]` | School district figures, from the state | As `[finance]` |
+   | `[schools]` | School district figures, from the state | Massachusetts, New Hampshire, and Connecticut (EdSight's exports: `edsight_district`, the district's name in EdSight). See [States](#states) |
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. Building permits find the town by its Census place (`bps_place`), or, for a New England town that isn't a Census place (Wallingford), by its town code (`bps_mcd`). In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
@@ -246,6 +246,18 @@ if the new year isn't in the saved figures. The average single-family tax
 bill is calculated daily from those rates and NH GRANIT's parcel map (which
 answers automated requests), and held back after a revaluation until the DRA's
 figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).
+
+### Connecticut's school figures
+
+Connecticut's school figures come from EdSight, the State Department of
+Education's data portal, through the CSV export each of its reports has
+(`pipeline/states/ct/schools.py`). The exports answer without a login as long as
+the session keeps the cookies EdSight's redirects set; without them EdSight
+answers with its sign-in page, and the step fails rather than saving anything.
+A trend export covers the last five school years, so the figures already saved
+are kept and the new years added; spending per pupil has an export per school
+year, and only years not yet saved are asked for. Connecticut's tax bill and
+budget aren't in the package yet.
 
 ## Meetings from other calendars
 

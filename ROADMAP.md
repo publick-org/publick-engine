@@ -935,8 +935,10 @@ towns too. Next, in this order (as of 2026-10-01):
    3. The town's folder in the network repository: meetings, officials,
       unemployment, and housing, with summaries from July 2026. The site goes
       live here.
-   4. The Connecticut package (`pipeline/states/ct/`): the tax bill first,
-      then budget and school figures, then the Appeals List.
+   4. The Connecticut package (`pipeline/states/ct/`): school figures first
+      (done: EdSight's graduation, attendance, Smarter Balanced, and spending
+      per pupil, on Wallingford's Schools page), then the tax bill and budget,
+      then the Appeals List.
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
 4. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
