@@ -367,3 +367,39 @@ def test_a_scanners_own_text_is_transcribed_as_a_scan(tmp_path, monkeypatch):
     client = FakeAnthropic()
     assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["transcribed"] == 1
     assert saved(tmp_path, sha)["transcript_source"] == "ai" and "needs_transcript" not in saved(tmp_path, sha)
+
+
+# ---- Roll call votes, read with the minutes' text ----
+
+ROLL_CALLS = (Path(__file__).parent / "fixtures" / "legistar_roll_calls.pdf").read_bytes()
+COUNCIL = ["Peg Crowe", "Paul Condon", "Amanda Linehan", "Ryan O'Malley", "Ari Taylor", "Stephen Winslow",
+           "Chris Simonelli", "Jadeane Sica", "Michelle Luong", "Karen Colón Hayes", "Carey McDonald"]
+
+
+def with_council(config, members=COUNCIL):
+    return {**config, "officials": {"checked": "2026-10-01", "bodies": [
+        {"name": "City Council", "members": [{"name": n, "seat": "At-large"} for n in members]}]}}
+
+
+def test_minutes_of_a_listed_body_get_their_roll_calls(tmp_path):
+    config = with_council(load_config("gloucester"))
+    sha = minutes_town(tmp_path, ROLL_CALLS, date="2026-01-05")
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    (vote,) = saved(tmp_path, sha)["votes"]
+    assert vote["checked"] and vote["item"] == "1-26"
+
+
+def test_roll_calls_are_read_again_when_the_members_change(tmp_path):
+    config = {k: v for k, v in load_config("gloucester").items() if k != "officials"}
+    sha = minutes_town(tmp_path, ROLL_CALLS, date="2026-01-05")
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert "votes" not in saved(tmp_path, sha)
+    # The body is listed later: its votes are read, for free, without summarizing again.
+    client = FakeAnthropic()
+    result = summarize.run(with_council(config), client, tmp_path, limit=50, now=FETCHED_AT)
+    assert result["laid_out"] == 1 and client.calls == [] and saved(tmp_path, sha)["votes"][0]["checked"]
+    # A member corrected: read again; unchanged: left.
+    fixed = with_council(config, [m.replace("Peg Crowe", "Margaret Crowe") for m in COUNCIL])
+    assert summarize.run(fixed, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["laid_out"] == 1
+    assert saved(tmp_path, sha)["votes_members"][0] == "Margaret Crowe"
+    assert summarize.run(fixed, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["laid_out"] == 0

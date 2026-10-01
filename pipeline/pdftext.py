@@ -88,8 +88,8 @@ def plain_text(pdf: bytes) -> str:
 
 
 def lines(pdf: bytes) -> list[dict]:
-    """Each line of text, top to bottom, with its main font and size, where it starts, and
-    where its main text starts (after a label in another font). A line with two pieces far
+    """Each line of text, top to bottom, with its main font and size, where it starts,
+    where its main text starts (after a label in another font), and where each word starts. A line with two pieces far
     apart (a letterhead's left and right columns) is two lines."""
     import pdfplumber
     out = []
@@ -115,7 +115,8 @@ def lines(pdf: bytes) -> list[dict]:
                                                         if (w["fontname"].split("+")[-1], round(w["size"], 1)) == f))
                     tx = next(w["x0"] for w in ws if (w["fontname"].split("+")[-1], round(w["size"], 1)) == main)
                     out.append({"page": p, "y": -top, "x": ws[0]["x0"], "tx": tx, "font": main[0], "size": main[1],
-                                "bold": "Bold" in main[0], "text": " ".join(w["text"] for w in ws)})
+                                "bold": "Bold" in main[0], "text": " ".join(w["text"] for w in ws),
+                                "xs": [w["x0"] for w in ws]})
     return out
 
 
