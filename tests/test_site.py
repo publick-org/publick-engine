@@ -474,3 +474,22 @@ def test_officials_section_needs_its_table(config, data_dir):
     del town["officials"]
     with pytest.raises(SystemExit, match=r"needs an \[officials\] table"):
         officials.load(town, data_dir)
+
+
+def test_street_lookup_example_is_one_of_the_towns_own_streets(site_dir):
+    """Not every town has a Pleasant Street: the example is the street with the most on it."""
+    index = json.loads(next((site_dir / "streets").glob("streets.json")).read_text())
+    from pipeline.build_site import example_street
+    example = example_street(index)
+    assert example in {s["name"] for s in index["streets"].values()}
+    for page in (site_dir / "index.html", site_dir / "streets" / "index.html"):
+        assert f'such as "{example}"' in page.read_text()
+    assert "Pleasant Street" not in (site_dir / "streets" / "index.html").read_text()
+
+
+def test_example_street_picks_the_busiest_and_needs_streets():
+    from pipeline.build_site import example_street
+    index = {"streets": {"A": {"name": "Elm Street", "meetings_total": 1, "requests_total": 1},
+                         "B": {"name": "Water Street", "meetings_total": 5, "permits_total": 2}}}
+    assert example_street(index) == "Water Street"
+    assert example_street({"streets": {}}) is None
