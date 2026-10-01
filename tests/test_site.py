@@ -389,6 +389,11 @@ def test_officials_page(site_dir, config):
         assert f'<li id="ward-{ward}" data-ward="{ward}">' in page
     assert '<a href="#ward-3">Ward 3</a>' in page and "Council President" in page
     assert '<a href="#city-council-casey-example">Casey Example</a>' in page
+    # A district of wards is listed under each of its wards, and links them.
+    assert page.count('School Committee (District A): <a href="#school-committee-jamie-example">Jamie Example</a>') == 2
+    ward_2 = page.split('<li id="ward-2"')[1].split('<li id="ward-3"')[0]
+    assert ward_2.index("Indy Example") < ward_2.index("Jamie Example")
+    assert 'District A<span class="cell-note"> (Wards <a href="#ward-1">1</a> and <a href="#ward-2">2</a>)</span>' in page
     # The mayor is on two bodies: a row on each, with different anchors.
     assert 'id="mayor-morgan-example"' in page and 'id="school-committee-morgan-example"' in page
     ids = re.findall(r'\bid="([^"]+)"', page)
@@ -421,6 +426,8 @@ def test_officials_outline_leaves_out_shared_edges():
     ({"members": [{"name": "A", "seat": "At-large", "term_ends": "January 2028"}]}, "must be a month"),
     ({"members": [{"name": "A"}]}, "needs a name and a seat"),
     ({"members": [{"name": "A", "seat": "At-large", "district": 2}]}, "unknown district"),
+    ({"members": [{"name": "A", "seat": "District C", "wards": [1, 9]}]}, "isn't in the ward file"),
+    ({"members": [{"name": "A", "seat": "Ward 1", "ward": 1, "wards": [1]}]}, "both ward and wards"),
 ])
 def test_officials_config_is_checked(config, data_dir, change, error):
     import copy

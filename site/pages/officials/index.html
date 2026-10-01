@@ -39,7 +39,7 @@
     <h3>Ward {{ w.ward }}</h3>
     {% if w.members %}
     <ul>
-      {% for m in w.members %}<li>{{ m.body }}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
+      {% for m in w.members %}<li>{{ m.body }}{% if m.wards | length > 1 %} ({{ m.seat }}){% endif %}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
     </ul>
     {% else %}
     <p class="small">No seat is elected by this ward alone.</p>
@@ -64,7 +64,8 @@
   <tbody>
   {% for m in b.members %}
     <tr id="{{ m.anchor }}">
-      <td>{% if m.ward_id %}<a href="#{{ m.ward_id }}">{{ m.seat }}</a>{% else %}{{ m.seat }}{% endif %}</td>
+      <td>{% if m.wards | length == 1 %}<a href="#{{ m.wards[0].id }}">{{ m.seat }}</a>
+        {%- else %}{{ m.seat }}{% if m.wards %}<span class="cell-note"> (Wards {% for w in m.wards %}<a href="#{{ w.id }}">{{ w.ward }}</a>{{ ", " if not loop.last and loop.revindex > 2 else " and " if loop.revindex == 2 else "" }}{% endfor %})</span>{% endif %}{% endif %}</td>
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
       <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
       <td>

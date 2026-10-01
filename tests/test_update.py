@@ -92,6 +92,25 @@ def test_hung_step_is_stopped(fake_steps):
     assert result["ok"] and len(result["steps"]) == len(update.SOURCES)
 
 
+def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_steps, monkeypatch):
+    started = []
+    real = update.run_step
+    monkeypatch.setattr(update, "run_step", lambda source, town, timeout: started.append(source.name) or real(source, town, timeout))
+    from pipeline.config import load_config
+    config = load_config("gloucester")
+    for table in ("archive", "drive_meetings", "permits", "seeclickfix"):
+        del config[table]
+    result = update.run("gloucester", config=config)
+    skipped = {s["name"]: s["skipped"] for s in result["steps"] if s.get("skipped")}
+    assert skipped == {"Fetch minutes": "no [archive] in the config",
+                       "Fetch School Committee documents": "no [drive_meetings] in the config",
+                       "Fetch building permits": "no [permits] in the config",
+                       "Fetch 311 requests": "no [seeclickfix] in the config",
+                       "Compute 311 scorecard": "no [seeclickfix] in the config"}
+    assert result["ok"] and not set(skipped) & set(started)
+    assert "Move saved documents to storage" in started
+
+
 def test_sources_pick_a_group(fake_steps):
     only_311 = update.run("gloucester", sources="311")["steps"]
     assert [s["name"] for s in only_311] == ["Fetch 311 requests", "Compute 311 scorecard"]
