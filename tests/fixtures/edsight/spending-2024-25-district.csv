@@ -1,0 +1,23 @@
+"Per Pupil Expenditures by Function (District), 2024-25"
+"Wallingford School District"
+"Notes:"
+"Expenditures exclude food services not funded by local funds, debt, capital (other than equipment), adult education, community services, and state contributions to Teachers' Retirement."
+"All amounts include regular and special education."
+"This report is based upon data reported by school districts; questions concerning report data should be addressed to the school district."
+
+"Pupil Basis: 1 = Enrollment plus outplaced pupils, 2 = Enrollment in district schools, 3 = Total pupils transported"
+
+"District","District Code","Function","Expenditures","Pupils","Pupil Basis","PPE"
+"Wallingford School District","=""1480011""","Instruction","$83,720,437",5312,1,"$15,761"
+"Wallingford School District","=""1480011""","Support services - students","$9,338,216",5198,2,"$1,797"
+"Wallingford School District","=""1480011""","Support services - instruction","$3,723,272",5198,2,"$716"
+"Wallingford School District","=""1480011""","Support services - general administration","$2,239,742",5198,2,"$431"
+"Wallingford School District","=""1480011""","Support services - school based administration","$7,045,401",5198,2,"$1,355"
+"Wallingford School District","=""1480011""","Central and other support services","$4,472,050",5198,2,"$860"
+"Wallingford School District","=""1480011""","Operation and maintenance of plant","$9,864,954",5198,2,"$1,898"
+"Wallingford School District","=""1480011""","Student transportation services","$7,399,454",4230,3,"$1,749"
+"Wallingford School District","=""1480011""","Food services","$0",5198,2,"$0"
+"Wallingford School District","=""1480011""","Enterprise operations","$1,954,362",5198,2,"$376"
+"Wallingford School District","=""1480011""","Minor school construction","N/A","N/A","N/A","N/A"
+"Wallingford School District","=""1480011""","Total","$129,757,888",5312,1,"$24,427"
+

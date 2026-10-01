@@ -2,7 +2,8 @@
 
 Every state publishes these differently (Massachusetts through its Division of
 Local Services and DESE, New Hampshire through its Department of Revenue
-Administration and Department of Education), so each state has a package here,
+Administration and Department of Education, Connecticut's schools through
+EdSight), so each state has a package here,
 pipeline/states/<code>/, and page templates in site/states/<code>/. A town names
 its state in [town] state_abbr, and everything state-specific goes through that
 state's package: adding a town in a state that already has one needs only its
@@ -26,7 +27,7 @@ from pathlib import Path
 from types import ModuleType
 
 # States with a package here, by their two-letter code.
-PACKAGES = {"MA": "pipeline.states.ma", "NH": "pipeline.states.nh"}
+PACKAGES = {"CT": "pipeline.states.ct", "MA": "pipeline.states.ma", "NH": "pipeline.states.nh"}
 
 # The kinds of state source, with the plain name used in messages.
 KINDS = {"tax_bill": "Tax bill", "budget": "Budget figures", "schools": "School figures"}
