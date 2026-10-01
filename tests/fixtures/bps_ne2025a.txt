@@ -1,0 +1,7 @@
+Survey,State,6-Digit,County,Census Place,FIPS Place,FIPS MCD,Pop,CSA,CBSA,Footnote,Central,Zip,Region,Division,Number of,Place,,1-unit,,,2-units,,,3-4 units,,,5+ units,,,1-unit rep,,,2-units rep,,,3-4 units rep,,,5+ units rep
+Date,Code,ID,Code,Code,Code,Code,  ,Code,Code,Code,City,Code,Code,Code,Months Rep,Name,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value,Bldgs,Units,Value
+ 
+2025,09,345000,110,    ,00000 ,44700 ,57362 ,405,25540, , ,06040      ,1,1,12,Manchester town,13,13,3961095,2,4,754000,1,4,536000,1,7,410000,13,13,3961095,2,4,754000,1,4,536000,1,7,410000
+2025,09,653000,170,    ,00000 ,78740 ,44076 ,405,35300, , ,06492      ,1,1,0,Wallingford town,24,24,4347648,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025,25,347000,009,    ,00000 ,37995 ,5438 ,148,14460, , ,091441399  ,1,1,12,Manchester-by-the-Sea town,9,9,15905830,0,0,0,0,0,0,0,0,0,9,9,15905830,0,0,0,0,0,0,0,0,0
+2025,33,553000,011,0720,45140 ,45140 ,112546 ,148,31700, ,1,03101      ,1,1,1,Manchester,24,24,8989803,6,12,2984594,6,18,3726408,11,168,39876129,1,1,295000,0,0,0,0,0,0,0,0,0
