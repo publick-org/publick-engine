@@ -1,10 +1,17 @@
-"""Turn posted agendas and minutes into readable text and plain-English summaries.
+"""Plain-English summaries of posted agendas and minutes, and their readable text.
 
-The city posts these as scanned images, which screen readers cannot read.
-For each saved PDF, a language model transcribes the full text and writes a
-short neutral summary: a preview for an agenda, a record of decisions for
-minutes. Results are cached by the PDF's SHA-256 hash in data/summaries/, so
-an unchanged document is never processed twice.
+For each saved PDF, a language model reads the document and writes a short
+neutral summary: a preview for an agenda, a record of decisions for minutes.
+Results are cached by the PDF's SHA-256 hash in data/summaries/, so an
+unchanged document is never processed twice.
+
+The readable text shown on each meeting page is the PDF's own words wherever
+they can be used (pipeline/pdftext.py: a supported style, laid out and checked
+word for word), at no cost. A scan (or a scanner's own recognized text), which
+screen readers can't read, is transcribed by the model, but only after every
+summary waiting, from what's left of the budget, a few pages a request so a
+long document is never cut off. Any other PDF has text a screen reader can
+read, so the page links it; search and the street lookup use its plain text.
 
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
 
@@ -35,6 +42,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
+from pipeline import pdftext
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError
@@ -75,13 +83,12 @@ KINDS = {
     "agenda": {
         "version": 4,
         "folder": "agendas",
-        "max_tokens": 16000,
-        "system": "You convert public meeting agendas from a city government into accessible text for residents. The agendas are usually scanned images, so read every character carefully.\n\n"
-                  + TRANSCRIPT_RULES + "\n\n" + SUMMARY_RULES,
+        "max_tokens": 4000,
+        "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
+                  + SUMMARY_RULES,
         "prompt": """This is the posted agenda for: {title}, {date}.
 
 Return:
-- transcript: the full text of the agenda in reading order, as Markdown. Use headings for the document's own headings and lists for its lists. Leave out stamps, seals, and page decorations, but keep the clerk's posting date if shown.
 - headline: one sentence of at most 25 words saying what the meeting will take up, naming the main business. Start with the business itself, not with who is meeting (write "Public hearing on the 2026 Housing Compass Plan.", not "Board will hold a public hearing on ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 or 2 short sentences on what the meeting will cover. Name the main business items. Do not repeat the board's name, the date, the time, or the place.
 - items: each agenda item, in order, as short plain-English phrases. Skip routine items such as call to order, roll call, approval of minutes, and adjournment.
@@ -90,29 +97,27 @@ Return:
         "schema": {
             "type": "object",
             "properties": {
-                "transcript": {"type": "string"},
                 "headline": {"type": "string"},
                 "summary": {"type": "string"},
                 "items": {"type": "array", "items": {"type": "string"}},
                 "start_time": {"type": "string"},
                 "location": {"type": "string"},
             },
-            "required": ["transcript", "headline", "summary", "items", "start_time", "location"],
+            "required": ["headline", "summary", "items", "start_time", "location"],
             "additionalProperties": False,
         },
     },
     "minutes": {
         "version": 2,
         "folder": "minutes",
-        "max_tokens": 64000,
-        "system": "You convert the minutes of public meetings of a city government into accessible text for residents. Minutes are usually scanned images, so read every character carefully.\n\n"
-                  + TRANSCRIPT_RULES + "\n\n" + SUMMARY_RULES + """
+        "max_tokens": 8000,
+        "system": "You summarize the minutes of public meetings of a city government for residents. Minutes are often scanned images, so read every character carefully.\n\n"
+                  + SUMMARY_RULES + """
 - Report decisions only as the minutes record them. Include the vote count or roll call result when the minutes give one. If the minutes do not say how a matter ended, do not list it as a decision.
 - Use the minutes' own verb for each outcome (approved, recommended, referred, continued, tabled, denied). A vote to recommend is not an approval.""",
         "prompt": """These are the posted minutes for: {title}, {date}.
 
 Return:
-- transcript: the full text of the minutes in reading order, as Markdown. Use headings for the document's own headings and lists for its lists. Leave out stamps, seals, and page decorations.
 - headline: one sentence of at most 25 words on what the meeting decided, or what it discussed if it decided nothing. Start with the outcome itself, not with who met (write "Approved seven board appointments ...", not "Committee approved seven board appointments ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 to 3 short sentences on what the meeting covered and what was decided. Do not repeat the board's name, the date, the time, or the place.
 - is_minutes: true if this document is minutes of a meeting that took place; false if it is something else, such as an agenda or notice filed under minutes.
@@ -120,17 +125,38 @@ Return:
         "schema": {
             "type": "object",
             "properties": {
-                "transcript": {"type": "string"},
                 "headline": {"type": "string"},
                 "summary": {"type": "string"},
                 "is_minutes": {"type": "boolean"},
                 "decisions": {"type": "array", "items": {"type": "string"}},
             },
-            "required": ["transcript", "headline", "summary", "is_minutes", "decisions"],
+            "required": ["headline", "summary", "is_minutes", "decisions"],
             "additionalProperties": False,
         },
     },
 }
+
+# Readable text by the model, for a document whose own text can't be used:
+# a few pages a request, so no response is cut off however long the document.
+TRANSCRIBE = {
+    "version": 1,
+    "max_tokens": 32000,
+    "pages": 6,
+    "system": "You transcribe public meeting agendas and minutes from a city government into accessible text for residents. They are often scanned images, so read every character carefully.\n\n"
+              + TRANSCRIPT_RULES,
+    "prompt": """These are pages {first} to {last} of {pages} of the {kind} for: {title}, {date}.
+
+Return:
+- transcript: the full text of these pages in reading order, as Markdown. Use headings for the document's own headings and lists for its lists. Leave out stamps, seals, page numbers, and running headers and footers, but keep the clerk's posting date if shown.""",
+    "schema": {
+        "type": "object",
+        "properties": {"transcript": {"type": "string"}},
+        "required": ["transcript"],
+        "additionalProperties": False,
+    },
+}
+# Documents laid out from their own text each run (no model, no cost), for summaries saved before.
+TEXT_PER_RUN = 60
 
 # Documents longer or larger than this are not sent; the page links to the original.
 MAX_PAGES = 60
@@ -216,12 +242,14 @@ def record_cost(record: dict, settings: dict) -> float:
     return cost(record["usage"], settings) if "usage" in record else 0.0
 
 
-def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float = 0.0) -> dict:
+def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float = 0.0,
+                  transcript_cost: float = 0.0) -> dict:
     """Recount the summaries saved this month (and any month the ledger doesn't have yet) and save the ledger.
 
     Earlier months are kept as they were: a summary made again replaces its file,
     so counting them again would lose what the first one cost. failed_cost is
-    what this run paid for requests that were cut off, which leave no file."""
+    what this run paid for requests that were cut off, which leave no file, and
+    transcript_cost what it paid for transcriptions, counted in the month they're made."""
     path = data_dir / LEDGER
     ledger = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     counted: dict[str, dict] = {}
@@ -235,9 +263,10 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
             row["documents"] += 1
     for at, row in counted.items():
         ledger[at] = {**ledger.get(at, {}), "cost": round(row["cost"], 4), "documents": row["documents"]}
-    if failed_cost:
-        row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
-        row["failed_cost"] = round(row.get("failed_cost", 0.0) + failed_cost, 4)
+    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost)):
+        if paid:
+            row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
+            row[key] = round(row.get(key, 0.0) + paid, 4)
     ledger = dict(sorted(ledger.items()))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
@@ -246,7 +275,7 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
 
 def month_cost(ledger: dict, month: str) -> float:
     row = ledger.get(month, {})
-    return row.get("cost", 0.0) + row.get("failed_cost", 0.0)
+    return row.get("cost", 0.0) + row.get("failed_cost", 0.0) + row.get("transcript_cost", 0.0)
 
 
 class StoppedEarly(RuntimeError):
@@ -287,6 +316,93 @@ def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: s
         raise StoppedEarly(response.stop_reason, usage)
     text = next(b.text for b in response.content if b.type == "text")
     return json.loads(text), usage
+
+
+def page_range(pdf: bytes, first: int, last: int) -> bytes:
+    """Pages first..last (counting from 1) as a PDF of their own."""
+    from pypdf import PdfWriter
+    reader = PdfReader(io.BytesIO(pdf))
+    writer = PdfWriter()
+    for page in reader.pages[first - 1:last]:
+        writer.add_page(page)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[str, dict]:
+    """The model's transcription of a whole document, a few pages a request."""
+    pages = page_count(pdf) or 1
+    step = TRANSCRIBE["pages"]
+    parts, usage = [], {"input_tokens": 0, "output_tokens": 0}
+    for first in range(1, pages + 1, step):
+        last = min(first + step - 1, pages)
+        chunk = pdf if (first, last) == (1, pages) else page_range(pdf, first, last)
+        with client.messages.stream(
+            model=model,
+            max_tokens=TRANSCRIBE["max_tokens"],
+            system=TRANSCRIBE["system"],
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
+                                                    "data": base64.standard_b64encode(chunk).decode("ascii")}},
+                    {"type": "text", "text": TRANSCRIBE["prompt"].format(first=first, last=last, pages=pages,
+                                                                         kind=kind, title=title, date=date)},
+                ],
+            }],
+            output_config={"format": {"type": "json_schema", "schema": TRANSCRIBE["schema"]}},
+        ) as stream:
+            response = stream.get_final_message()
+        usage["input_tokens"] += response.usage.input_tokens
+        usage["output_tokens"] += response.usage.output_tokens
+        if response.stop_reason != "end_turn":
+            raise StoppedEarly(response.stop_reason, usage)
+        parts.append(json.loads(next(b.text for b in response.content if b.type == "text"))["transcript"].strip())
+    return "\n\n".join(parts), usage
+
+
+def own_text(record: dict, pdf: bytes) -> dict:
+    """The record with the document's own text, where it can be used: laid out as its
+    readable text (replacing a transcription). Otherwise, with no transcription yet, its
+    plain text for search, and whether it's a scan, which the model is to transcribe."""
+    text, why = pdftext.readable(pdf)
+    record = {**record, "text_version": pdftext.VERSION}
+    record.pop("needs_transcript", None)
+    if text:
+        record.update(transcript=text, transcript_source="pdf")
+        record.pop("plain_text", None)
+    elif not record.get("transcript"):
+        record["plain_text"] = pdftext.plain_text(pdf)
+        record["text_note"] = why
+        record["needs_transcript"] = pdftext.page_texts(pdf) is None
+    return record
+
+
+def save_record(data_dir: Path, sha256: str, record: dict) -> None:
+    path = summaries_dir(data_dir) / f"{sha256}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
+    """(kind, meeting, document, saved record) for each meeting's latest agenda and minutes
+    that have a summary, newest meeting first."""
+    path = data_dir / "meetings" / "meetings.json"
+    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    out, seen = [], set()
+    for meeting in store.values():
+        for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
+            if not meeting.get(field):
+                continue
+            doc = meeting[field][-1]
+            if doc["sha256"] in seen:
+                continue
+            record = cached(data_dir, doc["sha256"], "", kind, current=False)
+            if record:
+                seen.add(doc["sha256"])
+                out.append((kind, meeting, doc, record))
+    return sorted(out, key=lambda t: t[1]["date"], reverse=True)
 
 
 def cost(usage: dict, settings: dict) -> float:
@@ -366,18 +482,78 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             "usage": usage,
             "cost": round(paid, 6),
         }
-        path = summaries_dir(data_dir) / f"{doc['sha256']}.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        save_record(data_dir, doc["sha256"], own_text(record, pdf))
         for k in tokens:
             tokens[k] += usage[k]
         spent += paid
         if doc["sha256"] in older:
             spent_backlog += paid
         done += 1
+    # Readable text. First the documents' own text, which costs nothing: summaries saved
+    # before it was used, or before the layout rules last changed.
+    laid_out = 0
+    later = summarized_documents(data_dir)
+    for kind, meeting, doc, record in later:
+        if laid_out >= TEXT_PER_RUN:
+            break
+        if record.get("text_version") == pdftext.VERSION:
+            continue
+        try:
+            pdf = storage.get(KINDS[kind]["folder"], doc["file"])
+        except FetchError as e:
+            errors.append(f"{kind} {doc['id']}: {e}")
+            continue
+        save_record(data_dir, doc["sha256"], own_text(record, pdf))
+        laid_out += 1
+    # Then the model's transcription of scans, which screen readers can't read, only once
+    # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
+    transcribed, transcript_cost = 0, 0.0
+    summaries_left = len(todo) - done
+    for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
+        if not record.get("needs_transcript") or record.get("transcript"):
+            continue
+        if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
+                or (backlog_allowance is not None and spent_backlog >= backlog_allowance)):
+            stopped = stopped or "transcriptions wait: this run's budget for them is spent"
+            break
+        try:
+            pdf = storage.get(KINDS[kind]["folder"], doc["file"])
+        except FetchError as e:
+            errors.append(f"{kind} {doc['id']}: {e}")
+            continue
+        pages = page_count(pdf)
+        if pages and pages > MAX_PAGES:
+            continue
+        try:
+            text, usage = transcribe_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
+        except StoppedEarly as e:
+            paid = cost(e.usage, settings)
+            spent += paid
+            spent_backlog += paid
+            failed_cost += paid
+            errors.append(f"transcript of {kind} {doc['id']}: {e}")
+            continue
+        except Exception as e:
+            if "credit balance" in str(e).lower():
+                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+                break
+            errors.append(f"transcript of {kind} {doc['id']}: {e}")
+            continue
+        paid = cost(usage, settings)
+        record = {**record, "transcript": text, "transcript_source": "ai", "transcript_usage": usage,
+                  "transcript_cost": round(paid, 6)}
+        record.pop("needs_transcript", None)
+        save_record(data_dir, doc["sha256"], record)
+        for k in tokens:
+            tokens[k] += usage[k]
+        spent += paid
+        spent_backlog += paid
+        transcript_cost += paid
+        transcribed += 1
     month = now.strftime("%Y-%m")
-    ledger = update_ledger(data_dir, settings, month, failed_cost)
-    return {"summarized": done, "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
+    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost)
+    return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed,
+            "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
 
 

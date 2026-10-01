@@ -92,8 +92,11 @@ class FakeSeeClickFix:
 class FakeAnthropic:
     """Stands in for anthropic.Anthropic: returns a fixed structured result."""
 
-    PREVIEW = {
+    # A transcription of the fixture agenda (a scan, with no text of its own).
+    TRANSCRIPT = {
         "transcript": "# Human Rights Commission\n\n1. Call to order.\n2. Review and approval of July 27, 2026 minutes\n3. Meeting Joe Lucido, Assistant Director of Operations on City ADA compliance\n4. Review HRC Student Member Recruitment Search Draft Description\n5. Community updates.\n6. Next Meeting: October 26",
+    }
+    PREVIEW = {
         "headline": "ADA compliance with the city's operations director and a draft plan for recruiting a student member.",
         "summary": "The commission will meet with the city's Assistant Director of Operations about ADA compliance and review a draft description for recruiting a student member.",
         "items": ["ADA compliance with Joe Lucido", "Student member recruitment description", "Community updates"],
@@ -101,7 +104,6 @@ class FakeAnthropic:
         "location": "",
     }
     MINUTES = {
-        "transcript": "# Planning Board Minutes\n\nMotion to approve the site plan at 12 Main St. Vote 5-0.",
         "headline": "Approved a site plan for 12 Main St.",
         "summary": "The board approved a site plan for 12 Main St.",
         "is_minutes": True,
@@ -116,8 +118,13 @@ class FakeAnthropic:
         def respond(kwargs):
             import json
             outer.calls.append(kwargs)
-            is_minutes = "decisions" in kwargs["output_config"]["format"]["schema"]["properties"]
-            payload = FakeAnthropic.MINUTES if is_minutes else preview or FakeAnthropic.PREVIEW
+            properties = kwargs["output_config"]["format"]["schema"]["properties"]
+            if set(properties) == {"transcript"}:
+                payload = FakeAnthropic.TRANSCRIPT
+            elif "decisions" in properties:
+                payload = FakeAnthropic.MINUTES
+            else:
+                payload = preview or FakeAnthropic.PREVIEW
             return SimpleNamespace(
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload))],
