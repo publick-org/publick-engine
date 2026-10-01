@@ -543,12 +543,10 @@ is shown only as the minutes record it, by name, with the exact line it came
 from, and nothing is inferred.
 
 **What the minutes give.** Today's minutes summaries list decisions as
-sentences with a tally ("Approved ... 10-1"), not members' votes. Each saved
-summary keeps the document's full text, but that text is the AI's
-transcription of the PDF, so it can't be the evidence for a vote: the PDF's
-own text layer is (the PDFs are in the documents bucket; a scanned PDF with no
-text layer needs a person to check it, or is left out). How minutes record
-votes differs by city:
+sentences with a tally ("Approved ... 10-1"), not members' votes. The evidence
+for a vote is the PDF's own text layer, never an AI transcription (the PDFs
+are in the documents bucket; a scanned PDF with no text layer needs a person
+to check it, or is left out). How minutes record votes differs by city:
 - Malden's City Council minutes list roll calls in a fixed form ("Yea: 10 -
   <ten surnames> Nay: 1 - <one surname>"), which a parser can read
   without AI. A test on 2026-10-01 read every Malden council and Committee of
@@ -582,6 +580,30 @@ votes differs by city:
 - Each vote has the report-an-error link, and a few weeks of a person
   checking every new vote against the minutes before a town's votes are
   public.
+
+**Done so far (collected, not shown).** `pipeline/votes.py` reads the roll
+calls in minutes from Legistar's software (the style `pipeline/pdftext.py`
+lays out), for every body in a town's `[officials]` table, with no AI. Each
+roll call keeps its item number, the motion and outcome as the minutes word
+them, any note after the outcome, and the exact lines of its groups. It's
+checked: each group's count matches its names, each name is exactly one
+member, no member is named twice, and a tally the outcome states matches the
+groups; a member not named is "not recorded". Votes are read with the
+minutes' text, kept in the minutes' record, and read again when the rules or
+the members change. `python -m pipeline.votes` lists every roll call for a
+person to check. On Malden's 21 council minutes from 2026: 128 roll calls,
+127 checked; the other has a stated tally that disagrees with its names, so
+it stays unchecked.
+
+**Next.**
+- A few weeks of a person checking every new vote with the review list, then
+  a per-town switch that puts checked votes on meeting pages.
+- Past members: the member list is today's, so a vote from before a seat
+  changed names someone who isn't on it and stays unchecked. Showing older
+  votes needs who served when.
+- A member the minutes name differently from the city's list (a changed
+  surname) needs an alias on the member, never a guess.
+- Readers for other styles, starting with the sentence forms above.
 
 **Limits to say on the page.** Votes appear only once minutes are posted,
 often weeks after the meeting, and only as far back as the town's saved
