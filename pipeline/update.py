@@ -58,6 +58,7 @@ SOURCES = [
     # meetings ([meetings]); the step does nothing for a town with none of them.
     Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", table="meetings"),
     Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", table="drive_meetings"),
+    Source("Fetch school board meetings", "pipeline.fetch_finalsite_meetings", "meetings", table="finalsite_meetings"),
     Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",), table="summaries"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
     Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",), table="labor"),
