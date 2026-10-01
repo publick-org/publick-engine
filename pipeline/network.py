@@ -262,11 +262,30 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         # What the town's data takes up, and how much this run added, for the status page.
         result["data_bytes"] = folder_bytes(town_dir / "data")
         result["data_bytes_added"] = result["data_bytes"] - data_before
+        result["activity"] = activity(town_dir / "data")
         record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     if reports:
         reports.mkdir(parents=True, exist_ok=True)
         (reports / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
+
+
+# Days of upcoming meetings counted for the network homepage.
+ACTIVITY_DAYS = 14
+
+
+def activity(data: Path, today: date | None = None) -> dict:
+    """A few counts from the town's meetings for the network homepage, which reads only run
+    records: the boards it follows, and how many meetings each coming day has."""
+    path = data / "meetings" / "meetings.json"
+    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    today = today or datetime.now(timezone.utc).date()
+    last = (today + timedelta(days=ACTIVITY_DAYS - 1)).isoformat()
+    upcoming: dict[str, int] = {}
+    for m in store.values():
+        if today.isoformat() <= m["date"] <= last and m.get("status", "scheduled") == "scheduled" and m.get("listed", True):
+            upcoming[m["date"]] = upcoming.get(m["date"], 0) + 1
+    return {"boards": len({m["body"] for m in store.values()}), "meetings_by_date": dict(sorted(upcoming.items()))}
 
 
 def folder_bytes(folder: Path) -> int:
