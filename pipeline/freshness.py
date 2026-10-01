@@ -33,6 +33,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline import rhythms, summarize
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
+from pipeline.i18n import _
 
 
 def last_update(data_dir: Path, source: dict) -> datetime | None:
@@ -83,7 +84,7 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
     rows += [rhythms.row(r, data_dir, now, fresh["grace_months"], checks) for r in figures]
     if "summaries" in config:
         waiting = waiting_summaries(config, data_dir, now, fresh["summary_grace_days"])
-        rows.append({"label": "Meeting summaries", "updated_at": None, "max_days": fresh["summary_grace_days"],
+        rows.append({"label": _("Meeting summaries"), "updated_at": None, "max_days": fresh["summary_grace_days"],
                      "stale": bool(waiting), "waiting": waiting})
     return rows
 

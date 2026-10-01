@@ -27,6 +27,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.states.nh import figures
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 
@@ -42,8 +43,8 @@ VALUE_CHECK = (0.9, 1.3)
 
 # The DRA sets each town's tax rate in the fall and finishes the year's list in
 # January; the rates reach the engine's figures when they're extracted (extract.py).
-RHYTHM = Rhythm("Tax bill (calculated)", "finance/tax_bill.json", "Fetch tax bill", "yearly", (
-    Part(latest_year("years", "tax_year"), on(2, years_after=1), lambda y: f"Tax year {y}"),
+RHYTHM = Rhythm(N_("Tax bill (calculated)"), "finance/tax_bill.json", "Fetch tax bill", "yearly", (
+    Part(latest_year("years", "tax_year"), on(2, years_after=1), lambda y: _("Tax year {year}").format(year=y)),
 ))
 
 

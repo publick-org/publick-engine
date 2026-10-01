@@ -39,6 +39,7 @@ from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import summarize
 from pipeline.fetch_meetings import slugify
+from pipeline.i18n import N_, _, month_name, month_year, ngettext, plain_date, weekday_name
 from pipeline.seeclickfix import short_address
 
 SITE_DIR = ENGINE_DIR / "site"
@@ -96,26 +97,29 @@ def mark_new_tab_links(html: str, own_hosts: set[str]) -> str:
 def format_date(value: str | date, fmt: str = "long") -> str:
     d = date.fromisoformat(value) if isinstance(value, str) else value
     if fmt == "short":
-        return f"{d.strftime('%a')}, {d.strftime('%b')} {d.day}"
+        # Translators: a date in a list, such as "Thu, Oct 1".
+        return _("{weekday}, {month} {day}").format(weekday=weekday_name(d, short=True), month=month_name(d.month, short=True), day=d.day)
     if fmt == "month":
-        return d.strftime("%B %Y")
+        return month_year(d)
     if fmt == "plain":
-        return f"{d.strftime('%B')} {d.day}, {d.year}"
+        return plain_date(d)
     if fmt == "mon":
-        return d.strftime("%b")
+        return month_name(d.month, short=True)
     if fmt == "day":
         return str(d.day)
     if fmt == "weekday":
-        return d.strftime("%A")
-    return f"{d.strftime('%A')}, {d.strftime('%B')} {d.day}, {d.year}"
+        return weekday_name(d)
+    # Translators: a full date, such as "Thursday, October 1, 2026".
+    return _("{weekday}, {month} {day}, {year}").format(weekday=weekday_name(d), month=month_name(d.month), day=d.day, year=d.year)
 
 
 def format_time(value: str | None) -> str:
     if not value:
         return ""
     h, m = (int(x) for x in value.split(":"))
-    suffix = "AM" if h < 12 else "PM"
-    return f"{(h % 12) or 12}:{m:02d} {suffix}"
+    time = f"{(h % 12) or 12}:{m:02d}"
+    # Translators: a time of day, such as "7:00 PM".
+    return _("{time} AM").format(time=time) if h < 12 else _("{time} PM").format(time=time)
 
 
 def format_bytes(n: int) -> str:
@@ -124,14 +128,15 @@ def format_bytes(n: int) -> str:
 
 def format_duration(days: float | None) -> str:
     if days is None:
-        return "Not enough data"
+        return _("Not enough data")
     hours = days * 24
     if hours < 1:
-        return "Under 1 hour"
+        return _("Under 1 hour")
     if hours < 36:
         n = round(hours)
-        return f"{n} hour{'s' if n != 1 else ''}"
-    return f"{days:.1f} days" if days < 10 else f"{days:.0f} days"
+        return ngettext("{n} hour", "{n} hours", n).format(n=n)
+    # Always 1.5 days or more here.
+    return _("{days} days").format(days=f"{days:.1f}" if days < 10 else f"{days:.0f}")
 
 
 def format_duration_cell(days: float | None) -> str:
@@ -161,7 +166,8 @@ def format_money(n: float | int | None, style: str = "long") -> str:
     if n < 0:
         return "−" + format_money(-n, style)
     if abs(n) >= 1_000_000:
-        return f"${n / 1_000_000:,.1f}" + ("M" if style == "short" else " million")
+        amount = f"{n / 1_000_000:,.1f}"
+        return f"${amount}M" if style == "short" else _("${amount} million").format(amount=amount)
     if style == "short" and abs(n) >= 10_000:
         return f"${n / 1000:,.0f}K"
     return f"${n:,.0f}"
@@ -169,13 +175,12 @@ def format_money(n: float | int | None, style: str = "long") -> str:
 
 def format_month_long(value: str) -> str:
     """'2028-01' -> 'January 2028'."""
-    d = date.fromisoformat(value + "-01")
-    return f"{d.strftime('%B')} {d.year}"
+    return month_year(date.fromisoformat(value + "-01"))
 
 
 def format_month(value: str) -> str:
-    d = date.fromisoformat(value + "-01")
-    return f"{d.strftime('%b')} {d.year}"
+    """'2028-01' -> 'Jan 2028'."""
+    return month_year(date.fromisoformat(value + "-01"), short=True)
 
 
 SAFE_HREF = re.compile(r"(https?://|mailto:)", re.I)
@@ -195,8 +200,7 @@ def render_markdown(text: str) -> Markup:
 
 
 def format_timestamp(value: str) -> str:
-    dt = datetime.fromisoformat(value)
-    return f"{dt.strftime('%B')} {dt.day}, {dt.year}"
+    return plain_date(datetime.fromisoformat(value).date())
 
 
 # ---- Data ------------------------------------------------------------------
@@ -300,8 +304,8 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
-LISTINGS = {"civicclerk": "city's meeting portal", "agendacenter": "city's Agenda Center",
-            "finalsite": "school district's website"}
+LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
+            "finalsite": N_("school district's website")}
 
 
 def from_agenda(m: dict) -> None:
@@ -332,7 +336,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m.setdefault(key, default)
         m.setdefault("documents_url", None)
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
-        m["listing"] = LISTINGS.get(m["source"], "city calendar")
+        m["listing"] = _(LISTINGS.get(m["source"], N_("city calendar")))
         m["url"] = f"/meetings/{m['slug']}/"
         m["body_slug"] = slugify(m["body"])
         m["body_url"] = f"/meetings/boards/{m['body_slug']}/"
@@ -371,7 +375,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         by_time = all(times) and len(set(times)) == len(group)
         for i, m in enumerate(sorted(group, key=lambda m: (m.get("start_time") or "", len(m["id"]), m["id"])), 1):
             m["same_day"] = len(group) > 1
-            m["day_part"] = f"{i} of {len(group)}" if m["same_day"] and not by_time else None
+            # Translators: which of a board's meetings on one day, such as "1 of 2".
+            m["day_part"] = _("{i} of {n}").format(i=i, n=len(group)) if m["same_day"] and not by_time else None
 
     today_s = today.isoformat()
     upcoming = [m for m in meetings if m["date"] >= today_s]
@@ -413,7 +418,7 @@ def meeting_links(config: dict) -> dict:
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
         "portal": m.get("civicclerk", {}).get("portal_url"),
         "archive": m.get("archive_url") or (f"{base}/Archive.aspx" if base else None),
-        "archive_name": m.get("archive_name", "city's Archive Center"),
+        "archive_name": m.get("archive_name", _("city's Archive Center")),
         "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
         "governing_body": m.get("governing_body", "City Council"),
         "documents": m.get("documents", True),
@@ -442,10 +447,10 @@ def search_index(meetings: list[dict]) -> list[dict]:
     for m in meetings:
         docs = []
         if m["preview"]:
-            docs.append({"kind": "Agenda", "text": plain_text(doc_text(m["preview"]))})
+            docs.append({"kind": _("Agenda"), "text": plain_text(doc_text(m["preview"]))})
         ms = m["minutes_summary"]
         if ms:
-            docs.append({"kind": "Minutes" if ms.get("is_minutes", True) else "Agenda",
+            docs.append({"kind": _("Minutes") if ms.get("is_minutes", True) else _("Agenda"),
                          "text": plain_text(doc_text(ms))})
         rows.append({"url": m["url"], "board": m["body"], "date": m["date"],
                      "date_text": format_date(m["date"]), "docs": [d for d in docs if d["text"]]})
@@ -462,12 +467,26 @@ def group_by(meetings: list[dict], period: str) -> list[tuple]:
 
 
 def change_text(diff: float, unit: str, since: str, digits: int = 0) -> str:
-    """'↑ 7 from last week' / 'No change from last week'. Neutral wording, no judgment."""
+    """'↑ 7 from last week' / 'No change from last week'. Neutral wording, no judgment.
+    unit follows the amount ("%", " pts")."""
     if round(diff, digits) == 0:
-        return f"No change from {since}"
+        # Translators: {since} is a time, such as "last week" or "August 2025".
+        return _("No change from {since}").format(since=since)
     arrow = "↑" if diff > 0 else "↓"
     amount = f"{abs(diff):,.{digits}f}"
-    return f"{arrow} {amount}{unit} from {since}"
+    # Translators: such as "↑ 7 from last week", or "↓ 0.4 pts from August 2025".
+    return _("{arrow} {amount}{unit} from {since}").format(arrow=arrow, amount=amount, unit=unit, since=since)
+
+
+def list_text(items: list[str]) -> str:
+    """['a', 'b', 'c'] -> 'a, b, and c'; ['a', 'b'] -> 'a and b'."""
+    if len(items) < 2:
+        return "".join(items)
+    if len(items) == 2:
+        # Translators: a list of two things, such as "agenda items and building permits".
+        return _("{first} and {last}").format(first=items[0], last=items[1])
+    # Translators: the end of a list of three or more, such as "agenda items, building permits, and 311 requests".
+    return _("{others}, and {last}").format(others=", ".join(items[:-1]), last=items[-1])
 
 
 def clip(text: str, limit: int = 140) -> str:
@@ -502,19 +521,21 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
     numbers = []
     if scorecard:
         backlog = scorecard["backlog"]
+        no_update = backlog.get("no_update", {}).get("count")
         numbers.append({
-            "label": "Open 311 requests", "value": f"{backlog['open']:,}", "href": "/311/#open",
-            "change": change_text(backlog["open"] - backlog.get("open_week_ago", backlog["open"]), "", "last week"),
-            "note": (f"{backlog['no_update']['count']:,} with no update in over a year"
-                     if backlog.get("no_update", {}).get("count") else ""),
+            "label": _("Open 311 requests"), "value": f"{backlog['open']:,}", "href": "/311/#open",
+            "change": change_text(backlog["open"] - backlog.get("open_week_ago", backlog["open"]), "", _("last week")),
+            "note": ngettext("{n} with no update in over a year", "{n} with no update in over a year",
+                             no_update).format(n=f"{no_update:,}") if no_update else "",
         })
         overall = scorecard["overall"]
         # The median leaves out requests never acknowledged, so show how many were.
-        change = "Median, past 12 months"
+        change = _("Median, past 12 months")
         if overall.get("checked"):
-            change += f" · {round(overall['acknowledged'] / overall['checked'] * 100)}% of requests were acknowledged"
+            change += " · " + _("{percent}% of requests were acknowledged").format(
+                percent=round(overall["acknowledged"] / overall["checked"] * 100))
         numbers.append({
-            "label": "Typical time for the city to acknowledge a request",
+            "label": _("Typical time for the city to acknowledge a request"),
             "value": format_duration(overall["time_to_acknowledge"]["median"]), "href": "/311/#speed", "change": change,
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
@@ -525,33 +546,32 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         change = ""
         if prior:
             pct = (latest["average_bill"] - prior["average_bill"]) / prior["average_bill"] * 100
-            change = change_text(pct, "%", "last year", 1)
-        # A state that names years otherwise (New Hampshire's tax years) says so in the record's period.
-        period = latest.get("period") or f"Fiscal year {latest['fiscal_year']}"
+            change = change_text(pct, "%", _("last year"), 1)
+        # New Hampshire's records are by tax year, Massachusetts's by fiscal year.
+        period = (_("Tax year {year}").format(year=latest["tax_year"]) if "tax_year" in latest
+                  else _("Fiscal year {year}").format(year=latest["fiscal_year"]))
         # A calculated figure links to the page that says how, where the town has it.
         explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
-            "label": "Average single-family tax bill", "value": f"${latest['average_bill']:,}",
+            "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
-            "source": f"{period} · {state.tax_source}",
+            "source": f"{period} · {_(state.tax_source)}",
         })
     labor_path = data_dir / "labor" / "unemployment.json"
     if "labor" in config and labor_path.exists():
         labor = json.loads(labor_path.read_text(encoding="utf-8"))
         latest = labor["months"][-1]
-        month_name = date(latest["year"], latest["month"], 1).strftime("%B")
+        month = date(latest["year"], latest["month"], 1)
         year_ago = next((m for m in labor["months"] if m["year"] == latest["year"] - 1 and m["month"] == latest["month"]), None)
         numbers.append({
-            "label": "Unemployment rate", "value": f"{latest['rate']:.1f}%", "href": labor["source_url"],
+            "label": _("Unemployment rate"), "value": f"{latest['rate']:.1f}%", "href": labor["source_url"],
             # City rates are not seasonally adjusted: compare with the same month a year earlier.
-            "change": change_text(latest["rate"] - year_ago["rate"], " pts", f"{month_name} {latest['year'] - 1}", 1) if year_ago else "",
-            "source": f"{month_name} {latest['year']}{' (preliminary)' if latest.get('preliminary') else ''} · U.S. Bureau of Labor Statistics",
+            # Translators: " pts" follows a change in percentage points, such as "↓ 0.4 pts".
+            "change": change_text(latest["rate"] - year_ago["rate"], _(" pts"), month_year(month.replace(year=month.year - 1)), 1) if year_ago else "",
+            "source": (_("{month} (preliminary)").format(month=month_year(month)) if latest.get("preliminary") else month_year(month))
+                      + " · " + _("U.S. Bureau of Labor Statistics"),
         })
     return numbers
-
-
-def plural(n: int, word: str) -> str:
-    return f"{n:,} {word}{'' if n == 1 else 's'}"
 
 
 def map_points(sc: dict | None) -> dict:
@@ -560,12 +580,16 @@ def map_points(sc: dict | None) -> dict:
         return {"recent": [], "repeats": []}
     recent = [{
         "lat": r["lat"], "lng": r["lng"], "title": r["category"], "url": r["url"],
-        "text": f"{r['address'] or 'No street address'}. Submitted {format_date(r['created_at'][:10], 'plain')}.",
+        "text": _("{address}. Submitted {date}.").format(address=r["address"] or _("No street address"),
+                                                        date=format_date(r["created_at"][:10], "plain")),
     } for r in sc.get("recent_open", {}).get("requests", []) if r.get("lat") is not None]
     repeats = [{
-        "lat": p["lat"], "lng": p["lng"], "title": p["address"] or "No street address",
-        "text": f"{p['category']}. {plural(p['reports'], 'request')}, {p['again_after_close']:,} after an earlier one was closed.",
-        "url": p["requests"][-1]["url"], "link": "Latest request on SeeClickFix",
+        "lat": p["lat"], "lng": p["lng"], "title": p["address"] or _("No street address"),
+        # Translators: a place on the map of repeated problems, such as "Potholes. 3 requests, 2 after an earlier one was closed."
+        "text": ngettext("{category}. {n} request, {again} after an earlier one was closed.",
+                         "{category}. {n} requests, {again} after an earlier one was closed.", p["reports"]).format(
+            category=p["category"], n=f"{p['reports']:,}", again=f"{p['again_after_close']:,}"),
+        "url": p["requests"][-1]["url"], "link": _("Latest request on SeeClickFix"),
         "size": 5 + min(p["again_after_close"], 8),
     } for p in sc.get("repeats", {}).get("places", [])]
     return {"recent": recent, "repeats": repeats}
@@ -596,10 +620,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     documents = "meetings" in config and links["documents"]
     # What the street lookup covers, as a phrase: "agenda items, building permits, and 311 requests".
     # A town with none of these sources has no street lookup.
-    street_sources = ((["agenda items"] if documents else []) + (["building permits"] if "permits" in config else [])
-                      + (["311 requests"] if "seeclickfix" in config else []))
-    street_sources = (", ".join(street_sources[:-1]) + ("," if len(street_sources) > 2 else "") + " and " + street_sources[-1]
-                      if len(street_sources) > 1 else "".join(street_sources))
+    street_sources = list_text((([_("agenda items")] if documents else []) + ([_("building permits")] if "permits" in config else [])
+                                + ([_("311 requests")] if "seeclickfix" in config else [])))
     if not street_sources:
         built_folders.discard("streets")
 
@@ -666,8 +688,10 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
-    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, plural=plural,
+    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version,
                        change=lambda diff, since: change_text(diff, "", since))
+    # Until every template counts with {% trans count=... %}, which translates; then removed.
+    env.globals["plural"] = lambda n, word: f"{n:,} {word}{'' if n == 1 else 's'}"
 
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
@@ -840,8 +864,9 @@ def example_street(index: dict) -> str | None:
 def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:
     """A pre-filled correction message naming the page: email when the site has a
     contact address, otherwise a new issue on the public repository."""
-    subject = f"Correction: {what}"
-    body = f"Page: {base_url}{page_url}\n\nWhat's wrong:\n\n\nWhat it should say, and where you saw it (if you know):\n"
+    subject = _("Correction: {page}").format(page=what)
+    body = (_("Page: {url}").format(url=base_url + page_url) + "\n\n" + _("What's wrong:") + "\n\n\n"
+            + _("What it should say, and where you saw it (if you know):") + "\n")
     if site.get("contact_email"):
         return f"mailto:{site['contact_email']}?{urlencode({'subject': subject, 'body': body}, quote_via=quote)}"
     return f"{site['repo_url']}/issues/new?{urlencode({'title': subject, 'body': body, 'labels': 'correction'}, quote_via=quote)}"
@@ -853,25 +878,25 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
     for m in meetings:
         when = format_date(m["date"])
         if m["agenda"]:
-            items.append((m["agenda"]["fetched_at"], f"{m['body']}: agenda for {when}", m,
-                          (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary") or "Agenda posted."))
+            items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
+                          (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary") or _("Agenda posted.")))
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
-            items.append((m["minutes_doc"]["fetched_at"], f"{m['body']}: minutes of {when}", m,
-                          ms.get("headline") or ms.get("summary") or "Minutes posted."))
+            items.append((m["minutes_doc"]["fetched_at"], "minutes", _("{board}: minutes of {date}").format(board=m["body"], date=when), m,
+                          ms.get("headline") or ms.get("summary") or _("Minutes posted.")))
     items.sort(key=lambda i: i[0], reverse=True)
     site = config["site"]
     entries = "".join(
         f"<item><title>{xml_escape(title)}</title><link>{base_url}{m['url']}</link>"
-        f"<guid isPermaLink=\"false\">{base_url}{m['url']}#{'minutes' if 'minutes of' in title else 'agenda'}-{xml_escape(posted)}</guid>"
+        f"<guid isPermaLink=\"false\">{base_url}{m['url']}#{kind}-{xml_escape(posted)}</guid>"
         f"<pubDate>{format_datetime(datetime.fromisoformat(posted))}</pubDate>"
         f"<description>{xml_escape(text)}</description></item>\n"
-        for posted, title, m, text in items[:limit]
+        for posted, kind, title, m, text in items[:limit]
     )
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
-        f"<title>{xml_escape(site['name'])}: City Hall updates</title><link>{base_url}/</link>"
-        f"<description>New agendas and minutes from {xml_escape(config['town']['name'])} city boards and committees.</description>"
+        f"<title>{xml_escape(site['name'])}: {_('City Hall updates')}</title><link>{base_url}/</link>"
+        f"<description>{xml_escape(_('New agendas and minutes from {town} city boards and committees.').format(town=config['town']['name']))}</description>"
         f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
         encoding="utf-8",
     )

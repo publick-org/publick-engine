@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 from pipeline.states.ma.dls import page_url, rows, table  # noqa: F401 (rows: for tests)
 
@@ -35,8 +36,8 @@ REVENUE = {"Tax Levy": "Property tax", "State Aid": "State aid", "Local Receipts
 
 # A fiscal year's spending (Schedule A) reaches the Databank once the town has
 # filed it (due November 30) and DLS has approved it: for most towns by spring.
-RHYTHM = Rhythm("City budget (Mass. DLS)", "finance/budget.json", "Fetch budget figures", "yearly", (
-    Part(latest_year("spending", "fiscal_year"), on(6, years_after=1), lambda y: f"Fiscal year {y} spending"),
+RHYTHM = Rhythm(N_("City budget (Mass. DLS)"), "finance/budget.json", "Fetch budget figures", "yearly", (
+    Part(latest_year("spending", "fiscal_year"), on(6, years_after=1), lambda y: _("Fiscal year {year} spending").format(year=y)),
 ))
 
 
