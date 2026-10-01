@@ -12,6 +12,8 @@ screen readers can't read, is transcribed by the model, but only after every
 summary waiting, from what's left of the budget, a few pages a request so a
 long document is never cut off. Any other PDF has text a screen reader can
 read, so the page links it; search and the street lookup use its plain text.
+Minutes of a body in the town's [officials] table also get their roll call
+votes, read from the same text without AI (pipeline/votes.py).
 
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
 
@@ -42,7 +44,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import pdftext
+from pipeline import pdftext, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError
@@ -482,7 +484,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             "usage": usage,
             "cost": round(paid, 6),
         }
-        save_record(data_dir, doc["sha256"], own_text(record, pdf))
+        save_record(data_dir, doc["sha256"], votes.read(own_text(record, pdf), pdf,
+                                                        votes.members_for(config, meeting["body"])))
         for k in tokens:
             tokens[k] += usage[k]
         spent += paid
@@ -490,20 +493,23 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             spent_backlog += paid
         done += 1
     # Readable text. First the documents' own text, which costs nothing: summaries saved
-    # before it was used, or before the layout rules last changed.
+    # before it was used, or before the layout rules last changed. Roll call votes, also
+    # free, are read with it, and again when the rules or the body's members change.
     laid_out = 0
     later = summarized_documents(data_dir)
     for kind, meeting, doc, record in later:
         if laid_out >= TEXT_PER_RUN:
             break
-        if record.get("text_version") == pdftext.VERSION:
+        members = votes.members_for(config, meeting["body"])
+        text_current = record.get("text_version") == pdftext.VERSION
+        if text_current and votes.current(record, members):
             continue
         try:
             pdf = storage.get(KINDS[kind]["folder"], doc["file"])
         except FetchError as e:
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
-        save_record(data_dir, doc["sha256"], own_text(record, pdf))
+        save_record(data_dir, doc["sha256"], votes.read(record if text_current else own_text(record, pdf), pdf, members))
         laid_out += 1
     # Then the model's transcription of scans, which screen readers can't read, only once
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
