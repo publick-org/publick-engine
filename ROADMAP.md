@@ -621,15 +621,21 @@ person to check. On Malden's 21 council minutes from 2026: 128 roll calls,
 127 checked; the other has a stated tally that disagrees with its names, so
 it stays unchecked.
 
-**Next.**
+**Next** (on hold since 2026-10-01: votes are collected every day and shown
+nowhere until this is picked up again).
 - A few weeks of a person checking every new vote with the review list, then
   a per-town switch that puts checked votes on meeting pages.
+- A vote's item number: where items run together in the minutes, a vote can
+  take the previous item's number. Fix before votes are shown.
 - Past members: the member list is today's, so a vote from before a seat
   changed names someone who isn't on it and stays unchecked. Showing older
   votes needs who served when.
 - A member the minutes name differently from the city's list (a changed
   surname) needs an alias on the member, never a guess.
-- Readers for other styles, starting with the sentence forms above.
+- Readers for other styles, starting with the sentence forms above
+  (Manchester's), then the roll calls Gloucester names. Minutes posted as
+  scans (Beverly's City Council's, so far) have no text to read a vote
+  from, and an AI transcription isn't evidence for one.
 
 **Limits to say on the page.** Votes appear only once minutes are posted,
 often weeks after the meeting, and only as far back as the town's saved
