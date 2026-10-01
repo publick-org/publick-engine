@@ -102,13 +102,14 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
         del config[table]
     result = update.run("gloucester", config=config)
     skipped = {s["name"]: s["skipped"] for s in result["steps"] if s.get("skipped")}
-    assert skipped == {"Fetch minutes": "no [archive] in the config",
-                       "Fetch School Committee documents": "no [drive_meetings] in the config",
+    assert skipped == {"Fetch School Committee documents": "no [drive_meetings] in the config",
                        "Fetch building permits": "no [permits] in the config",
                        "Fetch 311 requests": "no [seeclickfix] in the config",
                        "Compute 311 scorecard": "no [seeclickfix] in the config"}
     assert result["ok"] and not set(skipped) & set(started)
     assert "Move saved documents to storage" in started
+    # Minutes linked from Agenda Center and CivicClerk meetings need no [archive].
+    assert "Fetch minutes" in started
 
 
 def test_sources_pick_a_group(fake_steps):

@@ -54,7 +54,9 @@ class Source:
 
 SOURCES = [
     Source("Fetch meetings", "pipeline.fetch_meetings", "meetings", table="meetings"),
-    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", table="archive"),
+    # Minutes from the Archive Center ([archive]), or linked from Agenda Center and CivicClerk
+    # meetings ([meetings]); the step does nothing for a town with neither.
+    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", table="meetings"),
     Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", table="drive_meetings"),
     Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",), table="summaries"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
