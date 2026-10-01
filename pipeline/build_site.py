@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
+from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
 from pipeline import streets as streets_mod
@@ -635,7 +636,13 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         undefined=StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
+        # The site's wording, translated for a language other than English (pipeline/i18n.py).
+        extensions=["jinja2.ext.i18n"],
     )
+    env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True,
+                                  pgettext=i18n.pgettext, npgettext=i18n.npgettext)
+    # A {% trans %} block's lines are joined with single spaces, as the browser shows them.
+    env.policies["ext.i18n.trimmed"] = True
     env.filters.update(date=format_date, time=format_time, filesize=format_bytes, timestamp=format_timestamp,
                        duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
                        markdown=render_markdown, duration_cell=format_duration_cell,

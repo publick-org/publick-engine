@@ -1,0 +1,68 @@
+# The Publick sites' wording in one language (es): each English string and its translation.
+# Updated with python -m pipeline.i18n update (see pipeline/i18n.py).
+msgid ""
+msgstr ""
+"Project-Id-Version: Publick VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-01 23:28+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es\n"
+"Language-Team: es <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: site/templates/base.html
+msgid "About"
+msgstr ""
+
+#: site/templates/base.html
+msgid "Accessibility"
+msgstr ""
+
+#: site/templates/base.html
+#, python-format
+msgid ""
+"An independent project. Not affiliated with or endorsed by the City of %(town)s. Official "
+"information: <a href=\"%(url)s\">%(site)s</a>."
+msgstr ""
+
+#: site/templates/base.html
+msgid "City Hall updates"
+msgstr ""
+
+#: site/templates/base.html
+msgid "Main"
+msgstr ""
+
+#: site/templates/base.html
+#, python-format
+msgid ""
+"Part of %(network)s, a network of independent sites publishing the public record of towns and "
+"cities."
+msgstr ""
+
+#: site/templates/base.html
+msgid "Report a problem with this page"
+msgstr ""
+
+#: site/templates/base.html
+msgid "Skip to main content"
+msgstr ""
+
+#: site/templates/base.html
+msgid "Source code and data"
+msgstr ""
+
+#: site/templates/base.html
+msgid "This week"
+msgstr ""
+
+#: site/templates/base.html
+#, python-format
+msgid "Updated <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr ""
+
