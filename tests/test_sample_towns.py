@@ -2,7 +2,7 @@
 engine reads: Manchester's (a CivicClerk portal and a DotNetNuke city
 calendar, with New Hampshire's figures), Malden's (a CivicPlus Agenda
 Center) and Wallingford's (a calendar and a documents page, in Connecticut,
-which has no state figures yet). Their meetings, agendas, and minutes are collected from saved pages
+which has no state figures yet, and its Board of Education's Finalsite page). Their meetings, agendas, and minutes are collected from saved pages
 by the real fetchers; the other sections are the Gloucester fixture data. Each
 site gets the checks Gloucester's does (tests/test_site.py, and a sample of its
 own pages in tests/test_accessibility.py), so a release that breaks one of
@@ -17,16 +17,18 @@ from types import SimpleNamespace
 import pytest
 import test_site
 from conftest import BUILT_AT, FETCHED_AT, TZ
-from fakes import FakeAnthropic
+from fakes import FakeAnthropic, FakeFinalsite
 from test_agendacenter import ALIASES, BASE, COMMITTEES, FakeAgendaCenter
 from test_calendars import PORTAL
 from test_calendars import manchester as with_manchester_calendars
 from test_civicclerk_documents import API, FakeManchesterFiles
 from test_filelist import BASE as WALLINGFORD, DOCUMENTS_URL, FakeTownSite, wallingford_meetings
+from test_finalsite import MINUTES_DOC, finalsite_meetings
 from test_nh import FakeCity, FakeParcels, run_extract
 from test_nh import manchester as in_new_hampshire
 
-from pipeline import build_site, fetch_budget, fetch_finance, fetch_meetings, fetch_minutes, fetch_schools, summarize
+from pipeline import (build_site, fetch_budget, fetch_finance, fetch_finalsite_meetings, fetch_meetings, fetch_minutes,
+                      fetch_schools, summarize)
 from pipeline.config import load_config
 from pipeline.states.nh import figures
 
@@ -83,14 +85,15 @@ def malden() -> dict:
 
 def wallingford() -> dict:
     """Every board's meetings, agendas, minutes, and summaries from the town website's
-    calendar and documents page. Connecticut has no state figures yet, so no budget or
-    schools sections."""
+    calendar and documents page, and the Board of Education's from the school district's
+    Finalsite page. Connecticut has no state figures yet, so no budget or schools sections."""
     town = copy.deepcopy(load_config("gloucester"))
     town["town"].update(name="Wallingford", state="Connecticut", state_abbr="CT", official_site=WALLINGFORD)
     for table in ("archive", "drive_meetings", "permits", "finance", "schools"):
         town.pop(table)
     town["sections"] = [s for s in town["sections"] if s["slug"] not in ("budget", "schools")]
     town["meetings"] = wallingford_meetings()
+    town["finalsite_meetings"] = finalsite_meetings()
     town["freshness"]["sources"] = [
         {"label": "Meetings (town website)", "file": "meetings/status.json", "max_days": 2},
         {"label": "311 requests", "file": "311/status.json", "max_days": 2}]
@@ -151,6 +154,7 @@ def malden_site(tmp_path_factory, data_dir):
 def wallingford_site(tmp_path_factory, data_dir):
     town, base = wallingford(), tmp_path_factory.mktemp("wallingford")
     data = gloucester_data(data_dir, base, "permits", "finance", "schools")
+    assert not fetch_finalsite_meetings.run(town, FakeFinalsite(), data, now=FETCHED_AT)["errors"]
     collect_meetings(town, FakeTownSite, data)
     return build(town, base, data)
 
@@ -299,3 +303,21 @@ def test_wallingford_cancellations_and_sources(wallingford_site):
     about = page(wallingford_site, "/about/")
     assert f'href="{DOCUMENTS_URL}"' in about and "Minutes are collected from January 2026 on." in about
     assert not (wallingford_site.dir / "budget").exists() and not (wallingford_site.dir / "schools").exists()
+
+
+def test_wallingford_board_of_education_from_the_district_website(wallingford_site):
+    committee = meeting_page(wallingford_site, "finalsite-1698")
+    assert "Board of Education Operations Committee Meeting" in committee
+    assert f"https://docs.google.com/document/d/{MINUTES_DOC}/edit?usp=sharing" in committee
+    assert "Minutes on Google Docs" in committee and "Agenda on Google Docs" in committee
+    assert 'href="/meetings/minutes/' in committee and "What was decided" in committee
+    assert "minutes posted by Wallingford Public Schools" in committee
+    assert f'known from the <a href="{FakeFinalsite.PAGE_URL}"' in committee and "Wallingford Public Schools website" in committee
+    assert "Not listed on the" not in committee and "town calendar" not in committee
+    cancelled = meeting_page(wallingford_site, "finalsite-1707")
+    assert "Cancelled" in cancelled and "Agenda not recorded here." in cancelled
+    board = page(wallingford_site, "/meetings/boards/board-of-education/")
+    assert "Earlier meetings are on the <a" in board and "Wallingford Public Schools website" in board
+    about = page(wallingford_site, "/about/")
+    assert "Board of Education meetings, agendas, and minutes:</strong> Wallingford Public Schools" in about
+    assert f'href="{FakeFinalsite.PAGE_URL}"' in about and "from July 2026 on." in about
