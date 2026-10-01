@@ -80,14 +80,32 @@ def bps_url(config: dict, name: str) -> str:
     return f"{BPS_URL}/{quote(h['bps_region'])}/{h['bps_prefix']}{name}.txt"
 
 
-def parse_bps(text: str, state: str, place: str) -> dict | None:
-    """The town's row of a Building Permits Survey place file.
+def bps_town(config: dict) -> tuple[int, str]:
+    """Which column of a place file finds the town, and its code there.
+
+    A city is listed by its Census place ([housing] bps_place, column 6). A New
+    England town that isn't a Census place, like Wallingford, Connecticut, is
+    listed with place 00000 and its town (MCD) code ([housing] bps_mcd, column 7),
+    which is unique within its state.
+    """
+    h = config["housing"]
+    if "bps_mcd" in h:
+        return 6, h["bps_mcd"]
+    if h.get("bps_place", "00000") == "00000":
+        raise SystemExit("[housing] needs bps_place (the town's Census place code) or, for a town that "
+                         "isn't a Census place, bps_mcd (its town code): place 00000 is every such town.")
+    return 5, h["bps_place"]
+
+
+def parse_bps(text: str, state: str, code: str, column: int = 5) -> dict | None:
+    """The town's row of a Building Permits Survey place file: the row in the
+    state whose place code (column 5) or town code (column 6) is the town's.
 
     Columns 17-28 are Census estimates (reported months plus imputed ones), in
     four groups of buildings, units, and value: 1 unit, 2 units, 3-4, and 5+.
     """
     for row in csv.reader(io.StringIO(text)):
-        if len(row) < 29 or row[1].strip() != state or row[5].strip() != place:
+        if len(row) < 29 or row[1].strip() != state or row[column].strip() != code:
             continue
         units = [int(row[18]), int(row[21]), int(row[24]), int(row[27])]
         return {
@@ -100,10 +118,11 @@ def parse_bps(text: str, state: str, place: str) -> dict | None:
 
 def permits(client, config: dict, now: datetime) -> dict:
     h = config["housing"]
+    column, code = bps_town(config)
     years = []
     for year in range(now.year - 1, now.year - PERMIT_YEARS - 2, -1):
         try:
-            found = parse_bps(client.get(bps_url(config, f"{year}a")).text, h["bps_state"], h["bps_place"])
+            found = parse_bps(client.get(bps_url(config, f"{year}a")).text, h["bps_state"], code, column)
         except FetchError as e:
             if e.status == 404 and year == now.year - 1:
                 continue  # last year's annual file is published in the spring
@@ -121,7 +140,7 @@ def permits(client, config: dict, now: datetime) -> dict:
             if e.status == 404:
                 continue
             raise
-        found = parse_bps(text, h["bps_state"], h["bps_place"])
+        found = parse_bps(text, h["bps_state"], code, column)
         if found:
             ytd = {"year": now.year, "through_month": month, "units": found["units"],
                    "estimated": found["months_reported"] < month}
