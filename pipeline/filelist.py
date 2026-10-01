@@ -18,10 +18,11 @@ recording of the meeting (data-video="CyV9OIpJIT8", sometimes with "&t=9805s").
 
 File numbers go up as files are uploaded, so a meeting's newest version of a
 document is the one with the highest number. A meeting's agenda is its newest
-plain agenda (an amended or corrected one, or a special meeting's notice),
-and only when there's none its agenda with backup, which can run to a hundred
-scanned pages. Addenda, backup on its own, applications and reports aren't
-agendas or minutes, and are left out.
+plain agenda (an amended or corrected one, or a special meeting's notice).
+An agenda with backup, which can run to a hundred scanned pages, is never
+saved or summarized: a meeting with no plain agenda links to it instead.
+Addenda, backup on its own, applications and reports aren't agendas or
+minutes, and are left out.
 
 The calendar (/events/meetings/<year>/<Month>/) lists each month's meetings,
 with the time, the board's name as the calendar writes it ("Inland Wetland and
@@ -189,7 +190,8 @@ def meeting_documents(files: list[dict], boards: list[str], aliases: dict, since
         for special, part in split_day(docs):
             part = sorted(part, key=lambda d: d["file_id"])
             agendas = [d for d in part if d["kind"] == "agenda"]
-            agenda = ([d for d in agendas if not d["backup"]] or agendas or [None])[-1]
+            agenda = ([d for d in agendas if not d["backup"]] or [None])[-1]
+            packet = ([d for d in agendas if d["backup"]] or [None])[-1]
             minutes = ([d for d in part if d["kind"] == "minutes"] or [None])[-1]
             video = next((d for d in (agenda, minutes, *reversed(part)) if d and d.get("video_id")), {})
             meetings.append({
@@ -198,6 +200,7 @@ def meeting_documents(files: list[dict], boards: list[str], aliases: dict, since
                 "special": special,
                 "first_file_id": part[0]["file_id"],
                 "agenda": agenda,
+                "packet": packet,
                 "minutes": minutes,
                 # Minutes mean the meeting was held after all.
                 "cancelled": any(d["kind"] == "cancellation" for d in part) and not minutes,
@@ -212,6 +215,9 @@ def document_fields(meeting: dict) -> dict:
     if meeting["agenda"]:
         fields.update(agenda_id=f"{SOURCE}-{meeting['agenda']['file_id']}", agenda_url=meeting["agenda"]["url"],
                       documents_url=meeting["agenda"]["url"])
+    elif meeting.get("packet"):
+        # Linked, not saved: a packet is mostly scanned backup.
+        fields["documents_url"] = meeting["packet"]["url"]
     if meeting["minutes"]:
         fields.update(minutes_id=f"{SOURCE}-{meeting['minutes']['file_id']}", minutes_url=meeting["minutes"]["url"])
     if meeting["cancelled"]:
