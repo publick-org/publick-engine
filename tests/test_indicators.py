@@ -135,7 +135,7 @@ def test_housing_fetch(tmp_path, monkeypatch):
          "months_reported": 0, "estimated": True},
         {"year": 2025, "units": 77, "by_size": {"1 unit": 28, "2 units": 8, "3-4 units": 11, "5+ units": 30},
          "months_reported": 12, "estimated": False}]
-    assert h["permits"]["year_to_date"] == {"year": 2026, "through_month": 8, "units": 50, "estimated": True}
+    assert h["permits"]["year_to_date"] == {"year": 2026, "through_month": 8, "units": 50, "months_reported": 0, "estimated": True}
     town, state = h["acs"]["town"], h["acs"]["state"]
     assert town["median_home_value"] == {"value": 600600, "moe": 17698}
     assert town["median_rent"] == {"value": 1411, "moe": 94}
