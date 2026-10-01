@@ -368,6 +368,29 @@ dl.defs dd { margin: 0.15rem 0 0; max-width: var(--measure); }
 .map .leaflet-popup-content a { color: var(--primary); }
 .map .leaflet-control-attribution a { color: var(--primary); }
 
+/* ---- Officials: the ward map and the list of wards ---- */
+.ward-map .ward-label {
+  padding: 0.1rem 0.4rem; border: 1px solid var(--line-strong); border-radius: 0; box-shadow: none;
+  background: var(--bg); color: var(--ink); font-size: 0.8rem; font-weight: 700;
+}
+.ward-map .ward-label::before { display: none; }
+.locate { margin: 1rem 0 0; }
+.locate .button { margin: 0; font: inherit; font-weight: 700; cursor: pointer; }
+.locate .button:disabled { cursor: progress; opacity: 0.7; }
+.locate .small { margin: 0.5rem 0 0; max-width: var(--measure); }
+.ward-result:not(:empty) { margin: 1rem 0 0; padding: 0.75rem 1rem; border-left: 4px solid var(--primary); background: var(--primary-soft); }
+.ward-result p, .ward-result ul { margin: 0; }
+.ward-result ul { padding-left: 1.25rem; }
+.ward-result-head { font-weight: 700; }
+.ward-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.75rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+main .ward-list > li + li { margin-top: 0; }
+.ward-list > li { padding: 0.75rem 1rem; border: 1px solid var(--line); }
+.ward-list > li.is-selected { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.ward-list h3 { margin: 0 0 0.35rem; }
+.ward-list ul { margin: 0; padding-left: 1.1rem; }
+.ward-list p { margin: 0; }
+.officials td:first-child, .officials a[href^="tel:"] { white-space: nowrap; }
+
 /* ---- Notice: a public hearing or other chance to take part ---- */
 .notice { margin: 1rem 0 0.5rem; padding: 0.9rem 1rem 0.6rem; border: 1px solid var(--accent); border-top-width: 4px; background: var(--bg); }
 .notice h3 { margin: 0 0 0.25rem; color: var(--accent); }

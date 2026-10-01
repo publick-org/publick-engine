@@ -374,3 +374,63 @@ def test_report_links_name_the_page(site_dir, config):
     assert email.startswith("mailto:fix@example.org?subject=Correction%3A%20Page") and "https://example.org/x/" in unquote(email)
     page = next((site_dir / "meetings").glob("*/index.html")).read_text()
     assert "Report a problem with this page" in page
+
+
+# ---- Officials ----------------------------------------------------------------
+
+def test_officials_page(site_dir, config):
+    page = (site_dir / "officials" / "index.html").read_text()
+    for body in config["officials"]["bodies"]:
+        assert f'<h2 id="{body["name"].lower().replace(" ", "-")}">{body["name"]}</h2>' in page
+        for m in body["members"]:
+            assert m["name"] in page
+    # Every ward in the ward file is listed, and a ward seat links to its ward.
+    for ward in range(1, 6):
+        assert f'<li id="ward-{ward}" data-ward="{ward}">' in page
+    assert '<a href="#ward-3">Ward 3</a>' in page and "Council President" in page
+    assert "January 2028" in page and 'href="tel:978555-0100"' in page
+    # The location note says it never leaves the browser.
+    assert "It isn't sent to Publick or anyone else, and it isn't saved." in page
+    assert '<a href="/meetings/boards/city-council/">City Council meetings</a>' in page
+    wards_url = re.search(r'data-wards="(/officials/wards\.json\?v=\w+)"', page).group(1)
+    shapes = json.loads((site_dir / wards_url.split("?")[0].lstrip("/")).read_text())
+    assert [w["ward"] for w in shapes] == ["1", "2", "3", "4", "5"]
+    assert all(w["polygons"] and w["outline"] for w in shapes)
+
+
+def test_officials_outline_leaves_out_shared_edges():
+    from pipeline.officials import outline
+    left = [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]
+    right = [[[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]]
+    (line,) = outline([left, right])
+    edges = {frozenset((tuple(a), tuple(b))) for a, b in zip(line, line[1:])}
+    assert frozenset(((1, 0), (1, 1))) not in edges and len(edges) == 6 and line[0] == line[-1]
+
+
+@pytest.mark.parametrize("change, error", [
+    ({"checked": "soon"}, "checked"),
+    ({"members": [{"name": "A", "seat": "Ward 9", "ward": 9}]}, "isn't in the ward file"),
+    ({"members": [{"name": "A", "seat": "At-large", "term_ends": "January 2028"}]}, "must be a month"),
+    ({"members": [{"name": "A"}]}, "needs a name and a seat"),
+    ({"members": [{"name": "A", "seat": "At-large", "district": 2}]}, "unknown district"),
+])
+def test_officials_config_is_checked(config, data_dir, change, error):
+    import copy
+    from pipeline import officials
+    bad = copy.deepcopy(config)
+    if "checked" in change:
+        bad["officials"]["checked"] = change["checked"]
+    else:
+        bad["officials"]["bodies"][1]["members"] = change["members"]
+    with pytest.raises(SystemExit, match=error):
+        officials.load(bad, data_dir)
+
+
+def test_officials_section_needs_its_table(config, data_dir):
+    import copy
+    from pipeline import officials
+    assert officials.load(config, data_dir)["wards"][0]["members"][0]["name"] == "Avery Example"
+    town = copy.deepcopy(config)
+    del town["officials"]
+    with pytest.raises(SystemExit, match=r"needs an \[officials\] table"):
+        officials.load(town, data_dir)
