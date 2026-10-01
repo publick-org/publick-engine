@@ -670,8 +670,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
-    streets_json = json.dumps(street_index(meetings["all"], (permits or {}).get("permits", []), requests_311,
-                                           built_at.date(), config["town"]), ensure_ascii=False, separators=(",", ":"))
+    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"])
+    streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
     officials = wards_json = wards_url = None
@@ -693,7 +693,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links, officials=officials, wards_url=wards_url,
-                  streets_url=streets_url, street_sources=street_sources, permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
@@ -820,6 +820,13 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
             entry[field + "_total"] = len(items)
         out[key] = entry
     return {"suffixes": streets_mod.SUFFIXES, "streets": dict(sorted(out.items()))}
+
+
+def example_street(index: dict) -> str | None:
+    """The town's own street with the most on it, for the street lookup's example: a
+    street every town has can't be assumed, and this one is sure to show results."""
+    totals = {s["name"]: sum(v for k, v in s.items() if k.endswith("_total")) for s in index["streets"].values()}
+    return max(sorted(totals), key=lambda name: totals[name]) if totals else None
 
 
 def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:

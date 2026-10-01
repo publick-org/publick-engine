@@ -17,7 +17,7 @@
     <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-describedby="home-street-hint">
     <button class="button button-primary" type="submit">Look up</button>
   </div>
-  <p class="small" id="home-street-hint">{{ street_sources | capitalize_first }} on any street, such as "Pleasant Street".</p>
+  <p class="small" id="home-street-hint">{{ street_sources | capitalize_first }} on any street{% if street_example %}, such as "{{ street_example }}"{% endif %}.</p>
 </form>
 {% endif %}
 
