@@ -107,7 +107,8 @@ pipeline/                   Python package
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
   network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
-                            states (statewide sources); a fetching run writes each town's result to its data/run.json
+                            states (statewide sources); a fetching run writes each town's result to its data/run.json,
+                            with a few counts for the network homepage (boards followed, meetings in the next 14 days)
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/states/<state>/        Each state's own pages (schools, budget) and page parts (its About page sources)

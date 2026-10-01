@@ -338,3 +338,22 @@ def test_a_daily_run_takes_the_towns_that_are_due(tmp_path):
     # Named towns are only taken when due too.
     assert batches(network.plan(root, only=["manchester-nh", "salem-ma"], due_hours=18,
                                 at=datetime(2026, 10, 3, 9, 0, tzinfo=timezone.utc))) == [["manchester-nh", "salem-ma"]]
+
+
+def test_run_record_counts_boards_and_coming_meetings_for_the_homepage(tmp_path):
+    from datetime import date
+    meetings = tmp_path / "meetings"
+    meetings.mkdir()
+    store = {
+        "a": {"date": "2026-10-01", "body": "City Council"},
+        "b": {"date": "2026-10-01", "body": "Planning Board"},
+        "c": {"date": "2026-10-03", "body": "City Council", "status": "cancelled"},
+        "d": {"date": "2026-10-05", "body": "Board of Health", "listed": False},
+        "e": {"date": "2026-10-14", "body": "Licensing Board"},
+        "f": {"date": "2026-10-15", "body": "City Council"},
+        "g": {"date": "2026-09-30", "body": "Harbor Commission"},
+    }
+    (meetings / "meetings.json").write_text(json.dumps(store))
+    counts = network.activity(tmp_path, today=date(2026, 10, 1))
+    assert counts == {"boards": 5, "meetings_by_date": {"2026-10-01": 2, "2026-10-14": 1}}
+    assert network.activity(tmp_path / "nothing") == {"boards": 0, "meetings_by_date": {}}
