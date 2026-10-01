@@ -789,9 +789,8 @@ towns too. Next, in this order (as of 2026-10-01):
       then budget and school figures, then the Appeals List.
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
-3. A candidate town each in Maine, Vermont, and Rhode Island, researched as
-   Wallingford's was, choosing towns on software the engine reads where
-   there's a choice (item 10).
+3. A town each in Maine, Vermont, and Rhode Island, chosen from the
+   candidates in item 10, preferring towns on software the engine reads.
 4. The next town the engine already reads: config only (item 10).
 5. A reader for the next meeting platform the network needs (item 10).
 6. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
