@@ -401,6 +401,9 @@ def test_officials_page(site_dir, config):
     shapes = json.loads((site_dir / wards_url.split("?")[0].lstrip("/")).read_text())
     assert [w["ward"] for w in shapes] == ["1", "2", "3", "4", "5"]
     assert all(w["polygons"] and w["outline"] for w in shapes)
+    about = (site_dir / "about" / "index.html").read_text()
+    assert "<strong>Elected officials:</strong> listed by hand" in about
+    assert 'If you use "Find my ward," your location is checked on your device.' in about
 
 
 def test_officials_outline_leaves_out_shared_edges():

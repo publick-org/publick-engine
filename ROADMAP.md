@@ -487,6 +487,15 @@ look for, and item 12 needs the same list of members.
 files and map library the sites already have: days, not weeks. Gathering each
 town's members is a few minutes a town, from the city's website.
 
+*Done: the Officials page (`pipeline/officials.py`, the section `officials`),
+from each town's `[officials]` table: each body's members with seat, term end,
+and official email, a list of who represents each ward, and the ward map, whose
+"Find my ward" checks the visitor's location in the browser without sending or
+saving it, or moving the map to it. Gloucester, Malden, and Manchester list
+their mayor, council, and school committee, checked 2026-10-01. Not done: the
+status page flagging a list not checked since the town's last election, and
+the street lookup saying which wards a street runs through.*
+
 **Matters at:** now, for every town.
 
 ## 12. Vote records
