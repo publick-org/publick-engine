@@ -347,8 +347,8 @@ abbreviations = ["SC", "B&F", "B & F", "Program", "Personnel", "Ad Hoc Communica
 # Who represents you (the Officials page). Kept by hand from official city
 # and school websites: checked is when the list was last checked against them.
 # A member with a ward represents that ward (a ward in the ward file,
-# [seeclickfix] precincts_file, or [officials] wards_file); one without is
-# elected citywide. The names here are examples for the tests.
+# [seeclickfix] precincts_file, or [officials] wards_file), one with wards a
+# district of several wards; one with neither is elected citywide. The names here are examples for the tests.
 [officials]
 checked = "2026-09-15"
 
@@ -379,5 +379,6 @@ url = "https://gloucester-ma.gov/"
 members = [
   { name = "Harper Example", seat = "At-large", term_ends = "2030-01" },
   { name = "Indy Example", seat = "Ward 2", ward = 2, term_ends = "2028-01" },
+  { name = "Jamie Example", seat = "District A", wards = [1, 2], term_ends = "2028-01" },
   { name = "Morgan Example", seat = "Mayor", role = "Chair", term_ends = "2028-01" },
 ]

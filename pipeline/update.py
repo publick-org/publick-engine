@@ -48,22 +48,24 @@ class Source:
     required: bool = False
     # Keys only this step is given. Every other step runs without them.
     secrets: tuple[str, ...] = ()
+    # The config table the step reads. A town without it skips the step without starting it.
+    table: str | None = None
 
 
 SOURCES = [
-    Source("Fetch meetings", "pipeline.fetch_meetings", "meetings"),
-    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings"),
-    Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings"),
-    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",)),
-    Source("Fetch tax bill", "pipeline.fetch_finance", "figures"),
-    Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",)),
-    Source("Fetch school figures", "pipeline.fetch_schools", "figures"),
-    Source("Fetch budget figures", "pipeline.fetch_budget", "figures"),
-    Source("Fetch housing figures", "pipeline.fetch_housing", "figures"),
-    Source("Fetch building permits", "pipeline.fetch_permits", "figures"),
+    Source("Fetch meetings", "pipeline.fetch_meetings", "meetings", table="meetings"),
+    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", table="archive"),
+    Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", table="drive_meetings"),
+    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",), table="summaries"),
+    Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
+    Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",), table="labor"),
+    Source("Fetch school figures", "pipeline.fetch_schools", "figures", table="schools"),
+    Source("Fetch budget figures", "pipeline.fetch_budget", "figures", table="finance"),
+    Source("Fetch housing figures", "pipeline.fetch_housing", "figures", table="housing"),
+    Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",)),
-    Source("Fetch 311 requests", "pipeline.fetch_311", "311"),
-    Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True),
+    Source("Fetch 311 requests", "pipeline.fetch_311", "311", table="seeclickfix"),
+    Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True, table="seeclickfix"),
 ]
 
 GROUPS = {"all": ("meetings", "figures", "311"), "meetings": ("meetings", "figures"), "figures": ("figures",),
@@ -102,6 +104,11 @@ def run(town: str, sources: str = "all", timeout: float | None = None, config: d
     for source in (s for s in SOURCES if s.group in GROUPS[sources]):
         rhythm = by_step.get(source.name)
         cadence = rhythm.cadence if rhythm else "continuous"
+        if config is not None and source.table and source.table not in config:
+            # The town doesn't have this source (most towns have no 311, permits file, or Drive folders).
+            steps.append({"name": source.name, "ok": True, "required": source.required, "error": None,
+                          "seconds": 0, "cadence": cadence, "skipped": f"no [{source.table}] in the config"})
+            continue
         if rhythm and data_dir is not None and not force:
             due, why = rhythms.due(rhythm, data_dir, now)
             if not due:

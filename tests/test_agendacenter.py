@@ -81,6 +81,29 @@ def test_committees_and_board_names():
     assert events["4453"]["posted_title"] == "Finance Committee Agenda"
 
 
+@pytest.mark.parametrize("category, board", [
+    # Beverly's Agenda Center categories.
+    ("Health, Board of", "Board of Health"),
+    ("Appeals, Zoning Board of", "Zoning Board of Appeals"),
+    ("Aging, Council on", "Council on Aging"),
+    ("Registrars of Voters, Board of", "Board of Registrars of Voters"),
+    ("Trust Funds, Commissioners of", "Commissioners of Trust Funds"),
+    ("Disabilities, Commission on", "Commission on Disabilities"),
+    # Not written last-name-first: kept as they are.
+    ("Water Supply Board, Salem and Beverly", "Water Supply Board, Salem and Beverly"),
+    ("Planning Board", "Planning Board"),
+    ("Parks & Recreation Commission", "Parks & Recreation Commission"),
+])
+def test_categories_written_last_name_first_are_turned_round(category, board):
+    row = {"category": category, "title": f"{category} Meeting Agenda"}
+    assert agendacenter.body_for(row, {}, {}) == board
+
+
+def test_an_alias_comes_before_turning_a_name_round():
+    row = {"category": "Health, Board of", "title": "Agenda"}
+    assert agendacenter.body_for(row, {"Health, Board of": "Beverly Board of Health"}, {}) == "Beverly Board of Health"
+
+
 def test_cancelled_meeting():
     cancelled = agendacenter.to_event(next(r for r in rows() if r["number"] == "4392"))
     assert cancelled["status"] == "cancelled" and cancelled["body"] == "Commission on Climate Action and Sustainability"

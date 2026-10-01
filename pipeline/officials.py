@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
-MEMBER_FIELDS = {"name", "seat", "ward", "role", "term_ends", "email", "phone", "url"}
+MEMBER_FIELDS = {"name", "seat", "ward", "wards", "role", "term_ends", "email", "phone", "url"}
 BODY_FIELDS = {"name", "board", "url", "note", "members"}
 
 
@@ -57,19 +57,24 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
             if unknown or not m.get("name") or not m.get("seat"):
                 raise SystemExit(f"Each member of the {body['name']} in {where} needs a name and a seat"
                                  + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
-            ward = str(m["ward"]) if "ward" in m else None
-            if ward is not None and wards and ward not in wards:
-                raise SystemExit(f"{m['name']} ({body['name']}) is for ward {ward}, which isn't in the ward file "
-                                 f"{wards_file(config)} ({', '.join(wards) or 'none'}).")
+            # A seat elected by one ward (ward = 3), or by several (wards = [1, 2, 3], a district of wards).
+            if "ward" in m and "wards" in m:
+                raise SystemExit(f"{m['name']} ({body['name']}) in {where} has both ward and wards; use one.")
+            seat_wards = [str(w) for w in (m["wards"] if "wards" in m else [m["ward"]] if "ward" in m else [])]
+            for ward in seat_wards:
+                if wards and ward not in wards:
+                    raise SystemExit(f"{m['name']} ({body['name']}) is for ward {ward}, which isn't in the ward file "
+                                     f"{wards_file(config)} ({', '.join(wards) or 'none'}).")
             term_ends = str(m["term_ends"]) if "term_ends" in m else None
             if term_ends is not None and not re.fullmatch(r"\d{4}-\d{2}", term_ends):
                 raise SystemExit(f'term_ends for {m["name"]} in {where} must be a month, like "2028-01".')
-            member = {**m, "ward": ward, "ward_id": f"ward-{slugify(ward)}" if ward and wards else None, "term_ends": term_ends,
+            linked = sorted(seat_wards, key=ward_key) if wards else []
+            member = {**m, "wards": [{"ward": w, "id": f"ward-{slugify(w)}"} for w in linked], "term_ends": term_ends,
                       "id": slugify(m["name"]),
                       # The member's row: someone on two bodies (the mayor) has a row on each.
                       "anchor": f"{slugify(body['name'])}-{slugify(m['name'])}"}
             members.append(member)
-            if member["ward_id"]:
+            for ward in linked:
                 by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]), **member})
         board = body.get("board", body["name"])
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board)})

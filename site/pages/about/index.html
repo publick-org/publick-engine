@@ -55,7 +55,7 @@
   {% if officials %}
   <li><strong>Elected officials:</strong> listed by hand from official city and school websites, last checked {{ officials.checked | date("plain") }}. See <a href="/officials/">Who represents you</a>.</li>
   {% endif %}
-  {% if config.seeclickfix is defined %}
+  {% if config.seeclickfix is defined or wards_url %}
   <li><strong>Ward maps:</strong> <a href="{{ wards.url }}">{{ wards.publisher }}</a>, {{ wards.year }} boundaries.</li>
   <li><strong>Street maps:</strong> <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, drawn with <a href="https://leafletjs.com">Leaflet</a>. Map images load from OpenStreetMap's servers.</li>
   {% endif %}
