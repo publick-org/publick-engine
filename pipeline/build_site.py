@@ -628,7 +628,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         numbers.append({
             "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
-            "source": f"{period} · {_(state.tax_source)}",
+            "source": period + " · " + _(state.tax_source),
         })
     labor_path = data_dir / "labor" / "unemployment.json"
     if "labor" in config and labor_path.exists():
@@ -1144,10 +1144,13 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
         f"<description>{xml_escape(text)}</description></item>\n"
         for posted, kind, title, m, text in items[:limit]
     )
+    # Wording to translate stays out of f-strings: only Python 3.12 and later find it there.
+    feed_title = _("City Hall updates")
+    feed_description = _("New agendas and minutes from {town} city boards and committees.").format(town=config["town"]["name"])
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
-        f"<title>{xml_escape(site['name'])}: {_('City Hall updates')}</title><link>{base_url}/</link>"
-        f"<description>{xml_escape(_('New agendas and minutes from {town} city boards and committees.').format(town=config['town']['name']))}</description>"
+        f"<title>{xml_escape(site['name'])}: {xml_escape(feed_title)}</title><link>{base_url}/</link>"
+        f"<description>{xml_escape(feed_description)}</description>"
         f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
         encoding="utf-8",
     )

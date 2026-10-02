@@ -153,8 +153,10 @@ METHODS = [("pipeline/**.py", "python"), ("site/**.html", "jinja2.ext:babel_extr
 def extract() -> Catalog:
     """Every marked string in the engine's code and templates."""
     template = Catalog(fuzzy=False)
-    for filename, lineno, message, comments, context in extract_from_dir(
-            ENGINE_DIR, METHODS, {"site/**.html": JINJA_OPTIONS}, comment_tags=("Translators:",), strip_comment_tags=True):
+    found = extract_from_dir(ENGINE_DIR, METHODS, {"site/**.html": JINJA_OPTIONS}, comment_tags=("Translators:",),
+                             strip_comment_tags=True)
+    # In file and line order, not the order the filesystem lists them, so every machine writes the same file.
+    for filename, lineno, message, comments, context in sorted(found, key=lambda m: (m[0], m[1])):
         template.add(message, None, [(filename, None)], auto_comments=comments, context=context)
     return template
 
