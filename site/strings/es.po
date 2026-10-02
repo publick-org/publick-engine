@@ -503,6 +503,11 @@ msgstr "<a href=\"%(url)s\">%(title)s</a>, en el %(listing)s"
 msgid "<a href=\"%(url)s\">Agenda on %(where)s</a>"
 msgstr "<a href=\"%(url)s\">Agenda en %(where)s</a> (en inglés)"
 
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">How we know</a>."
+msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
+
 #. %(where)s is where the minutes were posted, such as "the city website".
 #: site/templates/meeting.html
 #, python-format
@@ -872,6 +877,12 @@ msgid "A copy of the agenda wasn't saved here. It is on the <a href=\"%(url)s\">
 msgstr ""
 "No se guardó aquí una copia de la agenda. Está en el <a href=\"%(url)s\">sitio web de la "
 "ciudad</a>."
+
+#. %(site)s is this website's name.
+#: site/templates/meeting.html
+#, python-format
+msgid "A correction from %(site)s"
+msgstr "Una corrección de %(site)s"
 
 #: site/pages/meetings/search/index.html
 msgid ""
@@ -1403,6 +1414,15 @@ msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>. Each source updates o
 msgstr ""
 "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>. Cada fuente se actualiza una o dos veces "
 "al año."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"Checked <time datetime=\"%(iso)s\">%(when)s</time>. If the city changes this listing, this note "
+"comes down until it's checked again."
+msgstr ""
+"Revisado el <time datetime=\"%(iso)s\">%(when)s</time>. Si la ciudad cambia esta publicación, "
+"esta nota se quita hasta que se revise de nuevo."
 
 #: site/states/ct/schools.html site/states/ma/schools.html
 msgid "Chronic absenteeism"
@@ -2707,6 +2727,11 @@ msgstr "mayo"
 msgctxt "month, short"
 msgid "May"
 msgstr "may"
+
+#: site/templates/macros.html
+msgctxt "meeting"
+msgid "May not take place"
+msgstr "Puede que no se realice"
 
 #: pipeline/common_strings.py
 msgid "Mayor"
@@ -4519,6 +4544,13 @@ msgstr "El texto y los controles cumplen los requisitos de contraste."
 #, python-format
 msgid "The %(board)s's official page"
 msgstr "%(board)s: página oficial"
+
+#. %(time)s is a start time as the city's listing gives it; %(listing)s is where the meeting is listed,
+#. such as "city calendar".
+#: site/templates/meeting.html
+#, python-format
+msgid "The %(listing)s says %(time)s."
+msgstr "El %(listing)s dice %(time)s."
 
 #: site/pages/311/methodology/index.html
 msgid "The 90th percentile: how long the slowest requests take."

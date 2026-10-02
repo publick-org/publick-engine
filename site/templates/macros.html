@@ -12,6 +12,8 @@
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
 {%- if m.status != "scheduled" %}{% set __ = parts.append({"cancelled": pgettext("meeting", "Cancelled"), "postponed": pgettext("meeting", "Postponed"), "rescheduled": pgettext("meeting", "Rescheduled")}.get(m.status, m.status | capitalize)) %}{% endif -%}
+{#- A meeting Publick has found the city's listing of is most likely wrong ([[meetings.corrections]]). -#}
+{%- if (m.get("correction") or {}).get("doubtful") and m.listed and m.status == "scheduled" %}{% set __ = parts.append(pgettext("meeting", "May not take place")) %}{% endif -%}
 {%- if not m.listed %}
 {#- Translators: %(source)s is who keeps the schedule, such as a school district's name. -#}
 {%- if m.get("source") == "drive" %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}

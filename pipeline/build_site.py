@@ -38,6 +38,7 @@ from pipeline import common_strings
 from pipeline import dnn
 from pipeline import factcheck
 from pipeline import listings
+from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
@@ -402,7 +403,40 @@ def english_attr(record: dict | None) -> Markup:
     return Markup(' lang="en"') if record and record.get("english") else Markup("")
 
 
-def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None) -> dict:
+def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str]:
+    """Publick's corrections to the city's own listings ([[meetings.corrections]]), each
+    shown on its meeting's page with the reason and the evidence: a meeting that most likely
+    won't take place (doubtful), or the right start time (start_time). A meeting stays where
+    it is, marked. A correction is checked against the listing as it was on its `checked`
+    date: once the city changes the listing, or no longer lists the meeting, it isn't shown,
+    and the problems found are returned for the build to report."""
+    problems = []
+    for c in corrections:
+        found = [m for m in meetings
+                 if c.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
+                 or (m["date"] == c.get("date") and words(m["body"]) == words(c.get("board", "")))]
+        what = f"{c.get('board', c.get('meeting'))} {c.get('date', '')}".strip()
+        if len(found) != 1:
+            problems.append(f"Correction for {what}: {len(found)} meetings match it, so it isn't shown.")
+            continue
+        m = found[0]
+        changed = [h for h in m["history"] if h["at"][:10] > str(c["checked"])]
+        if changed:
+            problems.append(f"Correction for {what}: the city changed the listing ({changed[-1]['field']}) after it "
+                            f"was checked on {c['checked']}, so it isn't shown. Check it again.")
+            continue
+        if not m["listed"]:
+            continue
+        m["correction"] = {"note": c["note"], "evidence": c.get("evidence"), "checked": str(c["checked"]),
+                           "doubtful": bool(c.get("doubtful")), "start_time": c.get("start_time")}
+        if c.get("start_time"):
+            m["listed_time"] = m["listed_time"] or m["start_time"]
+            m["start_time"] = c["start_time"]
+    return problems
+
+
+def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
+                  corrections: list[dict] | None = None) -> dict:
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     status_path = data_dir / "meetings" / "status.json"
@@ -413,7 +447,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
-                    source="calendar", source_url=None)
+                    source="calendar", source_url=None, correction=None)
     for m in meetings:
         for key, default in optional.items():
             m.setdefault(key, default)
@@ -464,6 +498,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
         m["preview_line"] = preview_line(m)
         m["glossary"] = glossary_for(english, glossary or [])
+
+    for problem in apply_corrections(meetings, corrections or []):
+        if i18n.language() == "en":
+            print(f"::warning::{problem}")
 
     # A board that meets more than once in a day (a hearing, then its regular
     # meeting) needs each meeting told apart in page titles and lists: by start
@@ -787,7 +825,8 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
     with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
-        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
+                             config.get("meetings", {}).get("corrections", []))
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -830,6 +869,8 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         meetings["archive_name"] = tr(meetings["archive_name"])
     if "governing_body" in meetings:
         meetings["governing_body"] = tr.board(meetings["governing_body"])
+    for correction in meetings.get("corrections", []):
+        correction["note"] = tr(correction["note"])
     return config
 
 
@@ -918,7 +959,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
-    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
+                             config.get("meetings", {}).get("corrections", []))
     for m in meetings["all"]:
         m["body"] = tr.board(m["body"])
     for b in meetings["boards"]:

@@ -345,6 +345,7 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
   "Board of Education" = "Board of Education"
   "Operations Committee" = "Board of Education Operations Committee"
   ```
+- **Corrections.** When the city's own listing is wrong (an entry left over from a board's old schedule, a typo in a time), `[[meetings.corrections]]` says so on the meeting's page, with the reason and how it's known, rather than copying the mistake or quietly changing it. Each names its meeting by `board` and `date` (or its record's `meeting` id), and gives a `note` (the town's text, translated as the rest is), `evidence` (a link), the date it was `checked`, and what it corrects: `doubtful = true` for a meeting that most likely won't take place (it stays listed, marked "May not take place"), or the right `start_time`. Once the city changes the listing after `checked`, or a correction matches no meeting or more than one, it isn't shown and the build warns, until it's checked again; a meeting the city no longer lists needs none.
 - **`documents = false`** is for a town with a calendar but no agendas and minutes collected yet. Each meeting page links to its agenda (and minutes) where the city posts them, and the pages that need the documents are left out: decisions, search, the RSS feed, and agenda items in the street lookup.
 
 ## Adding a section
