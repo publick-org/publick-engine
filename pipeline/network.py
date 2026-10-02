@@ -13,7 +13,8 @@ new data (pipeline.update), checks its freshness, builds the site, checks it
 pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
 process, so one town's failure never stops the next. A run that fetches also
 writes its result to the town's data/run.json, committed with the data, which
-the network's status page reads. report writes one table of every town in the
+the network's status page reads; one that publishes without fetching (a push,
+a rebuild) records that it did in the same file. report writes one table of every town in the
 run. A run that fetches doesn't fail when a town does: behind lists the towns
 without a good update (published, with fresh data) in the last day or so, and
 those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
@@ -264,10 +265,34 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
         record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
+        republished(town_dir / "data" / RUN_RECORD, result)
     if reports:
         reports.mkdir(parents=True, exist_ok=True)
         (reports / f"{name}.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
+
+
+# The steps that put a town's site up, which a later run that doesn't fetch can redo.
+PUBLISH_STEPS = ("Build site", "Check site", "Publish site")
+
+
+def republished(path: Path, result: dict) -> None:
+    """Record a run that published the town without fetching (a push, a rebuild) in its run record:
+    the last fetching run's, with this run's build, checks, and publish in place of that run's. So a
+    site fixed and published after a daily run that couldn't publish it isn't shown as not
+    published, on the status page and in the daily alert, until the next daily run. When the
+    fetching run was due is unchanged (finished_at)."""
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["steps"] = ([s for s in record.get("steps", []) if s["name"] not in PUBLISH_STEPS]
+                       + [s for s in result["steps"] if s["name"] in PUBLISH_STEPS])
+    record["deployed"] = True
+    record["ok"] = all(s["ok"] for s in record["steps"])
+    record["published_at"] = result["finished_at"]
+    record["published_engine"] = result["engine"]
+    if good(record):
+        record["last_good_at"] = result["finished_at"]
+    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
 
 
 # Days of upcoming meetings counted for the network homepage.
@@ -355,9 +380,12 @@ def refresh_states(root: Path, now: datetime | None = None) -> dict:
             status.update(ok=False, failures=previous.get("failures", 0) + 1, error=str(e)[:300],
                           last_ok_at=previous.get("last_ok_at"))
             print(f"::warning::{code} statewide sources: {e}")
+        results[code] = status
+        # Nothing fetched and nothing wrong, as before: the file stays as it is, so the run commits nothing.
+        if status["ok"] and status.get("fetched") == 0 and previous.get("ok") and previous.get("exports") == status.get("exports"):
+            continue
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_path.write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
-        results[code] = status
     return results
 
 
@@ -413,8 +441,9 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
 
 
 def report(reports: Path) -> tuple[str, bool]:
-    """A table of every town in the run, and whether the run succeeded: a run that fetches always
-    does (the daily alert lists the towns behind); one that only builds fails if a town does."""
+    """A table of every town in the run, and whether the run succeeded: a run that fetches does
+    (the daily alert lists the towns behind) unless it published none of its towns; one that only
+    builds fails if a town does. The towns a fetching run didn't publish are named in the heading."""
     results = sorted((json.loads(p.read_text()) for p in reports.glob("*.json")), key=lambda r: r["folder"])
     lines = ["| Town | Result | Data | Failed steps |", "|---|---|---|---|"]
     for r in results:
@@ -426,9 +455,16 @@ def report(reports: Path) -> tuple[str, bool]:
             data += f"; **checks failing**: {', '.join(r['failing'])}"
         lines.append(f"| {r['folder']} | {status} | {data} | {', '.join(failed) or '–'} |")
     bad = [r for r in results if not r["ok"] or r["stale"] or r.get("failing")]
+    unpublished = [r for r in results if fetched(r) and not r["deployed"]]
     heading = f"{len(results)} towns; {len(bad)} need attention" if results else "No towns ran"
+    if unpublished:
+        heading += f"; **{len(unpublished)} not published**: {', '.join(r['folder'] for r in unpublished)}"
     failed = [r for r in results if not r["ok"] and not fetched(r)]
-    return f"## {heading}\n\n" + "\n".join(lines) + "\n", not failed
+    # A run that fetched and published none of its towns fails, so it can't look like success.
+    nothing_published = bool(results) and len(unpublished) == len(results)
+    if nothing_published:
+        heading += "\n\nNo town in this run was published: every site still shows its version from before."
+    return f"## {heading}\n\n" + "\n".join(lines) + "\n", not failed and not nothing_published
 
 
 def fetched(record: dict) -> bool:

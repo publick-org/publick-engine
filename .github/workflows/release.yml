@@ -1,71 +1,112 @@
-# Releases, by themselves. When the engine tests pass on main after a merge,
-# the merged commit becomes the next release and its major tag (v1) moves to
-# it, so towns pinned to @v1 take it on their next run.
+# Releases, by themselves, once a day. Each morning, before the network's
+# daily runs, the newest commit on main whose engine tests passed becomes the
+# next release, with everything merged since the last one, and its major tag
+# (v1) moves to it, so towns pinned to @v1 take it on their next run. The
+# network moves its engine-version to it by a pull request of its own
+# (publick.org's engine.yml). So the towns take at most one new engine a day,
+# however many pull requests were merged.
 #
-# The next version is a minor one (v1.4.0 -> v1.5.0) unless the merged pull
-# request is labeled:
-#   patch       v1.4.0 -> v1.4.1
-#   major       v1.4.0 -> v2.0.0, for a change that needs every town's config
-#               edited; @v1 towns stay on v1 until they move
-#   no release  nothing is released
+# An urgent fix doesn't wait for the morning: Actions -> Release -> Run
+# workflow releases now.
+#
+# The next version is a minor one (v1.4.0 -> v1.5.0) unless the pull requests
+# merged since the last release are all labeled:
+#   patch       v1.4.0 -> v1.4.1 (every one patch, or no release)
+#   major       v1.4.0 -> v2.0.0 (any one), for a change that needs every
+#               town's config edited; @v1 towns stay on v1 until they move
+#   no release  left out
+# A pull request that changes only Markdown files (the README, the roadmap) is
+# left out too, without a label. With nothing left, nothing is released.
 #
 # A release published by hand (Releases -> Draft a new release) still moves its
 # major tag.
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["Engine tests"]
-    types: [completed]
-    branches: [main]
+  schedule:
+    # 08:20 UTC, before the network's first daily run (09:05) and its engine pull request (08:40).
+    - cron: "20 8 * * *"
+  workflow_dispatch:
   release:
     types: [published]
 
 permissions:
   contents: write
   pull-requests: read
+  actions: read
 
 jobs:
   release:
-    if: >-
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push'
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
           fetch-depth: 0
 
-      - name: Release the tested commit
+      - name: Release what's been merged since the last release
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if git tag --points-at "$SHA" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "$SHA is already released as $(git tag --points-at "$SHA" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')."
-            exit 0
-          fi
-          labels=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" --jq '[.[].labels[].name] | join(",")')
-          echo "Labels on the merged pull request: ${labels:-none}"
-          if [[ ",$labels," == *",no release,"* ]]; then
-            echo "Labeled 'no release'; not releasing."
+          # The newest commit on main whose engine tests passed.
+          sha=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --event push --status success \
+            --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ -z "$sha" ]; then
+            echo "No commit on main has passed the engine tests yet."
             exit 0
           fi
           latest=$(git tag --list 'v*.*.*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
-          IFS=. read -r major minor patch <<< "${latest#v}"
-          if [[ ",$labels," == *",major,"* ]]; then
-            version="v$((major + 1)).0.0"
-          elif [[ ",$labels," == *",patch,"* ]]; then
-            version="v$major.$minor.$((patch + 1))"
-          else
-            version="v$major.$((minor + 1)).0"
+          if git merge-base --is-ancestor "$sha" "$latest"; then
+            echo "$sha is already in $latest."
+            exit 0
           fi
-          gh release create "$version" --target "$SHA" --title "$version" --generate-notes --notes-start-tag "$latest"
+          # Each change since the last release: the pull request it merged, or the commit itself.
+          bump=""
+          for commit in $(git rev-list --first-parent "$latest..$sha"); do
+            pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$commit/pulls" --jq '[.[] | select(.merged_at != null)][0] // empty')
+            if [ -n "$pr" ]; then
+              number=$(jq -r .number <<< "$pr")
+              labels=$(jq -r '[.labels[].name] | join(",")' <<< "$pr")
+              files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$number/files" --jq '.[].filename')
+              what="#$number"
+            else
+              labels=""
+              files=$(git diff-tree --no-commit-id --name-only -r "$commit")
+              what="${commit:0:7}"
+            fi
+            if [[ ",$labels," == *",no release,"* ]]; then
+              echo "$what: labeled 'no release'"
+              continue
+            fi
+            if ! grep -qvE '\.md$' <<< "$files"; then
+              echo "$what: only Markdown files"
+              continue
+            fi
+            if [[ ",$labels," == *",major,"* ]]; then this=major
+            elif [[ ",$labels," == *",patch,"* ]]; then this=patch
+            else this=minor; fi
+            echo "$what: $this"
+            case "$bump,$this" in
+              major,* | *,major) bump=major ;;
+              minor,* | *,minor) bump=minor ;;
+              *) bump=patch ;;
+            esac
+          done
+          if [ -z "$bump" ]; then
+            echo "Nothing to release since $latest."
+            exit 0
+          fi
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "$bump" in
+            major) version="v$((major + 1)).0.0" ;;
+            minor) version="v$major.$((minor + 1)).0" ;;
+            patch) version="v$major.$minor.$((patch + 1))" ;;
+          esac
+          gh release create "$version" --target "$sha" --title "$version" --generate-notes --notes-start-tag "$latest"
           # A release made with this workflow's token doesn't start other workflows, so the major tag moves here.
           git fetch --tags --force
-          git tag -f "${version%%.*}" "$SHA"
+          git tag -f "${version%%.*}" "$sha"
           git push -f origin "refs/tags/${version%%.*}"
           echo "Released $version (after $latest) and moved ${version%%.*} to it."
 
