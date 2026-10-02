@@ -221,6 +221,18 @@ inbox.
 - At hundreds of towns the status page needs search and filters, and the
   daily alert becomes a digest.
 
+**Found 2026-10-02 (second review).** The status page and the alert said
+the wrong thing for most of a day. The 09:06Z daily run failed "Check site"
+for Gloucester, Malden, and Manchester (`/311/` scrolled sideways by 1px on a
+phone once the charts had a 25th month). v1.28.0 fixed it and push runs
+republished all three with that day's data, but a push run doesn't write
+`run.json`, so they stayed `deployed: false`, the status page said "Some data
+delayed", and issue #34 stayed open until the next fetching run. The daily run
+itself finished green with 3 of 3 towns not deployed; the only sign was
+warnings. To do: a run that publishes a town records it in the town's run
+record, whatever started the run; and the daily run's summary (or a failed
+report job) says plainly when no town in a job was published.
+
 **Matters at:** now.
 
 ## 4. AI summary costs
@@ -275,6 +287,16 @@ limits apply to the whole network, not to each town.
 *Not done:* one priority order across towns (today each town orders its
 own, within its share), the Batches API, and more supported styles
 (Manchester's, from Foxit, is next by count).
+
+**Spend, 2026-10-02 (second review).** September $21.82 (three towns).
+October after two days $9.22: Beverly $5.37 (58%, its launch backlog and
+$1.92 of transcripts), Wallingford $1.33, Manchester $1.26, Malden $0.92,
+Lawrence $0.21, Gloucester $0.13. Translations about $0.003 each ($0.24 for
+77). Projected October about $50 to $60, so the cap binds this month.
+Lawrence launched with a backlog allowance of $0.17 a run, so its older
+agendas wait ("older documents wait"); a one-time `catch_up` run for it is
+worth doing. The equal share lets one town's backlog take most of a day's
+money: a floor per town (in the review section of Stages) fixes that.
 
 **Matters at:** now, at $50 a month.
 
@@ -887,6 +909,101 @@ anything is shown.
 
 **Matters at:** now.
 
+**Found after launch (second review, 2026-10-02, engine v1.29.0).** Read in
+the code, on the live sites, and in all 77 saved translations side by side
+with their English. Ordered by harm.
+- *Live translations with meaning errors*, all passing the check and shown:
+  "adjourned" as "se disolvió" ("dissolved itself", Beverly `05fa7a22`,
+  `98a5657e`); "reappointment" as "reelección"/"reeligió" 7 times, and the
+  non-word "renonombramientos" (`05842d82`); "Chair Houseman" (Scott D.
+  Houseman) as "La presidenta Houseman", and other guessed genders ("la
+  solicitante", "la Abogada Dole", "La directora"); "name the road after X"
+  as "nombrar... después de"; "underage operative" as "un operativo menor de
+  edad"; "all-alcoholic beverages license" lost "all-"; business signs as
+  "señales" 19 times; "Enmiendó"; and Lawrence's own summary in Spanglish
+  ("redeveloper el sitio en uso mixto commercial", `9c6ec1ee`). The summary
+  translation prompt has no rule against guessing gender (`translate.py:60-70`;
+  only the drafts prompt has one, `:274`).
+- *The check passes wrong translations.* It compares digits, list lengths,
+  and dates (`translate.py:149-168`). Run on crafted inputs, all of these
+  pass: "voted not to approve" as "para aprobar"; Approved as Negó; "failed
+  3-4" as "aprobada 4-3"; Maria Rodriguez as Mario Rodrigues; Essex Street as
+  Calle Elm; "$3 million" as "$3 mil millones"; "$1.2 million" as "$1.2 mil";
+  7:00 pm as 7:00 a. m.; Tabled as Aprobó; unanimously as por mayoría;
+  decisions reordered; invented extra numbers. Correct Spanish fails it:
+  "$1.500", "$5,8 millones", "$2500" written "$2,500". Three of Beverly's
+  four failures were correct translations.
+- *A failed translation is never retried* (`current()` accepts a saved record
+  whatever its check, `translate.py:96-101`), and the page says "aún no se ha
+  traducido" (`meeting.html:118`), which isn't true.
+- *Translations from an older prompt are still shown*: `shown()` ignores
+  `prompt_version` (`translate.py:103-111`); Lawrence's two v1 translations.
+- *Machine translation isn't disclosed.* The Spanish credit says only
+  "Resumen escrito con inteligencia artificial (IA)" (`es.po`); the About
+  page names only the summary model (`about/index.html:108`). The "(en
+  inglés)" note on agenda and minutes links that this item promises doesn't
+  exist (`meeting.html:127`, `:160`).
+- *The privacy line is now false.* The Worker sets a one-year `lang` cookie
+  (`worker/sites.js:134`); every About page says "No cookies"
+  (`about/index.html:116`). Keep the choice in localStorage, or reword.
+- *Machine drafts of a town's text are unlabeled and barely checked.* Nothing
+  on the page marks a draft (`drafted` only feeds a build notice,
+  `build_site.py:1291`). `check_text` (`translate.py:305-315`) passes "Mayor"
+  as "Gobernador", "Conservation Commission" as "Comisión de Conversación",
+  "Chairman" as "Presidenta". A batch of 80 is checked only by its length
+  (`:349`), so a shifted batch puts every text on the wrong English. None
+  exist yet; they start with v1.29's first runs.
+- *A Spanish gap can freeze the English site.* With no budget left,
+  `draft_texts` stops (`translate.py:328`) and the build exits 1 for any
+  config text without Spanish (`build_site.py:1299-1306`), so a new tagline
+  late in a month stops both languages from publishing. Fall back to English
+  with a warning instead.
+- *Decision labels are matched by position.* A decision's kind (decided,
+  recommended, procedural) comes from the English and is put on the Spanish
+  by index (`build_site.py:422`); a reordered translation passes the check,
+  so "Committee recommendations" can label a final decision.
+- US dates pass as written ("10/17 y 11/8", Beverly `04ef6699`), and a
+  Spanish reader takes 11/8 as 11 August. Write ambiguous dates out.
+- Ward and District both become "Distrito {n}" (`es.po`), which garbles
+  Beverly's School Committee (Wards 1-6 and Districts A and B).
+- Gendered roles keyed by role, not person: Lawrence's "Vicepresidenta" and
+  "Vicepresidenta del Concejo" (`lawrence.toml:313-314`) will be wrong for
+  the next holder. Use the generic form.
+- The feed and share image are English only (`build_site.py:1075`, `:986`),
+  but Spanish pages link `/feed.xml` with a Spanish title (`base.html:37`).
+- Lawrence's config still says its Spanish is to be checked "before the site
+  launches".
+- *At the time of the review* only Beverly (72 of 122 summaries shown in
+  Spanish) and Lawrence (1 of 7) had translations; Gloucester, Malden,
+  Manchester, and Wallingford had no fetching run since v1.27, so their
+  Spanish pages showed English summaries.
+
+*Done well:* what's shown is keyed by the hash of the English it came from and
+checked again at display, so a stale translation can't sit next to newer
+English; English fallback is marked `lang="en"`; only `/` negotiates
+language, with `Vary` and a no-store 302; `hreflang` and `x-default` set;
+a 404 per language; board names keep the official English; Spanish search
+covers the translations; translation is cheap.
+
+**To do, in order.**
+1. Now: the Spanish credit says "Resumen escrito y traducido con IA; no
+   revisado por una persona", the About page's AI section says the same,
+   document links say "(en inglés)", the cookie line fixed, and a missing
+   Spanish text falls back to English instead of failing the build.
+2. This week: a person who reads Spanish checks Lawrence, then Beverly. The
+   summary translation prompt gets the no-gender rule and a glossary
+   (adjourn = levantar la sesión, reappoint = volver a nombrar, sign =
+   letrero, ward vs district). Machine drafts labeled on the page
+   ("traducción automática").
+3. The check, per decision: names and capitalized words survive; money
+   compared with its million/billion; am/pm; outcome and negation words
+   (approve/deny/table/recommend/not) agree with the English; no extra
+   numbers; Spanish number formats normalized. Drafts rejected unless they
+   map one to one. A failed translation retried once, and the notice
+   reworded. `shown()` respects `prompt_version`. Decision labels matched by
+   content, not position.
+4. Then: the `reviewed` flag, `/es/feed.xml`, and a Spanish share image.
+
 ## Others' use of the data
 
 ## 15. Open data
@@ -1078,6 +1195,16 @@ Spanish, with the "In the works" list taken off the publick.org homepage
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too. Next, in this order (as of 2026-10-02):
 
+**Before the list (second review, 2026-10-02), about a day:** the open redirect
+in the sites Worker: `worker/sites.js:135` redirects `?lang=` to the raw
+path, so a path that starts with two slashes, plus `?lang=`, redirects to
+another site (checked live); collapse leading slashes or
+redirect only to paths in the manifest. Then item 14's "Now" list (the
+Spanish AI and translation credit, "(en inglés)", the cookie line, English
+fallback instead of a failed build), and a one-time `catch_up` run for
+Lawrence (item 4). Slow releases until the Spanish has had one person's
+pass: 7 releases went out in about 10 hours on 2026-10-02 (item 16).
+
 1. Check the daily run of 2026-10-02, the first with v1.17.1 everywhere:
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
@@ -1091,8 +1218,8 @@ towns too. Next, in this order (as of 2026-10-02):
 3. Summaries checked against their documents (item 17), before more towns
    and before open data.
 4. Push runs that build and check but don't publish (item 16).
-5. Every town in Spanish (item 14), then a person who reads Spanish checks
-   it: the engine's strings, each town's `[strings.es]`, and a sample of
+5. Every town in Spanish (item 14, done in v1.27.0), then a person who reads Spanish checks
+   it (see item 14's "Found after launch" for what to look at first): the engine's strings, each town's `[strings.es]`, and a sample of
    translated summaries. Also to confirm in Lawrence's config: the School
    Committee's elected and appointed members, the mayor's term, and the
    officers' titles in Spanish.
@@ -1169,8 +1296,8 @@ the daily runs are stable and there's evidence people want email. Skip or flag
 sections whose data is stale.
 
 *The October 2026 review.* An outside review (2026-10-02) read both
-repositories and the live sites; its plan was written up on the branch
-`claude/quirky-newton-jsqvn0` (`REVIEW-PLAN.md`). Its decision on Spanish
+repositories and the live sites; its plan, with file and line citations,
+was `REVIEW-PLAN.md` (commit e3963ee), folded in here. Its decision on Spanish
 (only the homepage follows the browser's language) is made and built (item
 14); Lawrence launched before the rest, by choice. The rest, in its order:
 - *Decisions for the maintainer.* A decision that fails the checks below:
@@ -1207,6 +1334,48 @@ repositories and the live sites; its plan was written up on the branch
   keyboard; each town's next election date, with the status page flagging an
   officials list not checked since (item 11); config keys only one town uses
   folded into their readers; a monthly page-view report from GoatCounter.
+- *Rechecked the same day on engine v1.29.0 (second review).* Fixed: the
+  agenda and minutes prompt versions (all 445 live summaries on the current
+  version: agenda v4 62, minutes v2 383). Everything else still open, some
+  wider:
+  - Decisions still the model's list, unchecked (item 17 now plans it), and
+    Spanish pages show translated decisions with the English labels put on
+    by position.
+  - No AI marker on headline previews: homepage `pages/index.html:42`,
+    `macros.html:83` (lists and board pages), RSS `write_feed`
+    (`build_site.py:1198-1202`).
+  - SeeClickFix 403 still marks records removed (`fetch_311.py:136-139`);
+    an empty calendar still counts as checked (`fetch_meetings.py:362-369`);
+    the 311 page's date is still the build's (`compute_311.py:315`).
+  - The alert issue is still edited, not commented on (`network.yml:461-466`).
+  - 311 in git: requests files 24.5 MB across three towns (Malden 10.36 MB),
+    up 0.4 MB in one day, each rewritten daily. The backfill takes about 39
+    minutes a run for Malden and Manchester (13,664 and 9,932 details still
+    to fetch, about 20 and 14 days). Longest run in the last 100: 179 of 300
+    minutes.
+  - Pacing per town (`fetch_311.py:251`), commit step skipped on a timeout
+    (`network.yml:387`), no 256-job cap in `plan()` (`network.py:145-166`),
+    equal budget share (`network.py:404-406`). Translation cost is counted in
+    the budget (`network.py:400`).
+  - Security: storage and sites keys still reach the PDF-parsing steps
+    (`update.py:76-85`); no `persist-credentials: false`; pull request runs
+    get every secret (`network.yml:371-381`); no HSTS or CSP from the Worker
+    (`sites.js:94-100`, and checked live); actions pinned by tag; boto3
+    unpinned; `v1` moved on every release. New: the open redirect (Stage 1).
+  - No `LICENSE` in the network repository and no license line in the
+    footer; SeeClickFix's terms not saved.
+  - Privacy: 26,878 of 41,718 311 records carry a house number, among them
+    389 Manchester "Homeless Encampment" and 273 Gloucester Health
+    Department reports; the CSVs export locations (`build_site.py:1243-1246`).
+  - Accessibility: "Every chart has a table" (`accessibility/index.html:14`)
+    still false for the 311 category and ward pages; 1 of 31 scrollable
+    tables focusable (`about/index.html:92`); now on twice as many pages.
+  - Config keys used by one town: 143 of 277, plus 320 of 325
+    `[strings.es]` keys.
+  - Officials' `checked` date is shown, never compared with anything
+    (`officials.py:43`).
+  - Every test, the new translation tests too, uses the fake model client;
+    no check runs the real model on known documents.
 - *Spanish, after launch.* The `reviewed` flag and a monthly sample checked
-  by a person (item 14). Lawrence's council posts minutes late, so its
+  by a person (item 14; its "Found after launch" list comes first). Lawrence's council posts minutes late, so its
   decisions are thin; the page should say so.
