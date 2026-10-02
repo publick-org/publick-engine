@@ -1065,13 +1065,21 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
     # is the document's header, not an agenda item.
     venue_line = re.compile(r"\b(?:conference room|meeting room|auditorium|council chambers?|city hall|held at)\b"
                             rf"|,\s*{re.escape(town['name'])},?\s*{re.escape(town['state_abbr'])}\b", re.I)
+    # An address followed by another town and its state ("11 Azsr Ct, Halethorpe MD") is an
+    # applicant's own address, not a street in this town.
+    elsewhere = re.compile(r",\s*([A-Z][A-Za-z.'’]*(?:\s+[A-Z][A-Za-z.'’]*){0,2}),?\s+[A-Z]{2}\b")
+
+    def in_another_town(text: str, address: str) -> bool:
+        line = line_with(text, address)
+        after = elsewhere.match(line[line.find(address) + len(address):])
+        return bool(after) and after.group(1).lower() != town["name"].lower()
 
     for m in meetings:
         for kind, doc in ((_("Agenda"), m["preview"]), (_("Minutes"), m["minutes_summary"])):
             text = doc_text(doc)
             for address in streets_mod.addresses_in(text):
                 num, keys = place(address)
-                if venue_line.search(line_with(text, address)):
+                if venue_line.search(line_with(text, address)) or in_another_town(text, address):
                     continue
                 for key in keys:
                     if (num, key) in venues:
