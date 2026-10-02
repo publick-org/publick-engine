@@ -36,6 +36,7 @@ from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import factcheck
+from pipeline import listings
 from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
@@ -389,6 +390,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     status_path = data_dir / "meetings" / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else None
 
+    # A meeting the city lists in more than one place is shown as one (pipeline/listings.py).
+    store, _moved = listings.combined(store, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)))
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
@@ -400,6 +403,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
         m["listing"] = _(LISTINGS.get(m["source"], CALENDAR))
         m["url"] = f"/meetings/{m['slug']}/"
+        # The pages of its other listings, already published, show it too.
+        m["also_urls"] = [f"/meetings/{x['slug']}/" for x in m.get("listings", []) if x["id"] != m["id"]]
+        for x in m.get("listings", []):
+            x["listing"] = _(LISTINGS.get(x["source"], CALENDAR))
         # The board's name as the city writes it; m["body"] is the one shown, translated for another language.
         m["body_en"] = m["body"]
         m["body_slug"] = slugify(m["body"])
@@ -1007,8 +1014,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
 
-    def render(template: str, url: str, **context) -> None:
-        """Render a page. url is its English address (/meetings/); another language's is under its prefix."""
+    def render(template: str, url: str, canonical: str | None = None, **context) -> None:
+        """Render a page. url is its English address (/meetings/); another language's is under its prefix.
+        A page that shows another's content (canonical, its address) is kept out of the sitemap."""
         section_slug = url.strip("/").split("/")[0] or None
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
@@ -1017,7 +1025,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
-            **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + url,
+            **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )
         html = mark_new_tab_links(html, own_hosts)
@@ -1028,7 +1037,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             dest = dest / "index.html"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
-        if url not in UNLISTED_PAGES:
+        if url not in UNLISTED_PAGES and not canonical:
             urls.append(prefix + url)
 
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
@@ -1042,6 +1051,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     if "meetings" in config:
         for m in meetings["all"]:
             render("meeting.html", m["url"], meeting=m)
+            # The address of a listing shown as part of another meeting sends readers there.
+            for also in m["also_urls"]:
+                render("moved.html", also, canonical=m["url"], meeting=m)
         for b in meetings["boards"]:
             render("board.html", b["url"], board=b)
     if documents and english:

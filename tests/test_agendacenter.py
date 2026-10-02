@@ -179,11 +179,30 @@ def test_minutes_per_run_limit(malden, tmp_path):
     assert load_store(tmp_path)["agendacenter-4400"].get("minutes")
 
 
-def test_same_day_meetings_without_times_are_numbered(malden, tmp_path):
-    """Agenda Center has no times, so two agendas for one board on one day are told apart by order."""
+def test_an_agenda_posted_twice_is_one_meeting(malden, tmp_path):
+    """A clerk posting the same meeting's agenda again, under a new number, lists it twice;
+    with no times to tell them apart, the same board on the same day is one meeting, at the
+    address of the first, with both agendas."""
     from pipeline import build_site
     page = PAGE.replace("4452", "9452")
     page = page.replace("Joint Finance Rules and Ordinance Agenda", "Finance Committee Agenda (second posting)")
+    fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    finance = [m for m in built["all"] if m["date"] == "2026-09-29" and m["body"] == "City Council Finance Committee"]
+    assert len(finance) == 1
+    m = finance[0]
+    assert m["id"] == "agendacenter-4453" and not m["same_day"]
+    assert [x["id"] for x in m["listings"]] == ["agendacenter-4453", "agendacenter-9452"]
+    assert m["same_as"] == "no_time"
+    assert len(m["agendas"]) == 2
+    assert m["also_urls"] == [f"/meetings/{load_store(tmp_path)['agendacenter-9452']['slug']}/"]
+
+
+def test_same_day_meetings_of_different_kinds_are_numbered(malden, tmp_path):
+    """A board's hearing and its meeting on one day, with no times, stay two meetings, told apart by order."""
+    from pipeline import build_site
+    page = PAGE.replace("4452", "9452")
+    page = page.replace("Joint Finance Rules and Ordinance Agenda", "Finance Committee Public Hearing Agenda")
     fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
     meetings = build_site.load_meetings(tmp_path, NOW.date())["all"]
     finance = sorted((m for m in meetings if m["date"] == "2026-09-29" and m["body"] == "City Council Finance Committee"),
