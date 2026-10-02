@@ -30,7 +30,10 @@
   {% if config.seeclickfix is defined %}
   <li>{% trans scf="https://seeclickfix.com", license="https://creativecommons.org/licenses/by-nc-sa/3.0/", methodology="/311/methodology/" %}<strong>311 requests:</strong> <a href="{{ scf }}">SeeClickFix</a>, public requests only, under a <a href="{{ license }}">CC BY-NC-SA 3.0</a> license. <a href="{{ methodology }}">How the 311 numbers work</a>.{% endtrans %}</li>
   {% endif %}
-  {% if config.meetings is defined and config.meetings.agenda_center is defined %}
+  {% if config.meetings is defined and config.meetings.agenda_center is defined and meeting_links.has_calendar %}
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, url=meeting_links.agenda_center, since=config.meetings.agenda_center.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a>, for every meeting it lists, and its <a href="{{ url }}">Agenda Center</a>, for agendas and minutes. A meeting listed in both is shown once. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
+  {% elif config.meetings is defined and config.meetings.agenda_center is defined %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
   <li>{% trans url=config.meetings.agenda_center.base_url ~ "/AgendaCenter", since=config.meetings.agenda_center.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents and config.meetings.file_list is defined %}
