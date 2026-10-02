@@ -72,3 +72,17 @@ def test_street_index_leaves_out_other_towns_addresses():
     town = {"name": "Lawrence", "state_abbr": "MA"}
     index = build_site.street_index([meeting], [], [], BUILT_AT.date(), town)
     assert sorted(index["streets"]) == ["BROADWAY AVE", "COMMON ST", "WINTHROP AVE"]
+
+
+def test_street_index_leaves_out_where_boards_meet():
+    """An address alone on its line in three meetings' documents is a meeting place or letterhead
+    (Beverly's City Hall, a school board's office), even split over lines; a case heard twice isn't."""
+    def meeting(n, text):
+        return {"url": f"/meetings/2026-10-0{n}-board/", "date": f"2026-10-0{n}", "body": "Board", "address": "",
+                "minutes_summary": None, "preview": {"transcript": text}}
+    meetings = [meeting(1, "191 Cabot Street\n4\n \nFAIRFIELD\n \nBOULEVARD\n12 Elm Street"),
+                meeting(2, "191 Cabot Street, Beverly, MA 01915\n4 FAIRFIELD BOULEVARD\n1. A permit for 9 Dodge Street\n12 Elm Street"),
+                meeting(3, "191 Cabot Street\n4 FAIRFIELD BOULEVARD\n2. Signs at 191 Cabot Street, Beverly")]
+    index = build_site.street_index(meetings, [], [], BUILT_AT.date(), {"name": "Beverly", "state_abbr": "MA"})
+    assert sorted(index["streets"]) == ["DODGE ST", "ELM ST"]
+    assert index["streets"]["ELM ST"]["meetings_total"] == 2
