@@ -44,11 +44,17 @@ msgstr "%(board)s: reuniones"
 msgid "%(body)s, %(when)s, meeting %(part)s"
 msgstr "%(body)s, %(when)s, reunión %(part)s"
 
-#. the title of a page that has moved; %(body)s is a board, %(when)s a date.
 #: site/templates/moved.html
 #, python-format
 msgid "%(body)s, %(when)s: moved"
 msgstr "%(body)s, %(when)s: página trasladada"
+
+#. the title of a page that has moved; %(body)s is a board, %(when)s a date, and %(part)s which of the
+#. meeting's other listings it was, such as "2".
+#: site/templates/moved.html
+#, python-format
+msgid "%(body)s, %(when)s: moved (listing %(part)s)"
+msgstr "%(body)s, %(when)s: página trasladada (publicación %(part)s)"
 
 #: site/templates/category.html
 #, python-format
@@ -778,6 +784,16 @@ msgid ""
 msgstr ""
 "<strong>Reuniones:</strong> el <a href=\"%(calendar)s\">calendario</a> de la ciudad. La página de"
 " cada reunión enlaza a su agenda y a sus actas donde la ciudad las publica."
+
+#. %(source)s is who publishes the schedule, such as "Malden Public Schools".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Scheduled meetings:</strong> the dates %(source)s lists on <a href=\"%(url)s\">its "
+"schedule</a>, shown before their agendas are posted."
+msgstr ""
+"<strong>Reuniones programadas:</strong> las fechas que %(source)s publica en <a "
+"href=\"%(url)s\">su calendario</a>, que se muestran antes de que se publiquen sus agendas."
 
 #. %(source)s names where the documents are kept, such as "the School Committee's Google Drive".
 #. %(since)s is a month, such as "January 2024".
@@ -5475,6 +5491,10 @@ msgstr "abra un reporte en el <a href=\"%(issues)s\">registro público de proble
 msgctxt "year's count"
 msgid "partly estimated"
 msgstr "estimado en parte"
+
+#: pipeline/build_site.py
+msgid "published schedule"
+msgstr "calendario publicado"
 
 #: pipeline/build_site.py
 msgid "school district's website"

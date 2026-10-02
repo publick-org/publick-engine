@@ -17,7 +17,8 @@ PDFs named for the meeting's date) and a town website with a meetings calendar
 and one documents page for every board's agendas and minutes
 ([meetings.file_list], which also saves agendas and lists minutes), and a
 school district's calendar feed ([ical_meetings]: its board's meetings, as
-the district's own, without documents). A town can
+the district's own, without documents), and a page listing a board's dates
+for the year ([schedule_meetings]). A town can
 have several; Manchester's aldermanic meetings are on CivicClerk and its other
 boards on the city calendar, and Malden lists its meetings on its calendar and
 posts their agendas in its Agenda Center. A meeting listed in more than one
@@ -43,7 +44,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
@@ -394,6 +395,18 @@ def ical_calendar(config: dict) -> Calendar:
     return Calendar(settings["source_name"], events, lambda m: m.get("source") == ical.SOURCE)
 
 
+def schedule_calendar(config: dict) -> Calendar:
+    """A page listing a board's meeting dates for the year ([schedule_meetings]): its upcoming
+    dates, to days_ahead (default 60) days out, one request."""
+    settings = config["schedule_meetings"]
+
+    def events(client, today, store):
+        ahead = (today + timedelta(days=settings.get("days_ahead", 60))).isoformat()
+        return schedule.meetings(client.get(settings["url"]).text, settings, today.isoformat(), ahead)
+
+    return Calendar(f"{settings['source_name']} schedule", events, lambda m: m.get("source") == schedule.SOURCE)
+
+
 def calendars(config: dict) -> list[Calendar]:
     """The town's meeting calendars, by the tables in [meetings]."""
     source = config["meetings"]
@@ -412,6 +425,8 @@ def calendars(config: dict) -> list[Calendar]:
         found.append(file_list_calendar(config))
     if "ical_meetings" in config:
         found.append(ical_calendar(config))
+    if "schedule_meetings" in config:
+        found.append(schedule_calendar(config))
     return found
 
 

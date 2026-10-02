@@ -16,7 +16,7 @@
 {% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
-{% set district = m.source in ("drive", "finalsite", "ical") %}
+{% set district = m.source in ("drive", "finalsite", "ical", "schedule") %}
 {% set documents_only = m.source == "archive" or district %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>

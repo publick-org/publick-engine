@@ -285,3 +285,29 @@ def test_a_board_keeps_the_name_first_recorded(name, expected):
     from pipeline.meeting_names import words
     known = {words(b): b for b in ("Open Space & Recreation Committee", "Cultural Council", "Malden Housing Authority")}
     assert fetch_meetings.known_body(name, known, "Malden") == expected
+
+
+def test_a_meeting_posted_three_times_has_two_moved_pages(malden, tmp_path):
+    """Each earlier listing's page says where the meeting is now, under a title of its own."""
+    from conftest import BUILT_AT
+    from test_site import parse
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
+    page = AGENDA_PAGE.replace("09222026-4441", "10062026-4441").replace("09222026-4442", "10062026-4442")
+    page = page.replace("Finance Committee Agenda - September 22, 2026", "City Council Agenda - REVISED")
+    fetch_meetings.run(malden, FakeMalden(page), tmp_path, now=NOW)
+    malden["sections"] = [s for s in malden["sections"] if s["slug"] in ("meetings", "about")]
+    for table in ("seeclickfix", "permits", "finance", "schools", "housing", "labor", "freshness", "summaries"):
+        malden.pop(table, None)
+    out = tmp_path / "site"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(build_site, "load_config", lambda slug: malden)
+        build_site.build("malden", out, data_dir=tmp_path, now=BUILT_AT)
+    council = next(m for m in build_site.load_meetings(tmp_path, NOW.date())["all"]
+                   if m["date"] == "2026-10-06" and m["body"] == "City Council")
+    assert len(council["also_urls"]) == 2
+    titles = [parse(out / u.strip("/") / "index.html").title for u in council["also_urls"]]
+    assert len(set(titles)) == 2 and all("moved (listing" in t for t in titles)
+    moved = (out / council["also_urls"][0].strip("/") / "index.html").read_text()
+    assert f'url={council["url"]}' in moved and 'name="robots" content="noindex"' in moved
+    sitemap = (out / "sitemap.xml").read_text()
+    assert council["url"] in sitemap and council["also_urls"][0] not in sitemap

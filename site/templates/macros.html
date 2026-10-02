@@ -16,7 +16,7 @@
 {%- if (m.get("correction") or {}).get("doubtful") and m.listed and m.status == "scheduled" %}{% set __ = parts.append(pgettext("meeting", "May not take place")) %}{% endif -%}
 {%- if not m.listed %}
 {#- Translators: %(source)s is who keeps the schedule, such as a school district's name. -#}
-{%- if m.get("source") == "drive" %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
+{%- if m.get("source") in ("drive", "schedule") %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
 {#- Translators: %(listing)s is where the city lists meetings, such as "city's meeting portal". -#}
 {%- else %}{% set __ = parts.append(_("Removed from %(listing)s", listing=m.get("listing", "city calendar"))) %}{% endif %}{% endif -%}
 {%- for p in parts %}<span class="flag">{{ p }}</span>{% if not loop.last %} · {% endif %}{% endfor -%}
