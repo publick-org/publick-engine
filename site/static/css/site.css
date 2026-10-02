@@ -220,7 +220,10 @@ main .meeting-list > li { max-width: none; margin: 0; }
 }
 .meeting-meta { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.875rem; }
 .meeting-meta .flag { color: var(--accent); }
-@media (max-width: 22rem) { .meeting-item { grid-template-columns: 1fr; } }
+/* Spanish times ("12:00 p. m.") are longer; "time to be announced" may wrap. */
+:lang(es) .meeting-item { grid-template-columns: 6.25rem 1fr; }
+.meeting-when .small { white-space: normal; }
+@media (max-width: 22rem) { .meeting-item, :lang(es) .meeting-item { grid-template-columns: 1fr; } }
 
 /* Decisions: one block per meeting, its votes as a plain list. */
 .decision-list { margin: 0; padding: 0; list-style: none; }

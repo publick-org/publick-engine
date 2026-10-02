@@ -74,7 +74,7 @@
 {% macro meeting_item(m, show_date=false, show_body=true, preview=true) -%}
 <li class="meeting-item">
   <span class="meeting-when">
-    {%- if show_date %}<time datetime="{{ m.date }}">{{ m.date | date("mon") }} {{ m.date | date("day") }}</time>
+    {%- if show_date %}<time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time>
     {%- elif m.start_time %}<time datetime="{{ m.date }}T{{ m.start_time }}">{{ m.start_time | time }}</time>
     {%- else %}<span class="small">{{ _("Time TBA") }}</span>{% endif -%}
   </span>

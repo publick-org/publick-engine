@@ -145,10 +145,14 @@ def test_axe_no_violations(browser, axe, server_url, path, viewport):
     page.goto(server_url + path)
     results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    # A meeting's time (or "Time TBA", longer in Spanish) must fit its column, not run into the name beside it.
+    crowded = page.evaluate("""() => [...document.querySelectorAll('.meeting-when')]
+        .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim())""")
     context.close()
     problems = "\n".join(f"- [{v['impact']}] {v['id']}: {v['help']}" for v in results.response["violations"])
     assert results.violations_count == 0, f"{path} ({viewport}):\n{problems}"
     assert overflow <= 0, f"{path} scrolls sideways by {overflow}px ({viewport})"
+    assert not crowded, f"{path}: meeting times wider than their column ({viewport}): {crowded[:3]}"
 
 
 def test_skip_link_and_404(browser, server_url):
