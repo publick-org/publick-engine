@@ -139,7 +139,7 @@
   <thead><tr><th scope="col">{{ pgettext("property", "Type") }}</th><th scope="col" class="num">{{ _("Parcels") }}</th></tr></thead>
   <tbody>
   {% for name, n in pc.types | dictsort(by="value", reverse=true) %}
-    <tr><th scope="row">{{ name }}</th><td class="num">{{ n | number }}</td></tr>
+    <tr><th scope="row">{{ data_label(name) }}</th><td class="num">{{ n | number }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
