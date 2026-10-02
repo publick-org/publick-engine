@@ -2,9 +2,9 @@
 
 import json
 
-from conftest import FETCHED_AT
+from conftest import BUILT_AT, FETCHED_AT
 from fakes import FakePermits
-from pipeline import fetch_permits
+from pipeline import build_site, fetch_permits
 from pipeline.config import load_config
 from pipeline.streets import addresses_in, street_keys, street_name
 
@@ -24,6 +24,10 @@ def test_street_names_match_across_sources():
 def test_addresses_in_agenda_text():
     text = "38 Pleasant Street (Map 14, Lot 17) - door; 62-66 Eastern Point Blvd; posted 2026 15 September Road"
     assert addresses_in(text) == ["38 Pleasant Street", "62-66 Eastern Point Blvd"]
+    # An order number isn't a house number; a range of them is.
+    assert addresses_in("033/26 One Way - Fairmont Street from Auburn Street") == []
+    assert addresses_in("h. 228/230 Clifton St/Pillacia") == ["228/230 Clifton St"]
+    assert addresses_in("Open Space parcel, 0 Trask Lane; NOI 028-3146 Keystone Road") == ["0 Trask Lane"]
 
 
 def test_permits_newest_export_building_and_demolition_only(tmp_path):
@@ -56,3 +60,15 @@ def test_street_page_and_index(site_dir):
     assert "Owner" not in json.dumps(index)
     home = (site_dir / "index.html").read_text()
     assert 'action="/streets/"' in home
+
+
+def test_street_index_leaves_out_other_towns_addresses():
+    """An applicant's own address elsewhere isn't a street in this town."""
+    meeting = {"url": "/meetings/2026-10-07-planning-board/", "date": "2026-10-07", "body": "Planning Board",
+               "address": "", "minutes_summary": None, "preview": {"transcript": (
+                   "1. Group of 11 Azsr Ct, Halethorpe MD, for a special permit at 141 Winthrop Ave.\n"
+                   "2. 9 Essex St, North Andover, MA, for 539 Common St.\n"
+                   "3. 12 Broadway Ave, Unit 3, for a variance.")}}
+    town = {"name": "Lawrence", "state_abbr": "MA"}
+    index = build_site.street_index([meeting], [], [], BUILT_AT.date(), town)
+    assert sorted(index["streets"]) == ["BROADWAY AVE", "COMMON ST", "WINTHROP AVE"]
