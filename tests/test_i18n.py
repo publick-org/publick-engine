@@ -26,6 +26,15 @@ def test_string_files_are_current():
             f"site/strings/{lang}.po is out of date: run python -m pipeline.i18n update")
 
 
+def test_no_wording_marked_inside_an_f_string():
+    """Python 3.12 finds a _() inside an f-string and 3.11 doesn't, so the string files would
+    differ by Python version: wording to translate goes in a variable first."""
+    inside = re.compile(r"""\bf(["'])[^\n]*?\{[^}\n]*\b(?:_|ngettext|pgettext|npgettext)\(""")
+    found = [f"{path.relative_to(i18n.ENGINE_DIR)}:{n}" for path in sorted((i18n.ENGINE_DIR / "pipeline").rglob("*.py"))
+             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1) if inside.search(line)]
+    assert not found, found
+
+
 @pytest.mark.parametrize("lang", i18n.other_languages())
 def test_translations_keep_placeholders(lang):
     """A translation names the same values as its English, so none is lost or left unfilled."""

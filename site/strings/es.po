@@ -1290,7 +1290,7 @@ msgstr ""
 msgid "City"
 msgstr "Ciudad"
 
-#: site/templates/base.html
+#: pipeline/build_site.py site/templates/base.html
 msgid "City Hall updates"
 msgstr "Novedades de la Alcaldía"
 
@@ -2608,6 +2608,11 @@ msgid "New agendas and minutes from every board are in this site's <a href=\"/fe
 msgstr ""
 "Las nuevas agendas y actas de todas las juntas están en el <a href=\"/feed.xml\">canal RSS</a> de"
 " este sitio."
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "New agendas and minutes from {town} city boards and committees."
+msgstr "Nuevas agendas y actas de las juntas y comités de la ciudad de {town}."
 
 #: site/pages/housing/index.html
 msgid "New homes"
