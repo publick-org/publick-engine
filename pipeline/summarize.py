@@ -49,7 +49,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import pdftext, translate, votes
+from pipeline import factcheck, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError
@@ -594,22 +594,27 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         done += 1
     # Readable text. First the documents' own text, which costs nothing: summaries saved
     # before it was used, or before the layout rules last changed. Roll call votes, also
-    # free, are read with it, and again when the rules or the body's members change.
+    # free, are read with it, and again when the rules or the body's members change; and the
+    # summary is checked against the same text (pipeline/factcheck.py).
     laid_out = 0
     later = summarized_documents(data_dir)
+    words = translate.town_words(data_dir)
     for kind, meeting, doc, record in later:
         if laid_out >= TEXT_PER_RUN:
             break
         members = votes.members_for(config, meeting["body"])
         text_current = record.get("text_version") == pdftext.VERSION
-        if text_current and votes.current(record, members):
+        if text_current and votes.current(record, members) and factcheck.current(record):
             continue
         try:
             pdf = storage.get(KINDS[kind]["folder"], doc["file"])
         except FetchError as e:
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
-        save_record(data_dir, doc["sha256"], votes.read(record if text_current else own_text(record, pdf), pdf, members))
+        record = votes.read(record if text_current else own_text(record, pdf), pdf, members)
+        if record.get("is_minutes") is not False:
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+        save_record(data_dir, doc["sha256"], record)
         laid_out += 1
     # Older documents' translations, from what's left of the budget for older documents.
     if not stopped:
@@ -652,6 +657,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         record = {**record, "transcript": text, "transcript_source": "ai", "transcript_usage": usage,
                   "transcript_cost": round(paid, 6)}
         record.pop("needs_transcript", None)
+        if record.get("is_minutes") is not False:
+            # A scan's summary can now be checked, against the transcription (weaker: both are the model's).
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
         save_record(data_dir, doc["sha256"], record)
         for k in tokens:
             tokens[k] += usage[k]

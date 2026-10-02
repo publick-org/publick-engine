@@ -267,6 +267,18 @@ def test_a_legistar_document_gets_its_own_text_and_no_transcription(tmp_path):
     assert "plain_text" not in record
 
 
+def test_a_summary_is_checked_against_its_documents_text(tmp_path):
+    """The fake summary's site plan at "12 Main St." isn't in the fixture minutes: the check says so."""
+    config = load_config("gloucester")
+    sha = minutes_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    check = saved(tmp_path, sha)["fact_check"]
+    assert check["source"] == "pdf" and check["result"] == "failed"
+    assert {"field": "headline", "kind": "number", "what": "12"} in check["problems"]
+    # Done once: the next run doesn't read the document again.
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["laid_out"] == 0
+
+
 def test_an_old_ai_transcript_is_replaced_by_the_documents_own_text(tmp_path):
     config = load_config("gloucester")
     sha = minutes_town(tmp_path)
