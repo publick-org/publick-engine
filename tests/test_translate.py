@@ -48,6 +48,21 @@ def test_numbers_are_checked_without_ai():
     assert translate.check(source, {**good, "summary": ""}, "minutes") == "summary: missing"
 
 
+def test_dates_in_figures_may_be_written_out():
+    """Agendas write "Tabled on 9/23/2026"; the Spanish writes "23 de septiembre de 2026"."""
+    source = {"headline": "Two licenses.", "summary": "Hearing.", "items": ["Tabled on 9/23/2026 - License #LL26-000039"]}
+    def items(text):
+        return translate.check(source, {"headline": "Dos licencias.", "summary": "Audiencia.", "items": [text]}, "agenda")
+    assert items("Pospuesto el 23 de septiembre de 2026 - Licencia #LL26-000039") == "ok"
+    assert items("Pospuesto el 23/9/2026 - Licencia #LL26-000039") == "ok"
+    assert items("Pospuesto el 9/23/26 - Licencia #LL26-000039") == "ok"
+    # The wrong day, month, or year, or a lost number elsewhere, still fails.
+    assert items("Pospuesto el 24 de septiembre de 2026 - Licencia #LL26-000039") == "items 1: 23, 9 not in the translation"
+    assert items("Pospuesto el 23 de agosto de 2026 - Licencia #LL26-000039").startswith("items 1:")
+    assert items("Pospuesto el 23 de septiembre de 2025 - Licencia #LL26-000039").startswith("items 1:")
+    assert items("Pospuesto el 23 de septiembre de 2026 - Licencia #LL26-000038") == "items 1: 000039 not in the translation"
+
+
 def test_every_summary_is_translated_and_checked(tmp_path):
     config = spanish_town(tmp_path)
     client = FakeAnthropic()
@@ -115,6 +130,21 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
     assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+
+
+def test_the_check_runs_again_when_shown(tmp_path):
+    """A translation saved as failed by an older, stricter check is shown once it passes,
+    without paying for it again; one saved as passing that now fails isn't."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    english = {sha: json.loads((tmp_path / "summaries" / f"{sha}.json").read_text()) for sha in translations(tmp_path)}
+    # One whose English headline has a number, so a translation without it fails.
+    sha, record = next((s, r) for s, r in translations(tmp_path).items() if translate.NUMBER.search(english[s]["headline"]))
+    file = translate.path(tmp_path, "es", sha)
+    file.write_text(json.dumps({**record, "check": "headline: 9 not in the translation"}))
+    assert translate.shown(tmp_path, "es", sha, english[sha], record["kind"])
+    file.write_text(json.dumps({**record, "headline": "Sin números."}))
+    assert translate.shown(tmp_path, "es", sha, english[sha], record["kind"]) is None
 
 
 def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
