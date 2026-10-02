@@ -88,7 +88,7 @@ msgstr ""
 #. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format
-msgid "%(count)s more decisions"
+msgid "%(count)s more decision"
 msgid_plural "%(count)s more decisions"
 msgstr[0] ""
 msgstr[1] ""
@@ -96,7 +96,7 @@ msgstr[1] ""
 #. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format
-msgid "%(count)s more recommendations"
+msgid "%(count)s more recommendation"
 msgid_plural "%(count)s more recommendations"
 msgstr[0] ""
 msgstr[1] ""
@@ -3029,18 +3029,24 @@ msgstr ""
 #. %(month)s is a month, such as "Aug 2026"; %(homes)s is a number of homes.
 #: site/pages/housing/index.html
 #, python-format
-msgid "So far in %(year)s, through %(month)s: %(homes)s homes, estimated."
-msgstr ""
+msgid "So far in %(year)s, through %(month)s: %(homes)s home, estimated."
+msgid_plural "So far in %(year)s, through %(month)s: %(homes)s homes, estimated."
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/pages/housing/index.html
 #, python-format
-msgid "So far in %(year)s, through %(month)s: %(homes)s homes, partly estimated."
-msgstr ""
+msgid "So far in %(year)s, through %(month)s: %(homes)s home, partly estimated."
+msgid_plural "So far in %(year)s, through %(month)s: %(homes)s homes, partly estimated."
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/pages/housing/index.html
 #, python-format
-msgid "So far in %(year)s, through %(month)s: %(homes)s homes."
-msgstr ""
+msgid "So far in %(year)s, through %(month)s: %(homes)s home."
+msgid_plural "So far in %(year)s, through %(month)s: %(homes)s homes."
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
