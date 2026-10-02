@@ -258,6 +258,10 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   checks each town's upcoming meetings against the city's own sites, about
   weekly while towns are added. An automatic check would read the cities'
   sites the same way the pipeline does, and miss what it misses.
+- **A correction can go up in English first** (decided 2026-10-02): its
+  Spanish in `[strings.es]` is welcome but not needed; without it the Spanish
+  page shows the English note until the town's next run drafts it, like the
+  town's other text.
 
 ### Ideas to decide
 
@@ -328,8 +332,6 @@ From the October 2026 review, still to decide:
   otherwise): raised for good, or kept with backlog summaries through the
   Batches API.
 - Who the second person with owner access is.
-- Whether every correction's Spanish is written by a person (Manchester's
-  first one was), rather than drafted with the town's other text.
 
 ## The work, by theme
 
@@ -1068,8 +1070,6 @@ called a city.
   it's simple; otherwise leave them.
 - Beverly posts agendas early, so most of its week has summaries; if its home
   page grows in a heavy week, the six-meeting rule already holds it.
-- Corrections in Spanish written by a person, not drafted, since they're
-  Publick's own statements (open: see [Open decisions](#open-decisions-for-the-maintainer)).
 
 **Matters at:** now.
 
