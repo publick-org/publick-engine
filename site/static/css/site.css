@@ -176,7 +176,7 @@ main .link-row li + li { margin-top: 0; }
 /* ---- Headline numbers ---- */
 
 .stats {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 1rem 0 0.5rem; padding: 0; list-style: none;
   border-top: 2px solid var(--primary-dark);
 }
@@ -191,10 +191,13 @@ main .stats > li { max-width: none; margin: 0; }
   display: block; margin: 0.25rem 0; color: var(--primary-dark); font-family: var(--serif); font-size: 2.1rem; font-weight: 700;
   line-height: 1.1; letter-spacing: -0.01em;
 }
+/* A value in words ("Not enough data") rather than a number; long words wrap rather than widen the grid. */
+.stat-value-text { font-size: 1.25rem; line-height: 1.25; }
+.stat-label, .stat-value, .stat-change { overflow-wrap: break-word; hyphens: auto; }
 .stat-change { display: block; font-size: 0.9rem; line-height: 1.4; }
 .stat-source { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
 @media (min-width: 48rem) {
-  .stats { grid-template-columns: repeat(4, 1fr); }
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .stat { border-right: 1px solid var(--line); }
   .stat:last-child { border-right: 0; }
   .stat > a, .stat > div { padding-left: 0.85rem; }
