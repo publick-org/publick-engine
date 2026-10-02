@@ -1325,15 +1325,18 @@ def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:
 def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, built_at: datetime, limit: int = 50) -> None:
     """RSS feed of City Hall updates: each agenda and set of minutes as it is posted."""
     items = []
+    # A feed reader shows the description on its own, so a summary says it was written by AI.
     for m in meetings:
         when = format_date(m["date"])
         if m["agenda"]:
+            summary = (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary")
             items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
-                          (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary") or _("Agenda posted.")))
+                          summary + " " + _("(AI summary of the agenda. Check the original.)") if summary else _("Agenda posted.")))
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
+            summary = ms.get("headline") or ms.get("summary")
             items.append((m["minutes_doc"]["fetched_at"], "minutes", _("{board}: minutes of {date}").format(board=m["body"], date=when), m,
-                          ms.get("headline") or ms.get("summary") or _("Minutes posted.")))
+                          summary + " " + _("(AI summary of the minutes. Check the original.)") if summary else _("Minutes posted.")))
     items.sort(key=lambda i: i[0], reverse=True)
     site = config["site"]
     entries = "".join(

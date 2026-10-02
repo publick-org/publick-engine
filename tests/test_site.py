@@ -370,6 +370,42 @@ def test_decisions_are_sorted_for_residents():
         "Paid <strong>$3,100</strong>, <strong>$51,317.23</strong> &amp; <strong>$1.2 million</strong> &lt;x&gt;")
 
 
+def test_summaries_in_lists_say_they_are_ai(site_dir):
+    """A summary shown in a list says it's AI-written, after the summary, where the meeting's own
+    details are; a row without one doesn't. The feed says so in words."""
+    home = (site_dir / "index.html").read_text()
+    rows = re.findall(r'<li class="meeting-item">.*?</li>', home, re.S)
+    assert rows and all(("meeting-preview" in r) == ("AI summary" in r) for r in rows)
+    assert any("AI summary · Agenda posted" in r for r in rows) and any("AI summary · Minutes posted" in r for r in rows)
+    for row in rows:
+        if "AI summary" in row:
+            assert row.index("meeting-preview") < row.index("AI summary")
+    feed = (site_dir / "feed.xml").read_text()
+    for item in re.findall(r"<description>(.*?)</description>", feed)[1:]:
+        assert item in ("Agenda posted.", "Minutes posted.") or item.endswith(
+            ("(AI summary of the agenda. Check the original.)", "(AI summary of the minutes. Check the original.)"))
+
+
+def test_public_hearings_say_their_summary_is_ai(tmp_path):
+    """The public hearings box: the date, the summary on its own line, then "AI summary" under it."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    for path in (data / "summaries").glob("*.json"):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "agenda":
+            rec["items"] = [*rec.get("items", []), "Public hearing on the Harbor Plan"]
+            path.write_text(json.dumps(rec))
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    home = (tmp_path / "site" / "index.html").read_text()
+    box = home[home.index('class="notice"'):]
+    box = box[:box.index("</div>")]
+    hearing = re.search(r"<li>.*?</li>", box, re.S).group(0)
+    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary</span></li>$', hearing)
+    assert hearing.index("<time") < hearing.index("AI summary")
+
+
 def test_feed_is_valid_rss(site_dir):
     import xml.dom.minidom
     feed = xml.dom.minidom.parse(str(site_dir / "feed.xml"))

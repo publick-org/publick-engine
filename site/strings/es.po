@@ -405,6 +405,14 @@ msgstr "%(who)s publicó aquí una agenda en vez de las actas. Las actas pueden 
 msgid "%(who)s posted this as a scanned image."
 msgstr "%(who)s publicó esto como una imagen escaneada."
 
+#: pipeline/build_site.py
+msgid "(AI summary of the agenda. Check the original.)"
+msgstr "(Resumen de la agenda hecho con IA. Revise el original.)"
+
+#: pipeline/build_site.py
+msgid "(AI summary of the minutes. Check the original.)"
+msgstr "(Resumen de las actas hecho con IA. Revise el original.)"
+
 #. a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward,
 #. %(last)s the last.
 #: site/pages/officials/index.html
@@ -960,6 +968,10 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 #: site/pages/about/index.html
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
+
+#: site/pages/index.html site/templates/macros.html
+msgid "AI summary"
+msgstr "Resumen hecho con IA"
 
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
 #: site/templates/base.html
