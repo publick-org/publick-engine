@@ -795,8 +795,16 @@ something built for one town.
   under `/es/` on the same address (`lawrence-ma.publick.org/es/meetings/`),
   served by the same Worker. Each page links to its other-language version,
   with `lang` and `hreflang` set.
-- A visitor always lands in English. A switch in the header goes to the same
-  page in the other language.
+- A visitor sees the language their browser asks for first (decided
+  2026-10-02): the Worker redirects an English page to the same page in
+  Spanish for a browser set to Spanish. A switch in the header goes to the
+  same page in the other language, and the choice is remembered over the
+  browser's.
+- The Spanish pages are as complete as the English (decided 2026-10-02): a
+  town's site isn't built in Spanish while any of its config's own text has
+  no Spanish, and the engine translates what every town shares (section
+  names). New board names and 311 categories from the city's data show in
+  English, with a warning each run, until the config has them.
 - The sites' own wording (about 10,000 words in the page templates, and the
   phrases built in Python: dates, plurals, durations, money) moves into one
   string file per language. English pages come out unchanged, checked by
@@ -824,6 +832,14 @@ something built for one town.
   config.
 - Search covers the Spanish summaries, and the site checks run on both
   languages.
+
+**Where it stands (2026-10-02).** Built in the engine, on the branch
+`claude/lawrence-spanish-feature-ke6612`, not yet released: the wording marked
+and English pages unchanged across the network's towns; the Spanish pages
+under `/es/`; the Spanish of all of the engine's strings, written to
+`site/strings/es-guide.md` and checked for consistency, waiting for a person's
+check; summaries translated by Haiku and checked without AI; the Worker's
+language choice and Spanish 404 page.
 
 **Before Lawrence launches.** Haiku is tried first on a sample of Lawrence's
 summaries, checking names, amounts, and votes against the English. A person

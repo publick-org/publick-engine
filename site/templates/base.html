@@ -45,9 +45,10 @@
 
   <header class="site-header">
     <div class="wrap masthead">
-      {# The same page in the site's other languages, each named in its own language. #}
+      {# The same page in the site's other languages, each named in its own language. ?lang has the
+         network's Worker remember the choice over the browser's language (worker/sites.js). #}
       {% for v in versions if v.lang != lang %}
-      <a class="language-switch" href="{{ v.path }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}">{{ v.name }}</a>
+      <a class="language-switch" href="{{ v.path }}?lang={{ v.lang }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}">{{ v.name }}</a>
       {% endfor %}
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>

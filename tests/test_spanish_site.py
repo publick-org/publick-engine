@@ -72,8 +72,8 @@ def test_language_attributes_and_switch(built):
         assert '<link rel="alternate" hreflang="en" href="https://gloucester-ma.publick.org/meetings/">' in html
         assert '<link rel="alternate" hreflang="es" href="https://gloucester-ma.publick.org/es/meetings/">' in html
         assert '<link rel="alternate" hreflang="x-default" href="https://gloucester-ma.publick.org/meetings/">' in html
-    assert '<a class="language-switch" href="/es/meetings/" hreflang="es" lang="es">Español</a>' in en
-    assert '<a class="language-switch" href="/meetings/" hreflang="en" lang="en">English</a>' in es
+    assert '<a class="language-switch" href="/es/meetings/?lang=es" hreflang="es" lang="es">Español</a>' in en
+    assert '<a class="language-switch" href="/meetings/?lang=en" hreflang="en" lang="en">English</a>' in es
     assert '<link rel="canonical" href="https://gloucester-ma.publick.org/es/meetings/">' in es
 
 
@@ -104,11 +104,41 @@ def test_spanish_wording(built):
     assert "Concejo Municipal" not in page(out, "/meetings/boards/city-council/")
 
 
-def test_town_texts_without_spanish_are_listed(built):
+def test_town_texts_without_spanish_are_listed(built, config):
     _, _, missing = built
     assert set(missing) == {"es"}
-    assert "Meetings" not in missing["es"] and "City Council" not in missing["es"]
-    assert "Housing" in missing["es"]
+    # The config's own text, and names from the city's data (boards, 311 categories), apart.
+    assert config["site"]["tagline"] in missing["es"]["config"]
+    assert "Meetings" not in missing["es"]["config"] and "City Council" not in missing["es"]["data"]
+    assert "Pothole" not in missing["es"]["data"] and "Board of Health" in missing["es"]["data"]
+
+
+def test_section_names_are_the_engines_to_translate(config):
+    """Every town's sections have the same names, so the engine translates them; a town's own
+    [strings.es] still decides."""
+    with i18n.use("es"):
+        tr = build_site.TownStrings({"strings": {"es": {"Budget": "Las finanzas"}}}, "es")
+        assert tr("Housing") == "Vivienda" and tr("Who represents you") == "Quién lo representa"
+        assert tr("311") == "311" and tr("Budget") == "Las finanzas"
+        assert not tr.missing
+
+
+def test_a_site_isnt_built_in_spanish_without_the_towns_own_text(monkeypatch, capsys):
+    """The config's own text is required in each of the site's languages; names from the city's
+    data only warn, since a new board or category can appear any day."""
+    def build(town, out, data, missing):
+        missing["es"] = {"config": ["Public data on how Gloucester decides."], "data": ["Board of Health"]}
+        return ["/"]
+    monkeypatch.setattr(build_site, "build", build)
+    monkeypatch.setattr("sys.argv", ["build_site", "--town", "gloucester"])
+    with pytest.raises(SystemExit):
+        build_site.main()
+    out = capsys.readouterr().out
+    assert "::warning::Español: 'Board of Health' is shown in English" in out
+    assert "::error::Español" in out and "'Public data on how Gloucester decides.'" in out
+    monkeypatch.setattr(build_site, "build", lambda town, out, data, missing: missing.update(
+        {"es": {"config": [], "data": ["Board of Health"]}}) or ["/"])
+    build_site.main()
 
 
 def test_english_text_is_marked_on_spanish_pages(built):
