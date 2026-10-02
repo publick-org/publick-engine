@@ -132,7 +132,8 @@ export async function handle(request, env) {
       url.searchParams.delete("lang");
       const cookie = choice === "en" || languages.includes(choice)
         ? { "Set-Cookie": `${LANG_COOKIE}=${choice}; Path=/; Max-Age=${YEAR}; SameSite=Lax; Secure` } : {};
-      return redirect(`${url.pathname}${url.search}`, cookie);
+      // One leading slash only: "//other.site/?lang=es" would otherwise send the visitor to another site.
+      return redirect(`/${url.pathname.replace(/^[/\\]+/, "")}${url.search}`, cookie);
     }
     // The homepage, for a visitor who asks for another language.
     if (url.pathname === "/") {
