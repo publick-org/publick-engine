@@ -549,6 +549,26 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     }
 
 
+# School boards, by their usual names: a town's main boards with its governing body.
+SCHOOL_BOARDS = ("School Committee", "Board of Education")
+
+
+def main_boards(config: dict) -> list[str]:
+    """The boards whose meetings the home page always shows in full: the governing body (the
+    City Council), the school board, and any others in [meetings] main_boards."""
+    m = config.get("meetings", {})
+    return [m.get("governing_body", "City Council"), *SCHOOL_BOARDS, *m.get("main_boards", [])]
+
+
+def home_meetings(this_week: list[dict], main: list[str]) -> dict:
+    """This week's meetings for the home page: in full, those with something to read now (an
+    agenda summary, a public hearing) and the main boards';
+    the rest one line each, a tap away. A week with none to show in full shows the rest."""
+    main_words = {words(b) for b in main}
+    full = [m for m in this_week if m["preview"] or m["public_hearing"] or words(m["body_en"]) in main_words]
+    return {"count": len(this_week), "full": full, "more": [m for m in this_week if m not in full]}
+
+
 def meeting_links(config: dict) -> dict:
     """The city's own meeting pages, linked from this site's, and whether the
     town collects agendas and minutes ([meetings] documents, default true). The
@@ -951,6 +971,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # Where this language's pages are: "" for English, "/es" for Spanish.
     prefix = "" if lang == "en" else f"/{lang}"
     english = lang == "en"
+    # The town's main boards, in English, for the home page (before the config is translated).
+    main = main_boards(config)
     if not english:
         config = localize_config(config, tr)
         site = config["site"]
@@ -968,6 +990,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         m["body"] = tr.board(m["body"])
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
+    meetings["home"] = home_meetings(meetings["this_week"], main)
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS

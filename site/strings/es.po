@@ -131,6 +131,13 @@ msgid_plural "%(count)s more recommendations"
 msgstr[0] "%(count)s recomendación más"
 msgstr[1] "%(count)s recomendaciones más"
 
+#: site/pages/index.html
+#, python-format
+msgid "%(count)s public meeting this week."
+msgid_plural "%(count)s public meetings this week."
+msgstr[0] "%(count)s reunión pública esta semana."
+msgstr[1] "%(count)s reuniones públicas esta semana."
+
 #: site/states/ct/schools.html
 #, python-format
 msgid "%(district)s compared with the state, from the Connecticut State Department of Education."
@@ -1848,6 +1855,10 @@ msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ell
 msgid "Election Commission"
 msgstr "Comisión Electoral"
 
+#: site/pages/index.html
+msgid "Email or text alerts from the city"
+msgstr "Avisos de la ciudad por correo electrónico o mensaje de texto"
+
 #: site/pages/officials/index.html
 #, python-format
 msgid "Email<span class=\"visually-hidden\"> %(name)s</span>"
@@ -2044,15 +2055,6 @@ msgid ""
 msgstr ""
 "Para recibir avisos oficiales por correo electrónico o mensaje de texto sobre esta junta, "
 "inscríbase en el servicio <a href=\"%(url)s\">Notify Me</a> de la ciudad."
-
-#: site/pages/index.html
-#, python-format
-msgid ""
-"For official email or text alerts when a board posts a meeting, sign up for the city's <a "
-"href=\"%(url)s\">Notify Me</a> service."
-msgstr ""
-"Para recibir avisos oficiales por correo electrónico o mensaje de texto cuando una junta publique"
-" una reunión, inscríbase en el servicio <a href=\"%(url)s\">Notify Me</a> de la ciudad."
 
 #: site/templates/board.html
 #, python-format
@@ -3995,6 +3997,13 @@ msgstr ""
 #: site/pages/streets/index.html
 msgid "Short forms like St and Ave work too."
 msgstr "También puede usar abreviaturas como St y Ave."
+
+#: site/pages/index.html
+#, python-format
+msgid "Show %(count)s more meeting this week"
+msgid_plural "Show %(count)s more meetings this week"
+msgstr[0] "Ver %(count)s reunión más de esta semana"
+msgstr[1] "Ver %(count)s reuniones más de esta semana"
 
 #: site/pages/streets/index.html
 #, python-brace-format

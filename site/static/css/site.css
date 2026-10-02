@@ -223,6 +223,12 @@ main .meeting-list > li { max-width: none; margin: 0; }
 }
 .meeting-meta { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.875rem; }
 .meeting-meta .flag { color: var(--accent); }
+/* The home page's list isn't grouped by day: each meeting's day sits above its time. */
+.meeting-day { display: block; color: var(--accent); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.3; }
+/* The rest of the week's meetings, a tap away: one line each, the status after the board. */
+.compact .meeting-item { padding: 0.55rem 0; }
+.compact .meeting-meta { display: inline; margin: 0 0 0 0.4rem; }
+details.more-meetings { margin: 0; border-top: 0; border-bottom: 1px solid var(--line); }
 /* The column fits the longest time, "12:00 PM" ("12:00 p. m." in Spanish), with room to spare;
    "time to be announced" may wrap. */
 :lang(es) .meeting-item { grid-template-columns: 6.75rem 1fr; }

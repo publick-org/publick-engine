@@ -75,9 +75,11 @@
 {%- endmacro %}
 
 {# One meeting as a row: time (or date), name, preview, and plain status words. #}
-{% macro meeting_item(m, show_date=false, show_body=true, preview=true) -%}
+{# show_day: the day above the time, for a list not grouped by day (the home page's). #}
+{% macro meeting_item(m, show_date=false, show_body=true, preview=true, show_day=false) -%}
 <li class="meeting-item">
   <span class="meeting-when">
+    {%- if show_day %}<span class="meeting-day"><time datetime="{{ m.date }}">{{ m.date | date("short") }}</time></span>{% endif -%}
     {%- if show_date %}<time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time>
     {%- elif m.start_time %}<time datetime="{{ m.date }}T{{ m.start_time }}">{{ m.start_time | time }}</time>
     {%- else %}<span class="small">{{ _("Time TBA") }}</span>{% endif -%}

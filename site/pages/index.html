@@ -44,12 +44,26 @@
   </ul>
 </div>
 {% endif %}
-{% if meetings.this_week %}
-{% for day, items in group_by(meetings.this_week, "date") %}{{ day_group(day, items) }}{% endfor %}
+{% set home = meetings.home %}
+{% if home.count %}
+<p class="small">{% trans count=home.count %}{{ count }} public meeting this week.{% pluralize %}{{ count }} public meetings this week.{% endtrans %}</p>
+{# In full: the main boards' meetings and those with something to read now; the rest one line each, a tap away. #}
+{% if home.full %}
+<ul class="meeting-list">
+  {% for m in home.full %}{{ meeting_item(m, show_day=true) }}{% endfor %}
+</ul>
+{% endif %}
+{% if home.more %}
+{% if home.full %}<details class="expand more-meetings">
+<summary>{% trans count=home.more | length %}Show {{ count }} more meeting this week{% pluralize %}Show {{ count }} more meetings this week{% endtrans %}</summary>{% endif %}
+<ul class="meeting-list compact">
+  {% for m in home.more %}{{ meeting_item(m, preview=false, show_day=true) }}{% endfor %}
+</ul>
+{% if home.full %}</details>{% endif %}
+{% endif %}
 {% else %}
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
 {% endif %}
-{% if meeting_links.notify %}<p class="small">{% trans url=meeting_links.notify %}For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</p>{% endif %}
 
 {# ---- Decided ---- #}
 {% if meetings.final %}
@@ -59,7 +73,7 @@
 </div>
 <p class="small">{{ _("From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
 <ul class="meeting-list">
-  {% for m in meetings.final[:5] %}{{ meeting_item(m, show_date=true) }}{% endfor %}
+  {% for m in meetings.final[:3] %}{{ meeting_item(m, show_date=true) }}{% endfor %}
 </ul>
 {% endif %}
 {% endif %}
@@ -82,22 +96,12 @@
 </ul>
 {% endif %}
 
-{# ---- Sections ---- #}
+{# ---- Sections: the menu's pages, and the city's own services, as one row of links ---- #}
 <h2 id="explore">{{ _("Explore") }}</h2>
-<ul class="meeting-list">
-  {% for s in sections if s.slug != "about" %}
-  <li class="meeting-item single">
-    <div class="meeting-main">
-      <a class="meeting-link" href="/{{ s.slug }}/">{{ s.title }}</a>
-      <p class="meeting-preview">{{ s.summary }}</p>
-    </div>
-  </li>
-  {% endfor %}
-</ul>
 <ul class="link-row">
-  {% if config.meetings is defined and meeting_links.documents %}
-  <li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>
-  {% endif %}
+  {% for s in sections if s.slug != "about" %}<li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>{% endfor %}
+  {% if config.meetings is defined and meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
+  {% if config.meetings is defined and meeting_links.documents %}<li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   <li><a href="{{ town.official_site }}">{{ _("City services and news") }}</a></li>
 </ul>
 {% endblock %}

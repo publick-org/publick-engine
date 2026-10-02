@@ -496,3 +496,39 @@ def test_example_street_picks_the_busiest_and_needs_streets():
                          "B": {"name": "Water Street", "meetings_total": 5, "permits_total": 2}}}
     assert example_street(index) == "Water Street"
     assert example_street({"streets": {}}) is None
+
+
+def test_home_shows_the_main_boards_and_what_can_be_read_now():
+    """The home page shows in full a meeting with an agenda summary, a public hearing, or a main
+    board's; the rest of the week's are one line each, a tap away."""
+    from pipeline.build_site import home_meetings, main_boards
+    week = [{"body_en": body, "preview": preview, "public_hearing": hearing}
+            for body, preview, hearing in [("Waterways Board", None, False), ("Conservation Commission", {"summary": "s"}, False),
+                                           ("City Council", None, False), ("School Committee", None, False),
+                                           ("Planning Board", None, True), ("City Council Budget & Finance Committee", None, False)]]
+    home = home_meetings(week, main_boards({"meetings": {}}))
+    assert [m["body_en"] for m in home["full"]] == ["Conservation Commission", "City Council", "School Committee", "Planning Board"]
+    assert [m["body_en"] for m in home["more"]] == ["Waterways Board", "City Council Budget & Finance Committee"]
+    assert home["count"] == 6
+    # A town's own governing body and main boards.
+    assert main_boards({"meetings": {"governing_body": "Town Council", "main_boards": ["Board of Finance"]}}) == [
+        "Town Council", "School Committee", "Board of Education", "Board of Finance"]
+
+
+def test_home_page_layout(site_dir):
+    import re
+    home = (site_dir / "index.html").read_text()
+    week = home[home.index('id="coming-up"'):home.index('id="decided"') if 'id="decided"' in home else home.index('id="numbers"')]
+    count = re.search(r"(\d+) public meetings? this week", week)
+    assert count
+    shown = week.count('class="meeting-item"')
+    assert shown == int(count.group(1))
+    # Each meeting says its day, since the list isn't grouped by day.
+    assert week.count('class="meeting-day"') == shown
+    if "more-meetings" in week:
+        assert re.search(r"Show \d+ more meetings? this week", week)
+    decided = home[home.index('id="decided"'):home.index('id="numbers"')] if 'id="decided"' in home else ""
+    assert decided.count('class="meeting-item"') <= 3
+    # Decisions, then the numbers, then one row of links.
+    assert home.index('id="coming-up"') < home.index('id="numbers"') < home.index('id="explore"')
+    assert 'class="meeting-item single"' not in home
