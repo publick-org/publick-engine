@@ -28,7 +28,18 @@
 <div class="page-head">
   <h1>{{ m.title }}</h1>
   <p class="lede"><time datetime="{{ m.date }}{% if m.start_time %}T{{ m.start_time }}{% endif %}">{{ m.date | date }}{% if m.start_time %} · {{ m.start_time | time }}{% endif %}</time>{% if m.special %} · {{ _("Special meeting") }}{% endif %}</p>
-  {% if m.status != "scheduled" or not m.listed %}<p>{{ meeting_flags(m) }}</p>{% endif %}
+  {% if m.status != "scheduled" or not m.listed or (m.get("correction") or {}).get("doubtful") %}<p>{{ meeting_flags(m) }}</p>{% endif %}
+  {% if m.correction %}
+  {# Publick's own correction of the city's listing ([[meetings.corrections]]), said as one. #}
+  <div class="notice" id="correction">
+    {# Translators: %(site)s is this website's name. #}
+    <p><strong>{% trans site=site.name %}A correction from {{ site }}{% endtrans %}</strong></p>
+    <p>{{ m.correction.note }}{% if m.correction.evidence %} {% trans url=m.correction.evidence %}<a href="{{ url }}">How we know</a>.{% endtrans %}{% endif %}</p>
+    {# Translators: %(time)s is a start time as the city's listing gives it; %(listing)s is where the meeting is listed, such as "city calendar". #}
+    {% if m.correction.start_time and m.listed_time %}<p>{% trans time=m.listed_time | time, listing=m.listing %}The {{ listing }} says {{ time }}.{% endtrans %}</p>{% endif %}
+    <p class="small">{% trans iso=m.correction.checked, when=m.correction.checked | date %}Checked <time datetime="{{ iso }}">{{ when }}</time>. If the city changes this listing, this note comes down until it's checked again.{% endtrans %}</p>
+  </div>
+  {% endif %}
   {% set upcoming = m.date >= built_at.date().isoformat() %}
   {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc or m.documents_url %}
   <div class="actions">
@@ -48,7 +59,7 @@
   <div><dt>{{ _("Where") }}</dt><dd>{% if m.location_name %}{{ m.location_name }}{% if m.address or m.location %}<br>{{ m.address or m.location }}{% endif %}{% else %}{{ m.address or m.location or unlisted }}{% endif %}</dd></div>
   {% if m.remote_url %}<div><dt>{{ _("Online") }}</dt><dd><a href="{{ m.remote_url }}">{{ _("Join by Zoom") }}</a></dd></div>{% endif %}
   {# Translators: %(time)s is a start time, such as "3:30 AM"; %(listing)s is where the meeting is listed, such as "city calendar". #}
-  {% if m.listed_time %}<div><dt>{{ _("Time") }}</dt><dd>{% trans time=m.listed_time | time, listing=m.listing %}Not clear: the {{ listing }} says {{ time }}, which is most likely a typo. Check the agenda or with the board.{% endtrans %}</dd></div>
+  {% if m.listed_time and not m.correction %}<div><dt>{{ _("Time") }}</dt><dd>{% trans time=m.listed_time | time, listing=m.listing %}Not clear: the {{ listing }} says {{ time }}, which is most likely a typo. Check the agenda or with the board.{% endtrans %}</dd></div>
   {% elif not m.start_time and not documents_only %}<div><dt>{{ _("Time") }}</dt><dd>{{ pgettext("meeting time", "Not listed") }}</dd></div>{% endif %}
   {% if m.end_time %}<div><dt>{{ _("Scheduled until") }}</dt><dd>{{ m.end_time | time }}</dd></div>{% endif %}
 </dl>

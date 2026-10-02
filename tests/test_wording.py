@@ -129,3 +129,43 @@ def test_an_agenda_link_is_the_meeting_s_own_when_it_names_its_date(url, own):
     m = meeting(documents_url=url)
     build_site.check_listing(m)
     assert (m["documents_url"] == url) is own and (m["board_documents_url"] == url) is not own
+
+
+# ---- Corrections ---------------------------------------------------------------------------------
+
+def correction(**fields):
+    return {"board": "Arts Commission", "date": "2026-11-09", "checked": "2026-10-02", "doubtful": True,
+            "note": "Left over from the old schedule.", **fields}
+
+
+def listed(**fields):
+    return {"id": "dnn-104218", "date": "2026-11-09", "body": "Arts Commission", "start_time": "17:30", "listed_time": None,
+            "listed": True, "history": [], "listings": [], **fields}
+
+
+def test_a_correction_marks_its_meeting():
+    m = listed()
+    assert build_site.apply_corrections([m], [correction(evidence="https://example.org")]) == []
+    assert m["correction"] == {"note": "Left over from the old schedule.", "evidence": "https://example.org",
+                               "checked": "2026-10-02", "doubtful": True, "start_time": None}
+
+
+def test_a_correction_can_give_the_right_time():
+    m = listed(start_time=None, listed_time="03:30")
+    build_site.apply_corrections([m], [correction(doubtful=False, start_time="15:30", meeting="dnn-104218", board=None, date=None)])
+    assert (m["start_time"], m["listed_time"]) == ("15:30", "03:30")
+
+
+def test_a_correction_comes_down_when_the_city_changes_the_listing():
+    m = listed(history=[{"at": "2026-10-05T07:00:00-04:00", "field": "start_time", "old": "17:30", "new": "18:00"}])
+    problems = build_site.apply_corrections([m], [correction()])
+    assert "correction" not in m and "changed the listing (start_time) after it was checked" in problems[0]
+    # A change before it was checked is the listing it was checked against.
+    m = listed(history=[{"at": "2026-09-05T07:00:00-04:00", "field": "start_time", "old": "17:30", "new": "18:00"}])
+    assert build_site.apply_corrections([m], [correction()]) == [] and m["correction"]
+
+
+def test_a_correction_for_a_meeting_no_longer_listed_is_moot():
+    m = listed(listed=False)
+    assert build_site.apply_corrections([m], [correction()]) == [] and "correction" not in m
+    assert "0 meetings match" in build_site.apply_corrections([], [correction()])[0]

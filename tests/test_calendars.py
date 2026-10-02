@@ -213,6 +213,11 @@ def manchester_site(tmp_path_factory):
     town["sections"] = [s for s in town["sections"] if s["slug"] in ("meetings", "about")]
     for table in ("seeclickfix", "permits", "finance", "schools", "housing", "labor", "freshness", "storage"):
         town.pop(table, None)
+    # The Arts Commission's entry for October 27 most likely won't take place, as found by hand.
+    town["meetings"]["corrections"] = [{
+        "board": "Arts Commission", "date": "2026-10-27", "doubtful": True, "checked": "2026-10-01",
+        "note": "The commission now meets on the fourth Tuesday; this entry is left over from its old schedule.",
+        "evidence": "https://www.manchesternh.gov/arts-commission-schedule"}]
     data_dir = tmp_path_factory.mktemp("manchester-data")
     fetch_meetings.run(town, FakeManchester(), data_dir, now=FETCHED_AT)
     with pytest.MonkeyPatch.context() as mp:
@@ -291,3 +296,24 @@ def test_dnn_revised_agenda_gets_a_new_id():
     first = [{"url": "https://www.manchesternh.gov/Portals/2/2026-09-10 ZBA Agenda.pdf?ver=1", "text": "Agenda"}]
     revised = [{"url": "https://www.manchesternh.gov/Portals/2/2026-09-10 ZBA Agenda.pdf?ver=2", "text": "Agenda"}]
     assert dnn.agenda_file(first, "2026-09-10")["agenda_id"] != dnn.agenda_file(revised, "2026-09-10")["agenda_id"]
+
+
+def test_a_corrected_listing_is_shown_with_the_correction(manchester_site):
+    """A meeting the town's corrections find most likely won't take place stays listed, marked,
+    with the reason and how it's known."""
+    arts = (manchester_site / "meetings" / "2026-10-27-arts-commission" / "index.html").read_text()
+    assert "A correction from" in arts and "left over from its old schedule" in arts
+    assert 'href="https://www.manchesternh.gov/arts-commission-schedule"' in arts and "May not take place" in arts
+    upcoming = (manchester_site / "meetings" / "index.html").read_text()
+    item = upcoming[upcoming.index("/meetings/2026-10-27-arts-commission/"):]
+    assert item.index("May not take place") < item.index("</li>")
+
+
+def test_a_link_for_the_whole_year_is_not_the_meeting_s_agenda(manchester_site):
+    """The Development Corporation's calendar entries link its agenda template for 2026."""
+    mdc = (manchester_site / "meetings" / "2026-10-08-manchester-development-corporation" / "index.html").read_text()
+    assert "No agenda posted yet." in mdc and "the board's documents" in mdc
+    upcoming = (manchester_site / "meetings" / "index.html").read_text()
+    item = upcoming[upcoming.index("/meetings/2026-10-08-manchester-development-corporation/"):]
+    item = item[:item.index("</li>")]
+    assert "Agenda posted" not in item and "No agenda posted yet" in item
