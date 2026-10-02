@@ -20,7 +20,42 @@
   <datalist id="street-names"></datalist>
 </form>
 
-<div id="street" data-index="{{ streets_url }}" data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
+{# Translators: the street lookup's messages; keep each {name} as it is. #}
+{% set strings = {
+  "none": _("None found."),
+  "latest": _("Showing the latest {n}."),
+  "counts": _("{street}: {counts}."),
+  "suggest": _("No exact match. Did you mean one of these?"),
+  "unknown": _("No street by that name was found."),
+  "looking": _("Looking up {street}…"),
+  "failed": _("The street list could not be loaded. Please try again later."),
+} %}
+{# Only the messages for the sources the town has. #}
+{% if config.meetings is defined and meeting_links.documents %}
+{% set ignored = strings.update({
+  "mentions_one": ngettext("{n} agenda and minutes mention", "{n} agenda and minutes mentions", 1),
+  "mentions_other": ngettext("{n} agenda and minutes mention", "{n} agenda and minutes mentions", 2),
+  "meetings_head": _("On agendas and minutes"),
+}) %}
+{% endif %}
+{% if config.permits is defined %}
+{% set ignored = strings.update({
+  "permits_one": ngettext("{n} permit", "{n} permits", 1),
+  "permits_other": ngettext("{n} permit", "{n} permits", 2),
+  "permits_head": _("Building and demolition permits"),
+  "estimated": _("Estimated {amount}"),
+}) %}
+{% endif %}
+{% if config.seeclickfix is defined %}
+{% set ignored = strings.update({
+  "requests_one": ngettext("{n} 311 request", "{n} 311 requests", 1),
+  "requests_other": ngettext("{n} 311 request", "{n} 311 requests", 2),
+  "requests_head": _("311 requests, past 12 months"),
+  "open": pgettext("311 request", "Open"),
+  "closed": pgettext("311 request", "Closed"),
+}) %}
+{% endif %}
+<div id="street" data-index="{{ streets_url }}" data-strings='{{ strings | tojson }}' data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
   <p id="street-status" role="status" aria-live="polite"></p>
   <div id="street-results"></div>
 </div>

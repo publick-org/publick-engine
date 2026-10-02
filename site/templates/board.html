@@ -24,7 +24,7 @@
   {% endif %}
 </div>
 
-{% set part = config.get("participation", {}).get(b.name, {}) %}
+{% set part = config.get("participation", {}).get(b.name_en, {}) %}
 <h2 id="take-part">{{ _("How to follow this board") }}</h2>
 <ul>
   {# Translators: after the city's own instructions for public comment; %(title)s is the page they come from. #}

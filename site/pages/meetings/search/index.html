@@ -12,7 +12,18 @@
   {{ search_form() }}
 </div>
 
-<div id="search" data-index="{{ search_url }}">
+{# Translators: the search's messages. {query} is what was searched for, in quotation marks; keep each {name} as it is. #}
+{% set strings = {
+  "none": _("No meetings match {query}. Try fewer or different words."),
+  "too_many": _("Showing {shown} of {total} meetings that match {query}. Add a word to narrow the list."),
+  "matches_one": ngettext("{n} meeting matches {query}.", "{n} meetings match {query}.", 1),
+  "matches_other": ngettext("{n} meeting matches {query}.", "{n} meetings match {query}.", 2),
+  "kind": _("{kind}: "),
+  "empty": _("Enter a word to search for."),
+  "searching": _("Searching…"),
+  "failed": _("Search couldn't load. Please try again later."),
+} %}
+<div id="search" data-index="{{ search_url }}" data-strings='{{ strings | tojson }}'>
   <noscript><p>{% trans %}Search needs JavaScript. You can browse <a href="/meetings/boards/">boards and committees</a> or <a href="/meetings/past/">past meetings</a> instead.{% endtrans %}</p></noscript>
   <p id="search-status" role="status"></p>
   <ol id="search-results" class="search-results"></ol>

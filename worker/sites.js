@@ -6,7 +6,8 @@
 // read from sites/gloucester-ma.publick.org/current.json, a manifest mapping
 // each path to a blob. Paths resolve as GitHub Pages resolved them: /about/
 // serves about/index.html, /about redirects to /about/, and anything unknown
-// gets the site's 404.html with status 404.
+// gets the site's 404.html with status 404: its language's, for a path under a
+// language's folder (/es/... gets es/404.html).
 
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
@@ -87,7 +88,9 @@ export async function handle(request, env) {
   const { key, redirect } = resolve(manifest.files, url.pathname);
   if (redirect) return Response.redirect(`${url.origin}${redirect}${url.search}`, 301);
   if (key && manifest.files[key]) return serve(request, env, url, key, manifest.files[key], 200);
-  const missing = manifest.files["404.html"];
-  if (missing) return serve(request, env, url, "404.html", missing, 404);
+  const folder = url.pathname.split("/")[1];
+  const notFound = /^[a-z]{2}$/.test(folder) && manifest.files[`${folder}/404.html`] ? `${folder}/404.html` : "404.html";
+  const missing = manifest.files[notFound];
+  if (missing) return serve(request, env, url, notFound, missing, 404);
   return new Response("Not found", { status: 404 });
 }

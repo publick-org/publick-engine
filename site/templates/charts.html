@@ -54,7 +54,7 @@
    map sits next to a list or table with the same places.
    points: [{lat, lng, title, text, url, size?}] #}
 {% macro map_figure(id, points, label) -%}
-<div class="map" id="map-{{ id }}" data-map="map-data-{{ id }}" role="region" aria-label="{{ label }}" hidden></div>
+<div class="map" id="map-{{ id }}" data-map="map-data-{{ id }}" data-strings='{{ {"view": _("View on SeeClickFix"), "new_tab": _("(opens in new tab)")} | tojson }}' role="region" aria-label="{{ label }}" hidden></div>
 <script type="application/json" id="map-data-{{ id }}">{{ points | tojson }}</script>
 {%- endmacro %}
 

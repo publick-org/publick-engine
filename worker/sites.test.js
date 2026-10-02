@@ -17,6 +17,8 @@ const MANIFEST = {
     "index.html": entry("home"),
     "about/index.html": entry("about"),
     "404.html": entry("missing"),
+    "es/index.html": entry("inicio"),
+    "es/404.html": entry("no-encontrada"),
     "feed.xml": entry("feed", "application/xml; charset=utf-8"),
     "static/css/site.css": entry("css", "text/css; charset=utf-8"),
     "meetings/data/decisions.csv": entry("csv", "text/csv; charset=utf-8"),
@@ -70,6 +72,18 @@ test("unknown paths get the site's 404 page", async () => {
     assert.equal(response.status, 404, path);
     assert.equal(await response.text(), "content missing");
     assert.equal(response.headers.get("Cache-Control"), "no-store");
+  }
+});
+
+test("unknown paths in a language's folder get that language's 404 page", async () => {
+  for (const path of ["/es/nope/", "/es/about/extra"]) {
+    const response = await worker.fetch(get(path), env());
+    assert.equal(response.status, 404, path);
+    assert.equal(await response.text(), "content no-encontrada");
+  }
+  // A folder that isn't a language's, or a language the site doesn't have, gets the English page.
+  for (const path of ["/fr/nope/", "/esx/nope/"]) {
+    assert.equal(await (await worker.fetch(get(path), env())).text(), "content missing", path);
   }
 });
 

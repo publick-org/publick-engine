@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import hashlib
 import json
@@ -90,6 +91,23 @@ def mark_new_tab_links(html: str, own_hosts: set[str]) -> str:
             attrs += ' class="external"'
         return f'<a{attrs} target="_blank" rel="noopener">{text}<span class="visually-hidden"> {note}</span></a>'
     return LINK_RE.sub(fix, html)
+
+
+# A tag's links to this site's own pages ("/meetings/", "/311/#open"), as opposed to
+# files ("/static/...", "/311/data/monthly.csv", saved PDFs, "/feed.xml").
+TAG_RE = re.compile(r"<(?:a|form)\b[^>]*>")
+OWN_PAGE_RE = re.compile(r'\b(href|action)="(/(?!/|static/)(?:[^"#?]*/)?)([#?][^"]*)?"')
+
+
+def localize_links(html: str, prefix: str) -> str:
+    """Point a page's links to the site's own pages at the same language's pages
+    (/meetings/ -> /es/meetings/). A link marked with hreflang, the language switch,
+    goes where it says."""
+    def fix(tag: re.Match) -> str:
+        if "hreflang=" in tag.group(0):
+            return tag.group(0)
+        return OWN_PAGE_RE.sub(lambda m: f'{m.group(1)}="{prefix}{m.group(2)}{m.group(3) or ""}"', tag.group(0))
+    return TAG_RE.sub(fix, html)
 
 
 # ---- Template filters ------------------------------------------------------
@@ -197,6 +215,19 @@ def render_markdown(text: str) -> Markup:
     for level in (3, 2, 1):
         html = html.replace(f"<h{level}>", f"<h{level + 2}>").replace(f"</h{level}>", f"</h{level + 2}>")
     return Markup(html)
+
+
+def in_english(value):
+    """Text written in English (an AI summary, a decision), marked as English on another
+    language's page so screen readers pronounce it as English."""
+    if i18n.language() == "en" or value in (None, ""):
+        return value
+    return Markup('<span lang="en">{}</span>').format(value)
+
+
+def in_english_block(html: Markup) -> Markup:
+    """A block of English (a document's full text), marked as English on another language's page."""
+    return html if i18n.language() == "en" else Markup('<div lang="en">{}</div>').format(html)
 
 
 def format_timestamp(value: str) -> str:
@@ -338,6 +369,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
         m["listing"] = _(LISTINGS.get(m["source"], N_("city calendar")))
         m["url"] = f"/meetings/{m['slug']}/"
+        # The board's name as the city writes it; m["body"] is the one shown, translated for another language.
+        m["body_en"] = m["body"]
         m["body_slug"] = slugify(m["body"])
         m["body_url"] = f"/meetings/boards/{m['body_slug']}/"
         m["agenda"] = m["agendas"][-1] if m.get("agendas") else None
@@ -386,7 +419,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     for m in meetings:
         boards[m["body_slug"]].append(m)
     board_list = sorted(
-        ({"slug": s, "name": ms[-1]["body"], "url": ms[0]["body_url"], "meetings": ms[::-1],
+        ({"slug": s, "name": ms[-1]["body"], "name_en": ms[-1]["body"], "url": ms[0]["body_url"], "meetings": ms[::-1],
           "next": next((m for m in ms if m["date"] >= today_s), None)} for s, ms in boards.items()),
         key=lambda b: b["name"].lower(),
     )
@@ -441,8 +474,9 @@ def plain_text(transcript: str | None) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def search_index(meetings: list[dict]) -> list[dict]:
-    """Every meeting's board, date, and document text, for /meetings/search/."""
+def search_index(meetings: list[dict], prefix: str = "") -> list[dict]:
+    """Every meeting's board, date, and document text, for /meetings/search/. prefix is
+    the language's (/es) for its links."""
     rows = []
     for m in meetings:
         docs = []
@@ -452,7 +486,7 @@ def search_index(meetings: list[dict]) -> list[dict]:
         if ms:
             docs.append({"kind": _("Minutes") if ms.get("is_minutes", True) else _("Agenda"),
                          "text": plain_text(doc_text(ms))})
-        rows.append({"url": m["url"], "board": m["body"], "date": m["date"],
+        rows.append({"url": prefix + m["url"], "board": m["body"], "date": m["date"],
                      "date_text": format_date(m["date"]), "docs": [d for d in docs if d["text"]]})
     return rows[::-1]
 
@@ -595,13 +629,135 @@ def map_points(sc: dict | None) -> dict:
     return {"recent": recent, "repeats": repeats}
 
 
+# ---- A town's own text in another language ------------------------------------
+
+class TownStrings:
+    """A town's own text in the language being built, from its config's [strings.<language>]
+    table: each English text (a tagline, a section's title, a board's or a 311 category's name)
+    and its translation. Text without one is shown in English, and noted in missing."""
+
+    def __init__(self, config: dict, lang: str):
+        self.english = lang == "en"
+        self.strings = config.get("strings", {}).get(lang, {})
+        self.missing: set[str] = set()
+
+    def __call__(self, text):
+        if self.english or not isinstance(text, str) or not text:
+            return text
+        if text not in self.strings:
+            self.missing.add(text)
+        return self.strings.get(text, text)
+
+    def board(self, name: str) -> str:
+        """A board's name, with its official English name after it so readers can match
+        it to the city's notices: "Concejo Municipal (City Council)"."""
+        translated = self(name)
+        return name if translated == name else f"{translated} ({name})"
+
+
+def localize_config(config: dict, tr: TownStrings) -> dict:
+    """The config with the text it shows on pages in the language being built. Names the
+    build matches against data (boards, glossary terms, slugs) stay as they are."""
+    config = copy.deepcopy(config)
+    for key in ("tagline", "masthead"):
+        if key in config["site"]:
+            config["site"][key] = tr(config["site"][key])
+    for section in config["sections"]:
+        for key in ("title", "nav", "summary"):
+            if key in section:
+                section[key] = tr(section[key])
+    for part in config.get("participation", {}).values():
+        for key in ("comment", "source_title", "video_title"):
+            if key in part:
+                part[key] = tr(part[key])
+    for entry in config.get("glossary", []):
+        entry["definition"] = tr(entry["definition"])
+    for source in config.get("freshness", {}).get("sources", []):
+        source["label"] = tr(source["label"])
+    meetings = config.get("meetings", {})
+    if "archive_name" in meetings:
+        meetings["archive_name"] = tr(meetings["archive_name"])
+    if "governing_body" in meetings:
+        meetings["governing_body"] = tr.board(meetings["governing_body"])
+    return config
+
+
+def localize_officials(officials: dict, tr: TownStrings) -> None:
+    """The Officials page's bodies, seats, and roles in the language being built."""
+    def member(m: dict) -> None:
+        for key in ("seat", "role"):
+            if m.get(key):
+                m[key] = tr(m[key])
+    for body in officials["bodies"]:
+        body["name"] = tr.board(body["name"])
+        if body.get("note"):
+            body["note"] = tr(body["note"])
+        for m in body["members"]:
+            member(m)
+    for ward in officials["wards"]:
+        for m in ward["members"]:
+            m["body"] = tr.board(m["body"])
+            member(m)
+
+
+def localize_categories(value, tr: TownStrings) -> None:
+    """Every 311 category name in the scorecard (or a list of requests), in the language being built."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "category" and isinstance(item, str):
+                value[key] = tr(item)
+            else:
+                localize_categories(item, tr)
+    elif isinstance(value, list):
+        for item in value:
+            localize_categories(item, tr)
+
+
 # ---- Build -----------------------------------------------------------------
 
+def languages(config: dict) -> list[str]:
+    """The languages a town's site is built in ([site] languages): English, then any others."""
+    langs = config["site"].get("languages", ["en"])
+    unknown = [lang for lang in langs if lang not in i18n.LANGUAGES]
+    if not langs or langs[0] != "en" or unknown or len(set(langs)) != len(langs):
+        raise SystemExit(f"[site] languages in config/{config['slug']}.toml must start with \"en\", list each language once, "
+                         f"and use only {', '.join(i18n.LANGUAGES)}" + (f" (not {', '.join(unknown)})" if unknown else "") + ".")
+    return langs
+
+
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
-          town_static: Path = TOWN_STATIC_DIR) -> list[str]:
-    """Render every page and write supporting files. Returns the page URLs built."""
+          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None) -> list[str]:
+    """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built.
+
+    English pages are at the site's root; another language's are under /<language>/
+    (/es/meetings/), with the same data. Files that aren't pages (static files, downloads,
+    saved PDFs, the feed) are written once, with the English. missing, if given, gets each
+    other language's town texts that have no translation in the config's [strings.<language>]."""
     config = load_config(town)
+    built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
+    langs = languages(config)
+    urls = []
+    for lang in langs:
+        tr = TownStrings(config, lang)
+        with i18n.use(lang):
+            urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
+        if missing is not None and tr.missing:
+            missing[lang] = sorted(tr.missing)
+    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, built_at)
+    return urls
+
+
+def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
+                   town_static: Path, tr: TownStrings) -> list[str]:
+    """One language's pages, and with English the files every language shares."""
+    town = config["slug"]
     site = config["site"]
+    # Where this language's pages are: "" for English, "/es" for Spanish.
+    prefix = "" if lang == "en" else f"/{lang}"
+    english = lang == "en"
+    if not english:
+        config = localize_config(config, tr)
+        site = config["site"]
     state = states.for_town(config)
     for section in config["sections"]:
         kind = states.SECTIONS.get(section["slug"])
@@ -610,8 +766,11 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
                              f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
-    built_at = now or datetime.now(ZoneInfo(site["timezone"]))
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+    for m in meetings["all"]:
+        m["body"] = tr.board(m["body"])
+    for b in meetings["boards"]:
+        b["name"] = tr.board(b["name"])
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
@@ -630,6 +789,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         return json.loads(file.read_text(encoding="utf-8")) if slug in built_folders and file.exists() else None
 
     scorecard = section_data("311", "311/scorecard.json")
+    localize_categories(scorecard, tr)
     schools = section_data("schools", "schools/schools.json")
     budget = section_data("budget", "finance/budget.json")
     tax_bill = section_data("budget", "finance/tax_bill.json")
@@ -641,16 +801,17 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
             housing[key] = housing.get(key) if key in state_housing else None
 
     # The engine's static files, then the town's own on top (its share image, or its own icon).
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
     out_static = out_dir / "static"
-    shutil.copytree(STATIC_DIR, out_static)
-    if town_static.is_dir():
-        shutil.copytree(town_static, out_static, dirs_exist_ok=True)
-    if config["site"].get("colors"):
-        palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
-        with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
-            f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
+    if english:
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        shutil.copytree(STATIC_DIR, out_static)
+        if town_static.is_dir():
+            shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+        if config["site"].get("colors"):
+            palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
+            with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
+                f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
 
     env = Environment(
         loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR, STATES_DIR]),
@@ -667,11 +828,13 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     env.policies["ext.i18n.trimmed"] = True
     env.filters.update(date=format_date, time=format_time, filesize=format_bytes, timestamp=format_timestamp,
                        duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
-                       markdown=render_markdown, duration_cell=format_duration_cell,
+                       markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell, english=in_english,
                        street=lambda a: short_address(a, config["town"]["name"]),
                        model_name=model_name, capitalize_first=lambda t: Markup(t[:1].upper() + t[1:]),
-                       school_year=school_year, money_bold=emphasize_money, decision=decision_text,
-                       recommendation=lambda t: decision_text(tidy_recommendation(t)))
+                       school_year=school_year, money_bold=emphasize_money, decision=lambda t: in_english(decision_text(t)),
+                       recommendation=lambda t: in_english(decision_text(tidy_recommendation(t))))
+    # On another language's page, ' lang="en"' for an element holding English text (an AI summary); otherwise nothing.
+    env.globals["in_english"] = Markup("" if english else ' lang="en"')
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
     css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
     def versioned(path: str) -> str:
@@ -679,7 +842,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         digest = hashlib.sha256((out_static / path.removeprefix("/static/")).read_bytes()).hexdigest()[:10]
         return f"{path}?v={digest}"
     env.filters["versioned"] = versioned
-    env.globals["report_link"] = lambda page_url, what: report_link(site, base_url, page_url, what)
+    env.globals["report_link"] = lambda page_url, what: report_link(site, base_url + prefix, page_url, what)
     # A state's own template (site/states/<state>/<name>); a part a state doesn't have is included with "ignore missing".
     env.globals["state_template"] = lambda name: f"{state.templates}/{name}"
     # And the helpers its pages use.
@@ -694,19 +857,21 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
     # Newest first; the version in the URL changes whenever the text does.
-    search_json = json.dumps(search_index(meetings["all"]), ensure_ascii=False, separators=(",", ":"))
-    search_url = f"/meetings/search-index.json?v={hashlib.sha256(search_json.encode()).hexdigest()[:10]}"
+    search_json = json.dumps(search_index(meetings["all"], prefix), ensure_ascii=False, separators=(",", ":"))
+    search_url = f"{prefix}/meetings/search-index.json?v={hashlib.sha256(search_json.encode()).hexdigest()[:10]}"
     permits_path = data_dir / "permits" / "permits.json"
     permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
-    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"])
+    localize_categories(requests_311, tr)
+    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix)
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
-    streets_url = f"/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
+    streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
     officials = wards_json = wards_url = None
     if "officials" in built_folders:
-        officials = officials_mod.load(config, data_dir, {b["name"]: b["url"] for b in meetings["boards"]})
+        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]})
+        localize_officials(officials, tr)
         ward_shapes = officials_mod.map_data(data_dir, config)
         if ward_shapes:
             wards_json = json.dumps(ward_shapes, separators=(",", ":"))
@@ -729,17 +894,28 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     urls = []
 
     def render(template: str, url: str, **context) -> None:
+        """Render a page. url is its English address (/meetings/); another language's is under its prefix."""
         section_slug = url.strip("/").split("/")[0] or None
         section = next((s for s in sections if s["slug"] == section_slug), None)
+        # The same page in each of the site's languages, for hreflang links and the language switch.
+        versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
+                    for code in langs] if len(langs) > 1 else []
+        for v in versions:
+            v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
-            **common, **context, section=section, page_url=url, canonical_url=base_url + url
+            **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + url,
+            lang=lang, versions=versions,
         )
         html = mark_new_tab_links(html, own_hosts)
-        dest = out_dir / (url.lstrip("/") + ("index.html" if url.endswith("/") else ""))
+        if prefix:
+            html = localize_links(html, prefix)
+        dest = out_dir / (prefix + url).lstrip("/")
+        if url.endswith("/"):
+            dest = dest / "index.html"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
         if url not in UNLISTED_PAGES:
-            urls.append(url)
+            urls.append(prefix + url)
 
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
         rel = page_path.relative_to(PAGES_DIR)
@@ -754,7 +930,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
             render("meeting.html", m["url"], meeting=m)
         for b in meetings["boards"]:
             render("board.html", b["url"], board=b)
-    if documents:
+    if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
@@ -765,7 +941,17 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
                 render("ward.html", f"/311/ward/{w['ward']}/", ward={**populations.get(w["ward"], {}), **w})
         for c in scorecard.get("categories", []):
             render("category.html", f"/311/category/{c['slug']}/", category=c)
-        write_311_csvs(out_dir / "311" / "data", scorecard)
+        if english:
+            write_311_csvs(out_dir / "311" / "data", scorecard)
+    if not english:
+        # Every language's pages link the same downloads, PDFs, and feed, written with the English.
+        if documents:
+            (out_dir / prefix.lstrip("/") / "meetings").mkdir(parents=True, exist_ok=True)
+            (out_dir / prefix.lstrip("/") / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
+        if "streets" in built_folders:
+            (out_dir / prefix.lstrip("/") / "streets").mkdir(parents=True, exist_ok=True)
+            (out_dir / prefix.lstrip("/") / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
+        return urls
     if state_pages:
         # The downloadable tables behind the state's own pages.
         state_pages.write_files(out_dir, {"budget": budget, "schools": schools, "tax_bill": tax_bill})
@@ -787,14 +973,14 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     if "streets" in built_folders:
         (out_dir / "streets").mkdir(parents=True, exist_ok=True)
         (out_dir / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
-    write_support_files(out_dir, site, base_url, urls, built_at)
     return urls
 
 
 def street_index(meetings: list[dict], permits: list[dict], requests: list[dict], today: date, town: dict,
-                 limit: int = 30) -> dict:
+                 prefix: str = "", limit: int = 30) -> dict:
     """Everything the site knows about each street: agenda and minutes mentions,
-    building and demolition permits, and 311 requests from the past year."""
+    building and demolition permits, and 311 requests from the past year. prefix is
+    the language's (/es) for links to meetings."""
     streets: dict = defaultdict(lambda: {"meetings": [], "permits": [], "requests": []})
 
     def place(address: str) -> tuple[str, list[str]]:
@@ -814,7 +1000,7 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
                             rf"|,\s*{re.escape(town['name'])},?\s*{re.escape(town['state_abbr'])}\b", re.I)
 
     for m in meetings:
-        for kind, doc in (("Agenda", m["preview"]), ("Minutes", m["minutes_summary"])):
+        for kind, doc in ((_("Agenda"), m["preview"]), (_("Minutes"), m["minutes_summary"])):
             text = doc_text(doc)
             for address in streets_mod.addresses_in(text):
                 num, keys = place(address)
@@ -824,8 +1010,8 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
                     if (num, key) in venues:
                         continue
                     entries = streets[key]["meetings"]
-                    if not any(e["url"] == m["url"] and e["doc"] == kind for e in entries):
-                        entries.append({"url": m["url"], "date": m["date"], "board": m["body"], "doc": kind,
+                    if not any(e["url"] == prefix + m["url"] and e["doc"] == kind for e in entries):
+                        entries.append({"url": prefix + m["url"], "date": m["date"], "board": m["body"], "doc": kind,
                                         "line": line_with(text, address)})
     for p in permits:
         num, keys = place(p["address"])
@@ -962,8 +1148,14 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=TOWN_DIR / "_site", help="output directory")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="data directory")
     args = parser.parse_args()
-    urls = build(args.town, args.out, args.data)
+    missing: dict = {}
+    urls = build(args.town, args.out, args.data, missing=missing)
     print(f"Built {len(urls)} pages into {args.out}")
+    for lang, texts in missing.items():
+        print(f"{i18n.LANGUAGES[lang]}: {len(texts)} of the town's texts are shown in English, with no translation "
+              f"in [strings.{lang}] of config/{args.town}.toml:")
+        for text in texts:
+            print(f"  {text!r}")
 
 
 if __name__ == "__main__":
