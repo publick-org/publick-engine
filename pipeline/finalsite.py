@@ -226,6 +226,9 @@ def check(config: dict) -> None:
     if not isinstance(bodies, dict) or not all(isinstance(v, str) and v for v in bodies.values()):
         raise SystemExit(f'{where}: bodies must map names in post titles to board names, like '
                          '"Operations Committee" = "Board of Education Operations Committee".')
-    for key in ("recheck_days", "max_posts_per_run"):
+    if settings.get("schedule_url") and not isinstance(settings.get("schedule_names"), dict):
+        raise SystemExit(f'{where}: a schedule_url needs schedule_names, mapping the names the schedule uses to '
+                         'board names, like "BOE" = "Board of Education".')
+    for key in ("recheck_days", "max_posts_per_run", "schedule_days_ahead"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")

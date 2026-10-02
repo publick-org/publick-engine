@@ -66,6 +66,10 @@
   {# Translators: %(board)s is a board's name, such as "School Committee". %(source)s names where the meetings are posted, such as "the school district's website". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=(config.finalsite_meetings.bodies.values() | list)[0], source=config.finalsite_meetings.source_name, url=config.finalsite_meetings.page_url, since=config.finalsite_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from the meetings posted on its <a href="{{ url }}">website</a>, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
+  {% if config.ical_meetings is defined %}
+  {# Translators: %(board)s is a board's name, such as "School Committee". %(source)s is who keeps the calendar, such as "Beverly Public Schools". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=(config.ical_meetings.bodies.values() | list)[0], source=config.ical_meetings.source_name, url=config.ical_meetings.page_url, since=config.ical_meetings.since | date("month") %}<strong>{{ board }} meetings:</strong> {{ source }}, from the <a href="{{ url }}">district's calendar</a>, from {{ since }} on. Agendas are on its website.{% endtrans %}</li>
+  {% endif %}
   {% include state_template("about_finance.html") ignore missing %}
   {% if config.labor is defined %}
   <li>{% trans url="https://www.bls.gov/lau/" %}<strong>Unemployment:</strong> U.S. <a href="{{ url }}">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.{% endtrans %}</li>

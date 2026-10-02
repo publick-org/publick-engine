@@ -571,6 +571,17 @@ msgstr ""
 "<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, a partir de las reuniones "
 "publicadas en su <a href=\"%(url)s\">sitio web</a>, desde %(since)s."
 
+#. %(board)s is a board's name, such as "School Committee". %(source)s is who keeps the calendar, such
+#. as "Beverly Public Schools". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings:</strong> %(source)s, from the <a href=\"%(url)s\">district's "
+"calendar</a>, from %(since)s on. Agendas are on its website."
+msgstr ""
+"<strong>%(board)s, reuniones:</strong> %(source)s, del <a href=\"%(url)s\">calendario del "
+"distrito</a>, desde %(since)s. Las agendas están en su sitio web."
+
 #: site/pages/about/index.html
 #, python-format
 msgid ""

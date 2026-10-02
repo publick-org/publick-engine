@@ -6,7 +6,7 @@ from datetime import datetime
 
 import pytest
 from conftest import TZ
-from fakes import FIXTURES, FakeFinalsite
+from fakes import FIXTURES, FakeFinalsite, FakeResponse
 
 from pipeline import fetch_finalsite_meetings, fetch_meetings, fetch_minutes, finalsite
 from pipeline.fetch_meetings import load_store
@@ -289,7 +289,66 @@ def test_next_to_the_towns_own_meetings(district, tmp_path):
     assert all(m["listed"] and not m.get("history") for m in schools)
 
 
+# ---- The district's schedule ----------------------------------------------------------------
+
+SCHEDULE_NAMES = {"Operations": "Board of Education Operations Committee",
+                  "Instructional": "Board of Education Instructional Committee", "BOE": "Board of Education"}
+
+
+def with_schedule(town):
+    town["finalsite_meetings"].update(schedule_url=FakeFinalsite.SCHEDULE_URL, schedule_names=SCHEDULE_NAMES)
+    return town
+
+
+def test_schedule_dates():
+    page = (FIXTURES / "finalsite_schedule.html").read_text(encoding="utf-8")
+    found = fetch_finalsite_meetings.parse_schedule(page)
+    assert found[:3] == [("Operations Comm.", "2026-02-18"), ("Instructional Com.", "2026-02-18"), ("BOE Meeting", "2026-02-23")]
+    assert ("BOE Meeting - BOE Conference Room", "2026-06-22") in found and ("Operations Comm.", "2027-01-19") in found
+    assert len(found) == 32
+
+
+def test_scheduled_meetings_are_listed_before_they_are_posted(district, tmp_path):
+    """The district posts a meeting with its agenda; its schedule lists the year's dates."""
+    status, store, _ = run(with_schedule(district), tmp_path)
+    scheduled = sorted((m["date"], m["body"]) for m in store.values() if m["id"].startswith("schedule-"))
+    assert scheduled == [("2026-10-19", "Board of Education Instructional Committee"),
+                         ("2026-10-19", "Board of Education Operations Committee"),
+                         ("2026-10-26", "Board of Education"),
+                         ("2026-11-16", "Board of Education Instructional Committee"),
+                         ("2026-11-16", "Board of Education Operations Committee"),
+                         ("2026-11-23", "Board of Education")]
+    assert status["scheduled_meetings_added"] == 6
+    board = store["schedule-board-of-education-2026-10-26"]
+    assert (board["source"], board["source_url"], board["title"], board["listed"]) == (
+        "finalsite", FakeFinalsite.SCHEDULE_URL, "Board of Education Meeting", True)
+    # A posted meeting isn't listed twice, and a past date isn't taken from the schedule.
+    assert not any(m["id"].startswith("schedule-") and m["date"] <= "2026-09-30" for m in store.values())
+
+
+def test_a_posted_meeting_takes_over_its_scheduled_record(district, tmp_path):
+    run(with_schedule(district), tmp_path)
+    slug = load_store(tmp_path)["schedule-board-of-education-2026-10-26"]["slug"]
+    # A new post (1799, in place of 1715 on the saved page) for the meeting of October 26.
+    page = FakeFinalsite().page.replace("1715", "1799").replace("September 30, 2026 - Special Board of Education Meeting",
+                                                                "October 26, 2026 - Board of Education Meeting")
+    _, store, _ = run(district, tmp_path, FakeFinalsite(page=page), now=datetime(2026, 10, 2, 7, 0, tzinfo=TZ))
+    assert "schedule-board-of-education-2026-10-26" not in store
+    posted = store["finalsite-1799"]
+    assert (posted["date"], posted["slug"], posted["source_url"]) == ("2026-10-26", slug, PAGE_URL)
+
+
+def test_a_date_that_leaves_the_schedule_is_no_longer_listed(district, tmp_path):
+    run(with_schedule(district), tmp_path)
+    client = FakeFinalsite()
+    client.get = (lambda get: lambda url: FakeResponse(b"<html></html>") if url == FakeFinalsite.SCHEDULE_URL else get(url))(client.get)
+    _, store, _ = run(with_schedule(district), tmp_path, client)
+    assert store["schedule-board-of-education-2026-10-26"]["listed"] is False
+
+
 @pytest.mark.parametrize("change, message", [
+    ({"schedule_url": "https://example.org/schedule"}, "needs schedule_names"),
+    ({"schedule_days_ahead": 0}, "schedule_days_ahead must be"),
     ({"page_url": None}, "needs page_url"),
     ({"since": "July 2026"}, "since must be a date"),
     ({"bodies": ["Board of Education"]}, "bodies must map"),

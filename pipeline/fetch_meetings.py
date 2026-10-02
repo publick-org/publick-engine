@@ -15,7 +15,9 @@ CivicClerk portal ([meetings.civicclerk], which also saves agendas), a
 DotNetNuke city calendar ([meetings.dnn], which also saves agendas linked as
 PDFs named for the meeting's date) and a town website with a meetings calendar
 and one documents page for every board's agendas and minutes
-([meetings.file_list], which also saves agendas and lists minutes). A town can
+([meetings.file_list], which also saves agendas and lists minutes), and a
+school district's calendar feed ([ical_meetings]: its board's meetings, as
+the district's own, without documents). A town can
 have several; Manchester's aldermanic meetings are on CivicClerk and its other
 boards on the city calendar, and Malden lists its meetings on its calendar and
 posts their agendas in its Agenda Center. A meeting listed in more than one
@@ -41,7 +43,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
@@ -374,6 +376,24 @@ def file_list_calendar(config: dict) -> Calendar:
     return Calendar("town website", events, lambda m: m.get("source") == filelist.SOURCE, details)
 
 
+def ical_calendar(config: dict) -> Calendar:
+    """A school district's (or another body's) calendar feed ([ical_meetings]): its meetings of
+    the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request."""
+    settings = config["ical_meetings"]
+
+    def events(client, today, store):
+        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        found = []
+        for event in ical.parse_events(client.get(settings["ical_url"]).text):
+            meeting = ical.to_meeting(event, settings["bodies"])
+            if meeting and settings["since"] <= meeting["date"] <= ahead:
+                found.append({**meeting, "source_url": meeting["source_url"] or settings["page_url"],
+                              "source_name": settings["source_name"]})
+        return found
+
+    return Calendar(settings["source_name"], events, lambda m: m.get("source") == ical.SOURCE)
+
+
 def calendars(config: dict) -> list[Calendar]:
     """The town's meeting calendars, by the tables in [meetings]."""
     source = config["meetings"]
@@ -390,6 +410,8 @@ def calendars(config: dict) -> list[Calendar]:
         found.append(dnn_calendar(config))
     if "file_list" in source:
         found.append(file_list_calendar(config))
+    if "ical_meetings" in config:
+        found.append(ical_calendar(config))
     return found
 
 
