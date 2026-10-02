@@ -14,8 +14,8 @@
 <ul class="stats">
   <li class="stat"><div><span class="stat-label">{{ _("Requests") }}</span><span class="stat-value">{{ w.received | number }}</span>{% if w.per_1000_residents %}<span class="stat-change">{% trans num=w.per_1000_residents | round | int %}{{ num }} per 1,000 residents{% endtrans %}</span>{% endif %}</div></li>
   <li class="stat"><div><span class="stat-label">{{ _("Still open") }}</span><span class="stat-value">{{ w.open | number }}</span></div></li>
-  <li class="stat"><div><span class="stat-label">{{ _("Typical time to acknowledge") }}</span><span class="stat-value">{{ w.time_to_acknowledge.median | duration }}</span><span class="stat-change">{% trans num=w.acknowledged | number %}Median of {{ num }} acknowledged{% endtrans %}</span></div></li>
-  <li class="stat"><div><span class="stat-label">{{ _("Typical time to close") }}</span><span class="stat-value">{{ w.time_to_close.median | duration }}</span><span class="stat-change">{% trans num=w.closed | number %}Median of {{ num }} closed{% endtrans %}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to acknowledge") }}</span><span class="stat-value{% if w.time_to_acknowledge.median is none %} stat-value-text{% endif %}">{{ w.time_to_acknowledge.median | duration }}</span><span class="stat-change">{% trans num=w.acknowledged | number %}Median of {{ num }} acknowledged{% endtrans %}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to close") }}</span><span class="stat-value{% if w.time_to_close.median is none %} stat-value-text{% endif %}">{{ w.time_to_close.median | duration }}</span><span class="stat-change">{% trans num=w.closed | number %}Median of {{ num }} closed{% endtrans %}</span></div></li>
 </ul>
 
 <h2 id="monthly">{{ _("Requests by month") }}</h2>
