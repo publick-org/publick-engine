@@ -356,7 +356,7 @@ languages = ["en", "es"]
 # the tagline and masthead, section titles and summaries, glossary definitions, participation
 # notes, officials' seats, 311 categories, and board names.
 [strings.es]
-"An independent guide to city government in Lawrence, Massachusetts" = "Una guía independiente al gobierno de la ciudad de Lawrence, Massachusetts"
+"An independent guide to city government in Lawrence, Massachusetts" = "Una guía independiente sobre el gobierno de la ciudad de Lawrence, Massachusetts"
 "City Council" = "Concejo Municipal"
 "Pothole" = "Bache"
 ```
