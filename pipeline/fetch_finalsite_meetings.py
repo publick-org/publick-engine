@@ -25,6 +25,15 @@ cancelled meeting's agenda is linked, not saved.
 Titles that name no listed board, or no date, are listed in the run's
 summary, not guessed at.
 
+A district that posts each meeting only when its agenda is ready may publish
+the year's dates on a page of their own (Wallingford's "Board of Education
+Schedule 2026": "10/19/26 Operations Comm.", "10/26/26 BOE Meeting").
+schedule_url names it, and [finalsite_meetings.schedule_names] the boards by
+the names it uses; its upcoming meetings are listed to schedule_days_ahead
+(default 60) days out. When the district posts one, the post takes over its
+record, which keeps its page address. A scheduled meeting that leaves the
+schedule before it happens, with no post, is marked as no longer listed.
+
 Usage:
     python -m pipeline.fetch_finalsite_meetings [--town wallingford]
 """
@@ -33,9 +42,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html
 import json
+import re
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -49,11 +60,12 @@ from pipeline.filelist import title_for
 from pipeline.http import FetchError, PoliteClient
 
 
-def new_meeting(store: dict, post: dict, info: dict, settings: dict, stamp: str) -> dict:
+def new_meeting(store: dict, post: dict, info: dict, settings: dict, stamp: str, meeting_id: str | None = None,
+                source_url: str | None = None) -> dict:
     meeting = {
-        "id": f"{finalsite.SOURCE}-{post['post_id']}",
+        "id": meeting_id or f"{finalsite.SOURCE}-{post['post_id']}",
         "source": finalsite.SOURCE,
-        "source_url": settings["page_url"],
+        "source_url": source_url or settings["page_url"],
         "source_name": settings["source_name"],
         "post_id": post["post_id"],
         "first_seen": stamp,
@@ -66,6 +78,61 @@ def new_meeting(store: dict, post: dict, info: dict, settings: dict, stamp: str)
     }
     store[meeting["id"]] = meeting
     return meeting
+
+
+# A date in the schedule, 'M/D/YY' or 'M/D/YYYY', and a weekday after it: '1/19/27 (Tues.)'.
+SCHEDULE_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])(?:\s*\([A-Za-z.]+\))?")
+SCHEDULE_MONTH = re.compile(r"\b(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\b")
+
+
+def parse_schedule(page: str) -> list[tuple[str, str]]:
+    """(name, date) pairs from a schedule page: each date and the words after it, up to the
+    next date or month heading ('10/19/26 Operations Comm.' -> ('Operations Comm.', '2026-10-19'))."""
+    text = re.sub(r"<script.*?</script>|<style.*?</style>", " ", page, flags=re.S | re.I)
+    text = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", text)).split())
+    found = []
+    dates = list(SCHEDULE_DATE.finditer(text))
+    for i, d in enumerate(dates):
+        end = dates[i + 1].start() if i + 1 < len(dates) else min(len(text), d.end() + 80)
+        name = SCHEDULE_MONTH.split(text[d.end():end])[0].strip(" -")
+        year = int(d.group(3)) + (2000 if len(d.group(3)) == 2 else 0)
+        try:
+            found.append((name, date(year, int(d.group(1)), int(d.group(2))).isoformat()))
+        except ValueError:
+            continue
+    return found
+
+
+def update_schedule(store: dict, page: str, settings: dict, today: str, stamp: str) -> int:
+    """Record the schedule's upcoming meetings, to schedule_days_ahead out, that no post lists
+    yet. (A past date with no post isn't taken for a meeting that was held.) Returns how many are new."""
+    ahead = (date.fromisoformat(today) + timedelta(days=settings.get("schedule_days_ahead", 60))).isoformat()
+    scheduled = {(body, day) for name, day in parse_schedule(page)
+                 if (body := finalsite.find_board(name, [], settings["schedule_names"]))
+                 and max(settings["since"], today) <= day <= ahead}
+    recorded = {(m["body"], m["date"]) for m in store.values() if m.get("source") == finalsite.SOURCE}
+    added = 0
+    for body, day in sorted(scheduled - recorded):
+        meeting = new_meeting(store, {"post_id": None}, {"date": day, "body": body}, settings, stamp,
+                              meeting_id=f"schedule-{slugify(body)}-{day}", source_url=settings["schedule_url"])
+        meeting.update(title=title_for(body, False), status="scheduled", special=False, listed=True, last_seen=stamp)
+        added += 1
+    # An upcoming meeting known only from the schedule that has left it was probably moved or cancelled.
+    for m in store.values():
+        if (m["id"].startswith("schedule-") and m.get("source") == finalsite.SOURCE and m.get("listed", True)
+                and m["date"] >= today and (m["body"], m["date"]) not in scheduled):
+            merge(m, {"listed": False}, stamp, track=True)
+    return added
+
+
+def adopt_scheduled(store: dict, post: dict, info: dict) -> dict | None:
+    """A meeting first recorded from the schedule, now posted: it becomes the post's record,
+    keeping its page address."""
+    scheduled = store.pop(f"schedule-{slugify(info['body'])}-{info['date']}", None)
+    if scheduled:
+        scheduled.update(id=f"{finalsite.SOURCE}-{post['post_id']}", post_id=post["post_id"])
+        store[scheduled["id"]] = scheduled
+    return scheduled
 
 
 def download(client, url: str, settings: dict, stamp: str) -> tuple[dict, bytes]:
@@ -150,8 +217,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         meeting = store.get(f"{finalsite.SOURCE}-{post['post_id']}")
         new = meeting is None
         if new:
-            meeting = new_meeting(store, post, info, settings, stamp)
-            created += 1
+            meeting = adopt_scheduled(store, post, info)
+            if meeting is None:
+                meeting = new_meeting(store, post, info, settings, stamp)
+                created += 1
+            meeting["source_url"] = settings["page_url"]
         merge(meeting, {"date": info["date"], "body": info["body"], "title": title_for(info["body"], info["special"]),
                         "posted_title": post["title"], "status": info["status"], "special": info["special"],
                         "listed": True}, stamp, track=True)
@@ -173,8 +243,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         merge(meeting, finalsite.meeting_fields(finalsite.parse_post(fragment, settings["page_url"])), stamp, track=True)
         meeting["checked_at"] = stamp
 
+    scheduled = (update_schedule(store, client.get(settings["schedule_url"]).text, settings, today, stamp)
+                 if settings.get("schedule_url") else 0)
+
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"])):
-        if meeting.get("source") != finalsite.SOURCE or meeting["date"] < since:
+        if meeting.get("source") != finalsite.SOURCE or meeting["date"] < since or meeting["id"].startswith("schedule-"):
             continue
         # An upcoming meeting whose post is gone was most likely called off or moved.
         if meeting["id"] not in listed and meeting["date"] >= today and meeting.get("listed", True):
@@ -190,6 +263,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "posts_read": len(batch),
         "posts_waiting": len(to_read) - len(batch),
         "meetings_created": created,
+        "scheduled_meetings_added": scheduled,
         "documents_added": counts["added"],
         "documents_changed": counts["changed"],
         "documents_rechecked": counts["checked"],

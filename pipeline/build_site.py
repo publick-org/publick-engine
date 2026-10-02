@@ -351,7 +351,7 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
-            "finalsite": N_("school district's website")}
+            "finalsite": N_("school district's website"), "ical": N_("school district's website")}
 CALENDAR = N_("city calendar")
 
 
@@ -568,7 +568,7 @@ def meeting_links(config: dict) -> dict:
         "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
-                    for t in ("drive_meetings", "finalsite_meetings") if t in config],
+                    for t in ("drive_meetings", "finalsite_meetings", "ical_meetings") if t in config],
     }
 
 
