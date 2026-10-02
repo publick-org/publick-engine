@@ -113,8 +113,9 @@ def test_translations_count_in_the_budget(tmp_path):
     config = spanish_town(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
     row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
-    assert row["documents"] == 5 and row["translations"] == 5
-    assert row["translation_cost"] == round(5 * TRANSLATION, 4)
+    # Five summaries, and one batch of the town's own text and names drafted first.
+    assert row["documents"] == 5 and row["translations"] == 6
+    assert row["translation_cost"] == round(6 * TRANSLATION, 4)
     assert summarize.month_cost({"2026-09": row}, "2026-09") == pytest.approx(row["cost"] + row["translation_cost"])
 
 
@@ -175,3 +176,50 @@ def test_untranslated_summaries_are_shown_in_english(tmp_path, monkeypatch):
     assert '<p lang="en">The board approved a site plan for 12 Main St.</p>' in page
     with i18n.use("es"):
         assert i18n.gettext("This summary hasn't been translated yet, so it's shown in English.") in page
+
+
+def test_a_run_drafts_the_towns_own_text_and_the_site_shows_it(tmp_path, monkeypatch):
+    """A town with no [strings.es] at all: its run drafts the config's text and the boards' names,
+    so its Spanish pages build, with nothing in English, before anyone translates them."""
+    config = spanish_town(tmp_path)
+    config["strings"] = {}
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["drafted_texts"] > 10 and not result["errors"]
+    saved = translate.saved_drafts(tmp_path, "es")
+    assert all(d["check"] == "ok" and d["text"].startswith("ES ") for d in saved["drafts"].values())
+    assert config["site"]["tagline"] in saved["drafts"] and "City Council" not in saved["drafts"]  # the engine has it
+    monkeypatch.setattr(build_site, "load_config", lambda town: config)
+    missing: dict = {}
+    build_site.build("gloucester", tmp_path / "site", data_dir=tmp_path, now=BUILT_AT, missing=missing)
+    assert not missing["es"]["config"] and not missing["es"]["data"] and missing["es"]["drafted"]
+    assert "ES " + config["site"]["tagline"] in (tmp_path / "site" / "es" / "index.html").read_text()
+    # Nothing left to draft: the next run asks for none.
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == 0
+    assert not [c for c in client.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]
+
+
+def test_a_draft_that_loses_a_number_isnt_shown(tmp_path):
+    config = spanish_town(tmp_path)
+    config["strings"] = {}
+    summarize.run(config, FakeAnthropic(translation_drops_numbers=True), tmp_path, limit=50, now=FETCHED_AT)
+    saved = translate.saved_drafts(tmp_path, "es")["drafts"]
+    failed = {en for en, d in saved.items() if d["check"] != "ok"}
+    assert failed and all(any(c.isdigit() for c in en) for en in failed)
+    assert not failed & set(translate.drafts(tmp_path, "es"))
+
+
+def test_drafts_review_as_strings_lines(tmp_path):
+    import tomllib
+    config = spanish_town(tmp_path)
+    config["strings"] = {"es": {"Board of Assessors Hearing": "Audiencia de la Junta de Tasadores"}}
+    file = translate.strings_path(tmp_path, "es")
+    file.parent.mkdir(parents=True)
+    file.write_text(json.dumps({"batches": [], "drafts": {
+        "Fish Pier Committee": {"text": "Comité del Muelle", "check": "ok", "prompt_version": translate.NAMES_VERSION},
+        "Board of Assessors Hearing": {"text": "Audiencia", "check": "ok", "prompt_version": translate.NAMES_VERSION},
+        "Ward 9 \"North\"": {"text": "Distrito \"Norte\"", "check": "9 not in the translation", "prompt_version": 1}}}))
+    out = translate.review(config, tmp_path, "es")
+    # Ready to paste into [strings.es]: the town's own translations aren't repeated, failed drafts are commented out.
+    assert tomllib.loads(out) == {"Fish Pier Committee": "Comité del Muelle"}
+    assert '# "Ward 9 \\"North\\"" = "Distrito \\"Norte\\""  # 9 not in the translation' in out

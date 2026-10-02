@@ -466,6 +466,10 @@ msgstr "Solicitudes al 311 ubicadas en el Distrito %(ward)s en los últimos 12 m
 msgid "311 requests, past 12 months"
 msgstr "Solicitudes al 311, últimos 12 meses"
 
+#: pipeline/common_strings.py
+msgid "311 scorecard"
+msgstr "Cómo responde la ciudad al 311"
+
 #. %(where)s is where the agenda was posted, such as "the city website".
 #: site/templates/meeting.html
 #, python-format
@@ -842,6 +846,14 @@ msgstr ""
 msgid "A month, %(years)s"
 msgstr "Al mes, %(years)s"
 
+#: pipeline/common_strings.py
+msgid ""
+"A part of a public meeting closed to the public. State law allows it only for specific reasons, "
+"such as lawsuits, negotiations, or personnel matters."
+msgstr ""
+"Una parte de una reunión pública que se hace a puerta cerrada. La ley estatal la permite solo por"
+" razones específicas, como demandas, negociaciones o asuntos de personal."
+
 #: site/pages/311/methodology/index.html
 msgid ""
 "A repeat location isn't always the same problem. It can be a problem that came back, a fix that "
@@ -927,6 +939,10 @@ msgstr "Presupuesto aprobado"
 msgid "Adopted budget by function, fiscal year %(year)s"
 msgstr "Presupuesto aprobado por función, año fiscal %(year)s"
 
+#: pipeline/common_strings.py
+msgid "Affordable Housing Trust"
+msgstr "Fondo de Vivienda Asequible"
+
 #: site/pages/housing/index.html
 msgid "Affordable housing"
 msgstr "Vivienda asequible"
@@ -979,6 +995,10 @@ msgstr "Agenda publicada."
 msgid "Agendas and minutes are on the <a href=\"%(url)s\">%(name)s</a>."
 msgstr "Las agendas y las actas están en el <a href=\"%(url)s\">%(name)s</a>."
 
+#: pipeline/common_strings.py
+msgid "Airport Commission"
+msgstr "Comisión del Aeropuerto"
+
 #: site/pages/index.html
 msgid "All decisions"
 msgstr "Todas las decisiones"
@@ -1024,6 +1044,12 @@ msgstr "Todas las reuniones registradas"
 msgid "All repeat locations"
 msgstr "Todos los lugares con solicitudes repetidas"
 
+#: pipeline/common_strings.py
+msgid "Americans with Disabilities Act, the federal law on access for people with disabilities."
+msgstr ""
+"Ley de Estadounidenses con Discapacidades (Americans with Disabilities Act), la ley federal sobre"
+" el acceso para las personas con discapacidad."
+
 #: site/states/ma/budget.html
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
@@ -1065,6 +1091,10 @@ msgstr "Otras %(num)s se cerraron sin haberse confirmado antes."
 msgid "Apartment buildings (4 or more units)"
 msgstr "Edificios de apartamentos (4 unidades o más)"
 
+#: pipeline/common_strings.py
+msgid "Appointed"
+msgstr "Por nombramiento"
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Apr"
@@ -1088,6 +1118,10 @@ msgid ""
 msgstr ""
 "Al %(when)s, %(units)s de las %(homes)s viviendas de uso todo el año de %(town)s estaban en la "
 "lista: <strong>%(percent)s%%</strong>."
+
+#: pipeline/common_strings.py
+msgid "At-large"
+msgstr "Toda la ciudad"
 
 #: site/templates/meeting.html
 #, python-format
@@ -1149,6 +1183,46 @@ msgstr ""
 "asequibles puede obtener un solo permiso para construir con más densidad de lo que permite la "
 "zonificación local. Si la ciudad niega el permiso, el estado puede anular esa decisión en una "
 "apelación."
+
+#: pipeline/common_strings.py
+msgid "Board of Aldermen"
+msgstr "Junta de Concejales"
+
+#: pipeline/common_strings.py
+msgid "Board of Appeals"
+msgstr "Junta de Apelaciones"
+
+#: pipeline/common_strings.py
+msgid "Board of Assessors"
+msgstr "Junta de Tasadores"
+
+#: pipeline/common_strings.py
+msgid "Board of Education"
+msgstr "Junta de Educación"
+
+#: pipeline/common_strings.py
+msgid "Board of Finance"
+msgstr "Junta de Finanzas"
+
+#: pipeline/common_strings.py
+msgid "Board of Health"
+msgstr "Junta de Salud"
+
+#: pipeline/common_strings.py
+msgid "Board of Library Trustees"
+msgstr "Junta de Fideicomisarios de la Biblioteca"
+
+#: pipeline/common_strings.py
+msgid "Board of Public Works"
+msgstr "Junta de Obras Públicas"
+
+#: pipeline/common_strings.py
+msgid "Board of Registrars"
+msgstr "Junta de Registradores de Votantes"
+
+#: pipeline/common_strings.py
+msgid "Board of Selectmen"
+msgstr "Junta de Selectos"
 
 #: site/pages/meetings/boards/index.html site/pages/meetings/index.html site/templates/board.html
 msgid "Boards and committees"
@@ -1215,6 +1289,10 @@ msgctxt "meeting"
 msgid "Cancelled"
 msgstr "Cancelada"
 
+#: pipeline/common_strings.py
+msgid "Capital Improvement Committee"
+msgstr "Comité de Mejoras de Capital"
+
 #: site/templates/category.html
 msgid "Categories"
 msgstr "Categorías"
@@ -1222,6 +1300,22 @@ msgstr "Categorías"
 #: site/pages/311/index.html site/templates/ward.html
 msgid "Category"
 msgstr "Categoría"
+
+#: pipeline/common_strings.py
+msgid "Cemetery Commission"
+msgstr "Comisión de Cementerios"
+
+#: pipeline/common_strings.py
+msgid "Chair"
+msgstr "Presidente"
+
+#: pipeline/common_strings.py
+msgid "Chairman"
+msgstr "Presidente"
+
+#: pipeline/common_strings.py
+msgid "Chairperson"
+msgstr "Presidente"
 
 #: site/states/ma/budget.html site/states/nh/budget.html
 msgid "Change"
@@ -1290,6 +1384,26 @@ msgstr ""
 msgid "City"
 msgstr "Ciudad"
 
+#: pipeline/common_strings.py
+msgid "City Clerk"
+msgstr "Secretario Municipal"
+
+#: pipeline/common_strings.py
+msgid "City Council"
+msgstr "Concejo Municipal"
+
+#: pipeline/common_strings.py
+msgid "City Council Committee of the Whole"
+msgstr "Comité Plenario del Concejo Municipal"
+
+#: pipeline/common_strings.py
+msgid "City Council Economic Development Committee"
+msgstr "Comité de Desarrollo Económico del Concejo Municipal"
+
+#: pipeline/common_strings.py
+msgid "City Council Public Safety Committee"
+msgstr "Comité de Seguridad Pública del Concejo Municipal"
+
 #: pipeline/build_site.py site/templates/base.html
 msgid "City Hall updates"
 msgstr "Novedades de la Alcaldía"
@@ -1327,6 +1441,10 @@ msgstr ""
 "El personal de la ciudad confirmó que la recibió. Sigue contando como abierta. Solo el personal "
 "puede hacer esto."
 
+#: pipeline/common_strings.py
+msgid "Citywide"
+msgstr "Toda la ciudad"
+
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
 msgid "Class of"
 msgstr "Promoción"
@@ -1340,6 +1458,10 @@ msgstr "Promoción %(year)s"
 #, python-brace-format
 msgid "Class of {year} graduation rate"
 msgstr "Tasa de graduación de la promoción {year}"
+
+#: pipeline/common_strings.py
+msgid "Clerk"
+msgstr "Secretario"
 
 #: site/pages/streets/index.html
 msgctxt "311 request"
@@ -1363,9 +1485,30 @@ msgstr "El color nunca es la única forma de mostrar la información."
 msgid "Coming up"
 msgstr "Lo que viene"
 
+#: pipeline/common_strings.py
+msgid "Commission on Disabilities"
+msgstr "Comisión sobre Discapacidades"
+
+#: pipeline/common_strings.py
+msgid "Committee on Aging"
+msgstr "Comité de Personas Mayores"
+
 #: site/pages/meetings/decisions/index.html
 msgid "Committee recommendations to the City Council"
 msgstr "Recomendaciones de los comités al Concejo Municipal"
+
+#: pipeline/common_strings.py
+msgid ""
+"Community Preservation Act. A local property tax surcharge, with state matching money, that pays "
+"for open space, historic preservation, affordable housing, and recreation."
+msgstr ""
+"Ley de Preservación Comunitaria (Community Preservation Act). Un recargo local al impuesto a la "
+"propiedad, con fondos estatales que lo complementan, que paga espacios abiertos, la preservación "
+"de lugares históricos, vivienda asequible y recreación."
+
+#: pipeline/common_strings.py
+msgid "Community Preservation Committee"
+msgstr "Comité de Preservación Comunitaria"
 
 #: site/pages/meetings/index.html
 msgid "Community events are left out."
@@ -1374,6 +1517,10 @@ msgstr "No se incluyen los eventos comunitarios."
 #: pipeline/states/ma/housing.py
 msgid "Condominiums"
 msgstr "Condominios"
+
+#: pipeline/common_strings.py
+msgid "Conservation Commission"
+msgstr "Comisión de Conservación"
 
 #: site/pages/officials/index.html
 msgid "Contact"
@@ -1391,6 +1538,18 @@ msgstr "Correcciones y contacto"
 #: site/states/nh/schools.html
 msgid "Cost per pupil"
 msgstr "Costo por estudiante"
+
+#: pipeline/common_strings.py
+msgid "Council President"
+msgstr "Presidente del Concejo"
+
+#: pipeline/common_strings.py
+msgid "Council Vice President"
+msgstr "Vicepresidente del Concejo"
+
+#: pipeline/common_strings.py
+msgid "Council on Aging"
+msgstr "Consejo de Personas Mayores"
 
 #: site/pages/about/index.html
 #, python-format
@@ -1421,6 +1580,10 @@ msgstr "Incluye las reuniones."
 msgid "Credit ratings affect how much the city pays to borrow."
 msgstr "Las calificaciones crediticias influyen en cuánto paga la ciudad cuando pide dinero prestado."
 
+#: pipeline/common_strings.py
+msgid "Cultural Council"
+msgstr "Consejo Cultural"
+
 #: pipeline/states/ma/budget.py
 msgid "Culture and recreation"
 msgstr "Cultura y recreación"
@@ -1444,6 +1607,10 @@ msgid ""
 msgstr ""
 "Datos de <a href=\"https://seeclickfix.com\">seeclickfix.com</a>, usados bajo la licencia <a "
 "href=\"https://creativecommons.org/licenses/by-nc-sa/3.0/\">CC BY-NC-SA 3.0</a>."
+
+#: pipeline/common_strings.py
+msgid "Data sources, update schedule, metric definitions, and corrections."
+msgstr "Fuentes de los datos, cuándo se actualizan, qué significa cada medida y correcciones."
 
 #: site/pages/about/index.html
 msgid "Data status"
@@ -1485,6 +1652,19 @@ msgstr ""
 #: site/templates/meeting.html
 msgid "Decisions recorded"
 msgstr "Decisiones registradas"
+
+#: pipeline/common_strings.py
+msgid "Design Review Board"
+msgstr "Junta de Revisión de Diseño"
+
+#: pipeline/common_strings.py
+msgid "Disability Commission"
+msgstr "Comisión sobre Discapacidades"
+
+#: pipeline/common_strings.py
+#, python-brace-format
+msgid "District {n}"
+msgstr "Distrito {n}"
 
 #: site/templates/charts.html
 msgid "Download CSV"
@@ -1543,9 +1723,17 @@ msgstr "Versiones anteriores de estas actas:"
 msgid "Earlier versions of this agenda:"
 msgstr "Versiones anteriores de esta agenda:"
 
+#: pipeline/common_strings.py
+msgid "Economic Development Committee"
+msgstr "Comité de Desarrollo Económico"
+
 #: pipeline/states/ma/budget.py
 msgid "Education"
 msgstr "Educación"
+
+#: pipeline/common_strings.py
+msgid "Elected citywide for four years."
+msgstr "Elegido por toda la ciudad por cuatro años."
 
 #: site/pages/officials/index.html
 #, python-format
@@ -1556,6 +1744,10 @@ msgstr "Funcionarios electos de %(town)s, por cargo y por distrito, y cómo comu
 #, python-format
 msgid "Elected officials in %(town)s, by office, and how to reach them."
 msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ellos."
+
+#: pipeline/common_strings.py
+msgid "Election Commission"
+msgstr "Comisión Electoral"
 
 #: site/pages/officials/index.html
 #, python-format
@@ -1637,6 +1829,10 @@ msgstr ""
 msgid "Explore"
 msgstr "Explorar"
 
+#: pipeline/common_strings.py
+msgid "Fair Rent Commission"
+msgstr "Comisión de Alquiler Justo"
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Feb"
@@ -1662,6 +1858,10 @@ msgstr "Las cifras aparecerán aquí después de la primera recopilación de dat
 #: site/states/ma/schools.html site/states/nh/budget.html site/states/nh/schools.html
 msgid "Figures will appear here after the next data update."
 msgstr "Las cifras aparecerán aquí después de la próxima actualización de datos."
+
+#: pipeline/common_strings.py
+msgid "Finance Committee"
+msgstr "Comité de Finanzas"
 
 #: site/pages/officials/index.html
 msgid "Find my ward using my location"
@@ -1929,6 +2129,14 @@ msgstr "Graduación"
 msgid "Graduation rate"
 msgstr "Tasa de graduación"
 
+#: pipeline/common_strings.py
+msgid "Graduation, attendance, and MCAS results compared with the state."
+msgstr "Graduación, asistencia y resultados del MCAS, comparados con el estado."
+
+#: pipeline/common_strings.py
+msgid "Graffiti"
+msgstr "Grafiti"
+
 #: site/pages/311/methodology/index.html
 msgid "Half took less time, half took more. Unlike an average, a few very old requests don't skew it."
 msgstr ""
@@ -1944,6 +2152,14 @@ msgstr ""
 "Los estudiantes de 11.º grado toman el SAT en su lugar, así que no están incluidos. Connecticut "
 "fija sus propios niveles de logro, así que estos resultados no se pueden comparar con los "
 "exámenes de otros estados, como el MCAS de Massachusetts."
+
+#: pipeline/common_strings.py
+msgid "Historic District Commission"
+msgstr "Comisión del Distrito Histórico"
+
+#: pipeline/common_strings.py
+msgid "Historical Commission"
+msgstr "Comisión Histórica"
 
 #: site/pages/housing/index.html
 msgid ""
@@ -1984,6 +2200,10 @@ msgstr "Viviendas en %(town)s según quién vive en ellas, %(years)s."
 msgid "Housing"
 msgstr "Vivienda"
 
+#: pipeline/common_strings.py
+msgid "Housing Authority"
+msgstr "Autoridad de Vivienda"
+
 #: pipeline/fetch_housing.py
 msgid "Housing figures"
 msgstr "Cifras de vivienda"
@@ -1996,6 +2216,10 @@ msgstr "Viviendas existentes"
 #, python-format
 msgid "How %(site)s collects %(town)s's 311 requests from SeeClickFix and calculates each number."
 msgstr "Cómo %(site)s recopila las solicitudes al 311 de %(town)s desde SeeClickFix y calcula cada número."
+
+#: pipeline/common_strings.py
+msgid "How fast the city responds to service requests, by category and ward."
+msgstr "Qué tan rápido responde la ciudad a las solicitudes de servicio, por categoría y por distrito."
 
 #: site/pages/about/index.html
 msgid "How it works"
@@ -2042,6 +2266,10 @@ msgstr "Cómo seguir a esta junta"
 #: site/templates/meeting.html
 msgid "How to take part"
 msgstr "Cómo participar"
+
+#: pipeline/common_strings.py
+msgid "Human Rights Commission"
+msgstr "Comisión de Derechos Humanos"
 
 #: pipeline/states/ma/budget.py
 msgid "Human services"
@@ -2107,6 +2335,10 @@ msgstr ""
 "En el año tributario %(year)s, la casa unifamiliar promedio de %(town)s tenía un valor tasado de "
 "%(value)s. Con la tasa de ese año, $%(rate)s por cada $1,000, su factura del impuesto fue de "
 "<strong>%(amount)s</strong>."
+
+#: pipeline/common_strings.py
+msgid "Inland Wetlands Commission"
+msgstr "Comisión de Humedales Interiores"
 
 #: pipeline/i18n.py
 msgctxt "month, short"
@@ -2190,6 +2422,14 @@ msgstr ""
 #: site/states/ma/budget.html
 msgid "Levy"
 msgstr "Recaudación"
+
+#: pipeline/common_strings.py
+msgid "Library Board of Trustees"
+msgstr "Junta de Fideicomisarios de la Biblioteca"
+
+#: pipeline/common_strings.py
+msgid "Licensing Board"
+msgstr "Junta de Licencias"
 
 #: site/templates/charts.html
 msgid "Link to this"
@@ -2371,6 +2611,10 @@ msgstr "Marcada como programada en el %(listing)s."
 msgid "Mass. Division of Local Services"
 msgstr "División de Servicios Locales (DLS) de Massachusetts"
 
+#: pipeline/common_strings.py
+msgid "Massachusetts General Laws, the state's laws."
+msgstr "Leyes Generales de Massachusetts (Massachusetts General Laws), las leyes del estado."
+
 #: site/pages/housing/index.html
 #, python-format
 msgid ""
@@ -2399,6 +2643,10 @@ msgstr "mayo"
 msgctxt "month, short"
 msgid "May"
 msgstr "may"
+
+#: pipeline/common_strings.py
+msgid "Mayor"
+msgstr "Alcalde"
 
 #: site/pages/housing/index.html
 msgid "Measure"
@@ -2464,6 +2712,10 @@ msgstr ""
 msgid "Meetings"
 msgstr "Reuniones"
 
+#: pipeline/common_strings.py
+msgid "Meetings (Agenda Center)"
+msgstr "Reuniones (Centro de Agendas)"
+
 #. %(title)s is a local TV station or video channel.
 #: site/templates/board.html site/templates/meeting.html
 #, python-format
@@ -2484,7 +2736,7 @@ msgstr ""
 msgid "Meetings recorded here start in %(month)s."
 msgstr "Las reuniones registradas aquí empiezan en %(month)s."
 
-#: site/pages/officials/index.html
+#: pipeline/common_strings.py site/pages/officials/index.html
 msgid "Member"
 msgstr "Miembro"
 
@@ -2643,6 +2895,12 @@ msgstr ""
 "Viviendas nuevas con permiso, valores de las viviendas y alquileres, vivienda asequible y "
 "viviendas existentes, según datos federales y estatales."
 
+#: pipeline/common_strings.py
+msgid "New homes permitted, home values and rents, affordable housing, and the housing stock."
+msgstr ""
+"Viviendas nuevas con permiso de construcción, el valor de las viviendas y los alquileres, la "
+"vivienda asequible y cuántas viviendas hay."
+
 #: site/pages/housing/index.html
 #, python-format
 msgid ""
@@ -2670,6 +2928,12 @@ msgid "New homes permitted, home values and rents, and the housing stock, from f
 msgstr ""
 "Viviendas nuevas con permiso, valores de las viviendas y alquileres, y viviendas existentes, "
 "según datos federales."
+
+#: pipeline/common_strings.py
+msgid "New homes permitted, home values and rents, and the housing stock."
+msgstr ""
+"Viviendas nuevas con permiso de construcción, el valor de las viviendas y los alquileres, y "
+"cuántas viviendas hay."
 
 #: site/pages/meetings/boards/index.html
 #, python-format
@@ -2887,6 +3151,10 @@ msgstr "Abierta"
 msgid "Open 311 requests"
 msgstr "Solicitudes al 311 abiertas"
 
+#: pipeline/common_strings.py
+msgid "Open Space Committee"
+msgstr "Comité de Espacios Abiertos"
+
 #: site/pages/311/index.html
 msgid "Open requests"
 msgstr "Solicitudes abiertas"
@@ -2921,7 +3189,7 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
 
-#: pipeline/states/ma/budget.py
+#: pipeline/common_strings.py pipeline/states/ma/budget.py
 msgid "Other"
 msgstr "Otros"
 
@@ -2961,6 +3229,14 @@ msgstr "Pagado con el impuesto a la propiedad"
 #: site/pages/housing/index.html
 msgid "Parcels"
 msgstr "Parcelas"
+
+#: pipeline/common_strings.py
+msgid "Parks & Recreation Commission"
+msgstr "Comisión de Parques y Recreación"
+
+#: pipeline/common_strings.py
+msgid "Parks and Recreation Commission"
+msgstr "Comisión de Parques y Recreación"
 
 #. %(network)s is the name of the network of sites, such as "Publick".
 #: site/pages/about/index.html
@@ -3027,6 +3303,10 @@ msgstr ""
 msgid "Per resident"
 msgstr "Por residente"
 
+#: pipeline/common_strings.py
+msgid "Personnel Board"
+msgstr "Junta de Personal"
+
 #: site/pages/311/repeat-locations/index.html
 #, python-format
 msgid ""
@@ -3041,6 +3321,18 @@ msgid "Places where a problem was reported again after an earlier request there 
 msgstr ""
 "Lugares donde se volvió a informar un problema después de que se cerró una solicitud anterior "
 "allí."
+
+#: pipeline/common_strings.py
+msgid "Planning Board"
+msgstr "Junta de Planificación"
+
+#: pipeline/common_strings.py
+msgid "Planning Commission"
+msgstr "Comisión de Planificación"
+
+#: pipeline/common_strings.py
+msgid "Planning and Zoning Commission"
+msgstr "Comisión de Planificación y Zonificación"
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -3066,6 +3358,19 @@ msgstr "Población: %(population)s."
 msgctxt "meeting"
 msgid "Postponed"
 msgstr "Aplazada"
+
+#: pipeline/common_strings.py
+msgid "Pothole"
+msgstr "Bache"
+
+#: pipeline/common_strings.py
+#, python-brace-format
+msgid "Precinct {n}"
+msgstr "Precinto {n}"
+
+#: pipeline/common_strings.py
+msgid "President"
+msgstr "Presidente"
 
 #: site/pages/about/index.html
 msgid "Privacy"
@@ -3166,6 +3471,14 @@ msgstr "Decisiones recientes"
 #, python-format
 msgid "Recordings of %(body)s meetings: <a href=\"%(url)s\">%(title)s</a>."
 msgstr "%(body)s: grabaciones de las reuniones en <a href=\"%(url)s\">%(title)s</a>."
+
+#: pipeline/common_strings.py
+msgid "Recreation Commission"
+msgstr "Comisión de Recreación"
+
+#: pipeline/common_strings.py
+msgid "Redevelopment Authority"
+msgstr "Autoridad de Reurbanización"
 
 #. %(listing)s is where the city lists meetings, such as "city's meeting portal".
 #: site/templates/macros.html
@@ -3312,6 +3625,10 @@ msgstr "Reservas y calificaciones crediticias"
 msgid "Residential property by type"
 msgstr "Propiedades residenciales por tipo"
 
+#: pipeline/common_strings.py
+msgid "Retirement Board"
+msgstr "Junta de Retiro"
+
 #: site/states/ma/budget.html
 msgid "Revenue"
 msgstr "Ingresos"
@@ -3344,6 +3661,10 @@ msgstr ""
 #: site/templates/meeting.html
 msgid "Scheduled until"
 msgstr "Programada hasta"
+
+#: pipeline/common_strings.py
+msgid "School Committee"
+msgstr "Comité Escolar"
 
 #: pipeline/states/nh/schools.py
 msgid "School figures"
@@ -3428,6 +3749,10 @@ msgstr "Buscando…"
 msgid "Seat"
 msgstr "Puesto"
 
+#: pipeline/common_strings.py
+msgid "Secretary"
+msgstr "Secretario"
+
 #: site/pages/311/index.html
 msgid "See as a list"
 msgstr "Ver como lista"
@@ -3435,6 +3760,10 @@ msgstr "Ver como lista"
 #: site/pages/311/index.html
 msgid "See as a table"
 msgstr "Ver como tabla"
+
+#: pipeline/common_strings.py
+msgid "Select Board"
+msgstr "Junta de Selectos"
 
 #: pipeline/i18n.py
 msgctxt "month, short"
@@ -3926,9 +4255,17 @@ msgstr "Aún se están recopilando los datos"
 msgid "Still open"
 msgstr "Aún abiertas"
 
+#: pipeline/common_strings.py
+msgid "Street Light"
+msgstr "Luz de la calle"
+
 #: site/pages/streets/index.html
 msgid "Street name"
 msgstr "Nombre de la calle"
+
+#: pipeline/common_strings.py
+msgid "Streetlight Out"
+msgstr "Luz de la calle apagada"
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -4177,6 +4514,14 @@ msgstr "La cifra del año fiscal %(year)s se certificó al 1 de julio de %(start
 msgid "The four-year adjusted cohort graduation rate."
 msgstr "La tasa de graduación ajustada por cohorte de cuatro años."
 
+#: pipeline/common_strings.py
+msgid ""
+"The full City Council meeting as a committee, to discuss a matter before voting on it at a "
+"regular meeting."
+msgstr ""
+"Todo el Concejo Municipal reunido como comité, para discutir un asunto antes de votarlo en una "
+"reunión regular."
+
 #: site/templates/meeting.html
 msgid "The full text above is a readable version."
 msgstr "El texto completo de arriba es una versión legible."
@@ -4198,6 +4543,12 @@ msgid "The maximum allowable levy is the Proposition 2½ levy limit plus voter-a
 msgstr ""
 "La recaudación máxima permitida es el límite de recaudación de la Proposición 2½ más las "
 "exclusiones de deuda aprobadas por los votantes."
+
+#: pipeline/common_strings.py
+msgid "The mayor, City Council, and School Committee, by office and by ward, and how to reach them."
+msgstr ""
+"El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo "
+"comunicarse con ellos."
 
 #: site/templates/macros.html
 msgid ""
@@ -4338,9 +4689,29 @@ msgstr "Total"
 msgid "Total by year"
 msgstr "Total por año"
 
+#: pipeline/common_strings.py
+msgid "Town Clerk"
+msgstr "Secretario Municipal"
+
+#: pipeline/common_strings.py
+msgid "Town Council"
+msgstr "Concejo Municipal"
+
+#: pipeline/common_strings.py
+msgid "Townwide"
+msgstr "Todo el municipio"
+
+#: pipeline/common_strings.py
+msgid "Traffic Commission"
+msgstr "Comisión de Tránsito"
+
 #: site/templates/macros.html
 msgid "Transcribed by AI from the city's PDF. Check the original before relying on it."
 msgstr "Transcrito con IA a partir del PDF de la ciudad. Revise el original antes de basarse en él."
+
+#: pipeline/common_strings.py
+msgid "Treasurer"
+msgstr "Tesorero"
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -4479,6 +4850,18 @@ msgstr "Desocupadas"
 msgid "Values and rents"
 msgstr "Valores y alquileres"
 
+#: pipeline/common_strings.py
+msgid "Vice Chair"
+msgstr "Vicepresidente"
+
+#: pipeline/common_strings.py
+msgid "Vice Chairperson"
+msgstr "Vicepresidente"
+
+#: pipeline/common_strings.py
+msgid "Vice President"
+msgstr "Vicepresidente"
+
 #: site/templates/charts.html
 msgid "View on SeeClickFix"
 msgstr "Ver en SeeClickFix"
@@ -4518,6 +4901,11 @@ msgid "Ward differences reflect how often people report problems, not only how t
 msgstr ""
 "Las diferencias entre distritos reflejan con qué frecuencia la gente informa problemas, no solo "
 "cómo responde la ciudad."
+
+#: pipeline/common_strings.py
+#, python-brace-format
+msgid "Ward {n}"
+msgstr "Distrito {n}"
 
 #. the ward map's messages; keep each {ward} as it is.
 #: site/pages/officials/index.html
@@ -4673,6 +5061,12 @@ msgstr ""
 "De dónde vino el dinero del fondo general en el año fiscal %(year)s, según lo presupuestado "
 "cuando se fijó la tasa del impuesto."
 
+#: pipeline/common_strings.py
+msgid "Where general fund money comes from and how it is spent, reserves, and the property tax limit."
+msgstr ""
+"De dónde viene el dinero del fondo general y cómo se gasta, las reservas y el límite del impuesto"
+" a la propiedad."
+
 #: site/states/ma/budget.html
 msgid ""
 "Where the city's general fund money comes from and how it is spent, from the city's annual "
@@ -4750,6 +5144,14 @@ msgstr ""
 msgid "Your street"
 msgstr "Su calle"
 
+#: pipeline/common_strings.py
+msgid "Zoning Board of Adjustment"
+msgstr "Junta de Ajustes de Zonificación"
+
+#: pipeline/common_strings.py
+msgid "Zoning Board of Appeals"
+msgstr "Junta de Apelaciones de Zonificación"
+
 #: pipeline/build_site.py
 msgid "agenda items"
 msgstr "puntos de la agenda"
@@ -4762,7 +5164,7 @@ msgstr "permisos de construcción"
 msgid "city calendar"
 msgstr "calendario de la ciudad"
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py pipeline/common_strings.py
 msgid "city's Agenda Center"
 msgstr "Centro de Agendas de la ciudad"
 
