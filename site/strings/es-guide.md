@@ -26,6 +26,9 @@ Spain.
   sign), and all HTML (`<a href="%(url)s">…</a>`, `<strong>`, `<time …>`).
   Move them where Spanish needs them. The tests check that each translation
   has the same placeholders as its English.
+- A board's name inserted into a sentence (`%(title)s`, `%(board)s`, `%(body)s`)
+  may be Spanish with English in parentheses or plain English, so don't put an
+  article or *de* right before it: *%(title)s: reunión*, not *Reunión de %(title)s*.
 - Plurals have two forms, as in English (one, and everything else).
 - Dates: *jueves, 1 de octubre de 2026*; *1 de octubre de 2026*; *octubre de
   2026*. Months and weekdays in lower case. Short forms: *jue*, *oct*
@@ -61,6 +64,11 @@ Spain.
 | scanned document | documento escaneado |
 | 311 request | solicitud al 311 |
 | acknowledged (a 311 request) | confirmada: the city confirmed it received it |
+| submitted (a 311 request) | enviada (*del envío a…*) |
+| time to acknowledge / time to close | tiempo de confirmación / tiempo de cierre (*typical*: tiempo típico de…) |
+| Not enough data | Datos insuficientes (the same where it's quoted) |
+| longest-open requests | solicitudes abiertas desde hace más tiempo |
+| no update in over a year | sin actualizar en más de un año |
 | open / closed (a request) | abierta / cerrada |
 | ward / precinct | distrito / precinto |
 | who represents you | quién lo representa |
@@ -83,5 +91,11 @@ Spain.
 | Subsidized Housing Inventory | Inventario de Vivienda Subsidiada (SHI) |
 | unemployment rate | tasa de desempleo |
 | data / source | datos / fuente |
+| Mass. Division of Local Services (DLS) | la División de Servicios Locales (DLS) de Massachusetts; *DLS de Massachusetts* in short labels |
+| state test | examen estatal (*los exámenes MCAS*) |
+| compared with the state | en comparación con el estado |
+| alerts (Notify Me) | avisos |
+| written / transcribed by AI | escrito / transcrito con IA |
+| add (text will be added) | agregar, not *añadir* |
 | up to date / behind | al día / atrasado |
 | report a problem | informar un problema |

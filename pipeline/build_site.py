@@ -39,8 +39,9 @@ from pipeline import officials as officials_mod
 from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import summarize
+from pipeline import translate
 from pipeline.fetch_meetings import slugify
-from pipeline.i18n import N_, _, month_name, month_year, ngettext, plain_date, weekday_name
+from pipeline.i18n import N_, _, month_name, month_year, ngettext, pgettext, plain_date, weekday_name
 from pipeline.seeclickfix import short_address
 
 SITE_DIR = ENGINE_DIR / "site"
@@ -123,6 +124,12 @@ def format_date(value: str | date, fmt: str = "long") -> str:
         return plain_date(d)
     if fmt == "mon":
         return month_name(d.month, short=True)
+    if fmt == "mon_day":
+        # Translators: a short date without the year, such as "Oct 1".
+        return pgettext("short date", "{month} {day}").format(month=month_name(d.month, short=True), day=d.day)
+    if fmt == "mon_day_year":
+        # Translators: a short date, such as "Oct 1, 2026".
+        return pgettext("short date", "{month} {day}, {year}").format(month=month_name(d.month, short=True), day=d.day, year=d.year)
     if fmt == "day":
         return str(d.day)
     if fmt == "weekday":
@@ -218,7 +225,7 @@ def render_markdown(text: str) -> Markup:
 
 
 def in_english(value):
-    """Text written in English (an AI summary, a decision), marked as English on another
+    """Text written in English (an AI summary not translated yet), marked as English on another
     language's page so screen readers pronounce it as English."""
     if i18n.language() == "en" or value in (None, ""):
         return value
@@ -337,6 +344,7 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
             "finalsite": N_("school district's website")}
+CALENDAR = N_("city calendar")
 
 
 def from_agenda(m: dict) -> None:
@@ -350,6 +358,23 @@ def from_agenda(m: dict) -> None:
     if not (m["location_name"] or m["address"] or m["location"]) and (preview.get("location") or "").strip():
         m["location"] = preview["location"].strip()
         m["from_agenda"] = True
+
+
+def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None) -> dict | None:
+    """A summary as the language being built shows it: its translation, when one passed the
+    check (pipeline/translate.py), or the English, marked "english" for the page to say so."""
+    lang = i18n.language()
+    if not record or lang == "en":
+        return record
+    translated = translate.shown(data_dir, lang, doc["sha256"], record, kind)
+    if translated:
+        return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True}
+    return {**record, "english": True}
+
+
+def english_attr(record: dict | None) -> Markup:
+    """' lang="en"' for an element holding a summary shown in English on another language's page."""
+    return Markup(' lang="en"') if record and record.get("english") else Markup("")
 
 
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None) -> dict:
@@ -367,7 +392,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m.setdefault(key, default)
         m.setdefault("documents_url", None)
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
-        m["listing"] = _(LISTINGS.get(m["source"], N_("city calendar")))
+        m["listing"] = _(LISTINGS.get(m["source"], CALENDAR))
         m["url"] = f"/meetings/{m['slug']}/"
         # The board's name as the city writes it; m["body"] is the one shown, translated for another language.
         m["body_en"] = m["body"]
@@ -385,16 +410,24 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             if m["minutes_doc"] and summary_model else None
         )
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
-        ms = m["minutes_summary"]
+        # Decisions are sorted, hearings found, and glossary terms matched in the English;
+        # another language's pages show its translation where there is one.
+        english = {"preview": m["preview"], "minutes_summary": m["minutes_summary"], "body": m["body"]}
+        m["preview"] = in_language(data_dir, m["preview"], "agenda", m["agenda"])
+        m["minutes_summary"] = in_language(data_dir, m["minutes_summary"], "minutes", m["minutes_doc"])
+        ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
-        if ms and ms.get("is_minutes", True):
-            for d in ms.get("decisions", []):
-                sorted_decisions[decision_kind(d)].append(d)
+        if ms_en and ms_en.get("is_minutes", True):
+            for d, shown in zip(ms_en.get("decisions", []), ms.get("decisions", [])):
+                sorted_decisions[decision_kind(d)].append(shown)
         m["decisions"] = sorted_decisions
-        m["public_hearing"] = bool(m["preview"]) and bool(PUBLIC_HEARING.search(
-            " ".join([m["preview"].get("summary") or "", doc_text(m["preview"]), *m["preview"].get("items", [])])))
+        # Whether the decisions are shown in English on another language's page.
+        m["decisions_english"] = bool(ms and ms.get("english"))
+        pv_en = english["preview"]
+        m["public_hearing"] = bool(pv_en) and bool(PUBLIC_HEARING.search(
+            " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
         m["preview_line"] = preview_line(m)
-        m["glossary"] = glossary_for(m, glossary or [])
+        m["glossary"] = glossary_for(english, glossary or [])
 
     # A board that meets more than once in a day (a hearing, then its regular
     # meeting) needs each meeting told apart in page titles and lists: by start
@@ -486,6 +519,12 @@ def search_index(meetings: list[dict], prefix: str = "") -> list[dict]:
         if ms:
             docs.append({"kind": _("Minutes") if ms.get("is_minutes", True) else _("Agenda"),
                          "text": plain_text(doc_text(ms))})
+        # Another language's search also finds the meeting by its translated summaries.
+        for kind, record in (("agenda", m["preview"]), ("minutes", m["minutes_summary"])):
+            if record and record.get("translated"):
+                text = "\n".join(line for f in translate.FIELDS[kind]
+                                  for line in ([record[f]] if isinstance(record[f], str) else record[f]) if line)
+                docs.append({"kind": _("Summary"), "text": text})
         rows.append({"url": prefix + m["url"], "board": m["body"], "date": m["date"],
                      "date_text": format_date(m["date"]), "docs": [d for d in docs if d["text"]]})
     return rows[::-1]
@@ -538,15 +577,15 @@ def preview_line(meeting: dict) -> str | None:
     minutes, agenda = meeting.get("minutes_summary"), meeting.get("preview")
     if minutes and minutes.get("is_minutes", True):
         if minutes.get("headline"):
-            return minutes["headline"]
+            return in_english(minutes["headline"]) if minutes.get("english") else minutes["headline"]
         if minutes.get("decisions"):
-            final = [d for d in minutes["decisions"] if decision_kind(d) == "decided"]
-            return clip((final or minutes["decisions"])[0])
+            final = meeting["decisions"]["decided"] if "decisions" in meeting else []
+            line = clip((final or minutes["decisions"])[0])
+            return in_english(line) if minutes.get("english") else line
     if agenda:
-        if agenda.get("headline"):
-            return agenda["headline"]
-        if agenda.get("items"):
-            return clip("; ".join(i.rstrip(".") for i in agenda["items"][:4]) + ".")
+        line = agenda.get("headline") or (clip("; ".join(i.rstrip(".") for i in agenda["items"][:4]) + ".")
+                                          if agenda.get("items") else None)
+        return in_english(line) if line and agenda.get("english") else line
     return None
 
 
@@ -775,6 +814,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
     links = meeting_links(config)
+    if "governing_body" not in config.get("meetings", {}):
+        # The default name, as the town's config would have been translated.
+        links["governing_body"] = tr.board(links["governing_body"])
     # Agendas and minutes: saved and searchable, or (for a town with a calendar only) not yet.
     documents = "meetings" in config and links["documents"]
     # What the street lookup covers, as a phrase: "agenda items, building permits, and 311 requests".
@@ -828,13 +870,12 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.policies["ext.i18n.trimmed"] = True
     env.filters.update(date=format_date, time=format_time, filesize=format_bytes, timestamp=format_timestamp,
                        duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
-                       markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell, english=in_english,
+                       markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell,
                        street=lambda a: short_address(a, config["town"]["name"]),
                        model_name=model_name, capitalize_first=lambda t: Markup(t[:1].upper() + t[1:]),
-                       school_year=school_year, money_bold=emphasize_money, decision=lambda t: in_english(decision_text(t)),
-                       recommendation=lambda t: in_english(decision_text(tidy_recommendation(t))))
-    # On another language's page, ' lang="en"' for an element holding English text (an AI summary); otherwise nothing.
-    env.globals["in_english"] = Markup("" if english else ' lang="en"')
+                       school_year=school_year, money_bold=emphasize_money, decision=decision_text,
+                       recommendation=lambda t: decision_text(tidy_recommendation(t)))
+    env.globals["english_attr"] = english_attr
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
     css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
     def versioned(path: str) -> str:

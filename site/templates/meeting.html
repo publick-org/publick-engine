@@ -104,18 +104,18 @@
 {% trans who=m.minutes_doc.get("posted_by") or _("The city") %}{{ who }} filed a different document here instead of minutes. Minutes may be posted later.{% endtrans %}
 {% endif %}</p>
 {% else %}
-<p{{ in_english }}>{{ ms.summary }}</p>
+<p{{ english_attr(ms) }}>{{ ms.summary }}</p>
 {% endif %}
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
 <h3>{{ _("Decisions recorded") }}</h3>
-<ul{{ in_english }}>
+<ul{{ english_attr(ms) }}>
   {% for d in ms.decisions %}<li>{{ d }}</li>{% endfor %}
 </ul>
 {% else %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}
-{% if in_english %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{% if ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by")) }}
 {{ full_text("minutes", ms) }}
 {% elif m.minutes_too_large %}
@@ -143,14 +143,14 @@
 
 <h2 id="agenda">{% if m.date >= built_at.date().isoformat() %}{{ _("What's on the agenda") }}{% else %}{{ _("Agenda") }}{% endif %}</h2>
 {% if m.preview %}
-<p{{ in_english }}>{{ m.preview.summary }}</p>
+<p{{ english_attr(m.preview) }}>{{ m.preview.summary }}</p>
 {% if m.preview["items"] %}
 <h3 id="agenda-items">{{ _("Agenda items") }}</h3>
-<ul{{ in_english }}>
+<ul{{ english_attr(m.preview) }}>
   {% for item in m.preview["items"] %}<li>{{ item }}</li>{% endfor %}
 </ul>
 {% endif %}
-{% if in_english %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{% if m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none) }}
 {{ full_text("agenda", m.preview) }}
 {% endif %}
