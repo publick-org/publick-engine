@@ -31,8 +31,13 @@ def _page_size(path: str) -> int:
     return (SITE_DIR / (path.lstrip("/") + ("index.html" if path.endswith("/") else ""))).stat().st_size
 
 
+# The site's languages: English at the root, any other under /<language>/.
+LANGUAGES = build_site.languages(load_config(DEFAULT_TOWN))
+PREFIXES = {lang: "" if lang == "en" else f"/{lang}" for lang in LANGUAGES}
+
 # The pages the browser checks run on: all of them, or a sample (site_checks/pages.py).
-HAND_WRITTEN = {build_site.url_for(p.relative_to(build_site.PAGES_DIR)) for p in build_site.PAGES_DIR.rglob("*.html")}
+HAND_WRITTEN = {prefix + build_site.url_for(p.relative_to(build_site.PAGES_DIR))
+                for p in build_site.PAGES_DIR.rglob("*.html") for prefix in PREFIXES.values()}
 BROWSER_PATHS = (sample(PAGE_PATHS, _page_size, HAND_WRITTEN) if os.environ.get("PUBLICK_CHECK_PAGES") == "sample"
                  else PAGE_PATHS)
 
@@ -59,7 +64,11 @@ class _Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def send_error(self, code, message=None, explain=None):
-        page = Path(self.directory) / "404.html"
+        # A missing page in another language gets that language's 404 page, as from the Worker.
+        lang = self.path.lstrip("/").split("/", 1)[0]
+        page = Path(self.directory) / lang / "404.html"
+        if not (lang and lang in LANGUAGES and page.exists()):
+            page = Path(self.directory) / "404.html"
         if code == 404 and page.exists():
             body = page.read_bytes()
             self.send_response(404)

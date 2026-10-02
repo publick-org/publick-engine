@@ -16,6 +16,7 @@ import requests
 from pypdf import PdfReader
 
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_
 from pipeline.states.ma.dls import REPORT_URL, table
 
 # The housing.json keys these add.
@@ -24,10 +25,11 @@ SHI_PAGE = "https://www.mass.gov/info-details/subsidized-housing-inventory-shi"
 PARCELS_REPORT = "PropertyTaxInformation.LA4.Parcel_counts_vals"
 # DLS parcel columns shown on the page, with plain names. Parcels, not homes:
 # a condominium building has one parcel per unit, an apartment building one in all.
-PARCEL_TYPES = {"Single Family 101": "Single-family homes", "Condominiums 102": "Condominiums",
-                "Two Family 104": "Two-family homes", "Three Family 105": "Three-family homes",
-                "Apartment 111-125": "Apartment buildings (4 or more units)",
-                "Miscellaneous Residential 103,109": "Other residential"}
+# Saved in English and translated where they're shown (the build's data_label).
+PARCEL_TYPES = {"Single Family 101": N_("Single-family homes"), "Condominiums 102": N_("Condominiums"),
+                "Two Family 104": N_("Two-family homes"), "Three Family 105": N_("Three-family homes"),
+                "Apartment 111-125": N_("Apartment buildings (4 or more units)"),
+                "Miscellaneous Residential 103,109": N_("Other residential")}
 
 
 def parts(config: dict) -> set[str]:

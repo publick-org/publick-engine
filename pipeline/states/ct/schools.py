@@ -32,6 +32,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 EXPORTS = "https://edsight.ct.gov/SASStoredProcess/guest?_program=/CTDOE/EdSight/Release/Reporting/Public/Reports/StoredProcesses/"
@@ -60,13 +61,13 @@ SUBJECTS = {"ELA": "tests_ela", "Math": "tests_math"}
 # test results, the class of 2025's graduation rate, and 2024-25 spending. The dates
 # a new year usually appears are estimated from that; adjust them from EdSight's
 # release history as it builds up.
-RHYTHM = Rhythm("School figures (EdSight)", "schools/schools.json", "Fetch school figures", "yearly", (
+RHYTHM = Rhythm(N_("School figures (EdSight)"), "schools/schools.json", "Fetch school figures", "yearly", (
     Part(latest_year("measures.graduation.years", "year"), on(6, years_after=1),
-         lambda y: f"Class of {y} graduation rate"),
-    Part(latest_year("measures.tests_ela.years", "year"), on(10), lambda y: f"Spring {y} state test results"),
-    Part(latest_year("measures.absenteeism.years", "year"), on(10), lambda y: f"{y - 1}–{y % 100:02d} attendance"),
+         lambda y: _("Class of {year} graduation rate").format(year=y)),
+    Part(latest_year("measures.tests_ela.years", "year"), on(10), lambda y: _("Spring {year} state test results").format(year=y)),
+    Part(latest_year("measures.absenteeism.years", "year"), on(10), lambda y: _("{years} attendance").format(years=f"{y - 1}–{y % 100:02d}")),
     Part(latest_year("measures.spending.years", "year"), on(10, years_after=1),
-         lambda y: f"{y - 1}–{y % 100:02d} spending per pupil"),
+         lambda y: _("{years} spending per pupil").format(years=f"{y - 1}–{y % 100:02d}")),
 ))
 
 SCHOOL_YEAR = re.compile(r"^(\d{4})-(\d{2})$")

@@ -1,53 +1,56 @@
 {% extends "base.html" %}
 {% from "charts.html" import map_figure, map_assets, chart_links %}
-{% block title %}Repeat 311 locations{% endblock %}
-{% block description %}Places in {{ town.name }} where a problem was reported to 311 again after an earlier request there was closed.{% endblock %}
+{% block title %}{{ _("Repeat 311 locations") }}{% endblock %}
+{% block description %}{% trans town=town.name %}Places in {{ town }} where a problem was reported to 311 again after an earlier request there was closed.{% endtrans %}{% endblock %}
 {% set rep = scorecard.get("repeats") if scorecard else none %}
 {% block head %}{% if rep %}{{ map_assets() }}{% endif %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb"><ol><li><a href="/311/">311 Requests</a></li></ol></nav>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li></ol></nav>
 <div class="page-head">
-  <h1>Repeat locations</h1>
-  <p class="lede">Places where a problem was reported again after an earlier request there was closed.</p>
+  <h1>{{ _("Repeat locations") }}</h1>
+  <p class="lede">{{ _("Places where a problem was reported again after an earlier request there was closed.") }}</p>
   {% if rep %}
-  <p class="source-note">Requests submitted {{ scorecard.window.start | date("plain") }} to {{ scorecard.window.end | date("plain") }}. Updated <time datetime="{{ scorecard.generated_at }}">{{ scorecard.generated_at | timestamp }}</time>.</p>
+  <p class="source-note">{% trans start=scorecard.window.start | date("plain"), end=scorecard.window.end | date("plain"), iso=scorecard.generated_at, when=scorecard.generated_at | timestamp %}Requests submitted {{ start }} to {{ end }}. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
   {% endif %}
 </div>
 
 {% if not rep %}
-<p>This list will appear after the next data update.</p>
+<p>{{ _("This list will appear after the next data update.") }}</p>
 {% else %}
 {% set places = rep.places %}
-<p>Requests in the same category within {{ rep.radius_m }} meters and {{ rep.window_days }} days of each other count as one place. A new request after a close can mean the problem came back, the first fix didn't hold, or a separate problem nearby.</p>
+<p>{% trans meters=rep.radius_m, days=rep.window_days %}Requests in the same category within {{ meters }} meters and {{ days }} days of each other count as one place. A new request after a close can mean the problem came back, the first fix didn't hold, or a separate problem nearby.{% endtrans %}</p>
 
 {% if places %}
-<h2 id="map">Map</h2>
-{{ map_figure("repeats", map_points.repeats, "Map of repeat locations. Larger circles had more requests after a close. The same places are listed below.") }}
+<h2 id="map">{{ _("Map") }}</h2>
+{{ map_figure("repeats", map_points.repeats, _("Map of repeat locations. Larger circles had more requests after a close. The same places are listed below.")) }}
 
-<h2 id="list">{{ plural(places | length, "place") }}</h2>
-<p class="small">Sorted by requests submitted after an earlier request at the same place was closed.</p>
+<h2 id="list">{% trans count=places | length, num=places | length | number %}{{ num }} place{% pluralize %}{{ num }} places{% endtrans %}</h2>
+<p class="small">{{ _("Sorted by requests submitted after an earlier request at the same place was closed.") }}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Location and category</th><th scope="col" class="num">Requests</th><th scope="col" class="num">After a close</th><th scope="col" class="num wide">Still open</th><th scope="col" class="wide">Dates</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Location and category") }}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num">{{ _("After a close") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th><th scope="col" class="wide">{{ _("Dates") }}</th></tr></thead>
   <tbody>
   {% for pl in places %}
     <tr>
-      <th scope="row"><a href="{{ pl.requests[-1].url }}">{{ pl.address or "No street address" }}</a>{% if pl.ward %}<span class="small">, Ward {{ pl.ward }}</span>{% endif %}<br><span class="cell-note"><a href="/311/category/{{ pl.slug }}/">{{ pl.category }}</a></span></th>
+      <th scope="row"><a href="{{ pl.requests[-1].url }}">{{ pl.address or _("No street address") }}</a>{% if pl.ward %}<span class="small">, {{ _("Ward %(ward)s", ward=pl.ward) }}</span>{% endif %}<br><span class="cell-note"><a href="/311/category/{{ pl.slug }}/">{{ pl.category }}</a></span></th>
       <td class="num">{{ pl.reports | number }}</td>
       <td class="num">{{ pl.again_after_close | number }}</td>
       <td class="num wide">{{ pl.open | number }}</td>
-      <td class="wide"><time datetime="{{ pl.first }}">{{ pl.first | date("mon") }} {{ pl.first | date("day") }}{% if pl.first[:4] != pl.last[:4] %}, {{ pl.first[:4] }}{% endif %}</time> to <time datetime="{{ pl.last }}">{{ pl.last | date("mon") }} {{ pl.last | date("day") }}, {{ pl.last[:4] }}</time></td>
+      {% set first %}<time datetime="{{ pl.first }}">{{ pl.first | date("mon_day_year" if pl.first[:4] != pl.last[:4] else "mon_day") }}</time>{% endset %}
+      {% set last %}<time datetime="{{ pl.last }}">{{ pl.last | date("mon_day_year") }}</time>{% endset %}
+      {# Translators: a place's first and latest request dates. #}
+      <td class="wide">{% trans first=first, last=last %}{{ first }} to {{ last }}{% endtrans %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
-<p class="small">Each location links to its latest request on SeeClickFix. The CSV lists every request.</p>
+<p class="small">{{ _("Each location links to its latest request on SeeClickFix. The CSV lists every request.") }}</p>
 {{ chart_links("list", "/311/data/repeat-locations.csv") }}
 {% else %}
-<p>No repeat locations in the past 12 months.</p>
+<p>{{ _("No repeat locations in the past 12 months.") }}</p>
 {% endif %}
 
-<p class="source-note">Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license. Map data from OpenStreetMap. <a href="/311/methodology/#locations">How repeat locations are found</a>.</p>
+<p class="source-note">{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {{ _("Map data from OpenStreetMap.") }} <a href="/311/methodology/#locations">{{ _("How repeat locations are found") }}</a>.</p>
 {% endif %}
 {% endblock %}

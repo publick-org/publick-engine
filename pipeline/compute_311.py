@@ -22,12 +22,14 @@ from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_311 import load_store, save_json, store_dir, tag_wards
 from pipeline.fetch_meetings import slugify
 from pipeline.geo import PrecinctLookup
+from pipeline.i18n import N_
 from pipeline.seeclickfix import street_address
 
 # Statistics from fewer requests than this are not shown.
 MIN_SAMPLE = 5
-BACKLOG_BUCKETS = [(7, "Under 1 week"), (30, "1 week to 1 month"), (90, "1 to 3 months"),
-                   (365, "3 to 12 months"), (None, "Over 1 year")]
+# The labels are saved in English and translated where they're shown.
+BACKLOG_BUCKETS = [(7, N_("Under 1 week")), (30, N_("1 week to 1 month")), (90, N_("1 to 3 months")),
+                   (365, N_("3 to 12 months")), (None, N_("Over 1 year"))]
 # Open requests with no update on SeeClickFix for this long are counted
 # separately: the data can't show whether they were fixed and never closed,
 # or never handled.

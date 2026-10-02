@@ -11,13 +11,13 @@
     return node;
   }
 
-  function popup(p) {
+  function popup(p, strings) {
     var box = el("div");
     box.appendChild(el("strong", p.title));
     if (p.text) box.appendChild(el("p", p.text));
     if (p.url) {
-      var a = el("a", p.link || "View on SeeClickFix", { href: p.url, target: "_blank", rel: "noopener" });
-      a.appendChild(el("span", " (opens in new tab)", { "class": "visually-hidden" }));
+      var a = el("a", p.link || strings.view, { href: p.url, target: "_blank", rel: "noopener" });
+      a.appendChild(el("span", " " + strings.new_tab, { "class": "visually-hidden" }));
       box.appendChild(a);
     }
     return box;
@@ -25,6 +25,8 @@
 
   document.querySelectorAll("[data-map]").forEach(function (node) {
     var points = JSON.parse(document.getElementById(node.getAttribute("data-map")).textContent);
+    // The popups' wording, in the page's language (data-strings, written by the map_figure macro).
+    var strings = JSON.parse(node.getAttribute("data-strings"));
     if (!points.length) return;
     node.hidden = false;
     // On touch screens, one finger scrolls the page; pinch to zoom the map.
@@ -40,7 +42,7 @@
     points.forEach(function (p) {
       L.circleMarker([p.lat, p.lng], {
         radius: p.size || 7, color: "#ffffff", weight: 2, fillColor: fill, fillOpacity: 0.85
-      }).bindPopup(popup(p)).addTo(map);
+      }).bindPopup(popup(p, strings)).addTo(map);
       bounds.push([p.lat, p.lng]);
     });
     map.fitBounds(bounds, { padding: [24, 24], maxZoom: 16 });

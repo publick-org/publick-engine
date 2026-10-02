@@ -2,37 +2,37 @@
 {% from "charts.html" import month_columns, bars, chart_links %}
 {% from "macros.html" import city_report_button %}
 {% set c = category %}
-{% block title %}{{ c.category }}: 311 requests{% endblock %}
-{% block description %}{{ c.category }} requests in {{ town.name }}: how many, how quickly the city responds, and where.{% endblock %}
+{% block title %}{% trans category=c.category %}{{ category }}: 311 requests{% endtrans %}{% endblock %}
+{% block description %}{% trans category=c.category, town=town.name %}{{ category }} requests in {{ town }}: how many, how quickly the city responds, and where.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb"><ol><li><a href="/311/">311 Requests</a></li><li><a href="/311/#categories">Categories</a></li></ol></nav>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#categories">{{ _("Categories") }}</a></li></ol></nav>
 <div class="page-head">
   <h1>{{ c.category }}</h1>
-  <p class="lede">{{ c.category }} requests over the past 12 months.</p>
+  <p class="lede">{% trans category=c.category %}{{ category }} requests over the past 12 months.{% endtrans %}</p>
   {{ city_report_button(config) }}
 </div>
 <ul class="stats">
-  <li class="stat"><div><span class="stat-label">Requests</span><span class="stat-value">{{ c.received | number }}</span></div></li>
-  <li class="stat"><div><span class="stat-label">Still open</span><span class="stat-value">{{ c.open | number }}</span></div></li>
-  <li class="stat"><div><span class="stat-label">Typical time to acknowledge</span><span class="stat-value">{{ c.time_to_acknowledge.median | duration }}</span><span class="stat-change">Median of {{ c.acknowledged | number }} acknowledged</span></div></li>
-  <li class="stat"><div><span class="stat-label">Typical time to close</span><span class="stat-value">{{ c.time_to_close.median | duration }}</span><span class="stat-change">Median of {{ c.closed | number }} closed{% if c.time_to_close.p90 %} · 1 in 10 over {{ c.time_to_close.p90 | duration }}{% endif %}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Requests") }}</span><span class="stat-value">{{ c.received | number }}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Still open") }}</span><span class="stat-value">{{ c.open | number }}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to acknowledge") }}</span><span class="stat-value">{{ c.time_to_acknowledge.median | duration }}</span><span class="stat-change">{% trans num=c.acknowledged | number %}Median of {{ num }} acknowledged{% endtrans %}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to close") }}</span><span class="stat-value">{{ c.time_to_close.median | duration }}</span><span class="stat-change">{% trans num=c.closed | number %}Median of {{ num }} closed{% endtrans %}{% if c.time_to_close.p90 %} · {% trans p90=c.time_to_close.p90 | duration %}1 in 10 over {{ p90 }}{% endtrans %}{% endif %}</span></div></li>
 </ul>
 
-<h2 id="monthly">Requests by month</h2>
-{{ month_columns(c.monthly, c.category ~ " requests by month") }}
+<h2 id="monthly">{{ _("Requests by month") }}</h2>
+{{ month_columns(c.monthly, _("%(category)s requests by month", category=c.category)) }}
 {{ chart_links("monthly") }}
 
-<h2 id="wards">By ward</h2>
+<h2 id="wards">{{ _("By ward") }}</h2>
 {% set rows = [] %}
-{% for w in c.by_ward %}{% set _ = rows.append({"label": ("Ward " ~ w.ward) if w.ward != "outside" else "Outside", "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
-{{ bars(rows, c.category ~ " requests by ward") }}
+{% for w in c.by_ward %}{% set ignored = rows.append({"label": _("Ward %(ward)s", ward=w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
+{{ bars(rows, _("%(category)s requests by ward", category=c.category)) }}
 {{ chart_links("wards", "/311/data/category-" ~ c.slug ~ ".csv") }}
 
 {% if c.oldest %}
-<h2 id="longest-open">Longest-open {{ c.category }} requests</h2>
+<h2 id="longest-open">{% trans category=c.category %}Longest-open {{ category }} requests{% endtrans %}</h2>
 <ol class="plain-list">
-  {% for r in c.oldest %}<li><a href="{{ r.url }}">{{ r.address or "No street address" }}</a><span class="item-detail">{% if r.ward %}Ward {{ r.ward }} · {% endif %}Open since <time datetime="{{ r.created_at }}">{{ r.created_at[:10] | date("plain") }}</time></span></li>{% endfor %}
+  {% for r in c.oldest %}<li><a href="{{ r.url }}">{{ r.address or _("No street address") }}</a><span class="item-detail">{% if r.ward %}{{ _("Ward %(ward)s", ward=r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
-<p class="source-note"><a href="/311/methodology/">How these numbers are calculated</a>.</p>
+<p class="source-note"><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a>.</p>
 {% endblock %}

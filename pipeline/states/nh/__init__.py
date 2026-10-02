@@ -13,6 +13,7 @@ as in its files.
     [schools]  doe_district (the district's name in the Department of Education's files), district_name
 """
 
+from pipeline.i18n import N_
 from pipeline.states import Source, State
 
 STATE = State(
@@ -23,6 +24,6 @@ STATE = State(
         "budget": Source("finance", ("dra_municipality",), "pipeline.states.nh.budget"),
         "schools": Source("schools", ("doe_district", "district_name"), "pipeline.states.nh.schools"),
     },
-    tax_source="Calculated by Publick from state figures",
+    tax_source=N_("Calculated by Publick from state figures"),
     pages="pipeline.states.nh.pages",
 )

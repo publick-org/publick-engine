@@ -93,6 +93,11 @@ a.external::after { content: "\2009\2197"; font-size: 0.85em; }
 .brand span { color: var(--network); }
 .brand:hover { text-decoration: underline; text-decoration-thickness: 2px; }
 .masthead-line { margin: 0.3rem 0 0; color: var(--ink-soft); font-size: 0.95rem; }
+/* The same page in the site's other language, at the masthead's right. */
+.language-switch {
+  float: right; display: inline-flex; align-items: center; min-height: 2.75rem; margin-left: 1rem;
+  color: var(--primary); font-weight: 600; font-size: 0.95rem;
+}
 
 .site-nav { border-top: 1px solid var(--primary-dark); border-bottom: 4px double var(--primary-dark); }
 .nav-list { display: flex; flex-wrap: wrap; column-gap: 1.25rem; margin: 0; padding: 0; list-style: none; }
@@ -215,7 +220,10 @@ main .meeting-list > li { max-width: none; margin: 0; }
 }
 .meeting-meta { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.875rem; }
 .meeting-meta .flag { color: var(--accent); }
-@media (max-width: 22rem) { .meeting-item { grid-template-columns: 1fr; } }
+/* Spanish times ("12:00 p. m.") are longer; "time to be announced" may wrap. */
+:lang(es) .meeting-item { grid-template-columns: 6.25rem 1fr; }
+.meeting-when .small { white-space: normal; }
+@media (max-width: 22rem) { .meeting-item, :lang(es) .meeting-item { grid-template-columns: 1fr; } }
 
 /* Decisions: one block per meeting, its votes as a plain list. */
 .decision-list { margin: 0; padding: 0; list-style: none; }

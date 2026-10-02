@@ -1,26 +1,28 @@
 {% extends "base.html" %}
 {% from "macros.html" import day_group, search_form %}
-{% block title %}Meetings{% endblock %}
-{% block description %}Upcoming public meetings in {{ town.name }}, {{ town.state_abbr }}, with times, places, how to attend, agendas, and what was decided.{% endblock %}
+{% block title %}{{ _("Meetings") }}{% endblock %}
+{# Translators: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block description %}{% trans town=town.name, state=town.state_abbr %}Upcoming public meetings in {{ town }}, {{ state }}, with times, places, how to attend, agendas, and what was decided.{% endtrans %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Meetings</h1>
-  <p class="lede">{{ meeting_links.governing_body }}, boards, and committees: when they meet{% if meeting_links.documents %}, what's on the agenda, and what they decided{% endif %}.</p>
+  <h1>{{ _("Meetings") }}</h1>
+  {# Translators: %(council)s is the town's governing body, such as "City Council". #}
+  <p class="lede">{% if meeting_links.documents %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet, what's on the agenda, and what they decided.{% endtrans %}{% else %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet.{% endtrans %}{% endif %}</p>
   <ul class="link-row">
-    <li><a href="/meetings/boards/">Boards and committees</a></li>
-    {% if meeting_links.documents %}<li><a href="/meetings/decisions/">Decisions</a></li>{% endif %}
-    {% if street_sources %}<li><a href="/streets/">Your street</a></li>{% endif %}
-    <li><a href="/meetings/past/">Past meetings</a></li>
+    <li><a href="/meetings/boards/">{{ _("Boards and committees") }}</a></li>
+    {% if meeting_links.documents %}<li><a href="/meetings/decisions/">{{ _("Decisions") }}</a></li>{% endif %}
+    {% if street_sources %}<li><a href="/streets/">{{ _("Your street") }}</a></li>{% endif %}
+    <li><a href="/meetings/past/">{{ _("Past meetings") }}</a></li>
   </ul>
   {% if meeting_links.documents %}{{ search_form() }}{% endif %}
 </div>
 
-<h2 id="upcoming">Upcoming</h2>
+<h2 id="upcoming">{{ pgettext("meetings", "Upcoming") }}</h2>
 {% if meetings.upcoming %}
 {% for day, items in group_by(meetings.upcoming, "date") %}{{ day_group(day, items) }}{% endfor %}
 {% else %}
-<p>No upcoming meetings are listed on the city calendar right now.</p>
+<p>{{ _("No upcoming meetings are listed on the city calendar right now.") }}</p>
 {% endif %}
-<p class="source-note">From the <a href="{{ meeting_links.calendar }}">city calendar</a>{% if meeting_links.portal %} and the city's <a href="{{ meeting_links.portal }}">meeting portal</a>{% endif %}. Community events are left out.{% if meetings.status %} Checked <time datetime="{{ meetings.status.updated_at }}">{{ meetings.status.updated_at | timestamp }}</time>.{% endif %}</p>
+<p class="source-note">{% if meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}{% else %}{% trans calendar=meeting_links.calendar %}From the <a href="{{ calendar }}">city calendar</a>.{% endtrans %}{% endif %} {{ _("Community events are left out.") }}{% if meetings.status %} {% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}</p>
 
 {% endblock %}

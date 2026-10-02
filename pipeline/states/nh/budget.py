@@ -27,6 +27,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.states.nh import figures
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 
@@ -39,10 +40,10 @@ EFFORT_FIELDS = {"town_tax_effort": "City", "local_school_tax_effort": "Local sc
 
 # The city adopts a fiscal year's budget in June, before the year starts July 1.
 # Tax rates as for the tax bill (tax_bill.py).
-RHYTHM = Rhythm("City budget", "finance/budget.json", "Fetch budget figures", "yearly", (
+RHYTHM = Rhythm(N_("City budget"), "finance/budget.json", "Fetch budget figures", "yearly", (
     Part(latest_year("city_budget.years", "fiscal_year"), on(7, years_after=-1),
-         lambda y: f"Fiscal year {y} city budget"),
-    Part(latest_year("rates", "tax_year"), on(2, years_after=1), lambda y: f"Tax year {y} tax rates"),
+         lambda y: _("Fiscal year {year} city budget").format(year=y)),
+    Part(latest_year("rates", "tax_year"), on(2, years_after=1), lambda y: _("Tax year {year} tax rates").format(year=y)),
 ))
 
 

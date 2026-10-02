@@ -1,68 +1,68 @@
 {% extends "base.html" %}
 {% from "macros.html" import on_this_page, calculated %}
 {% from "charts.html" import bars, chart_links %}
-{% block title %}City budget{% endblock %}
-{% block description %}{{ town.name }}'s adopted budget, its property tax rate and where the tax goes, and the average single-family tax bill.{% endblock %}
+{% block title %}{{ _("City budget") }}{% endblock %}
+{% block description %}{% trans town=town.name %}{{ town }}'s adopted budget, its property tax rate and where the tax goes, and the average single-family tax bill.{% endtrans %}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>City budget</h1>
-  <p class="lede">What the city budgets, its property tax rate, and where the tax goes, from the city and the New Hampshire Department of Revenue Administration (DRA).</p>
+  <h1>{{ _("City budget") }}</h1>
+  <p class="lede">{{ _("What the city budgets, its property tax rate, and where the tax goes, from the city and the New Hampshire Department of Revenue Administration (DRA).") }}</p>
   {% if budget %}
-  <p class="source-note">Checked <time datetime="{{ budget.updated_at }}">{{ budget.updated_at | timestamp }}</time>. State figures as of <time datetime="{{ budget.figures_extracted_at }}">{{ budget.figures_extracted_at | timestamp }}</time>; the DRA publishes each year's tax rates once they're set, in the fall.</p>
+  <p class="source-note">{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; the DRA publishes each year's tax rates once they're set, in the fall.{% endtrans %}</p>
   {% endif %}
 </div>
 
 {% if not budget %}
-<p>Figures will appear here after the next data update.</p>
+<p>{{ _("Figures will appear here after the next data update.") }}</p>
 {% else %}
 {% set cb = budget.city_budget %}
 {% set latest = cb.years[-1] if cb else none %}
 {% set rate = budget.rates[-1] %}
 {% set bill = tax_bill.years[-1] if tax_bill and tax_bill.years else none %}
 {% set pr = budget.per_resident %}
-<h2 class="visually-hidden">Summary</h2>
+<h2 class="visually-hidden">{{ _("Summary") }}</h2>
 <ul class="stats">
   {% if latest %}
   <li class="stat"><a href="#budget">
-    <span class="stat-label">Adopted budget</span>
+    <span class="stat-label">{{ _("Adopted budget") }}</span>
     <span class="stat-value">{{ latest.total | money("short") }}</span>
-    <span class="stat-change">Fiscal year {{ latest.fiscal_year }}</span>
+    <span class="stat-change">{% trans year=latest.fiscal_year %}Fiscal year {{ year }}{% endtrans %}</span>
   </a></li>
   {% endif %}
   <li class="stat"><a href="#tax-rate">
-    <span class="stat-label">Property tax rate</span>
+    <span class="stat-label">{{ _("Property tax rate") }}</span>
     <span class="stat-value">${{ "%.2f" | format(rate.total) }}</span>
-    <span class="stat-change">Per $1,000 of assessed value · Tax year {{ rate.tax_year }}</span>
+    <span class="stat-change">{{ _("Per $1,000 of assessed value") }} · {% trans year=rate.tax_year %}Tax year {{ year }}{% endtrans %}</span>
   </a></li>
   {% if bill %}
   <li class="stat"><a href="#tax-bill">
-    <span class="stat-label">Average single-family tax bill</span>
+    <span class="stat-label">{{ _("Average single-family tax bill") }}</span>
     <span class="stat-value">{{ bill.average_bill | money }}</span>
-    <span class="stat-change">Tax year {{ bill.tax_year }} · Calculated by Publick</span>
+    <span class="stat-change">{% trans year=bill.tax_year %}Tax year {{ year }}{% endtrans %} · {{ _("Calculated by Publick") }}</span>
   </a></li>
   {% endif %}
   {% if pr %}
   <li class="stat"><a href="#per-resident">
-    <span class="stat-label">Property tax per resident</span>
+    <span class="stat-label">{{ _("Property tax per resident") }}</span>
     <span class="stat-value">{{ pr.town | money }}</span>
-    <span class="stat-change">Tax year {{ pr.tax_year }} · State median {{ pr.state_median | money }} · Calculated by Publick</span>
+    <span class="stat-change">{% trans year=pr.tax_year %}Tax year {{ year }}{% endtrans %} · {% trans amount=pr.state_median | money %}State median {{ amount }}{% endtrans %} · {{ _("Calculated by Publick") }}</span>
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page(([("budget", "Budget")] if cb else []) + [("tax-rate", "Tax rate")] + ([("tax-bill", "Average tax bill")] if bill else []) + ([("per-resident", "Per resident")] if pr else [])) }}
+{{ on_this_page(([("budget", _("Budget"))] if cb else []) + [("tax-rate", _("Tax rate"))] + ([("tax-bill", _("Average tax bill"))] if bill else []) + ([("per-resident", _("Per resident"))] if pr else [])) }}
 
 {# ---- The city's budget ---- #}
 {% if cb %}
-<h2 id="budget">Adopted budget</h2>
-<p>The city's budget for fiscal year {{ latest.fiscal_year }}, by what it pays for, as adopted. Fiscal years start July 1: fiscal year {{ latest.fiscal_year }} runs from July {{ latest.fiscal_year - 1 }} to June {{ latest.fiscal_year }}.</p>
+<h2 id="budget">{{ _("Adopted budget") }}</h2>
+<p>{% trans year=latest.fiscal_year %}The city's budget for fiscal year {{ year }}, by what it pays for, as adopted.{% endtrans %} {% trans year=latest.fiscal_year, start=latest.fiscal_year - 1 %}Fiscal years start July 1: fiscal year {{ year }} runs from July {{ start }} to June {{ year }}.{% endtrans %}</p>
 {% set rows = [] %}
-{% for name, amount in latest.lines | dictsort(by="value", reverse=true) %}{% set _ = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / latest.total * 100) | round | int) ~ "%"}) %}{% endfor %}
-{{ bars(rows, "Adopted budget by function, fiscal year " ~ latest.fiscal_year, wide_numbers=true, wide_labels=true) }}
+{% for name, amount in latest.lines | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / latest.total * 100) | round | int) ~ "%"}) %}{% endfor %}
+{{ bars(rows, _("Adopted budget by function, fiscal year %(year)s", year=latest.fiscal_year), wide_numbers=true, wide_labels=true) }}
 {# The city's rows from its total on, in its order. On a phone, only the total and the change show. #}
 {% set summary = latest.summary | map(attribute="label") | list %}
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Fiscal year</th>{% for label in summary %}<th scope="col" class="num{% if not loop.first %} wide{% endif %}">{{ label }}</th>{% endfor %}<th scope="col" class="num">Change</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Fiscal year") }}</th>{% for label in summary %}<th scope="col" class="num{% if not loop.first %} wide{% endif %}">{{ label }}</th>{% endfor %}<th scope="col" class="num">{{ _("Change") }}</th></tr></thead>
   <tbody>
   {% for y in cb.years | reverse %}
     {% set prev = cb.years[cb.years | length - loop.index - 1] if loop.index < cb.years | length else none %}
@@ -71,16 +71,16 @@
   </tbody>
 </table>
 </div>
-<p class="small">Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation. Source: <a href="{{ cb.source_url }}">{{ cb.source_name }}</a>.</p>
+<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} {% trans url=cb.source_url, source=cb.source_name %}Source: <a href="{{ url }}">{{ source }}</a>.{% endtrans %}</p>
 {{ chart_links("budget", "/budget/data/city-budget.csv") }}
 {% endif %}
 
 {# ---- Tax rate ---- #}
-<h2 id="tax-rate">Property tax rate</h2>
-<p>The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the city's own, the county's, the statewide education tax, and the local schools'. New Hampshire names each rate by its tax year, which runs from April 1 to March 31; the DRA sets each town's rate in the fall.</p>
+<h2 id="tax-rate">{{ _("Property tax rate") }}</h2>
+<p>{{ _("The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the city's own, the county's, the statewide education tax, and the local schools'. New Hampshire names each rate by its tax year, which runs from April 1 to March 31; the DRA sets each town's rate in the fall.") }}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Tax year</th><th scope="col" class="num">Total</th><th scope="col" class="num">City</th><th scope="col" class="num">County</th><th scope="col" class="num wide">State education</th><th scope="col" class="num wide">Local education</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num">{{ _("City") }}</th><th scope="col" class="num">{{ _("County") }}</th><th scope="col" class="num wide">{{ _("State education") }}</th><th scope="col" class="num wide">{{ _("Local education") }}</th></tr></thead>
   <tbody>
   {% for r in budget.rates | reverse %}
     <tr><th scope="row">{{ r.tax_year }}</th><td class="num"><strong>${{ "%.2f" | format(r.total) }}</strong></td><td class="num">${{ "%.2f" | format(r.municipal) }}</td><td class="num">${{ "%.2f" | format(r.county) }}</td><td class="num wide">${{ "%.2f" | format(r.state_education) }}</td><td class="num wide">${{ "%.2f" | format(r.local_education) }}</td></tr>
@@ -88,27 +88,27 @@
   </tbody>
 </table>
 </div>
-<p class="small">When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Source: <a href="{{ budget.source_urls.rates }}">DRA, municipal tax rates</a>.</p>
+<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, municipal tax rates</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
 
 {% set ef = budget.tax_effort %}
 {% if ef %}
-<h3 id="tax-parts">Where the property tax goes</h3>
-<p>What the {{ ef.tax_year }} property tax raised for each part, in all.</p>
+<h3 id="tax-parts">{{ _("Where the property tax goes") }}</h3>
+<p>{% trans year=ef.tax_year %}What the {{ year }} property tax raised for each part, in all.{% endtrans %}</p>
 {% set rows = [] %}
-{% for name, amount in ef.parts | dictsort(by="value", reverse=true) %}{% set _ = rows.append({"label": name, "value": amount, "text": amount | money("short")}) %}{% endfor %}
-{{ bars(rows, "Property tax raised by part, tax year " ~ ef.tax_year, wide_numbers=true, wide_labels=true) }}
-<p class="small">{% if ef.veterans_credits %}Less {{ ef.veterans_credits | money("short") }} in veterans' tax credits, the{% else %}The{% endif %} city's total property tax commitment was {{ ef.commitment | money("short") }}. Source: <a href="{{ budget.source_urls.rates }}">DRA, tax rate calculation data</a>.</p>
+{% for name, amount in ef.parts | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": amount | money("short")}) %}{% endfor %}
+{{ bars(rows, _("Property tax raised by part, tax year %(year)s", year=ef.tax_year), wide_numbers=true, wide_labels=true) }}
+<p class="small">{% if ef.veterans_credits %}{% trans credits=ef.veterans_credits | money("short"), commitment=ef.commitment | money("short") %}Less {{ credits }} in veterans' tax credits, the city's total property tax commitment was {{ commitment }}.{% endtrans %}{% else %}{% trans commitment=ef.commitment | money("short") %}The city's total property tax commitment was {{ commitment }}.{% endtrans %}{% endif %} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, tax rate calculation data</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Average bill ---- #}
 {% if bill %}
-<h2 id="tax-bill">Average single-family tax bill</h2>
-<p>In tax year {{ bill.tax_year }}, the average single-family home in {{ town.name }} was assessed at {{ bill.average_value | money }}. At that year's rate of ${{ "%.2f" | format(bill.rate) }} per $1,000, its tax bill was <strong>{{ bill.average_bill | money }}</strong>.</p>
+<h2 id="tax-bill">{{ _("Average single-family tax bill") }}</h2>
+<p>{% trans year=bill.tax_year, town=town.name, value=bill.average_value | money, rate="%.2f" | format(bill.rate), amount=bill.average_bill | money %}In tax year {{ year }}, the average single-family home in {{ town }} was assessed at {{ value }}. At that year's rate of ${{ rate }} per $1,000, its tax bill was <strong>{{ amount }}</strong>.{% endtrans %}</p>
 {% if tax_bill.years | length > 1 %}
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Tax year</th><th scope="col" class="num">Average value</th><th scope="col" class="num">Rate</th><th scope="col" class="num">Average bill</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Average value") }}</th><th scope="col" class="num">{{ _("Rate") }}</th><th scope="col" class="num">{{ _("Average bill") }}</th></tr></thead>
   <tbody>
   {% for y in tax_bill.years | reverse %}
     <tr><th scope="row">{{ y.tax_year }}</th><td class="num">{{ y.average_value | money }}</td><td class="num">${{ "%.2f" | format(y.rate) }}</td><td class="num">{{ y.average_bill | money }}</td></tr>
@@ -117,20 +117,20 @@
 </table>
 </div>
 {% endif %}
-{{ calculated(bill.calculated ~ " New Hampshire doesn't publish an average bill.") }}
-<p class="small">Sources: <a href="{{ tax_bill.source_url }}">DRA, municipal tax rates</a>; <a href="{{ tax_bill.parcels_url }}">NH GRANIT, statewide parcel map</a>.</p>
+{{ calculated(bill.calculated ~ " " ~ (_("New Hampshire doesn't publish an average bill.") | forceescape)) }}
+<p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">DRA, municipal tax rates</a>; <a href="{{ parcels }}">NH GRANIT, statewide parcel map</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Per resident ---- #}
 {% if pr %}
-<h2 id="per-resident">Property tax per resident</h2>
-<p>In tax year {{ pr.tax_year }}, {{ town.name }}'s property tax came to {{ pr.town | money }} per resident. The median across {{ pr.communities }} New Hampshire towns and cities was {{ pr.state_median | money }}.</p>
+<h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
+<p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} New Hampshire towns and cities was {{ median }}.{% endtrans %}</p>
 {{ calculated(pr.calculated) }}
-<p class="small">Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents. Population: {{ pr.population | number }}. Sources: <a href="{{ budget.source_urls.rates }}">DRA</a>; <a href="{{ budget.source_urls.population }}">U.S. Census Bureau population estimates</a>.</p>
+<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">DRA</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 
 {% if config.finance.get("budget_documents_url") %}
-<p class="source-note">City budget documents, including department detail, are on the <a href="{{ config.finance.budget_documents_url }}">city website</a>.</p>
+<p class="source-note">{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
 {% endif %}
 {% endblock %}

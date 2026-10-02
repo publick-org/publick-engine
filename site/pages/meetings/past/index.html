@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% from "macros.html" import meeting_item %}
-{% block title %}Past meetings{% endblock %}
-{% block description %}Past public meetings in {{ town.name }}, {{ town.state_abbr }}, by month, with saved agendas.{% endblock %}
+{% block title %}{{ _("Past meetings") }}{% endblock %}
+{# Translators: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block description %}{% trans town=town.name, state=town.state_abbr %}Past public meetings in {{ town }}, {{ state }}, by month, with saved agendas.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb">
-  <ol><li><a href="/meetings/">Meetings</a></li></ol>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/meetings/">{{ _("Meetings") }}</a></li></ol>
 </nav>
-<h1>Past meetings</h1>
+<h1>{{ _("Past meetings") }}</h1>
 {% if meetings.past %}
 {% for month, items in group_by(meetings.past, "month") %}
 <h2 class="day-heading">{{ month | date("month") }}</h2>
@@ -15,7 +16,8 @@
 </ul>
 {% endfor %}
 {% else %}
-<p>No past meetings have been recorded yet. This list fills in as meetings take place.</p>
+<p>{{ _("No past meetings have been recorded yet. This list fills in as meetings take place.") }}</p>
 {% endif %}
-{% if meeting_links.archive %}<p class="source-note">Meetings before this site began recording are on the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>.</p>{% endif %}
+{# Translators: %(name)s is where the city keeps older documents, such as "city's Archive Center". #}
+{% if meeting_links.archive %}<p class="source-note">{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Meetings before this site began recording are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}</p>{% endif %}
 {% endblock %}

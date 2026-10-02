@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 from pipeline.states.ma.dls import page_url, rows, table  # noqa: F401 (rows: for tests)
 
@@ -26,17 +27,21 @@ YEARS = 10
 REFRESH_DAYS = 7
 FUNCTIONS = ["General Government", "Public Safety", "Education", "Public Works", "Human Services",
              "Culture and Recreation", "Fixed Costs", "Intergov Assessments", "Other Expenditures", "Debt Service"]
-# Plain names for the Schedule A columns.
-FUNCTION_LABELS = {"Intergov Assessments": "State and county assessments", "Other Expenditures": "Other",
-                   "Fixed Costs": "Fixed costs"}
-REVENUE = {"Tax Levy": "Property tax", "State Aid": "State aid", "Local Receipts": "Local receipts", "All Other": "Other"}
+# Plain names for the Schedule A columns. They're saved in English and translated where they're
+# shown (the build's data_label); each function's name is its column's, capitalized.
+FUNCTION_LABELS = {"Intergov Assessments": N_("State and county assessments"), "Other Expenditures": N_("Other"),
+                   "Fixed Costs": N_("Fixed costs")}
+FUNCTION_NAMES = (N_("General government"), N_("Public safety"), N_("Education"), N_("Public works"),
+                  N_("Human services"), N_("Culture and recreation"), N_("Debt service"))
+REVENUE = {"Tax Levy": N_("Property tax"), "State Aid": N_("State aid"), "Local Receipts": N_("Local receipts"),
+           "All Other": N_("Other")}
 
 
 
 # A fiscal year's spending (Schedule A) reaches the Databank once the town has
 # filed it (due November 30) and DLS has approved it: for most towns by spring.
-RHYTHM = Rhythm("City budget (Mass. DLS)", "finance/budget.json", "Fetch budget figures", "yearly", (
-    Part(latest_year("spending", "fiscal_year"), on(6, years_after=1), lambda y: f"Fiscal year {y} spending"),
+RHYTHM = Rhythm(N_("City budget (Mass. DLS)"), "finance/budget.json", "Fetch budget figures", "yearly", (
+    Part(latest_year("spending", "fiscal_year"), on(6, years_after=1), lambda y: _("Fiscal year {year} spending").format(year=y)),
 ))
 
 
