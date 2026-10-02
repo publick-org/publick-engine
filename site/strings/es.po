@@ -699,6 +699,20 @@ msgstr ""
 #: site/pages/about/index.html
 #, python-format
 msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a "
+"href=\"%(calendar)s\">calendar</a>, for every meeting it lists, and its <a "
+"href=\"%(url)s\">Agenda Center</a>, for agendas and minutes. A meeting listed in both is shown "
+"once. Copies of agendas are saved when posted. Minutes are collected from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(calendar)s\">calendario</a> de la "
+"ciudad, para todas las reuniones que publica, y su <a href=\"%(url)s\">Centro de Agendas</a>, "
+"para las agendas y las actas. Una reunión que aparece en los dos se muestra una sola vez. Se "
+"guarda una copia de cada agenda cuando se publica. Las actas se recogen desde %(since)s."
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
 "<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(url)s\">Agenda "
 "Center</a>. Copies of agendas are saved when posted. Minutes are collected from %(since)s on."
 msgstr ""
@@ -1022,6 +1036,17 @@ msgstr "Agenda publicada."
 msgid "Agendas and minutes are on the <a href=\"%(url)s\">%(name)s</a>."
 msgstr "Las agendas y las actas están en el <a href=\"%(url)s\">%(name)s</a>."
 
+#. %(name)s is the city's page of every board's documents, such as "town's Minutes & Agendas page".
+#: site/pages/meetings/index.html
+#, python-format
+msgid "Agendas and minutes from the <a href=\"%(url)s\">%(name)s</a>."
+msgstr "Agendas y actas: <a href=\"%(url)s\">%(name)s</a>."
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid "Agendas from the city's <a href=\"%(url)s\">Agenda Center</a>."
+msgstr "Las agendas vienen del <a href=\"%(url)s\">Centro de Agendas</a> de la ciudad."
+
 #: pipeline/common_strings.py
 msgid "Airport Commission"
 msgstr "Comisión del Aeropuerto"
@@ -1097,7 +1122,7 @@ msgid ""
 "with the city."
 msgstr ""
 "Un sitio independiente que sigue los datos públicos de la Ciudad de %(town)s. La ciudad no lo "
-"administra y no está afiliado a ella."
+"administra y el sitio no está afiliado al gobierno municipal."
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -1815,12 +1840,10 @@ msgstr "Estimaciones de la Encuesta sobre la Comunidad Estadounidense (ACS)."
 #. %(town)s is the town's name.
 #: site/pages/meetings/boards/index.html
 #, python-format
-msgid ""
-"Every %(town)s board, commission, and committee with a meeting on the city calendar, and when "
-"each meets next."
+msgid "Every %(town)s board, commission, and committee with a meeting listed, and when each meets next."
 msgstr ""
-"Todas las juntas, comisiones y comités de %(town)s que tienen reuniones en el calendario de la "
-"ciudad, y cuándo es su próxima reunión."
+"Todas las juntas, comisiones y comités de %(town)s que tienen reuniones publicadas, y cuándo es "
+"su próxima reunión."
 
 #: site/pages/about/accessibility/index.html
 msgid "Every chart has a table with the same numbers."
@@ -2089,6 +2112,20 @@ msgid ""
 msgstr ""
 "De la Encuesta sobre la Comunidad Estadounidense (ACS) de la Oficina del Censo, que encuesta a "
 "una muestra de hogares durante cinco años (%(years)s)."
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid "From the city's <a href=\"%(portal)s\">meeting portal</a>."
+msgstr "Fuente: el <a href=\"%(portal)s\">portal de reuniones</a> de la ciudad."
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid ""
+"From the city's <a href=\"%(url)s\">Agenda Center</a>, which lists a meeting once its agenda is "
+"posted."
+msgstr ""
+"Fuente: el <a href=\"%(url)s\">Centro de Agendas</a> de la ciudad, que muestra una reunión cuando"
+" se publica su agenda."
 
 #: site/templates/macros.html
 msgid "From the city's PDF, word for word."
@@ -2994,6 +3031,15 @@ msgstr ""
 msgid "No ads, and no tracking across other sites."
 msgstr "Sin anuncios y sin rastreo en otros sitios."
 
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"No agenda for this meeting was recorded here. The city's listing links to <a href=\"%(url)s\">the"
+" board's documents</a>."
+msgstr ""
+"Aquí no se guardó una agenda para esta reunión. La ciudad enlaza a <a href=\"%(url)s\">los "
+"documentos de la junta</a>."
+
 #: site/templates/macros.html
 msgid "No agenda posted yet"
 msgstr "Todavía no hay agenda"
@@ -3044,6 +3090,10 @@ msgstr ""
 "celebren las reuniones."
 
 #: site/pages/index.html
+msgid "No public meetings are listed for the next seven days."
+msgstr "No hay reuniones públicas para los próximos siete días."
+
+#: site/pages/index.html
 msgid "No public meetings are listed on the city calendar for the next seven days."
 msgstr "No hay reuniones públicas en el calendario de la ciudad para los próximos siete días."
 
@@ -3083,6 +3133,10 @@ msgstr "No hay próximas reuniones en el %(listing)s."
 msgid "No upcoming meetings are listed on the city calendar right now."
 msgstr "Por ahora no hay reuniones próximas en el calendario de la ciudad."
 
+#: site/pages/meetings/index.html
+msgid "No upcoming meetings are listed right now."
+msgstr "Por ahora no hay reuniones próximas."
+
 #: site/pages/311/index.html site/pages/311/methodology/index.html
 msgid "No update in over a year"
 msgstr "Sin actualizar en más de un año"
@@ -3091,6 +3145,15 @@ msgstr "Sin actualizar en más de un año"
 #: site/pages/streets/index.html
 msgid "None found."
 msgstr "No se encontró nada."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"Not clear: the %(listing)s says %(time)s, which is most likely a typo. Check the agenda or with "
+"the board."
+msgstr ""
+"No está clara: el %(listing)s dice %(time)s, lo que probablemente es un error. Revise la agenda o"
+" consulte con la junta."
 
 #: site/pages/311/methodology/index.html
 msgid "Not collected: descriptions, photos, or who submitted it."
@@ -3720,6 +3783,12 @@ msgstr "Programada hasta"
 #: pipeline/common_strings.py
 msgid "School Committee"
 msgstr "Comité Escolar"
+
+#. %(name)s is a school district, such as "Wallingford Public Schools".
+#: site/pages/meetings/index.html
+#, python-format
+msgid "School board meetings from the <a href=\"%(url)s\">%(name)s website</a>."
+msgstr "Reuniones de la junta escolar: <a href=\"%(url)s\">sitio web de %(name)s</a>."
 
 #: pipeline/states/nh/schools.py
 msgid "School figures"
@@ -4583,6 +4652,15 @@ msgstr ""
 "El presupuesto de la ciudad para el año fiscal %(year)s, según en qué se gasta, tal como se "
 "aprobó."
 
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"The city's listing links to <a href=\"%(url)s\">the board's documents</a>, which aren't this "
+"meeting's agenda."
+msgstr ""
+"La ciudad enlaza a <a href=\"%(url)s\">los documentos de la junta</a>, que no son la agenda de "
+"esta reunión."
+
 #: site/states/nh/budget.html
 #, python-format
 msgid "The city's total property tax commitment was %(commitment)s."
@@ -4758,6 +4836,8 @@ msgctxt "weekday"
 msgid "Thursday"
 msgstr "jueves"
 
+#. %(time)s is a start time, such as "3:30 AM"; %(listing)s is where the meeting is listed, such as
+#. "city calendar".
 #: site/templates/meeting.html
 msgid "Time"
 msgstr "Hora"

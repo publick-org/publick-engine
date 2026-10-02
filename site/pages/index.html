@@ -47,7 +47,7 @@
 {% if meetings.this_week %}
 {% for day, items in group_by(meetings.this_week, "date") %}{{ day_group(day, items) }}{% endfor %}
 {% else %}
-<p>{{ _("No public meetings are listed on the city calendar for the next seven days.") }}</p>
+<p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
 {% endif %}
 {% if meeting_links.notify %}<p class="small">{% trans url=meeting_links.notify %}For official email or text alerts when a board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</p>{% endif %}
 

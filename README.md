@@ -100,6 +100,8 @@ pipeline/                   Python package
                             states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT);
                             states/ma/dls.py can fetch each DLS report once for every town (a network's states/)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
+  fetch_place.py            Whether the town is a city or a town by law (Census TIGERweb) -> data/place.json, once;
+                            the site's wording says "the city" or "the town" to match (i18n.py)
   fetch_permits.py          Building and demolition permits (city Data Hub) -> data/permits/
   fetch_housing.py          Housing (Census, plus the state's own figures: Massachusetts's SHI and parcels) -> data/housing/
   documents.py              Where agenda and minutes PDFs live: the town's bucket, or data/meetings/
@@ -224,6 +226,8 @@ site/states/<state>/schools.html      The state's schools page, budget.html its 
 site/states/<state>/about_*.html      and its lines in the About page's list of sources
 ```
 
+A town's `[town] kind` is `"city"` or `"town"`, for the site's wording ("the town's Agenda Center", "el pueblo"). It needn't be set: `pipeline.fetch_place` records the Census Bureau's word for the place `[housing] census_geo` names, once, in `data/place.json`, and a place with neither is a city.
+
 A town's `[town] state_abbr` picks its state. The fetch commands
 (`fetch_finance`, `fetch_budget`, `fetch_schools`) run that state's source and
 skip a town whose state has none; the config's `[finance]` and `[schools]`
@@ -306,6 +310,8 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 - **Board names.** Calendar names that aren't uniform ("PH-1 Board of Mayor and Aldermen", "Special Meeting-Board of Mayor and Aldermen") are matched to the longest name in `boards` (or key in `[meetings.aliases]`) that they contain, ignoring case, punctuation and "&"/"and". A name that matches none is cleaned up by rule: status words, "Special Meeting of the", and endings such as "Meeting" or "Public Hearings" are removed. A board whose own name starts with "Special" ("Special Committee on Airport Activities") should be listed, or it reads as a special meeting of another committee.
 - **Both calendars.** Meetings the DNN calendar links to the CivicClerk portal are collected from CivicClerk only. Use `exclude_pattern` for the rest of those boards' entries.
 - **CivicClerk times** are local, although the API marks them UTC.
+- **A CivicPlus calendar, month by month.** `[meetings.civicplus]` reads the calendar's list view (`Calendar.aspx?CID=0&view=list&month=..&year=..`), this month and `months_ahead` more (default 2), one request each, with each event's time, place and address. `calendars` names the city's calendars to read ("City Meetings"; all of them if left out), and `include_pattern` and `exclude_pattern` (here or in `[meetings]`) pick the public meetings. It takes the place of `calendar_feed`, whose RSS feed lists only a fixed number of events (10 to 20), so reaches a week or two ahead. A town without an Agenda Center reads each upcoming meeting's page for its online link and agenda, as from the feed.
+- **A meeting listed in more than one place.** A town with both a calendar and an Agenda Center lists most meetings twice, and clerks post an agenda again under a new number (a repost, a revised agenda, a cancellation notice). Each listing stays its own record, and `pipeline/listings.py` shows the records of one meeting as one: the same board (after `[meetings.aliases]`) on the same day, either at the same time, or with one giving no time and their titles agreeing on what kind of meeting it is (committee, subcommittee, special, hearing, joint, workshop: an Agenda Center posts a board's committees under the board). The meeting keeps the page of the listing recorded first; the others' pages say it moved. Its time and place come from the calendar, its agendas from every listing, and the newest posting of each source gives that source's status, a cancellation in any one standing. Its page lists every listing. `python -m pipeline.listings` lists what was put together, and why. A calendar entry's board takes the name already recorded when it's the same words written another way, or with the town's name in front ("Malden Cultural Council" for "Cultural Council"); others need an alias.
 - **CivicPlus Agenda Center.** A CivicPlus town that posts its boards' agendas and minutes in the Agenda Center rather than on the calendar (Malden) uses `[meetings.agenda_center]`. One request to its search page lists every board's meetings for a date range; upcoming meetings' agendas are saved, and a revised agenda (same number, new posted time) is recorded in the meeting's history. `fetch_minutes` downloads the minutes linked from each meeting since `since`, up to `max_minutes_per_run` (default 60) a run. The board is the Agenda Center category (renamed by `[meetings.aliases]` if listed); `committees` names the committees whose meetings are posted under another board's category, matched in the row's title as `boards` are. There are no times or places in the listing, so meeting pages show the date only.
 
   ```toml

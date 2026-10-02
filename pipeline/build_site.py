@@ -35,6 +35,7 @@ from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_S
 from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import common_strings
+from pipeline import dnn
 from pipeline import factcheck
 from pipeline import listings
 from pipeline import i18n
@@ -353,6 +354,23 @@ LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city'
 CALENDAR = N_("city calendar")
 
 
+# Start times a listing can give that are most likely typos (3:30 AM for 3:30 PM).
+LIKELY_TIMES = ("06:00", "23:00")
+
+
+def check_listing(m: dict) -> None:
+    """What a city calendar's listing says that isn't what it seems, set aside to be said openly:
+    a start time in the middle of the night (m["listed_time"], shown as a note instead), and a
+    link that isn't the meeting's own agenda (a board's page of documents, a file for the whole
+    year) but was given as one (m["board_documents_url"])."""
+    m["listed_time"] = None
+    if m["start_time"] and not LIKELY_TIMES[0] <= m["start_time"] <= LIKELY_TIMES[1]:
+        m["listed_time"], m["start_time"], m["end_time"] = m["start_time"], None, None
+    m["board_documents_url"] = None
+    if m["id"].startswith("dnn-") and m.get("documents_url") and not dnn.names_day(m["documents_url"], m["date"]):
+        m["board_documents_url"], m["documents_url"] = m["documents_url"], None
+
+
 def from_agenda(m: dict) -> None:
     """Fill in a meeting's time and place from its agenda summary when its listing has neither,
     as an Agenda Center's doesn't. m["from_agenda"] says so, for the page to say where they're from."""
@@ -415,6 +433,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # The latest saved summary is shown, even one from an older prompt or
         # model; the next summarize run replaces those.
         m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], summary_model, "agenda", current=False) if m["agenda"] and summary_model else None
+        check_listing(m)
         from_agenda(m)
         m.setdefault("minutes", [])
         m["minutes_doc"] = m["minutes"][-1] if m["minutes"] else None
@@ -505,6 +524,13 @@ def meeting_links(config: dict) -> dict:
         "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
         "governing_body": m.get("governing_body", "City Council"),
         "documents": m.get("documents", True),
+        # Where the meetings are listed, for "From the city calendar": a calendar of every meeting,
+        # an Agenda Center (each meeting once its agenda is posted), and a school district's website.
+        "has_calendar": any(k in m for k in ("calendar_feed", "civicplus", "dnn", "file_list")),
+        "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
+        "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
+        "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
+                    for t in ("drive_meetings", "finalsite_meetings") if t in config],
     }
 
 
@@ -745,12 +771,21 @@ class TownStrings:
         return name if translated == name else f"{translated} ({name})"
 
 
+def town_kind(config: dict, data_dir: Path) -> str:
+    """Whether the site is a city's or a town's, for its wording (pipeline/i18n.py): [town] kind,
+    or the Census Bureau's word for the place (data/place.json), or a city."""
+    if config["town"].get("kind"):
+        return config["town"]["kind"]
+    path = data_dir / "place.json"
+    return json.loads(path.read_text(encoding="utf-8")).get("kind", "city") if path.exists() else "city"
+
+
 def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) -> dict:
     """A town's texts that a build in this language would show in English, found without building:
     {"config": the config's own text, "data": names from the city's data}. The same steps as
     build_language() (a test keeps them so), for the run to draft them before the build."""
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
-    with i18n.use(lang):
+    with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
         meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
         for m in meetings["all"]:
@@ -856,7 +891,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     urls = []
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
-        with i18n.use(lang):
+        with i18n.use(lang, town_kind(config, data_dir)):
             urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
@@ -955,7 +990,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
     # A label saved in a state's data in English (a budget function, a type of parcel), as shown.
-    env.globals["data_label"] = i18n.gettext
+    env.globals["data_label"] = i18n.label
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
     css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
     def versioned(path: str) -> str:

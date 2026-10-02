@@ -21,6 +21,7 @@ import re
 from datetime import date, datetime
 from urllib.parse import unquote, urljoin, urlsplit
 
+from pipeline import civicplus
 from pipeline.civicplus import clean_text
 from pipeline.meeting_names import find_board, parse_name
 
@@ -76,6 +77,15 @@ def parse_month(page: str, base_url: str, boards: list[str] | None = None, alias
 def links_in(fragment: str, base_url: str) -> list[dict]:
     return [{"url": urljoin(base_url, html.unescape(url).strip()), "text": clean_text(text)}
             for url, text in LINK.findall(fragment)]
+
+
+def names_day(url: str, day: str) -> bool:
+    """Whether a link's file or page name has the meeting's date ('2026-10-01_PB_AGENDA.PDF',
+    '.../Agendas/2026-02-24', 'MDC June 11th 2026 Meeting Agenda.pdf'): the meeting's own
+    agenda, not a board's page of documents or a file for the whole year."""
+    year, month, day_ = day.split("-")
+    name = unquote(urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1])
+    return bool(re.search(rf"{year}[-_ ]?{month}[-_ ]?{day_}", name)) or civicplus.parse_title_date(name) == day
 
 
 def agenda_file(links: list[dict], day: str) -> dict | None:

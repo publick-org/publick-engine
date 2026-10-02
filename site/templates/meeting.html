@@ -47,7 +47,9 @@
 <dl class="facts">
   <div><dt>{{ _("Where") }}</dt><dd>{% if m.location_name %}{{ m.location_name }}{% if m.address or m.location %}<br>{{ m.address or m.location }}{% endif %}{% else %}{{ m.address or m.location or unlisted }}{% endif %}</dd></div>
   {% if m.remote_url %}<div><dt>{{ _("Online") }}</dt><dd><a href="{{ m.remote_url }}">{{ _("Join by Zoom") }}</a></dd></div>{% endif %}
-  {% if not m.start_time and not documents_only %}<div><dt>{{ _("Time") }}</dt><dd>{{ pgettext("meeting time", "Not listed") }}</dd></div>{% endif %}
+  {# Translators: %(time)s is a start time, such as "3:30 AM"; %(listing)s is where the meeting is listed, such as "city calendar". #}
+  {% if m.listed_time %}<div><dt>{{ _("Time") }}</dt><dd>{% trans time=m.listed_time | time, listing=m.listing %}Not clear: the {{ listing }} says {{ time }}, which is most likely a typo. Check the agenda or with the board.{% endtrans %}</dd></div>
+  {% elif not m.start_time and not documents_only %}<div><dt>{{ _("Time") }}</dt><dd>{{ pgettext("meeting time", "Not listed") }}</dd></div>{% endif %}
   {% if m.end_time %}<div><dt>{{ _("Scheduled until") }}</dt><dd>{{ m.end_time | time }}</dd></div>{% endif %}
 </dl>
 {% if m.from_agenda %}<p class="small">{{ _("From the posted agenda, as read by AI. The agenda is the official notice; check it before you go.") }}</p>
@@ -85,7 +87,9 @@
 {% set archive_note %}{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Minutes are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}{% endset %}
 <p>{% trans url=m.documents_url %}The <a href="{{ url }}">agenda</a> is posted on the city website.{% endtrans %}{% if not upcoming and meeting_links.archive %} {{ archive_note }}{% endif %}</p>
 {% elif upcoming %}
-<p>{{ _("No agenda posted yet.") }}</p>
+<p>{{ _("No agenda posted yet.") }}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
+{% elif m.board_documents_url %}
+<p>{% trans url=m.board_documents_url %}No agenda for this meeting was recorded here. The city's listing links to <a href="{{ url }}">the board's documents</a>.{% endtrans %}</p>
 {% elif meeting_links.archive %}
 {# Translators: %(name)s is where the city keeps older documents, such as "city's Archive Center". #}
 <p>{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Agendas and minutes are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}</p>
@@ -182,7 +186,9 @@
 </ul>
 {% endif %}
 {% elif m.date >= built_at.date().isoformat() %}
-<p>{{ _("No agenda posted yet.") }}</p>
+<p>{{ _("No agenda posted yet.") }}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
+{% elif m.board_documents_url %}
+<p>{% trans url=m.board_documents_url %}No agenda for this meeting was recorded here. The city's listing links to <a href="{{ url }}">the board's documents</a>.{% endtrans %}</p>
 {% elif m.source == "archive" %}
 {# Translators: %(name)s is where the city keeps older documents, such as "city's Archive Center". #}
 <p>{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Agenda not recorded here. It may be in the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}</p>

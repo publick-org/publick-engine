@@ -108,6 +108,12 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.fetch_housing --town "$TOWN"
 
+      # Whether the town is a city or a town, for the site's wording: once, when not yet recorded.
+      - name: Fetch place
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.fetch_place --town "$TOWN"
+
       # Building permits for the street lookup: weekly at most, like budget and housing.
       - name: Fetch building permits
         if: inputs.sources != '311'

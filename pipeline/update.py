@@ -65,6 +65,8 @@ SOURCES = [
     Source("Fetch school figures", "pipeline.fetch_schools", "figures", table="schools"),
     Source("Fetch budget figures", "pipeline.fetch_budget", "figures", table="finance"),
     Source("Fetch housing figures", "pipeline.fetch_housing", "figures", table="housing"),
+    # Whether the town is a city or a town, from the place [housing] names: once, when not yet recorded.
+    Source("Fetch place", "pipeline.fetch_place", "figures", table="housing"),
     Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",)),
     Source("Fetch 311 requests", "pipeline.fetch_311", "311", table="seeclickfix"),
