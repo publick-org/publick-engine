@@ -83,3 +83,44 @@ def test_each_entry_is_checked_on_its_own():
     record = {"headline": "Two grants.", "summary": "", "decisions": ["Accepted $40,000.", "Accepted $41,000."]}
     result = factcheck.check(record, "minutes", [MINUTES])
     assert result["problems"] == [{"field": "decisions", "entry": 2, "kind": "number", "what": "41,000"}]
+
+
+def test_whats_shown_leaves_out_what_failed_and_unconfirmed_vote_counts():
+    record = {"kind": "minutes", "headline": "Approved two grants.",
+              "summary": "The committee accepted a $40,000 grant. It also accepted a $41,000 grant.",
+              "decisions": ["Accepted the Civics Grant of $40,000, 3-2.", "Accepted a grant of $41,000, 5-0."]}
+    record["fact_check"] = factcheck.check(record, "minutes", [MINUTES])
+    assert record["fact_check"]["result"] == "failed"
+    shown = factcheck.shown(record, record, "minutes")
+    # The decision with an amount the minutes don't have is left out, and counted; so is the sentence.
+    assert shown["decisions"] == ["Accepted the Civics Grant of $40,000."] and shown["not_shown"] == 1
+    assert shown["summary"] == "The committee accepted a $40,000 grant."
+    assert shown["headline"] == "Approved two grants."
+    # The record itself is unchanged.
+    assert len(record["decisions"]) == 2
+    # A translation loses the same entries; its summary, whose sentences can't be matched, goes whole.
+    spanish = {**record, "headline": "Aprobó dos subvenciones.", "summary": "Aceptó $40,000. Aceptó $41,000.",
+               "decisions": ["Aceptó la subvención de $40,000 con votación 3-2.", "Aceptó $41,000, 5-0."]}
+    shown = factcheck.shown(spanish, record, "minutes")
+    assert shown["decisions"] == ["Aceptó la subvención de $40,000."] and shown["summary"] == ""
+
+
+def test_a_weaker_check_hides_nothing_but_unconfirmed_vote_counts():
+    record = {"summary": "", "decisions": ["Accepted a grant of $999,999, 3-2."], "transcript": MINUTES,
+              "transcript_source": "ai"}
+    record["fact_check"] = factcheck.check(record, "minutes", None)
+    assert record["fact_check"]["result"] == "weak"
+    assert factcheck.shown(record, record, "minutes")["decisions"] == ["Accepted a grant of $999,999."]
+
+
+def test_vote_counts_come_out_cleanly():
+    for text, tally, expected in (
+        ("Elected Gomes as Chair, 5-0-1 (Gomes abstaining).", "5-0-1", "Elected Gomes as Chair (Gomes abstaining)."),
+        ("Approved NOI 028-3140 with conditions, approved 5-0.", "5-0", "Approved NOI 028-3140 with conditions."),
+        ("Granted the petition, 11-0 (165-26).", "11-0", "Granted the petition (165-26)."),
+        ("The committee voted 2-0-1 to recommend the plan.", "2-0-1", "The committee voted to recommend the plan."),
+        ("Adjourned to Executive Session by a 7-2 vote.", "7-2", "Adjourned to Executive Session."),
+        ("Motion carried (4-0).", "4-0", "Motion carried."),
+        ("Se aprobó el plan con votación 5-0.", "5-0", "Se aprobó el plan."),
+    ):
+        assert factcheck.without_tally(text, tally) == expected

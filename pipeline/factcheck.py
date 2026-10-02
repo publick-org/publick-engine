@@ -326,6 +326,79 @@ def current(record: dict) -> bool:
     return fc.get("version") == VERSION and not (fc.get("source") == "none" and record.get("transcript_source") == "ai")
 
 
+# ---- What's shown ------------------------------------------------------------------
+
+def without_tally(text: str, tally: str) -> str:
+    """The text without a vote count, and the words that only introduce it: "Approved the plan,
+    5-0." is "Approved the plan."; "voted 2-0-1 to recommend" is "voted to recommend"; and the
+    Spanish "con votación 5-0" goes as well."""
+    t = re.escape(tally)
+    for pattern in (
+        rf"\s*\(\s*{t}\s*\)",                                                       # "(4-0)"
+        rf",\s*(?:approved|passed|passing)\s+{t}(?=\s*(?:[.;]|$))",                     # ", approved 5-0." at the end
+        rf"[,;]?\s*(?:by|on|with)\s+an?\s+{t}\s+vote\b",                                # "by a 5-0 vote"
+        rf"[,;]?\s*(?:(?:con|por)\s+(?:una\s+)?)?votaci[oó]n\s+(?:de\s+)?{t}",           # "con votación 5-0"
+        rf"[,;]?\s*(?:by\s+a\s+)?vote\s+(?:of\s+)?{t}",                                 # "vote 4-1", "by a vote of 4-1"
+        rf"[,;]?\s*{t}\s+(?:vote|votos?)\b",                                           # ", 3-2 vote"
+        rf"[,;]?\s*(?:por\s+)?{t}(?=\s*(?:[.;,)]|$))",                                  # ", 5-0." at the end
+        rf"\s+{t}(?=\s)",                                                              # "approved 5-0 with"
+    ):
+        new = re.sub(pattern, "", text, count=1, flags=re.I)
+        if new != text:
+            text = new
+            break
+    text = re.sub(r"\s+([,.;)])", r"\1", text)
+    text = re.sub(r",\s*\(", " (", text)
+    text = re.sub(r"([,;])\s*([.;])", r"\2", text)
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def sentences(text: str) -> list[str]:
+    """A summary's sentences (a period, question, or exclamation mark, then a capital letter)."""
+    return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])", text or "") if s]
+
+
+def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
+    """A summary as the site shows it (display: the record, or its translation, entry by entry),
+    after its fact check (record's "fact_check"):
+    - checked against the document's full text, a decision or agenda item with something not
+      in the document isn't shown, nor is such a headline, or such a sentence of the summary
+      (the whole summary, in another language, where its sentences can't be matched);
+      "not_shown" counts the entries left out, for the page to say so;
+    - wherever it was checked, a vote count the document doesn't give is left out of the text.
+    Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
+    on a page they can't read."""
+    if not display or not record or not record.get("fact_check"):
+        return display
+    fc = record["fact_check"]
+    out = dict(display)
+    english = display is record or display.get("headline") == record.get("headline")
+    hidden: dict[str, set] = {}
+    for p in fc["problems"]:
+        field = p["field"]
+        if field not in out or not out[field]:
+            continue
+        if p["kind"] == "tally":
+            if isinstance(out[field], list):
+                i = p["entry"] - 1
+                if i < len(out[field]):
+                    out[field] = [without_tally(t, p["what"]) if j == i else t for j, t in enumerate(out[field])]
+            else:
+                out[field] = without_tally(out[field], p["what"])
+        elif fc["result"] == "failed":
+            hidden.setdefault(field, set()).add(p.get("entry"))
+    for field, entries in hidden.items():
+        if isinstance(out[field], list):
+            out[field] = [t for j, t in enumerate(out[field]) if j + 1 not in entries]
+            out["not_shown"] = out.get("not_shown", 0) + len(entries)
+        elif field == "summary" and english:
+            whats = [p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] != "tally"]
+            out[field] = " ".join(s for s in sentences(out[field]) if not any(w in s for w in whats))
+        else:
+            out[field] = ""
+    return out
+
+
 def kind_of(record: dict) -> str:
     return record.get("kind") or ("minutes" if "decisions" in record else "agenda")
 
