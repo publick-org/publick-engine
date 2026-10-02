@@ -33,7 +33,7 @@ MONTHS = {"January", "February", "March", "April", "May", "June", "July", "Augus
           "September", "October", "November", "December"}
 # A street address in running text, such as an agenda: "38 Pleasant Street".
 ADDRESS_IN_TEXT = re.compile(
-    r"\b\d{1,5}[A-Za-z]?(?:\s*[-–&]\s*\d{1,5}[A-Za-z]?)?\s+(?:[A-Z][A-Za-z'’]+\.?\s+){1,3}"
+    r"\b\d{1,5}[A-Za-z]?(?:\s*[-–&/]\s*\d{1,5}[A-Za-z]?)?\s+(?:[A-Z][A-Za-z'’]+\.?\s+){1,3}"
     r"(?:" + "|".join(sorted({s.title() for s in SUFFIXES} | {s for s in SUFFIXES if len(s) > 2}, key=len, reverse=True))
     + r")\b"
 )
@@ -66,5 +66,6 @@ def street_name(key: str) -> str:
 def addresses_in(text: str) -> list[str]:
     """Street addresses mentioned in a document, in order, without repeats."""
     found = (m.group(0) for m in ADDRESS_IN_TEXT.finditer(text or ""))
-    # "15 September Road" in "2026 15 September Road..." is a date, not an address.
-    return list(dict.fromkeys(a for a in found if a.split()[1] not in MONTHS))
+    # "15 September Road" in "2026 15 September Road..." is a date, not an address, and a
+    # zero-padded number is an order or file number ("033/26 One Way"); a lone 0 is a vacant lot.
+    return list(dict.fromkeys(a for a in found if a.split()[1] not in MONTHS and not re.match(r"0\d", a)))
