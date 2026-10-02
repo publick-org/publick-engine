@@ -49,7 +49,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import factcheck, pdftext, translate, votes
+from pipeline import factcheck, listings, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError
@@ -215,6 +215,8 @@ def pending_documents(data_dir: Path, today: str, model: str) -> list[tuple[str,
     then agendas for past meetings."""
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    # A meeting listed in more than one place is summarized once, from its current agenda.
+    store, _ = listings.combined(store)
     todo, seen = [], set()
     for meeting in store.values():
         for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
@@ -416,6 +418,7 @@ def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
     that have a summary, newest meeting first."""
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    store, _ = listings.combined(store)
     out, seen = [], set()
     for meeting in store.values():
         for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):

@@ -60,6 +60,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from pipeline import listings
 from pipeline.config import ENGINE_DIR
 
 TOWNS = "towns"
@@ -304,6 +305,8 @@ def activity(data: Path, today: date | None = None) -> dict:
     records: the boards it follows, and how many meetings each coming day has."""
     path = data / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    # A meeting listed in more than one place counts once.
+    store, _ = listings.combined(store)
     today = today or datetime.now(timezone.utc).date()
     last = (today + timedelta(days=ACTIVITY_DAYS - 1)).isoformat()
     upcoming: dict[str, int] = {}

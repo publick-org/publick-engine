@@ -207,7 +207,7 @@
 <h2 id="changes">{{ _("Changes since posting") }}</h2>
 <ul class="timeline">
   {% for h in m.history | reverse %}
-  <li><time datetime="{{ h.at }}">{{ h.at | timestamp }}</time>{{ describe_change(h, m.listing) }}</li>
+  <li><time datetime="{{ h.at }}">{{ h.at | timestamp }}</time>{{ describe_change(h, h.get("listing") or m.listing) }}</li>
   {% endfor %}
 </ul>
 {% endif %}
@@ -215,7 +215,19 @@
 <h2 id="source">{{ _("Source") }}</h2>
 {# Translators: %(site)s is this website's name. #}
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
-{% if m.source == "archive" %}
+{% if m.get("listings") %}
+{# A meeting the city lists in more than one place (pipeline/listings.py). #}
+<p>{% if m.same_as == "same_time" %}{{ _("The city lists this meeting in more than one place: the same board, on the same day, at the same time. They are shown here as one meeting.") }}
+{%- elif m.same_as == "one_time" %}{{ _("The city lists this meeting in more than one place: the same board on the same day, and only one listing gives a time. They are shown here as one meeting.") }}
+{%- else %}{{ _("The city posted this meeting more than once: the same board on the same day, with no time given. They are shown here as one meeting.") }}{% endif %}</p>
+<ul>
+  {% for x in m.listings %}
+  {# Translators: %(listing)s is where the city lists meetings, such as "city calendar"; %(title)s is the listing's own title. #}
+  <li>{% trans url=x.source_url, listing=x.listing, title=x.title %}<a href="{{ url }}">{{ title }}</a>, on the {{ listing }}{% endtrans %}{% if x.status != "scheduled" or not x.listed %} ({{ meeting_flags(x) }}){% endif %}</li>
+  {% endfor %}
+</ul>
+<p>{{ recorded }}</p>
+{% elif m.source == "archive" %}
 <p>{% trans url=m.minutes_doc.source_url, town=town.name %}This meeting is known from its <a href="{{ url }}">minutes in the City of {{ town }} Archive Center</a>.{% endtrans %} {{ recorded }}</p>
 {% elif district %}
 <p>{% trans url=m.source_url, name=m.source_name, town=town.name %}This meeting is known from the <a href="{{ url }}">{{ name }} website</a>. It was not found on the City of {{ town }} calendar.{% endtrans %} {{ recorded }}</p>
