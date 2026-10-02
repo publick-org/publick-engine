@@ -159,7 +159,12 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     page = minutes[0].read_text()
     assert "<p>ES The board approved a site plan for 12 Main St.</p>" in page
     assert "hasn't been translated" not in page
+    # Said plainly: translated by AI, with the English it came from one link away.
+    path = "/" + str(minutes[0].relative_to(out / "es").parent) + "/"
+    assert f'Traducido automáticamente con IA del <a href="{path}" hreflang="en">resumen en inglés</a>' in page
+    assert "(PDF, en inglés)" in page and "</a> (en inglés)" in page
     english = (out / minutes[0].relative_to(out / "es")).read_text()
+    assert "Translated automatically" not in english and "en inglés" not in english
     assert "<p>The board approved a site plan for 12 Main St.</p>" in english and "ES " not in english
     index = json.loads((out / "es" / "meetings" / "search-index.json").read_text())
     assert any(d["text"].startswith("ES ") for row in index for d in row["docs"])
