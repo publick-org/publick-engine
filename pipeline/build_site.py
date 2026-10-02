@@ -900,6 +900,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
+    # A label saved in a state's data in English (a budget function, a type of parcel), as shown.
+    env.globals["data_label"] = i18n.gettext
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
     css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
     def versioned(path: str) -> str:

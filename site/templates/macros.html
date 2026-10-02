@@ -11,7 +11,7 @@
 {# Status words for a meeting, as plain text. #}
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
-{%- if m.status != "scheduled" %}{% set __ = parts.append({"cancelled": pgettext("meeting", "Cancelled"), "postponed": pgettext("meeting", "Postponed")}.get(m.status, m.status | capitalize)) %}{% endif -%}
+{%- if m.status != "scheduled" %}{% set __ = parts.append({"cancelled": pgettext("meeting", "Cancelled"), "postponed": pgettext("meeting", "Postponed"), "rescheduled": pgettext("meeting", "Rescheduled")}.get(m.status, m.status | capitalize)) %}{% endif -%}
 {%- if not m.listed %}
 {#- Translators: %(source)s is who keeps the schedule, such as a school district's name. -#}
 {%- if m.get("source") == "drive" %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
@@ -112,6 +112,7 @@
 {# Translators: %(listing)s is where the city lists meetings, such as "city calendar". #}
 {% elif h.field == "status" and h.new == "cancelled" %}{% trans %}Marked cancelled on the {{ listing }}.{% endtrans +%}
 {% elif h.field == "status" and h.new == "postponed" %}{% trans %}Marked postponed on the {{ listing }}.{% endtrans +%}
+{% elif h.field == "status" and h.new == "rescheduled" %}{% trans %}Marked rescheduled on the {{ listing }}.{% endtrans +%}
 {% elif h.field == "status" and h.new == "scheduled" %}{% trans %}Marked scheduled on the {{ listing }}.{% endtrans +%}
 {# Translators: %(status)s is a meeting's status as the city's listing wrote it; %(listing)s is where the city lists meetings. #}
 {% elif h.field == "status" %}{% trans status=h.new %}Marked {{ status }} on the {{ listing }}.{% endtrans +%}

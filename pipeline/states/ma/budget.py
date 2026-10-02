@@ -27,10 +27,14 @@ YEARS = 10
 REFRESH_DAYS = 7
 FUNCTIONS = ["General Government", "Public Safety", "Education", "Public Works", "Human Services",
              "Culture and Recreation", "Fixed Costs", "Intergov Assessments", "Other Expenditures", "Debt Service"]
-# Plain names for the Schedule A columns.
-FUNCTION_LABELS = {"Intergov Assessments": "State and county assessments", "Other Expenditures": "Other",
-                   "Fixed Costs": "Fixed costs"}
-REVENUE = {"Tax Levy": "Property tax", "State Aid": "State aid", "Local Receipts": "Local receipts", "All Other": "Other"}
+# Plain names for the Schedule A columns. They're saved in English and translated where they're
+# shown (the build's data_label); each function's name is its column's, capitalized.
+FUNCTION_LABELS = {"Intergov Assessments": N_("State and county assessments"), "Other Expenditures": N_("Other"),
+                   "Fixed Costs": N_("Fixed costs")}
+FUNCTION_NAMES = (N_("General government"), N_("Public safety"), N_("Education"), N_("Public works"),
+                  N_("Human services"), N_("Culture and recreation"), N_("Debt service"))
+REVENUE = {"Tax Levy": N_("Property tax"), "State Aid": N_("State aid"), "Local Receipts": N_("Local receipts"),
+           "All Other": N_("Other")}
 
 
 
