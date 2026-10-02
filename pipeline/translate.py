@@ -30,7 +30,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-VERSION = 1
+VERSION = 2
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 # Claude Haiku 4.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 1.0, "output_price": 5.0}
@@ -42,7 +42,7 @@ FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "s
 LANGUAGE_NAMES = {"es": "Spanish"}
 # Each language's readers, and the words the sites use for what summaries talk about
 # (site/strings/es-guide.md has the full glossary).
-READERS = {"es": """Write plain Spanish as Dominican and Puerto Rican residents of a Massachusetts city read it every day: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
+READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
 Write dates in Spanish ("22 de octubre de 2026"), times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "4.5%")."""}
 
