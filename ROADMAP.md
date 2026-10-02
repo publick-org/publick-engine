@@ -795,11 +795,11 @@ something built for one town.
   under `/es/` on the same address (`lawrence-ma.publick.org/es/meetings/`),
   served by the same Worker. Each page links to its other-language version,
   with `lang` and `hreflang` set.
-- A visitor sees the language their browser asks for first (decided
-  2026-10-02): the Worker redirects an English page to the same page in
-  Spanish for a browser set to Spanish. A switch in the header goes to the
-  same page in the other language, and the choice is remembered over the
-  browser's.
+- The homepage opens in the language the visitor's browser asks for first
+  (decided 2026-10-02): the Worker redirects `/` to `/es/` for a browser set
+  to Spanish. Every other address opens as asked, so a shared link opens in
+  the language it was shared in. A switch in the header goes to the same page
+  in the other language, and the choice is remembered over the browser's.
 - The Spanish pages are as complete as the English (decided 2026-10-02): a
   town's site isn't built in Spanish while any of its config's own text has
   no Spanish, and the engine translates what every town shares (section
