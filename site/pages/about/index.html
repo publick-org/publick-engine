@@ -108,7 +108,7 @@
 <p>{% trans model=config.summaries.model | model_name %}Meeting summaries are written by AI ({{ model }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.{% endtrans %}</p>
 {% if config.site.get("languages", ["en"]) | length > 1 %}
 {# Translators: %(model)s is an AI model's name, such as "Claude Haiku 4.5". #}
-<p>{% trans model=translation_model | model_name %}On the pages in other languages, each summary is translated automatically by AI ({{ model }}, by Anthropic) from the English summary, and may have errors. Translations aren't checked by a person either. A check without AI compares each translation's numbers with the English, and a translation that fails is replaced by the English summary. Every translated summary links to the English.{% endtrans %}</p>
+<p>{% trans model=translation_model | model_name %}On the pages in other languages, each summary is translated automatically by AI ({{ model }}, by Anthropic) from the English summary, and may have errors. Translations aren't checked by a person either. Two checks stand in: one without AI compares each translation's names, numbers, amounts, times, and decisions with the English, and a second AI model reviews its meaning. A translation that fails either is replaced by the English summary. Every translated summary links to the English.{% endtrans %}</p>
 {% endif %}
 <p>{% trans %}Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.{% endtrans %}</p>
 {% endif %}

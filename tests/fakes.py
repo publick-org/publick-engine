@@ -110,7 +110,8 @@ class FakeAnthropic:
         "decisions": ["Approved the site plan for 12 Main St, 5-0"],
     }
 
-    def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False):
+    def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False,
+                 review_problems: list[dict] | None = None):
         from types import SimpleNamespace
         self.calls = []
         outer = self
@@ -153,9 +154,17 @@ class FakeAnthropic:
             text = kwargs["messages"][0]["content"]
 
             def es(t):
-                t = "ES " + t
+                t = "ES " + re.sub(r"\b[Aa]pproved\b", "aprobó", t)
                 return re.sub(r"\d", "", t) if translation_drops_numbers else t
-            if "translations" in kwargs["output_config"]["format"]["schema"]["properties"]:
+            properties = kwargs["output_config"]["format"]["schema"]["properties"]
+            if "problems" in properties:
+                # The review of a translation's meaning: what the test says it finds, or nothing.
+                return SimpleNamespace(
+                    stop_reason=stop_reason,
+                    content=[SimpleNamespace(type="text", text=json.dumps({"problems": review_problems or []}))],
+                    usage=SimpleNamespace(input_tokens=500, output_tokens=50),
+                )
+            if "translations" in properties:
                 # A town's own text and names, drafted: a list of texts, a list back.
                 payload = {"translations": [es(x) for x in json.loads(text[text.index("\n[") + 1:])]}
             else:

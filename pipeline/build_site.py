@@ -366,14 +366,15 @@ def from_agenda(m: dict) -> None:
 
 def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None) -> dict | None:
     """A summary as the language being built shows it: its translation, when one passed the
-    check (pipeline/translate.py), or the English, marked "english" for the page to say so."""
+    checks (pipeline/translate.py), or the English, marked "english" for the page to say so: True
+    while it waits to be translated, "failed" for a translation that didn't pass the checks."""
     lang = i18n.language()
     if not record or lang == "en":
         return record
     translated = translate.shown(data_dir, lang, doc["sha256"], record, kind)
     if translated:
         return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True}
-    return {**record, "english": True}
+    return {**record, "english": "failed" if translate.failed(data_dir, lang, doc["sha256"], record, kind) else True}
 
 
 def english_attr(record: dict | None) -> Markup:
