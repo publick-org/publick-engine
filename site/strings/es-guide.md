@@ -1,10 +1,11 @@
 # Spanish wording: style and glossary
 
-For whoever writes or checks `es.po`, the Spanish of every Publick site. The
-first readers are in Lawrence, Massachusetts, where most Spanish speakers are
-Dominican or Puerto Rican, so the Spanish is the plain Spanish they read
-every day: not formal, not word for word from the English, and not from
-Spain.
+For whoever writes or checks `es.po` and the towns' `[strings.es]`, the Spanish
+of every Publick site. Every town in the network has its site in Spanish. Most
+of their Spanish-speaking residents are Puerto Rican or Dominican (in Lawrence,
+the first town in Spanish, most residents are Hispanic), or from elsewhere in
+Latin America, so the Spanish is the plain Spanish they read every day: not
+formal, not word for word from the English, and not from Spain.
 
 ## Voice
 
