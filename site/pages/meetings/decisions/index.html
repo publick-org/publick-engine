@@ -11,10 +11,10 @@
 <details class="expand">
   <summary>{% if fmt == "recommendation" %}
   {# Translators: the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more. #}
-  {% trans count=items | length - shown %}{{ count }} more recommendations{% pluralize %}{{ count }} more recommendations{% endtrans %}
+  {% trans count=items | length - shown %}{{ count }} more recommendation{% pluralize %}{{ count }} more recommendations{% endtrans %}
   {% else %}
   {# Translators: the label that shows a meeting's other decisions; %(count)s is how many, 1 or more. #}
-  {% trans count=items | length - shown %}{{ count }} more decisions{% pluralize %}{{ count }} more decisions{% endtrans %}
+  {% trans count=items | length - shown %}{{ count }} more decision{% pluralize %}{{ count }} more decisions{% endtrans %}
   {% endif %}</summary>
   <ul>
     {% for d in items[shown:] %}<li>{{ (d | recommendation) if fmt == "recommendation" else (d | decision) }}</li>{% endfor %}
