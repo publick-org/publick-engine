@@ -10,7 +10,11 @@
   var node = document.getElementById("ward-map");
   if (!node || !window.L || !window.fetch) return;
   var result = document.getElementById("ward-result");
-  var town = node.getAttribute("data-town");
+  // The script's wording, from the page in the page's language (data-strings, written by its template).
+  var strings = JSON.parse(node.getAttribute("data-strings") || "{}");
+  function t(key, values) {
+    return strings[key].replace(/\{(\w+)\}/g, function (m, k) { return values[k]; });
+  }
   var layers = {};
   var labels = [];
 
@@ -66,7 +70,7 @@
       var at = labelPoint(w);
       if (at) {
         labels.push(L.tooltip({ permanent: true, direction: "center", className: "ward-label", interactive: false })
-          .setLatLng(at).setContent("Ward " + w.ward).addTo(map));
+          .setLatLng(at).setContent(t("ward", { ward: w.ward })).addTo(map));
       }
       fill.on("click", function () { show(w.ward, false); });
       layers[w.ward] = { fill: fill, shape: w };
@@ -106,7 +110,7 @@
     result.textContent = "";
     var head = document.createElement("p");
     head.className = "ward-result-head";
-    head.textContent = found ? "You're in Ward " + ward + "." : "Ward " + ward;
+    head.textContent = t(found ? "found" : "ward", { ward: ward });
     result.appendChild(head);
     if (item) {
       var members = item.querySelector("ul, p");
@@ -141,16 +145,16 @@
     var button = document.getElementById("locate-button");
     if (!box || !button || !navigator.geolocation) return;
     box.hidden = false;
-    var unavailable = "Your location isn't available. You can find your ward on the map or in the list below.";
+    var unavailable = t("unavailable");
     button.addEventListener("click", function () {
       button.disabled = true;
-      message("Finding your location…");
+      message(t("finding"));
       navigator.geolocation.getCurrentPosition(function (pos) {
         button.disabled = false;
         var x = pos.coords.longitude, y = pos.coords.latitude;
         var ward = Object.keys(layers).filter(function (k) { return contains(layers[k].shape, x, y); })[0];
         if (ward) show(ward, true);
-        else message("Your location isn't in any of " + town + "'s wards. You can find your ward on the map or in the list below.");
+        else message(t("outside"));
       }, function () {
         button.disabled = false;
         message(unavailable);

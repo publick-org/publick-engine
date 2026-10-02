@@ -15,6 +15,11 @@ read, so the page links it; search and the street lookup use its plain text.
 Minutes of a body in the town's [officials] table also get their roll call
 votes, read from the same text without AI (pipeline/votes.py).
 
+A town with pages in another language also gets each summary translated, from
+the English summary, by a smaller model (pipeline/translate.py): a new
+document's translation right after the new documents' summaries, older ones
+after the older summaries, within the same budget.
+
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
 
 What each month's summaries cost is kept in data/summary-costs.json, which
@@ -44,7 +49,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import pdftext, votes
+from pipeline import pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError
@@ -267,6 +272,11 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
             row["documents"] += 1
     for at, row in counted.items():
         ledger[at] = {**ledger.get(at, {}), "cost": round(row["cost"], 4), "documents": row["documents"]}
+    # Translations, counted the same way.
+    for at, row in translate.month_counts(data_dir).items():
+        if at == month or "translations" not in ledger.get(at, {}):
+            ledger[at] = {"cost": 0.0, "documents": 0, **ledger.get(at, {}),
+                          "translation_cost": round(row["cost"], 4), "translations": row["translations"]}
     for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost)):
         if paid:
             row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
@@ -278,8 +288,17 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
 
 
 def month_cost(ledger: dict, month: str) -> float:
+    """Everything paid for in a month: summaries, cut-off requests, transcriptions, and translations."""
     row = ledger.get(month, {})
-    return row.get("cost", 0.0) + row.get("failed_cost", 0.0) + row.get("transcript_cost", 0.0)
+    return sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
+
+
+# Where, among the documents a run summarizes, the new documents' translations are made.
+TRANSLATE_NEW = object()
+
+
+def doc_key(item: tuple[str, dict, dict]) -> str:
+    return item[2]["sha256"]
 
 
 class StoppedEarly(RuntimeError):
@@ -432,11 +451,85 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
     batch = (new + backlog)[:limit]
+    # New documents' translations come right after their summaries, before older documents'.
+    batch.insert(sum(1 for item in batch if doc_key(item) not in older), TRANSLATE_NEW)
     if "input_price" not in settings or "output_price" not in settings:
         # Without prices the spending limit can't be enforced, so nothing is sent.
         batch = []
         errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
-    for kind, meeting, doc in batch:
+    translated, translation_cost = 0, 0.0
+    # The town's own text and names that its pages in another language would show in English
+    # (a new board, a new 311 category, a new town's config), drafted first: they cost a fraction
+    # of a summary, and the build that follows shows them.
+    drafted_texts = 0
+    for lang in translate.languages(config) if "input_price" in settings and "output_price" in settings else []:
+        tsettings = translate.settings(config)
+        if tsettings["input_price"] is None or tsettings["output_price"] is None:
+            break
+        from pipeline.build_site import needed_texts
+        try:
+            needed = needed_texts(config, data_dir, lang, now)
+            texts = needed["config"] + needed["data"]
+            if texts:
+                left = None if allowance is None else max(allowance - spent, 0.0)
+                count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left)
+                drafted_texts += count
+                spent += paid
+                translation_cost += paid
+        except Exception as e:
+            if "credit balance" in str(e).lower():
+                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+                stopped = "out of credit"
+                batch = []
+                break
+            errors.append(f"{lang} drafts of the town's text: {e}")
+
+    def translations(only_new: bool) -> None:
+        """Translate the summaries that need it, new documents' or the rest, within this run's budget."""
+        nonlocal spent, spent_backlog, failed_cost, translated, translation_cost, stopped
+        langs = translate.languages(config)
+        if not langs:
+            return
+        tsettings = translate.settings(config)
+        if tsettings["input_price"] is None or tsettings["output_price"] is None:
+            errors.append("[summaries] needs translation_input_price and translation_output_price for its "
+                          "translation_model; nothing translated")
+            return
+        for kind, meeting, doc, record in summarized_documents(data_dir):
+            if is_new((kind, meeting, doc), now) != only_new:
+                continue
+            for lang in langs:
+                if translate.current(data_dir, lang, doc["sha256"], record, kind):
+                    continue
+                if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
+                        or (not only_new and backlog_allowance is not None and spent_backlog >= backlog_allowance)):
+                    stopped = stopped or "translations wait: this run's budget for them is spent"
+                    return
+                try:
+                    _, paid = translate.make(client, config, data_dir, lang, kind, meeting, doc, record, now, cost)
+                except StoppedEarly as e:
+                    paid = cost(e.usage, tsettings)
+                    failed_cost += paid
+                    errors.append(f"{lang} translation of {kind} {doc['id']}: {e}")
+                except Exception as e:
+                    if "credit balance" in str(e).lower():
+                        errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+                        stopped = stopped or "out of credit"
+                        return
+                    errors.append(f"{lang} translation of {kind} {doc['id']}: {e}")
+                    continue
+                else:
+                    translated += 1
+                    translation_cost += paid
+                spent += paid
+                if not only_new:
+                    spent_backlog += paid
+
+    for item in batch:
+        if item is TRANSLATE_NEW:
+            translations(only_new=True)
+            continue
+        kind, meeting, doc = item
         if spent >= settings["max_cost_per_run"]:
             errors.append(f"stopped at the ${settings['max_cost_per_run']:.2f} spending limit for one run")
             break
@@ -513,6 +606,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             continue
         save_record(data_dir, doc["sha256"], votes.read(record if text_current else own_text(record, pdf), pdf, members))
         laid_out += 1
+    # Older documents' translations, from what's left of the budget for older documents.
+    if not stopped:
+        translations(only_new=False)
     # Then the model's transcription of scans, which screen readers can't read, only once
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
     transcribed, transcript_cost = 0, 0.0
@@ -560,7 +656,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         transcribed += 1
     month = now.strftime("%Y-%m")
     ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost)
-    return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed,
+    return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed, "translated": translated,
+            "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
 

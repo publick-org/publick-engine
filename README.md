@@ -83,6 +83,9 @@ pipeline/                   Python package
   fetch_finalsite_meetings.py   Daily: a school board's meetings, agendas and minutes (a Finalsite district website, Google Docs) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             new documents first, with each month's cost in data/summary-costs.json
+  translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI ->
+                            data/summaries/<language>/, and drafts of the town's own text and names -> data/strings/;
+                            run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts to review
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   votes.py                  Roll call votes from a supported style's minutes, checked against the body's [officials] members (no AI);
                             read with the minutes' text, kept in data/summaries/, not yet shown. `python -m pipeline.votes` lists them for review
@@ -105,6 +108,9 @@ pipeline/                   Python package
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/
+  i18n.py                   The sites' wording in other languages: the language being built, and
+                            `python -m pipeline.i18n update` to keep site/strings/ current
+  common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
   network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
@@ -113,6 +119,7 @@ pipeline/                   Python package
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
 site/states/<state>/        Each state's own pages (schools, budget) and page parts (its About page sources)
+site/strings/<language>.po  Each language's translation of the English wording marked in templates and code
 site/static/                CSS, icons, and other files copied as-is (a town's own site/static/ is laid on top)
 site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause)
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
@@ -338,6 +345,35 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 4. Pages generated from data (one per record) use a template in `site/templates/` and are added in `pipeline/build_site.py`.
 
 New pages are picked up by the tests and the site checks automatically. A section belongs to the engine, so every town that lists it gets it.
+
+## Sites in other languages
+
+A site can also be built in Spanish (every town in the Publick network is):
+
+```toml
+[site]
+languages = ["en", "es"]
+
+# The town's own text in Spanish, each keyed by its English as the config or the data writes it:
+# the tagline and masthead, section titles and summaries, glossary definitions, participation
+# notes, officials' seats, 311 categories, and board names.
+[strings.es]
+"An independent guide to city government in Lawrence, Massachusetts" = "Una guía independiente sobre el gobierno de la ciudad de Lawrence, Massachusetts"
+"City Council" = "Concejo Municipal"
+"Pothole" = "Bache"
+```
+
+- English pages are at the site's root, as before; Spanish pages are the same pages under `/es/` (`/es/meetings/`). Every page links its other version (`hreflang`), and a link at the top of each page goes to the same page in the other language. The homepage opens in the language the visitor's browser asks for first: the network's Worker redirects `/` to `/es/` for a browser set to Spanish (`worker/sites.js`). Choosing a language with the link (`?lang=es`) is remembered in a cookie and wins over the browser's there. Every other address opens as asked, so a shared link opens in the language it was shared in. A site on GitHub Pages, without the Worker, opens in English.
+- **The engine's own wording** (about 840 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
+- **The town's own text** (tagline, masthead, section summaries, glossary, participation notes, officials' seats, and the names in its data: boards and 311 categories) needs no one's translation to start. Each comes from the first of:
+  1. the town's `[strings.es]`;
+  2. the engine's Spanish for what many towns share: section names, common boards ("Planning Board"), roles, seats, and the section summaries town configs copy (`pipeline/common_strings.py`, translated in `es.po`), and numbered seats ("Ward 3" is "Distrito 3");
+  3. a machine draft: each run, before summarizing, drafts whatever is still missing (a new town's config, a board or 311 category the city just added) with the translation model, checked the same way (numbers and placeholders kept), into `data/strings/es.json`. It costs a fraction of a summary.
+
+  The Spanish pages are as complete as the English: the site isn't built while any of the config's own text has none of these. A data name first seen in a build is shown in English until the next run drafts it. Drafts are shown until a person reviews them: `python -m pipeline.translate drafts` prints them as `[strings.es]` lines to correct and add to the config, which then wins. Board names are shown with their official English name after them ("Concejo Municipal (City Council)"), so readers can match them to the city's notices; 311 categories are shown in Spanish only.
+- **Summaries** are translated from the English summary (never from the PDF) by Claude Haiku 4.5 (`pipeline/translate.py`; `translation_model` in `[summaries]` to change it, with its `translation_input_price` and `translation_output_price`). A check without AI confirms every number in the English is in the Spanish and each list has as many entries; a date in figures may be written out ("9/23/2026" as "23 de septiembre de 2026"). The check runs again each build; a translation that fails is kept, so it isn't paid for again, but the page shows the English. Each translation is its own record, `data/summaries/es/<document hash>.json`, made again only when its English summary changes, so turning Spanish on never regenerates an English summary. Translations come out of the same budget as summaries, new documents first (`translation_cost` in the month's ledger). A summary not translated yet is shown in English, marked `lang="en"`, with a note saying so. Decisions are sorted, and public hearings and glossary terms found, in the English.
+- Agendas, minutes, and transcripts stay in English, as the official record. Downloads, saved PDFs, and the feed are shared by both languages. Search on the Spanish pages also finds the translated summaries.
+- The site checks run on every page in both languages. A missing page under `/es/` gets the Spanish 404 page from the network's Worker (`worker/sites.js`), which must be deployed before the first town with Spanish goes live.
 
 ## Data collection
 

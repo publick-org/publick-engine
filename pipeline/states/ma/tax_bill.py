@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 from pipeline.states.ma import dls
 from pipeline.states.ma.dls import REFUSED_WAITS, REPORT_URL, dls_get, export_url, not_a_workbook  # noqa: F401
@@ -27,8 +28,8 @@ YEARS = 5
 
 # DLS adds a fiscal year's figures for each town once its tax rate is approved:
 # most by the end of December, the last in spring.
-RHYTHM = Rhythm("Average tax bill (Mass. DLS)", "finance/tax_bill.json", "Fetch tax bill", "yearly", (
-    Part(latest_year("years", "fiscal_year"), on(2), lambda y: f"Fiscal year {y}"),
+RHYTHM = Rhythm(N_("Average tax bill (Mass. DLS)"), "finance/tax_bill.json", "Fetch tax bill", "yearly", (
+    Part(latest_year("years", "fiscal_year"), on(2), lambda y: _("Fiscal year {year}").format(year=y)),
 ))
 
 

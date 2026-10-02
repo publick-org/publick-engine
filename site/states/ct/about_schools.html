@@ -1,4 +1,4 @@
 {#- The About page's sources list: schools. -#}
 {% if config.schools is defined %}
-  <li><strong>Schools:</strong> the Connecticut State Department of Education's <a href="https://public-edsight.ct.gov/">EdSight</a> data portal: graduation rates, chronic absenteeism, Smarter Balanced test results, and per pupil expenditures.</li>
+  <li>{% trans url="https://public-edsight.ct.gov/" %}<strong>Schools:</strong> the Connecticut State Department of Education's <a href="{{ url }}">EdSight</a> data portal: graduation rates, chronic absenteeism, Smarter Balanced test results, and per pupil expenditures.{% endtrans %}</li>
 {% endif %}

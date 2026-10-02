@@ -1,102 +1,129 @@
 {% extends "base.html" %}
 {% from "macros.html" import contact %}
-{% block title %}About{% endblock %}
-{% block description %}What {{ site.name }} is, where its data comes from, and how to report a mistake.{% endblock %}
+{% block title %}{{ _("About") }}{% endblock %}
+{% block description %}{% trans site=site.name %}What {{ site }} is, where its data comes from, and how to report a mistake.{% endtrans %}{% endblock %}
 {% block content %}
-<h1>About</h1>
-<p class="lede">An independent site tracking public data about the City of {{ town.name }}. Not run by or affiliated with the city.</p>
+<h1>{{ _("About") }}</h1>
+<p class="lede">{% trans town=town.name %}An independent site tracking public data about the City of {{ town }}. Not run by or affiliated with the city.{% endtrans %}</p>
 {% if site.get("network") %}
 
-<h2 id="network">Part of {{ site.network }}</h2>
-<p>{{ site.name }} is one of the {{ site.network }} sites, which publish the public record of towns and cities every day. The name comes from <cite>Publick Occurrences Both Forreign and Domestick</cite>, the first newspaper in the American colonies. It was printed in Boston in 1690 and shut down after one issue for printing without permission.</p>
+{# Translators: %(network)s is the name of the network of sites, such as "Publick". #}
+<h2 id="network">{% trans network=site.network %}Part of {{ network }}{% endtrans %}</h2>
+<p>{% trans site=site.name, network=site.network %}{{ site }} is one of the {{ network }} sites, which publish the public record of towns and cities every day. The name comes from <cite>Publick Occurrences Both Forreign and Domestick</cite>, the first newspaper in the American colonies. It was printed in Boston in 1690 and shut down after one issue for printing without permission.{% endtrans %}</p>
 {% endif %}
 
-<h2 id="how">How it works</h2>
+<h2 id="how">{{ _("How it works") }}</h2>
 <ul>
-  <li>Updated every morning from public sources.</li>
-  <li>Every number links to where it came from.</li>
+  <li>{{ _("Updated every morning from public sources.") }}</li>
+  <li>{{ _("Every number links to where it came from.") }}</li>
   {% if config.meetings is defined and meeting_links.documents %}
-  <li>New agendas and minutes are in an <a href="/feed.xml">RSS feed</a>.</li>
+  <li>{% trans url="/feed.xml" %}New agendas and minutes are in an <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.summaries is defined %}
-  <li>Summaries written by AI are labeled on each meeting page.</li>
+  <li>{{ _("Summaries written by AI are labeled on each meeting page.") }}</li>
   {% endif %}
-  <li>Mistakes are corrected openly, with a note on the page.</li>
+  <li>{{ _("Mistakes are corrected openly, with a note on the page.") }}</li>
 </ul>
 
-<h2 id="sources">Sources</h2>
+<h2 id="sources">{{ _("Sources") }}</h2>
 <ul>
   {% if config.seeclickfix is defined %}
-  <li><strong>311 requests:</strong> <a href="https://seeclickfix.com">SeeClickFix</a>, public requests only, under a <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license. <a href="/311/methodology/">How the 311 numbers work</a>.</li>
+  <li>{% trans scf="https://seeclickfix.com", license="https://creativecommons.org/licenses/by-nc-sa/3.0/", methodology="/311/methodology/" %}<strong>311 requests:</strong> <a href="{{ scf }}">SeeClickFix</a>, public requests only, under a <a href="{{ license }}">CC BY-NC-SA 3.0</a> license. <a href="{{ methodology }}">How the 311 numbers work</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.meetings is defined and config.meetings.agenda_center is defined %}
-  <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ config.meetings.agenda_center.base_url }}/AgendaCenter">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ config.meetings.agenda_center.since | date("month") }} on.</li>
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans url=config.meetings.agenda_center.base_url ~ "/AgendaCenter", since=config.meetings.agenda_center.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents and config.meetings.file_list is defined %}
-  <li><strong>Meetings, agendas, and minutes:</strong> the <a href="{{ meeting_links.calendar }}">meetings calendar</a> and the <a href="{{ meeting_links.archive }}">{{ meeting_links.archive_name }}</a>. Copies of agendas are saved when posted. Minutes are collected from {{ config.meetings.file_list.since | date("month") }} on.</li>
+  {# Translators: %(archive)s is the name of the city's archive of documents, such as "Document Center". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, url=meeting_links.archive, archive=meeting_links.archive_name, since=config.meetings.file_list.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the <a href="{{ calendar }}">meetings calendar</a> and the <a href="{{ url }}">{{ archive }}</a>. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.civicclerk is defined %}
-  <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a> and its <a href="{{ meeting_links.portal }}">meeting portal</a> (CivicClerk). Agendas and minutes of the meetings on the portal are saved when posted, from {{ config.meetings.civicclerk.since | date("month") }} on; other meetings link to their agendas where the city posts them.</li>
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, portal=meeting_links.portal, since=config.meetings.civicclerk.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a> and its <a href="{{ portal }}">meeting portal</a> (CivicClerk). Agendas and minutes of the meetings on the portal are saved when posted, from {{ since }} on; other meetings link to their agendas where the city posts them.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents %}
-  <li><strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a> and <a href="{{ meeting_links.archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ config.archive.minutes_since | date("month") }} on.</li>
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, archive=meeting_links.archive, since=config.archive.minutes_since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a> and <a href="{{ archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined %}
-  <li><strong>Meetings:</strong> the city's <a href="{{ meeting_links.calendar }}">calendar</a>{% if meeting_links.portal %} and its <a href="{{ meeting_links.portal }}">meeting portal</a> (CivicClerk){% endif %}{% if meetings.all %}, from {{ meetings.all[0].date | date("month") }} on{% endif %}. Each meeting page links to its agenda and minutes where the city posts them.</li>
+  {% if meeting_links.portal and meetings.all %}
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, portal=meeting_links.portal, since=meetings.all[0].date | date("month") %}<strong>Meetings:</strong> the city's <a href="{{ calendar }}">calendar</a> and its <a href="{{ portal }}">meeting portal</a> (CivicClerk), from {{ since }} on. Each meeting page links to its agenda and minutes where the city posts them.{% endtrans %}</li>
+  {% elif meeting_links.portal %}
+  <li>{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}<strong>Meetings:</strong> the city's <a href="{{ calendar }}">calendar</a> and its <a href="{{ portal }}">meeting portal</a> (CivicClerk). Each meeting page links to its agenda and minutes where the city posts them.{% endtrans %}</li>
+  {% elif meetings.all %}
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, since=meetings.all[0].date | date("month") %}<strong>Meetings:</strong> the city's <a href="{{ calendar }}">calendar</a>, from {{ since }} on. Each meeting page links to its agenda and minutes where the city posts them.{% endtrans %}</li>
+  {% else %}
+  <li>{% trans calendar=meeting_links.calendar %}<strong>Meetings:</strong> the city's <a href="{{ calendar }}">calendar</a>. Each meeting page links to its agenda and minutes where the city posts them.{% endtrans %}</li>
+  {% endif %}
   {% endif %}
   {% if config.drive_meetings is defined %}
-  <li><strong>School Committee agendas and minutes:</strong> {{ config.drive_meetings.source_name }}, from the public folders linked on the <a href="{{ config.drive_meetings.page_url }}">School Committee website</a>, from {{ config.drive_meetings.since | date("month") }} on.</li>
+  {# Translators: %(source)s names where the documents are kept, such as "the School Committee's Google Drive". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans source=config.drive_meetings.source_name, url=config.drive_meetings.page_url, since=config.drive_meetings.since | date("month") %}<strong>School Committee agendas and minutes:</strong> {{ source }}, from the public folders linked on the <a href="{{ url }}">School Committee website</a>, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
   {% if config.finalsite_meetings is defined %}
-  <li><strong>{{ (config.finalsite_meetings.bodies.values() | list)[0] }} meetings, agendas, and minutes:</strong> {{ config.finalsite_meetings.source_name }}, from the meetings posted on its <a href="{{ config.finalsite_meetings.page_url }}">website</a>, from {{ config.finalsite_meetings.since | date("month") }} on.</li>
+  {# Translators: %(board)s is a board's name, such as "School Committee". %(source)s names where the meetings are posted, such as "the school district's website". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=(config.finalsite_meetings.bodies.values() | list)[0], source=config.finalsite_meetings.source_name, url=config.finalsite_meetings.page_url, since=config.finalsite_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from the meetings posted on its <a href="{{ url }}">website</a>, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
   {% include state_template("about_finance.html") ignore missing %}
   {% if config.labor is defined %}
-  <li><strong>Unemployment:</strong> U.S. <a href="https://www.bls.gov/lau/">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.</li>
+  <li>{% trans url="https://www.bls.gov/lau/" %}<strong>Unemployment:</strong> U.S. <a href="{{ url }}">Bureau of Labor Statistics</a>. City rates aren't seasonally adjusted, so each month is compared with the same month last year.{% endtrans %}</li>
   {% endif %}
   {% include state_template("about_schools.html") ignore missing %}
   {% if config.housing is defined %}
-  <li><strong>Housing:</strong> U.S. Census Bureau <a href="https://www.census.gov/construction/bps/">Building Permits Survey</a> and <a href="https://www.census.gov/programs-surveys/acs">American Community Survey</a> (through <a href="https://censusreporter.org">Census Reporter</a>){% include state_template("about_housing.html") ignore missing %}.</li>
+  {% set state_sources %}{% include state_template("about_housing.html") ignore missing %}{% endset %}
+  {# Translators: %(state_sources)s is the state's own housing sources, if any, each after a comma, such as ", the state's Subsidized Housing Inventory". #}
+  <li>{% trans bps="https://www.census.gov/construction/bps/", acs="https://www.census.gov/programs-surveys/acs", reporter="https://censusreporter.org", state_sources=state_sources %}<strong>Housing:</strong> U.S. Census Bureau <a href="{{ bps }}">Building Permits Survey</a> and <a href="{{ acs }}">American Community Survey</a> (through <a href="{{ reporter }}">Census Reporter</a>){{ state_sources }}.{% endtrans %}</li>
   {% endif %}
   {% if config.permits is defined %}
-  <li><strong>Building and demolition permits:</strong> the city's <a href="{{ config.permits.page_url }}">Inspectional Services permit data</a> on its Data Hub, used for the <a href="/streets/">street lookup</a>.</li>
+  <li>{% trans url=config.permits.page_url, streets="/streets/" %}<strong>Building and demolition permits:</strong> the city's <a href="{{ url }}">Inspectional Services permit data</a> on its Data Hub, used for the <a href="{{ streets }}">street lookup</a>.{% endtrans %}</li>
   {% endif %}
   {% if officials %}
-  <li><strong>Elected officials:</strong> listed by hand from official city and school websites, last checked {{ officials.checked | date("plain") }}. See <a href="/officials/">Who represents you</a>.</li>
+  <li>{% trans checked=officials.checked | date("plain"), url="/officials/" %}<strong>Elected officials:</strong> listed by hand from official city and school websites, last checked {{ checked }}. See <a href="{{ url }}">Who represents you</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.seeclickfix is defined or wards_url %}
-  <li><strong>Ward maps:</strong> <a href="{{ wards.url }}">{{ wards.publisher }}</a>, {{ wards.year }} boundaries.</li>
-  <li><strong>Street maps:</strong> <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, drawn with <a href="https://leafletjs.com">Leaflet</a>. Map images load from OpenStreetMap's servers.</li>
+  {# Translators: %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year. #}
+  <li>{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}</li>
+  <li>{% trans osm="https://www.openstreetmap.org/copyright", leaflet="https://leafletjs.com" %}<strong>Street maps:</strong> <a href="{{ osm }}">OpenStreetMap</a>, drawn with <a href="{{ leaflet }}">Leaflet</a>. Map images load from OpenStreetMap's servers.{% endtrans %}</li>
   {% endif %}
 </ul>
 
-<h2 id="data-status">Data status</h2>
-<p>Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; the maintainer is alerted automatically.</p>
+<h2 id="data-status">{{ _("Data status") }}</h2>
+{# Translators: "Behind" is the status the table below shows for such a source. #}
+<p>{% trans %}Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; the maintainer is alerted automatically.{% endtrans %}</p>
 <div class="table-wrap" role="region" aria-labelledby="data-status" tabindex="0">
 <table class="data-table">
-  <thead><tr><th scope="col">Source</th><th scope="col">Latest</th><th scope="col">Last checked</th><th scope="col">Status</th></tr></thead>
+  <thead><tr><th scope="col">{{ pgettext("data status", "Source") }}</th><th scope="col">{{ pgettext("data status", "Latest") }}</th><th scope="col">{{ _("Last checked") }}</th><th scope="col">{{ pgettext("data status", "Status") }}</th></tr></thead>
   <tbody>
   {% for r in data_status %}
-    <tr><th scope="row">{{ r.label }}</th><td>{{ r.get("latest") or "–" }}</td><td>{% if r.updated_at %}<time datetime="{{ r.updated_at }}">{{ r.updated_at | timestamp }}</time>{% else %}–{% endif %}</td><td>{% if r.stale %}<strong class="flag">Behind</strong>{% if r.get("waiting") %} ({{ plural(r.waiting | length, "document") }} waiting){% elif r.get("behind") %}: {{ r.behind }}{% endif %}{% else %}Up to date{% if r.get("next") %}. Next: {{ r.next }}.{% endif %}{% endif %}</td></tr>
+    <tr><th scope="row">{{ r.label }}</th><td>{{ r.get("latest") or "–" }}</td><td>{% if r.updated_at %}<time datetime="{{ r.updated_at }}">{{ r.updated_at | timestamp }}</time>{% else %}–{% endif %}</td><td>{% if r.stale %}<strong class="flag">{{ pgettext("data status", "Behind") }}</strong>{% if r.get("waiting") %} ({% trans count=r.waiting | length, num=r.waiting | length | number %}{{ num }} document waiting{% pluralize %}{{ num }} documents waiting{% endtrans %}){% elif r.get("behind") %}: {{ r.behind }}{% endif %}{% else %}{% if r.get("next") %}
+      {#- Translators: %(next)s says when newer figures are expected, such as "August 2026 rate usually by October 10, 2026". #}
+      {%- trans next=r.next %}Up to date. Next: {{ next }}.{% endtrans %}{% else %}{{ pgettext("data status", "Up to date") }}{% endif %}{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
 
 {% if config.summaries is defined %}
-<h2 id="ai">AI summaries</h2>
-<p>Meeting summaries are written by AI ({{ config.summaries.model | model_name }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.</p>
-<p>Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.</p>
+<h2 id="ai">{{ _("AI summaries") }}</h2>
+{# Translators: %(model)s is an AI model's name, such as "Claude Sonnet 5". #}
+<p>{% trans model=config.summaries.model | model_name %}Meeting summaries are written by AI ({{ model }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.{% endtrans %}</p>
+<p>{% trans %}Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.{% endtrans %}</p>
 {% endif %}
 
 {% if config.get("analytics", {}).get("goatcounter") %}
-<h2 id="privacy">Privacy</h2>
-<p>We count visits so we know which pages are useful. That's all.</p>
+<h2 id="privacy">{{ _("Privacy") }}</h2>
+<p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>
 <ul>
-  <li>No cookies, no ads, and no tracking across other sites.</li>
-  <li>What you search for, and which street you look up, is never recorded.</li>
-  {% if wards_url %}<li>If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.</li>{% endif %}
-  <li>Nothing that identifies you is kept, not even your IP address.</li>
+  <li>{{ _("No cookies, no ads, and no tracking across other sites.") }}</li>
+  <li>{{ _("What you search for, and which street you look up, is never recorded.") }}</li>
+  {% if wards_url %}<li>{# Translators: "Find my ward" is the label of the button that finds the reader's ward. #}{% trans %}If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}</li>{% endif %}
+  <li>{{ _("Nothing that identifies you is kept, not even your IP address.") }}</li>
 </ul>
-<p class="small">Counting is done by <a href="https://www.goatcounter.com">GoatCounter</a>, a privacy-friendly service. It notes the page, the site that linked here, and your screen size, along with the browser type and rough location (such as the country or state) that every website can see. We only look at the totals.{% if config.analytics.public_stats %} They're <a href="{{ config.analytics.public_stats }}">public</a>.{% endif %}</p>
+<p class="small">{% trans url="https://www.goatcounter.com" %}Counting is done by <a href="{{ url }}">GoatCounter</a>, a privacy-friendly service. It notes the page, the site that linked here, and your screen size, along with the browser type and rough location (such as the country or state) that every website can see. We only look at the totals.{% endtrans %}
+{#- Translators: "They" are the visit totals of the sentence before. #}
+{% if config.analytics.public_stats %} {% trans url=config.analytics.public_stats %}They're <a href="{{ url }}">public</a>.{% endtrans %}{% endif %}</p>
 {% endif %}
 
-<h2 id="corrections">Corrections and contact</h2>
-<p>Spot a mistake or have a question? {{ contact(site) | capitalize_first }}. Fixes are noted on the page they affect.</p>
+<h2 id="corrections">{{ _("Corrections and contact") }}</h2>
+{# Translators: %(contact)s is how to reach the site, written to start a sentence, such as "Email news@example.org or open an issue on the project's public issue tracker". #}
+<p>{% trans contact=contact(site) | capitalize_first %}Spot a mistake or have a question? {{ contact }}. Fixes are noted on the page they affect.{% endtrans %}</p>
 {% endblock %}

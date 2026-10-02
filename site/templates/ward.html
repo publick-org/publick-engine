@@ -2,30 +2,30 @@
 {% from "charts.html" import month_columns, bars, chart_links %}
 {% from "macros.html" import city_report_button %}
 {% set w = ward %}
-{% block title %}Ward {{ w.ward }}: 311 requests{% endblock %}
-{% block description %}311 requests in Ward {{ w.ward }}, {{ town.name }}: how many, how quickly the city responds, and what kinds.{% endblock %}
+{% block title %}{% trans ward=w.ward %}Ward {{ ward }}: 311 requests{% endtrans %}{% endblock %}
+{% block description %}{% trans ward=w.ward, town=town.name %}311 requests in Ward {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb" class="breadcrumb"><ol><li><a href="/311/">311 Requests</a></li><li><a href="/311/#wards">Wards</a></li></ol></nav>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#wards">{{ _("Wards") }}</a></li></ol></nav>
 <div class="page-head">
-  <h1>Ward {{ w.ward }}</h1>
-  <p class="lede">311 requests placed in Ward {{ w.ward }} over the past 12 months.{% if w.population_2020 %} Population {{ w.population_2020 | number }} (2020 census).{% endif %}</p>
+  <h1>{{ _("Ward %(ward)s", ward=w.ward) }}</h1>
+  <p class="lede">{% trans ward=w.ward %}311 requests placed in Ward {{ ward }} over the past 12 months.{% endtrans %}{% if w.population_2020 %} {% trans population=w.population_2020 | number %}Population {{ population }} (2020 census).{% endtrans %}{% endif %}</p>
   {{ city_report_button(config) }}
 </div>
 <ul class="stats">
-  <li class="stat"><div><span class="stat-label">Requests</span><span class="stat-value">{{ w.received | number }}</span>{% if w.per_1000_residents %}<span class="stat-change">{{ w.per_1000_residents | round | int }} per 1,000 residents</span>{% endif %}</div></li>
-  <li class="stat"><div><span class="stat-label">Still open</span><span class="stat-value">{{ w.open | number }}</span></div></li>
-  <li class="stat"><div><span class="stat-label">Typical time to acknowledge</span><span class="stat-value">{{ w.time_to_acknowledge.median | duration }}</span><span class="stat-change">Median of {{ w.acknowledged | number }} acknowledged</span></div></li>
-  <li class="stat"><div><span class="stat-label">Typical time to close</span><span class="stat-value">{{ w.time_to_close.median | duration }}</span><span class="stat-change">Median of {{ w.closed | number }} closed</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Requests") }}</span><span class="stat-value">{{ w.received | number }}</span>{% if w.per_1000_residents %}<span class="stat-change">{% trans num=w.per_1000_residents | round | int %}{{ num }} per 1,000 residents{% endtrans %}</span>{% endif %}</div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Still open") }}</span><span class="stat-value">{{ w.open | number }}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to acknowledge") }}</span><span class="stat-value{% if w.time_to_acknowledge.median is none %} stat-value-text{% endif %}">{{ w.time_to_acknowledge.median | duration }}</span><span class="stat-change">{% trans num=w.acknowledged | number %}Median of {{ num }} acknowledged{% endtrans %}</span></div></li>
+  <li class="stat"><div><span class="stat-label">{{ _("Typical time to close") }}</span><span class="stat-value{% if w.time_to_close.median is none %} stat-value-text{% endif %}">{{ w.time_to_close.median | duration }}</span><span class="stat-change">{% trans num=w.closed | number %}Median of {{ num }} closed{% endtrans %}</span></div></li>
 </ul>
 
-<h2 id="monthly">Requests by month</h2>
-{{ month_columns(w.monthly, "Ward " ~ w.ward ~ " requests by month") }}
+<h2 id="monthly">{{ _("Requests by month") }}</h2>
+{{ month_columns(w.monthly, _("Ward %(ward)s requests by month", ward=w.ward)) }}
 {{ chart_links("monthly") }}
 
-<h2 id="categories">By category</h2>
+<h2 id="categories">{{ _("By category") }}</h2>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Category</th><th scope="col" class="num">Requests</th><th scope="col" class="num wide">Still open</th><th scope="col" class="num">Typical close</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Category") }}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th><th scope="col" class="num">{{ _("Typical close") }}</th></tr></thead>
   <tbody>
   {% for c in w.by_category %}
     <tr><th scope="row"><a href="/311/category/{{ c.slug }}/">{{ c.category }}</a></th><td class="num">{{ c.received | number }}</td><td class="num wide">{{ c.open | number }}</td><td class="num">{{ c.time_to_close.median | duration_cell }}</td></tr>
@@ -33,14 +33,14 @@
   </tbody>
 </table>
 </div>
-<p class="small">– fewer than 5 requests, too few for a typical time.</p>
+<p class="small">{# Translators: the dash (–) is what the table shows in place of a typical time. #}{{ _("– fewer than 5 requests, too few for a typical time.") }}</p>
 {{ chart_links("categories", "/311/data/ward-" ~ w.ward ~ ".csv") }}
 
 {% if w.oldest %}
-<h2 id="longest-open">Longest-open requests in Ward {{ w.ward }}</h2>
+<h2 id="longest-open">{% trans ward=w.ward %}Longest-open requests in Ward {{ ward }}{% endtrans %}</h2>
 <ol class="plain-list">
-  {% for r in w.oldest %}<li><a href="{{ r.url }}">{{ r.category }}</a><span class="item-detail">{{ r.address or "No street address" }} · Open since <time datetime="{{ r.created_at }}">{{ r.created_at[:10] | date("plain") }}</time></span></li>{% endfor %}
+  {% for r in w.oldest %}<li><a href="{{ r.url }}">{{ r.category }}</a><span class="item-detail">{{ r.address or _("No street address") }} · {% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
-<p class="source-note">Wards use the {{ wards.year }} boundaries from {{ wards.publisher }}. Differences between wards reflect how often residents report problems as well as how the city responds. <a href="/311/methodology/">Methodology</a>.</p>
+<p class="source-note">{% trans year=wards.year, publisher=wards.publisher %}Wards use the {{ year }} boundaries from {{ publisher }}. Differences between wards reflect how often residents report problems as well as how the city responds.{% endtrans %} <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endblock %}

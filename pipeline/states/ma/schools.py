@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
+from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
 
 STATE_CODE = "00000000"
@@ -47,11 +48,11 @@ MEASURES = {
 
 # DESE posts MCAS results and the year's attendance in late September, and a
 # class's graduation rate the next spring. Years are school years' ending years.
-RHYTHM = Rhythm("School figures (DESE)", "schools/schools.json", "Fetch school figures", "yearly", (
+RHYTHM = Rhythm(N_("School figures (DESE)"), "schools/schools.json", "Fetch school figures", "yearly", (
     Part(latest_year("measures.graduation.years", "year"), on(5, years_after=1),
-         lambda y: f"Class of {y} graduation rate"),
-    Part(latest_year("measures.mcas_ela.years", "year"), on(10), lambda y: f"Spring {y} MCAS results"),
-    Part(latest_year("measures.absenteeism.years", "year"), on(10), lambda y: f"{y - 1}–{y % 100:02d} attendance"),
+         lambda y: _("Class of {year} graduation rate").format(year=y)),
+    Part(latest_year("measures.mcas_ela.years", "year"), on(10), lambda y: _("Spring {year} MCAS results").format(year=y)),
+    Part(latest_year("measures.absenteeism.years", "year"), on(10), lambda y: _("{years} attendance").format(years=f"{y - 1}–{y % 100:02d}")),
 ))
 
 

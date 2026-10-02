@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Callable
 
 from pipeline import states
+from pipeline.i18n import _, plain_date
 
 GRACE_MONTHS = 2
 # How long before a new period's usual date checks move from monthly to weekly.
@@ -179,18 +180,19 @@ def row(rhythm: Rhythm, data_dir: Path, now: datetime, grace_months: int = GRACE
     whether it's behind."""
     data = read(data_dir, rhythm)
     failures = (checks or {}).get(rhythm.step, {}).get("failures", 0)
-    base = {"label": rhythm.label, "updated_at": (data or {}).get("updated_at"), "max_days": None,
+    base = {"label": _(rhythm.label), "updated_at": (data or {}).get("updated_at"), "max_days": None,
             "cadence": rhythm.cadence, "failing": failures if failures >= FAILING_AFTER else 0}
     if data is None:
-        return {**base, "stale": True, "latest": None, "next": None, "behind": "no data yet"}
+        return {**base, "stale": True, "latest": None, "next": None, "behind": _("no data yet")}
     today = now.date()
     latest, upcoming_text, behind = [], [], []
     for part, period in upcoming(rhythm, data):
         usual = part.usual(period)
         latest.append(part.name(period - 1))
-        when = f"{part.name(period)} usually by {usual:%B} {usual.day}, {usual.year}"
-        upcoming_text.append(when)
+        # Translators: such as "Fiscal year 2027 usually by February 1, 2027".
+        upcoming_text.append(_("{period} usually by {date}").format(period=part.name(period), date=plain_date(usual)))
         if today >= add_months(usual, grace_months):
-            behind.append(f"{part.name(period)} is later than usual (usually by {usual:%B} {usual.day}, {usual.year})")
+            behind.append(_("{period} is later than usual (usually by {date})").format(
+                period=part.name(period), date=plain_date(usual)))
     return {**base, "stale": bool(behind), "latest": "; ".join(latest) or None,
             "next": "; ".join(upcoming_text) or None, "behind": "; ".join(behind) or None}
