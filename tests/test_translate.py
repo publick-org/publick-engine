@@ -326,3 +326,22 @@ def test_drafts_review_as_strings_lines(tmp_path):
     # Ready to paste into [strings.es]: the town's own translations aren't repeated, failed drafts are commented out.
     assert tomllib.loads(out) == {"Fish Pier Committee": "Comité del Muelle"}
     assert '# "Ward 9 \\"North\\"" = "Distrito \\"Norte\\""  # 9 not in the translation' in out
+
+
+def test_a_decision_that_fails_its_fact_check_isnt_shown_in_either_language(tmp_path, monkeypatch):
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    sha, record = next((s, r) for s, r in ((f.stem, json.loads(f.read_text())) for f in (tmp_path / "summaries").glob("*.json"))
+                       if r.get("kind") == "minutes")
+    record["fact_check"] = {"version": 1, "source": "pdf", "result": "failed",
+                            "problems": [{"field": "decisions", "entry": 1, "kind": "number", "what": "12"}]}
+    (tmp_path / "summaries" / f"{sha}.json").write_text(json.dumps(record))
+    monkeypatch.setattr(build_site, "load_config", lambda town: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=tmp_path, now=BUILT_AT)
+    english = next(p for p in (out / "meetings").glob("20*/index.html") if "1 decision isn't shown" in p.read_text())
+    page = english.read_text()
+    assert "1 decision isn't shown: it couldn't be matched to the minutes." in page
+    assert "Approved the site plan for 12 Main St" not in page
+    spanish = (out / "es" / english.relative_to(out)).read_text()
+    assert "1 decisión no aparece: no se pudo comprobar con las actas." in spanish

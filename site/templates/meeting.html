@@ -103,7 +103,7 @@
 {# Translators: %(who)s is who posted the document: "The city" or a school district's name. #}
 {% trans who=m.minutes_doc.get("posted_by") or _("The city") %}{{ who }} filed a different document here instead of minutes. Minutes may be posted later.{% endtrans %}
 {% endif %}</p>
-{% else %}
+{% elif ms.summary %}
 <p{{ english_attr(ms) }}>{{ ms.summary }}</p>
 {% endif %}
 {% if ms.get("is_minutes") == false %}
@@ -112,8 +112,12 @@
 <ul{{ english_attr(ms) }}>
   {% for d in ms.decisions %}<li>{{ d }}</li>{% endfor %}
 </ul>
-{% else %}
+{% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
+{% endif %}
+{% if ms.get("is_minutes") != false and ms.get("not_shown") %}
+{# A decision with something the minutes' own text doesn't have (pipeline/factcheck.py) isn't shown. #}
+<p class="small">{% trans count=ms.not_shown %}{{ count }} decision isn't shown: it couldn't be matched to the minutes.{% pluralize %}{{ count }} decisions aren't shown: they couldn't be matched to the minutes.{% endtrans %}</p>
 {% endif %}
 {% if ms.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
@@ -144,12 +148,15 @@
 
 <h2 id="agenda">{% if m.date >= built_at.date().isoformat() %}{{ _("What's on the agenda") }}{% else %}{{ _("Agenda") }}{% endif %}</h2>
 {% if m.preview %}
-<p{{ english_attr(m.preview) }}>{{ m.preview.summary }}</p>
+{% if m.preview.summary %}<p{{ english_attr(m.preview) }}>{{ m.preview.summary }}</p>{% endif %}
 {% if m.preview["items"] %}
 <h3 id="agenda-items">{{ _("Agenda items") }}</h3>
 <ul{{ english_attr(m.preview) }}>
   {% for item in m.preview["items"] %}<li>{{ item }}</li>{% endfor %}
 </ul>
+{% endif %}
+{% if m.preview.get("not_shown") %}
+<p class="small">{% trans count=m.preview.not_shown %}{{ count }} agenda item isn't shown: it couldn't be matched to the agenda.{% pluralize %}{{ count }} agenda items aren't shown: they couldn't be matched to the agenda.{% endtrans %}</p>
 {% endif %}
 {% if m.preview.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}

@@ -89,6 +89,20 @@ msgstr "%(council)s, juntas y comités: cuándo se reúnen, qué hay en la agend
 msgid "%(council)s, boards, and committees: when they meet."
 msgstr "%(council)s, juntas y comités: cuándo se reúnen."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "%(count)s agenda item isn't shown: it couldn't be matched to the agenda."
+msgid_plural "%(count)s agenda items aren't shown: they couldn't be matched to the agenda."
+msgstr[0] "%(count)s punto de la agenda no aparece: no se pudo comprobar con la agenda."
+msgstr[1] "%(count)s puntos de la agenda no aparecen: no se pudieron comprobar con la agenda."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "%(count)s decision isn't shown: it couldn't be matched to the minutes."
+msgid_plural "%(count)s decisions aren't shown: they couldn't be matched to the minutes."
+msgstr[0] "%(count)s decisión no aparece: no se pudo comprobar con las actas."
+msgstr[1] "%(count)s decisiones no aparecen: no se pudieron comprobar con las actas."
+
 #. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format

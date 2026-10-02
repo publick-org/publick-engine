@@ -35,6 +35,7 @@ from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_S
 from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import common_strings
+from pipeline import factcheck
 from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
@@ -416,10 +417,14 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         )
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
-        # another language's pages show its translation where there is one.
-        english = {"preview": m["preview"], "minutes_summary": m["minutes_summary"], "body": m["body"]}
-        m["preview"] = in_language(data_dir, m["preview"], "agenda", m["agenda"])
-        m["minutes_summary"] = in_language(data_dir, m["minutes_summary"], "minutes", m["minutes_doc"])
+        # another language's pages show its translation where there is one. Both as the fact check
+        # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
+        # it doesn't give.
+        pv_raw, ms_raw = m["preview"], m["minutes_summary"]
+        english = {"preview": factcheck.shown(pv_raw, pv_raw, "agenda"),
+                   "minutes_summary": factcheck.shown(ms_raw, ms_raw, "minutes"), "body": m["body"]}
+        m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"]), pv_raw, "agenda")
+        m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"]), ms_raw, "minutes")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
         if ms_en and ms_en.get("is_minutes", True):

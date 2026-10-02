@@ -217,7 +217,9 @@ def test_manchester_civicclerk_meeting_has_its_agenda_and_minutes(manchester_sit
     assert 'href="/meetings/agendas/civicclerk-5184.pdf"' in board
     assert f"{API}/Meetings/GetMeetingFileStream(fileId=5246,plainText=false)" in board
     assert 'href="/meetings/minutes/civicclerk-5246.pdf"' in board
-    assert "What was decided" in board and "Approved the site plan for 12 Main St, 5-0" in board
+    # The stand-in summary's vote count isn't in these real minutes: the fact check
+    # (pipeline/factcheck.py) leaves the count out, and the decision in.
+    assert "What was decided" in board and "<li>Approved the site plan for 12 Main St</li>" in board
     assert "ADA compliance with Joe Lucido" in board  # the agenda's summary
     assert "(CivicClerk)" in board
 
@@ -261,7 +263,9 @@ def test_malden_meeting_has_its_minutes(malden_site):
     assert "Board of Appeal" in appeal
     assert f"{BASE}/AgendaCenter/ViewFile/Minutes/_09162026-4400" in appeal
     assert 'href="/meetings/minutes/agendacenter-4400.pdf"' in appeal
-    assert "What was decided" in appeal and "Approved the site plan for 12 Main St, 5-0" in appeal
+    # The stand-in summary's vote count isn't in these real minutes: the fact check
+    # (pipeline/factcheck.py) leaves the count out, and the decision in.
+    assert "What was decided" in appeal and "<li>Approved the site plan for 12 Main St</li>" in appeal
     assert "Board of Appeal" in page(malden_site, "/meetings/decisions/")
 
 
@@ -294,7 +298,9 @@ def test_wallingford_meeting_from_its_documents_has_its_minutes(wallingford_site
     assert "Town Council Meeting" in council and "Not listed on the city calendar" in council
     assert f"{DOCUMENTS_URL}DownloadFile.aspx?FileID=12188" in council
     assert 'href="/meetings/minutes/filelist-12188.pdf"' in council
-    assert "What was decided" in council and "Approved the site plan for 12 Main St, 5-0" in council
+    # The stand-in summary's vote count isn't in these real minutes: the fact check
+    # (pipeline/factcheck.py) leaves the count out, and the decision in.
+    assert "What was decided" in council and "<li>Approved the site plan for 12 Main St</li>" in council
     assert "Town Council" in page(wallingford_site, "/meetings/decisions/")
 
 
