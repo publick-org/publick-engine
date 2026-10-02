@@ -1195,19 +1195,20 @@ Spanish, with the "In the works" list taken off the publick.org homepage
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
 towns too. Next, in this order (as of 2026-10-02):
 
+**Before the list (second review, 2026-10-02), about a day:** the open redirect
+in the sites Worker: `worker/sites.js:135` redirects `?lang=` to the raw
+path, so `https://lawrence-ma.publick.org//example.com/?lang=es` returns
+302 to `//example.com/` (checked live); collapse leading slashes or
+redirect only to paths in the manifest. Then item 14's "Now" list (the
+Spanish AI and translation credit, "(en inglés)", the cookie line, English
+fallback instead of a failed build), and a one-time `catch_up` run for
+Lawrence (item 4). Slow releases until the Spanish has had one person's
+pass: 7 releases went out in about 10 hours on 2026-10-02 (item 16).
+
 1. Check the daily run of 2026-10-02, the first with v1.17.1 everywhere:
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-   *Fix first (second review, 2026-10-02), about a day:* the open redirect
-   in the sites Worker: `worker/sites.js:135` redirects `?lang=` to the raw
-   path, so `https://lawrence-ma.publick.org//example.com/?lang=es` returns
-   302 to `//example.com/` (checked live); collapse leading slashes or
-   redirect only to paths in the manifest. Then item 14's "Now" list (the
-   Spanish AI and translation credit, "(en inglés)", the cookie line, English
-   fallback instead of a failed build), and a one-time `catch_up` run for
-   Lawrence (item 4). Slow releases until the Spanish has had one person's
-   pass: 7 releases went out in about 10 hours on 2026-10-02 (item 16).
 2. Small process fixes (item 16), about a day: accessibility tests in light
    only; Markdown-only pull requests not released; branch protection
    requiring the checks on `main` in both repositories; `engine-version`
