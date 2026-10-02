@@ -10,11 +10,11 @@
 // language's folder (/es/... gets es/404.html).
 //
 // A site in more than one language (English at the root, Spanish under /es/)
-// shows a visitor the language their browser asks for first: an English page
-// redirects to the same page in their language. The language switch on every
-// page links with ?lang=<language>, which remembers the choice in a cookie and
-// overrides the browser's; a page's address in a language folder is always
-// served as asked.
+// opens its homepage in the language the visitor's browser asks for first:
+// / redirects to /es/ for a browser set to Spanish. The language switch on
+// every page links with ?lang=<language>, which remembers the choice in a
+// cookie, over the browser's, for the homepage. Every other address is served
+// as asked, so a shared link opens in the language it was shared in.
 
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
@@ -134,12 +134,11 @@ export async function handle(request, env) {
         ? { "Set-Cookie": `${LANG_COOKIE}=${choice}; Path=/; Max-Age=${YEAR}; SameSite=Lax; Secure` } : {};
       return redirect(`${url.pathname}${url.search}`, cookie);
     }
-    // An English page, for a visitor who asks for another language the page is in.
-    const folder = url.pathname.split("/")[1];
-    if (key && key.endsWith(".html") && !languages.includes(folder)) {
+    // The homepage, for a visitor who asks for another language.
+    if (url.pathname === "/") {
       vary = "Accept-Language, Cookie";
       const lang = chosenLanguage(request, languages);
-      if (lang !== "en" && manifest.files[`${lang}/${key}`]) return redirect(`/${lang}${url.pathname}${url.search}`, { Vary: vary });
+      if (lang !== "en" && manifest.files[`${lang}/index.html`]) return redirect(`/${lang}/${url.search}`, { Vary: vary });
     }
   }
   if (key && manifest.files[key]) return serve(request, env, url, key, manifest.files[key], 200, vary);

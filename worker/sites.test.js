@@ -88,24 +88,29 @@ test("unknown paths in a language's folder get that language's 404 page", async 
   }
 });
 
-test("a visitor sees the language their browser asks for first", async () => {
+test("the homepage opens in the language the browser asks for first", async () => {
   const spanish = { "Accept-Language": "es-US,es;q=0.9,en;q=0.8" };
-  const response = await worker.fetch(get("/about/?x=1", { headers: spanish }), env());
+  const response = await worker.fetch(get("/?x=1", { headers: spanish }), env());
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get("Location"), "/es/about/?x=1");
+  assert.equal(response.headers.get("Location"), "/es/?x=1");
   assert.equal(response.headers.get("Vary"), "Accept-Language, Cookie");
-  // English first, or a language the site doesn't have: the English page.
+  // English first, or a language the site doesn't have: the English homepage.
   for (const asked of ["en-US,en;q=0.9,es;q=0.8", "fr-FR,fr;q=0.9", "", "es;q=0"]) {
-    const page = await worker.fetch(get("/about/", { headers: { "Accept-Language": asked } }), env());
+    const page = await worker.fetch(get("/", { headers: { "Accept-Language": asked } }), env());
     assert.equal(page.status, 200, asked);
-    assert.equal(await page.text(), "content about");
+    assert.equal(await page.text(), "content home");
     assert.equal(page.headers.get("Vary"), "Accept-Language, Cookie");
   }
-  // A page that isn't in Spanish, and files that aren't pages, are served as they are.
+});
+
+test("any other address opens as asked, so a shared link keeps its language", async () => {
+  const spanish = { "Accept-Language": "es", Cookie: "lang=es" };
+  const about = await worker.fetch(get("/about/", { headers: spanish }), env());
+  assert.equal(about.status, 200);
+  assert.equal(await about.text(), "content about");
+  assert.equal(about.headers.get("Vary"), null);
   assert.equal((await worker.fetch(get("/feed.xml", { headers: spanish }), env())).status, 200);
-  assert.equal((await worker.fetch(get("/static/css/site.css", { headers: spanish }), env())).status, 200);
-  // A Spanish page is served as asked, whatever the browser's language.
-  const es = await worker.fetch(get("/es/about/", { headers: { "Accept-Language": "en" } }), env());
+  const es = await worker.fetch(get("/es/about/", { headers: { "Accept-Language": "en", Cookie: "lang=en" } }), env());
   assert.equal(await es.text(), "content acerca");
 });
 
@@ -114,10 +119,10 @@ test("the language switch is remembered over the browser's language", async () =
   assert.equal(chose.status, 302);
   assert.equal(chose.headers.get("Location"), "/about/");
   assert.match(chose.headers.get("Set-Cookie"), /^lang=en; Path=\/; Max-Age=\d+; SameSite=Lax; Secure$/);
-  const english = await worker.fetch(get("/about/", { headers: { "Accept-Language": "es", Cookie: "a=1; lang=en" } }), env());
-  assert.equal(await english.text(), "content about");
-  const spanish = await worker.fetch(get("/about/", { headers: { "Accept-Language": "en", Cookie: "lang=es" } }), env());
-  assert.equal(spanish.headers.get("Location"), "/es/about/");
+  const english = await worker.fetch(get("/", { headers: { "Accept-Language": "es", Cookie: "a=1; lang=en" } }), env());
+  assert.equal(await english.text(), "content home");
+  const spanish = await worker.fetch(get("/", { headers: { "Accept-Language": "en", Cookie: "lang=es" } }), env());
+  assert.equal(spanish.headers.get("Location"), "/es/");
   // A language the site doesn't have isn't remembered.
   const unknown = await worker.fetch(get("/about/?lang=fr"), env());
   assert.equal(unknown.headers.get("Set-Cookie"), null);
@@ -125,7 +130,7 @@ test("the language switch is remembered over the browser's language", async () =
 
 test("a site in English only ignores the browser's language", async () => {
   const files = Object.fromEntries(Object.entries(MANIFEST.files).filter(([k]) => !k.startsWith("es/")));
-  const page = await worker.fetch(get("/about/", { headers: { "Accept-Language": "es" } }), env({ ...MANIFEST, files }));
+  const page = await worker.fetch(get("/", { headers: { "Accept-Language": "es" } }), env({ ...MANIFEST, files }));
   assert.equal(page.status, 200);
   assert.equal(page.headers.get("Vary"), null);
 });
