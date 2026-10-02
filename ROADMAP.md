@@ -1197,8 +1197,8 @@ towns too. Next, in this order (as of 2026-10-02):
 
 **Before the list (second review, 2026-10-02), about a day:** the open redirect
 in the sites Worker: `worker/sites.js:135` redirects `?lang=` to the raw
-path, so `https://lawrence-ma.publick.org//example.com/?lang=es` returns
-302 to `//example.com/` (checked live); collapse leading slashes or
+path, so a path that starts with two slashes, plus `?lang=`, redirects to
+another site (checked live); collapse leading slashes or
 redirect only to paths in the manifest. Then item 14's "Now" list (the
 Spanish AI and translation credit, "(en inglés)", the cookie line, English
 fallback instead of a failed build), and a one-time `catch_up` run for
