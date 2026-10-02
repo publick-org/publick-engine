@@ -247,9 +247,45 @@ def test_report_fails_only_for_a_town_that_failed_without_fetching(tmp_path):
     reports.mkdir()
     fetched = {"town": "salem", "folder": "salem-ma", "ok": False, "stale": True, "deployed": False,
                "fetched": True, "update": {"steps": []}, "steps": [{"name": "Build site", "ok": False}]}
+    published = {"town": "lynn", "folder": "lynn-ma", "ok": True, "stale": False, "deployed": True,
+                 "fetched": True, "update": {"steps": []}, "steps": [{"name": "Publish site", "ok": True}]}
     (reports / "salem-ma.json").write_text(json.dumps(fetched))
+    (reports / "lynn-ma.json").write_text(json.dumps(published))
     table, ok = network.report(reports)
     assert ok and "| salem-ma | **failed** | **stale** | Build site |" in table
+    assert "**1 not published**: salem-ma" in table
+
+
+def test_a_fetching_run_that_published_no_town_fails(tmp_path):
+    """The 2026-10-02 daily run finished green with 3 of 3 towns not published."""
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    for town in ("gloucester-ma", "malden-ma"):
+        (reports / f"{town}.json").write_text(json.dumps({
+            "town": town, "folder": town, "ok": False, "stale": False, "deployed": False, "fetched": True,
+            "update": {"steps": []}, "steps": [{"name": "Check site", "ok": False}]}))
+    table, ok = network.report(reports)
+    assert not ok and "**2 not published**" in table and "No town in this run was published" in table
+
+
+def test_a_run_that_publishes_without_fetching_updates_the_run_record(tmp_path, steps):
+    """A daily run that couldn't publish, then a fix published by a push: the run record says
+    the town is published, and when, so the status page and the alert don't wait for the next day."""
+    _, failing = steps
+    root = make_root(tmp_path)
+    (root / "towns" / "gloucester-ma" / "data").mkdir()
+    failing.add("Check site")
+    daily = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
+    record_path = root / "towns" / "gloucester-ma" / "data" / network.RUN_RECORD
+    assert not daily["deployed"] and json.loads(record_path.read_text())["last_good_at"] is None
+    failing.clear()
+    push = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None)
+    record = json.loads(record_path.read_text())
+    assert record["deployed"] and record["ok"] and record["published_at"] == push["finished_at"]
+    assert record["last_good_at"] == push["finished_at"] and record["finished_at"] == daily["finished_at"]
+    assert [s["name"] for s in record["steps"]] == ["Fetch new data", "Build site", "Check site", "Publish site"]
+    behind = network.behind(root, at=network.datetime.fromisoformat(push["finished_at"]))
+    assert "gloucester-ma" not in [r["folder"] for r in behind]
 
 
 def test_run_record_keeps_the_last_good_update_and_the_datas_size(tmp_path, steps):

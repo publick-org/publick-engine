@@ -1,6 +1,9 @@
 """Automated WCAG 2.2 AA checks with axe-core in a real browser.
 
-Each page is checked in light and dark mode, at desktop and phone widths. Axe
+Each page is checked at desktop and phone widths, in light mode: every page
+declares color-scheme: light and has no dark styles (site_checks/test_town_site.py
+checks the declaration), so dark mode shows the same page. If the sites ever get
+dark styles, add "dark" back to SCHEMES. Axe
 finds a subset of accessibility problems; manual keyboard and screen reader
 checks are still needed when new sections are added.
 """
@@ -20,7 +23,7 @@ axe_module = pytest.importorskip("axe_playwright_python.sync_playwright")
 
 WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
 VIEWPORTS = {"desktop": {"width": 1280, "height": 900}, "phone": {"width": 320, "height": 640}}
-SCHEMES = ["light", "dark"]
+SCHEMES = ["light"]
 PATHS = PAGE_PATHS + ["/no-such-page/"]
 
 
