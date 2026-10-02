@@ -560,13 +560,23 @@ def main_boards(config: dict) -> list[str]:
     return [m.get("governing_body", "City Council"), *SCHOOL_BOARDS, *m.get("main_boards", [])]
 
 
+# Meetings the home page shows in full, at most: the same shape in a quiet week and a busy one.
+HOME_FULL = 6
+
+
 def home_meetings(this_week: list[dict], main: list[str]) -> dict:
-    """This week's meetings for the home page: in full, those with something to read now (an
-    agenda summary, a public hearing) and the main boards';
-    the rest one line each, a tap away. A week with none to show in full shows the rest."""
+    """This week's meetings for the home page. Up to HOME_FULL in full, chosen in this order:
+    the main boards' (main_boards), then those with something to read now (an agenda summary,
+    a public hearing), then the soonest of the rest; shown in date order. The rest are one line
+    each, a tap away, with a cancelled meeting last (it never takes a place in full); one left
+    over isn't worth a tap, so it's shown with the others."""
     main_words = {words(b) for b in main}
-    full = [m for m in this_week if m["preview"] or m["public_hearing"] or words(m["body_en"]) in main_words]
-    return {"count": len(this_week), "full": full, "more": [m for m in this_week if m not in full]}
+    live = [m for m in this_week if m["status"] != "cancelled"]
+    rank = lambda m: (0 if words(m["body_en"]) in main_words else 1 if m["preview"] or m["public_hearing"] else 2)
+    chosen = {id(m) for m in sorted(live, key=rank)[:HOME_FULL]}
+    full = [m for m in this_week if id(m) in chosen]
+    more = [m for m in live if id(m) not in chosen] + [m for m in this_week if m["status"] == "cancelled"]
+    return {"count": len(this_week), "full": full, "more": more, "hidden": len(more) > 1}
 
 
 def meeting_links(config: dict) -> dict:

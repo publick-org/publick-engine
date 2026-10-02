@@ -54,12 +54,12 @@
 </ul>
 {% endif %}
 {% if home.more %}
-{% if home.full %}<details class="expand more-meetings">
+{% if home.hidden %}<details class="expand more-meetings">
 <summary>{% trans count=home.more | length %}Show {{ count }} more meeting this week{% pluralize %}Show {{ count }} more meetings this week{% endtrans %}</summary>{% endif %}
 <ul class="meeting-list compact">
   {% for m in home.more %}{{ meeting_item(m, preview=false, show_day=true) }}{% endfor %}
 </ul>
-{% if home.full %}</details>{% endif %}
+{% if home.hidden %}</details>{% endif %}
 {% endif %}
 {% else %}
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>

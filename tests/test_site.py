@@ -499,17 +499,37 @@ def test_example_street_picks_the_busiest_and_needs_streets():
 
 
 def test_home_shows_the_main_boards_and_what_can_be_read_now():
-    """The home page shows in full a meeting with an agenda summary, a public hearing, or a main
-    board's; the rest of the week's are one line each, a tap away."""
+    """Up to six meetings in full: the main boards' first, then those with something to read now
+    (an agenda summary, a public hearing), then the soonest of the rest, in date order. The rest
+    one line each, a tap away, a cancelled one last; one left over isn't hidden."""
     from pipeline.build_site import home_meetings, main_boards
-    week = [{"body_en": body, "preview": preview, "public_hearing": hearing}
-            for body, preview, hearing in [("Waterways Board", None, False), ("Conservation Commission", {"summary": "s"}, False),
-                                           ("City Council", None, False), ("School Committee", None, False),
-                                           ("Planning Board", None, True), ("City Council Budget & Finance Committee", None, False)]]
-    home = home_meetings(week, main_boards({"meetings": {}}))
-    assert [m["body_en"] for m in home["full"]] == ["Conservation Commission", "City Council", "School Committee", "Planning Board"]
-    assert [m["body_en"] for m in home["more"]] == ["Waterways Board", "City Council Budget & Finance Committee"]
-    assert home["count"] == 6
+
+    def week(*rows):
+        return [{"body_en": body, "preview": {"summary": "s"} if kind == "summary" else None,
+                 "public_hearing": kind == "hearing", "status": "cancelled" if kind == "cancelled" else "scheduled"}
+                for body, kind in rows]
+
+    main = main_boards({"meetings": {}})
+    busy = week(("Waterways Board", ""), ("Conservation Commission", "summary"), ("City Council", ""),
+                ("Harbor Plan Committee", ""), ("School Committee", ""), ("Planning Board", "hearing"),
+                ("Council on Aging", "summary"), ("Board of Health", "summary"), ("Licensing Board", "cancelled"),
+                ("Trust Fund Commissioners", ""))
+    home = home_meetings(busy, main)
+    assert [m["body_en"] for m in home["full"]] == ["Conservation Commission", "City Council", "School Committee",
+                                                    "Planning Board", "Council on Aging", "Board of Health"]
+    assert [m["body_en"] for m in home["more"]] == ["Waterways Board", "Harbor Plan Committee", "Trust Fund Commissioners",
+                                                    "Licensing Board"]
+    assert home["hidden"] and home["count"] == 10
+    # A quiet week: the soonest meetings fill the six places, so the page never looks empty.
+    quiet = home_meetings(week(("Public Utilities Commission", "summary"), ("Planning & Zoning Commission", ""),
+                               ("Economic Development Commission", ""), ("Veterans Memorial Committee", ""),
+                               ("Ordinance Committee", ""), ("Personnel Appeals Board", "cancelled"),
+                               ("Inland Wetlands Commission", ""), ("Conservation Commission", "")), ["Town Council"])
+    assert len(quiet["full"]) == 6 and "Personnel Appeals Board" not in [m["body_en"] for m in quiet["full"]]
+    assert [m["body_en"] for m in quiet["more"]] == ["Conservation Commission", "Personnel Appeals Board"]
+    # One left over is shown, not hidden behind a tap.
+    seven = home_meetings(week(*[(f"Board {i}", "") for i in range(7)]), main)
+    assert len(seven["more"]) == 1 and not seven["hidden"]
     # A town's own governing body and main boards.
     assert main_boards({"meetings": {"governing_body": "Town Council", "main_boards": ["Board of Finance"]}}) == [
         "Town Council", "School Committee", "Board of Education", "Board of Finance"]
@@ -526,6 +546,7 @@ def test_home_page_layout(site_dir):
     # Each meeting says its day, since the list isn't grouped by day.
     assert week.count('class="meeting-day"') == shown
     if "more-meetings" in week:
+        assert week.count('class="meeting-item"', week.index("more-meetings")) >= 2
         assert re.search(r"Show \d+ more meetings? this week", week)
     decided = home[home.index('id="decided"'):home.index('id="numbers"')] if 'id="decided"' in home else ""
     assert decided.count('class="meeting-item"') <= 3
