@@ -588,8 +588,8 @@ town websites, 2026-10-01),** chosen for the people they reach and how little
 local coverage they have, not only for ease. Salem and Medford were already in
 the works and are left out.
 1. **Lawrence** (about 89,000 people). Most residents are Hispanic, and many
-   read Spanish first, so it launches with the site in Spanish (item 14), and
-   not before the Spanish is good. Its meetings are config only: an Agenda
+   read Spanish first, so it launches with the site in Spanish (item 14); the
+   Spanish is checked by a person after launch (decided 2026-10-02). Its meetings are config only: an Agenda
    Center with the City Council and School Committee, and minutes with a text
    layer. The council's minutes are posted late (5 for 2026 by October).
 2. **Lowell** (about 115,000, the state's fourth-largest city). Config only:
@@ -841,12 +841,14 @@ under `/es/`; the Spanish of all of the engine's strings, written to
 check; summaries translated by Haiku and checked without AI; the Worker's
 language choice and Spanish 404 page.
 
-**Before Lawrence launches.** Haiku is tried first on a sample of Lawrence's
-summaries, checking names, amounts, and votes against the English. A person
-who reads Spanish checks the site's wording and a sample of summaries. Plain
-Spanish that reads naturally to Lawrence's community, which is largely
-Dominican and Puerto Rican, not formal or literal. Lawrence launches only once
-the Spanish is good, in both languages at once.
+**Lawrence's launch (decided 2026-10-02).** Lawrence launches in both
+languages now, with the Spanish checked after launch rather than before: a
+person who reads Spanish checks the site's wording (`site/strings/es.po`,
+`site/strings/es-guide.md`, and the `[strings.es]` table in Lawrence's
+config) and a sample of Haiku's translated summaries against the English
+(names, amounts, votes). Plain Spanish that reads naturally to Lawrence's
+community, which is largely Dominican and Puerto Rican, not formal or literal.
+Fixes go out with the next release.
 
 **Cost.** Writing the Spanish out is most of each translation's cost (output
 costs more than input, and the Spanish is about as long as the English); with
@@ -958,7 +960,7 @@ towns too. Next, in this order (as of 2026-10-01):
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
 4. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
-   languages once a person has checked the Spanish.
+   languages; a person who reads Spanish checks it after launch.
 5. Lowell: config only (item 10).
 6. Springfield, after Medford, the first Massachusetts town on CivicClerk:
    its meetings sorted into boards, and Spanish turned on (items 10 and 14).
