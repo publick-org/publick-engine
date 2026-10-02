@@ -1043,6 +1043,10 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     return urls
 
 
+# An address alone on its line in this many meetings' documents is where they meet (street_index).
+VENUE_MEETINGS = 3
+
+
 def street_index(meetings: list[dict], permits: list[dict], requests: list[dict], today: date, town: dict,
                  prefix: str = "", limit: int = 30) -> dict:
     """Everything the site knows about each street: agenda and minutes mentions,
@@ -1068,6 +1072,21 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
     # An address followed by another town and its state ("11 Azsr Ct, Halethorpe MD") is an
     # applicant's own address, not a street in this town.
     elsewhere = re.compile(r",\s*([A-Z][A-Za-z.'’]*(?:\s+[A-Z][A-Za-z.'’]*){0,2}),?\s+[A-Z]{2}\b")
+    # An address alone on its line ("191 Cabot Street", "4 FAIRFIELD BOULEVARD", perhaps with the
+    # town, state, and zip code) in the documents of several meetings is where a board meets or
+    # its letterhead, not news, wherever else it appears.
+    own_place = re.compile(rf"\b(?:{re.escape(town['name'])}|{re.escape(town['state_abbr'])})\b|[\W\d_]", re.I)
+    alone = defaultdict(set)
+    for m in meetings:
+        for doc in (m["preview"], m["minutes_summary"]):
+            text = doc_text(doc)
+            for address in streets_mod.addresses_in(text):
+                line, flat = (re.sub(r"\s+", " ", s) for s in (line_with(text, address), address))
+                if not own_place.sub("", line.replace(flat, "", 1)):
+                    num, keys = place(address)
+                    for key in keys:
+                        alone[(num, key)].add(m["url"])
+    venues |= {where for where, urls in alone.items() if len(urls) >= VENUE_MEETINGS}
 
     def in_another_town(text: str, address: str) -> bool:
         line = line_with(text, address)
