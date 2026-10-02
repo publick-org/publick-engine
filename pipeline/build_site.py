@@ -351,7 +351,8 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
-            "finalsite": N_("school district's website"), "ical": N_("school district's website")}
+            "finalsite": N_("school district's website"), "ical": N_("school district's website"),
+            "schedule": N_("published schedule")}
 CALENDAR = N_("city calendar")
 
 
@@ -568,7 +569,9 @@ def meeting_links(config: dict) -> dict:
         "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
-                    for t in ("drive_meetings", "finalsite_meetings", "ical_meetings") if t in config],
+                    for t in ("drive_meetings", "finalsite_meetings", "ical_meetings") if t in config]
+                   + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
+                      if "schedule_meetings" in config else []),
     }
 
 
@@ -1129,8 +1132,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for m in meetings["all"]:
             render("meeting.html", m["url"], meeting=m)
             # The address of a listing shown as part of another meeting sends readers there.
-            for also in m["also_urls"]:
-                render("moved.html", also, canonical=m["url"], meeting=m)
+            for n, also in enumerate(m["also_urls"], 1):
+                render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
         for b in meetings["boards"]:
             render("board.html", b["url"], board=b)
     if documents and english:
