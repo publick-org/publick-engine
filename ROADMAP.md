@@ -315,8 +315,6 @@ would take.
 
 From the October 2026 review, still to decide:
 
-- A decision that fails its check: hidden, or shown marked "not checked
-  against the minutes".
 - 311 addresses already in git history: rewritten once, or coarsened from now
   on only.
 - The order of the next towns (the lists under [Next towns](#next-towns) are
@@ -347,12 +345,26 @@ current version (agenda v4, minutes v2). The minutes prompt no longer has the
 model retype the document. Summaries' decisions record who moved and
 seconded.
 
+*Built 2026-10-02 (pull request #50; decided the same day):* `pipeline/factcheck.py`
+checks every number, amount, date, name, vote count, and reference number in
+a summary, its headline, and each decision or agenda item against the PDF's
+own text, without AI, and saves the result in the summary's record. What the
+site shows (decided): a decision, agenda item, headline, or sentence of the
+summary with something not in the document's full text isn't shown, and the
+page says how many decisions weren't; a vote count the document doesn't give
+(counted from a roll call) is left out of the text, until vote records can
+confirm it. Documents with scanned pages, and scans checked against the
+model's transcription, hide nothing but those counts. `python -m
+pipeline.factcheck` lists what it finds.
+
+Measured on the 449 live summaries: every one checked against full text
+passes; planted errors are caught 89 to 100% of the time; 103 of 1,131 vote
+counts aren't in the minutes and come out. Two to read by hand, on scanned
+pages the check can't read: a Beverly City Council decision dated "January
+20, 2025, at 7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000
+and $3,100 aren't in the model's transcription.
+
 **Next.**
-- For a document with a text layer (the PDF's own text, or the full text
-  from `pipeline/pdftext.py`), check mechanically that every number, amount,
-  date, and person's name in the summary and its decisions appears in the
-  document's text. A summary that fails isn't published (its meeting shows
-  the document without one) and is listed for the maintainer.
 - Each decision anchored to a quote from the minutes, checked without AI
   (the quote is in the document; the decision's numbers and names are in the
   quote), with an `outcome` field (approved, denied, tabled, referred), so a
@@ -360,7 +372,7 @@ seconded.
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
 - The run record counts summaries held back, to show how often the model
-  gets one wrong.
+  gets one wrong (today: `python -m pipeline.factcheck`).
 - "AI summary" wherever a headline is shown: homepage
   (`pages/index.html:42`), lists and board pages (`macros.html:83`), and the
   RSS feed (`write_feed`, `build_site.py:1198-1202`).
