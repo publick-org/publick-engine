@@ -458,6 +458,31 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         batch = []
         errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
     translated, translation_cost = 0, 0.0
+    # The town's own text and names that its pages in another language would show in English
+    # (a new board, a new 311 category, a new town's config), drafted first: they cost a fraction
+    # of a summary, and the build that follows shows them.
+    drafted_texts = 0
+    for lang in translate.languages(config) if "input_price" in settings and "output_price" in settings else []:
+        tsettings = translate.settings(config)
+        if tsettings["input_price"] is None or tsettings["output_price"] is None:
+            break
+        from pipeline.build_site import needed_texts
+        try:
+            needed = needed_texts(config, data_dir, lang, now)
+            texts = needed["config"] + needed["data"]
+            if texts:
+                left = None if allowance is None else max(allowance - spent, 0.0)
+                count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left)
+                drafted_texts += count
+                spent += paid
+                translation_cost += paid
+        except Exception as e:
+            if "credit balance" in str(e).lower():
+                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+                stopped = "out of credit"
+                batch = []
+                break
+            errors.append(f"{lang} drafts of the town's text: {e}")
 
     def translations(only_new: bool) -> None:
         """Translate the summaries that need it, new documents' or the rest, within this run's budget."""
@@ -632,6 +657,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     month = now.strftime("%Y-%m")
     ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost)
     return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed, "translated": translated,
+            "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
 
