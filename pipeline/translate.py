@@ -91,9 +91,12 @@ def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> 
 
 
 def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> dict | None:
-    """The translation to show for an English summary: one made from this English that passed the check."""
+    """The translation to show for an English summary: one made from this English that passes the
+    check. The check runs again here, so a translation the check once wrongly failed is shown once
+    the check is fixed, without paying for it again."""
     found = saved(data_dir, lang, sha256)
-    if found and found.get("source_hash") == source_hash(record, kind) and found.get("check") == "ok":
+    if found and found.get("source_hash") == source_hash(record, kind) and \
+            check(english(record, kind), found, kind, lang) == "ok":
         return found
     return None
 
@@ -102,13 +105,39 @@ def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> di
 NUMBER = re.compile(r"\d+(?:[.,:]\d+)*")
 
 
+# A date in figures, as agendas write it: "9/23/2026", "9/23/26", "9/23".
+DATE = re.compile(r"\b(\d{1,2})/(\d{1,2})(?:/(\d{4}|\d{2}))?\b")
+# Each language's month names, January first, for a date the translation writes out.
+MONTHS = {"es": ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                 "septiembre|setiembre", "octubre", "noviembre", "diciembre")}
+
+
 def numbers(text: str) -> Counter:
     return Counter(n.rstrip(".,:") for n in NUMBER.findall(text or ""))
 
 
-def check(source: dict, translated: dict, kind: str) -> str:
+def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
+    """The two texts without the English's dates in figures that the translation has too, in
+    figures (month and day in either order) or written out ("23 de septiembre de 2026")."""
+    for m in DATE.finditer(en):
+        month, day, year = int(m.group(1)), int(m.group(2)), m.group(3)
+        if not (1 <= month <= 12 and 1 <= day <= 31):
+            continue
+        full_year = year if not year or len(year) == 4 else "20" + year
+        in_figures = rf"\b0?(?:{month}/0?{day}|{day}/0?{month})" + (rf"/(?:{full_year}|{full_year[2:]})" if year else "") + r"\b"
+        found = re.search(in_figures, tr)
+        if not found and lang in MONTHS:
+            written = rf"\b0?{day}\s+de\s+(?:{MONTHS[lang][month - 1]})" + (rf"\s+del?\s+{full_year}" if year else "")
+            found = re.search(written, tr, re.I)
+        if found:
+            en = en.replace(m.group(0), " ", 1)
+            tr = tr[:found.start()] + " " + tr[found.end():]
+    return en, tr
+
+
+def check(source: dict, translated: dict, kind: str, lang: str = "es") -> str:
     """ "ok", or what's wrong: a field missing or empty, a list of another length, or a number
-    in the English that isn't in the translation."""
+    in the English that isn't in the translation. A date in figures may be written out."""
     for field in FIELDS[kind]:
         en, tr = source[field], translated.get(field)
         if isinstance(en, list):
@@ -120,6 +149,7 @@ def check(source: dict, translated: dict, kind: str) -> str:
                 return f"{field}: missing"
             pairs = [(en, tr)]
         for i, (a, b) in enumerate(pairs):
+            a, b = dates_kept(a, b, lang)
             lost = numbers(a) - numbers(b)
             if lost:
                 where = f"{field} {i + 1}" if isinstance(en, list) else field
@@ -192,7 +222,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "kind": kind,
         "source_sha256": doc["sha256"],
         "source_hash": source_hash(record, kind),
-        "check": check(english(record, kind), result, kind),
+        "check": check(english(record, kind), result, kind, lang),
         "model": settings(config)["model"],
         "prompt_version": VERSION,
         "generated_at": now.isoformat(timespec="seconds"),
