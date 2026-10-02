@@ -115,8 +115,9 @@
 {% else %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}
-{% if ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by")) }}
+{% if ms.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none) }}
 {{ full_text("minutes", ms) }}
 {% elif m.minutes_too_large %}
 <p>{{ _("Minutes are posted. The file is too large to summarize automatically; the minutes are linked below.") }}</p>
@@ -150,8 +151,9 @@
   {% for item in m.preview["items"] %}<li>{{ item }}</li>{% endfor %}
 </ul>
 {% endif %}
-{% if m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none) }}
+{% if m.preview.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none) }}
 {{ full_text("agenda", m.preview) }}
 {% endif %}
 {% if m.agenda %}

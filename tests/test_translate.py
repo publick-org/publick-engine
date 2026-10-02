@@ -12,6 +12,8 @@ from pipeline.config import load_config
 
 # What one FakeAnthropic translation costs at Claude Haiku 4.5's prices: 600 tokens in at $1, 300 out at $5 a million.
 TRANSLATION = 0.0021
+# And its review at Claude Sonnet 5.5's: 500 tokens in at $2, 50 out at $10 a million.
+REVIEW = 0.0015
 
 
 def spanish_town(tmp_path, languages=("en", "es")):
@@ -40,8 +42,10 @@ def test_numbers_are_checked_without_ai():
     good = {"headline": "Se aprobaron $1,500 para 12 Main St, 5-0.", "summary": "El 22 de octubre de 2026 a las 7:00 p. m.",
             "decisions": ["Se aprobaron 3 permisos", "Se negó 1"]}
     assert translate.check(source, good, "minutes") == "ok"
-    assert translate.check(source, {**good, "headline": "Se aprobaron $1.500 para 12 Main St, 5-0."}, "minutes") \
-        == "headline: 1,500 not in the translation"
+    # Spanish number formats are the same amounts.
+    assert translate.check(source, {**good, "headline": "Se aprobaron $1.500 para 12 Main St, 5-0."}, "minutes") == "ok"
+    assert translate.check(source, {**good, "headline": "Se aprobaron $1,600 para 12 Main St, 5-0."}, "minutes") \
+        == "headline: 1500 not in the translation"
     assert translate.check(source, {**good, "decisions": ["Se aprobaron 3 permisos"]}, "minutes") == "decisions: 1 entries for 2"
     assert translate.check(source, {**good, "decisions": ["Se aprobaron tres permisos", "Se negó 1"]}, "minutes") \
         == "decisions 1: 3 not in the translation"
@@ -71,12 +75,16 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     saved = translations(tmp_path)
     assert len(saved) == 16
     record = next(r for r in saved.values() if r["kind"] == "minutes")
-    assert record["headline"].startswith("ES ") and record["decisions"] == ["ES Approved the site plan for 12 Main St, 5-0"]
-    assert record["check"] == "ok" and record["model"] == "claude-haiku-4-5-20251001"
-    assert record["cost"] == pytest.approx(TRANSLATION)
+    assert record["headline"].startswith("ES ") and record["decisions"] == ["ES aprobó the site plan for 12 Main St, 5-0"]
+    assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-haiku-4-5-20251001"
+    assert record["cost"] == pytest.approx(TRANSLATION + REVIEW) and record["prompt_version"] == translate.VERSION
     call = translation_calls(client)[0]
     assert call["model"] == "claude-haiku-4-5-20251001" and "Spanish" in call["system"]
     assert call["output_config"]["format"]["type"] == "json_schema"
+    # Each translation's meaning is reviewed by the larger model, English beside Spanish.
+    reviews = [c for c in client.calls if "problems" in c["output_config"]["format"]["schema"]["properties"]]
+    assert reviews and reviews[0]["model"] == "claude-sonnet-5-5" and reviews[0]["output_config"]["effort"] == "low"
+    assert "Never guess anyone's gender" in call["system"] and "levantar la sesión" in call["system"]
 
 
 def test_a_translation_is_made_once_for_its_english(tmp_path):
@@ -115,7 +123,7 @@ def test_translations_count_in_the_budget(tmp_path):
     row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     # Five summaries, and one batch of the town's own text and names drafted first.
     assert row["documents"] == 5 and row["translations"] == 6
-    assert row["translation_cost"] == round(6 * TRANSLATION, 4)
+    assert row["translation_cost"] == round(6 * (TRANSLATION + REVIEW), 4)
     assert summarize.month_cost({"2026-09": row}, "2026-09") == pytest.approx(row["cost"] + row["translation_cost"])
 
 
@@ -130,6 +138,10 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     sha, record = next((s, r) for s, r in saved.items() if r["check"] != "ok")
     english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
     assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
+    # Made again once; failing again, it's kept and not paid for again.
+    again = FakeAnthropic(translation_drops_numbers=True)
+    assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(failed)
+    assert translations(tmp_path)[sha]["attempts"] == 2 and translate.failed(tmp_path, "es", sha, english, record["kind"])
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
 
 
@@ -154,12 +166,17 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     monkeypatch.setattr(build_site, "load_config", lambda town: config)
     out = tmp_path / "site"
     build_site.build("gloucester", out, data_dir=tmp_path, now=BUILT_AT)
-    minutes = [p for p in (out / "es" / "meetings").glob("20*/index.html") if "ES The board approved" in p.read_text()]
+    minutes = [p for p in (out / "es" / "meetings").glob("20*/index.html") if "ES The board aprobó" in p.read_text()]
     assert minutes
     page = minutes[0].read_text()
-    assert "<p>ES The board approved a site plan for 12 Main St.</p>" in page
+    assert "<p>ES The board aprobó a site plan for 12 Main St.</p>" in page
     assert "hasn't been translated" not in page
+    # Said plainly: translated by AI, with the English it came from one link away.
+    path = "/" + str(minutes[0].relative_to(out / "es").parent) + "/"
+    assert f'Traducido automáticamente con IA del <a href="{path}" hreflang="en">resumen en inglés</a>' in page
+    assert "(PDF, en inglés)" in page and "</a> (en inglés)" in page
     english = (out / minutes[0].relative_to(out / "es")).read_text()
+    assert "Translated automatically" not in english and "en inglés" not in english
     assert "<p>The board approved a site plan for 12 Main St.</p>" in english and "ES " not in english
     index = json.loads((out / "es" / "meetings" / "search-index.json").read_text())
     assert any(d["text"].startswith("ES ") for row in index for d in row["docs"])
@@ -174,8 +191,76 @@ def test_untranslated_summaries_are_shown_in_english(tmp_path, monkeypatch):
     page = next(p for p in (out / "es" / "meetings").glob("20*/index.html")
                 if "a site plan for 12 Main St." in p.read_text()).read_text()
     assert '<p lang="en">The board approved a site plan for 12 Main St.</p>' in page
+    # Made twice and failed: the page says so, rather than that it's waiting.
+    summarize.run(config, FakeAnthropic(translation_drops_numbers=True), tmp_path, limit=50, now=FETCHED_AT)
+    build_site.build("gloucester", out, data_dir=tmp_path, now=BUILT_AT)
+    page = next(p for p in (out / "es" / "meetings").glob("20*/index.html")
+                if "a site plan for 12 Main St." in p.read_text()).read_text()
     with i18n.use("es"):
-        assert i18n.gettext("This summary hasn't been translated yet, so it's shown in English.") in page
+        assert i18n.gettext("This summary is shown in English: its automatic translation didn't pass our checks.") in page
+
+
+def test_the_check_catches_what_turns_a_translation_round():
+    """The wrong translations the October 2026 review found passing the old check (numbers only)."""
+    english = ("The council voted not to approve the $3 million budget at 7:00 pm; it failed 3-4. "
+               "Maria Rodriguez of 12 Essex Street spoke. Tabled unanimously.")
+    good = ("El concejo votó no aprobar el presupuesto de $3 millones a las 7:00 p. m.; fue rechazado 3-4. "
+            "Maria Rodriguez, de 12 Essex Street, habló. Se pospuso por unanimidad.")
+    def check(text):
+        return translate.check({"headline": "", "summary": english, "decisions": []},
+                               {"headline": "", "summary": text, "decisions": []}, "minutes")
+    assert check(good) == "ok"
+    wrong = {
+        "votó para aprobar": "a \"not\", denied, or failed",
+        "fue aprobado 4-3": "a \"not\", denied, or failed",
+        "Mario Rodrigues": "Rodriguez not in the translation",
+        "12 Calle Elm": "Essex not in the translation",
+        "$3 mil millones": "scale differs",
+        "7:00 a. m.": "a.m. or p.m.",
+        "Se aprobó por unanimidad": "tabled in the English",
+        "Se pospuso por mayoría": "unanimous",
+    }
+    replaced = {"votó para aprobar": "votó no aprobar", "fue aprobado 4-3": "fue rechazado 3-4", "Mario Rodrigues": "Maria Rodriguez",
+                "12 Calle Elm": "12 Essex Street", "$3 mil millones": "$3 millones", "7:00 a. m.": "7:00 p. m.",
+                "Se aprobó por unanimidad": "Se pospuso por unanimidad", "Se pospuso por mayoría": "Se pospuso por unanimidad"}
+    for text, problem in wrong.items():
+        assert problem in check(good.replace(replaced[text], text)), text
+    assert "added" in check(good + " El 5.")
+    # The other way round: denied as approved, approved as denied, an invented "no".
+    def headline(en, es):
+        return translate.check({"headline": en, "summary": "", "decisions": []}, {"headline": es, "summary": "", "decisions": []}, "minutes")
+    assert headline("Denied the permit.", "Aprobó el permiso.") != "ok"
+    assert headline("Approved the permit.", "Negó el permiso.") != "ok"
+    assert headline("Approved the permit.", "No aprobó el permiso.") != "ok"
+    assert headline("Approved purchases not to exceed $8,000.", "Aprobó compras sin exceder $8,000.") == "ok"
+    assert headline("Granted a variance for a nonconforming garage.", "Otorgó una variación para un garaje no conforme.") == "ok"
+    # Spanish number formats, and English ordinals written as words.
+    assert headline("Approved $1,500, $5.8 million, and $2,500.", "Aprobó $1.500, $5,8 millones y $2500.") == "ok"
+    assert headline("Renewed a 2nd hand dealer's license.", "Renovó una licencia de comerciante de segunda mano.") == "ok"
+
+
+def test_a_translation_the_review_flags_isnt_shown(tmp_path):
+    config = spanish_town(tmp_path)
+    flagged = FakeAnthropic(review_problems=[{"id": "headline", "problem": "\"adjourned\" as \"se disolvió\""}])
+    summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)
+    sha, record = next(iter(translations(tmp_path).items()))
+    assert record["check"] == "ok" and record["review"] == 'headline: "adjourned" as "se disolvió"'
+    english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+    assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
+    # Made again once, and shown when the review passes.
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 16
+    assert translate.shown(tmp_path, "es", sha, english, record["kind"])
+
+
+def test_a_translation_from_an_older_prompt_isnt_shown(tmp_path):
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    sha, record = next(iter(translations(tmp_path).items()))
+    english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+    assert translate.shown(tmp_path, "es", sha, english, record["kind"])
+    translate.path(tmp_path, "es", sha).write_text(json.dumps({**record, "prompt_version": translate.VERSION - 1}))
+    assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 1
 
 
 def test_a_run_drafts_the_towns_own_text_and_the_site_shows_it(tmp_path, monkeypatch):
@@ -207,6 +292,24 @@ def test_a_draft_that_loses_a_number_isnt_shown(tmp_path):
     failed = {en for en, d in saved.items() if d["check"] != "ok"}
     assert failed and all(any(c.isdigit() for c in en) for en in failed)
     assert not failed & set(translate.drafts(tmp_path, "es"))
+
+
+def test_a_draft_the_review_flags_isnt_shown_or_drafted_forever(tmp_path):
+    """The review catches "Mayor" as "Gobernador"; the text stays in English, and after a second
+    try isn't drafted again every run."""
+    config = spanish_town(tmp_path)
+    config["strings"] = {}
+    flagged = FakeAnthropic(review_problems=[{"id": "0", "problem": "a wrong title"}])
+    summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)
+    saved = translate.saved_drafts(tmp_path, "es")["drafts"]
+    wrong = [en for en, d in saved.items() if d["check"] == "review: a wrong title"]
+    assert len(wrong) == 1 and wrong[0] not in translate.drafts(tmp_path, "es")
+    again = FakeAnthropic(review_problems=[{"id": "0", "problem": "a wrong title"}])
+    summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)
+    assert translate.saved_drafts(tmp_path, "es")["drafts"][wrong[0]]["attempts"] == 2
+    third = FakeAnthropic()
+    summarize.run(config, third, tmp_path, limit=50, now=FETCHED_AT)
+    assert not [c for c in third.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]
 
 
 def test_drafts_review_as_strings_lines(tmp_path):
