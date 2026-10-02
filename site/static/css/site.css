@@ -209,7 +209,7 @@ main .stats > li { max-width: none; margin: 0; }
 }
 .meeting-list { margin: 0; padding: 0; list-style: none; }
 main .meeting-list > li { max-width: none; margin: 0; }
-.meeting-item { display: grid; grid-template-columns: 5rem 1fr; gap: 0.1rem 0.75rem; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
+.meeting-item { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.1rem 0.75rem; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
 .meeting-when { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .meeting-link { font-weight: 700; color: var(--primary-dark); text-decoration: none; }
 .meeting-link:hover { text-decoration: underline; color: var(--primary); }
@@ -220,8 +220,9 @@ main .meeting-list > li { max-width: none; margin: 0; }
 }
 .meeting-meta { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.875rem; }
 .meeting-meta .flag { color: var(--accent); }
-/* Spanish times ("12:00 p. m.") are longer; "time to be announced" may wrap. */
-:lang(es) .meeting-item { grid-template-columns: 6.25rem 1fr; }
+/* The column fits the longest time, "12:00 PM" ("12:00 p. m." in Spanish), with room to spare;
+   "time to be announced" may wrap. */
+:lang(es) .meeting-item { grid-template-columns: 6.75rem 1fr; }
 .meeting-when .small { white-space: normal; }
 @media (max-width: 22rem) { .meeting-item, :lang(es) .meeting-item { grid-template-columns: 1fr; } }
 
