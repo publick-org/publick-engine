@@ -861,7 +861,13 @@ Fixes go out with the next release.
 costs more than input, and the Spanish is about as long as the English); with
 Haiku that's well under what a summary costs.
 
-**Matters at:** now, for Lawrence; Springfield next.
+**Every town in Spanish (decided 2026-10-02).** Not only towns where many
+residents read Spanish first: every town in the network gets its site in
+Spanish, and each new town launches in both languages. A town's own text
+(`[strings.es]`) is part of adding it (item 10). Browser translation remains
+for other languages.
+
+**Matters at:** now: Lawrence is live in Spanish, and the other towns follow.
 
 ## Others' use of the data
 
@@ -951,11 +957,11 @@ towns too. Next, in this order (as of 2026-10-02):
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-2. A person who reads Spanish checks Lawrence's Spanish (item 14): the
-   engine's strings, Lawrence's `[strings.es]`, and a sample of translated
-   summaries. Also to confirm in Lawrence's config: the School Committee's
-   elected and appointed members, the mayor's term, and the officers' titles
-   in Spanish.
+2. Every town in Spanish (item 14), then a person who reads Spanish checks
+   it: the engine's strings, each town's `[strings.es]`, and a sample of
+   translated summaries. Also to confirm in Lawrence's config: the School
+   Committee's elected and appointed members, the mayor's term, and the
+   officers' titles in Spanish.
 3. Wallingford, the first Connecticut town (item 10), live on what the
    engine can read, then the rest:
    1. A reader for the town's website: the documents page and the meetings
