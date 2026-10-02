@@ -234,9 +234,9 @@
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
 {% if m.get("listings") %}
 {# A meeting the city lists in more than one place (pipeline/listings.py). #}
-<p>{% if m.same_as == "same_time" %}{{ _("The city lists this meeting in more than one place: the same board, on the same day, at the same time. They are shown here as one meeting.") }}
-{%- elif m.same_as == "one_time" %}{{ _("The city lists this meeting in more than one place: the same board on the same day, and only one listing gives a time. They are shown here as one meeting.") }}
-{%- else %}{{ _("The city posted this meeting more than once: the same board on the same day, with no time given. They are shown here as one meeting.") }}{% endif %}</p>
+<p>{% if m.same_as == "same_time" %}{{ _("This meeting is listed in more than one place: the same board, on the same day, at the same time. The listings are shown here as one meeting.") }}
+{%- elif m.same_as == "one_time" %}{{ _("This meeting is listed in more than one place: the same board on the same day, and only one listing gives a time. The listings are shown here as one meeting.") }}
+{%- else %}{{ _("This meeting was posted more than once: the same board on the same day, with no time given. The postings are shown here as one meeting.") }}{% endif %}</p>
 <ul>
   {% for x in m.listings %}
   {# Translators: %(listing)s is where the city lists meetings, such as "city calendar"; %(title)s is the listing's own title. #}
