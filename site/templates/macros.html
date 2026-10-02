@@ -21,13 +21,15 @@
 {%- endmacro %}
 
 {# The quiet credit line under AI-written text. #}
-{% macro ai_credit(doc_label, url, report_url, posted_by=none) -%}
+{# english_url, for a summary shown translated: the same page in English, with the summary it was translated from. #}
+{% macro ai_credit(doc_label, url, report_url, posted_by=none, english_url=none) -%}
 <div class="credit">
   {# Translators: %(by)s is who posted the document, such as a school district's name. #}
   <p>{% if posted_by and doc_label == "minutes" %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">minutes posted by {{ by }}</a>.{% endtrans %}
   {%- elif posted_by %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">agenda posted by {{ by }}</a>.{% endtrans %}
   {%- elif doc_label == "minutes" %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's minutes</a>.{% endtrans %}
-  {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %} {{ _("Check the original before relying on it.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %} {{ _("Check the original before relying on it.") }}
+  {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {{ report_button(report_url, _("Report an error in this summary")) }}
 </div>
 {%- endmacro %}

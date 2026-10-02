@@ -128,6 +128,14 @@ test("the language switch is remembered over the browser's language", async () =
   assert.equal(unknown.headers.get("Set-Cookie"), null);
 });
 
+test("the language switch never redirects to another site", async () => {
+  for (const path of ["//example.com/?lang=es", "///example.com/?lang=es", "/\\example.com/?lang=es"]) {
+    const response = await worker.fetch(get(path), env());
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("Location"), "/example.com/", path);
+  }
+});
+
 test("a site in English only ignores the browser's language", async () => {
   const files = Object.fromEntries(Object.entries(MANIFEST.files).filter(([k]) => !k.startsWith("es/")));
   const page = await worker.fetch(get("/", { headers: { "Accept-Language": "es" } }), env({ ...MANIFEST, files }));

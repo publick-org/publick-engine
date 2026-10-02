@@ -153,6 +153,12 @@ def test_the_network_refreshes_its_states_and_reports_repeated_failures(tmp_path
     monkeypatch.setattr(dls, "refresh", lambda state_dir, configs, client, now: {"exports": 3, "fetched": 1})
     assert network.refresh_states(root, NOW)["MA"]["failures"] == 0
     assert network.failing_states(root) == []
+    # A run that fetches nothing new, with nothing wrong, leaves the status file alone: nothing to commit.
+    status_file = root / "states" / "ma" / "status.json"
+    before = status_file.read_text()
+    monkeypatch.setattr(dls, "refresh", lambda state_dir, configs, client, now: {"exports": 3, "fetched": 0})
+    network.refresh_states(root, NOW + timedelta(days=1))
+    assert status_file.read_text() == before
 
 
 def test_town_steps_are_told_where_the_states_are(tmp_path):

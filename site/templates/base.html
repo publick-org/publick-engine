@@ -83,6 +83,10 @@
       {% endif %}
       <p>{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %}</p>
       <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+      {% if lang != "en" and versions %}
+      {# On a page in another language: no person checks its translation. #}
+      <p>{% trans url=versions[0].path %}This page was translated from English automatically with AI and may have errors. <a href="{{ url }}" hreflang="en">Read it in English</a>.{% endtrans %}</p>
+      {% endif %}
       <ul class="footer-links">
         <li><a href="/about/">{{ _("About") }}</a></li>
         <li><a href="{{ report_link(page_url, self.title()) }}">{{ _("Report a problem with this page") }}</a></li>

@@ -474,13 +474,13 @@ msgstr "Cómo responde la ciudad al 311"
 #: site/templates/meeting.html
 #, python-format
 msgid "<a href=\"%(url)s\">Agenda on %(where)s</a>"
-msgstr "<a href=\"%(url)s\">Agenda en %(where)s</a>"
+msgstr "<a href=\"%(url)s\">Agenda en %(where)s</a> (en inglés)"
 
 #. %(where)s is where the minutes were posted, such as "the city website".
 #: site/templates/meeting.html
 #, python-format
 msgid "<a href=\"%(url)s\">Minutes on %(where)s</a>"
-msgstr "<a href=\"%(url)s\">Actas en %(where)s</a>"
+msgstr "<a href=\"%(url)s\">Actas en %(where)s</a> (en inglés)"
 
 #: site/templates/meeting.html
 #, python-format
@@ -488,7 +488,7 @@ msgid ""
 "<a href=\"%(url)s\">Saved copy of the agenda</a> · saved <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 msgstr ""
-"<a href=\"%(url)s\">Copia guardada de la agenda</a> · guardada el <time "
+"<a href=\"%(url)s\">Copia guardada de la agenda</a> (en inglés) · guardada el <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 
 #: site/templates/meeting.html
@@ -497,7 +497,7 @@ msgid ""
 "<a href=\"%(url)s\">Saved copy of the minutes</a> · saved <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 msgstr ""
-"<a href=\"%(url)s\">Copia guardada de las actas</a> · guardadas el <time "
+"<a href=\"%(url)s\">Copia guardada de las actas</a> (en inglés) · guardadas el <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 
 #: site/templates/meeting.html
@@ -957,7 +957,7 @@ msgstr "Agenda"
 
 #: site/templates/meeting.html
 msgid "Agenda (PDF)"
-msgstr "Agenda (PDF)"
+msgstr "Agenda (PDF, en inglés)"
 
 #: site/templates/meeting.html
 msgid "Agenda and minutes"
@@ -2758,7 +2758,7 @@ msgstr "Actas"
 
 #: site/templates/meeting.html
 msgid "Minutes (PDF)"
-msgstr "Actas (PDF)"
+msgstr "Actas (PDF, en inglés)"
 
 #. %(name)s is where the city keeps older documents, such as "city's Archive Center".
 #: site/templates/meeting.html
@@ -2963,6 +2963,10 @@ msgstr ""
 "más cortos y participaron menos estudiantes, así que los resultados de 2021 no se pueden comparar"
 " directamente con los de otros años."
 
+#: site/pages/about/index.html
+msgid "No ads, and no tracking across other sites."
+msgstr "Sin anuncios y sin rastreo en otros sitios."
+
 #: site/templates/macros.html
 msgid "No agenda posted yet"
 msgstr "Todavía no hay agenda"
@@ -3130,9 +3134,33 @@ msgstr "Funcionarios"
 msgid "On agendas and minutes"
 msgstr "En agendas y actas"
 
+#. %(model)s is an AI model's name, such as "Claude Haiku 4.5".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"On the pages in other languages, each summary is translated automatically by AI (%(model)s, by "
+"Anthropic) from the English summary, and may have errors. Translations aren't checked by a person"
+" either. Two checks stand in: one without AI compares each translation's names, numbers, amounts,"
+" times, and decisions with the English, and a second AI model reviews its meaning. A translation "
+"that fails either is replaced by the English summary. Every translated summary links to the "
+"English."
+msgstr ""
+"En las páginas en otros idiomas, cada resumen se traduce automáticamente con IA (%(model)s, de "
+"Anthropic) a partir del resumen en inglés, y puede tener errores. Ninguna persona revisa las "
+"traducciones tampoco. En su lugar hay dos revisiones: una sin IA compara los nombres, números, "
+"cantidades, horas y decisiones de cada traducción con el inglés, y otro modelo de IA revisa su "
+"significado. Si una traducción no pasa alguna de las dos, se muestra el resumen en inglés. Cada "
+"resumen traducido tiene un enlace al inglés."
+
 #: site/templates/macros.html
 msgid "On this page"
 msgstr "En esta página"
+
+#: site/pages/about/index.html
+msgid ""
+"One cookie, only if you use the language switch: it remembers the language you chose, and nothing"
+" else."
+msgstr "Una cookie, solo si usa el botón de idioma: recuerda el idioma que eligió, y nada más."
 
 #: site/templates/meeting.html
 msgid "Online"
@@ -4626,9 +4654,22 @@ msgstr ""
 msgid "This page doesn't exist. It may have moved, or the link may have a typo."
 msgstr "Esta página no existe. Puede que se haya movido o que el enlace tenga un error."
 
+#: site/templates/base.html
+#, python-format
+msgid ""
+"This page was translated from English automatically with AI and may have errors. <a "
+"href=\"%(url)s\" hreflang=\"en\">Read it in English</a>."
+msgstr ""
+"Esta página se tradujo del inglés automáticamente con IA y puede tener errores. <a "
+"href=\"%(url)s\" hreflang=\"en\">Léala en inglés</a>."
+
 #: site/templates/meeting.html
 msgid "This summary hasn't been translated yet, so it's shown in English."
 msgstr "Este resumen aún no se ha traducido, así que aparece en inglés."
+
+#: site/templates/meeting.html
+msgid "This summary is shown in English: its automatic translation didn't pass our checks."
+msgstr "Este resumen aparece en inglés: su traducción automática no pasó nuestras revisiones."
 
 #: site/templates/base.html
 msgid "This week"
@@ -4708,6 +4749,15 @@ msgstr "Comisión de Tránsito"
 #: site/templates/macros.html
 msgid "Transcribed by AI from the city's PDF. Check the original before relying on it."
 msgstr "Transcrito con IA a partir del PDF de la ciudad. Revise el original antes de basarse en él."
+
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"Translated automatically by AI from the <a href=\"%(url)s\" hreflang=\"en\">English summary</a>, "
+"and may have errors."
+msgstr ""
+"Traducido automáticamente con IA del <a href=\"%(url)s\" hreflang=\"en\">resumen en inglés</a>; "
+"puede tener errores."
 
 #: pipeline/common_strings.py
 msgid "Treasurer"

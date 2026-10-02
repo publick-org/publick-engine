@@ -7,10 +7,17 @@ translation_model says otherwise. The rules are the summaries' own: only what
 the summary says, neutral, plain, with names, addresses, amounts, dates, and
 vote counts kept.
 
-A check without AI then confirms every number in the English is in the
-Spanish, and that each list (agenda items, decisions) has as many entries. A
-translation that fails is kept, so it isn't paid for again, but isn't shown:
-the page shows the English summary.
+No person checks the translations, so two checks do. One without AI, entry by
+entry: each list (agenda items, decisions) has as many entries, every number
+is kept and none added (however Spanish writes it), amounts keep their million
+or billion, times their a.m. or p.m., names are kept as written, and what
+happened isn't turned round (a "not" lost, approved as denied, tabled as
+approved, unanimous changed). Then, for a translation that passes, a larger
+model (Claude Sonnet 5.5 unless [summaries] translation_review_model says
+otherwise) reviews its meaning against the English: adjourned shown as
+dissolved, a guessed gender, a mistranslated board. A translation that fails
+either is made again once (ATTEMPTS), then kept, so it isn't paid for again,
+but not shown: the page shows the English summary, and says so.
 
 Each translation is its own record, data/summaries/<language>/<document's
 SHA-256>.json, holding the hash of the English it came from. Turning a
@@ -25,11 +32,12 @@ and the names in its data (boards, 311 categories) come from the town's
 [strings.<language>] when it has them, else from the engine's own Spanish for
 what many towns share ("Planning Board", "Ward 3"). Whatever is still missing
 is drafted here by the same small model, a batch per run: draft_texts(),
-checked the same way (every number and placeholder kept), and saved in
-data/strings/<language>.json. A draft is shown, so a new town or a new board
-needs no one's translation first, until a person reviews it: `python -m
-pipeline.translate drafts` prints the drafts as [strings.<language>] lines to
-correct and add to the town's config, which then wins.
+checked without AI (every number and placeholder kept) and reviewed by the
+larger model, and saved in data/strings/<language>.json. A draft that passes
+is shown, so a new town or a new board needs no one's translation; one that
+fails twice stays in English. `python -m pipeline.translate drafts` prints the
+drafts as [strings.<language>] lines, for anyone who wants to correct them in
+the town's config, which then wins.
 """
 
 from __future__ import annotations
@@ -39,9 +47,10 @@ import json
 import re
 from collections import Counter
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
-VERSION = 2
+VERSION = 3
 DEFAULT_MODEL = "claude-haiku-4-5-20251001"
 # Claude Haiku 4.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 1.0, "output_price": 5.0}
@@ -55,7 +64,8 @@ LANGUAGE_NAMES = {"es": "Spanish"}
 # (site/strings/es-guide.md has the full glossary).
 READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
-Write dates in Spanish ("22 de octubre de 2026"), times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "4.5%")."""}
+Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
+Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17, which a Spanish reader takes as 10 July. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
 
 SYSTEM = """You translate short summaries of a city government's public meeting agendas and minutes from English into {language}, for residents.
 
@@ -65,6 +75,8 @@ Rules:
 - Short sentences, about an 8th-grade reading level.
 - Keep every name of a person, business, street, address, and place exactly as written, and keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, and order numbers.
 - Board and committee names: use the translations given below when there are any; otherwise keep the English name.
+- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."); when it gives none, put the name first and the role after it ("Scott Houseman, presidente del comité"), or use the role without an article, rather than "el presidente" or "la presidenta".
+- Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
 
 {readers}"""
@@ -93,23 +105,42 @@ def saved(data_dir: Path, lang: str, sha256: str) -> dict | None:
     return json.loads(file.read_text(encoding="utf-8")) if file.exists() else None
 
 
+# A translation that fails its checks is made again once, then left (and the English shown).
+ATTEMPTS = 2
+
+
 def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> dict | None:
-    """The saved translation of this English summary, made with the current prompt (shown or not)."""
+    """The saved translation of this English summary, made with the current prompt, when there's
+    no need to make it again: it passed its checks, or it's had its ATTEMPTS."""
     found = saved(data_dir, lang, sha256)
-    if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION:
+    if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION and (
+            passes(data_dir, found, record, kind, lang) or found.get("attempts", 1) >= ATTEMPTS):
         return found
     return None
+
+
+def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str) -> bool:
+    """Whether a saved translation passes both checks: the one without AI, run again here (so a
+    translation the check once wrongly failed is shown once the check is fixed, without paying for
+    it again), and the AI's review of its meaning, as saved."""
+    return (found.get("review") == "ok"
+            and check(english(record, kind), found, kind, lang, town_words(data_dir)) == "ok")
 
 
 def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> dict | None:
-    """The translation to show for an English summary: one made from this English that passes the
-    check. The check runs again here, so a translation the check once wrongly failed is shown once
-    the check is fixed, without paying for it again."""
+    """The translation to show for an English summary: one made from this English, with the
+    current prompt, that passes both checks."""
     found = saved(data_dir, lang, sha256)
-    if found and found.get("source_hash") == source_hash(record, kind) and \
-            check(english(record, kind), found, kind, lang) == "ok":
+    if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION \
+            and passes(data_dir, found, record, kind, lang):
         return found
     return None
+
+
+def failed(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> bool:
+    """Whether this English summary's translation was made and failed its checks for good."""
+    found = current(data_dir, lang, sha256, record, kind)
+    return bool(found) and not passes(data_dir, found, record, kind, lang)
 
 
 # A number as the summaries write it: "1,500", "4.5", "7:00", "2026", the 5 and the 0 of "5-0".
@@ -123,8 +154,137 @@ MONTHS = {"es": ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
                  "septiembre|setiembre", "octubre", "noviembre", "diciembre")}
 
 
-def numbers(text: str) -> Counter:
-    return Counter(n.rstrip(".,:") for n in NUMBER.findall(text or ""))
+def canonical(n: str) -> str:
+    """A number as a value, however it's written: "1,500", "1.500", and "1500" are 1500; "5,8" and
+    "5.8" are 5.8; "7:00" is 7."""
+    n = n.rstrip(".,:")
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", n):
+        return re.sub(r"[.,]", "", n)
+    if re.fullmatch(r"\d+[.,]\d{1,2}", n):
+        return n.replace(",", ".")
+    return re.sub(r":00$", "", n)
+
+
+def numbers(text: str, ordinals: bool = False) -> Counter:
+    """The numbers in a text, as values. Ordinals ("2nd", "6th") only if asked: a translation may
+    write them as words ("segunda") or as plain numbers ("el 6 de agosto")."""
+    return Counter(canonical(m.group(0)) for m in NUMBER.finditer(text or "")
+                   if ordinals or not re.match(r"(?:st|nd|rd|th)\b", text[m.end():], re.I))
+
+
+# A number with its scale: "$3 million", "3 millones", "$1.2 billion", "1,2 mil millones".
+SCALES = {"en": [(r"billion|bn\b|B\b", "B"), (r"million|M\b", "M"), (r"thousand|K\b", "K")],
+          "es": [(r"mil\s+millones|millardos?|B\b", "B"), (r"mill[oó]n(?:es)?|M\b", "M"), (r"mil\b|K\b", "K")]}
+
+
+def scaled(text: str, lang: str) -> Counter:
+    """Each number written with a scale word, with its scale: {("3", "M"): 1}."""
+    found = Counter()
+    for m in NUMBER.finditer(text or ""):
+        after = text[m.end():m.end() + 16]
+        for pattern, scale in SCALES[lang]:
+            if re.match(rf"\s*(?:{pattern})", after, re.I):
+                found[(canonical(m.group(0)), scale)] += 1
+                break
+    return found
+
+
+# A clock time with a.m. or p.m.: "7 pm", "7:00 p.m.", "7:00 p. m.".
+TIME = re.compile(r"\b(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s?m\b\.?", re.I)
+
+
+def times(text: str) -> Counter:
+    return Counter((canonical(t), half.lower()) for t, half in TIME.findall(text or ""))
+
+
+@lru_cache(maxsize=1)
+def english_words() -> frozenset:
+    """Ordinary English words (GCIDE, lowercased), so a name is a capitalized word that isn't one."""
+    from english_words import get_english_words_set
+    return frozenset(get_english_words_set(["gcide"], lower=True, alpha=True))
+
+
+WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
+                   "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
+
+
+@lru_cache(maxsize=32)
+def town_words(data_dir: Path | None) -> frozenset:
+    """The words a town's English summaries use in lowercase, which are no one's name: newer words
+    the dictionary lacks ("input", "tourism")."""
+    words: set[str] = set()
+    for file in sorted((data_dir / "summaries").glob("*.json")) if data_dir else []:
+        record = json.loads(file.read_text(encoding="utf-8"))
+        for field in ("headline", "summary", "items", "decisions"):
+            value = record.get(field) or ""
+            for text in value if isinstance(value, list) else [value]:
+                words.update(w for w in re.findall(r"[a-z]+", text) if w.islower())
+    return frozenset(words)
+
+
+def is_word(word: str, also: frozenset = frozenset()) -> bool:
+    w = word.lower()
+    known = english_words()
+    if w in WEEKDAYS_MONTHS or w in known or w in also:
+        return True
+    stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
+                                                  ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
+             if w.endswith(end)]
+    # Doubled before an ending: "planning", "referred".
+    stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
+    return any(stem in known or stem in also for stem in stems)
+
+
+def names(text: str, also: frozenset = frozenset()) -> set[str]:
+    """The names in an English text: capitalized words that aren't ordinary English words
+    ("Houseman" is one, "Collector" isn't), which a translation keeps as written. also: more
+    ordinary words (town_words())."""
+    return {w for w in re.findall(r"\b[A-Z][a-z]+\b", text or "") if not is_word(w, also)}
+
+
+# What a decision says happened, in each language, to catch a translation that turns it round.
+NOT = {"en": re.compile(r"\b(?:not|never)\b|n't\b", re.I), "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
+SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
+                            r"disapprov\w*|against|oppos\w*)\b|n't\b", re.I)}
+APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant\w*|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
+           "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
+DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*)\b", re.I),
+        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*)", re.I)}
+TABLED = {"en": re.compile(r"\b(?:tabled|tabling|postpon\w*)\b", re.I),
+          "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|archiv\w*|tabl\w*|suspend\w*|sobre la mesa|difiri\w*)",
+                           re.I)}
+# "No" in a translation, but not as a prefix ("no conforme" is nonconforming), and "sin" ("not to exceed": "sin exceder").
+NOES = {"es": re.compile(r"\bsin\b|\b(?:no|nunca)\b(?!\s+(?:conform|residencial|lucrativ|profesional|elegible|permitid|esencial|"
+                         r"emergencia|vinculante|aplicable|incluid|deseable|existente|asignad|binari|reembolsable|exent|"
+                         r"tradicional|oficial|relacionad|municipal|pagad))", re.I)}
+# "No" with a decision's verb: "no se aprobó", "no fue aprobada", "no recomendó".
+NO_DECISION = {"es": re.compile(r"\bno\s+(?:se\s+)?(?:(?:fue|fueron)\s+)?(?:aprob|aprueb|adopt|otorg|conced|pas|acept|recomend|vot)",
+                                re.I)}
+UNANIMOUS = {"en": re.compile(r"\bunanim\w*", re.I), "es": re.compile(r"\bun[aá]nim\w*|\bsin oposici[oó]n", re.I)}
+
+
+def outcome(en: str, tr: str, lang: str) -> str | None:
+    """What a translation got wrong about what happened, if anything: a "not" dropped or added,
+    approved turned into denied or back, tabled lost, or unanimous changed."""
+    # As many noes (not, never, denied, failed) in each, so one can't stand in for another.
+    noes_en = len(NOT["en"].findall(en)) + len(DENY["en"].findall(en))
+    noes_tr = len(NOES[lang].findall(tr)) + len(DENY[lang].findall(tr))
+    if noes_en > noes_tr:
+        return "a \"not\", denied, or failed in the English isn't in the translation"
+    if noes_tr > noes_en and (NO_DECISION[lang].search(tr) or DENY[lang].search(tr)):
+        return "the translation says no where the English doesn't"
+    if DENY["en"].search(en) and not (DENY[lang].search(tr) or NOT[lang].search(tr)):
+        return "denied or failed in the English, not in the translation"
+    if DENY[lang].search(tr) and not SAYS_NO["en"].search(en):
+        return "denied in the translation, not in the English"
+    if (APPROVE["en"].search(en) and not SAYS_NO["en"].search(en) and not TABLED["en"].search(en)
+            and not APPROVE[lang].search(tr) and TABLED[lang].search(tr)):
+        return "approved in the English, tabled in the translation"
+    if TABLED["en"].search(en) and not TABLED[lang].search(tr):
+        return "tabled in the English, not in the translation"
+    if bool(UNANIMOUS["en"].search(en)) != bool(UNANIMOUS[lang].search(tr)):
+        return "unanimous in one and not the other"
+    return None
 
 
 def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
@@ -146,9 +306,12 @@ def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
     return en, tr
 
 
-def check(source: dict, translated: dict, kind: str, lang: str = "es") -> str:
-    """ "ok", or what's wrong: a field missing or empty, a list of another length, or a number
-    in the English that isn't in the translation. A date in figures may be written out."""
+def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset()) -> str:
+    """ "ok", or what's wrong, entry by entry, so a list put in another order fails too: a field
+    missing or empty, a list of another length, a number lost or added (however the language
+    writes it, and a date in figures may be written out), an amount's million or billion, a.m. or
+    p.m., a name not kept as written (words: the town's own ordinary words, town_words()), or what
+    happened turned round (outcome())."""
     for field in FIELDS[kind]:
         en, tr = source[field], translated.get(field)
         if isinstance(en, list):
@@ -160,11 +323,24 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es") -> str:
                 return f"{field}: missing"
             pairs = [(en, tr)]
         for i, (a, b) in enumerate(pairs):
+            where = f"{field} {i + 1}" if isinstance(en, list) else field
+            if scaled(a, "en") != scaled(b, lang):
+                return f"{where}: amounts' scale differs (million, billion)"
+            if times(a) != times(b):
+                return f"{where}: a.m. or p.m. differs"
+            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", b))
+            if lost_names:
+                return f"{where}: {', '.join(lost_names)} not in the translation"
+            wrong = outcome(a, b, lang)
+            if wrong:
+                return f"{where}: {wrong}"
             a, b = dates_kept(a, b, lang)
             lost = numbers(a) - numbers(b)
             if lost:
-                where = f"{field} {i + 1}" if isinstance(en, list) else field
                 return f"{where}: {', '.join(sorted(lost))} not in the translation"
+            added = numbers(b) - numbers(a, ordinals=True)
+            if added:
+                return f"{where}: {', '.join(sorted(added))} added in the translation"
     return "ok"
 
 
@@ -224,24 +400,114 @@ def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
 
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
          now: datetime, cost) -> tuple[dict, float]:
-    """Translate one summary, check it, and save it. Returns the saved record and what it cost."""
+    """Translate one summary, check it, have the AI review its meaning if it passes, and save it.
+    Returns the saved record and what it cost."""
     result, usage = translate(client, config, lang, kind, record, meeting)
     paid = cost(usage, settings(config))
+    source = english(record, kind)
+    checked = check(source, result, kind, lang, town_words(data_dir))
+    reviewed, review_cost = "not reviewed: the check failed", 0.0
+    if checked == "ok":
+        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]], cost)
+        reviewed = "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok"
+    before = saved(data_dir, lang, doc["sha256"])
+    again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     out = {
         **{field: result.get(field) for field in FIELDS[kind]},
         "language": lang,
         "kind": kind,
         "source_sha256": doc["sha256"],
         "source_hash": source_hash(record, kind),
-        "check": check(english(record, kind), result, kind, lang),
+        "check": checked,
+        "review": reviewed,
+        "attempts": before.get("attempts", 1) + 1 if again else 1,
         "model": settings(config)["model"],
         "prompt_version": VERSION,
         "generated_at": now.isoformat(timespec="seconds"),
         "usage": usage,
-        "cost": round(paid, 6),
+        "cost": round(paid + review_cost, 6),
     }
     save(data_dir, lang, doc["sha256"], out)
-    return out, paid
+    return out, paid + review_cost
+
+
+# ---- The AI's review of a translation's meaning ----------------------------------
+
+DEFAULT_REVIEW_MODEL = "claude-sonnet-5-5"
+# Claude Sonnet 5.5's prices, dollars per million tokens.
+DEFAULT_REVIEW_PRICES = {"input_price": 2.0, "output_price": 10.0}
+
+REVIEW_SYSTEM = """You check translations from English into {language} of short texts from a US city or town government's website: summaries of meeting agendas and minutes, and names of boards, roles, and services. No person checks them after you, and residents rely on them.
+
+For each English text and its translation, report every error that changes the meaning or would mislead a reader:
+- what happened changed: adjourned shown as dissolved, reappointed shown as re-elected, appointed shown as elected, approved shown as denied or tabled, a "not" lost or added, unanimous changed, a recommendation shown as a decision;
+- a person's gender stated where the English doesn't give it ("la presidenta" for "Chair Houseman");
+- a name, place, street, business, amount, date, time, or number changed, or anything added or left out;
+- a mistranslation ("Conservation Commission" as "Comisión de Conversación", "Mayor" as "Gobernador", a business sign as a traffic sign);
+- English words left in a {language} sentence (names of people, places, businesses, and programs excepted), or words that don't exist.
+
+Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation."""
+
+REVIEW_PROMPT = """Check these translations. Each has an id, the English, and the {language}:
+{pairs}"""
+
+
+def review_settings(config: dict) -> dict:
+    """The reviewing model and its prices: [summaries] translation_review_model,
+    translation_review_input_price, and translation_review_output_price, or Claude Sonnet 5.5's."""
+    s = config.get("summaries", {})
+    model = s.get("translation_review_model", DEFAULT_REVIEW_MODEL)
+    prices = DEFAULT_REVIEW_PRICES if model == DEFAULT_REVIEW_MODEL else {}
+    return {"model": model,
+            "input_price": s.get("translation_review_input_price", prices.get("input_price")),
+            "output_price": s.get("translation_review_output_price", prices.get("output_price"))}
+
+
+# The key a review's problem is under when nothing could be reviewed.
+UNREVIEWED = "not reviewed"
+
+
+def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, object, object]], cost) -> tuple[dict[str, str], float]:
+    """The AI's review of translations' meaning. pairs: (id, English, translation), where a text
+    may be a list of texts (its entries' ids are "<id> 1", "<id> 2", ...). Returns the problems
+    found, {id: problem}, empty if none, and what the review cost. A review that can't be made
+    returns {UNREVIEWED: why}, so nothing it didn't review is shown."""
+    rsettings = review_settings(config)
+    if rsettings["input_price"] is None or rsettings["output_price"] is None:
+        return {UNREVIEWED: "[summaries] needs translation_review_input_price and translation_review_output_price"}, 0.0
+    rows = []
+    for key, en, tr in pairs:
+        if isinstance(en, list):
+            rows += [{"id": f"{key} {i + 1}", "english": a, "translation": b}
+                     for i, (a, b) in enumerate(zip(en, tr if isinstance(tr, list) else []))]
+        elif en:
+            rows.append({"id": key, "english": en, "translation": tr})
+    if not rows:
+        return {}, 0.0
+    try:
+        response = client.messages.create(
+            model=rsettings["model"],
+            max_tokens=4000,
+            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang]),
+            messages=[{"role": "user", "content": REVIEW_PROMPT.format(
+                language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
+            output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
+                "type": "object", "additionalProperties": False, "required": ["problems"],
+                "properties": {"problems": {"type": "array", "items": {
+                    "type": "object", "additionalProperties": False, "required": ["id", "problem"],
+                    "properties": {"id": {"type": "string"}, "problem": {"type": "string"}}}}}}}},
+        )
+    except Exception as e:
+        if "credit balance" in str(e).lower():
+            raise
+        return {UNREVIEWED: str(e)}, 0.0
+    paid = cost({"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}, rsettings)
+    if response.stop_reason != "end_turn":
+        return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
+    problems: dict[str, str] = {}
+    for p in json.loads(next(b.text for b in response.content if b.type == "text"))["problems"]:
+        problems[p["id"]] = f"{problems[p['id']]}; {p['problem']}" if p["id"] in problems else p["problem"]
+    return problems, paid
 
 
 def month_counts(data_dir: Path) -> dict[str, dict]:
@@ -262,7 +528,7 @@ def month_counts(data_dir: Path) -> dict[str, dict]:
 
 # ---- A town's own text and names, drafted ------------------------------------
 
-NAMES_VERSION = 1
+NAMES_VERSION = 2
 # Texts per request: one batch covers a new town's config and boards.
 NAMES_BATCH = 80
 
@@ -323,7 +589,9 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
     tsettings = settings(config)
     saved = saved_drafts(data_dir, lang)
     done, spent = 0, 0.0
-    texts = list(dict.fromkeys(texts))
+    # A text whose drafts failed ATTEMPTS times is left in English, not paid for every run.
+    texts = [t for t in dict.fromkeys(texts) if not (
+        saved["drafts"].get(t, {}).get("prompt_version") == NAMES_VERSION and saved["drafts"][t].get("attempts", 1) >= ATTEMPTS)]
     for start in range(0, len(texts), NAMES_BATCH):
         if allowance is not None and spent >= allowance:
             break
@@ -349,9 +617,19 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         if len(out) != len(batch):
             # Misaligned, so none can be trusted; the next run tries again.
             continue
-        for en, tr in zip(batch, out):
-            saved["drafts"][en] = {"text": tr, "check": check_text(en, tr), "model": tsettings["model"],
-                                   "prompt_version": NAMES_VERSION, "generated_at": at}
+        checks = [check_text(en, tr) for en, tr in zip(batch, out)]
+        # The AI reviews the ones that pass, which also catches a batch shifted by one.
+        problems, review_cost = review_meaning(client, config, lang, [
+            (str(i), en, tr) for i, (en, tr, c) in enumerate(zip(batch, out, checks)) if c == "ok"], cost)
+        spent += review_cost
+        saved["batches"][-1]["cost"] = round(paid + review_cost, 6)
+        for i, (en, tr, checked) in enumerate(zip(batch, out, checks)):
+            if checked == "ok" and (UNREVIEWED in problems or str(i) in problems):
+                checked = f"review: {problems.get(str(i)) or problems[UNREVIEWED]}"
+            before = saved["drafts"].get(en, {})
+            attempts = before.get("attempts", 1) + 1 if before.get("prompt_version") == NAMES_VERSION else 1
+            saved["drafts"][en] = {"text": tr, "check": checked, "model": tsettings["model"],
+                                   "prompt_version": NAMES_VERSION, "attempts": attempts, "generated_at": at}
             done += 1
     if done or saved["batches"]:
         file = strings_path(data_dir, lang)
