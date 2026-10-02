@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{# The page of a meeting listing now shown as part of another meeting (pipeline/listings.py). #}
+{% set m = meeting %}
+{# Translators: the title of a page that has moved; %(body)s is a board, %(when)s a date, and %(part)s which of the meeting's other listings it was, such as "2". #}
+{% block title %}{% if part %}{% trans body=m.body, when=m.date | date, part=part %}{{ body }}, {{ when }}: moved (listing {{ part }}){% endtrans %}{% else %}{% trans body=m.body, when=m.date | date %}{{ body }}, {{ when }}: moved{% endtrans %}{% endif %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url={{ moved_to }}">{% endblock %}
+{% block content %}
+<h1>{{ _("This meeting's page has moved") }}</h1>
+<p>{% trans url=m.url, title=m.title, when=m.date | date %}This meeting was listed more than once. It is now shown on one page: <a href="{{ url }}">{{ title }}, {{ when }}</a>.{% endtrans %}</p>
+{% endblock %}

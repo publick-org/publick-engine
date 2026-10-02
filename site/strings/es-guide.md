@@ -52,6 +52,7 @@ formal, not word for word from the English, and not from Spain.
 | meeting | reunión |
 | board / committee / commission | junta / comité / comisión |
 | City Council | Concejo Municipal (a town's board names are in its config, not here) |
+| city / town (the place) | la ciudad / el pueblo: write "la ciudad"; a town's site says "el pueblo" by rule (`TOWN_WORDING` in pipeline/i18n.py), so avoid words that must agree with *ciudad* (*ella*, *esta*, *propia*) |
 | councilor | concejal, concejala |
 | Mayor | alcalde, alcaldesa |
 | agenda | agenda |

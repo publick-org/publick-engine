@@ -11,6 +11,13 @@ English.
 English pages are built from the English text itself, so marking a string
 never changes them.
 
+The wording is written about a city ("the city's Agenda Center", "la ciudad").
+For a town ([town] kind, or the Census Bureau's word for the place, in
+data/place.json; pipeline/fetch_place.py), every string is worded for a town
+as it's shown: "the town's Agenda Center", "el pueblo", "del pueblo"
+(TOWN_WORDING). Only the site's own wording changes, never a name or a link
+in it, nor "cities and towns", which is about other places too.
+
 Usage:
     python -m pipeline.i18n update    # add new strings to each string file, drop removed ones
     python -m pipeline.i18n check     # fails when a string file is out of date
@@ -22,6 +29,7 @@ from __future__ import annotations
 import argparse
 import functools
 import io
+import re
 import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -38,6 +46,8 @@ STRINGS_DIR = ENGINE_DIR / "site" / "strings"
 LANGUAGES = {"en": "English", "es": "Español"}
 
 _language: ContextVar[str] = ContextVar("language", default="en")
+_kind: ContextVar[str] = ContextVar("kind", default="city")
+KINDS = ("city", "town")
 
 
 def language() -> str:
@@ -45,16 +55,55 @@ def language() -> str:
     return _language.get()
 
 
+def kind() -> str:
+    """Whether the site being built is a city's or a town's."""
+    return _kind.get()
+
+
 @contextmanager
-def use(lang: str):
-    """Build in this language until the block ends."""
+def use(lang: str, kind: str = "city"):
+    """Build in this language, for a city or a town, until the block ends."""
     if lang not in LANGUAGES:
         raise ValueError(f"Unknown language {lang!r}: the engine has {', '.join(LANGUAGES)}.")
-    token = _language.set(lang)
+    if kind not in KINDS:
+        raise ValueError(f"Unknown kind {kind!r}: a place is a {' or a '.join(KINDS)}.")
+    token, kind_token = _language.set(lang), _kind.set(kind)
     try:
         yield
     finally:
         _language.reset(token)
+        _kind.reset(kind_token)
+
+
+# The wording for a town, in place of a city's, in each language, in the order applied. Plurals
+# ("cities and towns", "ciudades") are about places in general, and stay. Spanish says "el pueblo",
+# so the article and its contractions change with it ("de la ciudad" -> "del pueblo").
+TOWN_WORDING = {
+    "en": [(r"\bCitywide\b", "Townwide"), (r"\bcitywide\b", "townwide"), (r"\bCity\b", "Town"), (r"\bcity\b", "town")],
+    "es": [(r"\bde la Ciudad\b", "del Pueblo"), (r"\bde la ciudad\b", "del pueblo"),
+           (r"\ba la Ciudad\b", "al Pueblo"), (r"\ba la ciudad\b", "al pueblo"),
+           (r"\bToda la ciudad\b", "Todo el pueblo"), (r"\btoda la ciudad\b", "todo el pueblo"),
+           (r"\bLa Ciudad\b", "El Pueblo"), (r"\bLa ciudad\b", "El pueblo"),
+           (r"\bla Ciudad\b", "el Pueblo"), (r"\bla ciudad\b", "el pueblo"),
+           (r"\buna ciudad\b", "un pueblo"), (r"\bCiudad\b", "Pueblo"), (r"\bciudad\b", "pueblo")],
+}
+# What a string's wording doesn't include: its HTML, and the values put in it.
+NOT_WORDING = re.compile(r"(<[^>]*>|%\([^)]*\)[sd]|%%|\{[^}]*\})")
+
+
+@functools.cache
+def for_town(text: str, lang: str) -> str:
+    """A string written about a city, worded for a town."""
+    parts = NOT_WORDING.split(text)
+    for i in range(0, len(parts), 2):
+        for pattern, replacement in TOWN_WORDING[lang]:
+            parts[i] = re.sub(pattern, replacement, parts[i])
+    return "".join(parts)
+
+
+def worded(text: str) -> str:
+    """A string as the site being built says it: for a town, if it's a town's."""
+    return for_town(text, language()) if _kind.get() == "town" else text
 
 
 @functools.cache
@@ -72,7 +121,12 @@ def strings(lang: str) -> dict:
 
 
 def pgettext(context: str | None, message: str) -> str:
-    return strings(language()).get((context, message), message)
+    return worded(strings(language()).get((context, message), message))
+
+
+def label(message: str) -> str:
+    """A label from data saved in English (a budget function), translated, and never reworded."""
+    return strings(language()).get((None, message), message)
 
 
 def gettext(message: str) -> str:
@@ -82,8 +136,8 @@ def gettext(message: str) -> str:
 def npgettext(context: str | None, singular: str, plural: str, n: int) -> str:
     forms = strings(language()).get((context, (singular, plural)))
     if forms:
-        return forms[0 if n == 1 else 1]
-    return singular if n == 1 else plural
+        return worded(forms[0 if n == 1 else 1])
+    return worded(singular if n == 1 else plural)
 
 
 def translated(message: str, context: str | None = None) -> bool:

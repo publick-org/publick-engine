@@ -30,7 +30,10 @@
   {% if config.seeclickfix is defined %}
   <li>{% trans scf="https://seeclickfix.com", license="https://creativecommons.org/licenses/by-nc-sa/3.0/", methodology="/311/methodology/" %}<strong>311 requests:</strong> <a href="{{ scf }}">SeeClickFix</a>, public requests only, under a <a href="{{ license }}">CC BY-NC-SA 3.0</a> license. <a href="{{ methodology }}">How the 311 numbers work</a>.{% endtrans %}</li>
   {% endif %}
-  {% if config.meetings is defined and config.meetings.agenda_center is defined %}
+  {% if config.meetings is defined and config.meetings.agenda_center is defined and meeting_links.has_calendar %}
+  {# Translators: %(since)s is a month, such as "January 2024". #}
+  <li>{% trans calendar=meeting_links.calendar, url=meeting_links.agenda_center, since=config.meetings.agenda_center.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a>, for every meeting it lists, and its <a href="{{ url }}">Agenda Center</a>, for agendas and minutes. A meeting listed in both is shown once. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
+  {% elif config.meetings is defined and config.meetings.agenda_center is defined %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
   <li>{% trans url=config.meetings.agenda_center.base_url ~ "/AgendaCenter", since=config.meetings.agenda_center.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">Agenda Center</a>. Copies of agendas are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents and config.meetings.file_list is defined %}
@@ -62,6 +65,14 @@
   {% if config.finalsite_meetings is defined %}
   {# Translators: %(board)s is a board's name, such as "School Committee". %(source)s names where the meetings are posted, such as "the school district's website". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=(config.finalsite_meetings.bodies.values() | list)[0], source=config.finalsite_meetings.source_name, url=config.finalsite_meetings.page_url, since=config.finalsite_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from the meetings posted on its <a href="{{ url }}">website</a>, from {{ since }} on.{% endtrans %}</li>
+  {% endif %}
+  {% if config.ical_meetings is defined %}
+  {# Translators: %(board)s is a board's name, such as "School Committee". %(source)s is who keeps the calendar, such as "Beverly Public Schools". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=(config.ical_meetings.bodies.values() | list)[0], source=config.ical_meetings.source_name, url=config.ical_meetings.page_url, since=config.ical_meetings.since | date("month") %}<strong>{{ board }} meetings:</strong> {{ source }}, from the <a href="{{ url }}">district's calendar</a>, from {{ since }} on. Agendas are on its website.{% endtrans %}</li>
+  {% endif %}
+  {% if config.schedule_meetings is defined %}
+  {# Translators: %(source)s is who publishes the schedule, such as "Malden Public Schools". #}
+  <li>{% trans source=config.schedule_meetings.source_name, url=config.schedule_meetings.url %}<strong>Scheduled meetings:</strong> the dates {{ source }} lists on <a href="{{ url }}">its schedule</a>, shown before their agendas are posted.{% endtrans %}</li>
   {% endif %}
   {% include state_template("about_finance.html") ignore missing %}
   {% if config.labor is defined %}

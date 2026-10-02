@@ -21,8 +21,19 @@
 {% if meetings.upcoming %}
 {% for day, items in group_by(meetings.upcoming, "date") %}{{ day_group(day, items) }}{% endfor %}
 {% else %}
-<p>{{ _("No upcoming meetings are listed on the city calendar right now.") }}</p>
+<p>{% if meeting_links.has_calendar %}{{ _("No upcoming meetings are listed on the city calendar right now.") }}{% else %}{{ _("No upcoming meetings are listed right now.") }}{% endif %}</p>
 {% endif %}
-<p class="source-note">{% if meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}{% else %}{% trans calendar=meeting_links.calendar %}From the <a href="{{ calendar }}">city calendar</a>.{% endtrans %}{% endif %} {{ _("Community events are left out.") }}{% if meetings.status %} {% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}</p>
+{# Where the meetings come from: each of the town's sources, in a sentence of its own. #}
+<p class="source-note">
+{%- if meeting_links.has_calendar and meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}
+{%- elif meeting_links.has_calendar %}{% trans calendar=meeting_links.calendar %}From the <a href="{{ calendar }}">city calendar</a>.{% endtrans %}
+{%- elif meeting_links.agenda_center %}{% trans url=meeting_links.agenda_center %}From the city's <a href="{{ url }}">Agenda Center</a>, which lists a meeting once its agenda is posted.{% endtrans %}
+{%- elif meeting_links.portal %}{% trans portal=meeting_links.portal %}From the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}{% endif %}
+{%- if meeting_links.has_calendar and meeting_links.agenda_center %} {% trans url=meeting_links.agenda_center %}Agendas from the city's <a href="{{ url }}">Agenda Center</a>.{% endtrans %}{% endif %}
+{#- Translators: %(name)s is the city's page of every board's documents, such as "town's Minutes & Agendas page". #}
+{%- if meeting_links.documents_page %} {% trans url=meeting_links.documents_page, name=meeting_links.archive_name %}Agendas and minutes from the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}{% endif %}
+{#- Translators: %(name)s is a school district, such as "Wallingford Public Schools". #}
+{%- for school in meeting_links.schools %} {% trans url=school.url, name=school.name %}School board meetings from the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}{% endfor %}
+ {{ _("Community events are left out.") }}{% if meetings.status %} {% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}</p>
 
 {% endblock %}
