@@ -1,6 +1,7 @@
 # Roadmap
 
-Last reorganized 2026-10-02, at six towns on engine v1.30.0.
+Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
+evening after the meetings audit (engine #52, publick.org #40).
 
 This file has four parts:
 
@@ -82,12 +83,12 @@ thirds of commits are written by AI.
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
-| Gloucester, MA | moved in | CivicPlus calendar and Archive Center; School Committee in Google Drive | SeeClickFix | City permits file |
-| Malden, MA | moved in | Agenda Center (council and School Committee) | SeeClickFix | Roll-call votes collected, not shown |
-| Manchester, NH | moved in | CivicClerk and DotNetNuke | SeeClickFix | First New Hampshire town; NH figures saved by hand |
-| Beverly, MA | 2026-10-01 | Agenda Center | none | First town added from scratch; council minutes are scans |
-| Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite | none | First Connecticut town; summaries from July 2026 |
-| Lawrence, MA | 2026-10-02 | Agenda Center | none | Launched in English and Spanish |
+| Gloucester, MA | moved in | CivicPlus calendar (month by month) and Archive Center; School Committee in Google Drive, with its schedule | SeeClickFix | City permits file |
+| Malden, MA | moved in | CivicPlus calendar and Agenda Center; School Committee dates from the district's page | SeeClickFix | Roll-call votes collected, not shown |
+| Manchester, NH | moved in | CivicClerk and DotNetNuke | SeeClickFix | First New Hampshire town; NH figures saved by hand; the school board's site blocks automated reading |
+| Beverly, MA | 2026-10-01 | CivicPlus calendar and Agenda Center; School Committee from the district's calendar feed | none | First town added from scratch; council minutes are scans |
+| Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite, with its schedule | none | First Connecticut town; summaries from July 2026; worded as a town |
+| Lawrence, MA | 2026-10-02 | CivicPlus calendar and Agenda Center | none | Launched in English and Spanish |
 
 - Every town is in English and Spanish (`/es/`), engine v1.27.0 and later.
 - 445 summaries live (agenda prompt v4: 62; minutes v2: 383).
@@ -109,7 +110,9 @@ disclosed and checked without a person, releases and engine moves once a day
 and by themselves, the status page right after a push, the rulesets on both
 repositories, `ENGINE_PR_TOKEN`, $80 for October, Lawrence's catch-up run, and
 summaries checked against their documents (engine v1.30.0 and pull request
-#50). What's left:
+#50), and the meetings audit's fixes, with a shorter home page (engine #52,
+publick.org #40; see [Meetings, complete and correct](#meetings-complete-and-correct)).
+What's left:
 
 1. **Watch the first automatic engine move** (2026-10-03, 08:20 and 08:40
    UTC): #50 released, the pull request opened, every town checked, merged,
@@ -119,10 +122,20 @@ summaries checked against their documents (engine v1.30.0 and pull request
    fail the checks, and every summary's fact check recorded (60 documents a
    run, so about two days). ([Spanish quality](#spanish-quality),
    [Summary checks](#summary-checks))
-3. **Read two summaries by hand**, whose facts are on scanned pages the check
+3. **Check the first daily run with the meetings audit's fixes** (2026-10-03):
+   in each town, `python -m pipeline.listings` lists the meetings shown as
+   one, and a calendar meeting next to an Agenda Center one of the same day,
+   not put together, needs an alias; the new boards' Spanish drafted; Gloucester's
+   School Committee subcommittees listed once; Wallingford worded as a town;
+   the Arts Commission correction shown on Manchester's November 9.
+   ([Meetings, complete and correct](#meetings-complete-and-correct))
+4. **Read two summaries by hand**, whose facts are on scanned pages the check
    can't read: a Beverly City Council decision dated "January 20, 2025, at
    7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000 and $3,100
    aren't in the model's transcription. ([Summary checks](#summary-checks))
+5. **The next meetings audit, by hand**, a week on: every town's upcoming
+   meetings against its city's own sites, as on 2026-10-02.
+   ([Meetings, complete and correct](#meetings-complete-and-correct))
 
 ### Next: October, before the next town
 
@@ -241,6 +254,10 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   replace each other. Only if replaced runs turn out to delay towns.
 - **A town that runs its own site** gets its own repository calling
   `town.yml`, which keeps working for that.
+- **The meetings audit stays by hand** (decided 2026-10-02): a person
+  checks each town's upcoming meetings against the city's own sites, about
+  weekly while towns are added. An automatic check would read the cities'
+  sites the same way the pipeline does, and miss what it misses.
 
 ### Ideas to decide
 
@@ -311,6 +328,8 @@ From the October 2026 review, still to decide:
   otherwise): raised for good, or kept with backlog summaries through the
   Batches API.
 - Who the second person with owner access is.
+- Whether every correction's Spanish is written by a person (Manchester's
+  first one was), rather than drafted with the town's other text.
 
 ## The work, by theme
 
@@ -949,13 +968,15 @@ follows the towns chosen.
 
 | Platform | Reads | Towns |
 |---|---|---|
-| CivicPlus calendar and Archive Center | done | Gloucester |
+| CivicPlus calendar, month by month, and Archive Center | done (v1.31.0 for month by month) | Gloucester; Beverly, Lawrence, Malden beside their Agenda Centers |
 | CivicPlus Agenda Center | done | Malden, Beverly, Lawrence; Lowell next |
 | CivicClerk | done | Manchester; Springfield, Medford, Burlington, Portland, South Kingstown |
 | DotNetNuke | done | Manchester |
 | Google Drive folders | done | Gloucester's School Committee |
 | Town website file list | done | Wallingford |
-| Finalsite district boards, with Google Docs | done (v1.22.0) | Wallingford's Board of Education |
+| Finalsite district boards, with Google Docs | done (v1.22.0; the district's schedule, v1.31.0) | Wallingford's Board of Education |
+| A district's iCalendar feed | done (v1.31.0) | Beverly's School Committee (Edlio) |
+| A page of a board's dates | done (v1.31.0) | Malden's School Committee (Finalsite) |
 | Rhode Island Open Meetings portal | not yet; about two days | every RI public body |
 | Govstack, older Drupal CivicPlus | not yet; about two days each | several surveyed cities |
 | Agenda Centers that need JavaScript | not yet | Framingham, Melrose |
@@ -991,6 +1012,66 @@ scans of 24 to 117 pages, some over the 100-page summary limit. No 311
 (SeeClickFix has 134 resident reports since 2016, none answered).
 
 ### For readers
+
+#### Meetings, complete and correct
+
+**Why.** The meetings are what most readers come for, so every one the city
+lists should be here, once, as the city lists it, and a listing that's wrong
+should say so rather than be copied.
+
+**Found.** The meetings audit (2026-10-02, by hand, every town against its
+city's own sites). Each live page matched its data, and no meeting was shown
+at the wrong date or as scheduled after being cancelled. But towns that read
+only an Agenda Center left out meetings the city lists before an agenda is
+posted (Beverly about 12, Lawrence's City Council three times); Gloucester's
+calendar feed reached two weeks ahead; Malden's Housing Authority posts each
+agenda twice; Lawrence posts revised agendas and cancellations as new
+postings; school boards were missing or stopped at the last post; a
+Manchester entry was left over from a board's old schedule, another linked a
+blank template as its agenda, another gave 3:30 AM; and Wallingford was
+called a city.
+
+**Done** (engine #52, publick.org #40, released as v1.31.0):
+- CivicPlus calendars read month by month, three months ahead
+  (`[meetings.civicplus]`), beside the Agenda Center where a town has one.
+- One meeting listed in several places shown as one (`pipeline/listings.py`):
+  the same board and day, at the same time, or one listing without a time and
+  the titles agreeing on the kind of meeting; the newest posting of each
+  source gives its status, a cancellation anywhere standing. `python -m
+  pipeline.listings` says what was put together and why.
+- Corrections (`[[meetings.corrections]]`): shown on the meeting's page with
+  the reason, the evidence and the date checked; a meeting that most likely
+  won't happen stays listed, marked "May not take place"; a correction comes
+  down when the city changes the listing. The first: Manchester's Arts
+  Commission on November 9.
+- Honest labels: "Agenda posted" only for a link to the meeting's own agenda;
+  a time in the night shown as unclear, with what the listing says; each
+  source named in the meetings page's footer.
+- "The town" for a town, in English and Spanish, from the Census Bureau's
+  word for the place (`pipeline/fetch_place.py`).
+- School boards: Wallingford's from its district's schedule, Beverly's from
+  its district's calendar feed, Malden's from its district's page of dates,
+  Gloucester's schedule read 75 days ahead.
+- The home page: up to six of the week's meetings in full (the main boards,
+  then what has a summary or a hearing, then the soonest), the rest a tap
+  away; three recent decisions; the sections as one row of links. Every
+  town's page is shorter on a phone than before the new meetings: Gloucester
+  5.8 to 4.3 screens, Wallingford 4.7 to 3.8.
+
+**Next.**
+- The first daily run's check, and an audit by hand about weekly while towns
+  are added (decided: it stays by hand).
+- Manchester's school board: its site stops automated reading, so ask the
+  district to allow Publick's crawler (see [Not planned](#not-planned)).
+- Manchester's Highway, Parks and Police commissions, whose dates are only
+  in earlier agendas and the police calendar: read the police calendar if
+  it's simple; otherwise leave them.
+- Beverly posts agendas early, so most of its week has summaries; if its home
+  page grows in a heavy week, the six-meeting rule already holds it.
+- Corrections in Spanish written by a person, not drafted, since they're
+  Publick's own statements (open: see [Open decisions](#open-decisions-for-the-maintainer)).
+
+**Matters at:** now.
 
 #### Who represents you
 
@@ -1293,7 +1374,7 @@ quiet days.
 | v1.28.0 | Monthly charts fit a phone |
 | v1.29.0 | Spanish at any number of towns: shared words once, machine drafts for the rest; every summary on the current prompt version |
 | v1.30.0 | The open redirect closed; the Spanish disclosed as machine-translated and checked without a person (names, outcomes, amounts, and a second model's review); a missing Spanish text never stops a build; releases once a day; a republished town's run record; light-only accessibility tests (2026-10-02) |
-| next | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50, merged 2026-10-02) |
+| v1.31.0 (2026-10-03) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second

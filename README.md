@@ -77,7 +77,8 @@ Releasing is automatic, once a day. Each morning at 08:20 UTC, before the networ
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
-  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page) -> data/meetings/
+  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page),
+                            a school district's calendar feed or page of dates -> data/meetings/
   listings.py               One meeting listed in more than one place (a calendar and an Agenda Center, a repost) shown as one;
                             `python -m pipeline.listings` lists the meetings put together, and why
   fetch_minutes.py          Daily: Archive Center minutes -> data/meetings/minutes/
