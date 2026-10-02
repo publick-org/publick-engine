@@ -1,6 +1,7 @@
 """Connecticut: school figures from EdSight's exports, and the schools page they fill."""
 
 import copy
+import re
 import json
 import shutil
 from datetime import datetime
@@ -141,6 +142,8 @@ def ct_site(tmp_path, data_dir, monkeypatch):
         shutil.rmtree(data / name, ignore_errors=True)
     config = wallingford()
     fetch_schools.run(config, FakeEdSight(), data, now=NOW)
+    # The Census Bureau names Wallingford a town (pipeline/fetch_place.py).
+    (data / "place.json").write_text('{"name": "Wallingford town", "lsad": "43", "kind": "town"}\n')
     monkeypatch.setattr(build_site, "load_config", lambda slug: config)
     out = tmp_path / "site"
     build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
@@ -159,3 +162,14 @@ def test_connecticut_schools_page(ct_site):
 
 def test_connecticut_links_resolve(ct_site):
     check_links(ct_site, sorted(ct_site.rglob("*.html")))
+
+
+def test_a_town_is_called_a_town(ct_site):
+    """The site's wording says "town" for a town (in Spanish too: tests/test_wording.py)."""
+    # The site's own wording; the test town's config text and its agendas' summaries, written
+    # about Gloucester, say "city" as they were written.
+    for page in ("about/index.html", "meetings/index.html"):
+        text = re.sub(r"<[^>]+>", " ", (ct_site / page).read_text())
+        assert not re.search(r"\bCity of\b|\bcity calendar\b|\bcity's\b|\bla ciudad\b|\bCiudad de\b", text), page
+    about = (ct_site / "about" / "index.html").read_text()
+    assert "the Town of Wallingford" in about

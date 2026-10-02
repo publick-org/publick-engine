@@ -120,7 +120,7 @@ def test_sources_pick_a_group(fake_steps):
     assert len(meetings) + len(only_311) == len(update.SOURCES)
     figures = [s["name"] for s in update.run("gloucester", sources="figures")["steps"]]
     assert figures == ["Fetch tax bill", "Fetch unemployment", "Fetch school figures", "Fetch budget figures",
-                       "Fetch housing figures", "Fetch building permits"]
+                       "Fetch housing figures", "Fetch place", "Fetch building permits"]
     assert set(figures) < {s["name"] for s in meetings}, "meetings is still everything but 311"
 
 

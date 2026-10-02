@@ -325,6 +325,7 @@ class FakeFinalsite:
     links only its agenda. Every Doc exports as a distinct PDF; `edits` gives a Doc other
     content, as editing it in place would, and `posts` replaces a post's body."""
     PAGE_URL = "https://www.wallingford.k12.ct.us/board-of-education/board-of-education-meetings"
+    SCHEDULE_URL = PAGE_URL + "/board-of-education-schedule-2024"
 
     def __init__(self, page: str | None = None, posts: dict | None = None, edits: dict | None = None):
         self.page = page or (FIXTURES / "finalsite_board.html").read_text(encoding="utf-8")
@@ -347,6 +348,8 @@ class FakeFinalsite:
         self.request_count += 1
         if url == self.PAGE_URL:
             return FakeResponse(self.page.encode())
+        if url == self.SCHEDULE_URL:
+            return FakeResponse((FIXTURES / "finalsite_schedule.html").read_bytes())
         if url.startswith("https://www.wallingford.k12.ct.us/fs/elements/23192?"):
             post_id = re.search(r"post_id=(\d+)", url).group(1)
             saved = FIXTURES / f"finalsite_post_{post_id}.html"

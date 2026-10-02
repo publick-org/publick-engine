@@ -6,16 +6,23 @@ bucket; see pipeline/documents.py). Changes the city
 makes after posting (new time, new place, revised agenda, cancellation) are
 recorded in each meeting's history so they stay visible.
 
-A town's calendars are the tables in [meetings]: a CivicPlus calendar feed
-(calendar_feed, which also saves agendas), a CivicPlus Agenda Center
+A town's calendars are the tables in [meetings]: a CivicPlus calendar, read
+month by month ([meetings.civicplus], which also saves agendas linked from
+its events) or from its feed (calendar_feed, which reaches only a week or two
+ahead), a CivicPlus Agenda Center
 ([meetings.agenda_center], which also saves agendas and lists minutes), a
 CivicClerk portal ([meetings.civicclerk], which also saves agendas), a
 DotNetNuke city calendar ([meetings.dnn], which also saves agendas linked as
 PDFs named for the meeting's date) and a town website with a meetings calendar
 and one documents page for every board's agendas and minutes
-([meetings.file_list], which also saves agendas and lists minutes). A town can
+([meetings.file_list], which also saves agendas and lists minutes), and a
+school district's calendar feed ([ical_meetings]: its board's meetings, as
+the district's own, without documents), and a page listing a board's dates
+for the year ([schedule_meetings]). A town can
 have several; Manchester's aldermanic meetings are on CivicClerk and its other
-boards on the city calendar.
+boards on the city calendar, and Malden lists its meetings on its calendar and
+posts their agendas in its Agenda Center. A meeting listed in more than one
+place is kept as one record for each, and shown as one (pipeline/listings.py).
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -37,7 +44,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.http import FetchError, PoliteClient
@@ -67,6 +74,20 @@ def normalize_body(body: str, aliases: dict) -> str:
     for name, alias in aliases.items():
         if body.lower() == name.lower():
             return alias
+    return body
+
+
+def known_body(body: str, known: dict, town: str) -> str:
+    """A board's name as already recorded, when this one is the same words written another
+    way ("Open Space and Recreation Committee" for "Open Space & Recreation Committee"), or
+    with the town's name before it ("Malden Cultural Council" for "Cultural Council"). known
+    maps words() of each recorded name to the name."""
+    w = words(body)
+    if w in known:
+        return known[w]
+    prefix = words(town)
+    if w.startswith(prefix) and " " + w[len(prefix):] in known:
+        return known[" " + w[len(prefix):]]
     return body
 
 
@@ -189,6 +210,39 @@ def civicplus_calendar(config: dict) -> Calendar:
         fetch_agenda(client, meeting, found, storage, stamp)
 
     return Calendar("city calendar", events, lambda m: m.get("source", "calendar") == "calendar" and not m["id"].startswith("dnn-"), details)
+
+
+def civicplus_list_calendar(config: dict) -> Calendar:
+    """A CivicPlus city calendar's list view ([meetings.civicplus]), month by month: this
+    month and months_ahead (default 2) more, one request each. Only the city's calendars
+    named in `calendars` are read ("City Meetings"), or all of them; include_pattern and
+    exclude_pattern pick the public meetings among their events. A town with an Agenda
+    Center gets its agendas there, so its event pages aren't read; another reads each
+    upcoming meeting's page for its online link and its agenda, as from the feed."""
+    source = config["meetings"]
+    settings = source["civicplus"]
+    base_url = settings.get("base_url", source.get("base_url"))
+    wanted = {c.lower() for c in settings.get("calendars", [])}
+    # The patterns can be given in [meetings], as for the feed.
+    rules = {k: settings.get(k, source.get(k)) for k in ("include_pattern", "exclude_pattern")}
+
+    def events(client, today, store):
+        month, found = today.replace(day=1), {}
+        for _ in range(settings.get("months_ahead", 2) + 1):
+            for e in civicplus.parse_list(client.get(civicplus.list_url(base_url, month)).text, base_url):
+                if (not wanted or e["calendar"].lower() in wanted) and matches(rules, e["raw_title"]):
+                    e.pop("calendar"), e.pop("calendar_id")
+                    found[e["id"]] = e
+            month = (month + timedelta(days=32)).replace(day=1)
+        return list(found.values())
+
+    def details(client, meeting, storage, stamp):
+        found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
+        merge(meeting, {k: found[k] for k in ("remote_url",) if found.get(k)}, stamp, track=True)
+        fetch_agenda(client, meeting, found, storage, stamp)
+
+    return Calendar("city calendar", events, lambda m: m.get("source", "calendar") == "calendar" and m["id"].isdigit(),
+                    None if "agenda_center" in source else details)
 
 
 def agenda_center_calendar(config: dict) -> Calendar:
@@ -323,11 +377,43 @@ def file_list_calendar(config: dict) -> Calendar:
     return Calendar("town website", events, lambda m: m.get("source") == filelist.SOURCE, details)
 
 
+def ical_calendar(config: dict) -> Calendar:
+    """A school district's (or another body's) calendar feed ([ical_meetings]): its meetings of
+    the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request."""
+    settings = config["ical_meetings"]
+
+    def events(client, today, store):
+        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        found = []
+        for event in ical.parse_events(client.get(settings["ical_url"]).text):
+            meeting = ical.to_meeting(event, settings["bodies"])
+            if meeting and settings["since"] <= meeting["date"] <= ahead:
+                found.append({**meeting, "source_url": meeting["source_url"] or settings["page_url"],
+                              "source_name": settings["source_name"]})
+        return found
+
+    return Calendar(settings["source_name"], events, lambda m: m.get("source") == ical.SOURCE)
+
+
+def schedule_calendar(config: dict) -> Calendar:
+    """A page listing a board's meeting dates for the year ([schedule_meetings]): its upcoming
+    dates, to days_ahead (default 60) days out, one request."""
+    settings = config["schedule_meetings"]
+
+    def events(client, today, store):
+        ahead = (today + timedelta(days=settings.get("days_ahead", 60))).isoformat()
+        return schedule.meetings(client.get(settings["url"]).text, settings, today.isoformat(), ahead)
+
+    return Calendar(f"{settings['source_name']} schedule", events, lambda m: m.get("source") == schedule.SOURCE)
+
+
 def calendars(config: dict) -> list[Calendar]:
     """The town's meeting calendars, by the tables in [meetings]."""
     source = config["meetings"]
     found = []
-    if "calendar_feed" in source:
+    if "civicplus" in source:
+        found.append(civicplus_list_calendar(config))
+    elif "calendar_feed" in source:
         found.append(civicplus_calendar(config))
     if "agenda_center" in source:
         found.append(agenda_center_calendar(config))
@@ -337,6 +423,10 @@ def calendars(config: dict) -> list[Calendar]:
         found.append(dnn_calendar(config))
     if "file_list" in source:
         found.append(file_list_calendar(config))
+    if "ical_meetings" in config:
+        found.append(ical_calendar(config))
+    if "schedule_meetings" in config:
+        found.append(schedule_calendar(config))
     return found
 
 
@@ -358,6 +448,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     errors, failed = [], []
     seen: dict[str, Calendar] = {}
     new_count = 0
+    # Each board's name as first recorded, so one listed in two places is one board.
+    known = {words(m["body"]): m["body"] for m in sorted(store.values(), key=lambda m: m.get("first_seen", ""), reverse=True)}
     for calendar in calendars(config):
         try:
             events = calendar.events(client, today, store)
@@ -369,7 +461,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         checked[calendar.name] = {"updated_at": stamp, "listed": len(events)}
         for event in events:
             seen[event["id"]] = calendar
-            event["body"] = normalize_body(event["body"], aliases)
+            event["body"] = known_body(normalize_body(event["body"], aliases), known, config["town"]["name"])
+            known.setdefault(words(event["body"]), event["body"])
             event.pop("raw_title", None)
             meeting = store.get(event["id"]) or adopt_drive_meeting(store, event)
             if meeting is None:

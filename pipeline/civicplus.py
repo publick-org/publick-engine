@@ -4,13 +4,19 @@ Gloucester posts each public meeting as a calendar event. The calendar RSS
 feed lists upcoming events; each event's page carries the start time,
 location, remote-attendance link, and a "Download Agenda" link into the
 city's Archive Center.
+
+The RSS feed lists a fixed number of events (Gloucester's 20, Beverly's 10),
+community events included, so it reaches only a week or two ahead. The
+calendar's list view (Calendar.aspx?CID=0&view=list&month=11&year=2026)
+lists every event in a month, under each of the city's calendars ("City
+Meetings", "Board of Health"), with its date, time, place and address.
 """
 
 from __future__ import annotations
 
 import html
 import re
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import urljoin
 
 import feedparser
@@ -47,10 +53,35 @@ def parse_title(title: str) -> dict:
     name = TIME_SUFFIX.sub("", TIME_PREFIX.sub("", name))
     name = re.sub(r"^[\s\-–:*]+|[\s\-–:*]+$", "", name)
     name = re.sub(r"\s{2,}", " ", name)
+    if name.isupper():
+        name = tidy_case(name)
     special = bool(re.search(r"\bspecial\b", name, re.I))
-    body = re.sub(r"\s+(special\s+)?meeting$", "", name, flags=re.I)
-    body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip()
+    # The board, without what the clerk added after it ("Planning Board - Public
+    # Hearing", "License Board Meeting - Agenda - October 1, 2026") or in brackets
+    # ("Community Preservation Committee (CPC)"), or the kind of meeting.
+    body = re.split(r"\s+[-–]+\s+", re.sub(r"\s*\([^)]*\)", "", name))[0]
+    body = re.sub(r"^regular\s+", "", body, flags=re.I)
+    body = re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$", "", body, flags=re.I)
+    body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip() or name
     return {"title": name, "body": body, "status": status, "special": special}
+
+
+SMALL_WORDS = {"a", "an", "and", "at", "for", "in", "of", "on", "or", "the", "to"}
+
+
+def tidy_case(name: str) -> str:
+    """'LAWRENCE SCHOOL COMMITTEE' -> 'Lawrence School Committee'. Short words other
+    than the small ones are taken for abbreviations ('ZBA', 'LHA') and kept."""
+    out = []
+    for i, word in enumerate(name.split(" ")):
+        low = word.lower()
+        if low in SMALL_WORDS and i:
+            out.append(low)
+        elif len(word.strip("[]()")) <= 3 and word.isupper():
+            out.append(word)
+        else:
+            out.append(word.capitalize())
+    return " ".join(out)
 
 
 def parse_time(value: str) -> str | None:
@@ -132,6 +163,75 @@ def parse_event_page(page: str, base_url: str) -> dict:
         details["remote_url"] = html.unescape(link.group(1))
 
     return details
+
+
+# ---- Calendar list view ----------------------------------------------------
+
+LIST_CALENDAR = re.compile(r'<div id="CID(\d+)" class="calendar">')
+LIST_EVENT = re.compile(r'<h3>\s*<a id="eventTitle_(\d+)"[^>]*>(.*?)</a>', re.S)
+LIST_DATE = re.compile(r'<div class="date">(.*?)</div>', re.S)
+LIST_PLACE = re.compile(r'itemprop="location"[^>]*>\s*<span itemprop="name">(.*?)</span>', re.S)
+LIST_NOTE = re.compile(r'<div class="name">\s*<(?:p|ul|div|strong)\b', re.S)
+ADDRESS_PART = re.compile(r'itemprop="(streetAddress|addressLocality|addressRegion|postalCode)">(.*?)</span>', re.S)
+
+
+def list_url(base_url: str, month: date) -> str:
+    """Every event of the month on every one of the city's calendars."""
+    return f"{base_url.rstrip('/')}/Calendar.aspx?CID=0&view=list&month={month.month}&year={month.year}"
+
+
+def list_address(fragment: str) -> str:
+    """'3 Pond Rd', 'Gloucester', 'MA', '01930' -> '3 Pond Rd, Gloucester, MA 01930'.
+    Only the town and state ('Beverly, MA') isn't an address."""
+    parts = {k: clean_text(v) for k, v in ADDRESS_PART.findall(fragment)}
+    if not parts.get("streetAddress"):
+        return ""
+    region = " ".join(p for p in (parts.get("addressRegion"), parts.get("postalCode")) if p)
+    return ", ".join(p for p in (parts.get("streetAddress"), parts.get("addressLocality"), region) if p)
+
+
+def parse_list(page: str, base_url: str) -> list[dict]:
+    """Every event in a month's list view, with the calendar it is on.
+
+    The date line reads 'November 12, 2026, 5:30 PM - 8:30 PM' or '..., All Day'.
+    The place is the event's facility, given in the page's hidden schema.org
+    data; where a city typed a note in the location box instead ("This event is
+    virtual..."), there is none, and the note isn't taken for a place."""
+    base = base_url.rstrip("/")
+    heads = list(LIST_CALENDAR.finditer(page))
+    events = []
+    for i, head in enumerate(heads):
+        section = page[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(page)]
+        title = re.search(r'<h2 class="title">(.*?)</h2>', section, re.S)
+        items = list(LIST_EVENT.finditer(section))
+        for j, item in enumerate(items):
+            chunk = section[item.end():items[j + 1].start() if j + 1 < len(items) else len(section)]
+            when = LIST_DATE.search(chunk)
+            parts = [p.strip() for p in clean_text(when.group(1)).split(",")] if when else []
+            try:
+                day = datetime.strptime(", ".join(parts[:2]), "%B %d, %Y").date()
+            except ValueError:
+                continue
+            times = ",".join(parts[2:])
+            start, end = (None, None) if re.search(r"all day", times, re.I) else parse_times(times.replace("\u2009", " "))
+            # A note typed in the location box (a paragraph of instructions) isn't a place.
+            place = None if LIST_NOTE.search(chunk) else LIST_PLACE.search(chunk)
+            location_name = clean_text(place.group(1)) if place else ""
+            event = {
+                "id": item.group(1),
+                "calendar_id": head.group(1),
+                "calendar": clean_text(title.group(1)) if title else "",
+                "source_url": f"{base}/Calendar.aspx?EID={item.group(1)}",
+                "raw_title": clean_text(item.group(2)),
+                "date": day.isoformat(),
+                "start_time": start,
+                "end_time": end,
+                "location_name": "" if location_name.lower() in PLACEHOLDER_LOCATIONS else location_name,
+                "address": list_address(chunk),
+            }
+            event.update(parse_title(item.group(2)))
+            events.append(event)
+    return events
 
 
 # ---- Archive Center -------------------------------------------------------

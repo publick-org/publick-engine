@@ -35,7 +35,10 @@ from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_S
 from pipeline.documents import open_documents
 from pipeline import freshness
 from pipeline import common_strings
+from pipeline import dnn
 from pipeline import factcheck
+from pipeline import listings
+from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
@@ -348,8 +351,26 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
-            "finalsite": N_("school district's website")}
+            "finalsite": N_("school district's website"), "ical": N_("school district's website"),
+            "schedule": N_("published schedule")}
 CALENDAR = N_("city calendar")
+
+
+# Start times a listing can give that are most likely typos (3:30 AM for 3:30 PM).
+LIKELY_TIMES = ("06:00", "23:00")
+
+
+def check_listing(m: dict) -> None:
+    """What a city calendar's listing says that isn't what it seems, set aside to be said openly:
+    a start time in the middle of the night (m["listed_time"], shown as a note instead), and a
+    link that isn't the meeting's own agenda (a board's page of documents, a file for the whole
+    year) but was given as one (m["board_documents_url"])."""
+    m["listed_time"] = None
+    if m["start_time"] and not LIKELY_TIMES[0] <= m["start_time"] <= LIKELY_TIMES[1]:
+        m["listed_time"], m["start_time"], m["end_time"] = m["start_time"], None, None
+    m["board_documents_url"] = None
+    if m["id"].startswith("dnn-") and m.get("documents_url") and not dnn.names_day(m["documents_url"], m["date"]):
+        m["board_documents_url"], m["documents_url"] = m["documents_url"], None
 
 
 def from_agenda(m: dict) -> None:
@@ -383,16 +404,51 @@ def english_attr(record: dict | None) -> Markup:
     return Markup(' lang="en"') if record and record.get("english") else Markup("")
 
 
-def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None) -> dict:
+def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str]:
+    """Publick's corrections to the city's own listings ([[meetings.corrections]]), each
+    shown on its meeting's page with the reason and the evidence: a meeting that most likely
+    won't take place (doubtful), or the right start time (start_time). A meeting stays where
+    it is, marked. A correction is checked against the listing as it was on its `checked`
+    date: once the city changes the listing, or no longer lists the meeting, it isn't shown,
+    and the problems found are returned for the build to report."""
+    problems = []
+    for c in corrections:
+        found = [m for m in meetings
+                 if c.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
+                 or (m["date"] == c.get("date") and words(m["body"]) == words(c.get("board", "")))]
+        what = f"{c.get('board', c.get('meeting'))} {c.get('date', '')}".strip()
+        if len(found) != 1:
+            problems.append(f"Correction for {what}: {len(found)} meetings match it, so it isn't shown.")
+            continue
+        m = found[0]
+        changed = [h for h in m["history"] if h["at"][:10] > str(c["checked"])]
+        if changed:
+            problems.append(f"Correction for {what}: the city changed the listing ({changed[-1]['field']}) after it "
+                            f"was checked on {c['checked']}, so it isn't shown. Check it again.")
+            continue
+        if not m["listed"]:
+            continue
+        m["correction"] = {"note": c["note"], "evidence": c.get("evidence"), "checked": str(c["checked"]),
+                           "doubtful": bool(c.get("doubtful")), "start_time": c.get("start_time")}
+        if c.get("start_time"):
+            m["listed_time"] = m["listed_time"] or m["start_time"]
+            m["start_time"] = c["start_time"]
+    return problems
+
+
+def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
+                  corrections: list[dict] | None = None) -> dict:
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     status_path = data_dir / "meetings" / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else None
 
+    # A meeting the city lists in more than one place is shown as one (pipeline/listings.py).
+    store, _moved = listings.combined(store, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)))
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
-                    source="calendar", source_url=None)
+                    source="calendar", source_url=None, correction=None)
     for m in meetings:
         for key, default in optional.items():
             m.setdefault(key, default)
@@ -400,6 +456,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
         m["listing"] = _(LISTINGS.get(m["source"], CALENDAR))
         m["url"] = f"/meetings/{m['slug']}/"
+        # The pages of its other listings, already published, show it too.
+        m["also_urls"] = [f"/meetings/{x['slug']}/" for x in m.get("listings", []) if x["id"] != m["id"]]
+        for x in m.get("listings", []):
+            x["listing"] = _(LISTINGS.get(x["source"], CALENDAR))
         # The board's name as the city writes it; m["body"] is the one shown, translated for another language.
         m["body_en"] = m["body"]
         m["body_slug"] = slugify(m["body"])
@@ -408,6 +468,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # The latest saved summary is shown, even one from an older prompt or
         # model; the next summarize run replaces those.
         m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], summary_model, "agenda", current=False) if m["agenda"] and summary_model else None
+        check_listing(m)
         from_agenda(m)
         m.setdefault("minutes", [])
         m["minutes_doc"] = m["minutes"][-1] if m["minutes"] else None
@@ -438,6 +499,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
         m["preview_line"] = preview_line(m)
         m["glossary"] = glossary_for(english, glossary or [])
+
+    for problem in apply_corrections(meetings, corrections or []):
+        if i18n.language() == "en":
+            print(f"::warning::{problem}")
 
     # A board that meets more than once in a day (a hearing, then its regular
     # meeting) needs each meeting told apart in page titles and lists: by start
@@ -484,6 +549,36 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     }
 
 
+# School boards, by their usual names: a town's main boards with its governing body.
+SCHOOL_BOARDS = ("School Committee", "Board of Education")
+
+
+def main_boards(config: dict) -> list[str]:
+    """The boards whose meetings the home page always shows in full: the governing body (the
+    City Council), the school board, and any others in [meetings] main_boards."""
+    m = config.get("meetings", {})
+    return [m.get("governing_body", "City Council"), *SCHOOL_BOARDS, *m.get("main_boards", [])]
+
+
+# Meetings the home page shows in full, at most: the same shape in a quiet week and a busy one.
+HOME_FULL = 6
+
+
+def home_meetings(this_week: list[dict], main: list[str]) -> dict:
+    """This week's meetings for the home page. Up to HOME_FULL in full, chosen in this order:
+    the main boards' (main_boards), then those with something to read now (an agenda summary,
+    a public hearing), then the soonest of the rest; shown in date order. The rest are one line
+    each, a tap away, with a cancelled meeting last (it never takes a place in full); one left
+    over isn't worth a tap, so it's shown with the others."""
+    main_words = {words(b) for b in main}
+    live = [m for m in this_week if m["status"] != "cancelled"]
+    rank = lambda m: (0 if words(m["body_en"]) in main_words else 1 if m["preview"] or m["public_hearing"] else 2)
+    chosen = {id(m) for m in sorted(live, key=rank)[:HOME_FULL]}
+    full = [m for m in this_week if id(m) in chosen]
+    more = [m for m in live if id(m) not in chosen] + [m for m in this_week if m["status"] == "cancelled"]
+    return {"count": len(this_week), "full": full, "more": more, "hidden": len(more) > 1}
+
+
 def meeting_links(config: dict) -> dict:
     """The city's own meeting pages, linked from this site's, and whether the
     town collects agendas and minutes ([meetings] documents, default true). The
@@ -498,6 +593,15 @@ def meeting_links(config: dict) -> dict:
         "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
         "governing_body": m.get("governing_body", "City Council"),
         "documents": m.get("documents", True),
+        # Where the meetings are listed, for "From the city calendar": a calendar of every meeting,
+        # an Agenda Center (each meeting once its agenda is posted), and a school district's website.
+        "has_calendar": any(k in m for k in ("calendar_feed", "civicplus", "dnn", "file_list")),
+        "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
+        "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
+        "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
+                    for t in ("drive_meetings", "finalsite_meetings", "ical_meetings") if t in config]
+                   + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
+                      if "schedule_meetings" in config else []),
     }
 
 
@@ -738,14 +842,24 @@ class TownStrings:
         return name if translated == name else f"{translated} ({name})"
 
 
+def town_kind(config: dict, data_dir: Path) -> str:
+    """Whether the site is a city's or a town's, for its wording (pipeline/i18n.py): [town] kind,
+    or the Census Bureau's word for the place (data/place.json), or a city."""
+    if config["town"].get("kind"):
+        return config["town"]["kind"]
+    path = data_dir / "place.json"
+    return json.loads(path.read_text(encoding="utf-8")).get("kind", "city") if path.exists() else "city"
+
+
 def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) -> dict:
     """A town's texts that a build in this language would show in English, found without building:
     {"config": the config's own text, "data": names from the city's data}. The same steps as
     build_language() (a test keeps them so), for the run to draft them before the build."""
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
-    with i18n.use(lang):
+    with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
-        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
+                             config.get("meetings", {}).get("corrections", []))
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -788,6 +902,8 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         meetings["archive_name"] = tr(meetings["archive_name"])
     if "governing_body" in meetings:
         meetings["governing_body"] = tr.board(meetings["governing_body"])
+    for correction in meetings.get("corrections", []):
+        correction["note"] = tr(correction["note"])
     return config
 
 
@@ -849,7 +965,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     urls = []
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
-        with i18n.use(lang):
+        with i18n.use(lang, town_kind(config, data_dir)):
             urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
@@ -865,6 +981,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # Where this language's pages are: "" for English, "/es" for Spanish.
     prefix = "" if lang == "en" else f"/{lang}"
     english = lang == "en"
+    # The town's main boards, in English, for the home page (before the config is translated).
+    main = main_boards(config)
     if not english:
         config = localize_config(config, tr)
         site = config["site"]
@@ -876,11 +994,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
-    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
+                             config.get("meetings", {}).get("corrections", []))
     for m in meetings["all"]:
         m["body"] = tr.board(m["body"])
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
+    meetings["home"] = home_meetings(meetings["this_week"], main)
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
@@ -948,7 +1068,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
     # A label saved in a state's data in English (a budget function, a type of parcel), as shown.
-    env.globals["data_label"] = i18n.gettext
+    env.globals["data_label"] = i18n.label
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
     css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
     def versioned(path: str) -> str:
@@ -1007,8 +1127,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
 
-    def render(template: str, url: str, **context) -> None:
-        """Render a page. url is its English address (/meetings/); another language's is under its prefix."""
+    def render(template: str, url: str, canonical: str | None = None, **context) -> None:
+        """Render a page. url is its English address (/meetings/); another language's is under its prefix.
+        A page that shows another's content (canonical, its address) is kept out of the sitemap."""
         section_slug = url.strip("/").split("/")[0] or None
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
@@ -1017,7 +1138,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
-            **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + url,
+            **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )
         html = mark_new_tab_links(html, own_hosts)
@@ -1028,7 +1150,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             dest = dest / "index.html"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
-        if url not in UNLISTED_PAGES:
+        if url not in UNLISTED_PAGES and not canonical:
             urls.append(prefix + url)
 
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
@@ -1042,6 +1164,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     if "meetings" in config:
         for m in meetings["all"]:
             render("meeting.html", m["url"], meeting=m)
+            # The address of a listing shown as part of another meeting sends readers there.
+            for n, also in enumerate(m["also_urls"], 1):
+                render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
         for b in meetings["boards"]:
             render("board.html", b["url"], board=b)
     if documents and english:

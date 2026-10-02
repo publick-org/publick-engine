@@ -12,9 +12,11 @@
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
 {%- if m.status != "scheduled" %}{% set __ = parts.append({"cancelled": pgettext("meeting", "Cancelled"), "postponed": pgettext("meeting", "Postponed"), "rescheduled": pgettext("meeting", "Rescheduled")}.get(m.status, m.status | capitalize)) %}{% endif -%}
+{#- A meeting Publick has found the city's listing of is most likely wrong ([[meetings.corrections]]). -#}
+{%- if (m.get("correction") or {}).get("doubtful") and m.listed and m.status == "scheduled" %}{% set __ = parts.append(pgettext("meeting", "May not take place")) %}{% endif -%}
 {%- if not m.listed %}
 {#- Translators: %(source)s is who keeps the schedule, such as a school district's name. -#}
-{%- if m.get("source") == "drive" %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
+{%- if m.get("source") in ("drive", "schedule") %}{% set __ = parts.append(_("Removed from the %(source)s schedule", source=m.source_name)) %}
 {#- Translators: %(listing)s is where the city lists meetings, such as "city's meeting portal". -#}
 {%- else %}{% set __ = parts.append(_("Removed from %(listing)s", listing=m.get("listing", "city calendar"))) %}{% endif %}{% endif -%}
 {%- for p in parts %}<span class="flag">{{ p }}</span>{% if not loop.last %} · {% endif %}{% endfor -%}
@@ -73,9 +75,11 @@
 {%- endmacro %}
 
 {# One meeting as a row: time (or date), name, preview, and plain status words. #}
-{% macro meeting_item(m, show_date=false, show_body=true, preview=true) -%}
+{# show_day: the day above the time, for a list not grouped by day (the home page's). #}
+{% macro meeting_item(m, show_date=false, show_body=true, preview=true, show_day=false) -%}
 <li class="meeting-item">
   <span class="meeting-when">
+    {%- if show_day %}<span class="meeting-day"><time datetime="{{ m.date }}">{{ m.date | date("short") }}</time></span>{% endif -%}
     {%- if show_date %}<time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time>
     {%- elif m.start_time %}<time datetime="{{ m.date }}T{{ m.start_time }}">{{ m.start_time | time }}</time>
     {%- else %}<span class="small">{{ _("Time TBA") }}</span>{% endif -%}
