@@ -8,7 +8,8 @@ repositories to create, schedule, pin, and watch.
 **Decision, now done: towns live in one repository.** Publick runs the towns
 itself, so there is no need for each town to have a repository of its own. The
 network repository, [publick-org/publick.org](https://github.com/publick-org/publick.org),
-holds every town's config and data (Gloucester, Malden, Manchester, and Beverly so far),
+holds every town's config and data (Gloucester, Malden, Manchester, Beverly,
+Wallingford, and Lawrence so far),
 one workflow runs them, and Cloudflare serves every site. The engine stays its
 own repository with its own tests and releases, and a single-town repository
 calling `town.yml` keeps working, so a town that wants to run its own site
@@ -587,11 +588,12 @@ elections in November of odd years (next 2027-11-02). What it uses:
 town websites, 2026-10-01),** chosen for the people they reach and how little
 local coverage they have, not only for ease. Salem and Medford were already in
 the works and are left out.
-1. **Lawrence** (about 89,000 people). Most residents are Hispanic, and many
-   read Spanish first, so it launches with the site in Spanish (item 14); the
-   Spanish is checked by a person after launch (decided 2026-10-02). Its meetings are config only: an Agenda
-   Center with the City Council and School Committee, and minutes with a text
-   layer. The council's minutes are posted late (5 for 2026 by October).
+1. **Lawrence** (about 89,000 people). *Live, 2026-10-02.* Most residents are
+   Hispanic, and many read Spanish first, so it launched with the site in
+   Spanish too (item 14); the Spanish is checked by a person after launch.
+   Its meetings are config only: an Agenda Center with the City Council and
+   School Committee, and minutes with a text layer. The council's minutes are
+   posted late (5 for 2026 by October).
 2. **Lowell** (about 115,000, the state's fourth-largest city). Config only:
    the City Council (30 agendas and 28 minutes in 2026) and School Committee
    (23 and 20) in one Agenda Center, minutes with a text layer. Councillors
@@ -783,7 +785,7 @@ Linking each meeting's recording from its page is simple and can come first.
 
 ## 14. Sites in Spanish
 
-**What it's for.** In Lawrence, the next town (item 10), most residents are
+**What it's for.** In Lawrence (item 10), most residents are
 Hispanic and many read Spanish first; an English-only site leaves out much of
 the city. Springfield, Holyoke, Chelsea, and Lynn have large Spanish-speaking
 populations too, so this is an engine feature any town turns on, not
@@ -833,13 +835,18 @@ something built for one town.
 - Search covers the Spanish summaries, and the site checks run on both
   languages.
 
-**Where it stands (2026-10-02).** Built in the engine, on the branch
-`claude/lawrence-spanish-feature-ke6612`, not yet released: the wording marked
-and English pages unchanged across the network's towns; the Spanish pages
-under `/es/`; the Spanish of all of the engine's strings, written to
-`site/strings/es-guide.md` and checked for consistency, waiting for a person's
-check; summaries translated by Haiku and checked without AI; the Worker's
-language choice and Spanish 404 page.
+**Done (engine v1.23.0, 2026-10-02).** The wording marked, with English
+pages unchanged across the network's towns; the Spanish pages under `/es/`;
+the Spanish of all of the engine's strings, written to
+`site/strings/es-guide.md` and checked for consistency; summaries translated
+by Haiku and checked without AI; the Worker's language choice and Spanish 404
+page. Lawrence went live in both languages the same day.
+
+**Still to do.**
+- A person who reads Spanish checks it (below).
+- A `reviewed` flag on each translation, once a person checks them, so a
+  regenerated English summary can't replace a checked Spanish one without
+  notice (later, with the October review's other items in Stages).
 
 **Lawrence's launch (decided 2026-10-02).** Lawrence launches in both
 languages now, with the Spanish checked after launch rather than before: a
@@ -854,7 +861,7 @@ Fixes go out with the next release.
 costs more than input, and the Spanish is about as long as the English); with
 Haiku that's well under what a summary costs.
 
-**Matters at:** Lawrence, the next town.
+**Matters at:** now, for Lawrence; Springfield next.
 
 ## Others' use of the data
 
@@ -875,7 +882,8 @@ civic groups, and apps. Publick wants credit when they're reused.
   minutes, with links to the meeting and the minutes), `/feed.xml`,
   `/meetings/search-index.json`, and its permits and 311 tables as CSV.
 - The network repository has no license for its data, so reuse is unclear.
-  The engine's code is MIT.
+  The engine's code is MIT, and stays MIT (decided 2026-10-02: a change to
+  the AGPL was considered and dropped).
 
 **The license (decided 2026-10-01): CC BY 4.0** for what Publick makes: the
 summaries, headlines, decision lists, and the data compiled from public
@@ -930,20 +938,24 @@ several wards (v1.15.0); summaries without retyped documents, and full text
 where it's free (item 4, v1.16.0); vote records collected, not shown
 (item 12, v1.17.0); minutes for Agenda Center and CivicClerk towns again, and
 summaries of up to 100 pages (v1.17.1); Beverly, the first town added from
-scratch (item 10); and the homepage by state, with a page for each state
-once it has 10 towns, its counts from each town's run record (v1.18.0).
+scratch (item 10); the homepage by state, with a page for each state
+once it has 10 towns, its counts from each town's run record (v1.18.0);
+sites in Spanish (item 14, v1.23.0); and Lawrence, live in English and
+Spanish, with the "In the works" list taken off the publick.org homepage
+(2026-10-02).
 
 **Stage 1: now, to about 20 towns.** Everything here is needed at a thousand
-towns too. Next, in this order (as of 2026-10-01):
+towns too. Next, in this order (as of 2026-10-02):
 
 1. Check the daily run of 2026-10-02, the first with v1.17.1 everywhere:
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-2. Take the "In the works" list off the publick.org homepage
-   (`home/upcoming.toml` and the section `scripts/build_home.py` writes from
-   it) in the network repository. The towns on it are still planned; the
-   homepage just stops naming towns before they're live.
+2. A person who reads Spanish checks Lawrence's Spanish (item 14): the
+   engine's strings, Lawrence's `[strings.es]`, and a sample of translated
+   summaries. Also to confirm in Lawrence's config: the School Committee's
+   elected and appointed members, the mayor's term, and the officers' titles
+   in Spanish.
 3. Wallingford, the first Connecticut town (item 10), live on what the
    engine can read, then the rest:
    1. A reader for the town's website: the documents page and the meetings
@@ -959,29 +971,27 @@ towns too. Next, in this order (as of 2026-10-01):
       then the Appeals List.
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
-4. Sites in Spanish (item 14), then Lawrence (item 10), launched in both
-   languages; a person who reads Spanish checks it after launch.
-5. Lowell: config only (item 10).
-6. Springfield, after Medford, the first Massachusetts town on CivicClerk:
+4. Lowell: config only (item 10).
+5. Springfield, after Medford, the first Massachusetts town on CivicClerk:
    its meetings sorted into boards, and Spanish turned on (items 10 and 14).
-7. A town each in Maine, Vermont, and Rhode Island, chosen from the
+6. A town each in Maine, Vermont, and Rhode Island, chosen from the
    candidates in item 10, preferring towns on software the engine reads.
-8. Open data (item 15): the CC BY 4.0 license and the credit line now, then
+7. Open data (item 15): the CC BY 4.0 license and the credit line now, then
    each town's `/data/meetings.json` export and a Data page.
-9. A reader for the next meeting platform the network needs (item 10).
-10. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
-    statewide PDF every Massachusetts town downloads whole today) and DESE's
-    school figures (its data portal answers statewide queries), into
-    `states/ma/` as the DLS reports are.
-11. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+8. A reader for the next meeting platform the network needs (item 10).
+9. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+   statewide PDF every Massachusetts town downloads whole today) and DESE's
+   school figures (its data portal answers statewide queries), into
+   `states/ma/` as the DLS reports are.
+10. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
     request) and the Census's permits and estimates, once for the country.
-12. Adding a town from scratch (item 10): the helper.
-13. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+11. Adding a town from scratch (item 10): the helper.
+12. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
     it), and renew the scheduler's GitHub token before it expires (about
     2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
     back to GitHub's own schedule, and the "network stopped" check can't open
     its issue.
-14. Towns queued separately (item 8), only if replaced runs turn out to delay
+13. Towns queued separately (item 8), only if replaced runs turn out to delay
     towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
@@ -1003,3 +1013,57 @@ towns too. Next, in this order (as of 2026-10-01):
    (item 4).
 4. A status page with search and filters, and a daily digest instead of an
    alert (item 3).
+
+**Later, not now (decided 2026-10-02).** Kept here so they aren't lost, and
+not scheduled. Each comes into a stage when it's chosen.
+
+*A weekly digest for readers.* Build it in this order, stopping when a step
+is enough: an `.ics` meetings calendar; a static `/digest/<week>/` page with
+its own weekly feed (upcoming meetings, and decisions from minutes posted that
+week; no AI calls); then email sent from that feed by a provider such as
+Buttondown. Build sending into the engine only if that falls short. Wait until
+the daily runs are stable and there's evidence people want email. Skip or flag
+sections whose data is stale.
+
+*The October 2026 review.* An outside review (2026-10-02) read both
+repositories and the live sites; its plan was written up on the branch
+`claude/quirky-newton-jsqvn0` (`REVIEW-PLAN.md`). Its decision on Spanish
+(only the homepage follows the browser's language) is made and built (item
+14); Lawrence launched before the rest, by choice. The rest, in its order:
+- *Decisions for the maintainer.* A decision that fails the checks below:
+  hidden, or shown marked "not checked against the minutes". 311 addresses
+  already in git history: rewritten once, or coarsened from now on only. No
+  sponsor until the data's license is per file. The order of the next towns.
+  The $50 budget, with backlog summaries through the Batches API. A second
+  person with owner access to GitHub, Cloudflare, and Anthropic.
+- *What readers see.* An "AI summary" marker wherever a headline is shown,
+  the RSS feed included. Each decision anchored to a quote from the minutes,
+  checked without AI (the quote is in the document; its numbers and names
+  are in the quote), with an `outcome` field (approved, denied, tabled,
+  referred) so a dropped "not" is caught. The minutes and agenda prompts'
+  version bumped, so the 250 summaries made by the previous prompt
+  regenerate, and a test that fails when a prompt changes without its
+  version. The document's own date and "draft" marking read from it. A
+  by-hand check of the prompt on about 15 documents with known decisions.
+- *Failures that look like success.* SeeClickFix 403s stop the 311 step
+  instead of marking records removed; a calendar that had meetings and now
+  has none fails its check; the 311 page's date is its last fetch. A comment
+  on the daily alert for each town newly behind, since edits send no email.
+- *License, privacy, security.* The network's per-file license (item 15),
+  and SeeClickFix's terms saved as read. 311 addresses cut to the block for
+  sensitive categories. Each key given only to the steps that need it, no
+  secrets on pull request runs, security headers from the Worker, actions
+  pinned by SHA, Dependabot, branch and tag protection. A `RUNBOOK.md` in the
+  network repository.
+- *Before the next 311 town.* 311's raw requests in R2 (item 1, sooner for
+  311); one SeeClickFix job paced across towns (item 2); each town's data
+  committed when it finishes, so a timeout loses nothing; the matrix's
+  256-job limit checked in `plan()`; backlog summaries through the Batches
+  API, with a floor per town (item 4).
+- *Smaller.* A table for every chart, and scrollable tables reachable by
+  keyboard; each town's next election date, with the status page flagging an
+  officials list not checked since (item 11); config keys only one town uses
+  folded into their readers; a monthly page-view report from GoatCounter.
+- *Spanish, after launch.* The `reviewed` flag and a monthly sample checked
+  by a person (item 14). Lawrence's council posts minutes late, so its
+  decisions are thin; the page should say so.
