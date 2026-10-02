@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reorganized 2026-10-02, at six towns on engine v1.29.0.
+Last reorganized 2026-10-02, at six towns on engine v1.30.0.
 
 This file has four parts:
 
@@ -104,37 +104,25 @@ Order within a group is the order to do them in.
 
 ### Now: this week
 
-Built on 2026-10-02 and waiting to be merged: publick-engine and publick.org
-pull requests from `claude/exciting-allen-cy6caj`. What they do is under each
-theme below (marked *Built 2026-10-02*). What's left:
+Done on 2026-10-02: the open redirect closed (Worker deployed), the Spanish
+disclosed and checked without a person, releases and engine moves once a day
+and by themselves, the status page right after a push, the rulesets on both
+repositories, `ENGINE_PR_TOKEN`, $80 for October, Lawrence's catch-up run, and
+summaries checked against their documents (engine v1.30.0 and pull request
+#50). What's left:
 
-1. **Merge the engine pull request, release it, and deploy the sites Worker**
-   (Actions → Release → Run workflow, then move `engine-version`, then
-   Actions → Worker). The open redirect stays live until the Worker is
-   deployed. ([Security and privacy](#security-and-privacy))
-2. **Merge the publick.org pull request**: the daily engine pull request, one
-   backup schedule, push runs that record publishing, and $80 for October.
-3. **Settings only the owner can change** (decided 2026-10-02):
-   - Engine repository: a ruleset on `main` requiring a pull request and the
-     `test` check. No required reviews: one person can't approve their own.
-     Protect the `v*.*.*` tags from being changed or deleted, but not `v1`,
-     which the release moves.
-   - Network repository: a ruleset on `main` that only blocks force-pushes
-     and deletion. Requiring pull requests or checks there would stop the
-     daily runs, which commit each town's data straight to `main`; full
-     protection waits until the data moves out of git
-     ([Data out of git](#data-out-of-git)).
-   - `ENGINE_PR_TOKEN` in publick.org (README), so the daily engine pull
-     request's checks start by themselves.
-   ([Releases](#releases))
-4. **A one-time `catch_up` run for Lawrence**, so its older agendas don't wait
-   all month on a $0.17-a-run backlog allowance. ([AI costs](#ai-summary-and-translation-costs))
-5. **Check the first daily runs on the new engine**: Malden's roll calls
-   collected, Manchester's long minutes summarized, Beverly's scans
-   transcribed, every translation made again on prompt 3 and reviewed (about
-   450 summaries at under a cent each, so about $4 for the network), and how
-   many fail the checks.
-   ([Spanish quality](#spanish-quality))
+1. **Watch the first automatic engine move** (2026-10-03, 08:20 and 08:40
+   UTC): #50 released, the pull request opened, every town checked, merged,
+   and published without anyone. ([Releases](#releases))
+2. **Check the first daily runs on the new engine**: every translation made
+   again on prompt 3 and reviewed (about 450 summaries, about $4), how many
+   fail the checks, and every summary's fact check recorded (60 documents a
+   run, so about two days). ([Spanish quality](#spanish-quality),
+   [Summary checks](#summary-checks))
+3. **Read two summaries by hand**, whose facts are on scanned pages the check
+   can't read: a Beverly City Council decision dated "January 20, 2025, at
+   7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000 and $3,100
+   aren't in the model's transcription. ([Summary checks](#summary-checks))
 
 ### Next: October, before the next town
 
@@ -345,7 +333,7 @@ current version (agenda v4, minutes v2). The minutes prompt no longer has the
 model retype the document. Summaries' decisions record who moved and
 seconded.
 
-*Built 2026-10-02 (pull request #50; decided the same day):* `pipeline/factcheck.py`
+*Done 2026-10-02 (pull request #50, released with the next morning's release; decided the same day):* `pipeline/factcheck.py`
 checks every number, amount, date, name, vote count, and reference number in
 a summary, its headline, and each decision or agenda item against the PDF's
 own text, without AI, and saves the result in the summary's record. What the
@@ -464,7 +452,7 @@ realistic, so the sites say plainly that the Spanish is machine-translated,
 always link the English, and two checks stand in for a person, failing to
 English rather than showing a doubtful translation.
 
-*Built 2026-10-02 (engine pull request, not yet released):*
+*Done 2026-10-02 (engine v1.30.0):*
 - Disclosure: a translated summary's credit says "Traducido automáticamente
   con IA del resumen en inglés; puede tener errores" and links the English;
   every Spanish page's footer says the page was translated with AI and links
@@ -595,7 +583,7 @@ are behind and why, without flooding the inbox, and to say so truthfully.
 - The scheduler Worker (`worker/scheduler.js`) opens, and later closes, a
   "network stopped" issue when no daily run has finished for 30 hours.
 
-**Found 2026-10-02, and built the same day (not yet merged).** The status
+**Found 2026-10-02, and fixed the same day (v1.30.0).** The status
 page and the alert were wrong for most of a day. The 09:06Z daily run failed "Check site" for Gloucester, Malden, and
 Manchester (`/311/` scrolled sideways by 1px on a phone once charts had a
 25th month). v1.28.0 fixed it and push runs republished all three, but a
@@ -685,29 +673,29 @@ site, and two sample towns (`tests/test_sample_towns.py`): Manchester
 (CivicClerk and DotNetNuke) and Malden (Agenda Center), through the real
 fetchers from saved pages, each with the page, link, and browser checks.
 
-*Built 2026-10-02 (pull requests in both repositories, not yet merged):*
+*Done 2026-10-02 (engine v1.30.0, publick.org #38):*
 - The engine releases once a day (08:20 UTC), not on every merge: the newest
   tested commit on `main`, with everything merged since, at the largest bump
   its pull requests' labels ask for. **Actions → Release → Run workflow**
   releases now, for an urgent fix. A Markdown-only pull request is left out
   without a label.
-- The network moves `engine-version` once a day by a pull request
-  (publick.org's `engine.yml`, 08:40 UTC), whose run checks every page of
-  every town; merging it publishes them. The network doesn't follow the `v1`
+- The network moves `engine-version` once a day by itself (publick.org's
+  `engine.yml`, 08:40 UTC, decided 2026-10-02): it opens a pull request, waits
+  for its run to check every page of every town, and merges it if every town
+  passes; the merge publishes them. If one fails, nothing moves and the
+  workflow's failure emails the owner. The network doesn't follow the `v1`
   tag: the pinned version is what rolls back, and its pull request is what
   checks a release.
+- Rulesets (decided 2026-10-02, set the same day): the engine's `main`
+  requires a pull request and the `test` check, and its `v*.*.*` tags can't be
+  changed or deleted; the network's `main` blocks force-pushes and deletion.
+  Engine pull requests are merged by a person: the one human look before code
+  reaches every town.
 - Accessibility tests in light only, until the sites have dark styles.
 - One GitHub backup schedule; the statewide status written only when a
   source was fetched or something changed.
 
 **Next.**
-- Branch protection (decided 2026-10-02; settings the owner changes): the
-  engine's `main` requires a pull request and the `test` check, and its
-  `v*.*.*` tags can't be changed or deleted (`v1` can, since the release
-  moves it). The network's `main` only blocks force-pushes and deletion:
-  its daily runs commit data straight to `main`, so requiring pull requests
-  or checks there waits until the data leaves git. Required reviews wait for
-  [Who can change what](#who-can-change-what).
 - A push builds and checks the towns it touched but doesn't publish them, so
   it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
   that's too slow, towns queued separately lets a push wait only for its
@@ -1213,7 +1201,7 @@ releases.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs (v1.29.0)
+  engine-version              the engine release every town runs (v1.30.0)
   ADDING-A-TOWN.md            the checklist for a new town
   towns/<town>-<state>/
     config/<town>.toml
@@ -1304,6 +1292,8 @@ quiet days.
 | v1.27.0 | Every town in Spanish |
 | v1.28.0 | Monthly charts fit a phone |
 | v1.29.0 | Spanish at any number of towns: shared words once, machine drafts for the rest; every summary on the current prompt version |
+| v1.30.0 | The open redirect closed; the Spanish disclosed as machine-translated and checked without a person (names, outcomes, amounts, and a second model's review); a missing Spanish text never stops a build; releases once a day; a republished town's run record; light-only accessibility tests (2026-10-02) |
+| next | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50, merged 2026-10-02) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second
