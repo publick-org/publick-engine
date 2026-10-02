@@ -4671,39 +4671,6 @@ msgstr ""
 msgid "The city"
 msgstr "La ciudad"
 
-#: site/templates/moved.html
-#, python-format
-msgid ""
-"The city listed this meeting more than once. It is now shown on one page: <a "
-"href=\"%(url)s\">%(title)s, %(when)s</a>."
-msgstr ""
-"La ciudad publicó esta reunión más de una vez. Ahora se muestra en una sola página: <a "
-"href=\"%(url)s\">%(title)s, %(when)s</a>."
-
-#: site/templates/meeting.html
-msgid ""
-"The city lists this meeting in more than one place: the same board on the same day, and only one "
-"listing gives a time. They are shown here as one meeting."
-msgstr ""
-"La ciudad publica esta reunión en más de un lugar: la misma junta, el mismo día, y solo una de "
-"las publicaciones da la hora. Aquí se muestran como una sola reunión."
-
-#: site/templates/meeting.html
-msgid ""
-"The city lists this meeting in more than one place: the same board, on the same day, at the same "
-"time. They are shown here as one meeting."
-msgstr ""
-"La ciudad publica esta reunión en más de un lugar: la misma junta, el mismo día y a la misma "
-"hora. Aquí se muestran como una sola reunión."
-
-#: site/templates/meeting.html
-msgid ""
-"The city posted this meeting more than once: the same board on the same day, with no time given. "
-"They are shown here as one meeting."
-msgstr ""
-"La ciudad publicó esta reunión más de una vez: la misma junta, el mismo día, sin dar la hora. "
-"Aquí se muestran como una sola reunión."
-
 #: site/states/nh/budget.html
 #, python-format
 msgid "The city's budget for fiscal year %(year)s, by what it pays for, as adopted."
@@ -4846,6 +4813,39 @@ msgid ""
 msgstr ""
 "Sabemos de esta reunión por el <a href=\"%(url)s\">sitio web de %(name)s</a>. No se encontró en "
 "el calendario de la Ciudad de %(town)s."
+
+#: site/templates/meeting.html
+msgid ""
+"This meeting is listed in more than one place: the same board on the same day, and only one "
+"listing gives a time. The listings are shown here as one meeting."
+msgstr ""
+"Esta reunión aparece en más de un lugar: la misma junta, el mismo día, y solo una de las "
+"publicaciones da la hora. Aquí se muestran como una sola reunión."
+
+#: site/templates/meeting.html
+msgid ""
+"This meeting is listed in more than one place: the same board, on the same day, at the same time."
+" The listings are shown here as one meeting."
+msgstr ""
+"Esta reunión aparece en más de un lugar: la misma junta, el mismo día y a la misma hora. Aquí se "
+"muestran como una sola reunión."
+
+#: site/templates/moved.html
+#, python-format
+msgid ""
+"This meeting was listed more than once. It is now shown on one page: <a "
+"href=\"%(url)s\">%(title)s, %(when)s</a>."
+msgstr ""
+"Esta reunión se publicó más de una vez. Ahora se muestra en una sola página: <a "
+"href=\"%(url)s\">%(title)s, %(when)s</a>."
+
+#: site/templates/meeting.html
+msgid ""
+"This meeting was posted more than once: the same board on the same day, with no time given. The "
+"postings are shown here as one meeting."
+msgstr ""
+"Esta reunión se publicó más de una vez: la misma junta, el mismo día, sin dar la hora. Aquí se "
+"muestran como una sola reunión."
 
 #: site/templates/moved.html
 msgid "This meeting's page has moved"

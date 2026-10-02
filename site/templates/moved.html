@@ -7,5 +7,5 @@
 <meta http-equiv="refresh" content="0; url={{ moved_to }}">{% endblock %}
 {% block content %}
 <h1>{{ _("This meeting's page has moved") }}</h1>
-<p>{% trans url=m.url, title=m.title, when=m.date | date %}The city listed this meeting more than once. It is now shown on one page: <a href="{{ url }}">{{ title }}, {{ when }}</a>.{% endtrans %}</p>
+<p>{% trans url=m.url, title=m.title, when=m.date | date %}This meeting was listed more than once. It is now shown on one page: <a href="{{ url }}">{{ title }}, {{ when }}</a>.{% endtrans %}</p>
 {% endblock %}
