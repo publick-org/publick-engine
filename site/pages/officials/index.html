@@ -25,7 +25,15 @@
 {% if o.wards %}
 <h2 id="wards">{{ _("Find your ward") }}</h2>
 {% if wards_url %}
-<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-town="{{ town.name }}" role="region" aria-label="{% trans town=town.name %}Map of {{ town }}'s wards{% endtrans %}" hidden></div>
+{# Translators: the ward map's messages; keep each {ward} as it is. #}
+{% set strings = {
+  "ward": _("Ward {ward}"),
+  "found": _("You're in Ward {ward}."),
+  "unavailable": _("Your location isn't available. You can find your ward on the map or in the list below."),
+  "finding": _("Finding your location…"),
+  "outside": _("Your location isn't in any of {town}'s wards. You can find your ward on the map or in the list below.").replace("{town}", town.name),
+} %}
+<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-strings='{{ strings | tojson }}' role="region" aria-label="{% trans town=town.name %}Map of {{ town }}'s wards{% endtrans %}" hidden></div>
 <div class="locate" id="locate" hidden>
   <button class="button" type="button" id="locate-button" aria-describedby="locate-note">{{ _("Find my ward using my location") }}</button>
   <p class="small" id="locate-note">{{ _("Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved.") }}</p>

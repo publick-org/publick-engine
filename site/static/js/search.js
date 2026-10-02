@@ -8,6 +8,11 @@
   var status = document.getElementById("search-status");
   var list = document.getElementById("search-results");
   var MAX_RESULTS = 50, MAX_EXCERPTS = 2, EXCERPT_CHARS = 220;
+  // The script's wording, from the page in the page's language (data-strings, written by its template).
+  var strings = JSON.parse(root.getAttribute("data-strings") || "{}");
+  function t(key, values) {
+    return strings[key].replace(/\{(\w+)\}/g, function (m, k) { return values[k]; });
+  }
 
   var query = (new URLSearchParams(window.location.search).get("q") || "").trim();
   if (input) input.value = query;
@@ -107,13 +112,13 @@
     }
     var label = "“" + query + "”";
     if (!matches.length) {
-      say("No meetings match " + label + ". Try fewer or different words.");
+      say(t("none", { query: label }));
       return;
     }
     if (matches.length > MAX_RESULTS) {
-      say("Showing " + MAX_RESULTS + " of " + matches.length + " meetings that match " + label + ". Add a word to narrow the list.");
+      say(t("too_many", { shown: MAX_RESULTS, total: matches.length, query: label }));
     } else {
-      say((matches.length === 1 ? "1 meeting matches " : matches.length + " meetings match ") + label + ".");
+      say(t(matches.length === 1 ? "matches_one" : "matches_other", { n: matches.length, query: label }));
     }
     matches.slice(0, MAX_RESULTS).forEach(function (m) {
       var li = el("li");
@@ -121,7 +126,7 @@
       li.appendChild(el("div", m.date_text, { "class": "small" }));
       excerpts(m).forEach(function (x) {
         var p = el("p", null, { "class": "excerpt" });
-        p.appendChild(el("strong", x.kind + ": "));
+        p.appendChild(el("strong", t("kind", { kind: x.kind })));
         p.appendChild(highlighted(clip(x.line)));
         li.appendChild(p);
       });
@@ -129,10 +134,10 @@
     });
   }
 
-  if (!terms.length) { say("Enter a word to search for."); return; }
-  say("Searching…");
+  if (!terms.length) { say(t("empty")); return; }
+  say(t("searching"));
   fetch(root.getAttribute("data-index"))
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(show)
-    .catch(function () { say("Search couldn't load. Please try again later."); });
+    .catch(function () { say(t("failed")); });
 })();

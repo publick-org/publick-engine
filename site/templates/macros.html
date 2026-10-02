@@ -80,7 +80,7 @@
   </span>
   <div class="meeting-main">
     <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}{% endif %}</a>
-    {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
+    {% if preview and m.preview_line %}<p class="meeting-preview"{{ in_english }}>{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
     {% if show_date %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
     {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}

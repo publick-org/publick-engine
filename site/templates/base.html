@@ -1,11 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{% endblock %} | {{ site.name }}</title>
   <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
+  {% for v in versions %}
+  <link rel="alternate" hreflang="{{ v.lang }}" href="{{ v.url }}">
+  {% endfor %}
+  {% if versions %}
+  <link rel="alternate" hreflang="x-default" href="{{ versions[0].url }}">
+  {% endif %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ site.name }}">
   <meta property="og:title" content="{{ self.title() }}">
@@ -39,6 +45,10 @@
 
   <header class="site-header">
     <div class="wrap masthead">
+      {# The same page in the site's other languages, each named in its own language. #}
+      {% for v in versions if v.lang != lang %}
+      <a class="language-switch" href="{{ v.path }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}">{{ v.name }}</a>
+      {% endfor %}
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>
     </div>

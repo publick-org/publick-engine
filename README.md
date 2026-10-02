@@ -342,6 +342,29 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 
 New pages are picked up by the tests and the site checks automatically. A section belongs to the engine, so every town that lists it gets it.
 
+## Sites in other languages
+
+A site can also be built in Spanish, for a town where many residents read Spanish first:
+
+```toml
+[site]
+languages = ["en", "es"]
+
+# The town's own text in Spanish, each keyed by its English as the config or the data writes it:
+# the tagline and masthead, section titles and summaries, glossary definitions, participation
+# notes, officials' seats, 311 categories, and board names.
+[strings.es]
+"An independent guide to city government in Lawrence, Massachusetts" = "Una guía independiente al gobierno de la ciudad de Lawrence, Massachusetts"
+"City Council" = "Concejo Municipal"
+"Pothole" = "Bache"
+```
+
+- English pages are at the site's root, as before; Spanish pages are the same pages under `/es/` (`/es/meetings/`). Every page links its other version (`hreflang`), and a link at the top of each page goes to the same page in the other language. A visitor always lands in English.
+- **The engine's own wording** (about 840 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
+- **The town's own text** comes from `[strings.es]`. Board names are shown with their official English name after them ("Concejo Municipal (City Council)"), so readers can match them to the city's notices; 311 categories are shown in Spanish only. Building the site lists the town's texts that have no Spanish yet.
+- **Summaries, decisions, and documents** stay in English for now: they're marked `lang="en"` on Spanish pages, with a note that the summary hasn't been translated. Agendas, minutes, and transcripts stay in English, as the official record. Downloads, saved PDFs, and the feed are shared by both languages.
+- The site checks run on every page in both languages. A missing page under `/es/` gets the Spanish 404 page from the network's Worker (`worker/sites.js`), which must be deployed before the first town with Spanish goes live.
+
 ## Data collection
 
 - The workflow runs every morning, fetches new data, commits any changes under `data/`, then tests, builds, and deploys.

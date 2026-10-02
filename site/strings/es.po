@@ -347,7 +347,7 @@ msgstr ""
 msgid "(Wards %(wards)s and %(last)s)"
 msgstr ""
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/templates/charts.html
 msgid "(opens in new tab)"
 msgstr ""
 
@@ -420,6 +420,10 @@ msgstr ""
 #: site/templates/ward.html
 #, python-format
 msgid "311 requests placed in Ward %(ward)s over the past 12 months."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "311 requests, past 12 months"
 msgstr ""
 
 #. %(where)s is where the agenda was posted, such as "the city website".
@@ -1008,6 +1012,10 @@ msgid ""
 "inflation."
 msgstr ""
 
+#: site/pages/streets/index.html
+msgid "Building and demolition permits"
+msgstr ""
+
 #: site/pages/311/index.html site/templates/ward.html
 msgid "By category"
 msgstr ""
@@ -1144,6 +1152,11 @@ msgstr ""
 #: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/nh/schools.py
 #, python-brace-format
 msgid "Class of {year} graduation rate"
+msgstr ""
+
+#: site/pages/streets/index.html
+msgctxt "311 request"
+msgid "Closed"
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -1333,6 +1346,10 @@ msgstr ""
 msgid "English"
 msgstr ""
 
+#: site/pages/meetings/search/index.html
+msgid "Enter a word to search for."
+msgstr ""
+
 #. %(example)s is a street's name.
 #: site/pages/streets/index.html
 #, python-format
@@ -1345,6 +1362,11 @@ msgstr ""
 
 #: site/pages/streets/index.html
 msgid "Estimated costs are as the applicant gave them."
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Estimated {amount}"
 msgstr ""
 
 #: site/pages/housing/index.html
@@ -1418,6 +1440,10 @@ msgstr ""
 
 #: site/pages/officials/index.html
 msgid "Find your ward"
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Finding your location…"
 msgstr ""
 
 #. %(site)s is this website's name.
@@ -1928,6 +1954,11 @@ msgstr ""
 msgid "Look up"
 msgstr ""
 
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Looking up {street}…"
+msgstr ""
+
 #: site/states/ma/schools.html
 msgid "MCAS English, grades 3–8"
 msgstr ""
@@ -2312,8 +2343,19 @@ msgstr ""
 msgid "No decisions have been recorded yet. This page fills in as minutes are posted."
 msgstr ""
 
+#: site/pages/streets/index.html
+msgid "No exact match. Did you mean one of these?"
+msgstr ""
+
 #: site/pages/meetings/boards/index.html
 msgid "No meetings have been recorded yet."
+msgstr ""
+
+#. the search's messages. {query} is what was searched for, in quotation marks; keep each {name} as it
+#. is.
+#: site/pages/meetings/search/index.html
+#, python-brace-format
+msgid "No meetings match {query}. Try fewer or different words."
 msgstr ""
 
 #: site/pages/meetings/past/index.html
@@ -2342,6 +2384,10 @@ msgstr ""
 msgid "No street address"
 msgstr ""
 
+#: site/pages/streets/index.html
+msgid "No street by that name was found."
+msgstr ""
+
 #: site/pages/meetings/boards/index.html
 msgid "No upcoming meeting listed"
 msgstr ""
@@ -2358,6 +2404,11 @@ msgstr ""
 
 #: site/pages/311/index.html site/pages/311/methodology/index.html
 msgid "No update in over a year"
+msgstr ""
+
+#. the street lookup's messages; keep each {name} as it is.
+#: site/pages/streets/index.html
+msgid "None found."
 msgstr ""
 
 #: site/pages/311/methodology/index.html
@@ -2421,6 +2472,10 @@ msgstr ""
 msgid "Of revenue, fiscal year %(year)s"
 msgstr ""
 
+#: site/pages/streets/index.html
+msgid "On agendas and minutes"
+msgstr ""
+
 #: site/templates/macros.html
 msgid "On this page"
 msgstr ""
@@ -2431,6 +2486,11 @@ msgstr ""
 
 #: site/templates/macros.html
 msgid "Online option"
+msgstr ""
+
+#: site/pages/streets/index.html
+msgctxt "311 request"
+msgid "Open"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -2869,6 +2929,10 @@ msgid "Search agendas and minutes"
 msgstr ""
 
 #: site/pages/meetings/search/index.html
+msgid "Search couldn't load. Please try again later."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
 msgid "Search meetings"
 msgstr ""
 
@@ -2886,6 +2950,10 @@ msgstr ""
 #: site/pages/meetings/search/index.html
 #, python-format
 msgid "Search the text of %(town)s agendas and minutes."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+msgid "Searching…"
 msgstr ""
 
 #: site/pages/officials/index.html
@@ -2942,6 +3010,16 @@ msgstr ""
 
 #: site/pages/streets/index.html
 msgid "Short forms like St and Ave work too."
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Showing the latest {n}."
+msgstr ""
+
+#: site/pages/meetings/search/index.html
+#, python-brace-format
+msgid "Showing {shown} of {total} meetings that match {query}. Add a word to narrow the list."
 msgstr ""
 
 #: site/templates/base.html
@@ -3579,6 +3657,10 @@ msgid "The state updates the list about every two years, with some changes in be
 msgstr ""
 
 #: site/pages/streets/index.html
+msgid "The street list could not be loaded. Please try again later."
+msgstr ""
+
+#: site/pages/streets/index.html
 msgid "The street lookup needs JavaScript."
 msgstr ""
 
@@ -3608,6 +3690,10 @@ msgstr ""
 
 #: site/pages/404.html
 msgid "This page doesn't exist. It may have moved, or the link may have a typo."
+msgstr ""
+
+#: site/templates/meeting.html
+msgid "This summary hasn't been translated yet, so it's shown in English."
 msgstr ""
 
 #: site/templates/base.html
@@ -3794,6 +3880,10 @@ msgstr ""
 msgid "Values and rents"
 msgstr ""
 
+#: site/templates/charts.html
+msgid "View on SeeClickFix"
+msgstr ""
+
 #. %(town)s is the town's name.
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -3824,6 +3914,12 @@ msgstr ""
 
 #: site/pages/311/methodology/index.html
 msgid "Ward differences reflect how often people report problems, not only how the city responds."
+msgstr ""
+
+#. the ward map's messages; keep each {ward} as it is.
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "Ward {ward}"
 msgstr ""
 
 #: site/templates/ward.html
@@ -3999,9 +4095,25 @@ msgid "You can also <a href=\"/meetings/search/\">search agendas and minutes</a>
 msgstr ""
 
 #: site/pages/officials/index.html
+#, python-brace-format
+msgid "You're in Ward {ward}."
+msgstr ""
+
+#: site/pages/officials/index.html
 msgid ""
 "Your browser will ask first. Your location is checked against the ward map on your device. It "
 "isn't sent to Publick or anyone else, and it isn't saved."
+msgstr ""
+
+#: site/pages/officials/index.html
+msgid "Your location isn't available. You can find your ward on the map or in the list below."
+msgstr ""
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid ""
+"Your location isn't in any of {town}'s wards. You can find your ward on the map or in the list "
+"below."
 msgstr ""
 
 #: site/pages/meetings/index.html site/pages/streets/index.html
@@ -4144,6 +4256,11 @@ msgstr ""
 msgid "{i} of {n}"
 msgstr ""
 
+#: site/pages/meetings/search/index.html
+#, python-brace-format
+msgid "{kind}: "
+msgstr ""
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "{month} (preliminary)"
@@ -4171,10 +4288,38 @@ msgstr ""
 msgid "{month} {year}"
 msgstr ""
 
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "{n} 311 request"
+msgid_plural "{n} 311 requests"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "{n} agenda and minutes mention"
+msgid_plural "{n} agenda and minutes mentions"
+msgstr[0] ""
+msgstr[1] ""
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "{n} hour"
 msgid_plural "{n} hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/meetings/search/index.html
+#, python-brace-format
+msgid "{n} meeting matches {query}."
+msgid_plural "{n} meetings match {query}."
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "{n} permit"
+msgid_plural "{n} permits"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -4205,6 +4350,11 @@ msgstr ""
 #: pipeline/rhythms.py
 #, python-brace-format
 msgid "{period} usually by {date}"
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "{street}: {counts}."
 msgstr ""
 
 #. a time of day, such as "7:00 PM".
