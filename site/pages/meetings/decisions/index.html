@@ -3,8 +3,8 @@
 {% block title %}{{ _("Decisions") }}{% endblock %}
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Votes and other decisions recorded in the minutes of {{ town }}'s City Council, boards, and committees, newest meeting first.{% endtrans %}{% endblock %}
-{% macro decision_list(items, shown, fmt="decision") -%}
-<ul>
+{% macro decision_list(items, shown, fmt="decision", english=false) -%}
+<ul{% if english %} lang="en"{% endif %}>
   {% for d in items[:shown] %}<li>{{ (d | recommendation) if fmt == "recommendation" else (d | decision) }}</li>{% endfor %}
 </ul>
 {% if items | length > shown %}
@@ -16,7 +16,7 @@
   {# Translators: the label that shows a meeting's other decisions; %(count)s is how many, 1 or more. #}
   {% trans count=items | length - shown %}{{ count }} more decision{% pluralize %}{{ count }} more decisions{% endtrans %}
   {% endif %}</summary>
-  <ul>
+  <ul{% if english %} lang="en"{% endif %}>
     {% for d in items[shown:] %}<li>{{ (d | recommendation) if fmt == "recommendation" else (d | decision) }}</li>{% endfor %}
   </ul>
 </details>
@@ -46,11 +46,11 @@
     <h3><a href="{{ m.url }}#minutes">{{ m.body }}</a></h3>
     <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time> · <a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes") }}</a></p>
     {% if ds.decided %}
-    {{ decision_list(ds.decided, 5) }}
+    {{ decision_list(ds.decided, 5, english=m.decisions_english) }}
     {% endif %}
     {% if ds.recommended %}
     <p class="decision-label">{{ _("Committee recommendations to the City Council") }}</p>
-    {{ decision_list(ds.recommended, 3 if ds.decided else 5, "recommendation") }}
+    {{ decision_list(ds.recommended, 3 if ds.decided else 5, "recommendation", m.decisions_english) }}
     {% endif %}
     {% if ds.procedural %}
     <details class="expand">

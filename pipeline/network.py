@@ -401,8 +401,8 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
         path = root / TOWNS / name / "data" / SUMMARY_LEDGER
         if path.exists():
             row = json.loads(path.read_text()).get(month, {})
-            # A summary, a cut-off request, or a transcription: all paid for this month.
-            spent += row.get("cost", 0.0) + row.get("failed_cost", 0.0) + row.get("transcript_cost", 0.0)
+            # A summary, a cut-off request, a transcription, or a translation: all paid for this month.
+            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
     left = max(monthly - spent, 0.0)
     allowance = left / max(towns_in_run, 1)
     days_left = calendar.monthrange(today.year, today.month)[1] - today.day + 1

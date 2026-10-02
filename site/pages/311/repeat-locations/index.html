@@ -36,8 +36,8 @@
       <td class="num">{{ pl.reports | number }}</td>
       <td class="num">{{ pl.again_after_close | number }}</td>
       <td class="num wide">{{ pl.open | number }}</td>
-      {% set first %}<time datetime="{{ pl.first }}">{{ pl.first | date("mon") }} {{ pl.first | date("day") }}{% if pl.first[:4] != pl.last[:4] %}, {{ pl.first[:4] }}{% endif %}</time>{% endset %}
-      {% set last %}<time datetime="{{ pl.last }}">{{ pl.last | date("mon") }} {{ pl.last | date("day") }}, {{ pl.last[:4] }}</time>{% endset %}
+      {% set first %}<time datetime="{{ pl.first }}">{{ pl.first | date("mon_day_year" if pl.first[:4] != pl.last[:4] else "mon_day") }}</time>{% endset %}
+      {% set last %}<time datetime="{{ pl.last }}">{{ pl.last | date("mon_day_year") }}</time>{% endset %}
       {# Translators: a place's first and latest request dates. #}
       <td class="wide">{% trans first=first, last=last %}{{ first }} to {{ last }}{% endtrans %}</td>
     </tr>
