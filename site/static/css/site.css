@@ -289,8 +289,15 @@ figure.chart { margin: 0.75rem 0 0; }
 .columns .col { flex: 1; min-height: 2px; background: var(--primary); border-radius: 2px 2px 0 0; }
 .columns .col.recent { background: repeating-linear-gradient(45deg, var(--primary), var(--primary) 3px, #6f86b8 3px, #6f86b8 6px); }
 .columns .col.noted { background: var(--accent); }
-.col-labels { display: flex; gap: 4px; margin-top: 0.3rem; color: var(--muted); font-size: 0.8rem; }
-.col-labels span { flex: 1; text-align: center; }
+.col-labels { display: flex; gap: 4px; margin-top: 0.3rem; overflow: hidden; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; }
+/* As narrow as their columns however many months there are; on a phone, every other month is labeled,
+   and the first and last keep to the chart's edges. */
+.col-labels span { display: flex; flex: 1 1 0; justify-content: center; min-width: 0; white-space: nowrap; }
+@media (max-width: 30rem) {
+  .col-labels span:nth-child(even) { visibility: hidden; }
+  .col-labels span:first-child { justify-content: flex-start; }
+  .col-labels span:last-child { justify-content: flex-end; }
+}
 .chart-key { margin: 0.5rem 0 0; color: var(--ink-soft); font-size: 0.9rem; }
 
 .hbars { margin: 0.5rem 0 0; padding: 0; list-style: none; }
