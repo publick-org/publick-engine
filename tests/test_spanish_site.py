@@ -198,3 +198,41 @@ def test_languages_must_start_with_english():
         with pytest.raises(SystemExit):
             build_site.languages({"slug": "x", "site": {"languages": langs}})
     assert build_site.languages({"slug": "x", "site": {}}) == ["en"]
+
+
+def test_shared_words_and_numbered_seats_come_from_the_engine():
+    """What many towns share (common boards, roles, numbered seats) is translated once, in the
+    engine; a town's own [strings.es] still wins, and what neither has is noted."""
+    with i18n.use("es"):
+        tr = build_site.TownStrings({"strings": {"es": {"At-large": "Todo el municipio"}}}, "es")
+        assert tr.board("Planning Board") == "Junta de Planificación (Planning Board)"
+        assert tr("Ward 7") == "Distrito 7" and tr("District A") == "Distrito A" and tr("Precinct 12") == "Precinto 12"
+        assert tr("Chair") == "Presidente" and tr("At-large") == "Todo el municipio"
+        assert tr.data("Wards 1 and 2") == "Wards 1 and 2" and tr.missing_data == {"Wards 1 and 2"}
+        assert not tr.missing
+
+
+def test_drafts_are_shown_after_the_towns_own_text():
+    with i18n.use("es"):
+        tr = build_site.TownStrings({"strings": {"es": {"Harbor Plan": "Plan del Puerto"}}}, "es",
+                                    drafts={"Harbor Plan": "Plan Portuario", "Fish Pier Committee": "Comité del Muelle"})
+        assert tr("Harbor Plan") == "Plan del Puerto"
+        assert tr.board("Fish Pier Committee") == "Comité del Muelle (Fish Pier Committee)"
+        assert tr.drafted == {"Fish Pier Committee"} and not tr.missing_data
+
+
+def test_needed_texts_are_what_the_build_would_miss(data_dir):
+    """The run drafts what needed_texts() finds before the build; it must find what the build would."""
+    out = Path(tempfile.mkdtemp(prefix="publick-es-")) / "site"
+    config = load_config("gloucester")
+    config["site"]["languages"] = ["en", "es"]
+    missing: dict = {}
+    real = build_site.load_config
+    build_site.load_config = lambda town: config
+    try:
+        build_site.build("gloucester", out, data_dir=data_dir, now=BUILT_AT, missing=missing)
+    finally:
+        build_site.load_config = real
+    needed = build_site.needed_texts(load_config("gloucester") | {"site": config["site"]}, data_dir, "es", BUILT_AT)
+    assert needed["config"] and needed["data"]
+    assert needed == {"config": missing["es"]["config"], "data": missing["es"]["data"]}

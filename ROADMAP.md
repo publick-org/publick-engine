@@ -867,7 +867,23 @@ Spanish, and each new town launches in both languages. A town's own text
 (`[strings.es]`) is part of adding it (item 10). Browser translation remains
 for other languages.
 
-**Matters at:** now: Lawrence is live in Spanish, and the other towns follow.
+**Done: every town in Spanish (engine v1.27.0, 2026-10-02).** Gloucester,
+Malden, Beverly, Manchester, and Wallingford joined Lawrence, each with its
+own text written into `[strings.es]` (530 texts across six towns, only 58 of
+them shared by two or more).
+
+**At any number of towns.** Writing each town's text by hand doesn't scale:
+about 90 texts a town, mostly its own boards, and a city adds a board or 311
+category any day. So a town's text comes from its `[strings.es]` if it has
+it, else the engine's Spanish for what many towns share (common boards,
+roles, seats, numbered wards, the section summaries configs copy:
+`pipeline/common_strings.py`), else a machine draft its run makes before
+summarizing, checked without AI and shown until a person reviews it
+(`python -m pipeline.translate drafts`). A new town needs no one's
+translation to launch in Spanish; review happens in batches, not before
+anything is shown.
+
+**Matters at:** now.
 
 ## Others' use of the data
 

@@ -34,6 +34,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import freshness
+from pipeline import common_strings
 from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
@@ -677,28 +678,39 @@ SECTION_NAMES = (N_("Meetings"), N_("311 Requests"), N_("311"), N_("Schools"), N
 
 
 class TownStrings:
-    """A town's own text in the language being built: from its config's [strings.<language>]
-    table (each English text and its translation), or, for text every town shares (a section's
-    name), the engine's own translation.
+    """A town's own text in the language being built, from the first of:
+    - its config's [strings.<language>] table (each English text and its translation);
+    - the engine's own translation of what many towns share: section names, common boards,
+      roles, and seats (pipeline/common_strings.py), and numbered seats ("Ward 3");
+    - a machine draft, made by a town's run and not yet reviewed (drafts: pipeline/translate.py).
 
-    Text without a translation is shown in English and noted: the config's own text in
-    missing (a site in that language isn't built without it: see main()), and names that
-    come from the city's data, which change as the city adds boards and 311 categories,
-    in missing_data (reported, so the town's config can catch up)."""
+    Text with none of these is shown in English and noted: the config's own text in missing
+    (a site in that language isn't built without it: see main()), and names that come from
+    the city's data, which change as the city adds boards and 311 categories, in missing_data
+    (the next run drafts them). Texts shown from drafts are noted in drafted."""
 
-    def __init__(self, config: dict, lang: str):
+    def __init__(self, config: dict, lang: str, drafts: dict | None = None):
         self.english = lang == "en"
         self.strings = config.get("strings", {}).get(lang, {})
+        self.drafts = drafts or {}
         self.missing: set[str] = set()
         self.missing_data: set[str] = set()
+        self.drafted: set[str] = set()
 
     def translate(self, text, missing: set):
         if self.english or not isinstance(text, str) or not text:
             return text
         if text in self.strings:
             return self.strings[text]
-        if text in SECTION_NAMES and i18n.translated(text):
+        if (text in SECTION_NAMES or text in common_strings.TEXTS) and i18n.translated(text):
             return _(text)
+        for pattern, wording in common_strings.NUMBERED:
+            numbered = pattern.fullmatch(text)
+            if numbered and i18n.translated(wording):
+                return _(wording).format(n=numbered.group(1))
+        if text in self.drafts:
+            self.drafted.add(text)
+            return self.drafts[text]
         missing.add(text)
         return text
 
@@ -715,6 +727,32 @@ class TownStrings:
         it to the city's notices: "Concejo Municipal (City Council)"."""
         translated = self.translate(name, self.missing_data)
         return name if translated == name else f"{translated} ({name})"
+
+
+def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) -> dict:
+    """A town's texts that a build in this language would show in English, found without building:
+    {"config": the config's own text, "data": names from the city's data}. The same steps as
+    build_language() (a test keeps them so), for the run to draft them before the build."""
+    tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
+    with i18n.use(lang):
+        localize_config(config, tr)
+        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []))
+        for m in meetings["all"]:
+            tr.board(m["body"])
+        for b in meetings["boards"]:
+            tr.board(b["name"])
+        if "governing_body" not in config.get("meetings", {}):
+            tr.board(meeting_links(config)["governing_body"])
+        folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
+        scorecard = data_dir / "311" / "scorecard.json"
+        if "311" in folders and scorecard.exists():
+            localize_categories(json.loads(scorecard.read_text(encoding="utf-8")), tr)
+        requests = data_dir / "311" / "requests.json"
+        if "seeclickfix" in config and requests.exists():
+            localize_categories(list(json.loads(requests.read_text(encoding="utf-8")).values()), tr)
+        if "officials" in folders:
+            localize_officials(officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]}), tr)
+    return {"config": sorted(tr.missing), "data": sorted(tr.missing_data)}
 
 
 def localize_config(config: dict, tr: TownStrings) -> dict:
@@ -801,11 +839,11 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     langs = languages(config)
     urls = []
     for lang in langs:
-        tr = TownStrings(config, lang)
+        tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang):
             urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
-        if missing is not None and (tr.missing or tr.missing_data):
-            missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data)}
+        if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
+            missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, built_at)
     return urls
 
@@ -1250,16 +1288,19 @@ def main() -> None:
     print(f"Built {len(urls)} pages into {args.out}")
     failed = False
     for lang, texts in missing.items():
+        if texts.get("drafted"):
+            print(f"::notice::{i18n.LANGUAGES[lang]}: {len(texts.get('drafted', []))} texts are shown from machine drafts not yet "
+                  f"reviewed; python -m pipeline.translate drafts lists them for [strings.{lang}].")
         # New boards and 311 categories appear in the city's data any day: shown in English until the
-        # config has them, and reported so it can catch up.
+        # next run drafts them (or the config has them).
         for text in texts["data"]:
-            print(f"::warning::{i18n.LANGUAGES[lang]}: {text!r} is shown in English; add it to [strings.{lang}] "
-                  f"in config/{args.town}.toml.")
+            print(f"::warning::{i18n.LANGUAGES[lang]}: {text!r} is shown in English until the next run drafts it, "
+                  f"or [strings.{lang}] in config/{args.town}.toml has it.")
         # The config's own text is the town's to give in every language it's built in.
         if texts["config"]:
             failed = True
             print(f"::error::{i18n.LANGUAGES[lang]}: the site isn't built in {i18n.LANGUAGES[lang]} until "
-                  f"[strings.{lang}] in config/{args.town}.toml has these texts from the config:")
+                  f"[strings.{lang}] in config/{args.town}.toml, or a run's drafts, have these texts from the config:")
             for text in texts["config"]:
                 print(f"  {text!r}")
     if failed:
