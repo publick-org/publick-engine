@@ -670,27 +670,50 @@ def map_points(sc: dict | None) -> dict:
 
 # ---- A town's own text in another language ------------------------------------
 
+# Section names every town uses, translated with the engine's own wording, so a town's
+# [strings.<language>] needn't repeat them.
+SECTION_NAMES = (N_("Meetings"), N_("311 Requests"), N_("311"), N_("Schools"), N_("City budget"), N_("Budget"),
+                 N_("Housing"), N_("Who represents you"), N_("Officials"), N_("About"))
+
+
 class TownStrings:
-    """A town's own text in the language being built, from its config's [strings.<language>]
-    table: each English text (a tagline, a section's title, a board's or a 311 category's name)
-    and its translation. Text without one is shown in English, and noted in missing."""
+    """A town's own text in the language being built: from its config's [strings.<language>]
+    table (each English text and its translation), or, for text every town shares (a section's
+    name), the engine's own translation.
+
+    Text without a translation is shown in English and noted: the config's own text in
+    missing (a site in that language isn't built without it: see main()), and names that
+    come from the city's data, which change as the city adds boards and 311 categories,
+    in missing_data (reported, so the town's config can catch up)."""
 
     def __init__(self, config: dict, lang: str):
         self.english = lang == "en"
         self.strings = config.get("strings", {}).get(lang, {})
         self.missing: set[str] = set()
+        self.missing_data: set[str] = set()
 
-    def __call__(self, text):
+    def translate(self, text, missing: set):
         if self.english or not isinstance(text, str) or not text:
             return text
-        if text not in self.strings:
-            self.missing.add(text)
-        return self.strings.get(text, text)
+        if text in self.strings:
+            return self.strings[text]
+        if text in SECTION_NAMES and i18n.translated(text):
+            return _(text)
+        missing.add(text)
+        return text
+
+    def __call__(self, text):
+        """Text from the town's config."""
+        return self.translate(text, self.missing)
+
+    def data(self, text):
+        """A name from the city's data, such as a 311 category."""
+        return self.translate(text, self.missing_data)
 
     def board(self, name: str) -> str:
         """A board's name, with its official English name after it so readers can match
         it to the city's notices: "Concejo Municipal (City Council)"."""
-        translated = self(name)
+        translated = self.translate(name, self.missing_data)
         return name if translated == name else f"{translated} ({name})"
 
 
@@ -744,7 +767,7 @@ def localize_categories(value, tr: TownStrings) -> None:
     if isinstance(value, dict):
         for key, item in value.items():
             if key == "category" and isinstance(item, str):
-                value[key] = tr(item)
+                value[key] = tr.data(item)
             else:
                 localize_categories(item, tr)
     elif isinstance(value, list):
@@ -771,7 +794,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     English pages are at the site's root; another language's are under /<language>/
     (/es/meetings/), with the same data. Files that aren't pages (static files, downloads,
     saved PDFs, the feed) are written once, with the English. missing, if given, gets each
-    other language's town texts that have no translation in the config's [strings.<language>]."""
+    other language's town texts that have no translation in the config's [strings.<language>]:
+    {"config": the config's own text, "data": names from the city's data}."""
     config = load_config(town)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
@@ -780,8 +804,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
         tr = TownStrings(config, lang)
         with i18n.use(lang):
             urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
-        if missing is not None and tr.missing:
-            missing[lang] = sorted(tr.missing)
+        if missing is not None and (tr.missing or tr.missing_data):
+            missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, built_at)
     return urls
 
@@ -1192,11 +1216,22 @@ def main() -> None:
     missing: dict = {}
     urls = build(args.town, args.out, args.data, missing=missing)
     print(f"Built {len(urls)} pages into {args.out}")
+    failed = False
     for lang, texts in missing.items():
-        print(f"{i18n.LANGUAGES[lang]}: {len(texts)} of the town's texts are shown in English, with no translation "
-              f"in [strings.{lang}] of config/{args.town}.toml:")
-        for text in texts:
-            print(f"  {text!r}")
+        # New boards and 311 categories appear in the city's data any day: shown in English until the
+        # config has them, and reported so it can catch up.
+        for text in texts["data"]:
+            print(f"::warning::{i18n.LANGUAGES[lang]}: {text!r} is shown in English; add it to [strings.{lang}] "
+                  f"in config/{args.town}.toml.")
+        # The config's own text is the town's to give in every language it's built in.
+        if texts["config"]:
+            failed = True
+            print(f"::error::{i18n.LANGUAGES[lang]}: the site isn't built in {i18n.LANGUAGES[lang]} until "
+                  f"[strings.{lang}] in config/{args.town}.toml has these texts from the config:")
+            for text in texts["config"]:
+                print(f"  {text!r}")
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

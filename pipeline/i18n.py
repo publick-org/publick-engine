@@ -86,6 +86,11 @@ def npgettext(context: str | None, singular: str, plural: str, n: int) -> str:
     return singular if n == 1 else plural
 
 
+def translated(message: str, context: str | None = None) -> bool:
+    """Whether the language being built has a translation of this string (which may read the same)."""
+    return language() == "en" or (context, message) in strings(language())
+
+
 def ngettext(singular: str, plural: str, n: int) -> str:
     return npgettext(None, singular, plural, n)
 

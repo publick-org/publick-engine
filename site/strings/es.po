@@ -437,7 +437,11 @@ msgstr "De 1 semana a 1 mes"
 msgid "3 to 12 months"
 msgstr "De 3 a 12 meses"
 
-#: site/pages/311/index.html site/pages/311/methodology/index.html
+#: pipeline/build_site.py
+msgid "311"
+msgstr "311"
+
+#: pipeline/build_site.py site/pages/311/index.html site/pages/311/methodology/index.html
 #: site/pages/311/repeat-locations/index.html site/templates/category.html site/templates/ward.html
 msgid "311 Requests"
 msgstr "Solicitudes al 311"
@@ -859,7 +863,8 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
 
-#: site/pages/about/accessibility/index.html site/pages/about/index.html site/templates/base.html
+#: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
+#: site/templates/base.html
 msgid "About"
 msgstr "Acerca de"
 
@@ -1157,7 +1162,7 @@ msgstr "Calificaciones crediticias"
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
-#: site/states/nh/budget.html
+#: pipeline/build_site.py site/states/nh/budget.html
 msgid "Budget"
 msgstr "Presupuesto"
 
@@ -1285,7 +1290,8 @@ msgstr "Ciudad"
 msgid "City Hall updates"
 msgstr "Novedades de la Alcaldía"
 
-#: pipeline/states/nh/budget.py site/states/ma/budget.html site/states/nh/budget.html
+#: pipeline/build_site.py pipeline/states/nh/budget.py site/states/ma/budget.html
+#: site/states/nh/budget.html
 msgid "City budget"
 msgstr "Presupuesto de la ciudad"
 
@@ -1946,7 +1952,7 @@ msgstr "Viviendas contadas como asequibles"
 msgid "Homes in %(town)s by who lives in them, %(years)s."
 msgstr "Viviendas en %(town)s según quién vive en ellas, %(years)s."
 
-#: site/pages/housing/index.html
+#: pipeline/build_site.py site/pages/housing/index.html
 msgid "Housing"
 msgstr "Vivienda"
 
@@ -2410,9 +2416,10 @@ msgstr ""
 "revisa antes de publicarlos. El documento de la ciudad es el registro oficial, y cada resumen "
 "enlaza a él."
 
-#: site/pages/meetings/boards/index.html site/pages/meetings/decisions/index.html
-#: site/pages/meetings/index.html site/pages/meetings/past/index.html
-#: site/pages/meetings/search/index.html site/templates/board.html site/templates/meeting.html
+#: pipeline/build_site.py site/pages/meetings/boards/index.html
+#: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
+#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
+#: site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
 
@@ -2804,6 +2811,10 @@ msgstr "octubre"
 #, python-format
 msgid "Of revenue, fiscal year %(year)s"
 msgstr "De los ingresos, año fiscal %(year)s"
+
+#: pipeline/build_site.py
+msgid "Officials"
+msgstr "Funcionarios"
 
 #: site/pages/streets/index.html
 msgid "On agendas and minutes"
@@ -3291,7 +3302,8 @@ msgstr "Los detalles escuela por escuela están en el <a href=\"%(url)s\">%(repo
 msgid "School-by-school figures and more are on the <a href=\"%(url)s\">%(report)s</a>."
 msgstr "Las cifras escuela por escuela y más están en el <a href=\"%(url)s\">%(report)s</a>."
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: pipeline/build_site.py site/states/ct/schools.html site/states/ma/schools.html
+#: site/states/nh/schools.html
 msgid "Schools"
 msgstr "Escuelas"
 
@@ -4586,7 +4598,7 @@ msgstr "Adónde va el impuesto a la propiedad"
 msgid "Where this comes from"
 msgstr "De dónde vienen estos datos"
 
-#: site/pages/officials/index.html
+#: pipeline/build_site.py site/pages/officials/index.html
 msgid "Who represents you"
 msgstr "Quién lo representa"
 
