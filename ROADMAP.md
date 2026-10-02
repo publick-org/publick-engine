@@ -311,7 +311,9 @@ DotNetNuke) and Malden (Massachusetts, Agenda Center). Their meetings,
 agendas, and minutes come from saved pages through the real fetchers, and
 each site gets Gloucester's page and link checks, with the browser checks on
 a sample of its own pages. Not done: a sample town with SeeClickFix
-departments (the sample towns' 311 data is Gloucester's), and canary towns.*
+departments (the sample towns' 311 data is Gloucester's), and canary towns,
+which need `engine-version` to move less often than it does today
+(item 16).*
 
 **Matters at:** as soon as more than one town uses a reader; the sampled
 upgrade checks at about 50 towns.
@@ -937,6 +939,113 @@ its source.
 **Matters at:** the license now, before anyone builds on the data; the
 export and the Data page before Publick tells anyone the data is there.
 
+## Running the network
+
+## 16. Releases and runs churn
+
+**What breaks.** The checks cost little: the engine's tests take about 5
+minutes, and a daily run's checks of sampled pages 15 to 61 seconds a town.
+What costs more is how code and runs move around them (from a review of the
+network's processes on 2026-10-02):
+- The engine released 22 times in four days and `engine-version` moved 17
+  times, 8 on 2026-10-01 alone. Each change is two pull requests (the
+  engine's, then the move), each with its own checks, and every move checks
+  every page of every town and republishes them all. At that pace canary
+  towns (item 5) can't work: every release reaches every town within the
+  hour anyway.
+- A push to `main` waits up to 320 minutes for a daily run in progress,
+  holding a runner (`network.yml`). On 2026-10-01 three push runs were
+  cancelled after waiting 1, 1, and 5 hours.
+- Ten starts a day: the scheduler's six and four GitHub backup schedules. And
+  11 of the network repository's 91 commits are "Update statewide sources",
+  written even when nothing was fetched.
+- The engine's accessibility tests check every page in dark mode as well
+  (`tests/test_accessibility.py`), doubling the browser runs, though every
+  page sets `color-scheme: light` and has no dark styles.
+- Nothing looks at the live sites after `deploy publish`.
+- About two thirds of commits are written by AI, one person merges their own
+  pull requests, neither repository protects `main`, and a merge releases to
+  every town. The tests are the only check.
+
+**Plan.**
+- `engine-version` moves once a day, not with every release, unless a fix is
+  urgent; then canary towns take each release first (item 5). The network
+  doesn't follow the `v1` tag instead: the pinned version is what rolls back,
+  and its pull request is what checks a release before it's published.
+- A pull request that changes only Markdown files isn't released, without
+  needing the `no release` label.
+- Branch protection on `main` in both repositories, requiring the checks to
+  pass before merging. Required reviews wait for item 6.
+- Accessibility tests in light only, until the sites have dark styles.
+- A push builds and checks the towns it touched but doesn't publish them, so
+  it doesn't wait; the next daily run publishes. A config fix then appears
+  the next morning. If that's too slow, towns queued separately (item 8) lets
+  a push wait only for runs of its own towns.
+- One GitHub backup schedule, not four, and the statewide status committed
+  only when a source was fetched.
+- After publishing, each town's live homepage is fetched through the Worker
+  and checked to be the build just published; a mismatch fails the town in
+  its run record. About 30 seconds a run.
+- The engine's tests still run again on the merge commit: releasing depends
+  on that run.
+
+**Chosen 2026-10-02, open to change.** Pushes publish the next morning rather
+than wait. The canaries are Manchester (CivicClerk and DotNetNuke) and Malden
+(Agenda Center), the towns the engine's sample builds already cover. No town
+is kept a release behind as a rollback reference: moving `engine-version`
+back is the rollback.
+
+**Matters at:** now. Sampled checks when `engine-version` moves, at about 50
+towns (item 5).
+
+## 17. Nothing checks a summary against its document
+
+**What breaks.** Summaries, headlines, and decisions (who moved and seconded,
+how the vote went) are written by a model from agendas and minutes and
+published without being checked against the document. A wrong amount, name,
+or vote count reaches readers, and with open data (item 15), whoever reuses
+it. Of everything not checked, it's the only thing that can mislead a reader.
+Each summary links its source and the sites say summaries can be wrong, but
+nothing catches the mistake.
+
+**Plan.**
+- For a document with a text layer (the PDF's own text, or the full text
+  from `pipeline/pdftext.py`), check what can be checked mechanically: every
+  number, amount, date, and person's name in the summary and its decisions
+  appears in the document's text. A summary that fails isn't published (its
+  meeting shows the document without one) and is listed for the maintainer.
+- For a scan, the check runs against the model's transcription, which is
+  weaker since both come from the model; a failure is listed, not held.
+- Vote records (item 12) and Spanish translations (item 14) are checked the
+  same way: the names and numbers survive.
+- The run record counts summaries held back, to show how often the model
+  gets one wrong.
+
+**Matters at:** now.
+
+## 18. Steps done by hand
+
+**What breaks.** Some steps are done by a person, which works at a handful of
+towns and not at fifty:
+- Deploying the Workers (`worker.yml`, started by hand).
+- New Hampshire's yearly figures, downloaded in a browser because the
+  state's websites refuse automated requests (item 2).
+- Officials, edited after every election (item 11).
+- A new town's first fetches, run by hand until nothing is waiting (item 10).
+- An email routing rule for each town, in Cloudflare's dashboard.
+
+**Plan.**
+- The scheduler Worker deploys by itself when `engine-version` or
+  `wrangler.scheduler.toml` changes on `main`. The sites Worker stays by
+  hand: its routes decide which hostnames it answers, so a mistake takes
+  sites down.
+- The helper for adding a town (item 10) runs the first fetches until nothing
+  is waiting, and sets up the email routing rule through Cloudflare's API.
+- Officials and New Hampshire's figures stay by hand, with a reminder after
+  each town's elections and each year, until a source can be read (item 11).
+
+**Matters at:** about 20 towns for the helper; about 50 for the rest.
+
 ## Stages
 
 Done: the network repository, with all three towns moved in and a `[storage]`
@@ -973,12 +1082,21 @@ towns too. Next, in this order (as of 2026-10-02):
    Malden's roll call votes collected, Manchester's long minutes summarized,
    Beverly's minutes fetched, scans transcribed. Then a person checks the
    votes with `python -m pipeline.votes` for a few weeks (item 12).
-2. Every town in Spanish (item 14), then a person who reads Spanish checks
+2. Small process fixes (item 16), about a day: accessibility tests in light
+   only; Markdown-only pull requests not released; branch protection
+   requiring the checks on `main` in both repositories; `engine-version`
+   moved once a day; one GitHub backup schedule; the statewide status
+   committed only when a source was fetched; and a check of each live site
+   after publishing.
+3. Summaries checked against their documents (item 17), before more towns
+   and before open data.
+4. Push runs that build and check but don't publish (item 16).
+5. Every town in Spanish (item 14), then a person who reads Spanish checks
    it: the engine's strings, each town's `[strings.es]`, and a sample of
    translated summaries. Also to confirm in Lawrence's config: the School
    Committee's elected and appointed members, the mayor's term, and the
    officers' titles in Spanish.
-3. Wallingford, the first Connecticut town (item 10), live on what the
+6. Wallingford, the first Connecticut town (item 10), live on what the
    engine can read, then the rest:
    1. A reader for the town's website: the documents page and the meetings
       calendar, with each meeting's video linked.
@@ -993,37 +1111,40 @@ towns too. Next, in this order (as of 2026-10-02):
       then the Appeals List.
    5. The Board of Education, through a reader for Finalsite boards and
       Google Docs.
-4. Lowell: config only (item 10).
-5. Springfield, after Medford, the first Massachusetts town on CivicClerk:
+7. Lowell: config only (item 10).
+8. Springfield, after Medford, the first Massachusetts town on CivicClerk:
    its meetings sorted into boards, and Spanish turned on (items 10 and 14).
-6. A town each in Maine, Vermont, and Rhode Island, chosen from the
+9. A town each in Maine, Vermont, and Rhode Island, chosen from the
    candidates in item 10, preferring towns on software the engine reads.
-7. Open data (item 15): the CC BY 4.0 license and the credit line now, then
-   each town's `/data/meetings.json` export and a Data page.
-8. A reader for the next meeting platform the network needs (item 10).
-9. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
-   statewide PDF every Massachusetts town downloads whole today) and DESE's
-   school figures (its data portal answers statewide queries), into
-   `states/ma/` as the DLS reports are.
-10. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
+10. Open data (item 15): the CC BY 4.0 license and the credit line now, then
+    each town's `/data/meetings.json` export and a Data page.
+11. A reader for the next meeting platform the network needs (item 10).
+12. Statewide sources, phase 2 (item 2): the Subsidized Housing Inventory (one
+    statewide PDF every Massachusetts town downloads whole today) and DESE's
+    school figures (its data portal answers statewide queries), into
+    `states/ma/` as the DLS reports are.
+13. Statewide sources, phase 3 (item 2): BLS unemployment (up to 50 series a
     request) and the Census's permits and estimates, once for the country.
-11. Adding a town from scratch (item 10): the helper.
-12. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
+14. Adding a town from scratch (item 10): the helper, which also runs the
+    first fetches and sets up the email routing rule (item 18).
+15. Upkeep: move the workflows' actions off Node 20 (GitHub has deprecated
     it), and renew the scheduler's GitHub token before it expires (about
     2027-10-01; a reminder is set for 2027-09-17). When it lapses, runs fall
     back to GitHub's own schedule, and the "network stopped" check can't open
     its issue.
-13. Towns queued separately (item 8), only if replaced runs turn out to delay
+16. Towns queued separately (item 8), only if replaced runs turn out to delay
     towns in practice.
 
 **Stage 2: about 20 to 50 towns.**
 
 1. Town data moved to R2, with git keeping config and code (item 1), when
    the data sizes in the towns' run records say it's time.
-2. Canary towns on the newest release, and sampled checks when
-   `engine-version` moves (item 5).
+2. Canary towns (Manchester and Malden) on the newest release, and sampled
+   checks when `engine-version` moves (items 5 and 16).
 3. `CODEOWNERS` and branch protection, before the first editor from outside
    Publick (item 6).
+4. The scheduler Worker deployed when it changes, and reminders for the
+   steps that stay by hand (item 18).
 
 **Stage 3: about 100 to 1,000 towns.**
 
