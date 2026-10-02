@@ -104,147 +104,137 @@ Order within a group is the order to do them in.
 
 ### Now: this week
 
-Things that are wrong on live sites today, or that make the next fix riskier.
+Built on 2026-10-02 and waiting to be merged: publick-engine and publick.org
+pull requests from `claude/exciting-allen-cy6caj`. What they do is under each
+theme below (marked *Built 2026-10-02*). What's left:
 
-1. **Close the open redirect in the sites Worker.** `worker/sites.js:135`
-   redirects `?lang=` to the raw path, so a path that starts with two
-   slashes, plus `?lang=`, redirects to another site (checked live). Collapse
-   leading slashes, or redirect only to paths in the manifest. Half a day.
-   ([Security and privacy](#security-and-privacy))
-2. **Say plainly what the Spanish is.** The credit reads "Resumen escrito y
-   traducido con IA; no revisado por una persona", the About page's AI
-   section says the same, agenda and minutes links say "(en inglés)", and
-   the "No cookies" line is made true (keep the language choice in
-   localStorage) or reworded. ([Spanish quality](#spanish-quality))
-3. **A missing Spanish text never stops a site publishing.** Fall back to
-   English with a warning, instead of `build_site.py` exiting 1.
-   ([Spanish quality](#spanish-quality))
-4. **Better Spanish translations.** The summary translation prompt gets the
-   no-guessed-gender rule and a short glossary (adjourn, reappoint, sign,
-   ward and district); machine drafts of a town's text are labeled
-   "traducción automática" on the page. Then a person who reads Spanish
-   checks Lawrence, then Beverly. ([Spanish quality](#spanish-quality))
-5. **Process fixes, about a day.** `engine-version` moves once a day, not
-   with every release; Markdown-only pull requests aren't released; branch
-   protection requiring the checks on `main` in both repositories;
-   accessibility tests in light only; one GitHub backup schedule, not four;
-   the statewide status committed only when a source was fetched.
+1. **Merge the engine pull request, release it, and deploy the sites Worker**
+   (Actions → Release → Run workflow, then move `engine-version`, then
+   Actions → Worker). The open redirect stays live until the Worker is
+   deployed. ([Security and privacy](#security-and-privacy))
+2. **Merge the publick.org pull request**: the daily engine pull request, one
+   backup schedule, push runs that record publishing, and $80 for October.
+3. **Settings only the owner can change** (decided 2026-10-02):
+   - Engine repository: a ruleset on `main` requiring a pull request and the
+     `test` check. No required reviews: one person can't approve their own.
+     Protect the `v*.*.*` tags from being changed or deleted, but not `v1`,
+     which the release moves.
+   - Network repository: a ruleset on `main` that only blocks force-pushes
+     and deletion. Requiring pull requests or checks there would stop the
+     daily runs, which commit each town's data straight to `main`; full
+     protection waits until the data moves out of git
+     ([Data out of git](#data-out-of-git)).
+   - `ENGINE_PR_TOKEN` in publick.org (README), so the daily engine pull
+     request's checks start by themselves.
    ([Releases](#releases))
-6. **The status page tells the truth after a push.** A run that publishes a
-   town records it in the town's `run.json`, whatever started the run, and a
-   daily run says plainly when a job published none of its towns.
-   ([Monitoring](#monitoring))
-7. **A one-time `catch_up` run for Lawrence**, so its older agendas don't wait
+4. **A one-time `catch_up` run for Lawrence**, so its older agendas don't wait
    all month on a $0.17-a-run backlog allowance. ([AI costs](#ai-summary-and-translation-costs))
-8. **Check the first daily runs on v1.29.0**: Malden's roll calls collected,
-   Manchester's long minutes summarized, Beverly's scans transcribed, the
-   first machine drafts of town text, and whether the four older towns now
-   show Spanish summaries. ([Vote records](#vote-records))
+5. **Check the first daily runs on the new engine**: Malden's roll calls
+   collected, Manchester's long minutes summarized, Beverly's scans
+   transcribed, every translation made again on prompt 3 and reviewed (about
+   450 summaries at under a cent each, so about $4 for the network), and how
+   many fail the checks.
+   ([Spanish quality](#spanish-quality))
 
 ### Next: October, before the next town
 
 Make what's shown checkable, and the process safe, before adding towns.
 
-9. **Summaries and decisions checked against their documents.** Every number,
+6. **Summaries and decisions checked against their documents.** Every number,
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
    a dropped "not" is caught. What fails isn't shown. ([Summary checks](#summary-checks))
-10. **"AI summary" on every headline**, wherever one is shown: the homepage,
+7. **"AI summary" on every headline**, wherever one is shown: the homepage,
     lists, board pages, and the RSS feed. ([Summary checks](#summary-checks))
-11. **A test set run against the real model**: about 15 documents with known
+8. **A test set run against the real model**: about 15 documents with known
     decisions, checked by hand, run before any prompt change ships.
     ([Summary checks](#summary-checks))
-12. **The translation check, per decision**: names survive, money with its
-    million or billion, am and pm, outcome and negation words agree, no extra
-    numbers, Spanish number formats accepted. A failed translation retried
-    once; older prompt versions not shown; decision labels matched by
-    content, not position. ([Spanish quality](#spanish-quality))
-13. **Failures that look like success, fixed.** A SeeClickFix 403 stops the
+9. **Failures that look like success, fixed.** A SeeClickFix 403 stops the
     311 step instead of marking records removed; a calendar that had
     meetings and now has none fails; the 311 page's date is its last fetch;
     the daily alert comments for each town newly behind.
     ([Monitoring](#monitoring))
-14. **Security hardening.** Storage and sites keys only in the steps that
+10. **Security hardening.** Storage and sites keys only in the steps that
     need them, no secrets on pull request runs, `persist-credentials: false`,
     actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
     Worker, tag protection. ([Security and privacy](#security-and-privacy))
-15. **311 addresses cut to the block** for sensitive categories (encampments,
+11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
-16. **The data license.** CC BY 4.0 in the network repository's `LICENSE`, a
+12. **The data license.** CC BY 4.0 in the network repository's `LICENSE`, a
     credit line on every About page and in the footer, SeeClickFix's terms
     saved as read. ([Open data](#open-data))
-17. **A budget floor per town**, so one town's launch backlog can't take most
+13. **A budget floor per town**, so one town's launch backlog can't take most
     of a day's money. ([AI costs](#ai-summary-and-translation-costs))
-18. **Push runs build and check but don't publish**, so they never wait hours
+14. **Push runs build and check but don't publish**, so they never wait hours
     behind a daily run; the next daily run publishes. ([Releases](#releases))
-19. **A check of each live site after publishing**: the homepage, fetched
+15. **A check of each live site after publishing**: the homepage, fetched
     through the Worker, is the build just published. ([Releases](#releases))
-20. **A `RUNBOOK.md`** in the network repository, and **a second person with
+16. **A `RUNBOOK.md`** in the network repository, and **a second person with
     owner access** to GitHub, Cloudflare, and Anthropic.
     ([Security and privacy](#security-and-privacy))
 
 ### Then: to about 20 towns
 
-21. **Lowell**: config only. ([Next towns](#next-towns))
-22. **Wallingford's figures**: the Connecticut package's tax bill and budget,
+17. **Lowell**: config only. ([Next towns](#next-towns))
+18. **Wallingford's figures**: the Connecticut package's tax bill and budget,
     then the Affordable Housing Appeals List. ([State packages](#state-packages))
-23. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
+19. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
     towns (Burlington, Lewiston, South Kingstown). ([Next towns](#next-towns))
-24. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
+20. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
     before the next 311 town. ([Data out of git](#data-out-of-git),
     [Shared sources](#shared-sources-once-per-state))
-25. **Springfield**, after Medford: CivicClerk with meetings sorted into
+21. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
-26. **The open data export**: each town's `/data/meetings.json` and a Data
+22. **The open data export**: each town's `/data/meetings.json` and a Data
     page. ([Open data](#open-data))
-27. **The next readers**: Foxit full text (Manchester's minutes, the most
+23. **The next readers**: Foxit full text (Manchester's minutes, the most
     common style not read free), and the next meeting platform a chosen town
     needs. ([Readers](#readers-for-more-platforms))
-28. **Officials kept current**: each town's next election date, with the
+24. **Officials kept current**: each town's next election date, with the
     status page flagging a list not checked since. ([Who represents you](#who-represents-you))
-29. **Vote records shown**, for Malden's council first, after a few weeks of
+25. **Vote records shown**, for Malden's council first, after a few weeks of
     a person checking every new vote. ([Vote records](#vote-records))
-30. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
+26. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
     once for Massachusetts. ([Shared sources](#shared-sources-once-per-state))
-31. **The helper for adding a town**, which also runs the first fetches and
+27. **The helper for adding a town**, which also runs the first fetches and
     sets up email routing. ([Adding a town](#adding-a-town))
-32. **Statewide sources, phase 3**: BLS and the Census, once for the country.
+28. **Statewide sources, phase 3**: BLS and the Census, once for the country.
     ([Shared sources](#shared-sources-once-per-state))
-33. **Spanish after launch**: the `reviewed` flag, `/es/feed.xml`, a Spanish
-    share image, and a monthly sample checked by a person.
-    ([Sites in Spanish](#sites-in-spanish))
-34. **Accessibility**: a table for every chart, and every scrollable table
+29. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
+    labels matched by content rather than position, and Ward and District
+    kept apart in Spanish. ([Spanish quality](#spanish-quality))
+30. **Accessibility**: a table for every chart, and every scrollable table
     reachable by keyboard. ([Accessibility](#accessibility))
-35. **Upkeep**: workflows' actions off Node 20; config keys only one town uses
+31. **Upkeep**: workflows' actions off Node 20; config keys only one town uses
     folded into their readers; a monthly page-view report.
     ([Upkeep](#upkeep))
 
 ### Stage 2: about 20 to 50 towns
 
-36. Town data moved to R2, with git keeping config and code, when the run
+32. Town data moved to R2, with git keeping config and code, when the run
     records' sizes say so. ([Data out of git](#data-out-of-git))
-37. Canary towns (Manchester and Malden) on the newest release, and sampled
+33. Canary towns (Manchester and Malden) on the newest release, and sampled
     checks when `engine-version` moves. ([Releases](#releases))
-38. `CODEOWNERS` and required reviews, before the first editor from outside
+34. `CODEOWNERS` and required reviews, before the first editor from outside
     Publick. ([Who can change what](#who-can-change-what))
-39. The scheduler Worker deployed when it changes, and reminders for the
+35. The scheduler Worker deployed when it changes, and reminders for the
     steps that stay by hand. ([Steps done by hand](#steps-done-by-hand))
-40. Officials compared with each city's own pages, with differences opened
+36. Officials compared with each city's own pages, with differences opened
     as one issue for a person. ([Who represents you](#who-represents-you))
-41. Summaries through the Batches API, at least for the backlog.
+37. Summaries through the Batches API, at least for the backlog.
     ([AI costs](#ai-summary-and-translation-costs))
 
 ### Stage 3: about 100 to 1,000 towns
 
-42. The work queue: sources due, per scope, with per-vendor rate limits, and
+38. The work queue: sources due, per scope, with per-vendor rate limits, and
     a new town's history fetched on its own. ([Runner capacity](#runner-capacity-and-the-work-queue))
-43. A paid GitHub plan or other workers, as the queue's length shows the need.
-44. A summary budget sized to the network, with one priority order across
+39. A paid GitHub plan or other workers, as the queue's length shows the need.
+40. A summary budget sized to the network, with one priority order across
     towns. ([AI costs](#ai-summary-and-translation-costs))
-45. A status page with search and filters, and a daily digest instead of an
+41. A status page with search and filters, and a daily digest instead of an
     alert. ([Monitoring](#monitoring))
-46. Self-hosted page counts, if GoatCounter's free use runs out.
+42. Self-hosted page counts, if GoatCounter's free use runs out.
 
 ### Decided, not scheduled
 
@@ -331,8 +321,9 @@ From the October 2026 review, still to decide:
   on only.
 - The order of the next towns (the lists under [Next towns](#next-towns) are
   a proposal).
-- The $50 budget: raised, or kept with backlog summaries through the Batches
-  API.
+- The budget after October ($80 for October 2026, decided 2026-10-02; $50
+  otherwise): raised for good, or kept with backlog summaries through the
+  Batches API.
 - Who the second person with owner access is.
 
 ## The work, by theme
@@ -456,31 +447,49 @@ language, with `Vary` and a no-store 302; `hreflang` and `x-default` set; a
 404 per language; board names keep the official English; Spanish search
 covers the translations; translation is cheap.
 
-**Next, in order.**
-1. *Now:* the credit and About page say "escrito y traducido con IA; no
-   revisado por una persona"; document links say "(en inglés)"; the cookie
-   line made true; a missing Spanish text falls back to English instead of
-   failing the build.
-2. *This week:* the no-gender rule and a glossary in the summary translation
-   prompt (adjourn = levantar la sesión, reappoint = volver a nombrar, sign =
-   letrero, ward vs district); machine drafts labeled "traducción
-   automática"; a person who reads Spanish checks Lawrence, then Beverly
-   (`site/strings/es.po`, `site/strings/es-guide.md`, each town's
-   `[strings.es]`, and a sample of translated summaries against the English:
-   names, amounts, votes). Plain Spanish that reads naturally to Lawrence's
-   community, largely Dominican and Puerto Rican, not formal or literal. Also
-   to confirm in Lawrence's config: the School Committee's elected and
-   appointed members, the mayor's term, and officers' titles.
-3. *The check, per decision:* names and capitalized words survive; money
-   compared with its million or billion; am and pm; outcome and negation
-   words (approve, deny, table, recommend, not) agree with the English; no
-   extra numbers; Spanish number formats normalized. Drafts rejected unless
-   they map one to one. A failed translation retried once, and the notice
-   reworded. `shown()` respects `prompt_version`. Decision labels matched by
-   content. Ambiguous dates written out. Ward and district kept apart.
-4. *Then:* the `reviewed` flag, so a regenerated English summary can't
-   replace a checked Spanish one without notice; `/es/feed.xml`; a Spanish
-   share image; a monthly sample checked by a person.
+**Decided 2026-10-02: no person checks the Spanish.** A human reviewer isn't
+realistic, so the sites say plainly that the Spanish is machine-translated,
+always link the English, and two checks stand in for a person, failing to
+English rather than showing a doubtful translation.
+
+*Built 2026-10-02 (engine pull request, not yet released):*
+- Disclosure: a translated summary's credit says "Traducido automáticamente
+  con IA del resumen en inglés; puede tener errores" and links the English;
+  every Spanish page's footer says the page was translated with AI and links
+  the English; agenda and minutes links say "(en inglés)"; the About page
+  names the translation model and both checks; the cookie line says the
+  language switch sets one cookie and nothing else (decided: reword, keep the
+  cookie).
+- A config text with no Spanish shows in English with a warning instead of
+  stopping the build (decided: reverses the morning's rule that a town isn't
+  built in Spanish until all its text is), and drafting may spend $0.05 a run
+  past the budget so the gap fills the next run.
+- The check without AI, entry by entry: numbers kept and none added,
+  whatever the Spanish number format; amounts' million or billion; a.m. and
+  p.m.; names kept as written (a capitalized word that isn't an English word);
+  and outcomes not turned round (a "not" lost or added, denied as approved,
+  tabled as approved, unanimous changed). Every crafted case above fails it;
+  76 of the 77 saved live translations pass.
+- Claude Sonnet 5.5 reviews each translation that passes, and each batch of
+  drafted town text, for meaning (adjourned as dissolved, guessed gender,
+  "Comisión de Conversación"): about a cent each. Anything it flags shows
+  the English.
+- A failed translation or draft is made again once, then left; the page says
+  the translation didn't pass our checks. Older prompt versions aren't shown.
+- The prompt (version 3): never guess gender (use the English's, else the
+  name and then the role); write dates with the month's name; a glossary for
+  adjourn, appoint and reappoint, table, sign, name after, all-alcoholic
+  license, underage operative.
+- Lawrence's config: generic Vicepresidente for roles whose holder changes.
+
+**Still to do.**
+- Decision labels matched by content rather than position (a reordered list
+  now fails the check entry by entry, so this is belt and braces).
+- Ward and District both "Distrito" in Spanish; Beverly's districts are
+  lettered, so they read apart, but a town with numbered districts would not.
+- `/es/feed.xml` and a Spanish share image.
+- A "report a translation error" path that reaches the glossary: today's
+  report link goes to the same place as every other error.
 
 **Matters at:** now.
 
@@ -574,8 +583,8 @@ are behind and why, without flooding the inbox, and to say so truthfully.
 - The scheduler Worker (`worker/scheduler.js`) opens, and later closes, a
   "network stopped" issue when no daily run has finished for 30 hours.
 
-**Found 2026-10-02.** The status page and the alert were wrong for most of a
-day. The 09:06Z daily run failed "Check site" for Gloucester, Malden, and
+**Found 2026-10-02, and built the same day (not yet merged).** The status
+page and the alert were wrong for most of a day. The 09:06Z daily run failed "Check site" for Gloucester, Malden, and
 Manchester (`/311/` scrolled sideways by 1px on a phone once charts had a
 25th month). v1.28.0 fixed it and push runs republished all three, but a
 push run doesn't write `run.json`, so they stayed `deployed: false`, the
@@ -583,10 +592,13 @@ status page said "Some data delayed", and issue #34 stayed open until the
 next fetching run. The daily run finished green with 3 of 3 towns not
 deployed; the only sign was warnings.
 
+*Built:* a run that publishes a town without fetching records it in the
+town's run record (that run's build, checks, and publish replace the failed
+ones), commits it, and rebuilds the status page and the daily issue; a
+fetching run's report names the towns it didn't publish, and fails when it
+published none.
+
 **Next.**
-- A run that publishes a town records it in the town's run record, whatever
-  started the run; a daily run in which a job published none of its towns
-  says so plainly (or its report job fails).
 - Failures that look like success: a SeeClickFix 403 marks records removed
   (`fetch_311.py:136-139`), so stop the 311 step instead; an empty calendar
   counts as checked (`fetch_meetings.py:362-369`), so a calendar that had
@@ -661,16 +673,29 @@ site, and two sample towns (`tests/test_sample_towns.py`): Manchester
 (CivicClerk and DotNetNuke) and Malden (Agenda Center), through the real
 fetchers from saved pages, each with the page, link, and browser checks.
 
-**Next.**
-- `engine-version` moves once a day, not with every release, unless a fix is
-  urgent. The network doesn't follow the `v1` tag: the pinned version is
-  what rolls back, and its pull request is what checks a release.
-- A Markdown-only pull request isn't released, without needing a label.
-- Branch protection on `main` in both repositories, requiring the checks.
-  Required reviews wait for [Who can change what](#who-can-change-what).
+*Built 2026-10-02 (pull requests in both repositories, not yet merged):*
+- The engine releases once a day (08:20 UTC), not on every merge: the newest
+  tested commit on `main`, with everything merged since, at the largest bump
+  its pull requests' labels ask for. **Actions → Release → Run workflow**
+  releases now, for an urgent fix. A Markdown-only pull request is left out
+  without a label.
+- The network moves `engine-version` once a day by a pull request
+  (publick.org's `engine.yml`, 08:40 UTC), whose run checks every page of
+  every town; merging it publishes them. The network doesn't follow the `v1`
+  tag: the pinned version is what rolls back, and its pull request is what
+  checks a release.
 - Accessibility tests in light only, until the sites have dark styles.
-- One GitHub backup schedule; the statewide status committed only when a
-  source was fetched.
+- One GitHub backup schedule; the statewide status written only when a
+  source was fetched or something changed.
+
+**Next.**
+- Branch protection (decided 2026-10-02; settings the owner changes): the
+  engine's `main` requires a pull request and the `test` check, and its
+  `v*.*.*` tags can't be changed or deleted (`v1` can, since the release
+  moves it). The network's `main` only blocks force-pushes and deletion:
+  its daily runs commit data straight to `main`, so requiring pull requests
+  or checks there waits until the data leaves git. Required reviews wait for
+  [Who can change what](#who-can-change-what).
 - A push builds and checks the towns it touched but doesn't publish them, so
   it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
   that's too slow, towns queued separately lets a push wait only for its
