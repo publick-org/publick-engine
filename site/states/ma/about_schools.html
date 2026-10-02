@@ -1,4 +1,8 @@
 {#- The About page's sources list: schools. -#}
 {% if config.schools is defined %}
-  <li><strong>Schools:</strong> Mass. <a href="{{ config.schools.portal }}">Department of Elementary and Secondary Education</a> open data.{% if config.schools.report_url is defined %} School-by-school detail is on the <a href="{{ config.schools.report_url }}">{{ config.schools.report_name }}</a>.{% endif %}</li>
+  <li>{% trans url=config.schools.portal %}<strong>Schools:</strong> Mass. <a href="{{ url }}">Department of Elementary and Secondary Education</a> open data.{% endtrans %}
+  {%- if config.schools.report_url is defined %}
+  {#- Translators: %(report)s is the name of a report on each of the city's schools, such as "Gloucester Schools Report". #}
+  {%+ trans url=config.schools.report_url, report=config.schools.report_name %}School-by-school detail is on the <a href="{{ url }}">{{ report }}</a>.{% endtrans %}
+  {%- endif %}</li>
 {% endif %}

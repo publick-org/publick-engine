@@ -1,79 +1,79 @@
 {% extends "base.html" %}
 {% from "macros.html" import on_this_page %}
-{% block title %}Schools{% endblock %}
-{% block description %}{{ config.schools.district_name }} compared with the state: graduation rate, state test results, and cost per pupil.{% endblock %}
+{% block title %}{{ _("Schools") }}{% endblock %}
+{% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, state test results, and cost per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
 {% block content %}
 <div class="page-head">
-  <h1>Schools</h1>
-  <p class="lede">{{ sch.district_name }} compared with the state, from the New Hampshire Department of Education.</p>
+  <h1>{{ _("Schools") }}</h1>
+  <p class="lede">{% trans district=sch.district_name %}{{ district }} compared with the state, from the New Hampshire Department of Education.{% endtrans %}</p>
   {% if schools %}
-  <p class="source-note">State figures as of <time datetime="{{ schools.figures_extracted_at }}">{{ schools.figures_extracted_at | timestamp }}</time>. The Department of Education publishes each figure once a year.</p>
+  <p class="source-note">{% trans iso=schools.figures_extracted_at, when=schools.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("The Department of Education publishes each figure once a year.") }}</p>
   {% endif %}
 </div>
 
 {% if not schools %}
-<p>Figures will appear here after the next data update.</p>
+<p>{{ _("Figures will appear here after the next data update.") }}</p>
 {% else %}
 {% set ms = schools.measures %}
 {% set grad = ms.graduation.years[-1] if ms.graduation.years else none %}
 {% set ela = ms.sas_ela.years[-1] if ms.sas_ela.years else none %}
 {% set math = ms.sas_math.years[-1] if ms.sas_math.years else none %}
 {% set cost = ms.cost_per_pupil.years[-1] if ms.cost_per_pupil.years else none %}
-<h2 class="visually-hidden">Summary</h2>
+<h2 class="visually-hidden">{{ _("Summary") }}</h2>
 <ul class="stats">
   {% if grad %}
   <li class="stat"><a href="#graduation">
-    <span class="stat-label">Graduation rate</span>
+    <span class="stat-label">{{ _("Graduation rate") }}</span>
     <span class="stat-value">{{ grad.town | round(1) }}%</span>
-    <span class="stat-change">Class of {{ grad.year }} · State {{ grad.state | round(1) }}%</span>
+    <span class="stat-change">{% trans year=grad.year %}Class of {{ year }}{% endtrans %} · {% trans pct=grad.state | round(1) %}State {{ pct }}%{% endtrans %}</span>
   </a></li>
   {% endif %}
   {% if ela %}
   <li class="stat"><a href="#sas-english">
-    <span class="stat-label">State test, English</span>
+    <span class="stat-label">{{ _("State test, English") }}</span>
     <span class="stat-value">{{ ela.town }}%</span>
-    <span class="stat-change">Spring {{ ela.year }}, proficient or above · State {{ ela.state }}%</span>
+    <span class="stat-change">{% trans year=ela.year %}Spring {{ year }}, proficient or above{% endtrans %} · {% trans pct=ela.state %}State {{ pct }}%{% endtrans %}</span>
   </a></li>
   {% endif %}
   {% if math %}
   <li class="stat"><a href="#sas-math">
-    <span class="stat-label">State test, math</span>
+    <span class="stat-label">{{ _("State test, math") }}</span>
     <span class="stat-value">{{ math.town }}%</span>
-    <span class="stat-change">Spring {{ math.year }}, proficient or above · State {{ math.state }}%</span>
+    <span class="stat-change">{% trans year=math.year %}Spring {{ year }}, proficient or above{% endtrans %} · {% trans pct=math.state %}State {{ pct }}%{% endtrans %}</span>
   </a></li>
   {% endif %}
   {% if cost %}
   <li class="stat"><a href="#cost">
-    <span class="stat-label">Cost per pupil</span>
+    <span class="stat-label">{{ _("Cost per pupil") }}</span>
     <span class="stat-value">{{ cost.town | money }}</span>
-    <span class="stat-change">{{ cost.year | school_year }} · State average {{ cost.state | money }}</span>
+    <span class="stat-change">{{ cost.year | school_year }} · {% trans amount=cost.state | money %}State average {{ amount }}{% endtrans %}</span>
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page([("graduation", "Graduation"), ("sas", "State tests"), ("cost", "Cost per pupil")]) }}
+{{ on_this_page([("graduation", _("Graduation")), ("sas", _("State tests")), ("cost", _("Cost per pupil"))]) }}
 
-<h2 id="graduation">Graduation rate</h2>
-<p>Share of students who graduated high school within four years of starting ninth grade.</p>
+<h2 id="graduation">{{ _("Graduation rate") }}</h2>
+<p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Class of</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num wide">Graduated</th><th scope="col" class="num">State</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num wide">{{ _("Graduated") }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.graduation.years | reverse %}
-    <tr><th scope="row">{{ y.year }}</th><td class="num">{{ y.town | round(1) }}%</td><td class="num wide">{{ y.graduated | number }} of {{ y.cohort | number }}</td><td class="num">{% if y.state is not none %}{{ y.state | round(1) }}%{% else %}–{% endif %}</td></tr>
+    <tr><th scope="row">{{ y.year }}</th><td class="num">{{ y.town | round(1) }}%</td><td class="num wide">{% trans graduated=y.graduated | number, cohort=y.cohort | number %}{{ graduated }} of {{ cohort }}{% endtrans %}</td><td class="num">{% if y.state is not none %}{{ y.state | round(1) }}%{% else %}–{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
-<p class="small">The four-year adjusted cohort graduation rate. Source: <a href="{{ ms.graduation.source_url }}">New Hampshire Department of Education, iPlatform</a> (Cohort Counts By School).</p>
+<p class="small">{{ _("The four-year adjusted cohort graduation rate.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, iPlatform</a> (Cohort Counts By School).{% endtrans %}</p>
 
-<h2 id="sas">State test results</h2>
-<p>Share of students who scored proficient or above (levels 3 and 4) on the New Hampshire Statewide Assessment System (NH SAS). The figures are for every grade tested together: grades 3 to 8, and 11th graders, whose scores come from the SAT.</p>
-{% for key, subject in [("sas_ela", "English"), ("sas_math", "Math")] %}
-<h3 id="sas-{{ subject | lower }}">{{ subject }}</h3>
+<h2 id="sas">{{ _("State test results") }}</h2>
+<p>{{ _("Share of students who scored proficient or above (levels 3 and 4) on the New Hampshire Statewide Assessment System (NH SAS). The figures are for every grade tested together: grades 3 to 8, and 11th graders, whose scores come from the SAT.") }}</p>
+{% for key, slug, subject in [("sas_ela", "english", _("English")), ("sas_math", "math", _("Math"))] %}
+<h3 id="sas-{{ slug }}">{{ subject }}</h3>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">Spring</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">State</th></tr></thead>
+  <thead><tr><th scope="col">{{ pgettext("season", "Spring") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms[key].years | reverse %}
     <tr><th scope="row">{{ y.year }}</th><td class="num">{{ y.town }}%</td><td class="num">{% if y.state is not none %}{{ y.state }}%{% else %}–{% endif %}</td></tr>
@@ -82,13 +82,13 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">New Hampshire sets its own proficiency levels, so these results can't be compared with other states' tests. No tests were given in spring 2020. Source: <a href="{{ ms.sas_ela.source_url }}">New Hampshire Department of Education, assessment data</a>.</p>
+<p class="small">{{ _("New Hampshire sets its own proficiency levels, so these results can't be compared with other states' tests. No tests were given in spring 2020.") }} {% trans url=ms.sas_ela.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, assessment data</a>.{% endtrans %}</p>
 
-<h2 id="cost">Cost per pupil</h2>
-<p>What the district spends to run its schools for each student, from all sources: local, state, and federal. It leaves out construction, debt, transportation, and tuition paid to other districts.</p>
+<h2 id="cost">{{ _("Cost per pupil") }}</h2>
+<p>{{ _("What the district spends to run its schools for each student, from all sources: local, state, and federal. It leaves out construction, debt, transportation, and tuition paid to other districts.") }}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">School year</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">State average</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("School year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ _("State average") }}</th></tr></thead>
   <tbody>
   {% for y in ms.cost_per_pupil.years | reverse %}
     <tr><th scope="row">{{ y.year | school_year }}</th><td class="num">{{ y.town | money }}</td><td class="num">{% if y.state is not none %}{{ y.state | money }}{% else %}–{% endif %}</td></tr>
@@ -96,8 +96,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">The state average is of district-operated schools. Source: <a href="{{ ms.cost_per_pupil.source_url }}">New Hampshire Department of Education, financial reports</a> (Cost Per Pupil by District).</p>
+<p class="small">{{ _("The state average is of district-operated schools.") }} {% trans url=ms.cost_per_pupil.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, financial reports</a> (Cost Per Pupil by District).{% endtrans %}</p>
 
-<p class="source-note">All figures as published by the <a href="https://www.education.nh.gov/">New Hampshire Department of Education</a>. New Hampshire doesn't publish chronic absenteeism.</p>
+<p class="source-note">{% trans url="https://www.education.nh.gov/" %}All figures as published by the <a href="{{ url }}">New Hampshire Department of Education</a>.{% endtrans %} {{ _("New Hampshire doesn't publish chronic absenteeism.") }}</p>
 {% endif %}
 {% endblock %}

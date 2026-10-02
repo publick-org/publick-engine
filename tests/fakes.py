@@ -110,7 +110,7 @@ class FakeAnthropic:
         "decisions": ["Approved the site plan for 12 Main St, 5-0"],
     }
 
-    def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None):
+    def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False):
         from types import SimpleNamespace
         self.calls = []
         outer = self
@@ -144,9 +144,31 @@ class FakeAnthropic:
             def get_final_message(self):
                 return respond(self.kwargs)
 
+        def translate(kwargs):
+            """A "translation" of the English summary in the request: each text marked ES, numbers kept
+            (or dropped, for a translation that fails its check)."""
+            import json
+            import re
+            outer.calls.append(kwargs)
+            text = kwargs["messages"][0]["content"]
+            english = json.loads(text[text.index("\n{") + 1:])
+
+            def es(t):
+                t = "ES " + t
+                return re.sub(r"\d", "", t) if translation_drops_numbers else t
+            payload = {k: [es(x) for x in v] if isinstance(v, list) else es(v) for k, v in english.items()}
+            return SimpleNamespace(
+                stop_reason=stop_reason,
+                content=[SimpleNamespace(type="text", text=json.dumps(payload, ensure_ascii=False))],
+                usage=SimpleNamespace(input_tokens=600, output_tokens=300),
+            )
+
         class Messages:
             def stream(self, **kwargs):
                 return Stream(kwargs)
+
+            def create(self, **kwargs):
+                return translate(kwargs)
 
         self.messages = Messages()
 

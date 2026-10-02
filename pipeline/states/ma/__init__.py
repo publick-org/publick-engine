@@ -6,6 +6,7 @@ tax bill and budget, and the Department of Elementary and Secondary Education
     [schools]  district_code, district_name, portal; optional report_name and report_url
 """
 
+from pipeline.i18n import N_
 from pipeline.states import Source, State
 
 STATE = State(
@@ -16,7 +17,7 @@ STATE = State(
         "budget": Source("finance", ("dls_municipality", "dls_code"), "pipeline.states.ma.budget"),
         "schools": Source("schools", ("district_code", "district_name", "portal"), "pipeline.states.ma.schools"),
     },
-    tax_source="Mass. Division of Local Services",
+    tax_source=N_("Mass. Division of Local Services"),
     housing="pipeline.states.ma.housing",
     pages="pipeline.states.ma.pages",
 )
