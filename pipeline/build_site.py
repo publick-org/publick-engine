@@ -171,8 +171,11 @@ def format_duration_cell(days: float | None) -> str:
 
 
 def model_name(model_id: str) -> str:
-    """'claude-sonnet-5' -> 'Claude Sonnet 5'."""
-    return " ".join(part.capitalize() for part in model_id.split("-"))
+    """'claude-sonnet-5' -> 'Claude Sonnet 5'; 'claude-haiku-4-5-20251001' -> 'Claude Haiku 4.5'."""
+    parts = [p for p in model_id.split("-") if not re.fullmatch(r"\d{8}", p)]
+    words = [p.capitalize() for p in parts if not p.isdigit()]
+    version = ".".join(p for p in parts if p.isdigit())
+    return " ".join(words + ([version] if version else []))
 
 
 def school_year(year: int) -> str:
@@ -684,10 +687,10 @@ class TownStrings:
       roles, and seats (pipeline/common_strings.py), and numbered seats ("Ward 3");
     - a machine draft, made by a town's run and not yet reviewed (drafts: pipeline/translate.py).
 
-    Text with none of these is shown in English and noted: the config's own text in missing
-    (a site in that language isn't built without it: see main()), and names that come from
-    the city's data, which change as the city adds boards and 311 categories, in missing_data
-    (the next run drafts them). Texts shown from drafts are noted in drafted."""
+    Text with none of these is shown in English and noted, for the next run to draft: the
+    config's own text in missing, and names that come from the city's data, which change as
+    the city adds boards and 311 categories, in missing_data. Texts shown from drafts are
+    noted in drafted."""
 
     def __init__(self, config: dict, lang: str, drafts: dict | None = None):
         self.english = lang == "en"
@@ -991,7 +994,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     sc = config.get("seeclickfix") or config.get("officials", {})
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
-    common = dict(config=config, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+    common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
@@ -1286,7 +1289,6 @@ def main() -> None:
     missing: dict = {}
     urls = build(args.town, args.out, args.data, missing=missing)
     print(f"Built {len(urls)} pages into {args.out}")
-    failed = False
     for lang, texts in missing.items():
         if texts.get("drafted"):
             print(f"::notice::{i18n.LANGUAGES[lang]}: {len(texts.get('drafted', []))} texts are shown from machine drafts not yet "
@@ -1296,15 +1298,11 @@ def main() -> None:
         for text in texts["data"]:
             print(f"::warning::{i18n.LANGUAGES[lang]}: {text!r} is shown in English until the next run drafts it, "
                   f"or [strings.{lang}] in config/{args.town}.toml has it.")
-        # The config's own text is the town's to give in every language it's built in.
-        if texts["config"]:
-            failed = True
-            print(f"::error::{i18n.LANGUAGES[lang]}: the site isn't built in {i18n.LANGUAGES[lang]} until "
-                  f"[strings.{lang}] in config/{args.town}.toml, or a run's drafts, have these texts from the config:")
-            for text in texts["config"]:
-                print(f"  {text!r}")
-    if failed:
-        raise SystemExit(1)
+        # The config's own text too: shown in English rather than stop both languages publishing
+        # (a run that couldn't draft it, with the month's budget spent, drafts it next time).
+        for text in texts["config"]:
+            print(f"::warning::{i18n.LANGUAGES[lang]}: {text!r}, from config/{args.town}.toml, is shown in English "
+                  f"until the next run drafts it, or [strings.{lang}] has it.")
 
 
 if __name__ == "__main__":

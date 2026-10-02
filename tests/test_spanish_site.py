@@ -55,13 +55,20 @@ def test_every_page_in_both_languages(built, site_dir):
 
 
 def test_english_pages_are_unchanged(built, site_dir):
-    """A town's English pages gain only the links to their Spanish versions."""
+    """A town's English pages gain only the links to their Spanish versions, and the About page
+    says how the other language's summaries are made and what the language switch's cookie is."""
     out, _, _ = built
     extra = re.compile(r'\s*<link rel="alternate" hreflang="[^"]+" href="[^"]+">'
-                       r'|\s*<a class="language-switch"[^>]*>[^<]*</a>')
+                       r'|\s*<a class="language-switch"[^>]*>[^<]*</a>'
+                       r'|\s*<p>On the pages in other languages, each summary is translated[^<]*</p>')
+    cookie = re.compile(r'<li>No ads, and no tracking across other sites.</li>\s*<li>One cookie, only if you use the language switch[^<]*</li>')
+    about = (out / "about" / "index.html").read_text(encoding="utf-8")
+    assert "translated automatically by AI (Claude Haiku 4.5, by Anthropic)" in about and cookie.search(about)
     for path in sorted(site_dir.rglob("*.html")):
         rel = path.relative_to(site_dir)
-        assert extra.sub("", (out / rel).read_text(encoding="utf-8")) == path.read_text(encoding="utf-8"), rel
+        bilingual = cookie.sub("<li>No cookies, no ads, and no tracking across other sites.</li>",
+                               extra.sub("", (out / rel).read_text(encoding="utf-8")))
+        assert bilingual == path.read_text(encoding="utf-8"), rel
 
 
 def test_language_attributes_and_switch(built):
@@ -123,22 +130,19 @@ def test_section_names_are_the_engines_to_translate(config):
         assert not tr.missing
 
 
-def test_a_site_isnt_built_in_spanish_without_the_towns_own_text(monkeypatch, capsys):
-    """The config's own text is required in each of the site's languages; names from the city's
-    data only warn, since a new board or category can appear any day."""
+def test_text_without_spanish_is_shown_in_english_and_never_stops_the_build(monkeypatch, capsys):
+    """A text with no Spanish, the config's own or a name from the city's data, is shown in
+    English with a warning: a gap in one language never stops either language publishing."""
     def build(town, out, data, missing):
         missing["es"] = {"config": ["Public data on how Gloucester decides."], "data": ["Board of Health"]}
         return ["/"]
     monkeypatch.setattr(build_site, "build", build)
     monkeypatch.setattr("sys.argv", ["build_site", "--town", "gloucester"])
-    with pytest.raises(SystemExit):
-        build_site.main()
+    build_site.main()
     out = capsys.readouterr().out
     assert "::warning::Español: 'Board of Health' is shown in English" in out
-    assert "::error::Español" in out and "'Public data on how Gloucester decides.'" in out
-    monkeypatch.setattr(build_site, "build", lambda town, out, data, missing: missing.update(
-        {"es": {"config": [], "data": ["Board of Health"]}}) or ["/"])
-    build_site.main()
+    assert "::warning::Español: 'Public data on how Gloucester decides.'" in out
+    assert "::error::" not in out
 
 
 def test_english_text_is_marked_on_spanish_pages(built):

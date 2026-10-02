@@ -74,6 +74,9 @@ LEDGER = "summary-costs.json"
 # The network's share for this run, in dollars (see the module docstring).
 ALLOWANCE_ENV = "PUBLICK_SUMMARY_ALLOWANCE"
 BACKLOG_ALLOWANCE_ENV = "PUBLICK_SUMMARY_BACKLOG_ALLOWANCE"
+# Dollars a run may spend drafting a town's own text in another language, even with its share
+# spent: a batch of texts costs about a cent, and an undrafted text shows in English.
+DRAFT_FLOOR = 0.05
 # A document is new if it was fetched in the last NEW_DAYS for a meeting in
 # the last RECENT_MEETING_DAYS (minutes are often posted weeks after the
 # meeting). Everything else but upcoming agendas is backlog.
@@ -471,7 +474,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             needed = needed_texts(config, data_dir, lang, now)
             texts = needed["config"] + needed["data"]
             if texts:
-                left = None if allowance is None else max(allowance - spent, 0.0)
+                # Past the budget too, up to DRAFT_FLOOR: a few texts cost a fraction of a cent, and
+                # without them a page shows English.
+                left = None if allowance is None else max(allowance - spent, DRAFT_FLOOR)
                 count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left)
                 drafted_texts += count
                 spent += paid
