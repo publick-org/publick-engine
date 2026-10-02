@@ -19,6 +19,17 @@ again only when its English summary changes (or this module's prompt does:
 VERSION). summarize.py runs the translations within the same budget as the
 summaries, new documents first; their cost is in the month's ledger as
 translation_cost.
+
+A town's own text (its config's tagline, section summaries, officials' seats)
+and the names in its data (boards, 311 categories) come from the town's
+[strings.<language>] when it has them, else from the engine's own Spanish for
+what many towns share ("Planning Board", "Ward 3"). Whatever is still missing
+is drafted here by the same small model, a batch per run: draft_texts(),
+checked the same way (every number and placeholder kept), and saved in
+data/strings/<language>.json. A draft is shown, so a new town or a new board
+needs no one's translation first, until a person reviews it: `python -m
+pipeline.translate drafts` prints the drafts as [strings.<language>] lines to
+correct and add to the town's config, which then wins.
 """
 
 from __future__ import annotations
@@ -234,13 +245,151 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
 
 
 def month_counts(data_dir: Path) -> dict[str, dict]:
-    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}}."""
+    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}}.
+    A batch of drafted texts counts as one translation."""
     counted: dict[str, dict] = {}
-    for file in sorted((data_dir / "summaries").glob("*/*.json")):
-        record = json.loads(file.read_text(encoding="utf-8"))
+    records = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((data_dir / "summaries").glob("*/*.json"))]
+    for file in sorted((data_dir / "strings").glob("*.json")):
+        records += json.loads(file.read_text(encoding="utf-8")).get("batches", [])
+    for record in records:
         at = record.get("generated_at", "")[:7]
         if at:
             row = counted.setdefault(at, {"cost": 0.0, "translations": 0})
             row["cost"] += record.get("cost", 0.0)
             row["translations"] += 1
     return counted
+
+
+# ---- A town's own text and names, drafted ------------------------------------
+
+NAMES_VERSION = 1
+# Texts per request: one batch covers a new town's config and boards.
+NAMES_BATCH = 80
+
+NAMES_SYSTEM = """You translate short texts from a US city or town government's website from English into {language}, for residents: names of boards and committees, officials' seats and roles, 311 request categories, section titles and descriptions, and glossary definitions.
+
+Rules:
+- Translate each text on its own, and return exactly one translation for each, in the same order.
+- Boards and committees: the natural {language} name a resident would understand ("Planning Board" = "Junta de Planificación"). Keep the names of people, places, businesses, and programs, and acronyms, as written.
+- Role titles (Chair, Vice Chair, Secretary) label whoever holds them: use the generic form ("Presidente", "Vicepresidente", "Secretario"). Never guess anyone's gender.
+- A ward is "distrito"; a precinct is "precinto"; at-large or citywide seats are "toda la ciudad" (a town's: "todo el municipio").
+- Keep every number, and every {{placeholder}} and %(placeholder)s, exactly.
+- Plain and short, about an 8th-grade reading level. Neutral: no words that judge.
+
+{readers}"""
+
+NAMES_PROMPT = """The website of {town}, {state}. Translate these {n} texts into {language}:
+{texts}"""
+
+# {name} and %(name)s in a text, which its translation must keep.
+PLACEHOLDER = re.compile(r"%\((\w+)\)s|\{(\w*)\}")
+
+
+def strings_path(data_dir: Path, lang: str) -> Path:
+    return data_dir / "strings" / f"{lang}.json"
+
+
+def saved_drafts(data_dir: Path, lang: str) -> dict:
+    """The town's drafts file: {"drafts": {English: {"text", "check", ...}}, "batches": [...]}."""
+    file = strings_path(data_dir, lang)
+    return json.loads(file.read_text(encoding="utf-8")) if file.exists() else {"drafts": {}, "batches": []}
+
+
+def drafts(data_dir: Path, lang: str) -> dict[str, str]:
+    """The drafts that can be shown: {English: translation}, each made with the current prompt
+    and passing the check."""
+    return {en: d["text"] for en, d in saved_drafts(data_dir, lang)["drafts"].items()
+            if d.get("check") == "ok" and d.get("prompt_version") == NAMES_VERSION}
+
+
+def check_text(en: str, tr) -> str:
+    """ "ok", or what's wrong with one drafted text: empty, or a number or placeholder lost."""
+    if not isinstance(tr, str) or not tr.strip():
+        return "missing"
+    lost = numbers(en) - numbers(tr)
+    if lost:
+        return f"{', '.join(sorted(lost))} not in the translation"
+    lost = Counter(a or b for a, b in PLACEHOLDER.findall(en)) - Counter(a or b for a, b in PLACEHOLDER.findall(tr))
+    if lost:
+        return f"placeholder {', '.join(sorted(lost))} not in the translation"
+    return "ok"
+
+
+def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str], now: datetime, cost,
+                allowance: float | None = None) -> tuple[int, float]:
+    """Draft the texts (a town's own text and names with no translation yet), check each, and
+    save them in data/strings/<language>.json. Stops before a batch once allowance (dollars) is
+    spent. Returns how many were drafted and what they cost."""
+    tsettings = settings(config)
+    saved = saved_drafts(data_dir, lang)
+    done, spent = 0, 0.0
+    texts = list(dict.fromkeys(texts))
+    for start in range(0, len(texts), NAMES_BATCH):
+        if allowance is not None and spent >= allowance:
+            break
+        batch = texts[start:start + NAMES_BATCH]
+        response = client.messages.create(
+            model=tsettings["model"],
+            max_tokens=MAX_TOKENS,
+            system=NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            messages=[{"role": "user", "content": NAMES_PROMPT.format(
+                town=config["town"]["name"], state=config["town"]["state"], n=len(batch), language=LANGUAGE_NAMES[lang],
+                texts=json.dumps(batch, ensure_ascii=False, indent=1))}],
+            output_config={"format": {"type": "json_schema", "schema": {
+                "type": "object", "properties": {"translations": {"type": "array", "items": {"type": "string"}}},
+                "required": ["translations"], "additionalProperties": False}}},
+        )
+        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+        paid = cost(usage, tsettings)
+        spent += paid
+        at = now.isoformat(timespec="seconds")
+        saved["batches"].append({"generated_at": at, "texts": len(batch), "usage": usage, "cost": round(paid, 6)})
+        result = json.loads(next(b.text for b in response.content if b.type == "text")) if response.stop_reason == "end_turn" else {}
+        out = result.get("translations") or []
+        if len(out) != len(batch):
+            # Misaligned, so none can be trusted; the next run tries again.
+            continue
+        for en, tr in zip(batch, out):
+            saved["drafts"][en] = {"text": tr, "check": check_text(en, tr), "model": tsettings["model"],
+                                   "prompt_version": NAMES_VERSION, "generated_at": at}
+            done += 1
+    if done or saved["batches"]:
+        file = strings_path(data_dir, lang)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        saved["drafts"] = dict(sorted(saved["drafts"].items()))
+        file.write_text(json.dumps(saved, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return done, spent
+
+
+def toml_string(text: str) -> str:
+    return json.dumps(text, ensure_ascii=False)
+
+
+def review(config: dict, data_dir: Path, lang: str) -> str:
+    """The town's drafts as [strings.<language>] lines, to check, correct, and add to its config
+    (where they then win over the drafts). Drafts that failed their check are listed, commented out."""
+    own = config.get("strings", {}).get(lang, {})
+    lines = [f"# Machine drafts for [strings.{lang}], not yet reviewed. Correct any, then add them to the",
+             f"# town's config; a text in [strings.{lang}] wins over its draft."]
+    for en, d in saved_drafts(data_dir, lang)["drafts"].items():
+        if en in own:
+            continue
+        line = f"{toml_string(en)} = {toml_string(d['text'])}"
+        lines.append(line if d.get("check") == "ok" else f"# {line}  # {d.get('check')}")
+    return "\n".join(lines) + "\n"
+
+
+def main() -> None:
+    import argparse
+    from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
+    parser = argparse.ArgumentParser(description="A town's machine-drafted text, to review")
+    parser.add_argument("command", choices=["drafts"])
+    parser.add_argument("--town", default=DEFAULT_TOWN)
+    parser.add_argument("--data", type=Path, default=DATA_DIR)
+    parser.add_argument("--language", default="es", choices=sorted(LANGUAGE_NAMES))
+    args = parser.parse_args()
+    print(review(load_config(args.town), args.data, args.language), end="")
+
+
+if __name__ == "__main__":
+    main()

@@ -151,12 +151,16 @@ class FakeAnthropic:
             import re
             outer.calls.append(kwargs)
             text = kwargs["messages"][0]["content"]
-            english = json.loads(text[text.index("\n{") + 1:])
 
             def es(t):
                 t = "ES " + t
                 return re.sub(r"\d", "", t) if translation_drops_numbers else t
-            payload = {k: [es(x) for x in v] if isinstance(v, list) else es(v) for k, v in english.items()}
+            if "translations" in kwargs["output_config"]["format"]["schema"]["properties"]:
+                # A town's own text and names, drafted: a list of texts, a list back.
+                payload = {"translations": [es(x) for x in json.loads(text[text.index("\n[") + 1:])]}
+            else:
+                english = json.loads(text[text.index("\n{") + 1:])
+                payload = {k: [es(x) for x in v] if isinstance(v, list) else es(v) for k, v in english.items()}
             return SimpleNamespace(
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload, ensure_ascii=False))],
