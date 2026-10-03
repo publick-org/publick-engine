@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -330,6 +331,24 @@ def test_behind_lists_towns_without_a_good_update(tmp_path):
     write_record(root, "gloucester-ma", finished_at="2026-10-02T09:00:00+00:00", deployed=True, stale=False,
                  fetched=True, steps=[], failing=["Average tax bill (Mass. DLS)"])
     assert network.behind(root, 30, at)[0]["problems"] == ["Average tax bill (Mass. DLS): checks failing"]
+
+
+def test_the_alert_comments_only_on_towns_newly_behind(tmp_path):
+    """The issue is edited after each run, which sends no email; a comment names the towns that
+    weren't in it before, and nothing is said about a town already listed or caught up."""
+    rows = [{"folder": "manchester-nh", "last_good_at": None, "last_run_at": None, "problems": ["Check site"]},
+            {"folder": "salem-ma", "last_good_at": None, "last_run_at": None, "problems": []}]
+    before = network.behind_text(rows[:1] + [{**rows[1], "folder": "beverly-ma"}], 30)
+    assert network.newly_behind_text(rows, before) == "Newly needing attention:\n\n- **salem-ma**: no run since\n"
+    assert network.newly_behind_text(rows, network.behind_text(rows, 30)) == ""
+    assert network.newly_behind_text([], before) == ""
+    # The command the workflow runs, with the issue's text saved to a file.
+    saved = tmp_path / "issue.md"
+    saved.write_text(before)
+    root = make_root(tmp_path)
+    out = subprocess.run([sys.executable, "-m", "pipeline.network", "behind", "--root", str(root), "--new-since", str(saved)],
+                         capture_output=True, text=True, check=True).stdout
+    assert out.startswith("Newly needing attention:") and "**salem-ma**" in out and "manchester-nh" not in out
 
 
 def test_an_older_run_record_counts_as_a_good_update_when_it_was_one(tmp_path):

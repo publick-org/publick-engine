@@ -166,9 +166,11 @@ Make what's shown checkable, and the process safe, before adding towns.
 9. **Failures that look like success, fixed.** Done 2026-10-03: three
     SeeClickFix 403s in a row stop the 311 step instead of marking records
     removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
-    Also done: the 311 pages are dated by the last fetch. Left: a calendar
-    that had meetings and now has none fails; the daily alert comments for
-    each town newly behind. ([Monitoring](#monitoring))
+    Also done: the 311 pages are dated by the last fetch; a calendar that
+    listed meetings and now lists none fails; the daily alert comments on
+    each town newly behind (the network workflow's step goes in once the
+    engine release with `behind --new-since` reaches `engine-version`).
+    ([Monitoring](#monitoring))
 10. **Security hardening.** Storage and sites keys only in the steps that
     need them, no secrets on pull request runs, `persist-credentials: false`,
     actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
@@ -651,11 +653,15 @@ published none.
 - *Done 2026-10-03:* the 311 pages say "Updated" with when SeeClickFix was
   last read (`fetched_at`, from `311/status.json`), not when the scorecard
   was worked out again, so a day the fetch failed doesn't read as updated.
-- Failures that look like success: an empty calendar
-  counts as checked (`fetch_meetings.py:362-369`), so a calendar that had
-  meetings and now has none fails.
-- The alert issue is edited, which sends no email (`network.yml:461-466`):
-  add a comment for each town newly behind.
+- *Done 2026-10-03:* a calendar that listed meetings and now lists none
+  counts as failed (decided: every run until it lists meetings again, so a
+  person looks; none had ever listed zero). The meetings recorded stay as
+  they were, and the town shows as behind after about two days.
+- *Done 2026-10-03:* `python -m pipeline.network behind --new-since FILE`
+  prints a comment naming the towns not in the issue's earlier text
+  (decided: only towns newly behind; one already listed or caught up says
+  nothing). The network workflow saves the issue's text, edits it, and
+  posts that comment, since an edit sends no email and a comment does.
 - The status page flags an officials list not checked since the town's last
   election.
 - At hundreds of towns: search and filters on the status page, and a daily
