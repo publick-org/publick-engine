@@ -173,15 +173,15 @@ Make what's shown checkable, and the process safe, before adding towns.
    decision anchored to a quote from the minutes, with an `outcome` field so
    a dropped "not" is caught. What fails isn't shown. The first half (numbers,
    amounts, dates, names) is done (#50); the quotes and `outcome` are built
-   (2026-10-03, minutes prompt version 3) and wait on item 8's run before they
-   ship. ([Summary checks](#summary-checks))
+   (2026-10-03, minutes prompt version 3) and passed item 8's run; they ship
+   with the engine pull request after v1.34.0. ([Summary checks](#summary-checks))
 7. **"AI summary" on every headline**: done 2026-10-03 (#54), in each list
     row's details line, on its own line in the public hearings box, and after
     the summary in the RSS feed. ([Summary checks](#summary-checks))
-8. **A test set run against the real model**: built 2026-10-03, 15 minutes
+8. **A test set run against the real model**: done 2026-10-03, 15 minutes
     and 52 decisions checked by hand (`evals/minutes.json`,
-    `python -m pipeline.evaluate`); its first run, with an Anthropic key, is
-    left. ([Summary checks](#summary-checks))
+    `python -m pipeline.evaluate`), run by the network's Evaluate workflow
+    (publick.org #44). ([Summary checks](#summary-checks))
 9. **Failures that look like success, fixed.** Done 2026-10-03: three
     SeeClickFix 403s in a row stop the 311 step instead of marking records
     removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
@@ -472,7 +472,21 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   tabling, referral, withdrawal, numbered lines, a scan), and
   `python -m pipeline.evaluate`, which runs them through the real model and
   the checks, plants errors in what passes, and fails on a wrong outcome the
-  site would show (about $1 to $2 a run). Left: its first run, with a key.
+  site would show (about $1 to $2 a run). Run by hand from the network's
+  Actions -> Evaluate (publick.org #44), on the network's key; first runs
+  2026-10-03. The model gave all 52 decisions written down by hand the right
+  outcome and wrote 199 decisions in all; every one of the 119 errors
+  planted in what passed was caught. The runs found the check's own
+  mistakes, all fixed before it shipped: a roll call quoted as the page
+  shows it ("Yea: 3 - ...") where the PDF's text orders it otherwise; "if
+  they fail" read as a failed motion; "deferred", "re-committed", and "held"
+  in committee not known; "Withdrew" read as a name (the check on main too:
+  ten verb forms the dictionary lacks); and Beverly's long scanned minutes
+  cut off at 16,000 tokens (now 32,000). Checked again on the model's saved
+  answers: none of the 199 held back. The five numbers listed as far from
+  their quote were all on right decisions, so that check stays a note.
+  Tuned on this set, so the run records' counts of what's held back are
+  the measure on new minutes.
 
 **Matters at:** now, before more towns and before open data.
 
