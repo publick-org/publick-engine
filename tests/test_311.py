@@ -98,6 +98,16 @@ def test_refused_lookups_stop_the_step_and_remove_nothing(config, data):
     assert all(r["detail"] for r in load(data).values())
 
 
+def test_scorecard_is_dated_by_the_last_fetch(config, data):
+    """The 311 page says when SeeClickFix was last read, not when the numbers were worked out:
+    a day the fetch failed doesn't read as updated."""
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=0)
+    later = FETCHED_AT.replace(day=FETCHED_AT.day + 2)
+    scorecard = compute_311.compute(config, data, now=later)
+    assert scorecard["fetched_at"] == FETCHED_AT.isoformat(timespec="seconds")
+    assert scorecard["generated_at"] == later.isoformat(timespec="seconds")
+
+
 def test_close_time_prefers_exact_then_archive_then_update():
     base = {"status": "closed", "updated_at": "2026-09-05T00:00:00-04:00"}
     assert compute_311.closed_time({**base, "detail": {"closed_at": "2026-09-02T00:00:00-04:00", "updated_at": "2026-09-03T00:00:00-04:00"}}).day == 2
