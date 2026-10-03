@@ -60,3 +60,25 @@ def test_the_report_fails_only_on_a_wrong_outcome_shown():
     assert shown_wrong and "**shown**" in text and "1 wrong (0 caught)" in text
     caught = {**result, "held_back": [1], "expected": [{**result["expected"][0], "held_back": [1]}]}
     assert evaluate.report([caught])[1] is False
+
+
+def test_a_summary_cut_off_is_reported_and_the_set_goes_on():
+    import hashlib
+
+    from pipeline import summarize
+
+    class CutOff:
+        class messages:
+            @staticmethod
+            def stream(**kwargs):
+                raise summarize.StoppedEarly("max_tokens", {"input_tokens": 1000, "output_tokens": 16000},
+                                             '{"decisions": [{"decision": "Approved')
+
+    pdf = b"%PDF-1.4 not really"
+    document = {"name": "long", "url": "https://files.publick.org/x.pdf", "sha256": hashlib.sha256(pdf).hexdigest(),
+                "title": "City Council", "date": "2026-03-16", "decisions": []}
+    result = evaluate.evaluate(document, CutOff(), "claude-test", {"input_price": 2.0, "output_price": 10.0},
+                               get=lambda url: pdf)
+    assert result["stopped"] == "stopped early: max_tokens" and result["cost"] == 0.162
+    text, failed = evaluate.report([result])
+    assert failed and "cut off: 1" in text and "Approved" in text
