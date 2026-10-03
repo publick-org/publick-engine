@@ -28,10 +28,8 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
-    # For towns with a [storage] table: the bucket that holds agenda and minutes PDFs.
-    env:
-      STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
-      STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+    # For towns with a [storage] table, the bucket that holds agenda and minutes PDFs: its keys
+    # only in the steps that save or read them (pipeline/update.py's STORAGE).
     steps:
       - uses: actions/checkout@v5
 
@@ -53,23 +51,35 @@ jobs:
         if: inputs.sources != '311'
         continue-on-error: true
         run: python -m pipeline.fetch_meetings --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       - name: Fetch minutes
         if: inputs.sources != '311'
         continue-on-error: true
         run: python -m pipeline.fetch_minutes --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       # School Committee agendas and minutes, from a school district's Google Drive.
       - name: Fetch School Committee documents
         if: inputs.sources != '311'
         continue-on-error: true
         run: python -m pipeline.fetch_drive_meetings --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       # A school board's meetings, agendas, and minutes, from its page on a Finalsite district website.
       - name: Fetch school board meetings
         if: inputs.sources != '311'
         continue-on-error: true
         run: python -m pipeline.fetch_finalsite_meetings --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       # Readable text and summaries of new agendas and minutes (skipped if no API key).
       - name: Summarize agendas
@@ -78,6 +88,8 @@ jobs:
         run: python -m pipeline.summarize --town "$TOWN"
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       # One step per source, so one failing source doesn't stop the others.
       - name: Fetch tax bill
@@ -126,6 +138,9 @@ jobs:
         if: inputs.sources != '311'
         continue-on-error: true
         run: python -m pipeline.documents upload --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       # Commit meetings first so they are not held up by the longer 311 step.
       - name: Commit meetings

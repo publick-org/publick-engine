@@ -173,6 +173,17 @@ def town_env(root: Path, name: str) -> dict:
     return env
 
 
+# The keys a town's steps use: fetching (pipeline/update.py gives each of its steps only its own) and
+# publishing. The freshness check, the build, and the checks get none.
+FETCH_KEYS = ("ANTHROPIC_API_KEY", "BLS_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+PUBLISH_KEYS = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
+
+
+def keyed(env: dict, keys: tuple[str, ...] = ()) -> dict:
+    """The environment without any step's keys but these."""
+    return {k: v for k, v in env.items() if k not in FETCH_KEYS + PUBLISH_KEYS or k in keys}
+
+
 def step(name: str, cmd: list[str], env: dict, cwd: Path, timeout: float | None) -> dict:
     print(f"::group::{env['TOWN']}: {name}", flush=True)
     started = time.monotonic()
@@ -223,7 +234,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         update_report = town_dir / ".update-report.json"
         steps.append(step("Fetch new data", [python, "-m", "pipeline.update", "--town", town, "--sources", sources,
                                              "--step-timeout", str(step_timeout), "--report", str(update_report)],
-                          env, town_dir, None))
+                          keyed(env, FETCH_KEYS), town_dir, None))
         if update_report.exists():
             result["update"] = json.loads(update_report.read_text())
             update_report.unlink()
@@ -233,7 +244,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         freshness_report = town_dir / ".freshness-report.json"
         freshness_report.unlink(missing_ok=True)
         freshness = step("Check data freshness", [python, "-m", "pipeline.freshness", "--town", town,
-                                                  "--report", str(freshness_report)], env, town_dir, BUILD_TIMEOUT)
+                                                  "--report", str(freshness_report)], keyed(env), town_dir, BUILD_TIMEOUT)
         result["stale"] = not freshness["ok"]
         if freshness_report.exists():
             result["sources"] = trim_sources(json.loads(freshness_report.read_text()))
@@ -242,21 +253,21 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
             result["failing"] = [r["label"] for r in result["sources"] if r.get("failing")]
 
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
-                      env, town_dir, BUILD_TIMEOUT))
+                      keyed(env), town_dir, BUILD_TIMEOUT))
     if steps[-1]["ok"]:
         # The browser checks take most of a town's time, so they run on every core (pytest-xdist).
         steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q", "-n", "auto",
                                          str(ENGINE_DIR / "site_checks")],
-                          {**env, "PUBLICK_SITE_DIR": str(site),
+                          {**keyed(env), "PUBLICK_SITE_DIR": str(site),
                            **({"PUBLICK_CHECK_PAGES": "sample"} if sample_checks else {})}, town_dir, BUILD_TIMEOUT))
     checked = any(s["name"] == "Check site" and s["ok"] for s in steps)
     if deploy and checked:
         steps.append(step("Publish site", [python, "-m", "pipeline.deploy", "publish", "--town", town,
-                                           "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
+                                           "--site", str(site)], keyed(env, PUBLISH_KEYS), town_dir, BUILD_TIMEOUT))
         if steps[-1]["ok"]:
             # What visitors get, through the Worker, is the build just published.
             steps.append(step("Check live site", [python, "-m", "pipeline.deploy", "check", "--town", town,
-                                                  "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
+                                                  "--site", str(site)], keyed(env), town_dir, BUILD_TIMEOUT))
         result["deployed"] = all(s["ok"] for s in steps if s["name"] in ("Publish site", "Check live site"))
     result["ok"] = all(s["ok"] for s in steps)
     result["finished_at"] = now()
@@ -268,6 +279,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes"] = folder_bytes(town_dir / "data")
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
+        result["fact_checks"] = fact_checks(town_dir / "data")
         record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
@@ -319,6 +331,34 @@ def activity(data: Path, today: date | None = None) -> dict:
         if today.isoformat() <= m["date"] <= last and m.get("status", "scheduled") == "scheduled" and m.get("listed", True):
             upcoming[m["date"]] = upcoming.get(m["date"], 0) + 1
     return {"boards": len({m["body"] for m in store.values()}), "meetings_by_date": dict(sorted(upcoming.items()))}
+
+
+def fact_checks(data: Path) -> dict:
+    """How the town's summaries fared against their documents (pipeline/factcheck.py), for the
+    maintainer: how many summaries each result has ("not_yet": no check saved), how many of them
+    the site holds something back from, how many decisions or agenda items it leaves out, and how
+    many vote counts the documents don't give it takes out of the text."""
+    # Imported here, as listings is in activity(): factcheck needs the readers' packages.
+    from pipeline import factcheck
+    counts = {"summaries": 0, "ok": 0, "failed": 0, "weak": 0, "unchecked": 0, "not_yet": 0,
+              "held_back": 0, "entries_not_shown": 0, "vote_counts_left_out": 0}
+    for path in sorted((data / "summaries").glob("*.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        # A document filed as minutes that isn't any isn't shown, or checked.
+        if record.get("is_minutes") is False:
+            continue
+        counts["summaries"] += 1
+        fc = record.get("fact_check")
+        if not fc:
+            counts["not_yet"] += 1
+            continue
+        counts[fc["result"]] = counts.get(fc["result"], 0) + 1
+        shown = factcheck.shown(record, record, factcheck.kind_of(record))
+        counts["entries_not_shown"] += shown.get("not_shown", 0)
+        counts["vote_counts_left_out"] += sum(p["kind"] == "tally" for p in fc["problems"])
+        # Only a check against the document's full text fails, and what fails isn't shown.
+        counts["held_back"] += fc["result"] == "failed"
+    return counts
 
 
 def folder_bytes(folder: Path) -> int:

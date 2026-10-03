@@ -82,6 +82,48 @@ def test_reflows_without_horizontal_scroll(browser, server_url, path):
     assert overflow <= 0, f"{path} scrolls horizontally by {overflow}px at 320px"
 
 
+TABLES = """[...document.querySelectorAll('.table-wrap')].filter(w => w.offsetParent).map(w => ({
+    scrolls: w.scrollWidth > w.clientWidth + 1, tabindex: w.getAttribute('tabindex'),
+    role: w.getAttribute('role'), name: w.getAttribute('aria-label') || w.getAttribute('aria-labelledby')}))"""
+
+
+@pytest.mark.parametrize("path", [p for p in PATHS if p.startswith(("/311/", "/budget/", "/schools/", "/housing/", "/officials/", "/about/"))])
+def test_a_table_that_scrolls_is_reachable_by_keyboard(browser, server_url, path):
+    """WCAG 2.1.1: a table wider than the screen can be scrolled from the keyboard. Its box takes
+    focus and has a name; one that fits doesn't add a tab stop."""
+    # At 200% text (WCAG 1.4.4) every table scrolls on a phone.
+    for viewport, text in ((VIEWPORTS["desktop"], 1), (VIEWPORTS["phone"], 1), (VIEWPORTS["phone"], 2)):
+        context = browser.new_context(viewport=viewport)
+        page = context.new_page()
+        page.goto(server_url + path)
+        if text > 1:
+            page.add_style_tag(content=f"html {{ font-size: {text * 100}% !important; }}")
+        page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+        page.wait_for_timeout(100)
+        for t in page.evaluate(TABLES):
+            if t["scrolls"]:
+                assert t["tabindex"] == "0" and t["role"] == "region" and t["name"], (path, viewport, text, t)
+            elif t["role"] is None:
+                assert t["tabindex"] is None, (path, viewport, text, t)
+        context.close()
+
+
+def test_a_table_at_phone_width_scrolls_and_is_named(browser, server_url):
+    """The School Committee's table on the Officials page is wider than a phone: its box is a tab
+    stop named by its heading, and the arrow keys scroll it."""
+    context = browser.new_context(viewport=VIEWPORTS["phone"])
+    page = context.new_page()
+    page.goto(server_url + "/officials/")
+    page.wait_for_timeout(100)
+    assert {"scrolls": True, "tabindex": "0", "role": "region", "name": "School Committee"} in page.evaluate(TABLES)
+    box = page.locator('.table-wrap[aria-label="School Committee"]')
+    box.focus()
+    page.keyboard.press("ArrowRight")
+    page.wait_for_timeout(100)
+    assert box.evaluate("w => w.scrollLeft") > 0
+    context.close()
+
+
 def test_text_resize_200_percent(browser, server_url):
     """WCAG 1.4.4: text can be enlarged to 200% without loss of content."""
     context = browser.new_context(viewport={"width": 1280, "height": 900})

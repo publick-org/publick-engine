@@ -157,8 +157,9 @@ What's left:
    City Council's "January 20, 2025, at 7:30 PM" is in the minutes as printed
    (page 3, Order #009), a typo of the city's the summary copied; the Golf and
    Tennis Commission's $8,000 and $3,100 are "NTE $8K" and "NTE $3.1K" in the
-   scan. The check flagged the second because a written-out amount isn't
-   matched to the document's "$8K". ([Summary checks](#summary-checks))
+   scan. The check flagged the second because a written-out amount wasn't
+   matched to the document's "$8K" (fixed the same day, fact check version 2).
+   ([Summary checks](#summary-checks))
 5. **The next meetings audit, by hand**, a week on: every town's upcoming
    meetings against its city's own sites, as on 2026-10-02.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
@@ -187,10 +188,11 @@ Make what's shown checkable, and the process safe, before adding towns.
     each town newly behind (the network workflow's step goes in once the
     engine release with `behind --new-since` reaches `engine-version`).
     ([Monitoring](#monitoring))
-10. **Security hardening.** Storage and sites keys only in the steps that
-    need them, no secrets on pull request runs, `persist-credentials: false`,
-    actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
-    Worker, tag protection. ([Security and privacy](#security-and-privacy))
+10. **Security hardening.** No secrets on pull request runs,
+    `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
+    from the Worker. Done: storage and sites keys only in the steps that use
+    them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
+    (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
@@ -239,8 +241,8 @@ Make what's shown checkable, and the process safe, before adding towns.
 29. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
     labels matched by content rather than position, and Ward and District
     kept apart in Spanish. ([Spanish quality](#spanish-quality))
-30. **Accessibility**: a table for every chart, and every scrollable table
-    reachable by keyboard. ([Accessibility](#accessibility))
+30. **Accessibility**: a table for every chart (every scrollable table
+    reachable by keyboard: done 2026-10-03). ([Accessibility](#accessibility))
 31. **Upkeep**: workflows' actions off Node 20; config keys only one town uses
     folded into their readers; a monthly page-view report.
     ([Upkeep](#upkeep))
@@ -406,10 +408,13 @@ counts aren't in the minutes and come out. Two read by hand on 2026-10-03,
 on scanned pages, were both right: a Beverly City Council decision dated
 "January 20, 2025, at 7:30 PM" is what the minutes say (the city's typo for
 2026), and a Beverly Golf and Tennis Commission summary's $8,000 and $3,100
-are "$8K" and "$3.1K" in the scan. The check counts an amount written out in
+are "$8K" and "$3.1K" in the scan. The check counted an amount written out in
 full ("$8,000") as missing when the document abbreviates it ("$8K"), since
-only the summary's own scale words are read (`check_text`); it should also
-match the document's scaled amounts.
+only the summary's own scale words were read. *Done 2026-10-03 (fact check
+version 2):* an amount counts when the document gives exactly that amount
+with a scale ("$8K", "$1.2 million"). Of the 81 saved scans' summaries, only
+those two amounts change. No summary had a fact check saved yet, so the new
+version re-checks nothing.
 
 *Done 2026-10-03 (#54):* "AI summary" wherever a summary is shown in a list. In a
 meeting row it goes in the grey line under the summary ("AI summary · Agenda
@@ -425,10 +430,21 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   dropped "not" is caught.
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
-- The run record counts summaries held back, to show how often the model
-  gets one wrong (today: `python -m pipeline.factcheck`).
+- *Done 2026-10-03:* each fetching run's record (`data/run.json`) counts
+  the town's summaries by fact check result, how many the site holds
+  something back from, the decisions and agenda items it leaves out, and the
+  vote counts it takes out (`fact_checks`, from what `shown()` shows), to show
+  how often the model gets one wrong. `python -m pipeline.factcheck` still
+  lists each problem.
 - The document's own date and any "draft" marking read from it.
-- A test that fails when a prompt changes without its version.
+- *Done 2026-10-03:* a test that fails when a prompt changes without its
+  version (`tests/test_prompt_versions.py`): each versioned prompt's words and
+  schema (agenda, minutes, transcription, translation, drafted text) pinned by
+  a hash beside its version. A change passes once its version goes up, or,
+  where what the old prompt made should stay on purpose (as when agendas
+  gained a start time without a bump), once the new hash is pinned with a
+  note saying why. The translation review's prompt has no version: a change
+  there doesn't call for translating again.
 - Every test, the translation tests too, uses the fake model client. Add a
   set of about 15 documents with known decisions, checked by hand, run
   against the real model before a prompt change ships.
@@ -806,11 +822,21 @@ and the 311 data has people's house numbers.
 
 **Next** (from the October review, rechecked on v1.29.0).
 - *The open redirect* (now): `worker/sites.js:135`, checked live.
-- *Secrets only where needed:* the storage and sites keys reach the
-  PDF-parsing steps (`update.py:76-85`); pull request runs get every secret
-  (`network.yml:371-381`); no `persist-credentials: false`.
-- *The Worker:* no HSTS or CSP (`sites.js:94-100`, checked live); add
-  security headers.
+- *Secrets only where needed:* pull request runs get every secret
+  (`network.yml:371-381`); no `persist-credentials: false`. *Done
+  2026-10-03:* each of a town's steps gets only the keys it uses. In
+  `pipeline/update.py`, the document bucket's keys go to the six steps that
+  save or read agendas and minutes (`STORAGE`), and no step gets the sites
+  bucket's; in `pipeline/network.py` (`keyed`), the fetch gets the fetching
+  keys, Publish the sites keys, and the freshness check, build, and checks
+  none; `town.yml` the same, step by step. So a pull request run's steps get
+  no keys, whatever the workflow passes. The steps that parse PDFs still
+  hold the document keys, since they read the PDFs from the bucket: keeping
+  them apart would take a download step of its own.
+- *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
+  headers. Every page already sets a Content Security Policy in a `<meta>`
+  tag (`base.html`: scripts from the site only, no inline scripts); what a
+  `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
 - *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
   `v1` moved on every release; tag protection.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
@@ -1241,8 +1267,13 @@ is there, and after the summary checks.
 
 - "Every chart has a table" (`accessibility/index.html:14`) is still false
   for the 311 category and ward pages. Add the tables.
-- 1 of 31 scrollable tables is focusable (`about/index.html:92`), now on
-  twice as many pages with Spanish. Make each reachable by keyboard.
+- *Done 2026-10-03:* every table that scrolls is reachable by keyboard.
+  `site/static/js/tables.js` gives a `.table-wrap` that is wider than the
+  screen a tab stop, the region role, and a name (the table's caption, else
+  the heading before it, so no new wording to translate); one that fits gets
+  none, so a wide screen's tab order doesn't grow. At normal text size only
+  the Officials and About tables scroll on a phone; at 200% text every table
+  does. Before, 1 of 32 could take focus (About's, labeled in its template).
 - Phone layouts: v1.24.0 and v1.28.0 fixed overflow found by the checks;
   keep the phone widths in every check.
 - Dark styles, if ever: then the dark-mode accessibility tests come back.
