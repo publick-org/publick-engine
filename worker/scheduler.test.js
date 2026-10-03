@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
 import worker from "./scheduler-index.js";
-import { ALERT_LABEL, STALE_HOURS, lastDailyRun, onSchedule, startRun, watch } from "./scheduler.js";
+import { ALERT_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, lastDailyRun, onSchedule, startRun, watch } from "./scheduler.js";
 
 const NOW = new Date("2026-10-02T13:05:00Z");
 
@@ -108,4 +108,25 @@ test("the Worker's scheduled handler starts a run", async () => {
   routes["POST /repos/publick-org/publick.org/actions/workflows/network.yml/dispatches"] = [204, null];
   await worker.scheduled({ scheduledTime: NOW.getTime(), cron: "5 9-14 * * *" }, env());
   assert.ok(calls.some((c) => c.path.endsWith("/dispatches")));
+});
+
+test("08:20 starts the engine's release, and nothing else", async () => {
+  routes["POST /repos/publick-org/publick-engine/actions/workflows/release.yml/dispatches"] = [204, null];
+  await onSchedule({ scheduledTime: NOW.getTime(), cron: RELEASE_CRON }, env());
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`),
+    ["POST /repos/publick-org/publick-engine/actions/workflows/release.yml/dispatches"]);
+  assert.deepEqual(calls[0].body, { ref: "main" });
+});
+
+test("08:40 starts the network's engine pull request, and nothing else", async () => {
+  routes["POST /repos/publick-org/publick.org/actions/workflows/engine.yml/dispatches"] = [204, null];
+  await worker.scheduled({ scheduledTime: NOW.getTime(), cron: ENGINE_CRON }, env());
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`),
+    ["POST /repos/publick-org/publick.org/actions/workflows/engine.yml/dispatches"]);
+});
+
+test("a refused release start fails the invocation, naming the repository", async () => {
+  routes["POST /repos/publick-org/publick-engine/actions/workflows/release.yml/dispatches"] = [403, { message: "Resource not accessible" }];
+  await assert.rejects(onSchedule({ scheduledTime: NOW.getTime(), cron: RELEASE_CRON }, env()),
+    /publick-org\/publick-engine's release\.yml: HTTP 403/);
 });

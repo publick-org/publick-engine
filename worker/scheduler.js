@@ -1,10 +1,16 @@
 // The network's scheduler (scheduler-index.js, a Worker of its own, apart from
-// the one that serves the sites). On each of its Cron Triggers it starts the
-// network's daily run through GitHub's API, as "Run workflow" does, and checks
-// that daily runs are still finishing.
+// the one that serves the sites). Through GitHub's API, as "Run workflow" does,
+// it starts the morning's work on time: at RELEASE_CRON the engine's release,
+// at ENGINE_CRON the network's engine pull request (which moves engine-version
+// to that release), and on its other Cron Triggers the network's daily run,
+// checking that daily runs are still finishing.
 //
 // GitHub starts scheduled workflows when it can, sometimes hours late, and can
-// drop one; a Cron Trigger fires on time. A daily run takes only the towns that
+// drop one; a Cron Trigger fires on time. (On 2026-10-01 and 02 every scheduled
+// run of the network's started 5 to 7 hours late, and the first morning's
+// release and engine pull request, on GitHub's schedule, hadn't started by noon.)
+// The workflows keep their own schedules as a late backup: a release with
+// nothing new does nothing, and an engine pull request with no newer release too. A daily run takes only the towns that
 // are due (pipeline.network plan --due-hours), so starting one every hour of
 // the morning does no harm: a start with nothing due does nothing.
 //
@@ -15,11 +21,17 @@
 //
 // Environment (the network repository's wrangler.scheduler.toml): GITHUB_TOKEN,
 // a secret (a fine-grained token for the network repository with Actions and
-// Issues read and write); REPOSITORY, WORKFLOW, BRANCH, STATUS_URL, and
-// ALERT_ASSIGNEE; and SITES, a service binding to the Worker that serves the
-// sites, which the status page is read through.
+// Issues read and write, and for the engine repository with Actions read and
+// write); REPOSITORY, WORKFLOW, BRANCH, STATUS_URL, and ALERT_ASSIGNEE;
+// ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
+// service binding to the Worker that serves the sites, which the status page
+// is read through.
 
 export const STALE_HOURS = 30;
+// The Cron Triggers (as wrangler.scheduler.toml writes them) that start the release and the engine
+// pull request; every other one starts a daily run.
+export const RELEASE_CRON = "20 8 * * *";
+export const ENGINE_CRON = "40 8 * * *";
 export const ALERT_LABEL = "network stopped";
 const API = "https://api.github.com";
 
@@ -47,6 +59,14 @@ export async function startRun(env) {
     method: "POST",
     body: JSON.stringify({ ref: env.BRANCH || "main", inputs: { daily: "true" } }),
   }), `starting ${env.WORKFLOW}`);
+}
+
+// Starts a workflow with no inputs: the engine's release, or the network's engine pull request.
+export async function startWorkflow(env, repository, workflow) {
+  await ok(await github(env, `/repos/${repository}/actions/workflows/${workflow}/dispatches`, {
+    method: "POST",
+    body: JSON.stringify({ ref: env.BRANCH || "main" }),
+  }), `starting ${repository}'s ${workflow}`);
 }
 
 // When the last town's daily run finished, from the status page, or null if it doesn't say.
@@ -105,9 +125,16 @@ export async function watch(env, now = new Date()) {
   return { stopped, last };
 }
 
-// Each Cron Trigger: start a run, and check on the runs. One failing doesn't stop the other; either
-// failing fails the invocation, so it shows in the Worker's logs.
+// Each Cron Trigger: the release, the engine pull request, or a daily run and a check on the runs.
+// For a daily run, one failing doesn't stop the other; either failing fails the invocation, so it
+// shows in the Worker's logs.
 export async function onSchedule(controller, env) {
+  if (controller.cron === RELEASE_CRON) {
+    return startWorkflow(env, env.ENGINE_REPOSITORY || "publick-org/publick-engine", env.RELEASE_WORKFLOW || "release.yml");
+  }
+  if (controller.cron === ENGINE_CRON) {
+    return startWorkflow(env, env.REPOSITORY, env.ENGINE_WORKFLOW || "engine.yml");
+  }
   const results = await Promise.allSettled([startRun(env), watch(env, new Date(controller.scheduledTime))]);
   const failed = results.filter((r) => r.status === "rejected").map((r) => r.reason);
   if (failed.length) throw new AggregateError(failed, failed.map((e) => e.message).join("; "));
