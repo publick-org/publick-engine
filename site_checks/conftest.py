@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pipeline import build_site  # noqa: E402
 from pipeline.config import DEFAULT_TOWN, TOWN_DIR, load_config  # noqa: E402
-from site_checks.pages import sample  # noqa: E402
+from site_checks.pages import redirects, sample  # noqa: E402
 
 SITE_DIR = Path(os.environ.get("PUBLICK_SITE_DIR") or TOWN_DIR / "_site").resolve()
 if not (SITE_DIR / "index.html").exists():
@@ -27,8 +27,12 @@ if not (SITE_DIR / "index.html").exists():
 PAGE_PATHS = sorted(build_site.url_for(p.relative_to(SITE_DIR)) for p in SITE_DIR.rglob("*.html") if p.name != "404.html")
 
 
+def _page_file(path: str) -> Path:
+    return SITE_DIR / (path.lstrip("/") + ("index.html" if path.endswith("/") else ""))
+
+
 def _page_size(path: str) -> int:
-    return (SITE_DIR / (path.lstrip("/") + ("index.html" if path.endswith("/") else ""))).stat().st_size
+    return _page_file(path).stat().st_size
 
 
 # The site's languages: English at the root, any other under /<language>/.
@@ -38,8 +42,10 @@ PREFIXES = {lang: "" if lang == "en" else f"/{lang}" for lang in LANGUAGES}
 # The pages the browser checks run on: all of them, or a sample (site_checks/pages.py).
 HAND_WRITTEN = {prefix + build_site.url_for(p.relative_to(build_site.PAGES_DIR))
                 for p in build_site.PAGES_DIR.rglob("*.html") for prefix in PREFIXES.values()}
-BROWSER_PATHS = (sample(PAGE_PATHS, _page_size, HAND_WRITTEN) if os.environ.get("PUBLICK_CHECK_PAGES") == "sample"
-                 else PAGE_PATHS)
+# A page that sends the reader on at once (a moved meeting's) is left out (site_checks/pages.py).
+_STAYING = [p for p in PAGE_PATHS if not redirects(_page_file(p).read_text(encoding="utf-8"))]
+BROWSER_PATHS = (sample(_STAYING, _page_size, HAND_WRITTEN) if os.environ.get("PUBLICK_CHECK_PAGES") == "sample"
+                 else _STAYING)
 
 
 @pytest.fixture(scope="session")

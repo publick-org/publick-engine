@@ -309,5 +309,10 @@ def test_a_meeting_posted_three_times_has_two_moved_pages(malden, tmp_path):
     assert len(set(titles)) == 2 and all("moved (listing" in t for t in titles)
     moved = (out / council["also_urls"][0].strip("/") / "index.html").read_text()
     assert f'url={council["url"]}' in moved and 'name="robots" content="noindex"' in moved
+    # A moved page sends the reader on at once, so the browser checks leave it out (site_checks/pages.py);
+    # the page it points to stays in.
+    from site_checks.pages import redirects
+    assert redirects(moved)
+    assert not redirects((out / council["url"].strip("/") / "index.html").read_text())
     sitemap = (out / "sitemap.xml").read_text()
     assert council["url"] in sitemap and council["also_urls"][0] not in sitemap
