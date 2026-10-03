@@ -254,7 +254,11 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     if deploy and checked:
         steps.append(step("Publish site", [python, "-m", "pipeline.deploy", "publish", "--town", town,
                                            "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
-        result["deployed"] = steps[-1]["ok"]
+        if steps[-1]["ok"]:
+            # What visitors get, through the Worker, is the build just published.
+            steps.append(step("Check live site", [python, "-m", "pipeline.deploy", "check", "--town", town,
+                                                  "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
+        result["deployed"] = all(s["ok"] for s in steps if s["name"] in ("Publish site", "Check live site"))
     result["ok"] = all(s["ok"] for s in steps)
     result["finished_at"] = now()
     if fetch and (town_dir / "data").is_dir():
@@ -275,7 +279,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
 
 
 # The steps that put a town's site up, which a later run that doesn't fetch can redo.
-PUBLISH_STEPS = ("Build site", "Check site", "Publish site")
+PUBLISH_STEPS = ("Build site", "Check site", "Publish site", "Check live site")
 
 
 def republished(path: Path, result: dict) -> None:
