@@ -389,7 +389,8 @@ SAYS_NO = re.compile(FAILED.pattern + r"|\bden(?:y|ied|ies|ying)\b|\bdisapprov\w
 DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed))\b", re.I)
 # What the decision and the quote each say, for an outcome that has words of its own.
 SAYS = {
-    "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*)\b|on\s+the\s+table", re.I),
+    # "Held in the Finance and Property Committee": a committee keeping an item is tabling it.
+    "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*|h[eo]ld)\b|on\s+the\s+table", re.I),
     "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)", re.I),
     "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b", re.I),
     "recommended": re.compile(r"\b(?:recommend\w*|favou?rabl\w*)", re.I),

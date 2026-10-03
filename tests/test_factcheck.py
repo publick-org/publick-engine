@@ -309,6 +309,11 @@ def test_what_the_real_model_wrote_on_the_test_set():
                       "Decision deferred to the August 13 meeting."), doc=doc)["result"] == "ok"
     assert decisions(("Re-committed the request to the Housing Committee.", "referred",
                       "It was re-committed back to the Housing Committee."), doc=doc)["result"] == "ok"
+    # Beverly: a committee holding an item.
+    doc = "Order #088-Transfer of $241,250 for union negotiations. Recommend the Council to hold (3-0). Hold."
+    assert decisions(("Held Order #088 in the Finance and Property Committee, 3-0.", "tabled",
+                      "Order #088-Transfer of $241,250 for union negotiations. Recommend the Council to hold (3-0)."),
+                     doc=doc)["result"] == "ok"
     # Lawrence: "Withdrew" isn't anyone's name.
     doc = "There was no discussion on this Motion and it PASSED by a Unanimous Voice Vote DOC #348/19 MOTION TO WITHDRAW PASSED"
     assert decisions(("Withdrew DOC #348/19.", "withdrawn", "DOC #348/19 MOTION TO WITHDRAW PASSED"), doc=doc)["result"] == "ok"
