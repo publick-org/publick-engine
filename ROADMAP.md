@@ -137,10 +137,12 @@ What's left:
    School Committee subcommittees listed once; Wallingford worded as a town;
    the Arts Commission correction shown on Manchester's November 9.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
-4. **Read two summaries by hand**, whose facts are on scanned pages the check
-   can't read: a Beverly City Council decision dated "January 20, 2025, at
-   7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000 and $3,100
-   aren't in the model's transcription. ([Summary checks](#summary-checks))
+4. **Read two summaries by hand**: done 2026-10-03, both right. The Beverly
+   City Council's "January 20, 2025, at 7:30 PM" is in the minutes as printed
+   (page 3, Order #009), a typo of the city's the summary copied; the Golf and
+   Tennis Commission's $8,000 and $3,100 are "NTE $8K" and "NTE $3.1K" in the
+   scan. The check flagged the second because a written-out amount isn't
+   matched to the document's "$8K". ([Summary checks](#summary-checks))
 5. **The next meetings audit, by hand**, a week on: every town's upcoming
    meetings against its city's own sites, as on 2026-10-02.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
@@ -381,10 +383,14 @@ pipeline.factcheck` lists what it finds.
 
 Measured on the 449 live summaries: every one checked against full text
 passes; planted errors are caught 89 to 100% of the time; 103 of 1,131 vote
-counts aren't in the minutes and come out. Two to read by hand, on scanned
-pages the check can't read: a Beverly City Council decision dated "January
-20, 2025, at 7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000
-and $3,100 aren't in the model's transcription.
+counts aren't in the minutes and come out. Two read by hand on 2026-10-03,
+on scanned pages, were both right: a Beverly City Council decision dated
+"January 20, 2025, at 7:30 PM" is what the minutes say (the city's typo for
+2026), and a Beverly Golf and Tennis Commission summary's $8,000 and $3,100
+are "$8K" and "$3.1K" in the scan. The check counts an amount written out in
+full ("$8,000") as missing when the document abbreviates it ("$8K"), since
+only the summary's own scale words are read (`check_text`); it should also
+match the document's scaled amounts.
 
 *Done 2026-10-03 (#54):* "AI summary" wherever a summary is shown in a list. In a
 meeting row it goes in the grey line under the summary ("AI summary · Agenda
