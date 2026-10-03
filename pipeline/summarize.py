@@ -208,8 +208,9 @@ def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
             and "start_time" not in record)
 
 
-def pending_documents(data_dir: Path, today: str, model: str) -> list[tuple[str, dict, dict]]:
-    """Latest agenda and minutes of each meeting without a current summary.
+def pending_documents(data_dir: Path, today: str, model: str, since: str | None = None) -> list[tuple[str, dict, dict]]:
+    """Latest agenda and minutes of each meeting without a current summary, for meetings on or
+    after since ([summaries] since; None for all).
 
     Order: agendas for upcoming meetings, then minutes (newest meeting first),
     then agendas for past meetings."""
@@ -219,6 +220,9 @@ def pending_documents(data_dir: Path, today: str, model: str) -> list[tuple[str,
     store, _ = listings.combined(store)
     todo, seen = [], set()
     for meeting in store.values():
+        # Older meetings keep their records and documents, without a summary.
+        if since and meeting["date"] < since:
+            continue
         for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
             if not meeting.get(field):
                 continue
@@ -449,7 +453,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     network's allowances for this run (None: no network limit)."""
     settings = summary_settings(config)
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
-    todo = pending_documents(data_dir, now.date().isoformat(), settings["model"])
+    todo = pending_documents(data_dir, now.date().isoformat(), settings["model"], settings.get("since"))
     new = [t for t in todo if is_new(t, now)]
     backlog = [t for t in todo if not is_new(t, now)]
     older = {doc["sha256"] for _, _, doc in backlog}

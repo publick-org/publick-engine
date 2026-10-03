@@ -222,6 +222,24 @@ def test_upcoming_agenda_is_read_again_for_its_time_and_place(tmp_path):
     assert summarize.pending_documents(tmp_path, "2026-12-31", model) == []
 
 
+def test_meetings_before_since_are_not_summarized(tmp_path):
+    """[summaries] since: a new town's older meetings keep their records, without summaries, so
+    its history doesn't take the month's budget."""
+    config = setup(tmp_path)
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    dates = sorted(m["date"] for m in store.values() if m.get("agendas") or m.get("minutes"))
+    today, model = FETCHED_AT.date().isoformat(), config["summaries"]["model"]
+    every = summarize.pending_documents(tmp_path, today, model)
+    assert every and summarize.pending_documents(tmp_path, today, model, dates[0]) == every
+    after = summarize.pending_documents(tmp_path, today, model, dates[-1])
+    assert after and all(m["date"] >= dates[-1] for _, m, _ in after)
+    later = (FETCHED_AT.date().replace(year=FETCHED_AT.year + 1)).isoformat()
+    assert summarize.pending_documents(tmp_path, today, model, later) == []
+    config["summaries"]["since"] = later
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 0
+    assert json.loads((tmp_path / "meetings" / "meetings.json").read_text()) == store
+
+
 def test_agenda_summary_asks_for_the_meetings_time_and_place():
     schema = summarize.KINDS["agenda"]["schema"]
     assert {"start_time", "location"} <= set(schema["required"])
