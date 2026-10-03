@@ -39,7 +39,7 @@
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
-    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% if m.preview_line %} · {{ m.preview_line }}{% endif %}</span></li>
+    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ _("AI summary") }}</span>{% endif %}</li>
     {% endfor %}
   </ul>
 </div>

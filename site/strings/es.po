@@ -405,6 +405,14 @@ msgstr "%(who)s publicó aquí una agenda en vez de las actas. Las actas pueden 
 msgid "%(who)s posted this as a scanned image."
 msgstr "%(who)s publicó esto como una imagen escaneada."
 
+#: pipeline/build_site.py
+msgid "(AI summary of the agenda. Check the original.)"
+msgstr "(Resumen de la agenda hecho con IA. Revise el original.)"
+
+#: pipeline/build_site.py
+msgid "(AI summary of the minutes. Check the original.)"
+msgstr "(Resumen de las actas hecho con IA. Revise el original.)"
+
 #. a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward,
 #. %(last)s the last.
 #: site/pages/officials/index.html
@@ -489,6 +497,15 @@ msgid "311 requests in Ward %(ward)s, %(town)s: how many, how quickly the city r
 msgstr ""
 "Solicitudes al 311 en el Distrito %(ward)s de %(town)s: cuántas hay, qué tan rápido responde la "
 "ciudad y de qué tipo son."
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"311 requests keep SeeClickFix's <a href=\"%(license)s\">CC BY-NC-SA 3.0</a> license, which "
+"doesn't allow commercial use."
+msgstr ""
+"Las solicitudes al 311 mantienen la licencia <a href=\"%(license)s\">CC BY-NC-SA 3.0</a> de "
+"SeeClickFix, que no permite el uso comercial."
 
 #: site/templates/ward.html
 #, python-format
@@ -961,6 +978,10 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
 
+#: site/pages/index.html site/templates/macros.html
+msgid "AI summary"
+msgstr "Resumen hecho con IA"
+
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
 #: site/templates/base.html
 msgid "About"
@@ -1401,6 +1422,12 @@ msgstr "Categoría"
 #: pipeline/common_strings.py
 msgid "Cemetery Commission"
 msgstr "Comisión de Cementerios"
+
+#: site/pages/about/index.html
+msgid "Census Bureau and Bureau of Labor Statistics figures are in the public domain."
+msgstr ""
+"Las cifras de la Oficina del Censo de EE. UU. y de la Oficina de Estadísticas Laborales (BLS) son"
+" de dominio público."
 
 #: pipeline/common_strings.py
 msgid "Chair"
@@ -2452,6 +2479,11 @@ msgstr ""
 #: pipeline/common_strings.py
 msgid "Inland Wetlands Commission"
 msgstr "Comisión de Humedales Interiores"
+
+#: site/templates/base.html
+#, python-format
+msgid "Its summaries and data are <a href=\"%(url)s\">free to reuse with credit</a>."
+msgstr "Sus resúmenes y datos se pueden <a href=\"%(url)s\">reutilizar libremente, dando crédito</a>."
 
 #: pipeline/i18n.py
 msgctxt "month, short"
@@ -3801,6 +3833,10 @@ msgstr "Propiedades residenciales por tipo"
 msgid "Retirement Board"
 msgstr "Junta de Retiro"
 
+#: site/pages/about/index.html
+msgid "Reusing what's here"
+msgstr "Cómo reutilizar este contenido"
+
 #: site/states/ma/budget.html
 msgid "Revenue"
 msgstr "Ingresos"
@@ -4050,6 +4086,10 @@ msgstr[1] "En lo que va de %(year)s, hasta %(month)s: %(homes)s viviendas."
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
 msgstr "Algunos departamentos usan SeeClickFix más que otros."
+
+#: site/pages/about/index.html
+msgid "Some of what's here keeps its own terms:"
+msgstr "Parte de este contenido tiene sus propias condiciones:"
 
 #: site/pages/311/repeat-locations/index.html
 msgid "Sorted by requests submitted after an earlier request at the same place was closed."
@@ -4494,6 +4534,18 @@ msgstr ""
 msgid "Summary"
 msgstr "Resumen"
 
+#. the credit line readers are asked to copy. %(network)s is the network's name and %(domain)s its
+#. website, such as "publick.org".
+#: site/pages/about/index.html
+#, python-format
+msgid "Summary by %(network)s (%(domain)s), AI-generated from the city's agenda."
+msgstr "Resumen de %(network)s (%(domain)s), hecho con IA a partir de la agenda de la ciudad."
+
+#: site/pages/about/index.html
+#, python-format
+msgid "Summary by %(network)s, AI-generated from the city's agenda."
+msgstr "Resumen de %(network)s, hecho con IA a partir de la agenda de la ciudad."
+
 #: site/templates/macros.html
 #, python-format
 msgid "Summary written by AI from the <a href=\"%(url)s\">agenda posted by %(by)s</a>."
@@ -4680,6 +4732,10 @@ msgstr ""
 msgid "The city"
 msgstr "La ciudad"
 
+#: site/pages/about/index.html
+msgid "The city's agendas and minutes, and their full text on this site, are public records."
+msgstr "Las agendas y actas de la ciudad, y su texto completo en este sitio, son documentos públicos."
+
 #: site/states/nh/budget.html
 #, python-format
 msgid "The city's budget for fiscal year %(year)s, by what it pays for, as adopted."
@@ -4722,6 +4778,11 @@ msgid ""
 msgstr ""
 "Todo el Concejo Municipal reunido como comité, para discutir un asunto antes de votarlo en una "
 "reunión regular."
+
+#: site/pages/about/index.html
+#, python-format
+msgid "The full terms are in the <a href=\"%(url)s\">network's license</a>."
+msgstr "Las condiciones completas están en la <a href=\"%(url)s\">licencia de la red</a>."
 
 #: site/templates/meeting.html
 msgid "The full text above is a readable version."
@@ -4794,6 +4855,19 @@ msgstr "No se pudo cargar la lista de calles. Inténtelo de nuevo más tarde."
 #: site/pages/streets/index.html
 msgid "The street lookup needs JavaScript."
 msgstr "La búsqueda por calle necesita JavaScript."
+
+#. %(network)s is the network's name, such as "Publick".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"The summaries, headlines, decision lists, and data that %(network)s compiles are free to reuse, "
+"even commercially, under the <a href=\"%(license)s\">Creative Commons Attribution 4.0 license</a>"
+" (CC BY 4.0). Please credit them like this, with a link to the document the summary came from:"
+msgstr ""
+"Los resúmenes, titulares, listas de decisiones y datos que reúne %(network)s se pueden reutilizar"
+" libremente, incluso con fines comerciales, bajo la <a href=\"%(license)s\">licencia Creative "
+"Commons Atribución 4.0</a> (CC BY 4.0). Por favor, dé crédito así, con un enlace al documento del"
+" que se tomó el resumen:"
 
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
