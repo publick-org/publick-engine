@@ -163,12 +163,12 @@ Make what's shown checkable, and the process safe, before adding towns.
 8. **A test set run against the real model**: about 15 documents with known
     decisions, checked by hand, run before any prompt change ships.
     ([Summary checks](#summary-checks))
-9. **Failures that look like success, fixed.** A SeeClickFix 403 stops the
-    311 step instead of marking records removed; a calendar that had
-    meetings and now has none fails; the 311 page's date is its last fetch;
-    the daily alert comments for each town newly behind. No 311 request
-    has been wrongly marked removed yet: none of the 41,718 saved in the
-    three 311 towns is (checked 2026-10-02). ([Monitoring](#monitoring))
+9. **Failures that look like success, fixed.** Done 2026-10-03: three
+    SeeClickFix 403s in a row stop the 311 step instead of marking records
+    removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
+    Left: a calendar that had meetings and now has none fails; the 311
+    page's date is its last fetch; the daily alert comments for each town
+    newly behind. ([Monitoring](#monitoring))
 10. **Security hardening.** Storage and sites keys only in the steps that
     need them, no secrets on pull request runs, `persist-credentials: false`,
     actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
@@ -643,8 +643,12 @@ fetching run's report names the towns it didn't publish, and fails when it
 published none.
 
 **Next.**
-- Failures that look like success: a SeeClickFix 403 marks records removed
-  (`fetch_311.py:136-139`), so stop the 311 step instead; an empty calendar
+- *Done 2026-10-03:* a SeeClickFix 403 no longer marks a request removed on
+  its own. A 403 followed by a lookup that works is a request made private,
+  marked removed as before; three in a row (`REFUSED_IN_A_ROW`) is a block:
+  the lookups stop, none of the three is marked removed, what was fetched is
+  saved, and the step fails, so the run reports 311 behind.
+- Failures that look like success: an empty calendar
   counts as checked (`fetch_meetings.py:362-369`), so a calendar that had
   meetings and now has none fails; the 311 page's date is the build's
   (`compute_311.py:315`), so show its last fetch.
