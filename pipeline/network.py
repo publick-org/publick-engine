@@ -417,6 +417,19 @@ def behind_text(rows: list[dict], hours: float) -> str:
     return "\n".join(lines) + "\n"
 
 
+def newly_behind_text(rows: list[dict], previous: str) -> str:
+    """A comment for the daily alert naming the towns that aren't in its table yet (previous is the
+    issue's text before this run): an edit to the issue sends no email, a comment does. Nothing
+    when there are none, so a town already listed, or one that's caught up, sends nothing."""
+    listed = {line.split("|")[1].strip() for line in previous.splitlines() if line.startswith("| ") and line.count("|") > 2}
+    new = [r for r in rows if r["folder"] not in listed]
+    if not new:
+        return ""
+    lines = ["Newly needing attention:", ""]
+    lines += [f"- **{r['folder']}**: {', '.join(r['problems']) or 'no run since'}" for r in new]
+    return "\n".join(lines) + "\n"
+
+
 def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | None = None) -> dict:
     """Each town's share, for one run, of what's left of the month's summary budget.
 
@@ -502,6 +515,8 @@ def main() -> int:
     b = sub.add_parser("behind")
     b.add_argument("--root", type=Path, default=Path.cwd())
     b.add_argument("--hours", type=float, default=BEHIND_HOURS)
+    b.add_argument("--new-since", type=Path, metavar="FILE",
+                   help="print only a comment naming the towns not in this earlier text of the issue")
     st = sub.add_parser("states")
     st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
@@ -530,7 +545,11 @@ def main() -> int:
         # A fetching run keeps going when a town fails: its data is committed, and the daily alert says so.
         return 0 if args.fetch or all(r["ok"] for r in results) else 1
     if args.command == "behind":
-        print(behind_text(behind(args.root.resolve(), args.hours), args.hours), end="")
+        rows = behind(args.root.resolve(), args.hours)
+        if args.new_since:
+            print(newly_behind_text(rows, args.new_since.read_text(encoding="utf-8")), end="")
+        else:
+            print(behind_text(rows, args.hours), end="")
         return 0
     if args.command == "states":
         print(json.dumps(refresh_states(args.root.resolve()), indent=2))
