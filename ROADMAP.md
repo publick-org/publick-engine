@@ -3,7 +3,8 @@
 Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
 evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
-publick.org #42).
+publick.org #42), and that afternoon after every town moved to engine v1.33.0
+by hand (publick.org #43) and the scheduler took over the morning's release.
 
 This file has four parts:
 
@@ -93,6 +94,8 @@ thirds of commits are written by AI.
 | Lawrence, MA | 2026-10-02 | CivicPlus calendar and Agenda Center | none | Launched in English and Spanish |
 
 - Every town is in English and Spanish (`/es/`), engine v1.27.0 and later.
+- Every town is on engine v1.33.0, published 2026-10-03 at 13:07 to 13:09 UTC,
+  and passed "Check live site" on its first real run.
 - 445 summaries live (agenda prompt v4: 62; minutes v2: 383).
 - Summary and translation spending: September $21.82 (three towns); October
   $9.22 after two days, projected $50 to $60, so the cap binds this month.
@@ -115,19 +118,29 @@ summaries checked against their documents (engine v1.30.0 and pull request
 #50), and the meetings audit's fixes, with a shorter home page (engine #52,
 publick.org #40; see [Meetings, complete and correct](#meetings-complete-and-correct)).
 Done on 2026-10-03: "AI summary" on every summary shown in a list (item 7) and
-the data license (item 12), engine #54 and publick.org #42.
+the data license (item 12), engine #54 and publick.org #42; items 4, 9, and 15;
+and every town moved to engine v1.33.0 (publick.org #43), with the scheduler
+deployed to start the release and the engine pull request each morning.
 What's left:
 
-1. **Watch the first automatic engine move**: it didn't happen on
-   2026-10-03. GitHub hadn't started the 08:20 release or the 08:40 engine
-   pull request by noon (its scheduled runs here start 5 to 7 hours late),
-   so v1.31.0 (#50 to #60) was released and the engine moved by hand at
-   12:00 UTC. The scheduler Worker now starts both on time (below); it needs
-   its token widened and a deploy. Then, on the live sites: "AI summary"
-   under each summary in the lists and the hearings box, and in
-   `/feed.xml`; "Reusing what's here" on each About page, its link to the
-   network's `LICENSE` working, and the footer link, in English and
-   Spanish; and every town passing "Check live site". ([Releases](#releases))
+1. **Watch the first scheduled release and engine move** (2026-10-04, 08:20
+   and 08:40 UTC, started by the scheduler Worker). On 2026-10-03 neither
+   started on GitHub's schedule by noon (its scheduled runs here start 5 to 7
+   hours late), so the engine moved by hand, and the network's pull request
+   check caught three problems before anything was published:
+   - the engine workflow pushed with its read-only token, not
+     `ENGINE_PR_TOKEN` (fixed: `persist-credentials: false`, publick.org #43);
+   - v1.31.0's `network.py` needed `feedparser` in jobs that don't install it
+     (fixed in #62, v1.32.0);
+   - on v1.32.0 the browser checks opened moved meeting pages, which redirect
+     themselves, and failed in Beverly, Lawrence, and Malden (fixed in #63,
+     v1.33.0).
+   Every town published on v1.33.0 at 13:09 UTC and passed "Check live
+   site". Checked on the live sites: "AI summary" in the lists, the hearings
+   box, and `/feed.xml`; "Reusing what's here" with its `LICENSE` link; the
+   footer link; and the Spanish. Left: the 311 pages' "Updated" date shows
+   the last fetch from the next daily run, whose scorecard records it.
+   ([Releases](#releases))
 2. **Check the first daily runs on the new engine**: every translation made
    again on prompt 3 and reviewed (about 450 summaries, about $4), how many
    fail the checks, and every summary's fact check recorded (60 documents a
@@ -764,12 +777,11 @@ fetchers from saved pages, each with the page, link, and browser checks.
   08:20 UTC and the network's engine pull request at 08:40, as it starts the
   daily runs, since GitHub's own schedule started neither on the first
   morning (`worker/scheduler.js`, `RELEASE_CRON`, `ENGINE_CRON`). The
-  workflows keep their schedules as a late backup. To turn it on, in order:
-  widen `SCHEDULER_GITHUB_TOKEN` to the engine repository (Actions read and
-  write); once `engine-version` has this code, add the two crons and
-  `ENGINE_REPOSITORY` to `wrangler.scheduler.toml`; then deploy the Worker
-  (`worker.yml`, by hand). Deploying the crons with older code would start a
-  daily run at 08:20 instead.
+  workflows keep their schedules as a late backup. On since 2026-10-03:
+  `SCHEDULER_GITHUB_TOKEN` widened to the engine repository (Actions read
+  and write), the two crons and `ENGINE_REPOSITORY` in
+  `wrangler.scheduler.toml` (publick.org #43), and the Worker deployed at
+  13:50 UTC with triggers at 08:20, 08:40, and 09:05 to 14:05.
 - *Done 2026-10-03:* after publishing, a "Check live site" step fetches each
   town's homepage through the Worker until it is the built `index.html`,
   byte for byte, for up to two minutes (a Worker reuses a manifest for one).
@@ -1438,7 +1450,9 @@ quiet days.
 | v1.28.0 | Monthly charts fit a phone |
 | v1.29.0 | Spanish at any number of towns: shared words once, machine drafts for the rest; every summary on the current prompt version |
 | v1.30.0 | The open redirect closed; the Spanish disclosed as machine-translated and checked without a person (names, outcomes, amounts, and a second model's review); a missing Spanish text never stops a build; releases once a day; a republished town's run record; light-only accessibility tests (2026-10-02) |
-| v1.31.0 (2026-10-03) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full. "AI summary" on every summary shown in a list, and in the feed; "Reusing what's here" on every About page, with the data license (#54) |
+| v1.31.0 (2026-10-03, never reached the towns) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full. "AI summary" on every summary shown in a list, and in the feed; "Reusing what's here" on every About page, with the data license (#54). A SeeClickFix block stops the 311 step instead of marking requests removed (#56); the 311 pages dated by the last fetch (#57); an emptied calendar fails, and `behind --new-since` for the alert's comment (#58); `[summaries] since` (#59); a check of each live site after publishing (#60) |
+| v1.32.0 (2026-10-03) | `network.py` loads with the standard library only again (#62); the scheduler starts the release and the engine pull request (#61) |
+| v1.33.0 (2026-10-03) | The browser checks leave out a moved meeting's page, which redirects itself (#63). Every town on it from 13:09 UTC (publick.org #43) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second
