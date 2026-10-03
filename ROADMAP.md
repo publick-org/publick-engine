@@ -240,8 +240,8 @@ Make what's shown checkable, and the process safe, before adding towns.
 29. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
     labels matched by content rather than position, and Ward and District
     kept apart in Spanish. ([Spanish quality](#spanish-quality))
-30. **Accessibility**: a table for every chart, and every scrollable table
-    reachable by keyboard. ([Accessibility](#accessibility))
+30. **Accessibility**: a table for every chart (every scrollable table
+    reachable by keyboard: done 2026-10-03). ([Accessibility](#accessibility))
 31. **Upkeep**: workflows' actions off Node 20; config keys only one town uses
     folded into their readers; a monthly page-view report.
     ([Upkeep](#upkeep))
@@ -813,8 +813,10 @@ and the 311 data has people's house numbers.
 - *Secrets only where needed:* the storage and sites keys reach the
   PDF-parsing steps (`update.py:76-85`); pull request runs get every secret
   (`network.yml:371-381`); no `persist-credentials: false`.
-- *The Worker:* no HSTS or CSP (`sites.js:94-100`, checked live); add
-  security headers.
+- *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
+  headers. Every page already sets a Content Security Policy in a `<meta>`
+  tag (`base.html`: scripts from the site only, no inline scripts); what a
+  `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
 - *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
   `v1` moved on every release; tag protection.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
@@ -1245,8 +1247,13 @@ is there, and after the summary checks.
 
 - "Every chart has a table" (`accessibility/index.html:14`) is still false
   for the 311 category and ward pages. Add the tables.
-- 1 of 31 scrollable tables is focusable (`about/index.html:92`), now on
-  twice as many pages with Spanish. Make each reachable by keyboard.
+- *Done 2026-10-03:* every table that scrolls is reachable by keyboard.
+  `site/static/js/tables.js` gives a `.table-wrap` that is wider than the
+  screen a tab stop, the region role, and a name (the table's caption, else
+  the heading before it, so no new wording to translate); one that fits gets
+  none, so a wide screen's tab order doesn't grow. At normal text size only
+  the Officials and About tables scroll on a phone; at 200% text every table
+  does. Before, 1 of 32 could take focus (About's, labeled in its template).
 - Phone layouts: v1.24.0 and v1.28.0 fixed overflow found by the checks;
   keep the phone widths in every check.
 - Dark styles, if ever: then the dark-mode accessibility tests come back.
