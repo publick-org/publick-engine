@@ -52,14 +52,22 @@ class Source:
     table: str | None = None
 
 
+# The document bucket's keys (pipeline/documents.py), for the steps that save or read agendas and minutes.
+STORAGE = ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+# The sites bucket's (pipeline/deploy.py): no step here publishes, so none is given them.
+SITES = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
+
 SOURCES = [
-    Source("Fetch meetings", "pipeline.fetch_meetings", "meetings", table="meetings"),
+    Source("Fetch meetings", "pipeline.fetch_meetings", "meetings", secrets=STORAGE, table="meetings"),
     # Minutes from the Archive Center ([archive]), or linked from Agenda Center, CivicClerk and file list
     # meetings ([meetings]); the step does nothing for a town with none of them.
-    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", table="meetings"),
-    Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", table="drive_meetings"),
-    Source("Fetch school board meetings", "pipeline.fetch_finalsite_meetings", "meetings", table="finalsite_meetings"),
-    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY",), table="summaries"),
+    Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", secrets=STORAGE, table="meetings"),
+    Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", secrets=STORAGE,
+           table="drive_meetings"),
+    Source("Fetch school board meetings", "pipeline.fetch_finalsite_meetings", "meetings", secrets=STORAGE,
+           table="finalsite_meetings"),
+    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY", *STORAGE),
+           table="summaries"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
     Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",), table="labor"),
     Source("Fetch school figures", "pipeline.fetch_schools", "figures", table="schools"),
@@ -68,14 +76,14 @@ SOURCES = [
     # Whether the town is a city or a town, from the place [housing] names: once, when not yet recorded.
     Source("Fetch place", "pipeline.fetch_place", "figures", table="housing"),
     Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
-    Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",)),
+    Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",), secrets=STORAGE),
     Source("Fetch 311 requests", "pipeline.fetch_311", "311", table="seeclickfix"),
     Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True, table="seeclickfix"),
 ]
 
 GROUPS = {"all": ("meetings", "figures", "311"), "meetings": ("meetings", "figures"), "figures": ("figures",),
           "311": ("311",)}
-SECRETS = {key for source in SOURCES for key in source.secrets}
+SECRETS = {key for source in SOURCES for key in source.secrets} | set(SITES)
 
 
 def command(source: Source, town: str) -> list[str]:

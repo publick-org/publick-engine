@@ -188,10 +188,11 @@ Make what's shown checkable, and the process safe, before adding towns.
     each town newly behind (the network workflow's step goes in once the
     engine release with `behind --new-since` reaches `engine-version`).
     ([Monitoring](#monitoring))
-10. **Security hardening.** Storage and sites keys only in the steps that
-    need them, no secrets on pull request runs, `persist-credentials: false`,
-    actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
-    Worker, tag protection. ([Security and privacy](#security-and-privacy))
+10. **Security hardening.** No secrets on pull request runs,
+    `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
+    from the Worker. Done: storage and sites keys only in the steps that use
+    them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
+    (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
@@ -821,9 +822,17 @@ and the 311 data has people's house numbers.
 
 **Next** (from the October review, rechecked on v1.29.0).
 - *The open redirect* (now): `worker/sites.js:135`, checked live.
-- *Secrets only where needed:* the storage and sites keys reach the
-  PDF-parsing steps (`update.py:76-85`); pull request runs get every secret
-  (`network.yml:371-381`); no `persist-credentials: false`.
+- *Secrets only where needed:* pull request runs get every secret
+  (`network.yml:371-381`); no `persist-credentials: false`. *Done
+  2026-10-03:* each of a town's steps gets only the keys it uses. In
+  `pipeline/update.py`, the document bucket's keys go to the six steps that
+  save or read agendas and minutes (`STORAGE`), and no step gets the sites
+  bucket's; in `pipeline/network.py` (`keyed`), the fetch gets the fetching
+  keys, Publish the sites keys, and the freshness check, build, and checks
+  none; `town.yml` the same, step by step. So a pull request run's steps get
+  no keys, whatever the workflow passes. The steps that parse PDFs still
+  hold the document keys, since they read the PDFs from the bucket: keeping
+  them apart would take a download step of its own.
 - *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
   headers. Every page already sets a Content Security Policy in a `<meta>`
   tag (`base.html`: scripts from the site only, no inline scripts); what a
