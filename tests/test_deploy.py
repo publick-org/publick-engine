@@ -148,6 +148,41 @@ def publish_days(bucket, site, domain, days):
     return names
 
 
+class FakeWorker:
+    """Serves the homepage as Cloudflare passes it on, without an ETag: the old build's page for the
+    first `stale` requests, then the new one."""
+
+    def __init__(self, page: bytes, stale=0, status=200):
+        self.page, self.stale, self.status, self.urls = page, stale, status, []
+
+    def __call__(self, url):
+        self.urls.append(url)
+        content = b"<html>old build</html>" if len(self.urls) <= self.stale else self.page
+        return type("Response", (), {"status_code": self.status, "headers": {}, "content": content})()
+
+
+def test_check_waits_for_the_worker_to_serve_the_new_build(site_dir):
+    clock = iter(range(0, 1000, 10))
+    worker = FakeWorker((site_dir / "index.html").read_bytes(), stale=3)
+    result = deploy.check_live("t.publick.org", site_dir, "test", get=worker, sleep=lambda s: None,
+                               clock=lambda: next(clock))
+    assert result["ok"] and worker.urls == ["https://t.publick.org/"] * 4
+
+
+def test_check_fails_when_the_live_site_isnt_the_build(site_dir):
+    blob = deploy.sha256(site_dir / "index.html")
+    now = [0.0]
+
+    def sleep(s):
+        now[0] += s
+    page = (site_dir / "index.html").read_bytes()
+    for worker in (FakeWorker(page, stale=99), FakeWorker(page, status=404)):
+        now[0] = 0.0
+        result = deploy.check_live("t.publick.org", site_dir, "test", get=worker, sleep=sleep, clock=lambda: now[0])
+        assert not result["ok"] and result["blob"] == blob
+        assert len(worker.urls) == deploy.CHECK_SECONDS // deploy.CHECK_EVERY + 1, "it asks for the whole wait"
+
+
 def test_rollback_makes_the_previous_build_live(bucket, tmp_path):
     site = make_site(tmp_path, {})
     names = publish_days(bucket, site, "t.publick.org", 3)
