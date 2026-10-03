@@ -84,7 +84,7 @@ def test_run_builds_checks_and_publishes_a_town(tmp_path, steps):
     root = make_root(tmp_path)
     result = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=tmp_path / "reports")
     assert [c["name"] for c in calls] == ["Fetch new data", "Check data freshness", "Build site", "Check site",
-                                          "Publish site"]
+                                          "Publish site", "Check live site"]
     assert result["ok"] and result["deployed"] and not result["stale"]
     env = calls[0]["env"]
     assert env["TOWN"] == "gloucester" and env["PUBLICK_TOWN_DIR"] == str(root / "towns" / "gloucester-ma")
@@ -149,6 +149,19 @@ def test_a_town_that_fails_its_checks_is_not_published(tmp_path, steps):
     result = network.run_town(make_root(tmp_path), "gloucester-ma", fetch=False, deploy=True, reports=None)
     assert [c["name"] for c in calls] == ["Build site", "Check site"]
     assert not result["ok"] and not result["deployed"]
+
+
+def test_a_site_the_worker_doesnt_serve_isnt_counted_as_published(tmp_path, steps):
+    calls, failing = steps
+    failing.add("Check live site")
+    result = network.run_town(make_root(tmp_path), "gloucester-ma", fetch=False, deploy=True, reports=None)
+    assert calls[-1]["cmd"][2:4] == ["pipeline.deploy", "check"]
+    assert not result["ok"] and not result["deployed"]
+    failing.clear()
+    failing.add("Publish site")
+    calls.clear()
+    network.run_town(make_root(tmp_path / "again"), "gloucester-ma", fetch=False, deploy=True, reports=None)
+    assert "Check live site" not in [c["name"] for c in calls], "nothing published, nothing to check"
 
 
 def test_a_failed_build_is_not_checked(tmp_path, steps):
@@ -284,7 +297,8 @@ def test_a_run_that_publishes_without_fetching_updates_the_run_record(tmp_path, 
     record = json.loads(record_path.read_text())
     assert record["deployed"] and record["ok"] and record["published_at"] == push["finished_at"]
     assert record["last_good_at"] == push["finished_at"] and record["finished_at"] == daily["finished_at"]
-    assert [s["name"] for s in record["steps"]] == ["Fetch new data", "Build site", "Check site", "Publish site"]
+    assert [s["name"] for s in record["steps"]] == ["Fetch new data", "Build site", "Check site", "Publish site",
+                                                    "Check live site"]
     behind = network.behind(root, at=network.datetime.fromisoformat(push["finished_at"]))
     assert "gloucester-ma" not in [r["folder"] for r in behind]
 

@@ -186,8 +186,9 @@ Make what's shown checkable, and the process safe, before adding towns.
     of a day's money. ([AI costs](#ai-summary-and-translation-costs))
 14. **Push runs build and check but don't publish**, so they never wait hours
     behind a daily run; the next daily run publishes. ([Releases](#releases))
-15. **A check of each live site after publishing**: the homepage, fetched
-    through the Worker, is the build just published. ([Releases](#releases))
+15. **A check of each live site after publishing**: done 2026-10-03, the
+    homepage, fetched through the Worker, is the build just published.
+    ([Releases](#releases))
 16. **A `RUNBOOK.md`** in the network repository, and **a second person with
     owner access** to GitHub, Cloudflare, and Anthropic.
     ([Security and privacy](#security-and-privacy))
@@ -756,9 +757,12 @@ fetchers from saved pages, each with the page, link, and browser checks.
   it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
   that's too slow, towns queued separately lets a push wait only for its
   own towns.
-- After publishing, each town's live homepage is fetched through the Worker
-  and checked to be the build just published; a mismatch fails the town in
-  its run record. About 30 seconds a run.
+- *Done 2026-10-03:* after publishing, a "Check live site" step fetches each
+  town's homepage through the Worker until it is the built `index.html`,
+  byte for byte, for up to two minutes (a Worker reuses a manifest for one).
+  A mismatch fails the town, and it doesn't count as published in its run
+  record (`pipeline.deploy check`). The page itself is compared because
+  Cloudflare drops the Worker's ETag from HTML (checked on the live sites).
 - Sample towns still to add: one with SeeClickFix departments, one on the
   town-website reader (Wallingford), one on Finalsite.
 - At 20 to 50 towns: canary towns, Manchester and Malden (chosen
