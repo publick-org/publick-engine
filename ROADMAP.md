@@ -200,8 +200,10 @@ Make what's shown checkable, and the process safe, before adding towns.
     repository's `LICENSE`, a "Reusing what's here" section on every About
     page, and a footer link. Left: SeeClickFix's terms saved as read.
     ([Open data](#open-data))
-13. **A budget floor per town**, so one town's launch backlog can't take most
-    of a day's money. ([AI costs](#ai-summary-and-translation-costs))
+13. **A budget floor per town**: in a pull request (2026-10-03). Every
+    town keeps half its even share of each day's budget for every day left
+    in the month; one town's run gets only what's left beyond the others'
+    floors. ([AI costs](#ai-summary-and-translation-costs))
 14. **Push runs build and check but don't publish**, so they never wait hours
     behind a daily run; the next daily run publishes. ([Releases](#releases))
 15. **A check of each live site after publishing**: done 2026-10-03, the
@@ -893,8 +895,11 @@ Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
   (`ADDING-A-TOWN.md`), since a launch's history is what took most of the
   money (Beverly, 58% of October's first two days). The live towns keep
   theirs (94 documents left, about $8.50).
-- A floor per town, so the equal share (`network.py:404-406`) can't let one
-  town's backlog take most of a day's money.
+- *In a pull request (2026-10-03):* a floor per town. Each town keeps `TOWN_FLOOR_SHARE`
+  (half) of its even share of each day's budget for every day left in the
+  month; a run's towns get what's left beyond the others' floors, so one
+  town's launch backlog or busy week can't take the month. The budget step
+  prints each day's `floor` and what's `kept_for_floors`.
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
 - The Batches API, at least for backlog summaries: cheaper, and out of the
