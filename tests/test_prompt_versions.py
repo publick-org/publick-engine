@@ -43,7 +43,7 @@ PROMPTS = {
 # (version, hash of the prompt), as of 2026-10-03.
 PINNED = {
     "summary of an agenda (summarize.KINDS)": (4, "5c47543097a4a51c"),
-    "summary of minutes (summarize.KINDS)": (2, "00d5fa9e89a43292"),
+    "summary of minutes (summarize.KINDS)": (3, "595a7b4a9a916b72"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
     "translation (translate.VERSION)": (3, "fdd9a3df7a4c8741"),
     "drafted text (translate.NAMES_VERSION)": (2, "1ac57feb64f0ccfd"),

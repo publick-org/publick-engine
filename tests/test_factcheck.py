@@ -136,3 +136,150 @@ def test_vote_counts_come_out_cleanly():
         ("Se aprobó el plan con votación 5-0.", "5-0", "Se aprobó el plan."),
     ):
         assert factcheck.without_tally(text, tally) == expected
+
+
+# ---- Decisions anchored to the minutes ------------------------------------------------
+
+COUNCIL = """CITY OF EXAMPLE CITY COUNCIL
+Minutes of April 7, 2026
+200-26 Order: Executive Session on budgetary constraints litigation.
+A motion was made by Councillor Sica, seconded by Councillor Lucas, that the Order be tabled.
+The motion failed by a vote of 3-8.
+201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.
+A motion was made by Councillor Colon Hayes, seconded by Councillor Sica, that the Order be
+approved. The motion carried by a unanimous vote.
+Page 5City of Example
+April 7, 2026City Council Meeting Minutes - Final
+202-26 Petition: Pool Tables: Loyal Order of Moose, 562 Broadway, 2 tables (Renewal)
+The Petition was referred to the License Committee.
+203-26 Order: That $8,000 be appropriated for the Senior Center roof. A motion was made by
+Councillor Lucas that the Order be approved. The motion did not carry, 4 yeas, 7 nays.
+204-26 Ordinance: Self-storage facilities in the Industrial zoning districts. A motion was made
+by Councillor Sica that the Ordinance be referred to the Rules & Ordinance Committee. The motion
+carried by a unanimous vote.
+""" + "Other business of the council was discussed at length. " * 40 + """
+205-26 Order: That $2,500 be appropriated for the Linden Street playground. A motion was made by
+Councillor Lucas, seconded by Councillor Sica, that the Order be approved. The motion carried, 9-2.
+"""
+
+
+def decisions(*entries, doc=COUNCIL):
+    record = {"kind": "minutes", "headline": "", "summary": "",
+              "decisions": [text for text, _, _ in entries],
+              "decision_evidence": [{"outcome": outcome, "quote": quote} for _, outcome, quote in entries]}
+    return factcheck.check(record, "minutes", [doc])
+
+
+def anchor_problems(*entries):
+    return [(p["entry"], p["kind"]) for p in decisions(*entries)["problems"] if p["kind"] in ("quote", "away", "outcome")]
+
+
+RIGHT = [
+    ("Failed a motion to table Order 200-26 on an executive session, 3-8.", "denied",
+     "that the Order be tabled. The motion failed by a vote of 3-8."),
+    ("Approved transferring $175,000 to Public Works Salaries (Order 201-26), unanimously.", "approved",
+     "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries."),
+    # A quote across a page header the PDF's text puts in the middle.
+    ("Referred the Loyal Order of Moose pool table renewal (202-26) to the License Committee.", "referred",
+     "The motion carried by a unanimous vote. 202-26 Petition: Pool Tables: Loyal Order of Moose, 562 Broadway, "
+     "2 tables (Renewal) The Petition was referred to the License Committee."),
+    ("Did not approve $8,000 for the Senior Center roof (203-26), 4-7.", "denied",
+     "The motion did not carry, 4 yeas, 7 nays."),
+    ("Referred the self-storage ordinance (204-26) to the Rules & Ordinance Committee.", "referred",
+     "that the Ordinance be referred to the Rules & Ordinance Committee"),
+    ("Approved $2,500 for the Linden Street playground (205-26), 9-2.", "approved",
+     "seconded by Councillor Sica, that the Order be approved. The motion carried, 9-2."),
+]
+
+
+def test_decisions_anchored_to_the_minutes_pass():
+    result = decisions(*RIGHT)
+    assert result["result"] == "ok", result["problems"]
+    # A quote cut with "...", and one whose words the PDF broke up, with odd spacing and case.
+    assert anchor_problems(("Failed to table Order 200-26, 3-8.", "denied",
+                            "A motion was made by Councillor Sica ... The motion failed by a vote of 3-8.")) == []
+    assert anchor_problems(("Approved $175,000 for Public Works Salaries.", "approved",
+                            "the sum of $175,000  be  TRANSFERRED to Public  Works Salaries")) == []
+
+
+def test_a_quote_not_in_the_minutes_fails():
+    assert anchor_problems(("Approved $175,000 for Public Works Salaries.", "approved",
+                            "The Council voted to transfer $175,000 to Public Works Salaries.")) == [(1, "quote")]
+    assert anchor_problems(("Approved $175,000 for Public Works Salaries.", "approved", "")) == [(1, "quote")]
+
+
+def test_a_number_or_name_from_another_motion_is_listed():
+    # $2,500 is in the minutes, but for another order, far from this one's quote.
+    entry = ("Approved $2,500 for Public Works Salaries (Order 201-26).", "approved",
+             "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")
+    assert anchor_problems(entry) == [(1, "away")]
+    # Listed, not held back, until it's measured how often a right decision is listed.
+    assert decisions(entry)["result"] == "ok"
+
+
+def test_an_outcome_turned_round_fails():
+    # A dropped "not": the minutes say the motion failed.
+    assert anchor_problems(("Approved $8,000 for the Senior Center roof (203-26), 4-7.", "approved",
+                            "The motion did not carry, 4 yeas, 7 nays.")) == [(1, "outcome")]
+    assert anchor_problems(("Tabled Order 200-26.", "tabled",
+                            "that the Order be tabled. The motion failed by a vote of 3-8.")) == [(1, "outcome")]
+    # The outcome and the decision's words disagree.
+    assert anchor_problems(("Approved tabling Order 200-26.", "denied",
+                            "that the Order be tabled. The motion failed by a vote of 3-8.")) == [(1, "outcome")]
+    assert anchor_problems(("Denied the transfer of $175,000.", "approved",
+                            "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")) \
+        == [(1, "outcome")]
+    # Referred, where the minutes say nothing of it.
+    assert anchor_problems(("Referred $175,000 for Public Works Salaries to committee.", "referred",
+                            "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")) \
+        == [(1, "outcome")]
+    assert anchor_problems(("Approved it.", "passed", "The motion carried by a unanimous vote.")) == [(1, "outcome")]
+
+
+def test_a_not_in_what_was_decided_isnt_a_no():
+    # Gloucester's Zoning Board of Appeals: an approval that there is "not" an increase.
+    doc = ("Ms. Norton moves to determine that there is not an increase in the non-conformity in the application "
+           "of Robert Rogers to rebuild a shed at 16 Ryan Rd. Mr. Nimon seconds All in favor, 5-0. "
+           "Mr. Wilson moves to determine that there is not an increase in a non-conformity at 23 Cliff Rd. "
+           "Mr. Cannavo seconds In Favor: 2 In Opposition: 3")
+    entries = [("Determined there is not an increase in nonconformity for the shed at 16 Ryan Rd, 5-0.", "approved",
+                "moves to determine that there is not an increase in the non-conformity in the application of Robert "
+                "Rogers to rebuild a shed at 16 Ryan Rd. Mr. Nimon seconds All in favor, 5-0"),
+               ("Failed a motion that there is not an increase in nonconformity at 23 Cliff Rd, 2-3.", "denied",
+                "Mr. Wilson moves to determine that there is not an increase in a non-conformity at 23 Cliff Rd. "
+                "Mr. Cannavo seconds In Favor: 2 In Opposition: 3")]
+    assert [(p["entry"], p["kind"]) for p in decisions(*entries, doc=doc)["problems"]] == []
+    # Called approved, the second fails: two for and three against.
+    wrong = [(entries[1][0].replace("Failed a motion", "Determined"), "approved", entries[1][2])]
+    assert [(p["entry"], p["kind"]) for p in decisions(*wrong, doc=doc)["problems"]] == [(1, "outcome")]
+
+
+def test_a_two_thirds_vote_can_fail_with_more_for():
+    doc = "A motion to override the tax cap. The motion failed on a roll call vote, 9-5, needing 10 votes."
+    record = {"kind": "minutes", "headline": "", "summary": "", "decisions": ["Rejected a motion to override the tax cap, 9-5."],
+              "decision_evidence": [{"outcome": "denied", "quote": "The motion failed on a roll call vote, 9-5"}]}
+    assert factcheck.check(record, "minutes", [doc])["result"] == "ok"
+
+
+def test_counts_that_arent_votes():
+    assert factcheck.votes_for_against("The motion to approve 3-4 bedroom units carried") is None
+    assert factcheck.votes_for_against("ages 5-12. The motion carried 5-0.") == (5, 0)
+    assert factcheck.votes_for_against("On a roll call vote of 2 yea (Kantor, Sapienza) to 11 nay") == (2, 11)
+    assert factcheck.votes_for_against("In Favor: 2 In Opposition: 3") == (2, 3)
+    assert factcheck.votes_for_against("Yea: 10 - Anderson, Barbieri Nay: 1 - Colon") == (10, 1)
+    assert factcheck.votes_for_against("Paper 200-26 was referred") is None
+
+
+def test_older_summaries_without_evidence_are_checked_as_before():
+    record = {"kind": "minutes", "headline": "", "summary": "", "decisions": [text for text, _, _ in RIGHT]}
+    assert factcheck.check(record, "minutes", [COUNCIL])["result"] == "ok"
+
+
+def test_what_fails_its_anchor_isnt_shown():
+    record = {"kind": "minutes", "headline": "", "summary": "",
+              "decisions": ["Approved $8,000 for the Senior Center roof, 4-7.", RIGHT[1][0]],
+              "decision_evidence": [{"outcome": "approved", "quote": "The motion did not carry, 4 yeas, 7 nays."},
+                                    {"outcome": "approved", "quote": RIGHT[1][2]}]}
+    record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
+    shown = factcheck.shown(record, record, "minutes")
+    assert shown["decisions"] == [RIGHT[1][0]] and shown["not_shown"] == 1

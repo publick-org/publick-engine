@@ -88,7 +88,9 @@ RECENT_MEETING_DAYS = 60
 # version (or another model) are regenerated on the next run. An agenda's
 # start_time and location were added without a bump, so older agendas aren't all
 # made again: only an upcoming meeting's agenda, when the meeting's listing has
-# no time (an Agenda Center's doesn't), is (needs_time).
+# no time (an Agenda Center's doesn't), is (needs_time). A kind's remake_since
+# keeps what an older version made for meetings before that date: only later
+# meetings' documents are made again (kept()).
 KINDS = {
     "agenda": {
         "version": 4,
@@ -118,27 +120,44 @@ Return:
         },
     },
     "minutes": {
-        "version": 2,
+        # Version 3: each decision with its outcome and the minutes' own words for it, checked
+        # without AI (pipeline/factcheck.py). Minutes of meetings before remake_since keep version 2's
+        # summary, about 60 days back when it shipped: they're made again only if wanted, by moving it.
+        "version": 3,
+        "remake_since": "2026-08-04",
         "folder": "minutes",
-        "max_tokens": 8000,
+        "max_tokens": 16000,
         "system": "You summarize the minutes of public meetings of a city government for residents. Minutes are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES + """
 - Report decisions only as the minutes record them. Include the vote count or roll call result when the minutes give one. If the minutes do not say how a matter ended, do not list it as a decision.
-- Use the minutes' own verb for each outcome (approved, recommended, referred, continued, tabled, denied). A vote to recommend is not an approval.""",
+- Use the minutes' own verb for each outcome (approved, recommended, referred, continued, tabled, denied). A vote to recommend is not an approval.
+- A motion that failed was not approved, whatever it proposed (to approve, to table, to refer): report it as failed.""",
         "prompt": """These are the posted minutes for: {title}, {date}.
 
 Return:
 - headline: one sentence of at most 25 words on what the meeting decided, or what it discussed if it decided nothing. Start with the outcome itself, not with who met (write "Approved seven board appointments ...", not "Committee approved seven board appointments ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 to 3 short sentences on what the meeting covered and what was decided. Do not repeat the board's name, the date, the time, or the place.
 - is_minutes: true if this document is minutes of a meeting that took place; false if it is something else, such as an agenda or notice filed under minutes.
-- decisions: each motion, vote, or other decision the minutes record, in order, as a short plain-English sentence that includes the outcome (for example "Approved ... 5-0" or "Continued ... to October 22, 2026"). Skip procedural motions such as adjourning or accepting the agenda.""",
+- decisions: each motion, vote, or other decision the minutes record, in order. Skip procedural motions such as adjourning or accepting the agenda. For each:
+  - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 5-0" or "Continued ... to October 22, 2026").
+  - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other (anything else, such as placed on file or no action taken).
+  - quote: the minutes' own words that record this decision, copied exactly, character for character: the item or motion, with its number, address, or amount if the minutes give one, and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the minutes' words.""",
         "schema": {
             "type": "object",
             "properties": {
                 "headline": {"type": "string"},
                 "summary": {"type": "string"},
                 "is_minutes": {"type": "boolean"},
-                "decisions": {"type": "array", "items": {"type": "string"}},
+                "decisions": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "decision": {"type": "string"},
+                        "outcome": {"type": "string", "enum": list(factcheck.OUTCOMES)},
+                        "quote": {"type": "string"},
+                    },
+                    "required": ["decision", "outcome", "quote"],
+                    "additionalProperties": False,
+                }},
             },
             "required": ["headline", "summary", "is_minutes", "decisions"],
             "additionalProperties": False,
@@ -202,6 +221,26 @@ def cached(data_dir: Path, sha256: str, model: str, kind: str = "agenda", curren
     return record
 
 
+def kept(data_dir: Path, sha256: str, model: str, kind: str, meeting: dict) -> bool:
+    """Whether a summary made with an earlier version of the prompt stays: its meeting is before
+    the kind's remake_since, and the same model made it."""
+    since = KINDS[kind].get("remake_since")
+    if not since or meeting["date"] >= since:
+        return False
+    record = cached(data_dir, sha256, model, kind, current=False)
+    return bool(record and record.get("model") == model)
+
+
+def split_decisions(result: dict) -> dict:
+    """A minutes summary as saved: its decisions as sentences, as every page and translation reads
+    them, and each one's outcome and quote beside them, in "decision_evidence"."""
+    if not result.get("decisions") or not isinstance(result["decisions"][0], dict):
+        return result
+    entries = result["decisions"]
+    return {**result, "decisions": [d["decision"] for d in entries],
+            "decision_evidence": [{"outcome": d["outcome"], "quote": d["quote"]} for d in entries]}
+
+
 def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
     """An upcoming meeting with no time listed, whose agenda summary is from before agendas gave one."""
     return (kind == "agenda" and meeting["date"] >= today and not meeting.get("start_time")
@@ -232,6 +271,8 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
                 continue
             record = cached(data_dir, doc["sha256"], model, kind)
             if record and not needs_time(kind, meeting, record, today):
+                continue
+            if not record and kept(data_dir, doc["sha256"], model, kind, meeting):
                 continue
             seen.add(doc["sha256"])
             todo.append((kind, meeting, doc))
@@ -581,7 +622,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             continue
         paid = cost(usage, settings)
         record = {
-            **result,
+            **split_decisions(result),
             "kind": kind,
             "source_url": doc["source_url"],
             "source_sha256": doc["sha256"],

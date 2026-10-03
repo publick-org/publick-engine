@@ -1,0 +1,178 @@
+{
+  "about": "Minutes with known decisions, checked by hand against each document's own text (2026-10-03), for python -m pipeline.evaluate: each is summarized by the real model with the current minutes prompt, checked as the site checks it, and compared with what's written here. A decision here is found by its regular expression (match, and not unless) among the model's decisions; at least one of those must have the outcome given, and none the opposite (approved for denied, denied for anything else). Chosen for what's easy to get wrong: motions that failed, two-thirds votes that failed with more for than against, a 'not' that's part of what was decided, tabling and referral, withdrawal, numbered lines, page headers, and a scan.",
+  "documents": [
+    {
+      "name": "malden-council-2026-04-07",
+      "url": "https://files.publick.org/malden-ma/minutes/agendacenter-4216.pdf",
+      "sha256": "d38b4734a9431b09725bb3d1205bea4be7e1b4f94a1777ae6b6ba323495f6c62",
+      "title": "City Council", "date": "2026-04-07",
+      "decisions": [
+        {"match": "tabl", "outcome": "denied", "minutes": "Order 200-26 (executive session): \"that the Order be tabled. The motion failed by the following vote: Yea: Colon Hayes, Sica and Winslow3 - Nay: ...\""},
+        {"match": "executive session", "unless": "tabl", "outcome": "approved", "minutes": "Order 200-26: \"that the Order be adopted. The motion carried by the following vote: Yea: ... Luong7 - Nay: ...\""},
+        {"match": "MWRA|Water Resources", "outcome": "approved", "minutes": "160-26 MWRA appropriation: \"that the Order be adopted. The motion carried\""},
+        {"match": "self.storage", "outcome": "referred", "minutes": "198-26: \"referred to the Rules & Ordinance Committee. The motion carried by an 8-3 vote\""},
+        {"match": "Moose", "outcome": "referred", "minutes": "190-26 pool tables: \"The Petition was referred to the License Committee.\""}
+      ]
+    },
+    {
+      "name": "malden-signs-2026-06-11",
+      "url": "https://files.publick.org/malden-ma/minutes/agendacenter-4312.pdf",
+      "sha256": "96a49054c91a51ac2cf1fbdf8aec9c992cd7311b812801c52b7738e0b54f540e",
+      "title": "Sign Design Review Committee", "date": "2026-06-11",
+      "decisions": [
+        {"match": "Mystic Valley", "outcome": "denied", "minutes": "\"The Committee voted to deny the sign application ... 0 Yea 3 Nay\""},
+        {"match": "Markita", "outcome": "approved", "minutes": "\"voted to approve the wall sign ... 3 Yea 0 Nay\""},
+        {"match": "Route 99", "outcome": "approved", "minutes": "\"voted to approve the sign ... 3 Yea 0 Nay\""},
+        {"match": "Wing ?Stop", "outcome": "denied", "minutes": "\"voted to deny the sign with conditions ... 0 Yea 3 Nay\""},
+        {"match": "Cosmetic Dentistry", "outcome": "denied", "minutes": "\"voted to deny the sign application until all tickets ... are paid in full ... 0 Yea 3 Nay\""}
+      ]
+    },
+    {
+      "name": "malden-licensing-2026-06-16",
+      "url": "https://files.publick.org/malden-ma/minutes/agendacenter-4320.pdf",
+      "sha256": "7381ddf5618281b7e7054a775b8f7db221c1aaa02c014404a4ef8eb23e8931c0",
+      "title": "Licensing Board", "date": "2026-06-16",
+      "decisions": [
+        {"match": "5482|3 ?a\\.?m|extend", "outcome": "denied", "minutes": "\"The Three (3) Board members voted not to accept Bill # 5482 ... 0 Yeah 3 Nay\""}
+      ]
+    },
+    {
+      "name": "manchester-aldermen-2026-05-05",
+      "url": "https://files.publick.org/manchester-nh/minutes/civicclerk-4994.pdf",
+      "sha256": "88215315001e1e97d0fedeb4f1534d039cf0a2ed711175d416986b614225db52",
+      "title": "Board of Mayor and Aldermen", "date": "2026-05-05",
+      "decisions": [
+        {"match": "234,981,749|enroll|Sapienza", "unless": "tabl", "outcome": "denied", "minutes": "Alderman Sapienza's motion on the school budget: \"Aldermen Barry, ... and Burkush voted nay. Aldermen Kantor and Sapienza voted yea. The motion failed.\""},
+        {"match": "Public Safety|Hanover", "outcome": "denied", "minutes": "Motion to refer to the Committee on Public Safety, Health and Traffic: \"... voted nay. Aldermen Kantor, Terrio, Sapienza, Vincent, and Thomas voted yea. Alderman O'Neil abstained. The motion failed.\""},
+        {"match": "budget resolution", "unless": "Sapienza|enroll|withdr", "outcome": "tabled", "minutes": "\"it was voted to table the Budget Resolutions\""},
+        {"match": "RAISE|tax increment|TIF", "outcome": "tabled", "minutes": "\"Alderman Barry moved to table the item ... The motion carried unanimously.\""}
+      ]
+    },
+    {
+      "name": "manchester-aldermen-2026-05-19",
+      "url": "https://files.publick.org/manchester-nh/minutes/civicclerk-5040.pdf",
+      "sha256": "bfe97739933558d461d042b0535c330077285108c0b145fbb7610d51e2f0aa6d",
+      "title": "Board of Mayor and Aldermen", "date": "2026-05-19",
+      "decisions": [
+        {"match": "surplus", "outcome": "denied", "minutes": "Two-thirds needed: \"Aldermen Burkush, ... and O'Neil voted yea. Aldermen Vincent, Thomas, Kantor, Terrio, and Sapienza voted nay. The motion failed.\" (9 yea, 5 nay)"},
+        {"match": "budget resolution", "unless": "remov", "outcome": "tabled", "minutes": "\"Mayor Ruais called for a vote to table the Budget Resolutions. The motion carried with Alderman Terrio being duly recorded in opposition.\""}
+      ]
+    },
+    {
+      "name": "manchester-aldermen-2026-06-02",
+      "url": "https://files.publick.org/manchester-nh/minutes/civicclerk-5146.pdf",
+      "sha256": "25c6adf6ae407e595445e0514f0404193b3c3b151e86cc8735fb91bf25fc3493",
+      "title": "Board of Mayor and Aldermen", "date": "2026-06-02",
+      "decisions": [
+        {"match": "Sapienza.Kantor", "outcome": "denied", "minutes": "\"Alderman Sapienza moved to approve the Sapienza-Kantor budget ... Aldermen Sapienza and Kantor voted yea. The motion failed.\" (2 yea, 12 nay)"},
+        {"match": "override|tax cap", "outcome": "denied", "minutes": "Two-thirds needed: \"Aldermen Bonilla, ... and Fajardo voted yea. Aldermen Kantor, Terrio, Sapienza, Vincent, and Thomas voted nay. The motion failed.\" (9 yea, 5 nay)"},
+        {"match": "budget resolution", "unless": "remov|override|Sapienza", "outcome": "tabled", "minutes": "\"it was voted to table the Budget Resolutions\""},
+        {"match": "exemption", "outcome": "referred", "minutes": "\"it was voted to refer to the Committee on Administration/Information Systems a review of the disabled and elderly tax exemptions\""},
+        {"match": "nominat|appointment", "unless": "retire", "outcome": ["approved", "other"], "minutes": "\"it was voted to confirm the nominations as presented\""}
+      ]
+    },
+    {
+      "name": "gloucester-zoning-2026-07-30",
+      "url": "https://files.publick.org/gloucester-ma/minutes/20065.pdf",
+      "sha256": "fd928f27d0586f2b8d0e3876a2d29d62c97f1c1d4da0621811c1018a743d54b0",
+      "title": "Zoning Board of Appeals", "date": "2026-07-30",
+      "decisions": [
+        {"match": "Cliff.*(conform|increase)|(conform|increase).*Cliff", "outcome": "denied", "minutes": "\"moves to determine that there is not an increase in a non-conformity at 23 Cliff Rd ... In Favor: 2 In Opposition: 3\""},
+        {"match": "Cliff", "unless": "conform|increase", "outcome": "approved", "minutes": "\"moves to approve the application of Andrew Marchand seeking a special permit to expand a deck at 23 Cliff Rd ... All in favor, 5-0\""},
+        {"match": "Gelineau|Andrews", "outcome": "denied", "minutes": "\"moves to approve the application of Ronald and Melanie Gelineau appealing the Building Commissioner's denial ... In favor: 0 In opposition: 4\""},
+        {"match": "Ryan Rd|Rogers", "outcome": "approved", "minutes": "\"moves to determine that there is not an increase in the non-conformity in the application of Robert Rogers ... All in favor, 5-0\""},
+        {"match": "272 Washington", "outcome": "continued", "minutes": "\"moves to continue the application of 272 Washington St. LLC ... to the August 13, 2026 meeting ... All in favor, 5-0\""}
+      ]
+    },
+    {
+      "name": "gloucester-council-2026-08-11",
+      "url": "https://files.publick.org/gloucester-ma/minutes/20036.pdf",
+      "sha256": "b8439474aa5c4009ddd2cd9dad72002ee9eec7b0b49c7789e89157ed4e46c441",
+      "title": "City Council", "date": "2026-08-11",
+      "decisions": [
+        {"match": "reconsider", "outcome": "denied", "minutes": "\"voted by ROLL CALL 0 in favor, 8 opposed, 1 absent, to reconsider the vote. MOTION TO RECONSIDER FAILS\""},
+        {"match": "2,500,000|2\\.5 million|vehicle", "unless": "reconsider", "outcome": "approved", "minutes": "\"voted by ROLL CALL 8 in favor, 0 opposed, 1 absent, to approve the loan order ... ($2,500,000)\""},
+        {"match": "17,000|MassDevelopment|Rogers Street", "outcome": "approved", "minutes": "\"voted by ROLL CALL 5 in favor, 3 opposed (Benson, Grace, Page), 1 absent, to accept a state grant ... $17,000\""}
+      ]
+    },
+    {
+      "name": "gloucester-ordinances-2026-07-20",
+      "url": "https://files.publick.org/gloucester-ma/minutes/19956.pdf",
+      "sha256": "fdcf8ce05a054f296c0ea10ad11dd5692b358436af6b0a82f3e1bfcdd038f6a3",
+      "title": "City Council Ordinances & Administration Committee", "date": "2026-07-20",
+      "decisions": [
+        {"match": "nip|miniature|single.use|Chapter 9", "outcome": "denied", "minutes": "\"voted by ROLL CALL 0 in favor, 3 opposed, to recommend that the City Council amend ... Chapter 9\""},
+        {"match": "Gordon", "outcome": "recommended", "minutes": "\"voted 2 in favor, 0 opposed, 1 absent, to recommend that the City Council appoint Robert Gordon\""},
+        {"match": "election officer", "outcome": "recommended", "minutes": "\"voted 3 in favor, 0 opposed, to recommend that the City Council ... confirm the appointment of election officers\""}
+      ]
+    },
+    {
+      "name": "gloucester-conservation-2026-08-05",
+      "url": "https://files.publick.org/gloucester-ma/minutes/20060.pdf",
+      "sha256": "89e403010931d2c8a669850bba5ed6ed72d1ce6d904ede0b35ac7f8b5aa63c2a",
+      "title": "Conservation Commission", "date": "2026-08-05",
+      "decisions": [
+        {"match": "Forest Lane", "outcome": ["withdrawn", "approved"], "minutes": "\"moved to withdraw without prejudice NOI 028-XXXX 11 Forest Lane; Member Cook seconded and was approved\""},
+        {"match": "Magnolia", "outcome": "continued", "minutes": "\"moved to continue NOI 028-2976 171 & 281R Magnolia Avenue to the September 16, 2026 meeting; Member Cook seconded and was approved\""},
+        {"match": "King Phillip", "outcome": "continued", "minutes": "\"moved to continue NOI 028-3141 28 King Phillip Road to the August 19, 2026 meeting\""}
+      ]
+    },
+    {
+      "name": "gloucester-lyceum-2026-07-09",
+      "url": "https://files.publick.org/gloucester-ma/minutes/20054.pdf",
+      "sha256": "008a6ac835ba51b5d8388a7f8f7e7f352c8b705f6bab58c53a8300a50e717aaa",
+      "title": "Sawyer Free Library Lyceum Committee", "date": "2026-07-09",
+      "decisions": [
+        {"match": "June 4", "unless": "redo|revis|resend|send|June 25", "outcome": "denied", "minutes": "\"June 4th Doug motions, Leora seconds, ... Motion fails.\""},
+        {"match": "June 25", "unless": "June 4", "outcome": "approved", "minutes": "\"Approval of minutes for Jun 25, 2026 Meredith Moves, Stephen second, Unanimous approval.\""},
+        {"match": "Artificial Intelligence|\\bAI\\b", "outcome": "approved", "minutes": "\"Motion to shift the fall event to Artificial Intelligence ... Vote: unanimous.\""}
+      ]
+    },
+    {
+      "name": "beverly-conservation-2026-05-19",
+      "url": "https://files.publick.org/beverly-ma/minutes/agendacenter-2752.pdf",
+      "sha256": "319cd34710f44701bb3150a27083aadb1b27a5305023c8c11d86238ddce1b6f7",
+      "title": "Conservation Commission", "date": "2026-05-19",
+      "decisions": [
+        {"match": "228 Common", "unless": "continu", "outcome": "denied", "minutes": "Numbered lines: \"218 Redmond: Motion to issue a Negative 3 Determination under the Act and the Ordinance. 219 Charles seconds. Bertoni takes a roll call vote. Motion fails (2-3).\""},
+        {"match": "228 Common", "unless": "fail|den", "outcome": "continued", "minutes": "\"Motion to continue this item to the June 9, 2026 meeting ... Motion carries (5-0).\""},
+        {"match": "55 Abbott.*Certificate|Certificate.*55 Abbott", "outcome": "approved", "minutes": "\"Motion to issue a Complete Certificate of Compliance for 55 Abbott Street, DEP File #5-1008 ... Motion carries (5-0).\""}
+      ]
+    },
+    {
+      "name": "beverly-council-2026-03-16-scan",
+      "url": "https://files.publick.org/beverly-ma/minutes/agendacenter-2670.pdf",
+      "sha256": "d195f3a7b7618c0b70d10ee0368f0bedde123b5ac2b1c84897043dd89d3bd441",
+      "title": "City Council", "date": "2026-03-16",
+      "scan": true,
+      "decisions": [
+        {"match": "061|Camp Paradise", "outcome": "other", "minutes": "\"Order #061 ... A request to hold a public meeting on the City's utilization and plan for Camp Paradise ... No action was taken.\""},
+        {"match": "098|8,?500", "unless": "refer", "outcome": ["approved", "recommended"], "minutes": "Finance and Property: \"Order #098-Grant-$8500 ... President Flowers put the question of acceptance of the proposal and adoption of the order\" (9-0)"},
+        {"match": "084", "unless": "refer|hearing|recess", "outcome": "approved", "minutes": "\"Order #084-National Grid-Petition 31247668 ... President Flowers put the question of acceptance of the proposal and adoption of the order as recommended\""}
+      ]
+    },
+    {
+      "name": "wallingford-council-2026-08-18",
+      "url": "https://files.publick.org/wallingford-ct/minutes/filelist-12144.pdf",
+      "sha256": "f4e85bb1cec2f4b59b55787c3509e8670916dfc528c6843b5d7131e66c38b805",
+      "title": "Town Council", "date": "2026-08-18",
+      "decisions": [
+        {"match": "Consent", "outcome": "approved", "minutes": "\"MOTION WAS MADE TO approve Consent items 3a - 3p and item 3r, withdrawing item 3q from the agenda ... 8 - AYE 0 - NAY 1 - ABSENT MOTION: PASSED\""},
+        {"match": "Security Manager|job description", "outcome": "approved", "minutes": "\"consider and approve the new job description for Information Systems Security Manager ... MOTION: PASSED\""},
+        {"match": "WEPCU|NIPSEU|Bargaining", "outcome": "approved", "minutes": "\"approve the Collective Bargaining Agreement ... 7 - AYE 1 - NAY 1 - ABSENT MOTION: PASSED\""},
+        {"match": "pension|2\\.5%|COLA", "outcome": "approved", "minutes": "\"approve pension increase for retirees in the amount of 2.5% ... MOTION: PASSED\""}
+      ]
+    },
+    {
+      "name": "lawrence-council-2026-02-03",
+      "url": "https://files.publick.org/lawrence-ma/minutes/agendacenter-1701.pdf",
+      "sha256": "3d2d5acdeea3349b661502771616aec8fbc924acfc0235a9db81f6e08df03ade",
+      "title": "City Council", "date": "2026-02-03",
+      "decisions": [
+        {"match": "348/19|hookah", "outcome": ["withdrawn", "approved"], "minutes": "\"DOC #348/19 MOTION TO WITHDRAW PASSED\" (voice vote; the PDF's text has \"V oice V ote\")"},
+        {"match": "415/16|license plate", "outcome": ["withdrawn", "approved"], "minutes": "\"Councilor Laplante's Motion to Withdraw DOC #415/16 ... PASSED by Unanimous Voice Vote\""},
+        {"match": "SEIU|Library Union", "outcome": "referred", "minutes": "\"038/26 SEIU Local 3 Library Union Collective Bargaining Agreement (CBA) ... Referred to the Budget and Finance Committee\""}
+      ]
+    }
+  ]
+}
