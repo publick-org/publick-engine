@@ -311,8 +311,13 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
 
     on_map_window = [r for r in mappable(records) if parse(r["created_at"]) >= window_start]
 
+    # When SeeClickFix was last read: what the 311 page dates itself by, so a fetch that failed
+    # doesn't show as "Updated" today just because the numbers were worked out again.
+    status = store_dir(data_dir) / "status.json"
+    fetched_at = json.loads(status.read_text()).get("updated_at") if status.exists() else None
     return {
         "generated_at": now.isoformat(timespec="seconds"),
+        "fetched_at": fetched_at or now.isoformat(timespec="seconds"),
         "window": {"start": window_start.date().isoformat(), "end": now.date().isoformat(), "days": 365},
         "data_since": earliest[:10] if earliest else None,
         "requests_recorded": len(records),
