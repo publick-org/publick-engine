@@ -458,6 +458,13 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             errors.append(f"{calendar.name}: {e}")
             failed.append(calendar.name)
             continue
+        # A calendar that listed meetings and now lists none has most likely broken (a moved page, a
+        # changed layout), not emptied: it counts as failed, every run until it lists meetings again.
+        before = (checked.get(calendar.name) or {}).get("listed", 0)
+        if not events and before:
+            errors.append(f"{calendar.name}: lists no meetings, after {before} last time")
+            failed.append(calendar.name)
+            continue
         checked[calendar.name] = {"updated_at": stamp, "listed": len(events)}
         for event in events:
             seen[event["id"]] = calendar
