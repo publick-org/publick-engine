@@ -143,6 +143,23 @@ def test_later_runs_reread_recent_weeks_and_record_revised_agendas(malden, tmp_p
     assert finance["history"][-1]["field"] == "agenda"
 
 
+def test_a_calendar_that_goes_empty_counts_as_failed(malden, tmp_path, monkeypatch):
+    """A calendar that listed meetings and lists none has most likely broken: the check fails,
+    every run until it lists meetings again, and the meetings recorded stay as they were."""
+    import dataclasses
+    first = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
+    before = load_store(tmp_path)
+    real = fetch_meetings.calendars
+    monkeypatch.setattr(fetch_meetings, "calendars",
+                        lambda config: [dataclasses.replace(c, events=lambda *a: []) for c in real(config)])
+    for day in (21, 22):
+        status = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW.replace(day=day))
+        assert status["failed_calendars"] == ["Agenda Center"]
+        assert status["calendars"]["Agenda Center"] == first["calendars"]["Agenda Center"]
+        assert "lists no meetings, after 15 last time" in status["errors"][0]
+    assert all(m.get("listed", True) == before[k].get("listed", True) for k, m in load_store(tmp_path).items())
+
+
 def test_excluded_categories_are_skipped(malden, tmp_path):
     malden["meetings"]["agenda_center"]["exclude_categories"] = ["Board of Appeal"]
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
