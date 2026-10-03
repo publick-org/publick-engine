@@ -18,6 +18,12 @@ never a mix. Rolling back writes an earlier manifest to current.json.
     python -m pipeline.deploy publish  [--town gloucester] [--site _site] [--domain ...]
     python -m pipeline.deploy rollback [--town gloucester] [--build BUILD] [--domain ...]
     python -m pipeline.deploy prune    [--keep 10] [--dry-run]
+    python -m pipeline.deploy check    [--town gloucester] [--site _site] [--domain ...]
+
+check fetches the live homepage through the Worker until it is the index.html of
+the built site, byte for byte, for up to CHECK_SECONDS: a Worker reuses a site's
+manifest for a minute. (The Worker's ETag is each file's blob, but Cloudflare
+drops it from HTML, so the page itself is compared.) It needs no keys.
 
 prune deletes build manifests beyond the newest --keep for each site (never
 the live one), then blobs no remaining manifest uses and that are older than
@@ -37,6 +43,7 @@ import json
 import mimetypes
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -163,6 +170,35 @@ def publish(client, bucket: str, site_dir: Path, domain: str, town: str = "",
             "previous": (live or {}).get("build")}
 
 
+# How long check waits for the Worker to serve a new build (it reuses a manifest for 60 seconds).
+CHECK_SECONDS = 120
+CHECK_EVERY = 10
+
+
+def check_live(domain: str, site_dir: Path, user_agent: str, get=None, seconds: float = CHECK_SECONDS,
+               every: float = CHECK_EVERY, sleep=time.sleep, clock=time.monotonic) -> dict:
+    """Whether https://<domain>/ serves the built site's index.html, asked again every `every`
+    seconds for up to `seconds`. ok is False if it never does: what's live isn't what was built."""
+    import requests
+    expected = sha256(site_dir / "index.html")
+    url = f"https://{domain}/"
+    get = get or (lambda u: requests.get(u, timeout=30, allow_redirects=False, headers={
+        "User-Agent": user_agent, "Accept-Language": "en", "Accept-Encoding": "identity", "Cache-Control": "no-cache"}))
+    started, served, status = clock(), None, None
+    while True:
+        try:
+            response = get(url)
+            status, served = response.status_code, hashlib.sha256(response.content).hexdigest()
+        except requests.RequestException as e:
+            status, served = str(e)[:200], None
+        if status == 200 and served == expected:
+            return {"domain": domain, "ok": True, "blob": expected, "seconds": round(clock() - started)}
+        if clock() - started + every > seconds:
+            return {"domain": domain, "ok": False, "blob": expected, "served": served, "status": status,
+                    "seconds": round(clock() - started)}
+        sleep(every)
+
+
 def build_names(keys: list[str], prefix: str) -> list[str]:
     """Build names from manifest keys under prefix, oldest first (names start with their UTC time)."""
     return sorted(k[len(prefix):-len(".json")] for k in keys if k.startswith(prefix) and k.endswith(".json"))
@@ -236,7 +272,7 @@ def make_client():
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("command", choices=["publish", "rollback", "prune"])
+    parser.add_argument("command", choices=["publish", "rollback", "prune", "check"])
     parser.add_argument("--town", default=DEFAULT_TOWN)
     parser.add_argument("--domain", help="the site's address (default: the town's [site] domain)")
     parser.add_argument("--site", type=Path, default=TOWN_DIR / "_site", help="the built site (publish)")
@@ -244,6 +280,14 @@ def main() -> int:
     parser.add_argument("--keep", type=int, default=10, help="builds kept per site (prune)")
     parser.add_argument("--dry-run", action="store_true", help="report what prune would delete")
     args = parser.parse_args()
+    if args.command == "check":
+        config = load_config(args.town)
+        result = check_live(args.domain or config["site"]["domain"], args.site, config["site"]["user_agent"])
+        print(json.dumps(result, indent=2))
+        if not result["ok"]:
+            print(f"::error::{result['domain']} doesn't serve the build just published (it serves "
+                  f"{result.get('served') or 'nothing'}, status {result.get('status')})")
+        return 0 if result["ok"] else 1
     client, bucket = make_client(), os.environ["SITES_BUCKET"]
     if args.command == "prune":
         if args.keep < 1:
