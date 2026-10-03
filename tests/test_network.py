@@ -1,6 +1,7 @@
 """Running many towns from one repository: planning batches, running a town, and the run's report."""
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,6 +20,24 @@ def make_root(tmp_path, towns=("gloucester-ma", "manchester-nh", "salem-ma")):
 
 def batches(result):
     return [b["towns"].split() for b in result["include"]]
+
+
+def test_loads_with_the_standard_library_only():
+    """The network workflow's plan and home jobs run this module without installing the engine's
+    requirements, so importing it mustn't need any of them (v1.31.0 broke both jobs so)."""
+    names = [line.split("==")[0].strip().replace("-", "_").lower()
+             for line in (network.ENGINE_DIR / "requirements.txt").read_text().splitlines() if line.strip()]
+    blocker = ("import sys\n"
+               f"BLOCKED = {set(names)!r}\n"
+               "class Block:\n"
+               "    def find_spec(self, name, path=None, target=None):\n"
+               "        if name.split('.')[0].lower() in BLOCKED:\n"
+               "            raise ModuleNotFoundError(name + ' is not installed in this job')\n"
+               "sys.meta_path.insert(0, Block())\n"
+               "import pipeline.network\n")
+    result = subprocess.run([sys.executable, "-c", blocker], capture_output=True, text=True,
+                            cwd=network.ENGINE_DIR, env={**os.environ, "PYTHONPATH": str(network.ENGINE_DIR)})
+    assert result.returncode == 0, result.stderr
 
 
 def test_finds_towns_and_their_config_names(tmp_path):
