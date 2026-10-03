@@ -163,9 +163,10 @@ Make what's shown checkable, and the process safe, before adding towns.
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
-12. **The data license.** CC BY 4.0 in the network repository's `LICENSE`, a
-    credit line on every About page and in the footer, SeeClickFix's terms
-    saved as read. ([Open data](#open-data))
+12. **The data license**: done 2026-10-03, CC BY 4.0 in the network
+    repository's `LICENSE`, a "Reusing what's here" section on every About
+    page, and a footer link. Left: SeeClickFix's terms saved as read.
+    ([Open data](#open-data))
 13. **A budget floor per town**, so one town's launch backlog can't take most
     of a day's money. ([AI costs](#ai-summary-and-translation-costs))
 14. **Push runs build and check but don't publish**, so they never wait hours
@@ -1153,8 +1154,14 @@ entirely by a model may have little copyright protection in the US, so
 credit rests more on custom than on law.
 
 **Next.**
-- *Now:* a `LICENSE` in the network repository, per file where terms differ,
-  and the credit line on each About page and in the footer.
+- *Done 2026-10-03:* the network repository's `LICENSE` says in plain words
+  what's Publick's (CC BY 4.0, full text in `LICENSE-CC-BY-4.0.txt`), how to
+  credit it, and what keeps its own terms (311, public records, Census and
+  BLS, state figures, maps); its code is MIT, like the engine's. Every About
+  page has "Reusing what's here" with the credit line, and every footer says
+  the summaries and data are free to reuse with credit, on network sites
+  only (`site.network`).
+- *Now:* SeeClickFix's terms, saved as read when the license was written.
 - *Then:* a per-town export, `/data/meetings.json`, in a fixed, documented,
   versioned format: each meeting with its board, date, status, links,
   summaries, and decisions joined to it, built with the site as a static

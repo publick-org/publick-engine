@@ -124,6 +124,27 @@
 <p>{% trans %}Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.{% endtrans %}</p>
 {% endif %}
 
+{% if site.get("network") %}
+{# The data license, decided 2026-10-01; the full terms are in the network repository's LICENSE. #}
+<h2 id="reuse">{{ _("Reusing what's here") }}</h2>
+{# Translators: %(network)s is the network's name, such as "Publick". #}
+<p>{% trans network=site.network, license="https://creativecommons.org/licenses/by/4.0/" %}The summaries, headlines, decision lists, and data that {{ network }} compiles are free to reuse, even commercially, under the <a href="{{ license }}">Creative Commons Attribution 4.0 license</a> (CC BY 4.0). Please credit them like this, with a link to the document the summary came from:{% endtrans %}</p>
+{# Translators: the credit line readers are asked to copy. %(network)s is the network's name and %(domain)s its website, such as "publick.org". #}
+<blockquote class="credit-example"><p>{% if site.get("network_url") %}{% trans network=site.network, domain=site.network_url | replace("https://", "") %}Summary by {{ network }} ({{ domain }}), AI-generated from the city's agenda.{% endtrans %}
+  {%- else %}{% trans network=site.network %}Summary by {{ network }}, AI-generated from the city's agenda.{% endtrans %}{% endif %}</p></blockquote>
+<p>{{ _("Some of what's here keeps its own terms:") }}</p>
+<ul>
+  {% if config.seeclickfix is defined %}
+  <li>{% trans license="https://creativecommons.org/licenses/by-nc-sa/3.0/" %}311 requests keep SeeClickFix's <a href="{{ license }}">CC BY-NC-SA 3.0</a> license, which doesn't allow commercial use.{% endtrans %}</li>
+  {% endif %}
+  {% if config.meetings is defined %}
+  <li>{{ _("The city's agendas and minutes, and their full text on this site, are public records.") }}</li>
+  {% endif %}
+  <li>{{ _("Census Bureau and Bureau of Labor Statistics figures are in the public domain.") }}</li>
+</ul>
+<p>{% trans url=site.repo_url ~ "/blob/main/LICENSE" %}The full terms are in the <a href="{{ url }}">network's license</a>.{% endtrans %}</p>
+{% endif %}
+
 {% if config.get("analytics", {}).get("goatcounter") %}
 <h2 id="privacy">{{ _("Privacy") }}</h2>
 <p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>
