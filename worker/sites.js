@@ -80,8 +80,16 @@ export function chosenLanguage(request, languages) {
   return asked.length ? asked[0].lang : "en";
 }
 
+// Browsers that have seen a site over HTTPS ask for it only over HTTPS for a year. Not for every
+// subdomain (files.publick.org and any other hostname on the zone are served elsewhere) and not
+// preloaded, so it can be taken back by sending max-age=0.
+const HSTS = "max-age=31536000";
+
 function redirect(location, headers = {}) {
-  return new Response(null, { status: 302, headers: { Location: location, "Cache-Control": "no-store", ...headers } });
+  return new Response(null, {
+    status: 302,
+    headers: { Location: location, "Cache-Control": "no-store", "Strict-Transport-Security": HSTS, ...headers },
+  });
 }
 
 function cacheControl(key, url) {
@@ -97,6 +105,7 @@ async function serve(request, env, url, key, entry, status, vary = null) {
     ETag: `"${entry.blob}"`,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": HSTS,
   });
   // A page another language's visitors are redirected from depends on who asks.
   if (vary) headers.set("Vary", vary);
