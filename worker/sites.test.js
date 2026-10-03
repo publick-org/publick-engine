@@ -61,6 +61,16 @@ test("serves pages by clean URL", async () => {
   assert.equal(csv.headers.get("ETag"), '"csv"');
 });
 
+test("asks browsers for HTTPS only, for a year, on this host alone", async () => {
+  const e = env();
+  for (const path of ["/", "/feed.xml", "/no-such-page/"]) {
+    const response = await worker.fetch(get(path), e);
+    assert.equal(response.headers.get("Strict-Transport-Security"), "max-age=31536000", path);
+  }
+  const chose = await worker.fetch(get("/?lang=en"), e);
+  assert.equal(chose.headers.get("Strict-Transport-Security"), "max-age=31536000");
+});
+
 test("redirects a folder without its slash, keeping the query", async () => {
   const response = await worker.fetch(get("/about?x=1"), env());
   assert.equal(response.status, 301);
