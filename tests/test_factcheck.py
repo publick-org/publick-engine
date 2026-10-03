@@ -58,6 +58,18 @@ def test_a_vote_count_the_document_doesnt_give_is_noted_not_failed():
     assert problems("Adjourned, 3-1.", "The committee voted 3 in favor, 0 opposed, to adjourn.") == [("tally", "3-1")]
 
 
+def test_an_amount_written_out_where_the_document_gives_a_scale():
+    # Beverly's Golf and Tennis Commission: the scan says "NTE $8K", the summary "$8,000".
+    doc = "Motion to approve repairs NTE $8K and painting NTE $3.1K. Bond of $1.2 million. Room 45."
+    assert problems("Approved repairs of up to $8,000 and painting of up to $3,100.", doc) == []
+    assert problems("Noted a bond of $1,200,000.", doc) == []
+    assert problems("Noted a bond of $1.2 million.", doc) == []
+    # Only the amount itself: not one near it, and not a number the document gives without a scale.
+    assert problems("Approved repairs of up to $8,001.", doc) == [("number", "8,001")]
+    assert problems("Approved repairs of up to $9,000.", doc) == [("number", "9,000")]
+    assert problems("Approved $45 for paint.", doc) == [("number", "45")]
+
+
 def test_numbers_however_written():
     assert [factcheck.value(n) for n in ("55,000.00", "55,000", "014", "5,8", "7:00", "7:30")] == \
         ["55000", "55000", "14", "5.8", "7", "7:30"]

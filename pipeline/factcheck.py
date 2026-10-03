@@ -11,7 +11,9 @@ and name in them is in the document's own text.
   only whole. A total the model added up ("two grants totaling
   $463,733") counts when two to four of the document's amounts sum to it, and
   a rounded amount ("about $5.8 million") when one of the document's amounts
-  rounds to it. A total counts only where the summary says it's one.
+  rounds to it. A total counts only where the summary says it's one. An
+  amount written out ("$8,000") counts when the document gives it with a
+  scale ("$8K", "$1.2 million"), and the other way round.
 - A date written out ("June 4, 2026") counts when the document has that
   date, written out or in figures ("6/4/2026"); its year when the document
   gives one for that day.
@@ -47,7 +49,7 @@ from pathlib import Path
 
 from pipeline import translate
 
-VERSION = 1
+VERSION = 2
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
 
@@ -81,6 +83,12 @@ def value(n: str) -> str:
 def numbers(text: str) -> list[tuple[str, int, int]]:
     """Each number in a text: (value, start, end)."""
     return [(value(m.group(0)), m.start(), m.end()) for m in translate.NUMBER.finditer(text or "")]
+
+
+def scaled_amounts(text: str) -> list[float]:
+    """The amounts a text gives with a scale ("$8K" is 8000, "$1.2 million" 1200000)."""
+    found = (scaled_value(text, s, e, v) for v, s, e in numbers(text))
+    return sorted({x for x in found if x is not None})
 
 
 def amounts(text: str) -> list[float]:
@@ -213,11 +221,13 @@ def rounds_to(x: float, doc_amounts: list[float]) -> bool:
 
 
 def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[float], doc_squashed: str,
-               words: frozenset, doc_dates: set | None = None, doc_money: set | None = None) -> list[dict]:
+               words: frozenset, doc_dates: set | None = None, doc_money: set | None = None,
+               doc_scaled: list[float] | None = None) -> list[dict]:
     """What in one text of a summary isn't in the document."""
     problems = []
     doc_dates = document_dates(doc) if doc_dates is None else doc_dates
     doc_money = money(doc) if doc_money is None else doc_money
+    doc_scaled = scaled_amounts(doc) if doc_scaled is None else doc_scaled
     tallies = [(m.start(), m.end(), m) for m in TALLY.finditer(text)]
     spans = [(s, e) for s, e, _ in tallies]
     for s, e, m in tallies:
@@ -261,6 +271,9 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
         big = scaled_value(text, s, e, v)
         if big is not None and rounds_to(big, doc_amounts):
             continue
+        # "$8,000" where the document says "$8K".
+        if x is not None and any(abs(a - x) < 0.005 for a in doc_scaled):
+            continue
         if x is not None and x >= 10:
             if TOTAL.search(text[max(0, s - 40):e + 40]) and is_total(x, doc_amounts):
                 continue
@@ -296,11 +309,12 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     joined = re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc)
     doc_amounts, doc_squashed, doc_dates = sorted(set(amounts(doc)) | set(amounts(joined))), squashed(doc), document_dates(doc)
     doc_money = money(doc) | money(re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc))
+    doc_scaled = scaled_amounts(doc)
     problems = []
     for field in FIELDS[kind]:
         entries = record.get(field) or ([] if field in ("items", "decisions") else "")
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
-            for p in check_text(text, doc, doc_numbers, doc_amounts, doc_squashed, words, doc_dates, doc_money):
+            for p in check_text(text, doc, doc_numbers, doc_amounts, doc_squashed, words, doc_dates, doc_money, doc_scaled):
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
     hard = [p for p in problems if p["kind"] != "tally"]
     result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
