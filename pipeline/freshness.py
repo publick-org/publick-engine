@@ -58,7 +58,8 @@ def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: f
         return []
     cutoff = now - timedelta(days=grace_days)
     return [f"{doc_kind} for {meeting['body']}, {meeting['date']}"
-            for doc_kind, meeting, doc in summarize.pending_documents(data_dir, now.date().isoformat(), model)
+            for doc_kind, meeting, doc in summarize.pending_documents(data_dir, now.date().isoformat(), model,
+                                                                      config["summaries"].get("since"))
             if datetime.fromisoformat(doc["fetched_at"]) < cutoff
             and summarize.is_new((doc_kind, meeting, doc), now)
             and not summarize.cached(data_dir, doc["sha256"], model, doc_kind, current=False)]

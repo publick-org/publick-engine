@@ -832,6 +832,12 @@ Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
 **Next.**
 - A one-time `catch_up` run for Lawrence (launched with a $0.17-a-run backlog
   allowance).
+- *Done 2026-10-03:* `[summaries] since` summarizes only meetings on or after
+  a date; older ones keep their records and documents, without summaries.
+  Decided: a new town summarizes from about three months before it launches
+  (`ADDING-A-TOWN.md`), since a launch's history is what took most of the
+  money (Beverly, 58% of October's first two days). The live towns keep
+  theirs (94 documents left, about $8.50).
 - A floor per town, so the equal share (`network.py:404-406`) can't let one
   town's backlog take most of a day's money.
 - More free full-text styles, each added once for every town on the same
