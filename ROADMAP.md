@@ -192,7 +192,10 @@ Make what's shown checkable, and the process safe, before adding towns.
     `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
     from the Worker. Done: storage and sites keys only in the steps that use
     them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
-    (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
+    (a `<meta>` tag). In pull requests (2026-10-03): the rest, in both
+    repositories (publick.org #46 for the network's workflows). The HSTS
+    header goes live only when the sites Worker is next deployed by hand.
+    ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
@@ -834,11 +837,20 @@ and the 311 data has people's house numbers.
   hold the document keys, since they read the PDFs from the bucket: keeping
   them apart would take a download step of its own.
 - *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
-  headers. Every page already sets a Content Security Policy in a `<meta>`
+  headers. *In a pull request (2026-10-03):* `Strict-Transport-Security:
+  max-age=31536000` on every page and redirect the Worker serves, without
+  `includeSubDomains` (other hostnames on the zone are served elsewhere) or
+  `preload`, so it can be taken back; live after **Actions → Worker**. Every page already sets a Content Security Policy in a `<meta>`
   tag (`base.html`: scripts from the site only, no inline scripts); what a
   `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
 - *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
-  `v1` moved on every release; tag protection.
+  `v1` moved on every release; tag protection. *In pull requests
+  (2026-10-03):* every action in both repositories pinned by commit, at the
+  commit its major tag points to (the same code), with its version in a
+  comment; `persist-credentials: false` on every checkout but those whose
+  jobs push (the release's tags, a town's data commits); no keys at all on
+  the network's pull request runs; Dependabot once a month, grouped, for
+  actions in both and the engine's requirements.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
   389 Manchester "Homeless Encampment" and 273 Gloucester Health Department
   reports, and the CSVs export locations (`build_site.py:1243-1246`). Cut
