@@ -26,6 +26,25 @@ and name in them is in the document's own text.
   (pipeline/translate.py's names()), looked for with the document's spacing
   ignored, since some PDFs' text breaks words up ("T u renne").
 
+Each decision in minutes summarized since the minutes prompt's version 3 comes
+with its outcome (approved, denied, tabled, continued, referred, recommended,
+withdrawn, or other) and a quote: the minutes' own words for it
+("decision_evidence", beside "decisions", one entry each). Three more checks:
+- The quote is in the document, word for word, with the document's spacing,
+  line breaks, and punctuation ignored, and a page header or line number
+  allowed inside it ("quote").
+- The decision's numbers, dates, and names are near the quote: in the
+  passage from a little before it, where the motion usually is, to a little
+  after ("away"), so an amount or name can't move from one motion to another.
+  Listed, not held back, like a vote count: an item's heading can be pages
+  before its vote, and how often a right decision is listed is measured
+  first (python -m pipeline.evaluate).
+- The outcome agrees with both the decision's wording and the quote
+  ("outcome"): a decision that says approved, where the minutes say the
+  motion failed, or a "not" dropped, fails. A count with fewer for than
+  against can't be approved; one with more for can still have failed (a
+  two-thirds vote), so that isn't held against a denial.
+
 The evidence is the PDF's own text layer, never the model's. A document whose
 every page has text is checked in full ("pdf"). One with pages that have no
 text (scanned pages in a typed document) can only be checked on what has text
@@ -42,6 +61,7 @@ pipeline.factcheck lists the problems for the maintainer.
 from __future__ import annotations
 
 import argparse
+import functools
 import itertools
 import json
 import re
@@ -49,7 +69,7 @@ from pathlib import Path
 
 from pipeline import translate
 
-VERSION = 2
+VERSION = 3
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
 
@@ -240,6 +260,9 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
             continue
         if all(p == "0" for p in parts[1:]) and UNANIMOUS.search(doc):
             continue
+        # "In Favor: 2 In Opposition: 3", "Yea: 10 ... Nay: 1", "2 yea (names) to 11 nay".
+        if (int(parts[0]), int(parts[1])) in document_votes(doc):
+            continue
         problems.append({"kind": "tally", "what": m.group(0)})
     for month, day, year, s, e in dates(text):
         spans.append((s, e))
@@ -304,21 +327,209 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         source, doc = "ai", record["transcript"]
     else:
         return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
-    # Numbers some PDFs' text breaks up ("$14,000,0 00") are read joined too.
-    doc_numbers = {v for v, _, _ in numbers(doc)} | {v for v, _, _ in numbers(re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc))}
-    joined = re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc)
-    doc_amounts, doc_squashed, doc_dates = sorted(set(amounts(doc)) | set(amounts(joined))), squashed(doc), document_dates(doc)
-    doc_money = money(doc) | money(re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc))
-    doc_scaled = scaled_amounts(doc)
+    found = facts(doc)
     problems = []
     for field in FIELDS[kind]:
         entries = record.get(field) or ([] if field in ("items", "decisions") else "")
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
-            for p in check_text(text, doc, doc_numbers, doc_amounts, doc_squashed, words, doc_dates, doc_money, doc_scaled):
+            for p in check_text(text, doc, *found[:3], words, *found[3:]):
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
-    hard = [p for p in problems if p["kind"] != "tally"]
+    if kind == "minutes" and "decision_evidence" in record:
+        located = Located(doc)
+        for i, (text, evidence) in enumerate(zip(record.get("decisions") or [], record["decision_evidence"])):
+            whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
+            for p in anchored(text, evidence or {}, located, words, whole):
+                problems.append({"field": "decisions", "entry": i + 1, **p})
+    # A vote count the minutes don't give, and a number or name far from its decision's quote, are noted.
+    hard = [p for p in problems if p["kind"] not in ("tally", "away")]
     result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems}
+
+
+def facts(doc: str) -> tuple:
+    """What check_text() looks for in a document (or a passage of one): its numbers, amounts,
+    text without spaces, dates, money, and scaled amounts."""
+    # Numbers some PDFs' text breaks up ("$14,000,0 00") are read joined too.
+    joined = re.sub(r"(\d,\d{1,2})\s+(\d)", r"\1\2", doc)
+    return ({v for v, _, _ in numbers(doc)} | {v for v, _, _ in numbers(joined)},
+            sorted(set(amounts(doc)) | set(amounts(joined))), squashed(doc), document_dates(doc),
+            money(doc) | money(joined), scaled_amounts(doc))
+
+
+# ---- Decisions anchored to the minutes -----------------------------------------------
+
+OUTCOMES = ("approved", "denied", "tabled", "continued", "referred", "recommended", "withdrawn", "other")
+# Characters of the minutes before a quote, and after, that a decision's numbers and names may be in:
+# the motion usually comes before the vote.
+BEFORE, AFTER = 3000, 300
+# What a quote may skip of the document's text in one place (a page header, a line number), and in all;
+# and how far after a motion a quote cut with "..." may find how it ended (a few pages of discussion).
+GAP, GAPS, LATER = 150, 300, 12000
+# A quote's last words may be in another order than the PDF's text has them (a roll call the model read
+# as the page shows it, "Yea: 3 - Colon Hayes, Sica and Winslow", where the text has "Yea: Colon Hayes,
+# Sica and Winslow3"), once at least this many of its words, and half of them, are found in order: each
+# of the rest must be in the next stretch of the document.
+IN_ORDER, REST = 12, 600
+# A motion that didn't carry, in the minutes' words: "the motion failed", "Motion fails (2-3)", "MOTION TO
+# RECONSIDER FAILS", "failed by a vote of 3-8", "was defeated", "did not carry", "voted not to". Failing
+# about something else ("plants must be replaced if they fail") isn't.
+FAILED = re.compile(r"\b(?:motion|vote|order|it|amendment|petition|resolution|request|proposal|recommendation)\b"
+                    r"(?:\W+\w+){0,8}?\W+(?:fail(?:s|ed)|(?:was|were)\s+(?:defeated|rejected))\b|"
+                    r"\bfail(?:s|ed)\s+(?:by|on|to\s+(?:carry|pass|receive|get)|for\s+lack|\d|\()|"
+                    r"\b(?:defeated|rejected)\s+(?:by|on|\d|\()|"
+                    r"\bnot\s+(?:carr|pass|adopt|approv|accept|grant|recommend|prevail)\w*|"
+                    r"\bvoted\s+not\b|\bdid\s+not\s+(?:carr|pass)\w*", re.I)
+# A decision or quote that says no: a failed motion, a denial, a decision's verb with "not". A "not"
+# elsewhere is part of what was decided ("there is not an increase in the nonconformity", "not to exceed").
+SAYS_NO = re.compile(FAILED.pattern + r"|\bden(?:y|ied|ies|ying)\b|\bdisapprov\w*|\bdeclin(?:e|ed|ing)\b|"
+                     r"\b(?:not|never)\s+(?:to\s+)?(?:approv|adopt|accept|grant|pass|carr|recommend|support|allow|issu|deem|"
+                     r"endors|award|appoint|confirm|move|proceed)\w*|n't\s+(?:approv|adopt|accept|grant|pass|carr|recommend)\w*", re.I)
+# A decision that says no, in the model's own words, which are about how it ended: "Rejected a motion to
+# pass ...", "Motion to approve the June 4 minutes failed".
+DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed))\b", re.I)
+# What the decision and the quote each say, for an outcome that has words of its own.
+SAYS = {
+    # "Held in the Finance and Property Committee": a committee keeping an item is tabling it.
+    "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*|h[eo]ld)\b|on\s+the\s+table", re.I),
+    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)", re.I),
+    "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b", re.I),
+    "recommended": re.compile(r"\b(?:recommend\w*|favou?rabl\w*)", re.I),
+    "withdrawn": re.compile(r"\bwithdr\w*", re.I),
+}
+# A vote's count in the minutes' words: "5-0", "3 in favor, 2 opposed", "Yea: 10 ... Nay: 1",
+# "In Favor: 2 ... In Opposition: 3", "2 yea to 11 nay".
+COUNTS = (
+    re.compile(r"(\d{1,2})\s+(?:votes?\s+)?(?:yeas?|yeah|ayes?|yes|in\s+favou?r)(?:\s*\([^)]{0,300}\))?\W+(?:and\s+|to\s+|with\s+)?(\d{1,2})\s+"
+               r"(?:votes?\s+)?(?:nays?|noes|no|opposed|against|in\s+opposition)\b", re.I),
+    re.compile(r"\b(?:yeas?|ayes?|in\s+favou?r)\s*:\s*(\d{1,2})\b.{0,600}?\b(?:nays?|noes|opposed|(?:in\s+)?opposition)\s*:\s*(\d{1,2})\b",
+               re.I | re.S),
+)
+
+
+# A vote's words right before a bare count ("voted 5-0", "carried (4-1)", "failed 3-8", "by a vote of 3-8",
+# "roll call 9-5"), or right after it ("a 5-0 vote").
+BEFORE_COUNT = re.compile(r"\b(?:vot\w*|carri\w*|pass(?:ed|es)?|fail\w*|roll\s+call|tally|count)\b[^.;:\n\d]{0,15}$", re.I)
+AFTER_COUNT = re.compile(r"^\s*\)?\s*(?:vote|roll\s+call)\b", re.I)
+
+
+def votes_for_against(quote: str) -> tuple[int, int] | None:
+    """The first count in a quote, for and against."""
+    for pattern in COUNTS:
+        m = pattern.search(quote)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+    # A bare count ("7-0") only beside a vote's words, since "3-4 bedroom units" and "ages 5-12" aren't votes.
+    for m in TALLY.finditer(quote):
+        if BEFORE_COUNT.search(quote[max(0, m.start() - 30):m.start()]) or AFTER_COUNT.search(quote[m.end():m.end() + 15]):
+            return int(m.group(1)), int(m.group(2))
+    return None
+
+
+@functools.lru_cache(maxsize=4)
+def document_votes(doc: str) -> set[tuple[int, int]]:
+    """Every count, for and against, the document writes out in words."""
+    return {(int(m.group(1)), int(m.group(2))) for pattern in COUNTS for m in pattern.finditer(doc)}
+
+
+class Located:
+    """A document's text without spaces or punctuation, lowercased, with where each of its
+    characters came from, to find a quote however the PDF's text broke it up."""
+
+    def __init__(self, doc: str):
+        self.doc = doc
+        kept = [(c.lower(), i) for i, c in enumerate(doc) if c.isalnum()]
+        self.text = "".join(c for c, _ in kept)
+        self.at = [i for _, i in kept]
+
+    def find(self, quote: str) -> list[tuple[int, int]]:
+        """Where the quote is in the document, as (start, end) in its text: each of its words in
+        order, with nothing between them but what the document adds (a page header, a line
+        number), up to GAP characters at a time and GAPS in all. A quote cut with "..." is found
+        part by part, in order."""
+        parts = [re.findall(r"[a-z0-9]+", p.lower()) for p in re.split(r"\.\.\.|…", quote)]
+        parts = [p for p in parts if p]
+        if not parts or not self.text:
+            return []
+        found = []
+        first = "".join(parts[0][:3])
+        start = self.text.find(first)
+        while start != -1 and len(found) < 20:
+            end = self.match(parts, start)
+            if end is not None:
+                found.append((self.at[start], self.at[end - 1] + 1))
+            start = self.text.find(first, start + 1)
+        return found
+
+    def match(self, parts: list[list[str]], start: int) -> int | None:
+        """Where the quote's words, starting at start, end in the text (None if they don't match)."""
+        pos, skipped = start, 0
+        for n, part in enumerate(parts):
+            if n:
+                # A quote cut with "...": the next part, anywhere in the next stretch of the minutes.
+                nxt = self.text.find("".join(part[:3]), pos, pos + LATER)
+                if nxt == -1:
+                    return None
+                pos = nxt
+            i = 0
+            while i < len(part):
+                if self.text.startswith(part[i], pos):
+                    pos += len(part[i])
+                    i += 1
+                    continue
+                # Something of the document's own between two of the quote's words: the rest of the
+                # quote's words must carry on within GAP characters.
+                if i == 0:
+                    return None
+                nxt = self.text.find("".join(part[i:i + 2]), pos, pos + GAP + 1)
+                if nxt != -1 and skipped + (nxt - pos) <= GAPS:
+                    skipped += nxt - pos
+                    pos = nxt
+                    continue
+                # Or the rest in another order, close by.
+                rest = self.text[pos:pos + REST]
+                if i >= IN_ORDER and 2 * i >= len(part) and all(w in rest for w in part[i:]):
+                    pos += max(rest.rfind(w) + len(w) for w in part[i:])
+                    break
+                return None
+        return pos
+
+
+def anchored(text: str, evidence: dict, located: Located, words: frozenset, whole: set) -> list[dict]:
+    """What's wrong with one decision's evidence: its quote isn't in the minutes, its numbers or
+    names aren't near the quote (whole: what isn't in the minutes at all, already a problem),
+    or its outcome doesn't agree with its wording or the quote."""
+    quote, outcome = (evidence.get("quote") or "").strip(), evidence.get("outcome") or ""
+    problems = []
+    places = located.find(quote) if quote else []
+    if not places:
+        return [{"kind": "quote", "what": quote[:200] or "(no quote)"}]
+    doc = located.doc
+    away = None
+    for s, e in places:
+        near = doc[max(0, s - BEFORE):e + AFTER]
+        found = facts(near)
+        missing = {p["what"] for p in check_text(text, near, *found[:3], words, *found[3:]) if p["kind"] != "tally"} - whole
+        away = missing if away is None else away & missing
+        if not away:
+            break
+    problems += [{"kind": "away", "what": w} for w in sorted(away or ())]
+    if outcome not in OUTCOMES:
+        problems.append({"kind": "outcome", "what": f"{outcome or '(none)'}: not an outcome"})
+    elif outcome in ("approved", *SAYS):
+        if FAILED.search(quote):
+            problems.append({"kind": "outcome", "what": f"{outcome}, but the minutes say the motion didn't carry"})
+        elif outcome == "approved" and (SAYS_NO.search(text) or re.search(r"\bden(?:y|ied|ies)\b", quote, re.I)):
+            problems.append({"kind": "outcome", "what": "approved, but the decision or the minutes say no"})
+        counted = votes_for_against(quote)
+        if counted and counted[0] < counted[1] and not FAILED.search(quote):
+            problems.append({"kind": "outcome", "what": f"{outcome}, but the vote was {counted[0]} for and {counted[1]} against"})
+        if outcome in SAYS and not (SAYS[outcome].search(text) and SAYS[outcome].search(quote)):
+            problems.append({"kind": "outcome", "what": f"{outcome}, but the decision or the minutes don't say so"})
+    elif outcome == "denied":
+        counted = votes_for_against(quote)
+        if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1])):
+            problems.append({"kind": "outcome", "what": "denied, but the decision or the minutes don't say no"})
+    return problems
 
 
 def pages(pdf: bytes) -> list[str] | None:
