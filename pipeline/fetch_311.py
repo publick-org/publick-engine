@@ -32,6 +32,9 @@ from pipeline.http import FetchError, PoliteClient
 
 PAGE_SIZE = 100
 MAX_PAGES = 60
+# A 403 is a request made private, or SeeClickFix refusing us altogether. This many in a
+# row is taken as the second: the step stops, and none of them is marked removed.
+REFUSED_IN_A_ROW = 3
 
 
 def store_dir(data_dir: Path) -> Path:
@@ -121,27 +124,42 @@ def needs_detail(record: dict) -> bool:
 
 
 def fill_details(api: SeeClickFix, store: dict, stamp: str, limit: int, deadline: float,
-                 checkpoint=None) -> tuple[int, list[str]]:
+                 checkpoint=None) -> tuple[int, list[str], bool]:
+    """Look up each request's details, up to limit. Returns (done, errors, refused): refused
+    when SeeClickFix turned away REFUSED_IN_A_ROW lookups in a row, so the lookups stopped."""
     changed = sorted((r for r in store.values() if r.get("detail") and needs_detail(r)), key=lambda r: r["created_at"] or "", reverse=True)
     missing = sorted((r for r in store.values() if not r.get("detail") and needs_detail(r)), key=lambda r: r["created_at"] or "", reverse=True)
     # Newest missing first so the scorecard's recent window fills in quickly.
     queue = changed + missing
-    done, errors = 0, []
+    done, errors, refused = 0, [], []
+
+    def remove(record):
+        # Deleted or made private: keep the record but stop checking it.
+        record["removed"] = True
+        record["removed_at"] = stamp
+
     for record in queue[:limit]:
         if time.monotonic() > deadline:
             break
         try:
             detail = api.issue(record["id"])
         except FetchError as e:
-            if e.status in (403, 404, 410):
-                # Deleted or made private: keep the record but stop checking it.
-                record["removed"] = True
-                record["removed_at"] = stamp
+            if e.status in (404, 410):
+                remove(record)
+                continue
+            if e.status == 403:
+                # Marked removed only once a later lookup works, so a block removes nothing.
+                refused.append(record)
+                if len(refused) >= REFUSED_IN_A_ROW:
+                    return done, errors, True
                 continue
             errors.append(str(e))
             if len(errors) >= 5:
                 break
             continue
+        for r in refused:
+            remove(r)
+        refused = []
         detail["checked_at"] = stamp
         record["detail"] = detail
         # The detailed status is newer than Open311's open/closed.
@@ -149,7 +167,7 @@ def fill_details(api: SeeClickFix, store: dict, stamp: str, limit: int, deadline
         done += 1
         if checkpoint and done % 100 == 0:
             checkpoint()
-    return done, errors
+    return done, errors, False
 
 
 def tag_wards(store: dict, lookup: PrecinctLookup) -> int:
@@ -219,7 +237,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         print(f"{time.monotonic() - started:.0f}s: saved progress", flush=True)
 
     checkpoint()
-    details_done, errors = fill_details(api, store, stamp, limit, deadline, checkpoint)
+    details_done, errors, refused = fill_details(api, store, stamp, limit, deadline, checkpoint)
+    if refused:
+        errors.append(f"SeeClickFix refused {REFUSED_IN_A_ROW} lookups in a row (HTTP 403); stopped, "
+                      "and none was marked removed")
 
     save_json(store_dir(data_dir) / "requests.json", store)
     summary.update({
@@ -234,6 +255,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         "errors": errors,
     })
     save_json(store_dir(data_dir) / "status.json", summary)
+    if refused:
+        # What was fetched is saved; the step fails, so the run says 311 is behind.
+        raise FetchError(errors[-1], 403)
     return summary
 
 

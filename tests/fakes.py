@@ -52,13 +52,16 @@ class FakeJSONResponse(FakeResponse):
 class FakeSeeClickFix:
     """Serves saved Open311 pages and a single-issue record for any id."""
 
-    def __init__(self, open_items=None, window_items=None, issue=None, missing_ids=(), services=()):
+    def __init__(self, open_items=None, window_items=None, issue=None, missing_ids=(), services=(), refused_ids=(),
+                 refuse_all=False):
         import json
         self.services = list(services)
         self.open_items = open_items if open_items is not None else json.loads((FIXTURES / "open311_open_page.json").read_text())
         self.window_items = window_items if window_items is not None else json.loads((FIXTURES / "open311_window_page.json").read_text())
         self.issue = issue or json.loads((FIXTURES / "scf_issue_acknowledged.json").read_text())
         self.missing_ids = set(missing_ids)
+        # A request made private (403 for that one), or SeeClickFix refusing every lookup.
+        self.refused_ids, self.refuse_all = set(refused_ids), refuse_all
         self.urls = []
         self.request_count = 0
 
@@ -76,6 +79,8 @@ class FakeSeeClickFix:
             issue_id = url.rsplit("/", 1)[1]
             if issue_id in self.missing_ids:
                 raise FetchError(f"{url}: HTTP 404", 404)
+            if self.refuse_all or issue_id in self.refused_ids:
+                raise FetchError(f"{url}: HTTP 403", 403)
             item = next((i for i in self.open_items + self.window_items if str(i["service_request_id"]) == issue_id), None)
             data = dict(self.issue, id=int(issue_id))
             if item and item["status"] == "closed":

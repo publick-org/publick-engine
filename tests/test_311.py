@@ -75,6 +75,29 @@ def test_removed_request_is_kept_out(config, data):
     assert scorecard["overall"]["received"] == 113
 
 
+def test_private_request_is_kept_out(config, data):
+    """A 403 for one request, with lookups after it working, is a request made private."""
+    private = str(FakeSeeClickFix().open_items[0]["service_request_id"])
+    fetch_311.run(config, FakeSeeClickFix(refused_ids={private}), data, now=FETCHED_AT, detail_limit=500)
+    store = load(data)
+    assert store[private]["removed"] is True
+    assert sum(1 for r in store.values() if r.get("removed")) == 1
+
+
+def test_refused_lookups_stop_the_step_and_remove_nothing(config, data):
+    """SeeClickFix turning every lookup away is a block, not a city's worth of deleted
+    requests: the step fails, nothing is marked removed, and what was listed is kept."""
+    with pytest.raises(fetch_311.FetchError, match="refused 3 lookups in a row"):
+        fetch_311.run(config, FakeSeeClickFix(refuse_all=True), data, now=FETCHED_AT, detail_limit=500)
+    store = load(data)
+    assert len(store) == 114 and not any(r.get("removed") for r in store.values())
+    status = json.loads((data / "311" / "status.json").read_text())
+    assert any("HTTP 403" in e for e in status["errors"])
+    # The block lifts: the next run fills in the details as usual.
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=500)
+    assert all(r["detail"] for r in load(data).values())
+
+
 def test_close_time_prefers_exact_then_archive_then_update():
     base = {"status": "closed", "updated_at": "2026-09-05T00:00:00-04:00"}
     assert compute_311.closed_time({**base, "detail": {"closed_at": "2026-09-02T00:00:00-04:00", "updated_at": "2026-09-03T00:00:00-04:00"}}).day == 2
