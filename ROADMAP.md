@@ -436,7 +436,14 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   how often the model gets one wrong. `python -m pipeline.factcheck` still
   lists each problem.
 - The document's own date and any "draft" marking read from it.
-- A test that fails when a prompt changes without its version.
+- *Done 2026-10-03:* a test that fails when a prompt changes without its
+  version (`tests/test_prompt_versions.py`): each versioned prompt's words and
+  schema (agenda, minutes, transcription, translation, drafted text) pinned by
+  a hash beside its version. A change passes once its version goes up, or,
+  where what the old prompt made should stay on purpose (as when agendas
+  gained a start time without a bump), once the new hash is pinned with a
+  note saying why. The translation review's prompt has no version: a change
+  there doesn't call for translating again.
 - Every test, the translation tests too, uses the fake model client. Add a
   set of about 15 documents with known decisions, checked by hand, run
   against the real model before a prompt change ships.
