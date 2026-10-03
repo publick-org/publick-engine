@@ -151,6 +151,7 @@ def test_a_fetching_run_records_its_result_for_the_status_page(tmp_path, steps, 
     summaries = record["sources"][1]
     assert len(summaries["waiting"]) == network.WAITING_KEPT and summaries["waiting_count"] == 25
     assert record["sources"][0] == rows[0]
+    assert record["fact_checks"]["summaries"] == 0
     assert not (town / ".freshness-report.json").exists()
 
 
@@ -445,3 +446,32 @@ def test_run_record_counts_boards_and_coming_meetings_for_the_homepage(tmp_path)
     counts = network.activity(tmp_path, today=date(2026, 10, 1))
     assert counts == {"boards": 5, "meetings_by_date": {"2026-10-01": 2, "2026-10-14": 1}}
     assert network.activity(tmp_path / "nothing") == {"boards": 0, "meetings_by_date": {}}
+
+
+def test_run_record_counts_what_the_fact_check_holds_back(tmp_path):
+    summaries = tmp_path / "summaries"
+    (summaries / "es").mkdir(parents=True)
+
+    def check(result, *problems, source="pdf"):
+        return {"version": 2, "source": source, "result": result, "problems": list(problems)}
+
+    records = {
+        "ok": {"kind": "minutes", "headline": "Approved the budget.", "summary": "", "decisions": ["Approved it, 3-2."],
+               "fact_check": check("ok", {"field": "decisions", "entry": 1, "kind": "tally", "what": "3-2"})},
+        "failed": {"kind": "minutes", "headline": "Approved a grant.", "summary": "",
+                   "decisions": ["Accepted $500.", "Accepted $900.", "Approved the minutes."],
+                   "fact_check": check("failed", {"field": "decisions", "entry": 1, "kind": "number", "what": "500"},
+                                       {"field": "decisions", "entry": 2, "kind": "number", "what": "900"})},
+        "weak": {"kind": "agenda", "headline": "Kowalczyk's permit.", "summary": "", "items": [],
+                 "fact_check": check("weak", {"field": "headline", "kind": "name", "what": "Kowalczyk"}, source="ai")},
+        "not yet": {"kind": "agenda", "headline": "A hearing.", "summary": "", "items": []},
+        "not minutes": {"kind": "minutes", "is_minutes": False, "headline": "", "summary": "", "decisions": []},
+    }
+    for name, record in records.items():
+        (summaries / f"{name}.json").write_text(json.dumps(record))
+    # Translations are in their own folder, and aren't counted again.
+    (summaries / "es" / "failed.json").write_text(json.dumps({"headline": "Aprobó una subvención."}))
+    assert network.fact_checks(tmp_path) == {
+        "summaries": 4, "ok": 1, "failed": 1, "weak": 1, "unchecked": 0, "not_yet": 1,
+        "held_back": 1, "entries_not_shown": 2, "vote_counts_left_out": 1}
+    assert network.fact_checks(tmp_path / "nothing")["summaries"] == 0

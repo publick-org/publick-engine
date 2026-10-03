@@ -429,8 +429,12 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   dropped "not" is caught.
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
-- The run record counts summaries held back, to show how often the model
-  gets one wrong (today: `python -m pipeline.factcheck`).
+- *Done 2026-10-03:* each fetching run's record (`data/run.json`) counts
+  the town's summaries by fact check result, how many the site holds
+  something back from, the decisions and agenda items it leaves out, and the
+  vote counts it takes out (`fact_checks`, from what `shown()` shows), to show
+  how often the model gets one wrong. `python -m pipeline.factcheck` still
+  lists each problem.
 - The document's own date and any "draft" marking read from it.
 - A test that fails when a prompt changes without its version.
 - Every test, the translation tests too, uses the fake model client. Add a

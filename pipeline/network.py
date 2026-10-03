@@ -268,6 +268,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes"] = folder_bytes(town_dir / "data")
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
+        result["fact_checks"] = fact_checks(town_dir / "data")
         record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
@@ -319,6 +320,34 @@ def activity(data: Path, today: date | None = None) -> dict:
         if today.isoformat() <= m["date"] <= last and m.get("status", "scheduled") == "scheduled" and m.get("listed", True):
             upcoming[m["date"]] = upcoming.get(m["date"], 0) + 1
     return {"boards": len({m["body"] for m in store.values()}), "meetings_by_date": dict(sorted(upcoming.items()))}
+
+
+def fact_checks(data: Path) -> dict:
+    """How the town's summaries fared against their documents (pipeline/factcheck.py), for the
+    maintainer: how many summaries each result has ("not_yet": no check saved), how many of them
+    the site holds something back from, how many decisions or agenda items it leaves out, and how
+    many vote counts the documents don't give it takes out of the text."""
+    # Imported here, as listings is in activity(): factcheck needs the readers' packages.
+    from pipeline import factcheck
+    counts = {"summaries": 0, "ok": 0, "failed": 0, "weak": 0, "unchecked": 0, "not_yet": 0,
+              "held_back": 0, "entries_not_shown": 0, "vote_counts_left_out": 0}
+    for path in sorted((data / "summaries").glob("*.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        # A document filed as minutes that isn't any isn't shown, or checked.
+        if record.get("is_minutes") is False:
+            continue
+        counts["summaries"] += 1
+        fc = record.get("fact_check")
+        if not fc:
+            counts["not_yet"] += 1
+            continue
+        counts[fc["result"]] = counts.get(fc["result"], 0) + 1
+        shown = factcheck.shown(record, record, factcheck.kind_of(record))
+        counts["entries_not_shown"] += shown.get("not_shown", 0)
+        counts["vote_counts_left_out"] += sum(p["kind"] == "tally" for p in fc["problems"])
+        # Only a check against the document's full text fails, and what fails isn't shown.
+        counts["held_back"] += fc["result"] == "failed"
+    return counts
 
 
 def folder_bytes(folder: Path) -> int:
