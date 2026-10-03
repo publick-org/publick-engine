@@ -157,8 +157,9 @@ What's left:
    City Council's "January 20, 2025, at 7:30 PM" is in the minutes as printed
    (page 3, Order #009), a typo of the city's the summary copied; the Golf and
    Tennis Commission's $8,000 and $3,100 are "NTE $8K" and "NTE $3.1K" in the
-   scan. The check flagged the second because a written-out amount isn't
-   matched to the document's "$8K". ([Summary checks](#summary-checks))
+   scan. The check flagged the second because a written-out amount wasn't
+   matched to the document's "$8K" (fixed the same day, fact check version 2).
+   ([Summary checks](#summary-checks))
 5. **The next meetings audit, by hand**, a week on: every town's upcoming
    meetings against its city's own sites, as on 2026-10-02.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
@@ -406,10 +407,13 @@ counts aren't in the minutes and come out. Two read by hand on 2026-10-03,
 on scanned pages, were both right: a Beverly City Council decision dated
 "January 20, 2025, at 7:30 PM" is what the minutes say (the city's typo for
 2026), and a Beverly Golf and Tennis Commission summary's $8,000 and $3,100
-are "$8K" and "$3.1K" in the scan. The check counts an amount written out in
+are "$8K" and "$3.1K" in the scan. The check counted an amount written out in
 full ("$8,000") as missing when the document abbreviates it ("$8K"), since
-only the summary's own scale words are read (`check_text`); it should also
-match the document's scaled amounts.
+only the summary's own scale words were read. *Done 2026-10-03 (fact check
+version 2):* an amount counts when the document gives exactly that amount
+with a scale ("$8K", "$1.2 million"). Of the 81 saved scans' summaries, only
+those two amounts change. No summary had a fact check saved yet, so the new
+version re-checks nothing.
 
 *Done 2026-10-03 (#54):* "AI summary" wherever a summary is shown in a list. In a
 meeting row it goes in the grey line under the summary ("AI summary · Agenda
