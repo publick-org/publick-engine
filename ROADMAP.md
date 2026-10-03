@@ -1,7 +1,9 @@
 # Roadmap
 
 Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
-evening after the meetings audit (engine #52, publick.org #40).
+evening after the meetings audit (engine #52, publick.org #40), and on
+2026-10-03 after the AI summary label and the data license (engine #54,
+publick.org #42).
 
 This file has four parts:
 
@@ -112,11 +114,17 @@ repositories, `ENGINE_PR_TOKEN`, $80 for October, Lawrence's catch-up run, and
 summaries checked against their documents (engine v1.30.0 and pull request
 #50), and the meetings audit's fixes, with a shorter home page (engine #52,
 publick.org #40; see [Meetings, complete and correct](#meetings-complete-and-correct)).
+Done on 2026-10-03: "AI summary" on every summary shown in a list (item 7) and
+the data license (item 12), engine #54 and publick.org #42.
 What's left:
 
 1. **Watch the first automatic engine move** (2026-10-03, 08:20 and 08:40
-   UTC): #50 released, the pull request opened, every town checked, merged,
-   and published without anyone. ([Releases](#releases))
+   UTC): #50, #52, and #54 released as v1.31.0, the pull request opened,
+   every town checked, merged, and published without anyone. Then, on the
+   live sites: "AI summary" under each summary in the lists and the hearings
+   box, and in `/feed.xml`; "Reusing what's here" on each About page, its
+   link to the network's `LICENSE` working, and the footer link, in English
+   and Spanish. ([Releases](#releases))
 2. **Check the first daily runs on the new engine**: every translation made
    again on prompt 3 and reviewed (about 450 summaries, about $4), how many
    fail the checks, and every summary's fact check recorded (60 documents a
@@ -129,10 +137,12 @@ What's left:
    School Committee subcommittees listed once; Wallingford worded as a town;
    the Arts Commission correction shown on Manchester's November 9.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
-4. **Read two summaries by hand**, whose facts are on scanned pages the check
-   can't read: a Beverly City Council decision dated "January 20, 2025, at
-   7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000 and $3,100
-   aren't in the model's transcription. ([Summary checks](#summary-checks))
+4. **Read two summaries by hand**: done 2026-10-03, both right. The Beverly
+   City Council's "January 20, 2025, at 7:30 PM" is in the minutes as printed
+   (page 3, Order #009), a typo of the city's the summary copied; the Golf and
+   Tennis Commission's $8,000 and $3,100 are "NTE $8K" and "NTE $3.1K" in the
+   scan. The check flagged the second because a written-out amount isn't
+   matched to the document's "$8K". ([Summary checks](#summary-checks))
 5. **The next meetings audit, by hand**, a week on: every town's upcoming
    meetings against its city's own sites, as on 2026-10-02.
    ([Meetings, complete and correct](#meetings-complete-and-correct))
@@ -144,8 +154,10 @@ Make what's shown checkable, and the process safe, before adding towns.
 6. **Summaries and decisions checked against their documents.** Every number,
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
-   a dropped "not" is caught. What fails isn't shown. ([Summary checks](#summary-checks))
-7. **"AI summary" on every headline**: done 2026-10-02, in each list
+   a dropped "not" is caught. What fails isn't shown. The first half (numbers,
+   amounts, dates, names) is done (#50); the quotes and `outcome` are left.
+   ([Summary checks](#summary-checks))
+7. **"AI summary" on every headline**: done 2026-10-03 (#54), in each list
     row's details line, on its own line in the public hearings box, and after
     the summary in the RSS feed. ([Summary checks](#summary-checks))
 8. **A test set run against the real model**: about 15 documents with known
@@ -154,8 +166,9 @@ Make what's shown checkable, and the process safe, before adding towns.
 9. **Failures that look like success, fixed.** A SeeClickFix 403 stops the
     311 step instead of marking records removed; a calendar that had
     meetings and now has none fails; the 311 page's date is its last fetch;
-    the daily alert comments for each town newly behind.
-    ([Monitoring](#monitoring))
+    the daily alert comments for each town newly behind. No 311 request
+    has been wrongly marked removed yet: none of the 41,718 saved in the
+    three 311 towns is (checked 2026-10-02). ([Monitoring](#monitoring))
 10. **Security hardening.** Storage and sites keys only in the steps that
     need them, no secrets on pull request runs, `persist-credentials: false`,
     actions pinned by SHA, boto3 pinned, Dependabot, HSTS and a CSP from the
@@ -163,7 +176,7 @@ Make what's shown checkable, and the process safe, before adding towns.
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
-12. **The data license**: done 2026-10-03, CC BY 4.0 in the network
+12. **The data license**: done 2026-10-03 (#54, publick.org #42), CC BY 4.0 in the network
     repository's `LICENSE`, a "Reusing what's here" section on every About
     page, and a footer link. Left: SeeClickFix's terms saved as read.
     ([Open data](#open-data))
@@ -370,12 +383,16 @@ pipeline.factcheck` lists what it finds.
 
 Measured on the 449 live summaries: every one checked against full text
 passes; planted errors are caught 89 to 100% of the time; 103 of 1,131 vote
-counts aren't in the minutes and come out. Two to read by hand, on scanned
-pages the check can't read: a Beverly City Council decision dated "January
-20, 2025, at 7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000
-and $3,100 aren't in the model's transcription.
+counts aren't in the minutes and come out. Two read by hand on 2026-10-03,
+on scanned pages, were both right: a Beverly City Council decision dated
+"January 20, 2025, at 7:30 PM" is what the minutes say (the city's typo for
+2026), and a Beverly Golf and Tennis Commission summary's $8,000 and $3,100
+are "$8K" and "$3.1K" in the scan. The check counts an amount written out in
+full ("$8,000") as missing when the document abbreviates it ("$8K"), since
+only the summary's own scale words are read (`check_text`); it should also
+match the document's scaled amounts.
 
-*Done 2026-10-02:* "AI summary" wherever a summary is shown in a list. In a
+*Done 2026-10-03 (#54):* "AI summary" wherever a summary is shown in a list. In a
 meeting row it goes in the grey line under the summary ("AI summary · Agenda
 posted"), only on rows that show one; in the public hearings box, on its own
 line under the summary; in the RSS feed, after the summary ("(AI summary of
@@ -1386,7 +1403,7 @@ quiet days.
 | v1.28.0 | Monthly charts fit a phone |
 | v1.29.0 | Spanish at any number of towns: shared words once, machine drafts for the rest; every summary on the current prompt version |
 | v1.30.0 | The open redirect closed; the Spanish disclosed as machine-translated and checked without a person (names, outcomes, amounts, and a second model's review); a missing Spanish text never stops a build; releases once a day; a republished town's run record; light-only accessibility tests (2026-10-02) |
-| v1.31.0 (2026-10-03) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full |
+| v1.31.0 (2026-10-03) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full. "AI summary" on every summary shown in a list, and in the feed; "Reusing what's here" on every About page, with the data license (#54) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second
