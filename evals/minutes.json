@@ -7,8 +7,8 @@
       "sha256": "d38b4734a9431b09725bb3d1205bea4be7e1b4f94a1777ae6b6ba323495f6c62",
       "title": "City Council", "date": "2026-04-07",
       "decisions": [
-        {"match": "tabl", "outcome": "denied", "minutes": "Order 200-26 (executive session): \"that the Order be tabled. The motion failed by the following vote: Yea: Colon Hayes, Sica and Winslow3 - Nay: ...\""},
-        {"match": "executive session", "unless": "tabl", "outcome": "approved", "minutes": "Order 200-26: \"that the Order be adopted. The motion carried by the following vote: Yea: ... Luong7 - Nay: ...\""},
+        {"match": "\\bto table\\b|\\btabl(?:ed|ing)\\b", "outcome": "denied", "minutes": "Order 200-26 (executive session): \"that the Order be tabled. The motion failed by the following vote: Yea: Colon Hayes, Sica and Winslow3 - Nay: ...\""},
+        {"match": "executive session", "unless": "\\bto table\\b|\\btabl(?:ed|ing)\\b", "outcome": "approved", "minutes": "Order 200-26: \"that the Order be adopted. The motion carried by the following vote: Yea: ... Luong7 - Nay: ...\""},
         {"match": "MWRA|Water Resources", "outcome": "approved", "minutes": "160-26 MWRA appropriation: \"that the Order be adopted. The motion carried\""},
         {"match": "self.storage", "outcome": "referred", "minutes": "198-26: \"referred to the Rules & Ordinance Committee. The motion carried by an 8-3 vote\""},
         {"match": "Moose", "outcome": "referred", "minutes": "190-26 pool tables: \"The Petition was referred to the License Committee.\""}
@@ -171,7 +171,7 @@
       "decisions": [
         {"match": "348/19|hookah", "outcome": ["withdrawn", "approved"], "minutes": "\"DOC #348/19 MOTION TO WITHDRAW PASSED\" (voice vote; the PDF's text has \"V oice V ote\")"},
         {"match": "415/16|license plate", "outcome": ["withdrawn", "approved"], "minutes": "\"Councilor Laplante's Motion to Withdraw DOC #415/16 ... PASSED by Unanimous Voice Vote\""},
-        {"match": "SEIU|Library Union", "outcome": "referred", "minutes": "\"038/26 SEIU Local 3 Library Union Collective Bargaining Agreement (CBA) ... Referred to the Budget and Finance Committee\""}
+        {"match": "491/25|Lowell Street", "outcome": "approved", "minutes": "\"DOC # 491/25 MOTION TO APPROVE PASSED\" (conduit at Lowell Street; voice vote)"}
       ]
     }
   ]
