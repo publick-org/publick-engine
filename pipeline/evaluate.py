@@ -178,7 +178,7 @@ def report(results: list[dict]) -> tuple[str, bool]:
             lines.append(f"- `{row['match']}`: {row['status']} (expected {'/'.join(row['expected'])}, "
                          f"given {', '.join(map(str, row['given'])) or 'none'}){note}")
         for p in r["problems"]:
-            if p["field"] == "decisions" and p["kind"] in ("quote", "outcome", "away"):
+            if p["field"] == "decisions" and p["kind"] != "tally":
                 text = r["decisions"][p["entry"] - 1]
                 lines.append(f"  - decision {p['entry']} ({p['kind']}: {p['what'][:120]}): {text[:140]}")
         lines.append("")

@@ -126,7 +126,9 @@ Return:
         "version": 3,
         "remake_since": "2026-08-04",
         "folder": "minutes",
-        "max_tokens": 16000,
+        # Long scanned minutes take the model most of 16,000 tokens before it writes (Beverly's City
+        # Council, 2026-03-16, 26 decisions): what isn't used isn't paid for.
+        "max_tokens": 32000,
         "system": "You summarize the minutes of public meetings of a city government for residents. Minutes are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES + """
 - Report decisions only as the minutes record them. Include the vote count or roll call result when the minutes give one. If the minutes do not say how a matter ended, do not list it as a decision.

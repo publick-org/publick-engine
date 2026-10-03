@@ -283,3 +283,38 @@ def test_what_fails_its_anchor_isnt_shown():
     record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
     shown = factcheck.shown(record, record, "minutes")
     assert shown["decisions"] == [RIGHT[1][0]] and shown["not_shown"] == 1
+
+
+def test_what_the_real_model_wrote_on_the_test_set():
+    """Cases from the first run of the minutes prompt against the real model (2026-10-03), each a right
+    decision the check held back until it was fixed."""
+    # Malden: the model quotes a roll call as the page shows it; the PDF's text has the count after the names.
+    doc = ("A motion was made by Councillor Sica, seconded by Councillor Colon Hayes, that the Order be tabled. "
+           "The motion failed by the following vote:\nYea: Colon Hayes, Sica and Winslow3 - \n"
+           "Nay: Condon, Crowe, Linehan, McDonald, O'Malley, Simonelli, Taylor and Luong8 - ")
+    quote = ("A motion was made by Councillor Sica, seconded by Councillor Colon Hayes, that the Order be tabled. "
+             "The motion failed by the following vote:\nYea: 3 - Colon Hayes, Sica and Winslow\n"
+             "Nay: 8 - Condon, Crowe, Linehan, McDonald, O'Malley, Simonelli, Taylor and Luong")
+    assert decisions(("A motion to table the Order failed, 3-8.", "denied", quote), doc=doc)["result"] == "ok"
+    # But not the quote's first words with something else after them.
+    made_up = quote.split("The motion")[0] + "The motion carried unanimously by the following vote: Yea: 11"
+    assert decisions(("Tabled the Order.", "tabled", made_up), doc=doc)["result"] == "failed"
+    # Gloucester: "if they fail" is about the plants, not the motion.
+    doc = ("Co-Chair Jackson moved to approve RCOC 028-2772 498 Washington Street; with a continuing condition that "
+           "plants must be replaced if they fail within the next year. Member Cook seconded and was approved.")
+    assert decisions(("Approved RCOC 028-2772 498 Washington Street.", "approved", doc), doc=doc)["result"] == "ok"
+    # Deferred, and re-committed.
+    doc = "3. Mr. Falcetano's request. Decision deferred to the August 13 meeting. It was re-committed back to the Housing Committee."
+    assert decisions(("Deferred the request to the August 13 meeting.", "continued",
+                      "Decision deferred to the August 13 meeting."), doc=doc)["result"] == "ok"
+    assert decisions(("Re-committed the request to the Housing Committee.", "referred",
+                      "It was re-committed back to the Housing Committee."), doc=doc)["result"] == "ok"
+    # Lawrence: "Withdrew" isn't anyone's name.
+    doc = "There was no discussion on this Motion and it PASSED by a Unanimous Voice Vote DOC #348/19 MOTION TO WITHDRAW PASSED"
+    assert decisions(("Withdrew DOC #348/19.", "withdrawn", "DOC #348/19 MOTION TO WITHDRAW PASSED"), doc=doc)["result"] == "ok"
+    # The model's own words say how it ended: "Rejected a motion", a motion that "failed" seven words on.
+    doc = "Aldermen Kantor and Sapienza voted yea. The motion failed. June 4th Doug motions, Leora seconds. Motion fails."
+    assert decisions(("Rejected a motion to pass the school budget, 2-11.", "denied",
+                      "Aldermen Kantor and Sapienza voted yea. The motion failed."),
+                     ("Motion to approve the June 4, 2026 minutes failed.", "denied",
+                      "June 4th Doug motions, Leora seconds. Motion fails."), doc=doc)["result"] == "ok"

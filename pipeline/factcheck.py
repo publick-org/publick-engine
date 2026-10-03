@@ -365,19 +365,33 @@ BEFORE, AFTER = 3000, 300
 # What a quote may skip of the document's text in one place (a page header, a line number), and in all;
 # and how far after a motion a quote cut with "..." may find how it ended (a few pages of discussion).
 GAP, GAPS, LATER = 150, 300, 12000
-# A motion that didn't carry, in the minutes' words.
-FAILED = re.compile(r"\b(?:fail(?:s|ed|ing)?|defeat\w*|reject\w*)\b|\bnot\s+(?:carr|pass|adopt|approv|accept|grant|recommend|prevail)\w*|"
+# A quote's last words may be in another order than the PDF's text has them (a roll call the model read
+# as the page shows it, "Yea: 3 - Colon Hayes, Sica and Winslow", where the text has "Yea: Colon Hayes,
+# Sica and Winslow3"), once at least this many of its words, and half of them, are found in order: each
+# of the rest must be in the next stretch of the document.
+IN_ORDER, REST = 12, 600
+# A motion that didn't carry, in the minutes' words: "the motion failed", "Motion fails (2-3)", "MOTION TO
+# RECONSIDER FAILS", "failed by a vote of 3-8", "was defeated", "did not carry", "voted not to". Failing
+# about something else ("plants must be replaced if they fail") isn't.
+FAILED = re.compile(r"\b(?:motion|vote|order|it|amendment|petition|resolution|request|proposal|recommendation)\b"
+                    r"(?:\W+\w+){0,8}?\W+(?:fail(?:s|ed)|(?:was|were)\s+(?:defeated|rejected))\b|"
+                    r"\bfail(?:s|ed)\s+(?:by|on|to\s+(?:carry|pass|receive|get)|for\s+lack|\d|\()|"
+                    r"\b(?:defeated|rejected)\s+(?:by|on|\d|\()|"
+                    r"\bnot\s+(?:carr|pass|adopt|approv|accept|grant|recommend|prevail)\w*|"
                     r"\bvoted\s+not\b|\bdid\s+not\s+(?:carr|pass)\w*", re.I)
 # A decision or quote that says no: a failed motion, a denial, a decision's verb with "not". A "not"
 # elsewhere is part of what was decided ("there is not an increase in the nonconformity", "not to exceed").
 SAYS_NO = re.compile(FAILED.pattern + r"|\bden(?:y|ied|ies|ying)\b|\bdisapprov\w*|\bdeclin(?:e|ed|ing)\b|"
                      r"\b(?:not|never)\s+(?:to\s+)?(?:approv|adopt|accept|grant|pass|carr|recommend|support|allow|issu|deem|"
                      r"endors|award|appoint|confirm|move|proceed)\w*|n't\s+(?:approv|adopt|accept|grant|pass|carr|recommend)\w*", re.I)
+# A decision that says no, in the model's own words, which are about how it ended: "Rejected a motion to
+# pass ...", "Motion to approve the June 4 minutes failed".
+DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed))\b", re.I)
 # What the decision and the quote each say, for an outcome that has words of its own.
 SAYS = {
     "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*)\b|on\s+the\s+table", re.I),
-    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*)", re.I),
-    "referred": re.compile(r"\b(?:refer\w*|remand\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b", re.I),
+    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)", re.I),
+    "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b", re.I),
     "recommended": re.compile(r"\b(?:recommend\w*|favou?rabl\w*)", re.I),
     "withdrawn": re.compile(r"\bwithdr\w*", re.I),
 }
@@ -466,10 +480,16 @@ class Located:
                 if i == 0:
                     return None
                 nxt = self.text.find("".join(part[i:i + 2]), pos, pos + GAP + 1)
-                if nxt == -1 or skipped + (nxt - pos) > GAPS:
-                    return None
-                skipped += nxt - pos
-                pos = nxt
+                if nxt != -1 and skipped + (nxt - pos) <= GAPS:
+                    skipped += nxt - pos
+                    pos = nxt
+                    continue
+                # Or the rest in another order, close by.
+                rest = self.text[pos:pos + REST]
+                if i >= IN_ORDER and 2 * i >= len(part) and all(w in rest for w in part[i:]):
+                    pos += max(rest.rfind(w) + len(w) for w in part[i:])
+                    break
+                return None
         return pos
 
 
@@ -506,7 +526,7 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
             problems.append({"kind": "outcome", "what": f"{outcome}, but the decision or the minutes don't say so"})
     elif outcome == "denied":
         counted = votes_for_against(quote)
-        if not SAYS_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1])):
+        if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1])):
             problems.append({"kind": "outcome", "what": "denied, but the decision or the minutes don't say no"})
     return problems
 
