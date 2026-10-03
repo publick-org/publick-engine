@@ -173,6 +173,17 @@ def town_env(root: Path, name: str) -> dict:
     return env
 
 
+# The keys a town's steps use: fetching (pipeline/update.py gives each of its steps only its own) and
+# publishing. The freshness check, the build, and the checks get none.
+FETCH_KEYS = ("ANTHROPIC_API_KEY", "BLS_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+PUBLISH_KEYS = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
+
+
+def keyed(env: dict, keys: tuple[str, ...] = ()) -> dict:
+    """The environment without any step's keys but these."""
+    return {k: v for k, v in env.items() if k not in FETCH_KEYS + PUBLISH_KEYS or k in keys}
+
+
 def step(name: str, cmd: list[str], env: dict, cwd: Path, timeout: float | None) -> dict:
     print(f"::group::{env['TOWN']}: {name}", flush=True)
     started = time.monotonic()
@@ -223,7 +234,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         update_report = town_dir / ".update-report.json"
         steps.append(step("Fetch new data", [python, "-m", "pipeline.update", "--town", town, "--sources", sources,
                                              "--step-timeout", str(step_timeout), "--report", str(update_report)],
-                          env, town_dir, None))
+                          keyed(env, FETCH_KEYS), town_dir, None))
         if update_report.exists():
             result["update"] = json.loads(update_report.read_text())
             update_report.unlink()
@@ -233,7 +244,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         freshness_report = town_dir / ".freshness-report.json"
         freshness_report.unlink(missing_ok=True)
         freshness = step("Check data freshness", [python, "-m", "pipeline.freshness", "--town", town,
-                                                  "--report", str(freshness_report)], env, town_dir, BUILD_TIMEOUT)
+                                                  "--report", str(freshness_report)], keyed(env), town_dir, BUILD_TIMEOUT)
         result["stale"] = not freshness["ok"]
         if freshness_report.exists():
             result["sources"] = trim_sources(json.loads(freshness_report.read_text()))
@@ -242,21 +253,21 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
             result["failing"] = [r["label"] for r in result["sources"] if r.get("failing")]
 
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
-                      env, town_dir, BUILD_TIMEOUT))
+                      keyed(env), town_dir, BUILD_TIMEOUT))
     if steps[-1]["ok"]:
         # The browser checks take most of a town's time, so they run on every core (pytest-xdist).
         steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q", "-n", "auto",
                                          str(ENGINE_DIR / "site_checks")],
-                          {**env, "PUBLICK_SITE_DIR": str(site),
+                          {**keyed(env), "PUBLICK_SITE_DIR": str(site),
                            **({"PUBLICK_CHECK_PAGES": "sample"} if sample_checks else {})}, town_dir, BUILD_TIMEOUT))
     checked = any(s["name"] == "Check site" and s["ok"] for s in steps)
     if deploy and checked:
         steps.append(step("Publish site", [python, "-m", "pipeline.deploy", "publish", "--town", town,
-                                           "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
+                                           "--site", str(site)], keyed(env, PUBLISH_KEYS), town_dir, BUILD_TIMEOUT))
         if steps[-1]["ok"]:
             # What visitors get, through the Worker, is the build just published.
             steps.append(step("Check live site", [python, "-m", "pipeline.deploy", "check", "--town", town,
-                                                  "--site", str(site)], env, town_dir, BUILD_TIMEOUT))
+                                                  "--site", str(site)], keyed(env), town_dir, BUILD_TIMEOUT))
         result["deployed"] = all(s["ok"] for s in steps if s["name"] in ("Publish site", "Check live site"))
     result["ok"] = all(s["ok"] for s in steps)
     result["finished_at"] = now()

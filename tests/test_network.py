@@ -115,6 +115,18 @@ def test_run_builds_checks_and_publishes_a_town(tmp_path, steps):
     assert calls[3]["cmd"][calls[3]["cmd"].index("-n") + 1] == "auto", "the browser checks run on every core"
 
 
+def test_each_step_gets_only_the_keys_it_uses(tmp_path, steps, monkeypatch):
+    calls, _ = steps
+    for k in network.FETCH_KEYS + network.PUBLISH_KEYS:
+        monkeypatch.setenv(k, "x")
+    network.run_town(make_root(tmp_path), "gloucester-ma", fetch=True, deploy=True, reports=None)
+    given = {c["name"]: {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in c["env"]} for c in calls}
+    assert given == {"Fetch new data": set(network.FETCH_KEYS), "Check data freshness": set(), "Build site": set(),
+                     "Check site": set(), "Publish site": set(network.PUBLISH_KEYS), "Check live site": set()}
+    # Everything else is passed on.
+    assert all(c["env"]["TOWN"] and c["env"]["PATH"] for c in calls)
+
+
 def test_a_run_can_fetch_only_some_sources(tmp_path, steps, monkeypatch):
     calls, _ = steps
     root = make_root(tmp_path)
