@@ -118,13 +118,16 @@ Done on 2026-10-03: "AI summary" on every summary shown in a list (item 7) and
 the data license (item 12), engine #54 and publick.org #42.
 What's left:
 
-1. **Watch the first automatic engine move** (2026-10-03, 08:20 and 08:40
-   UTC): #50, #52, and #54 released as v1.31.0, the pull request opened,
-   every town checked, merged, and published without anyone. Then, on the
-   live sites: "AI summary" under each summary in the lists and the hearings
-   box, and in `/feed.xml`; "Reusing what's here" on each About page, its
-   link to the network's `LICENSE` working, and the footer link, in English
-   and Spanish. ([Releases](#releases))
+1. **Watch the first automatic engine move**: it didn't happen on
+   2026-10-03. GitHub hadn't started the 08:20 release or the 08:40 engine
+   pull request by noon (its scheduled runs here start 5 to 7 hours late),
+   so v1.31.0 (#50 to #60) was released and the engine moved by hand at
+   12:00 UTC. The scheduler Worker now starts both on time (below); it needs
+   its token widened and a deploy. Then, on the live sites: "AI summary"
+   under each summary in the lists and the hearings box, and in
+   `/feed.xml`; "Reusing what's here" on each About page, its link to the
+   network's `LICENSE` working, and the footer link, in English and
+   Spanish; and every town passing "Check live site". ([Releases](#releases))
 2. **Check the first daily runs on the new engine**: every translation made
    again on prompt 3 and reviewed (about 450 summaries, about $4), how many
    fail the checks, and every summary's fact check recorded (60 documents a
@@ -757,6 +760,16 @@ fetchers from saved pages, each with the page, link, and browser checks.
   it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
   that's too slow, towns queued separately lets a push wait only for its
   own towns.
+- *Done 2026-10-03:* the scheduler Worker starts the engine's release at
+  08:20 UTC and the network's engine pull request at 08:40, as it starts the
+  daily runs, since GitHub's own schedule started neither on the first
+  morning (`worker/scheduler.js`, `RELEASE_CRON`, `ENGINE_CRON`). The
+  workflows keep their schedules as a late backup. To turn it on, in order:
+  widen `SCHEDULER_GITHUB_TOKEN` to the engine repository (Actions read and
+  write); once `engine-version` has this code, add the two crons and
+  `ENGINE_REPOSITORY` to `wrangler.scheduler.toml`; then deploy the Worker
+  (`worker.yml`, by hand). Deploying the crons with older code would start a
+  daily run at 08:20 instead.
 - *Done 2026-10-03:* after publishing, a "Check live site" step fetches each
   town's homepage through the Worker until it is the built `index.html`,
   byte for byte, for up to two minutes (a Worker reuses a manifest for one).
