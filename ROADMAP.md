@@ -145,8 +145,9 @@ Make what's shown checkable, and the process safe, before adding towns.
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
    a dropped "not" is caught. What fails isn't shown. ([Summary checks](#summary-checks))
-7. **"AI summary" on every headline**, wherever one is shown: the homepage,
-    lists, board pages, and the RSS feed. ([Summary checks](#summary-checks))
+7. **"AI summary" on every headline**: done 2026-10-02, in each list
+    row's details line, on its own line in the public hearings box, and after
+    the summary in the RSS feed. ([Summary checks](#summary-checks))
 8. **A test set run against the real model**: about 15 documents with known
     decisions, checked by hand, run before any prompt change ships.
     ([Summary checks](#summary-checks))
@@ -162,9 +163,10 @@ Make what's shown checkable, and the process safe, before adding towns.
 11. **311 addresses cut to the block** for sensitive categories (encampments,
     health reports), on the pages and in the CSVs.
     ([Security and privacy](#security-and-privacy))
-12. **The data license.** CC BY 4.0 in the network repository's `LICENSE`, a
-    credit line on every About page and in the footer, SeeClickFix's terms
-    saved as read. ([Open data](#open-data))
+12. **The data license**: done 2026-10-03, CC BY 4.0 in the network
+    repository's `LICENSE`, a "Reusing what's here" section on every About
+    page, and a footer link. Left: SeeClickFix's terms saved as read.
+    ([Open data](#open-data))
 13. **A budget floor per town**, so one town's launch backlog can't take most
     of a day's money. ([AI costs](#ai-summary-and-translation-costs))
 14. **Push runs build and check but don't publish**, so they never wait hours
@@ -373,6 +375,13 @@ pages the check can't read: a Beverly City Council decision dated "January
 20, 2025, at 7:30 PM" (likely 2026), and a Beverly parks summary whose $8,000
 and $3,100 aren't in the model's transcription.
 
+*Done 2026-10-02:* "AI summary" wherever a summary is shown in a list. In a
+meeting row it goes in the grey line under the summary ("AI summary · Agenda
+posted"), only on rows that show one; in the public hearings box, on its own
+line under the summary; in the RSS feed, after the summary ("(AI summary of
+the agenda. Check the original.)"). Never in front of the summary: a badge
+on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA".
+
 **Next.**
 - Each decision anchored to a quote from the minutes, checked without AI
   (the quote is in the document; the decision's numbers and names are in the
@@ -382,9 +391,6 @@ and $3,100 aren't in the model's transcription.
   weaker since both come from the model; a failure is listed, not held.
 - The run record counts summaries held back, to show how often the model
   gets one wrong (today: `python -m pipeline.factcheck`).
-- "AI summary" wherever a headline is shown: homepage
-  (`pages/index.html:42`), lists and board pages (`macros.html:83`), and the
-  RSS feed (`write_feed`, `build_site.py:1198-1202`).
 - The document's own date and any "draft" marking read from it.
 - A test that fails when a prompt changes without its version.
 - Every test, the translation tests too, uses the fake model client. Add a
@@ -1148,8 +1154,14 @@ entirely by a model may have little copyright protection in the US, so
 credit rests more on custom than on law.
 
 **Next.**
-- *Now:* a `LICENSE` in the network repository, per file where terms differ,
-  and the credit line on each About page and in the footer.
+- *Done 2026-10-03:* the network repository's `LICENSE` says in plain words
+  what's Publick's (CC BY 4.0, full text in `LICENSE-CC-BY-4.0.txt`), how to
+  credit it, and what keeps its own terms (311, public records, Census and
+  BLS, state figures, maps); its code is MIT, like the engine's. Every About
+  page has "Reusing what's here" with the credit line, and every footer says
+  the summaries and data are free to reuse with credit, on network sites
+  only (`site.network`).
+- *Now:* SeeClickFix's terms, saved as read when the license was written.
 - *Then:* a per-town export, `/data/meetings.json`, in a fixed, documented,
   versioned format: each meeting with its board, date, status, links,
   summaries, and decisions joined to it, built with the site as a static

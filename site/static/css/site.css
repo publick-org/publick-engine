@@ -124,6 +124,9 @@ main { display: block; padding: 1.25rem 0 3rem; }
   background: var(--warn-bg); color: var(--warn-text);
 }
 .credit { margin: 1.25rem 0; padding-left: 0.75rem; border-left: 3px solid var(--line); color: var(--muted); font-size: 0.875rem; }
+/* The credit line the About page asks reusers to copy. */
+.credit-example { margin: 0.75rem 0 1rem; padding: 0.6rem 0.9rem; border-left: 3px solid var(--line-strong); background: var(--soft); }
+.credit-example p { margin: 0; }
 .credit p { margin: 0; }
 .report-link {
   display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; margin-top: 0.5rem; padding: 0 0.85rem;
