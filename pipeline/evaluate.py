@@ -15,7 +15,8 @@ the whole set:
 - what the run cost.
 
 A wrong outcome the site would show fails the run (exit status 1): that's the error the checks
-are for. Everything else is for a person to weigh.
+are for; and so does a summary cut off at the prompt's max_tokens, which the site would never get
+(the report shows what it had written). Everything else is for a person to weigh.
 
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate [--only NAME] [--model MODEL] [--json FILE]
 
@@ -105,7 +106,12 @@ def evaluate(document: dict, client, model: str, prices: dict, get=None) -> dict
     pdf = get(document["url"]) if get else fetch(document["url"])
     if hashlib.sha256(pdf).hexdigest() != document["sha256"]:
         raise SystemExit(f"{document['name']}: the document at {document['url']} isn't the one checked by hand")
-    result, usage = summarize.summarize_pdf(client, model, "minutes", pdf, document["title"], document["date"])
+    try:
+        result, usage = summarize.summarize_pdf(client, model, "minutes", pdf, document["title"], document["date"])
+    except summarize.StoppedEarly as e:
+        # Paid for, with nothing to check: reported, with what it had written, and the set goes on.
+        return {"name": document["name"], "stopped": str(e), "cost": round(summarize.cost(e.usage, prices), 4),
+                "usage": e.usage, "partial": e.text}
     record = summarize.split_decisions(result)
     paid = summarize.cost(usage, prices)
     pages = factcheck.pages(pdf)
@@ -138,8 +144,17 @@ def report(results: list[dict]) -> tuple[str, bool]:
     """The report, and whether a wrong outcome would be shown."""
     lines, shown_wrong = ["# Minutes prompt against decisions checked by hand", ""], False
     totals = {"decisions": 0, "held": 0, "right": 0, "wrong": 0, "missing": 0, "right_held": 0, "wrong_caught": 0,
-              "planted": 0, "caught": 0, "away": 0, "cost": 0.0}
+              "planted": 0, "caught": 0, "away": 0, "stopped": 0, "cost": 0.0}
     for r in results:
+        if "stopped" in r:
+            # A summary cut off is one the site would never get: it counts as wrong.
+            totals["stopped"] += 1
+            totals["cost"] += r["cost"]
+            shown_wrong = True
+            lines.append(f"## {r['name']}: **{r['stopped']}** after {r['usage']['output_tokens']} tokens (${r['cost']:.3f})")
+            lines.append(f"It had written: `{r['partial'][-600:]}`")
+            lines.append("")
+            continue
         totals["decisions"] += len(r["decisions"])
         totals["held"] += len(r["held_back"])
         totals["planted"] += r["planted"]
@@ -173,6 +188,7 @@ def report(results: list[dict]) -> tuple[str, bool]:
         f"- Written down by hand: {totals['right']} right, {totals['wrong']} wrong ({totals['wrong_caught']} caught), "
         f"{totals['missing']} missing; right but held back: {totals['right_held']}.",
         f"- Planted errors caught: {totals['caught']} of {totals['planted']}.",
+        f"- Documents whose summary was cut off: {totals['stopped']}.",
         f"- Cost: ${totals['cost']:.2f}.",
         "",
     ]

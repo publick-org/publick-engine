@@ -354,9 +354,11 @@ def doc_key(item: tuple[str, dict, dict]) -> str:
 class StoppedEarly(RuntimeError):
     """A response that ended before it was complete. Its tokens are still paid for."""
 
-    def __init__(self, reason: str, usage: dict):
+    def __init__(self, reason: str, usage: dict, text: str = ""):
         super().__init__(f"stopped early: {reason}")
         self.usage = usage
+        # What the response had written when it stopped, to see why.
+        self.text = text
 
 
 def page_count(pdf: bytes) -> int | None:
@@ -385,9 +387,9 @@ def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: s
     ) as stream:
         response = stream.get_final_message()
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    text = next((b.text for b in response.content if b.type == "text"), "")
     if response.stop_reason != "end_turn":
-        raise StoppedEarly(response.stop_reason, usage)
-    text = next(b.text for b in response.content if b.type == "text")
+        raise StoppedEarly(response.stop_reason, usage, text)
     return json.loads(text), usage
 
 
