@@ -420,6 +420,12 @@ def test_about_page_says_how_to_reuse(site_dir, config):
     assert 'href="/about/#reuse">free to reuse with credit</a>' in home[home.index("site-footer"):]
 
 
+def test_311_pages_say_when_seeclickfix_was_last_read(site_dir, data_dir):
+    fetched = json.loads((data_dir / "311" / "scorecard.json").read_text())["fetched_at"]
+    for page in ("311/index.html", "311/repeat-locations/index.html"):
+        assert f'Updated <time datetime="{fetched}">' in (site_dir / page).read_text(), page
+
+
 def test_feed_is_valid_rss(site_dir):
     import xml.dom.minidom
     feed = xml.dom.minidom.parse(str(site_dir / "feed.xml"))
