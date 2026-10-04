@@ -287,6 +287,37 @@ def test_ward_source_and_scope_note_are_shown(config, data, tmp_path, monkeypatc
     assert 'href="https://example.org/wards"' in about and ", 2022 boundaries." in about and "MassGIS" not in about
 
 
+def test_a_town_without_wards_places_requests_in_precincts(config, data, tmp_path, monkeypatch):
+    # South Kingstown elects every seat townwide: its 311 areas are voting precincts, named as such,
+    # and the Officials page has no ward finder.
+    from conftest import BUILT_AT, DATA_DIR
+    from pipeline import build_site, officials
+    config["seeclickfix"].update(areas="precincts", wards_publisher="RIGIS", wards_year=2022)
+    assert officials.wards_file(config) is None
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=DATA_DIR, now=BUILT_AT)
+    scorecard = (out / "311" / "index.html").read_text()
+    assert "Requests per 1,000 residents, by voting precinct" in scorecard and "Precinct 1" in scorecard
+    ward = (out / "311" / "ward" / "1" / "index.html").read_text()
+    assert "<h1>Precinct 1</h1>" in ward and "Voting precincts use the 2022 boundaries from RIGIS." in ward
+    assert "Ward 1" not in ward
+    methodology = (out / "311" / "methodology" / "index.html").read_text()
+    assert "2022 RIGIS voting precinct boundaries" in methodology and "ward boundaries" not in methodology
+    assert "<strong>Voting precinct maps:</strong>" in (out / "about" / "index.html").read_text()
+    assert "Find your ward" not in (out / "officials" / "index.html").read_text()
+    spanish = (out / "es" / "311" / "ward" / "1" / "index.html")
+    if spanish.exists():
+        assert "Precinto 1" in spanish.read_text()
+
+
+def test_311_areas_must_be_wards_or_precincts(config):
+    from pipeline import officials
+    config["seeclickfix"]["areas"] = "districts"
+    with pytest.raises(SystemExit, match='must be "wards" or "precincts"'):
+        officials.precincts(config)
+
+
 def test_wards_are_in_number_order():
     from pipeline.compute_311 import ward_order
     assert sorted(["10", "2", "outside", "1", "12", "3"], key=ward_order) == ["1", "2", "3", "10", "12", "outside"]

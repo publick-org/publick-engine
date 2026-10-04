@@ -48,6 +48,9 @@ class Source:
     table: str
     keys: tuple[str, ...]
     module: str
+    # A source the town may go without by leaving out its own keys (those no other source of the
+    # table needs): Maine's tax bill, for a town whose parcels give single-family homes no code.
+    optional: bool = False
 
     def load(self) -> ModuleType:
         return import_module(self.module)
@@ -76,9 +79,20 @@ class State:
         return self.code.lower()
 
     def source(self, kind: str, config: dict) -> Source | None:
-        """The state's source of this kind, if the state has one and the town's config has its table."""
+        """The state's source of this kind, if the state has one and the town's config has its table
+        (and, for an optional source, its keys)."""
         source = self.sources.get(kind)
-        return source if source and source.table in config else None
+        if not source or source.table not in config:
+            return None
+        if source.optional and any(k not in config[source.table] for k in source.keys):
+            return None
+        return source
+
+    def own_keys(self, kind: str) -> tuple[str, ...]:
+        """The keys of a source that no other source of its table needs."""
+        source = self.sources[kind]
+        shared = {k for other, s in self.sources.items() if other != kind and s.table == source.table for k in s.keys}
+        return tuple(k for k in source.keys if k not in shared)
 
     def pages_module(self) -> ModuleType | None:
         return import_module(self.pages) if self.pages else None
@@ -106,6 +120,9 @@ def check(config: dict) -> None:
         if table is None:
             continue
         missing = [k for k in source.keys if k not in table]
+        # An optional source left out on purpose: none of its own keys given.
+        if source.optional and not any(k in table for k in state.own_keys(kind)):
+            continue
         if missing:
             raise SystemExit(f"[{source.table}] in config/{config['slug']}.toml needs {', '.join(missing)} for "
                              f"{state.name}'s {KINDS[kind].lower()} (see pipeline/states/{state.templates}/).")
@@ -126,8 +143,10 @@ def main(config: dict, kind: str, data_dir: Path, force: bool = False) -> int:
     state = for_town(config)
     source = state.source(kind, config)
     if source is None:
-        why = (f"no [{state.sources[kind].table}] in config/{config['slug']}.toml" if kind in state.sources
-               else f"no {KINDS[kind].lower()} source for {state.name} yet")
+        table = state.sources[kind].table if kind in state.sources else None
+        why = (f"no {KINDS[kind].lower()} source for {state.name} yet" if table is None
+               else f"no [{table}] in config/{config['slug']}.toml" if table not in config
+               else f"[{table}] in config/{config['slug']}.toml leaves out {', '.join(state.own_keys(kind))}")
         print(f"::notice::{KINDS[kind]}: {why}; skipping.")
         return 0
     module = source.load()

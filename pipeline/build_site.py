@@ -1146,12 +1146,14 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
                    if share_path.exists() else None)
     # Where the ward boundaries come from, named on the 311 pages and the About page: from
-    # [seeclickfix] or, for a town with only the Officials page's ward map, [officials].
+    # [seeclickfix] or, for a town with only the Officials page's ward map, [officials]. A town
+    # whose 311 areas are voting precincts ([seeclickfix] areas) says so on its pages (precincts).
     # The defaults are MassGIS's, which covers every Massachusetts municipality.
     sc = config.get("seeclickfix") or config.get("officials", {})
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+                  precincts=officials_mod.precincts(config),
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state),
