@@ -4,6 +4,7 @@
 {% set w = ward %}
 {% block title %}{% trans ward=w.ward %}Ward {{ ward }}: 311 requests{% endtrans %}{% endblock %}
 {% block description %}{% trans ward=w.ward, town=town.name %}311 requests in Ward {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% endblock %}
+{% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (_("Ward %(ward)s", ward=w.ward), canonical_url)])) }}{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#wards">{{ _("Wards") }}</a></li></ol></nav>
 <div class="page-head">
@@ -33,7 +34,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{# Translators: the dash (–) is what the table shows in place of a typical time. #}{{ _("– fewer than 5 requests, too few for a typical time.") }}</p>
+<p class="small dash-legend">{# Translators: the dash (–) is what the table shows in place of a typical time. #}{{ _("– fewer than 5 requests, too few for a typical time.") }}</p>
 {{ chart_links("categories", "/311/data/ward-" ~ w.ward ~ ".csv") }}
 
 {% if w.oldest %}

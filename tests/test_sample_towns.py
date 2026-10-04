@@ -279,7 +279,9 @@ def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
     assert "From the posted agenda, as read by AI." in finance
     assert "Not listed on the" not in finance and "calendar" not in finance
     assert "This meeting's agenda in the City of Malden's Agenda Center" in finance
-    assert 'content="City Council Finance Committee Meeting on ' in finance
+    # Its description is the agenda's summary; the time read from the agenda is the event's for search engines.
+    assert '<meta name="description" content="AI summary of the agenda: ' in finance
+    assert '"startDate":"2026-09-29T18:30:00-04:00"' in finance
 
 
 # ---- Wallingford: the town website's calendar and documents page ------------------------------

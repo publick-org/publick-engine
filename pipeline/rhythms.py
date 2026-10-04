@@ -180,7 +180,7 @@ def row(rhythm: Rhythm, data_dir: Path, now: datetime, grace_months: int = GRACE
     whether it's behind."""
     data = read(data_dir, rhythm)
     failures = (checks or {}).get(rhythm.step, {}).get("failures", 0)
-    base = {"label": _(rhythm.label), "updated_at": (data or {}).get("updated_at"), "max_days": None,
+    base = {"label": _(rhythm.label), "file": rhythm.file, "updated_at": (data or {}).get("updated_at"), "max_days": None,
             "cadence": rhythm.cadence, "failing": failures if failures >= FAILING_AFTER else 0}
     if data is None:
         return {**base, "stale": True, "latest": None, "next": None, "behind": _("no data yet")}

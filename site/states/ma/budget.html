@@ -71,7 +71,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Amounts are not adjusted for inflation.") }} {% trans url=budget.source_urls.spending %}Source: <a href="{{ url }}">DLS Schedule A, general fund</a>.{% endtrans %}</p>
+<p class="small">{{ _("Amounts are not adjusted for inflation.") }} <span class="dash-legend">{{ _("– for the first year: there's no earlier year to compare with.") }}</span> {% trans url=budget.source_urls.spending %}Source: <a href="{{ url }}">DLS Schedule A, general fund</a>.{% endtrans %}</p>
 {{ chart_links("spending", "/budget/data/spending.csv") }}
 
 {# ---- Revenue ---- #}
@@ -126,7 +126,7 @@
 </table>
 </div>
 {% set fc = budget.free_cash[-1].fiscal_year if budget.free_cash else none %}
-<p class="small">{{ _("Free cash is listed by the fiscal year it can be spent in.") }} {% if fc %}{% trans year=fc, start=fc - 1 %}The fiscal year {{ year }} figure was certified as of July 1, {{ start }}.{% endtrans %}{% else %}{{ _("Each figure is certified as of July 1, the start of that year.") }}{% endif %} {{ _("– means not yet reported.") }} {% trans free_cash=budget.source_urls.free_cash, stabilization=budget.source_urls.stabilization %}Sources: <a href="{{ free_cash }}">DLS Certified Free Cash</a>, <a href="{{ stabilization }}">DLS Stabilization Fund</a>.{% endtrans %}</p>
+<p class="small">{{ _("Free cash is listed by the fiscal year it can be spent in.") }} {% if fc %}{% trans year=fc, start=fc - 1 %}The fiscal year {{ year }} figure was certified as of July 1, {{ start }}.{% endtrans %}{% else %}{{ _("Each figure is certified as of July 1, the start of that year.") }}{% endif %} <span class="dash-legend">{{ _("– means not yet reported.") }}</span> {% trans free_cash=budget.source_urls.free_cash, stabilization=budget.source_urls.stabilization %}Sources: <a href="{{ free_cash }}">DLS Certified Free Cash</a>, <a href="{{ stabilization }}">DLS Stabilization Fund</a>.{% endtrans %}</p>
 {{ chart_links("reserves", "/budget/data/reserves.csv") }}
 
 {% if budget.bond_ratings %}

@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="/static/css/site.css?v={{ css_version }}">
   {% if counter %}<script src="{{ "/static/js/count.js" | versioned }}" data-endpoint="{{ counter }}/count"{% if config.analytics.get("prefix") %} data-prefix="{{ config.analytics.prefix }}"{% endif %} data-title="{{ self.title() }}" defer></script>{% endif %}
   <script src="{{ "/static/js/tables.js" | versioned }}" defer></script>
+  {% block structured_data %}{% endblock %}
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -71,6 +72,22 @@
 
   <main id="main" tabindex="-1">
     <div class="wrap">
+      {% if behind %}
+      {# A source this section's pages show is behind (pipeline/absences.py), said before what it shows. #}
+      <div class="notice" id="data-behind">
+        <p>{{ _("Some data on this page may be out of date:") }}</p>
+        <ul>
+          {% for r in behind %}
+          {# Translators: %(source)s is a data source, such as "School figures (DESE)", and %(why)s why it's behind. #}
+          <li>{% if r.get("waiting") %}{% trans source=r.label, count=r.waiting | length, num=r.waiting | length | number %}{{ source }}: {{ num }} new document is waiting for its summary.{% pluralize %}{{ source }}: {{ num }} new documents are waiting for their summaries.{% endtrans %}
+          {%- elif r.get("behind") %}{% trans source=r.label, why=r.behind %}{{ source }}: {{ why }}.{% endtrans %}
+          {%- elif r.updated_at %}{% trans source=r.label, when=r.updated_at[:10] | date("plain") %}{{ source }}: last updated {{ when }}.{% endtrans %}
+          {%- else %}{% trans source=r.label %}{{ source }}: not collected yet.{% endtrans %}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        <p>{% trans url="/about/#data-status" %}See <a href="{{ url }}">Data status</a> for every source.{% endtrans %}</p>
+      </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </div>
   </main>
@@ -83,7 +100,8 @@
       <p>{% trans %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities.{% endtrans %} {% trans url="/about/#reuse" %}Its summaries and data are <a href="{{ url }}">free to reuse with credit</a>.{% endtrans %}</p>
       {% endif %}
       <p>{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %}</p>
-      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+      {# The page was built that day; a source it uses may be older (pipeline/freshness.py), and then it says so. #}
+      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% if data_status | selectattr("stale") | list %} {% trans url="/about/#data-status" %}Some of this site's data is behind: see <a href="{{ url }}">Data status</a>.{% endtrans %}{% endif %}</p>
       {% if lang != "en" and versions %}
       {# On a page in another language: no person checks its translation. #}
       <p>{% trans url=versions[0].path %}This page was translated from English automatically with AI and may have errors. <a href="{{ url }}" hreflang="en">Read it in English</a>.{% endtrans %}</p>
