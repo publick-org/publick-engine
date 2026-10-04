@@ -85,7 +85,7 @@ def per_resident(fiscal_year: int, name: str) -> dict | None:
     return {
         "fiscal_year": fiscal_year, "town": round(values[name]), "population": people[name],
         "state_median": round(statistics.median(values.values())), "communities": len(values),
-        "calculated": (f"Each city's and town's total property tax levy for fiscal year {fiscal_year}, from the "
+        "calculated": (f"Each municipality's total property tax levy for fiscal year {fiscal_year}, from the "
                        f"Division of Municipal Finance, divided by its Census population estimate for July 1, "
                        f"{fiscal_year - 1}, when the fiscal year began. The median is of {len(values)} Rhode Island "
                        "cities and towns."),

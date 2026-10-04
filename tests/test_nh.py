@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
-from conftest import BUILT_AT, FIXTURES
+from conftest import BUILT_AT, FIXTURES, calculated_notes
 from fakes import FakeJSONResponse, FakeResponse
 from test_site import parse
 from test_site import test_internal_links_resolve as check_links
@@ -231,8 +231,9 @@ def test_every_calculated_figure_says_so_on_its_page(nh_site):
     marked = [y["calculated"] for y in json.loads((data / "finance" / "tax_bill.json").read_text())["years"]]
     marked.append(json.loads((data / "finance" / "budget.json").read_text())["per_resident"]["calculated"])
     budget = (nh_site / "budget" / "index.html").read_text()
+    notes = calculated_notes(budget)
     for how in marked:
-        assert how.replace("'", "&#39;") in budget, how
+        assert any(how in note for note in notes), how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)
 
 

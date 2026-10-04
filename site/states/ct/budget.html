@@ -91,7 +91,7 @@
   </tbody>
 </table>
 </div>
-{{ calculated(budget.rates_median_calculated) }}
+{{ calculated(_("The middle of the mill rates of the Connecticut towns with a rate that fiscal year, as OPM publishes them.")) }}
 <p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">OPM, mill rates</a>.{% endtrans %}</p>
 {{ chart_links("mill-rate", "/budget/data/mill-rates.csv") }}
 
@@ -147,7 +147,8 @@
 </table>
 </div>
 {% endif %}
-{{ calculated(bill.calculated ~ " " ~ (_("Connecticut doesn't publish an average bill.") | forceescape)) }}
+{% set how %}{% trans parcels=bill.parcels | number, file=bill.fiscal_year - 1, year=bill.fiscal_year %}The average assessed value of {{ parcels }} single-family homes in the state's {{ file }} parcel file, times the fiscal year {{ year }} mill rate. Connecticut assesses homes at 70% of market value. It's the bill before exemptions and credits.{% endtrans %} {{ _("Connecticut doesn't publish an average bill.") }}{% endset %}
+{{ calculated(how) }}
 <p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">OPM, mill rates</a>; <a href="{{ parcels }}">OPM, Connecticut Parcel and CAMA Data</a>.{% endtrans %}</p>
 {% endif %}
 
@@ -155,7 +156,8 @@
 {% if pr %}
 <h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
 <p>{% trans year=pr.fiscal_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In fiscal year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Connecticut towns was {{ median }}.{% endtrans %}</p>
-{{ calculated(pr.calculated) }}
+{% set how %}{% trans year=pr.fiscal_year, communities=pr.communities %}Each town's adjusted tax levy for fiscal year {{ year }}, from its audit as reported to OPM, divided by its population, the Department of Public Health's estimate. The median is of {{ communities }} Connecticut towns.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {{ _("The figures are from each town's audit, so they are two to three years behind.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans url=budget.source_urls.per_resident %}Source: <a href="{{ url }}">OPM, Municipal Fiscal Indicators</a>.{% endtrans %}</p>
 {% endif %}
 
