@@ -1095,9 +1095,10 @@ school, and housing figures, fetched once for the state where it can be.
 | New Hampshire | done | done | done | | Yearly files saved by hand into the engine (`pipeline/states/nh/figures/`) |
 | Connecticut | done (calculated) | done | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns; the yearly parcel file found by name |
 | Vermont | done (calculated, homesteads) | done | done | | Yearly workbooks found and saved into the engine by `pipeline.states.vt.extract`; VCGI parcels and data.vermont.gov at each run |
+| Maine | done (calculated) | done | done | | MRS's yearly summary PDF and the ESSA Dashboard's Tableau export, saved into the engine by `pipeline.states.me.extract`; the Maine GeoLibrary's parcel table at each run |
 | Rhode Island | none possible | done | done (absenteeism without the state's) | | The Division of Municipal Finance's PDFs saved by hand into the engine (`pipeline.states.ri.extract`); RIDE's report card files and assessment portal at each run |
 
-Connecticut's tax bill and budget, and the Vermont and Rhode Island
+Connecticut's tax bill and budget, and the Maine, Vermont, and Rhode Island
 packages, were built on 2026-10-04, before each new state's first town, from
 each state's own statewide sources, tested from the network's container. Each package's docstring lists its config keys.
 
@@ -1118,6 +1119,14 @@ changed how it weights pupils. Vermont has no single-family category, so the
 average bill is for homesteads on less than six acres (category R1), condos
 and two- to four-family homes included, before the income-based property tax
 credit.
+
+**Maine, what's left.** The parcel table has values for only about 170 of
+Maine's municipalities, sent when each chooses to, so a town's average bill
+depends on its own submission being current; Lewiston's adds up to 1.10 times
+its 2024 taxable land and buildings. The ESSA Dashboard's export isn't a
+published API; the extract also reads the crosstabs downloaded by hand. Test
+results start in spring 2023. There's no statewide source for a town's
+adopted budget.
 
 **Rhode Island, what's left.** The state publishes no average bill and no
 statewide file of assessed values, so a Rhode Island town has no tax bill on

@@ -56,7 +56,7 @@ GRAND_LIST = {"residential": "residential", "apartment": "apartments", "commerci
 # Towns adopt their budgets in the spring and file them with OPM by summer; the
 # mill rates reach OPM's file by September. The audited indicators follow the
 # fiscal year by about two and a half years.
-RHYTHM = Rhythm(N_("Town budget"), "finance/budget.json", "Fetch budget figures", "yearly", (
+RHYTHM = Rhythm(N_("City budget"), "finance/budget.json", "Fetch budget figures", "yearly", (
     Part(latest_year("adopted", "fiscal_year"), on(10, years_after=-1),
          lambda y: _("Fiscal year {year} adopted budget").format(year=y)),
     Part(latest_year("rates", "fiscal_year"), on(10, years_after=-1),

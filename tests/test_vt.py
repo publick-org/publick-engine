@@ -230,6 +230,7 @@ def vt_site(vt_figures, tmp_path, data_dir, monkeypatch):
     for name in ("finance", "schools"):
         shutil.rmtree(data / name, ignore_errors=True)
     config = burlington()
+    config["site"]["languages"] = ["en", "es"]   # as every town is
     fetch_finance.run(config, FakeVermont(), data, now=NOW)
     fetch_budget.run(config, None, data, now=NOW)
     fetch_schools.run(config, FakeVermont(), data, now=NOW)
@@ -243,6 +244,7 @@ def test_vermont_pages(vt_site):
     budget = (vt_site / "budget" / "index.html").read_text()
     assert "Property Valuation and Review" in budget and "Division of Local Services" not in budget
     assert "$1.5264" in budget and "$10,043" in budget and "76.25%" in budget and "5,674 homesteads" in budget
+    assert "%%" not in budget, "a percent sign doubled in a {% trans %} block"
     for name in ("tax-rates", "taxes-raised", "grand-list"):
         assert (vt_site / "budget" / "data" / f"{name}.csv").read_text().startswith("tax_year,")
     schools = (vt_site / "schools" / "index.html").read_text()
@@ -274,3 +276,11 @@ def test_vermont_links_resolve(vt_site):
     check_links(vt_site, sorted(vt_site.rglob("*.html")))
     for path in (vt_site / "budget" / "index.html", vt_site / "schools" / "index.html"):
         assert parse(path).tags.count("h1") == 1, path
+
+
+def test_vermont_pages_in_spanish(vt_site):
+    for section in ("budget", "schools"):
+        page = (vt_site / "es" / section / "index.html").read_text()
+        assert '<html lang="es"' in page and "%%" not in page, section
+    budget = (vt_site / "es" / "budget" / "index.html").read_text()
+    assert "Impuesto promedio de una vivienda principal" in budget and "Calculado por Publick" in budget

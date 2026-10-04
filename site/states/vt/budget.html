@@ -98,7 +98,7 @@
 {% if budget.grand_list %}
 {% set gl = budget.grand_list[-1] %}
 <h2 id="grand-list">{{ _("The grand list") }}</h2>
-<p>{% trans year=gl.tax_year, listed=gl.listed_value | money("short"), cla=gl.cla, equalized=gl.equalized_value | money("short") %}The grand list is the listed value of everything the city taxes: {{ listed }} in tax year {{ year }}. Listed values were {{ cla }}%% of what properties sold for (the common level of appraisal), so the state puts the city's property at {{ equalized }} (its equalized value).{% endtrans %}</p>
+<p>{% trans year=gl.tax_year, listed=gl.listed_value | money("short"), cla=gl.cla, equalized=gl.equalized_value | money("short") %}The grand list is the listed value of everything the city taxes: {{ listed }} in tax year {{ year }}. Listed values were {{ cla }}% of what properties sold for (the common level of appraisal), so the state puts the city's property at {{ equalized }} (its equalized value).{% endtrans %}</p>
 <div class="table-wrap">
 <table class="data-table">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Listed value") }}</th><th scope="col" class="num">{{ _("Common level of appraisal") }}</th><th scope="col" class="num wide">{{ _("Equalized value") }}</th></tr></thead>
