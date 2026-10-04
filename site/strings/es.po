@@ -449,6 +449,20 @@ msgstr ""
 "Las tasas del impuesto a la propiedad de %(town)s, lo que recauda y el valor de las propiedades "
 "sobre las que se cobra."
 
+#. the home page's title in search results and browser tabs, for a site without meetings; %(town)s is
+#. the town and %(state)s its state's abbreviation.
+#: site/pages/index.html
+#, python-format
+msgid "%(town)s, %(state)s: city data"
+msgstr "%(town)s, %(state)s: datos municipales"
+
+#. the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its
+#. state's abbreviation, such as "MA".
+#: site/pages/index.html
+#, python-format
+msgid "%(town)s, %(state)s: city meetings, agendas, and data"
+msgstr "%(town)s, %(state)s: reuniones municipales, agendas y datos"
+
 #. %(what)s is a meeting, such as "City Council meeting".
 #: site/templates/meeting.html
 #, python-format
@@ -1181,6 +1195,16 @@ msgstr "Resúmenes hechos con IA"
 #: site/pages/index.html site/templates/macros.html
 msgid "AI summary"
 msgstr "Resumen hecho con IA"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "AI summary of the agenda: %(headline)s"
+msgstr "Resumen de la agenda hecho con IA: %(headline)s"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "AI summary of the minutes: %(headline)s"
+msgstr "Resumen de las actas hecho con IA: %(headline)s"
 
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
 #: site/templates/base.html

@@ -122,7 +122,9 @@ pipeline/                   Python package
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
-  build_site.py             Renders site/ + the town's data/ into the town's _site/
+  build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
+  structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
+                            breadcrumbs, and the downloads as datasets
   i18n.py                   The sites' wording in other languages: the language being built, and
                             `python -m pipeline.i18n update` to keep site/strings/ current
   common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
