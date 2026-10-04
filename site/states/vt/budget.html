@@ -66,6 +66,7 @@
 {% set m = rate.state_median %}
 {% if m.homestead_rate %}
 <p>{% trans year=rate.tax_year, homestead="%.4f" | format(m.homestead_rate), nonhomestead="%.4f" | format(m.nonhomestead_rate), municipal="%.4f" | format(m.municipal_rate) %}In tax year {{ year }}, the median Vermont town's homestead education rate was ${{ homestead }}, its nonhomestead rate ${{ nonhomestead }}, and its municipal rate ${{ municipal }}.{% endtrans %}</p>
+{{ calculated(budget.rates_median_calculated) }}
 {% endif %}
 <p class="small">{{ _("Each town's education rates depend on what its school district spends per pupil, adjusted for how its listed values compare with sale prices (its common level of appraisal). The local agreement rate pays the town's share of the state's tax stabilization agreements.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">Vermont Department of Taxes, Property Valuation and Review Annual Report</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}

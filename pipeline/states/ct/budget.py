@@ -7,7 +7,7 @@ where marked:
   Fiscal Health Monitoring System, where every town files its adopted budget;
 - the mill rate by fiscal year, with the median of Connecticut's 169 towns
   (from fiscal year 2021, when OPM's file began listing every town's rate in
-  one column);
+  one column; the median is calculated by Publick);
 - the tax levy (real estate, personal property, motor vehicles) and the net
   grand list (the taxable value of the town's property, by kind);
 - property tax per resident, with the median of the state's towns: each town's
@@ -150,6 +150,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
                         "per_resident": opendata.page(opendata.FISCAL_INDICATORS)},
         "adopted": adopted(client, town),
         "rates": rates(client, town, code),
+        "rates_median_calculated": ("The middle of the mill rates of the Connecticut towns with a rate that fiscal "
+                                    "year, as OPM publishes them."),
         "levy": levy(client, code),
         "grand_list": grand_list(client, code),
         "per_resident": per_resident(client, code),

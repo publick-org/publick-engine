@@ -27,7 +27,8 @@ from pathlib import Path
 from types import ModuleType
 
 # States with a package here, by their two-letter code.
-PACKAGES = {"CT": "pipeline.states.ct", "MA": "pipeline.states.ma", "NH": "pipeline.states.nh", "VT": "pipeline.states.vt"}
+PACKAGES = {"CT": "pipeline.states.ct", "MA": "pipeline.states.ma", "NH": "pipeline.states.nh", "RI": "pipeline.states.ri",
+            "VT": "pipeline.states.vt"}
 
 # The kinds of state source, with the plain name used in messages.
 KINDS = {"tax_bill": "Tax bill", "budget": "Budget figures", "schools": "School figures"}

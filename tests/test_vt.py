@@ -258,7 +258,8 @@ def test_every_calculated_figure_says_so_on_its_page(vt_site):
     data = vt_site.parent / "data"
     budget = (vt_site / "budget" / "index.html").read_text()
     marked = [json.loads((data / "finance" / "tax_bill.json").read_text())["years"][-1]["calculated"],
-              json.loads((data / "finance" / "budget.json").read_text())["per_resident"]["calculated"]]
+              json.loads((data / "finance" / "budget.json").read_text())["per_resident"]["calculated"],
+              json.loads((data / "finance" / "budget.json").read_text())["rates_median_calculated"]]
     for how in marked:
         assert how.replace("'", "&#39;") in budget, how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)

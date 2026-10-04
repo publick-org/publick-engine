@@ -214,8 +214,9 @@ Make what's shown checkable, and the process safe, before adding towns.
 ### Then: to about 20 towns
 
 17. **Lowell**: config only. ([Next towns](#next-towns))
-18. **Wallingford's figures**: the Connecticut package's tax bill and budget,
-    then the Affordable Housing Appeals List. ([State packages](#state-packages))
+18. **Wallingford's figures**: the Connecticut package's tax bill and budget
+    are built (2026-10-04); Wallingford's config takes them on the next
+    release, then the Affordable Housing Appeals List. ([State packages](#state-packages))
 19. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
     towns (Burlington, Lewiston, South Kingstown). ([Next towns](#next-towns))
 20. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
@@ -1053,9 +1054,9 @@ After those:
   (text PDFs in every sample): one reader of about two days for all 39
   municipalities. Providence is too big for now.
 
-A new state doesn't wait for its state package: a town in a state without
-one gets meetings, minutes, summaries, officials, unemployment, and housing
-estimates, and the state's tax bill, budget, and school figures follow.
+Every New England state now has a package (2026-10-04), so a town in Maine,
+Vermont, or Rhode Island gets its state's figures from its first day: its
+config needs only the package's keys.
 
 **Matters at:** now.
 
@@ -1092,16 +1093,39 @@ school, and housing figures, fetched once for the state where it can be.
 |---|---|---|---|---|---|
 | Massachusetts | done | done | done | Subsidized Housing Inventory, per town | DLS once for every town, into `states/ma/` |
 | New Hampshire | done | done | done | | Yearly files saved by hand into the engine (`pipeline/states/nh/figures/`) |
-| Connecticut | next | next | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns |
-| Maine, Vermont, Rhode Island | | | | | After each state's first town |
+| Connecticut | done (calculated) | done | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns; the yearly parcel file found by name |
+| Vermont | done (calculated, homesteads) | done | done | | Yearly workbooks found and saved into the engine by `pipeline.states.vt.extract`; VCGI parcels and data.vermont.gov at each run |
+| Rhode Island | none possible | done | done (absenteeism without the state's) | | The Division of Municipal Finance's PDFs saved by hand into the engine (`pipeline.states.ri.extract`); RIDE's report card files and assessment portal at each run |
 
-**Connecticut, what's left.** Mill rates (24.57 for FY2027 in Wallingford)
-and the statewide parcel file, for an average bill worked out as New
-Hampshire's is; adopted budgets and the audited Municipal Fiscal Indicators;
-the Affordable Housing Appeals List, a yearly PDF or .docx. Connecticut
+Connecticut's tax bill and budget, and the Vermont and Rhode Island
+packages, were built on 2026-10-04, before each new state's first town, from
+each state's own statewide sources, tested from the network's container. Each package's docstring lists its config keys.
+
+**Connecticut, what's left.** The Affordable Housing Appeals List: data.ct.gov
+has it through 2023 (`3udy-56vi`), and newer years only as a yearly PDF or
+.docx (Wallingford 5.15% in 2025). Wallingford's config needs its `[finance]`
+keys (`opm_town = "Wallingford"`, `opm_code = 148`, `single_family_use =
+["1010"]`) and a budget section, on the release with the package. Connecticut
 replaced its counties with planning regions in 2022, so county codes change
 midway through every history (Wallingford is `0917078740` in the Census now,
-`0900978740` before).
+`0900978740` before); OPM's datasets use town codes, so the package isn't
+affected.
+
+**Vermont, what's left.** Test results before spring 2025 are only in the
+Agency of Education's yearly zip files (about 20 MB each); the extract could
+read them once. Spending per pupil starts in fiscal year 2025, when Vermont
+changed how it weights pupils. Vermont has no single-family category, so the
+average bill is for homesteads on less than six acres (category R1), condos
+and two- to four-family homes included, before the income-based property tax
+credit.
+
+**Rhode Island, what's left.** The state publishes no average bill and no
+statewide file of assessed values, so a Rhode Island town has no tax bill on
+its home page. The Division of Municipal Finance's site is behind a
+JavaScript challenge, so its yearly rate, levy, and assessed value PDFs are
+downloaded by hand in a browser; fiscal year 2022's rates and 2022 to 2025's
+levies and values haven't been. RIDE publishes no statewide all-students
+chronic absenteeism rate in its data files.
 
 **Wallingford, what else is there.** The town owns its electric, water, and
 sewer utility, and its Public Utilities Commission meets twice a month: news
