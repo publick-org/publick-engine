@@ -5,7 +5,8 @@ evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
 publick.org #42), and that afternoon after every town moved to engine v1.33.0
 by hand (publick.org #43) and the scheduler took over the morning's release;
-on 2026-10-04, state legislators decided for later.
+on 2026-10-04, state legislators decided for later, and the audit of what
+pages leave unexplained.
 
 This file has four parts:
 
@@ -211,6 +212,14 @@ Make what's shown checkable, and the process safe, before adding towns.
 16. **A `RUNBOOK.md`** in the network repository, and **a second person with
     owner access** to GitHub, Cloudflare, and Anthropic.
     ([Security and privacy](#security-and-privacy))
+17. **Every page says why something is missing.** First, the wrong
+    statements: "Minutes not posted yet" on cancelled meetings and on boards
+    whose minutes Publick doesn't collect, "A summary will be added" for one
+    that never will be, "No agenda was posted" before Publick was collecting,
+    and a calendar that couldn't be read shown as an empty week. Then one
+    reason for every other gap, worked out from what the engine already
+    knows, and a site check that fails a gap shown without one.
+    ([Saying why something is missing](#saying-why-something-is-missing))
 
 ### Then: to about 20 towns
 
@@ -1183,6 +1192,51 @@ called a city.
   page grows in a heavy week, the six-meeting rule already holds it.
 
 **Matters at:** now.
+
+#### Saying why something is missing
+
+**Why.** A reader can't tell "the town hasn't posted it" from "Publick
+missed it", and a gap with no reason reads as a broken site, even when the
+data is right. Raised looking at Wallingford's site (2026-10-04): no
+ward map (the town has no wards) and meetings that looked incomplete (the
+records matched the town's own page).
+
+**Found** (2026-10-04, every template, and every town's data from the
+10-03 run, on engine v1.30.0 data):
+- *Wrong statements.* "Minutes not posted yet" on 53 cancelled meetings
+  and on 75 Manchester calendar-board meetings whose minutes are never
+  collected; "A summary will be added" for documents before `[summaries]
+  since`, or in a town without `[summaries]`; "No agenda was posted" for any
+  past meeting without one, including those before Publick collected
+  agendas; "No public meetings are listed" when the calendar couldn't be
+  read; a board's "Meetings recorded here start in" giving the site's first
+  month, not the board's.
+- *Gaps with no reason* (out of 1,125 held meetings): 644 without minutes,
+  453 of them over 60 days old; 928 without a time and 1,002 without a
+  place, most from sources that list neither; 698 with nothing summarized.
+  Sections, maps and figures that a town doesn't have are left out with
+  nothing said (no wards, no 311, no state budget figures), and freshness
+  is shown only on the About page.
+- Every gap has one of six reasons, and the engine knows which at build
+  time: not posted yet (and for how long), the source doesn't include it,
+  Publick doesn't collect it (a start date, a board, a size limit), held
+  back by a check, Publick's copy is behind, or it doesn't apply to the
+  town (no member has a ward, so every seat is at-large).
+- Also found: 408 of 481 summaries are shown in English on the Spanish
+  pages, and about 70% of translations fail their review (see
+  [Spanish quality](#spanish-quality)).
+
+**Next.**
+1. The wrong statements fixed, in one release.
+2. One function that gives the reason for any gap, with each reason's
+   sentence written and translated once, used by every page; a town's config
+   only overrides a sentence ("Beverly's 311 system has no public data").
+3. A site check that fails a page showing a gap without a reason: a dash
+   with no legend, "not posted yet" on a cancelled meeting.
+4. A section page says when its data is behind, from the freshness rows
+   the About page already shows.
+
+**Matters at:** now; every town added without it adds gaps nobody explains.
 
 #### Who represents you
 
