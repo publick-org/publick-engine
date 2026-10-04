@@ -3,13 +3,14 @@ they fill."""
 
 import copy
 import json
+import re
 import shutil
 import statistics
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
-from conftest import BUILT_AT, FIXTURES
+from conftest import BUILT_AT, FIXTURES, calculated_notes
 from fakes import FakeJSONResponse
 from test_site import parse
 from test_site import test_internal_links_resolve as check_links
@@ -263,13 +264,15 @@ def test_every_calculated_figure_says_so_on_its_page(vt_site):
     marked = [json.loads((data / "finance" / "tax_bill.json").read_text())["years"][-1]["calculated"],
               json.loads((data / "finance" / "budget.json").read_text())["per_resident"]["calculated"],
               json.loads((data / "finance" / "budget.json").read_text())["rates_median_calculated"]]
+    notes = calculated_notes(budget)
     for how in marked:
-        assert how.replace("'", "&#39;") in budget, how
+        assert any(how in note for note in notes), how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)
     schools = (vt_site / "schools" / "index.html").read_text()
     measures = json.loads((data / "schools" / "schools.json").read_text())["measures"]
+    notes = calculated_notes(schools)
     for name in ("absenteeism", "tests_ela"):
-        assert measures[name]["calculated"].replace("'", "&#39;") in schools, name
+        assert any(measures[name]["calculated"] in note for note in notes), name
     assert schools.count("Calculated by Publick.</strong>") == 2
 
 
@@ -285,6 +288,12 @@ def test_vermont_pages_in_spanish(vt_site):
         assert '<html lang="es"' in page and "%%" not in page, section
     budget = (vt_site / "es" / "budget" / "index.html").read_text()
     assert "Impuesto promedio de una vivienda principal" in budget and "Calculado por Publick" in budget
+    # The methods are worded in Spanish too, not the English saved with the data.
+    notes = calculated_notes(budget)
+    assert notes and not any(re.search(r"\b(The|Each|It's|times|divided)\b", note) for note in notes), notes
+    schools = (vt_site / "es" / "schools" / "index.html").read_text()
+    notes = calculated_notes(schools)
+    assert len(notes) == 2 and not any(re.search(r"\b(The|this is)\b", note) for note in notes), notes
 
 
 def test_vt_dashes_are_explained(vt_site):

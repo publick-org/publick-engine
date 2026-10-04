@@ -57,7 +57,7 @@
 </table>
 </div>
 <p class="small">{{ _("* The city revalued its property, or updated its values, as of the December before. Rhode Island cities and towns update their assessments every three years; assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }} {{ _("Rhode Island phased out its tax on cars from fiscal year 2018; it ended in fiscal year 2024.") }} {{ _("A year missing from the table is one whose file Publick doesn't have.") }}</p>
-{{ calculated(budget.rates_median_calculated) }}
+{{ calculated(_("The middle of the residential rates of the Rhode Island cities and towns in each year's table, as the Division of Municipal Finance publishes them.")) }}
 <p class="small">{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">Rhode Island Division of Municipal Finance</a>, Tax Rates by Class of Property.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
 
@@ -102,7 +102,8 @@
 {% if pr %}
 <h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
 <p>{% trans year=pr.fiscal_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In fiscal year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Rhode Island cities and towns was {{ median }}.{% endtrans %}</p>
-{{ calculated(pr.calculated) }}
+{% set how %}{% trans year=pr.fiscal_year, start=pr.fiscal_year - 1, communities=pr.communities %}Each municipality's total property tax levy for fiscal year {{ year }}, from the Division of Municipal Finance, divided by its Census population estimate for July 1, {{ start }}, when the fiscal year began. The median is of {{ communities }} Rhode Island cities and towns.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans levy=budget.source_urls.levy, population=budget.source_urls.population %}Sources: <a href="{{ levy }}">Rhode Island Division of Municipal Finance</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 

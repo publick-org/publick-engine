@@ -117,7 +117,8 @@
 </table>
 </div>
 {% endif %}
-{{ calculated(bill.calculated ~ " " ~ (_("New Hampshire doesn't publish an average bill.") | forceescape)) }}
+{% set how %}{% trans parcels=bill.parcels | number, year=bill.tax_year %}The average assessed value of {{ parcels }} single-family homes on NH GRANIT's parcel map, times the {{ year }} tax rate. It's the bill before exemptions and credits.{% endtrans %} {{ _("New Hampshire doesn't publish an average bill.") }}{% endset %}
+{{ calculated(how) }}
 <p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">DRA, municipal tax rates</a>; <a href="{{ parcels }}">NH GRANIT, statewide parcel map</a>.{% endtrans %}</p>
 {% endif %}
 
@@ -125,7 +126,8 @@
 {% if pr %}
 <h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
 <p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} New Hampshire towns and cities was {{ median }}.{% endtrans %}</p>
-{{ calculated(pr.calculated) }}
+{% set how %}{% trans year=pr.tax_year, communities=pr.communities %}Each town's total {{ year }} property tax commitment, from the DRA, divided by its Census population estimate for July 1, {{ year }}. The median is of {{ communities }} New Hampshire towns and cities.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">DRA</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 
