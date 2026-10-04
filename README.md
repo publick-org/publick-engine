@@ -89,8 +89,11 @@ pipeline/                   Python package
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
                             reviewed by a second model -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
-  factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts.
-                            Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+  factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts,
+                            and each decision's quote from the minutes and its outcome (approved, denied, ...), so a dropped "not"
+                            is caught. Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+  evaluate.py               The minutes prompt run against the real model on minutes checked by hand (evals/minutes.json), with the
+                            checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   votes.py                  Roll call votes from a supported style's minutes, checked against the body's [officials] members (no AI);
                             read with the minutes' text, kept in data/summaries/, not yet shown. `python -m pipeline.votes` lists them for review

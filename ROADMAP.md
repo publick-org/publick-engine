@@ -174,14 +174,16 @@ Make what's shown checkable, and the process safe, before adding towns.
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
    a dropped "not" is caught. What fails isn't shown. The first half (numbers,
-   amounts, dates, names) is done (#50); the quotes and `outcome` are left.
-   ([Summary checks](#summary-checks))
+   amounts, dates, names) is done (#50); the quotes and `outcome` are built
+   (2026-10-03, minutes prompt version 3) and passed item 8's run; they ship
+   with the engine pull request after v1.34.0. ([Summary checks](#summary-checks))
 7. **"AI summary" on every headline**: done 2026-10-03 (#54), in each list
     row's details line, on its own line in the public hearings box, and after
     the summary in the RSS feed. ([Summary checks](#summary-checks))
-8. **A test set run against the real model**: about 15 documents with known
-    decisions, checked by hand, run before any prompt change ships.
-    ([Summary checks](#summary-checks))
+8. **A test set run against the real model**: done 2026-10-03, 15 minutes
+    and 52 decisions checked by hand (`evals/minutes.json`,
+    `python -m pipeline.evaluate`), run by the network's Evaluate workflow
+    (publick.org #44). ([Summary checks](#summary-checks))
 9. **Failures that look like success, fixed.** Done 2026-10-03: three
     SeeClickFix 403s in a row stop the 311 step instead of marking records
     removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
@@ -449,10 +451,28 @@ the agenda. Check the original.)"). Never in front of the summary: a badge
 on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA".
 
 **Next.**
-- Each decision anchored to a quote from the minutes, checked without AI
-  (the quote is in the document; the decision's numbers and names are in the
-  quote), with an `outcome` field (approved, denied, tabled, referred), so a
-  dropped "not" is caught.
+- *Done 2026-10-03 (#66), after the test set's runs against the real model:*
+  each decision anchored to a quote from the minutes, checked without AI,
+  with an outcome, so a dropped "not" is caught. The minutes prompt
+  (version 3) asks for each decision's outcome (approved, denied, tabled,
+  continued, referred, recommended, withdrawn, or other) and the minutes'
+  own words for it; `decisions` stay sentences, and `decision_evidence`
+  beside them has each one's outcome and quote, so nothing that shows or
+  translates decisions changed. The check (fact check version 3): the quote
+  is in the document, with spacing, punctuation, page headers, and line
+  numbers ignored, and a quote cut with "..." found part by part; the
+  outcome agrees with the decision's words and the quote's (a failed motion
+  can't be approved, a count with fewer for than against can't be approved,
+  a two-thirds vote that failed 9-5 is a denial); what fails isn't shown.
+  The decision's numbers and names are also looked for near the quote
+  (decided while building: listed, not held, since an item's heading can be
+  pages before its vote; the run says how often a right decision is
+  listed). Written-out counts ("In Favor: 2 In Opposition: 3") now confirm a
+  vote count too. Checked offline on the 15 documents' real text with the
+  quotes written down by hand: all 50 found, and every approved or denied
+  decision turned round caught. Minutes of meetings since 2026-08-04 are
+  made again (about 91 documents, about $2); older ones keep version 2's
+  summary (`remake_since`; decided 2026-10-03).
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
 - *Done 2026-10-03:* each fetching run's record (`data/run.json`) counts
@@ -470,9 +490,28 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   gained a start time without a bump), once the new hash is pinned with a
   note saying why. The translation review's prompt has no version: a change
   there doesn't call for translating again.
-- Every test, the translation tests too, uses the fake model client. Add a
-  set of about 15 documents with known decisions, checked by hand, run
-  against the real model before a prompt change ships.
+- Every test, the translation tests too, uses the fake model client. *Built
+  2026-10-03:* `evals/minutes.json`, 15 minutes from all six towns and 52
+  decisions checked by hand against each document's own text (failed
+  motions, two-thirds votes, a "not" that's part of what was decided,
+  tabling, referral, withdrawal, numbered lines, a scan), and
+  `python -m pipeline.evaluate`, which runs them through the real model and
+  the checks, plants errors in what passes, and fails on a wrong outcome the
+  site would show (about $1 to $2 a run). Run by hand from the network's
+  Actions -> Evaluate (publick.org #44), on the network's key; first runs
+  2026-10-03. The model gave all 52 decisions written down by hand the right
+  outcome and wrote 199 decisions in all; every one of the 119 errors
+  planted in what passed was caught. The runs found the check's own
+  mistakes, all fixed before it shipped: a roll call quoted as the page
+  shows it ("Yea: 3 - ...") where the PDF's text orders it otherwise; "if
+  they fail" read as a failed motion; "deferred", "re-committed", and "held"
+  in committee not known; "Withdrew" read as a name (the check on main too:
+  ten verb forms the dictionary lacks); and Beverly's long scanned minutes
+  cut off at 16,000 tokens (now 32,000). Checked again on the model's saved
+  answers: none of the 199 held back. The five numbers listed as far from
+  their quote were all on right decisions, so that check stays a note.
+  Tuned on this set, so the run records' counts of what's held back are
+  the measure on new minutes.
 
 **Matters at:** now, before more towns and before open data.
 
