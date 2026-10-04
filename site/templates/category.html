@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "charts.html" import month_columns, bars, chart_links %}
 {% from "macros.html" import city_report_button %}
+{% from "macros.html" import area with context %}
 {% set c = category %}
 {% block title %}{% trans category=c.category %}{{ category }}: 311 requests{% endtrans %}{% endblock %}
 {% block description %}{% trans category=c.category, town=town.name %}{{ category }} requests in {{ town }}: how many, how quickly the city responds, and where.{% endtrans %}{% endblock %}
@@ -23,16 +24,16 @@
 {{ month_columns(c.monthly, _("%(category)s requests by month", category=c.category)) }}
 {{ chart_links("monthly") }}
 
-<h2 id="wards">{{ _("By ward") }}</h2>
+<h2 id="wards">{% if precincts %}{{ _("By precinct") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
 {% set rows = [] %}
-{% for w in c.by_ward %}{% set ignored = rows.append({"label": _("Ward %(ward)s", ward=w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
-{{ bars(rows, _("%(category)s requests by ward", category=c.category)) }}
+{% for w in c.by_ward %}{% set ignored = rows.append({"label": area(w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
+{{ bars(rows, _("%(category)s requests by precinct", category=c.category) if precincts else _("%(category)s requests by ward", category=c.category)) }}
 {{ chart_links("wards", "/311/data/category-" ~ c.slug ~ ".csv") }}
 
 {% if c.oldest %}
 <h2 id="longest-open">{% trans category=c.category %}Longest-open {{ category }} requests{% endtrans %}</h2>
 <ol class="plain-list">
-  {% for r in c.oldest %}<li><a href="{{ r.url }}">{{ r.address or _("No street address") }}</a><span class="item-detail">{% if r.ward %}{{ _("Ward %(ward)s", ward=r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
+  {% for r in c.oldest %}<li><a href="{{ r.url }}">{{ r.address or _("No street address") }}</a><span class="item-detail">{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
 <p class="source-note"><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a>.</p>

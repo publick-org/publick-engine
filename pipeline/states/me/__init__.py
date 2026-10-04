@@ -14,7 +14,9 @@ Names are the state's own, as in its files.
                default); optional budget_documents_url
     [schools]  doe_district (the district's name in the ESSA Dashboard, "Lewiston Public Schools"), district_name
 
-The tax bill needs all three [finance] keys; the budget figures need only mrs_municipality.
+The tax bill needs all three [finance] keys; the budget figures need only mrs_municipality. A town
+whose parcel table gives single-family homes no land use code leaves out megis_geocode and
+single_family_use, and has no tax bill.
 """
 
 from pipeline.i18n import N_
@@ -25,7 +27,7 @@ STATE = State(
     name="Maine",
     sources={
         "tax_bill": Source("finance", ("mrs_municipality", "megis_geocode", "single_family_use"),
-                           "pipeline.states.me.tax_bill"),
+                           "pipeline.states.me.tax_bill", optional=True),
         "budget": Source("finance", ("mrs_municipality",), "pipeline.states.me.budget"),
         "schools": Source("schools", ("doe_district", "district_name"), "pipeline.states.me.schools"),
     },

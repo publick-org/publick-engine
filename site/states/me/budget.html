@@ -2,7 +2,7 @@
 {% from "macros.html" import figures_dash, on_this_page, calculated %}
 {% from "charts.html" import chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
-{% block description %}{% trans town=town.name %}{{ town }}'s property tax rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% endblock %}
+{% block description %}{% if state.source("tax_bill", config) %}{% trans town=town.name %}{{ town }}'s property tax rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% else %}{% trans town=town.name %}{{ town }}'s property tax rate and what the property tax raises.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("City budget") }}</h1>

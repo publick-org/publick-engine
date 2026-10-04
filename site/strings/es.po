@@ -64,6 +64,11 @@ msgstr "%(category)s: solicitudes por mes"
 
 #: site/templates/category.html
 #, python-format
+msgid "%(category)s requests by precinct"
+msgstr "%(category)s: solicitudes por precinto"
+
+#: site/templates/category.html
+#, python-format
 msgid "%(category)s requests by ward"
 msgstr "%(category)s: solicitudes por distrito"
 
@@ -424,6 +429,11 @@ msgstr ""
 
 #: site/states/me/budget.html
 #, python-format
+msgid "%(town)s's property tax rate and what the property tax raises."
+msgstr "La tasa del impuesto a la propiedad de %(town)s y lo que recauda ese impuesto."
+
+#: site/states/me/budget.html
+#, python-format
 msgid ""
 "%(town)s's property tax rate, what the property tax raises, and the average single-family tax "
 "bill."
@@ -601,6 +611,15 @@ msgstr "solicitudes al 311"
 
 #: site/templates/ward.html
 #, python-format
+msgid ""
+"311 requests in Precinct %(ward)s, %(town)s: how many, how quickly the city responds, and what "
+"kinds."
+msgstr ""
+"Solicitudes al 311 en el Precinto %(ward)s de %(town)s: cuántas hay, qué tan rápido responde la "
+"ciudad y de qué tipo son."
+
+#: site/templates/ward.html
+#, python-format
 msgid "311 requests in Ward %(ward)s, %(town)s: how many, how quickly the city responds, and what kinds."
 msgstr ""
 "Solicitudes al 311 en el Distrito %(ward)s de %(town)s: cuántas hay, qué tan rápido responde la "
@@ -614,6 +633,11 @@ msgid ""
 msgstr ""
 "Las solicitudes al 311 mantienen la licencia <a href=\"%(license)s\">CC BY-NC-SA 3.0</a> de "
 "SeeClickFix, que no permite el uso comercial."
+
+#: site/templates/ward.html
+#, python-format
+msgid "311 requests placed in Precinct %(ward)s over the past 12 months."
+msgstr "Solicitudes al 311 ubicadas en el Precinto %(ward)s en los últimos 12 meses."
 
 #: site/templates/ward.html
 #, python-format
@@ -1100,6 +1124,13 @@ msgstr ""
 #. %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year.
 #: site/pages/about/index.html
 #, python-format
+msgid "<strong>Voting precinct maps:</strong> <a href=\"%(url)s\">%(publisher)s</a>, %(year)s boundaries."
+msgstr ""
+"<strong>Mapas de precintos electorales:</strong> <a href=\"%(url)s\">%(publisher)s</a>, límites "
+"de %(year)s."
+
+#: site/pages/about/index.html
+#, python-format
 msgid "<strong>Ward maps:</strong> <a href=\"%(url)s\">%(publisher)s</a>, %(year)s boundaries."
 msgstr "<strong>Mapas de distritos:</strong> <a href=\"%(url)s\">%(publisher)s</a>, límites de %(year)s."
 
@@ -1565,6 +1596,15 @@ msgstr "Valor promedio"
 #: site/pages/311/methodology/index.html
 #, python-format
 msgid ""
+"Based on the request's map location and the <a href=\"%(url)s\">%(year)s %(publisher)s voting "
+"precinct boundaries</a>."
+msgstr ""
+"Según la ubicación de la solicitud en el mapa y los <a href=\"%(url)s\">límites de los precintos "
+"electorales de %(year)s de %(publisher)s</a>."
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
 "Based on the request's map location and the <a href=\"%(url)s\">%(year)s %(publisher)s ward "
 "boundaries</a>."
 msgstr ""
@@ -1686,12 +1726,20 @@ msgid "By category"
 msgstr "Por categoría"
 
 #: site/pages/311/index.html
+msgid "By category and precinct"
+msgstr "Por categoría y precinto"
+
+#: site/pages/311/index.html
 msgid "By category and ward"
 msgstr "Por categoría y distrito"
 
 #: site/pages/311/index.html
 msgid "By month"
 msgstr "Por mes"
+
+#: site/pages/311/index.html site/templates/category.html
+msgid "By precinct"
+msgstr "Por precinto"
 
 #: site/pages/311/index.html site/templates/category.html
 msgid "By ward"
@@ -2878,6 +2926,15 @@ msgstr "Cómo funciona"
 #, python-format
 msgid ""
 "How quickly the City of %(town)s acknowledges and closes public service requests, how many are "
+"still open, by category and voting precinct."
+msgstr ""
+"Qué tan rápido la Ciudad de %(town)s confirma y cierra las solicitudes de servicios públicos, y "
+"cuántas siguen abiertas, por categoría y precinto electoral."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How quickly the City of %(town)s acknowledges and closes public service requests, how many are "
 "still open, by category and ward."
 msgstr ""
 "Qué tan rápido la Ciudad de %(town)s confirma y cierra las solicitudes de servicios públicos, y "
@@ -3083,6 +3140,16 @@ msgstr ""
 #, python-format
 msgid ""
 "In the tables, – means fewer than %(min)s requests, too few for a typical time, or, for requests "
+"outside the precincts, no population to count per 1,000 residents."
+msgstr ""
+"En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
+"típico, o, para las solicitudes fuera de los precintos, que no hay población con la que contar "
+"por cada 1,000 residentes."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"In the tables, – means fewer than %(min)s requests, too few for a typical time, or, for requests "
 "outside the wards, no population to count per 1,000 residents."
 msgstr ""
 "En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
@@ -3264,6 +3331,11 @@ msgstr "Solicitudes abiertas desde hace más tiempo: %(category)s"
 #: site/pages/311/index.html
 msgid "Longest-open requests"
 msgstr "Solicitudes abiertas desde hace más tiempo"
+
+#: site/templates/ward.html
+#, python-format
+msgid "Longest-open requests in Precinct %(ward)s"
+msgstr "Solicitudes abiertas desde hace más tiempo en el Precinto %(ward)s"
 
 #: site/templates/ward.html
 #, python-format
@@ -4100,6 +4172,10 @@ msgid "Open requests with no update in over a year, by category"
 msgstr "Solicitudes abiertas sin actualizar en más de un año, por categoría"
 
 #: site/pages/311/index.html
+msgid "Open requests with no update in over a year, by precinct"
+msgstr "Solicitudes abiertas sin actualizar en más de un año, por precinto"
+
+#: site/pages/311/index.html
 msgid "Open requests with no update in over a year, by ward"
 msgstr "Solicitudes abiertas sin actualizar en más de un año, por distrito"
 
@@ -4128,6 +4204,10 @@ msgstr "Otras residenciales"
 #: site/templates/category.html
 msgid "Outside"
 msgstr "Fuera de los distritos"
+
+#: site/pages/311/index.html
+msgid "Outside precincts"
+msgstr "Fuera de los precintos"
 
 #: site/pages/311/index.html
 msgid "Outside wards"
@@ -4186,6 +4266,12 @@ msgid "Past 12 months. \"Typical\" means the median: half took less time, half t
 msgstr ""
 "Últimos 12 meses. “Típico” quiere decir la mediana: la mitad tardó menos y la otra mitad tardó "
 "más."
+
+#: site/pages/311/index.html
+msgid "Past 12 months. Differences partly reflect how often people in each precinct report problems."
+msgstr ""
+"Últimos 12 meses. Las diferencias reflejan en parte con qué frecuencia la gente de cada precinto "
+"informa problemas."
 
 #: site/pages/311/index.html
 msgid "Past 12 months. Differences partly reflect how often people in each ward report problems."
@@ -4301,10 +4387,39 @@ msgstr "Aplazada"
 msgid "Pothole"
 msgstr "Bache"
 
+#: site/pages/311/index.html site/pages/311/methodology/index.html
+msgid "Precinct"
+msgstr "Precinto"
+
+#: site/templates/macros.html
+#, python-format
+msgid "Precinct %(ward)s"
+msgstr "Precinto %(ward)s"
+
+#: site/templates/ward.html
+#, python-format
+msgid "Precinct %(ward)s requests by month"
+msgstr "Solicitudes del Precinto %(ward)s por mes"
+
+#: site/templates/ward.html
+#, python-format
+msgid "Precinct %(ward)s: 311 requests"
+msgstr "Precinto %(ward)s: solicitudes al 311"
+
+#: site/pages/311/methodology/index.html
+msgid "Precinct differences reflect how often people report problems, not only how the city responds."
+msgstr ""
+"Las diferencias entre precintos reflejan con qué frecuencia la gente informa problemas, no solo "
+"cómo responde la ciudad."
+
 #: pipeline/common_strings.py
 #, python-brace-format
 msgid "Precinct {n}"
 msgstr "Precinto {n}"
+
+#: site/templates/ward.html
+msgid "Precincts"
+msgstr "Precintos"
 
 #: pipeline/common_strings.py
 msgid "President"
@@ -4359,7 +4474,7 @@ msgstr ""
 "son negocios y no viviendas, y de las casas de temporada, cuyos dueños pagan impuesto pero no se "
 "cuentan como residentes."
 
-#: site/states/ri/about_finance.html
+#: site/states/me/about_finance.html site/states/ri/about_finance.html
 #, python-format
 msgid ""
 "Property tax per resident, and the state's median rate, are calculated by Publick, with the U.S. "
@@ -4368,7 +4483,7 @@ msgstr ""
 "Publick calcula el impuesto a la propiedad por residente y la tasa mediana del estado, con las <a"
 " href=\"%(population)s\">estimaciones de población</a> de la Oficina del Censo de EE. UU."
 
-#: site/states/ri/about_finance.html
+#: site/states/me/about_finance.html site/states/ri/about_finance.html
 #, python-format
 msgid ""
 "Property tax per resident, and the state's median rate, are calculated by Publick, with the U.S. "
@@ -4530,6 +4645,17 @@ msgstr "Solicitudes por mes"
 
 #: site/pages/311/methodology/index.html
 msgid ""
+"Requests divided by the precinct's 2020 census population, times 1,000. Precinct populations come"
+" from the census, so they differ slightly from the state's newer citywide estimate used on the "
+"budget page."
+msgstr ""
+"El número de solicitudes dividido entre la población del precinto según el censo de 2020, "
+"multiplicado por 1,000. La población de cada precinto viene del censo, así que es un poco "
+"distinta de la estimación más reciente del estado para toda la ciudad, que se usa en la página "
+"del presupuesto."
+
+#: site/pages/311/methodology/index.html
+msgid ""
 "Requests divided by the ward's 2020 census population, times 1,000. Ward populations come from "
 "the census, so they differ slightly from the state's newer citywide estimate used on the budget "
 "page."
@@ -4566,8 +4692,16 @@ msgid "Requests on your street"
 msgstr "Solicitudes en su calle"
 
 #: site/pages/311/index.html
+msgid "Requests per 1,000 residents by voting precinct"
+msgstr "Solicitudes por cada 1,000 residentes, por precinto electoral"
+
+#: site/pages/311/index.html
 msgid "Requests per 1,000 residents by ward"
 msgstr "Solicitudes por cada 1,000 residentes, por distrito"
+
+#: site/pages/311/index.html
+msgid "Requests per 1,000 residents, by voting precinct"
+msgstr "Solicitudes por cada 1,000 residentes, por precinto electoral"
 
 #: site/pages/311/index.html
 msgid "Requests per 1,000 residents, by ward"
@@ -6842,12 +6976,21 @@ msgstr ""
 "Votaciones y otras decisiones registradas en las actas del Concejo Municipal, las juntas y los "
 "comités de %(town)s, empezando por la reunión más reciente."
 
+#: site/templates/ward.html
+#, python-format
+msgid ""
+"Voting precincts use the %(year)s boundaries from %(publisher)s. Differences between precincts "
+"reflect how often residents report problems as well as how the city responds."
+msgstr ""
+"Los precintos electorales usan los límites de %(year)s de %(publisher)s. Las diferencias entre "
+"precintos reflejan con qué frecuencia los residentes informan problemas y también cómo responde "
+"la ciudad."
+
 #: site/pages/311/index.html site/pages/311/methodology/index.html
 msgid "Ward"
 msgstr "Distrito"
 
-#: site/pages/311/index.html site/pages/311/repeat-locations/index.html site/pages/officials/index.html
-#: site/templates/category.html site/templates/ward.html
+#: site/pages/officials/index.html site/templates/macros.html
 #, python-format
 msgid "Ward %(ward)s"
 msgstr "Distrito %(ward)s"
