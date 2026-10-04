@@ -356,6 +356,48 @@ would take.
 - **Compare with the neighbors.** Tax bill, budget per resident, school
   spending per pupil, and permits beside nearby towns, on each state's page.
   The figures are already fetched once per state.
+- **How fast the town posts its records.** Per board: how far ahead each
+  agenda goes up, how long minutes take, and which meetings still have
+  none, beside the state's own deadlines (Massachusetts: notice 48 hours
+  ahead not counting weekends and holidays, minutes approved by the later
+  of 30 days or the third meeting after; New Hampshire: 24 hours, minutes
+  in 5 business days; Connecticut: 24 hours, minutes in 7 days), never
+  ranked against other towns (see [Not planned](#not-planned)). It
+  measures *posted online*, which isn't compliance: a notice on the
+  clerk's board or minutes kept at the clerk's office meet the law, so a
+  page says "posted online", never "late" or "broke the law". When each
+  document went up comes from the platform where it says so (CivicClerk's
+  `publishOn` for agendas and minutes; Agenda Center's "Posted" time, kept
+  today only inside `agenda_id`), and elsewhere from the order of upload:
+  CivicPlus Archive Center's `ADID` and Wallingford's `FileID` rise as
+  files are uploaded, and a revised agenda keeps its item, so the item's
+  place in that order dates the first posting even after a file is
+  replaced. PDF timestamps help but aren't evidence alone: Gloucester's
+  main copier runs 11 hours slow, and Word dates a PDF from when the
+  document was started. Where the date is a bound, a page says "at
+  least"; from here on, the daily runs' `first_seen` gives each new
+  document a window of a day. Measured by hand on 2026-10-04 (2026 to
+  date):
+  - *Manchester* (exact): agendas a median 5.1 days ahead, none under 24
+    hours (the shortest 33); minutes a median 7.7 days after, the Board of
+    Mayor and Aldermen's 15; Board of Registrars minutes for January 22
+    still not posted.
+  - *Gloucester* (upload order, checked against the daily runs): agendas a
+    median 6 days ahead, one in 283 likely under 48 hours (Clean Energy
+    Commission, February 26); 58 meetings' agendas revised, 10 of the
+    Conservation Commission's 14. Minutes at least a median 34 days after
+    the meeting, 29 of 206 at least 90; the Board of Assessors posted 13
+    sets at once on July 24, back to February; Planning Board minutes
+    stop at April 16; 47 of 168 checkable sets went up after the date
+    they had to be approved by. The City Council's standing committees
+    post in about a week.
+
+  What it would take: keep each document's posted time as its own field
+  in `meetings.json` (CivicClerk `publishOn`, Agenda Center's posted time,
+  and the archive's item number beside `first_seen`); a computation like
+  `compute_311.py` per board, counting only meetings after a board's
+  first run (a backfilled town would otherwise show months of false
+  delay); and a "Record keeping" block on each board's page. No AI calls.
 - **Running costs, published.** What a town costs per month (summaries,
   storage, serving) on the status page, once costs are steady; useful for
   grants and for any sponsor.
