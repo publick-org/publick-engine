@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
+from pipeline import absences
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import dnn
@@ -477,6 +478,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             if m["minutes_doc"] and summary_model else None
         )
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
+        m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
@@ -727,8 +729,9 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
     state = states.for_town(config)
-    if state.source("tax_bill", config) and tax_path.exists():
-        tax = json.loads(tax_path.read_text(encoding="utf-8"))
+    tax = json.loads(tax_path.read_text(encoding="utf-8")) if tax_path.exists() else {}
+    # A calculated bill's file can have no years yet, when its first check of the parcel values failed.
+    if state.source("tax_bill", config) and tax.get("years"):
         latest, prior = tax["years"][-1], (tax["years"][-2] if len(tax["years"]) > 1 else None)
         change = ""
         if prior:
@@ -740,7 +743,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         # A calculated figure links to the page that says how, where the town has it.
         explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
-            "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
+            "label": _(state.tax_label) if state.tax_label else _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
             "source": period + " · " + _(state.tax_source),
         })
@@ -897,6 +900,7 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         entry["definition"] = tr(entry["definition"])
     for source in config.get("freshness", {}).get("sources", []):
         source["label"] = tr(source["label"])
+    config["absences"] = {slug: tr(note) for slug, note in config.get("absences", {}).items()}
     meetings = config.get("meetings", {})
     if "archive_name" in meetings:
         meetings["archive_name"] = tr(meetings["archive_name"])
@@ -1001,6 +1005,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
+    # Why a meeting's minutes, agenda or summary isn't here, and whether the calendar is behind.
+    absences.annotate(meetings, config, built_at.date())
+    meetings["calendar_behind"] = absences.calendar_behind(config, meetings["status"], built_at)
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
@@ -1124,6 +1131,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  not_covered=absences.not_covered(config, state),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
@@ -1140,6 +1148,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            behind=absences.section_behind(common["data_status"], section_slug),
             moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )

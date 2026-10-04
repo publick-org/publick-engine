@@ -5,6 +5,7 @@ page says so (color-scheme: light), so a reader in dark mode sees the same page;
 the checks hold every page to that rather than running the browser checks twice. The engine's own tests (tests/) cover the same ground in more depth
 against saved Gloucester data."""
 
+import re
 import time
 from html.parser import HTMLParser
 from urllib.parse import urlparse
@@ -169,3 +170,46 @@ def test_skip_link_and_404(browser, server_url):
     for prefix in PREFIXES.values():
         assert page.goto(server_url + prefix + "/no-such-page/").status == 404
     context.close()
+
+
+# ---- Every gap says why (pipeline/absences.py) ---------------------------------------
+
+DASH_CELL = re.compile(r"<td[^>]*>\s*–\s*</td>")
+# A section heading of a meeting page, and what follows it up to the next heading.
+SECTION = re.compile(r'<h2 id="(minutes|agenda)">.*?</h2>(.*?)(?=<h2|</main>)', re.S)
+
+
+def test_every_dash_is_explained(site_dir, page_files):
+    """A table that shows – in place of a figure says what it means on the same page."""
+    for path in page_files:
+        html = path.read_text(encoding="utf-8")
+        if DASH_CELL.search(html):
+            assert "dash-legend" in html, f"{path.relative_to(site_dir)}: a – in a table with nothing saying what it means"
+
+
+def test_meeting_pages_say_why_something_is_missing(site_dir):
+    """No meeting page has an empty Agenda or minutes section, and a meeting that wasn't held
+    never says its minutes are still to come."""
+    for path in site_dir.glob("**/meetings/*/index.html"):
+        html = path.read_text(encoding="utf-8")
+        for name, body in SECTION.findall(html):
+            assert re.sub(r"<[^>]+>|\s", "", body), f"{path.relative_to(site_dir)}: empty {name} section"
+        status = re.search(r'class="page-head" data-status="([a-z]+)"', html)
+        if status and status.group(1) != "scheduled":
+            assert 'data-gap="not_posted"' not in html, f"{path.relative_to(site_dir)}: says minutes are coming for a meeting not held"
+
+
+def test_officials_page_says_why_there_is_no_ward_map(site_dir, config):
+    if not any(s["slug"] == "officials" for s in config["sections"]):
+        pytest.skip("No Officials page.")
+    for prefix in PREFIXES.values():
+        html = (site_dir / prefix.lstrip("/") / "officials" / "index.html").read_text(encoding="utf-8")
+        assert 'id="wards"' in html or "data-gap=" in html, f"{prefix}/officials/: no ward map, and nothing says why"
+
+
+def test_about_page_names_the_sections_a_town_lacks(site_dir, config):
+    from pipeline import absences, states
+    gaps = absences.not_covered(config, states.for_town(config))
+    for prefix in PREFIXES.values():
+        html = (site_dir / prefix.lstrip("/") / "about" / "index.html").read_text(encoding="utf-8")
+        assert ('id="not-covered"' in html) == bool(gaps), f"{prefix}/about/"

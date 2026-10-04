@@ -220,6 +220,6 @@
 </ul>
 
 <p class="source-note">{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
-recorded back to {{ since }}.{% endtrans %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}Figures from fewer than {{ min }} requests show "Not enough data".{% endtrans %} <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
+recorded back to {{ since }}.{% endtrans %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endif %}
 {% endblock %}

@@ -66,7 +66,7 @@ def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: f
 
 
 def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dict]:
-    """One row per source: its label, last update, and whether it is stale. A daily source's row has
+    """One row per source: its label, its data file, last update, and whether it is stale. A daily source's row has
     its allowed age (max_days); a figure source's has its latest period, the next and when it usually
     appears, why it's behind if it is, and failing (its run of failed checks, from three)."""
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
@@ -80,12 +80,12 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
     for source in (s for s in fresh["sources"] if s["file"] not in covered):
         updated = last_update(data_dir, source)
         age = (now - updated).total_seconds() / 86400 if updated else None
-        rows.append({"label": source["label"], "updated_at": updated.isoformat() if updated else None,
+        rows.append({"label": source["label"], "file": source["file"], "updated_at": updated.isoformat() if updated else None,
                      "max_days": source["max_days"], "stale": age is None or age > source["max_days"]})
     rows += [rhythms.row(r, data_dir, now, fresh["grace_months"], checks) for r in figures]
     if "summaries" in config:
         waiting = waiting_summaries(config, data_dir, now, fresh["summary_grace_days"])
-        rows.append({"label": _("Meeting summaries"), "updated_at": None, "max_days": fresh["summary_grace_days"],
+        rows.append({"label": _("Meeting summaries"), "file": "summaries", "updated_at": None, "max_days": fresh["summary_grace_days"],
                      "stale": bool(waiting), "waiting": waiting})
     return rows
 

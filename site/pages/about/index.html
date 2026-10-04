@@ -97,6 +97,22 @@
   {% endif %}
 </ul>
 
+{% if not_covered %}
+{# The sections this town's site doesn't have, and why (pipeline/absences.py not_covered). #}
+<h2 id="not-covered">{{ _("What this site doesn't cover") }}</h2>
+{% set names = {"meetings": _("Meetings"), "311": _("311 service requests"), "budget": _("Budget and tax figures"),
+                "schools": _("School figures"), "housing": _("Housing"), "officials": _("Elected officials")} %}
+<ul>
+  {% for g in not_covered %}
+  <li><strong>{{ names[g.section] }}:</strong> {% if g.note %}{{ g.note }}
+  {%- elif g.reason == "no_311" %}{{ _("not on this site. The city's service requests aren't in a public system this site reads.") }}
+  {#- Translators: %(state)s is a state, such as "Connecticut". #}
+  {%- elif g.reason == "state" %}{% trans state=state.name %}not on this site yet. It doesn't collect {{ state }}'s figures of this kind yet.{% endtrans %}
+  {%- else %}{{ _("not on this site yet.") }}{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
 <h2 id="data-status">{{ _("Data status") }}</h2>
 {# Translators: "Behind" is the status the table below shows for such a source. #}
 <p>{% trans %}Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; the maintainer is alerted automatically.{% endtrans %}</p>
@@ -112,6 +128,7 @@
   </tbody>
 </table>
 </div>
+<p class="small dash-legend">{{ _("– means none yet: no figures collected, or not checked yet.") }}</p>
 
 {% if config.summaries is defined %}
 <h2 id="ai">{{ _("AI summaries") }}</h2>
