@@ -8,6 +8,21 @@
 {%- else %}{% trans issues=site.repo_url ~ "/issues" %}open an issue on the <a href="{{ issues }}">project's public issue tracker</a>{% endtrans %}{% endif %}
 {%- endmacro %}
 
+{# When the meetings calendar hasn't been read lately (pipeline/absences.py), said where meetings are listed: a short list may be missing some. #}
+{% macro calendar_behind_note(behind, links) -%}
+<p class="notice">{% if behind.since %}{% trans when=behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}{% if links.calendar %} {% trans url=links.calendar %}The <a href="{{ url }}">city calendar</a> has the full list.{% endtrans %}{% endif %}</p>
+{%- endmacro %}
+
+{# What a dash in a table means, said once under it; the site checks fail a dash without one. #}
+{% macro state_dash(years) -%}
+{%- if years | selectattr("state", "none") | list %} <span class="dash-legend">{{ _("– means the state hasn't published a statewide figure for that year.") }}</span>{% endif -%}
+{%- endmacro %}
+
+{# The legend for a state's figures page, whose tables show – for a figure a year doesn't have. #}
+{% macro figures_dash() -%}
+<p class="small dash-legend">{{ _("– means no figure for that year: the state hasn't published it, or, for a change, there's no earlier year to compare with.") }}</p>
+{%- endmacro %}
+
 {# Status words for a meeting, as plain text. #}
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}

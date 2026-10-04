@@ -3,6 +3,9 @@
 {% block title %}{{ _("Decisions") }}{% endblock %}
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Votes and other decisions recorded in the minutes of {{ town }}'s City Council, boards, and committees, newest meeting first.{% endtrans %}{% endblock %}
+{# The download as a dataset for dataset search, once, on the English page. #}
+{% block structured_data %}{% if lang == "en" and meetings.decided %}{{ structured(dataset(town.name ~ " decisions from meeting minutes", self.description(),
+  canonical_url, ["/meetings/data/decisions.csv"], start=meetings.decided[-1].date, end=meetings.decided[0].date)) }}{% endif %}{% endblock %}
 {% macro decision_list(items, shown, fmt="decision", english=false) -%}
 <ul{% if english %} lang="en"{% endif %}>
   {% for d in items[:shown] %}<li>{{ (d | recommendation) if fmt == "recommendation" else (d | decision) }}</li>{% endfor %}

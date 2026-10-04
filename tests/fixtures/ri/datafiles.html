@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><title>
+	RIDE Report Card - Download Data
+</title><link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" /><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,200;0,300;0,400;0,600;0,700;0,900;1,200;1,300;1,400;1,600;1,700&amp;display=swap" rel="stylesheet" />
+    
+    
+<script type="text/javascript" src="https://tableau.ride.ri.gov/javascripts/api/tableau-2.min.js"></script>
+
+    
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+<script src="//cdn.jsdelivr.net/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+<script src="/files/js/bootstrap-tabcollapse.js" type="text/javascript" ></script>
+
+<script src="/files/js/reportcard.js?ver=639266568574625223"></script>
+<script src="/files/js/cached.2024-25.js"></script>
+
+
+
+<script>
+    function setWidgetSubject() {
+        FreshworksWidget('prefill', 'ticketForm', {
+            subject: 'RIDE Report Card'
+        });
+    }
+
+    /* This is the widget embed code */
+    window.fwSettings = {
+        'widget_id': 32000000084
+    };
+    !function () { if ("function" != typeof window.FreshworksWidget) { var n = function () { n.q.push(arguments) }; n.q = [], window.FreshworksWidget = n } }()
+</script>
+
+<script type='text/javascript' src='https://widget.freshworks.com/widgets/32000000084.js' async defer></script>
+
+
+<script>
+    $(document).ready(function () {
+        //this is for the freshdesk help
+        setWidgetSubject();
+
+        //this is for the district and school search bar
+        GetAllSchoolsAndLEAs();
+
+    });
+
+    function GoToReportCardPage() {
+        d = document.getElementById("SchoolSearch").value;
+
+        var dL = $("#schList").find("[value='" + d + "']");
+
+        if (dL.length > 0) {
+            var id = dL.attr("id");
+            var dist = id.substring(0, 2);
+            var sch = id.substring(3, 8);
+
+            var districtORschool = dL.attr("value");
+            if (districtORschool.substring(0, 9) == "District:") {
+                location.href = "/202425/DistrictProfile?DistCode=" + dist;
+            }
+            else {
+                location.href = "/202425/SchoolProfile?SchCode=" + sch + "&DistCode=" + dist;
+            }
+        }
+        else {
+            console.log(sch + " not found in the drop down list.");
+        }
+
+    }
+
+
+
+</script>    
+    
+    
+<link rel="stylesheet" type="text/css" href="css/Site.css?v=1.4" /><link rel="stylesheet" type="text/css" href="css/bootstrap.css?v=1.5" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ==" crossorigin="anonymous" referrerpolicy="no-referrer" /><link href="fav_icon.gif" rel="shortcut icon" type="image/gif" />
+</head>
+<body>
+    <form method="post" action="./DataFiles" id="ctl01">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="WafzpTwuMVq/ao6JJMG3KeZB1IeWdgDmpUt4uVQivgROtJSAKgNMa8EA46nz78xuX+YHSNOB9Qo0ArVrUnz8HQ+/WdUe7ioNtRcjd+oedPTPLbP0qSl+HWcXX53zdqfrDMQfp2/3ibZtmrotd4exnQ==" />
+
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="3A1959BE" />
+        <div class="navbar navbar-default container">
+            <div class="navbar-header">&nbsp;&nbsp;
+              <a href="./" class="logo navbar-btn pull-left"><img src="/images/logo_v2.png" alt="Home" /></a>
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+            </div>
+
+
+
+            <div  id="navbar-collapse" class="navbar-collapse collapse navbar-right ">
+                <ul class="menu nav navbar-nav">
+                    <!--<li><a href="./">Home</a></li>//-->
+                    <li><a href="202425/StateProfile.aspx">State</a></li>
+                    <li><a href="Districts.aspx">LEAs</a></li>
+                    <li><a href="Schools.aspx">Schools</a></li>
+                    <li class="dropdown">
+                        <a class="dropdown-toggle" data-toggle="dropdown">More<b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                        <li><a href="DataFiles.aspx">Download Data</a></li>
+                        <li><a href="Glossary.aspx">Glossary</a></li>
+                        <li><a href="Help.aspx">Help</a></li>
+                        </ul>
+                    </li>
+
+
+
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Change Year<b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                          <li><a href="/202425/StateSnapshot.aspx" id="Year8ReportCard">2024-25</a></li>
+                          <li><a href="/202324/StateSnapshot.aspx" id="Year7ReportCard">2023-24</a></li>
+                          <li><a href="/202223/StateSnapshot.aspx" id="Year6ReportCard">2022-23</a></li>
+                          <li><a href="/202122/StateSnapshot.aspx" id="Year5ReportCard">2021-22</a></li>
+                          <li><a href="/202021/StateSnapshot.aspx" id="Year4ReportCard">2020-21</a></li>
+                          <li><a href="/201920/StateSnapshot.aspx" id="Year3ReportCard">2019-20</a></li>
+                          <li><a href="/201819/StateSnapshot.aspx" id="Year2ReportCard">2018-19</a></li>
+                          <li><a href="/201718/StateSnapshot.aspx" id="Year1ReportCard">2017-18</a></li>
+                          <li><a href="https://www.eride.ri.gov/eride40/reportcards/17/default.aspx" target="_blank">2016-17 and older</a></li>
+                        </ul>
+                    </li>
+                    <li><div style="padding-top:14px;"  id="google_translate_element"> </div></li>
+                </ul>
+            </div>
+
+            <script type="text/javascript">
+            <!--//--><![CDATA[// ><!--
+
+            function googleTranslateElementInit() {
+                new google.translate.TranslateElement({ pageLanguage: 'en', includedLanguages: 'en,ar,es,pt,fr,ht,it,zh-CN', layout: google.translate.TranslateElement.InlineLayout.SIMPLE }, 'google_translate_element');
+            }
+
+            //--><!]]>
+            </script>
+
+
+
+            <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+            
+            
+
+
+            <!-- Google tag (gtag.js) --> <script async src="https://www.googletagmanager.com/gtag/js?id=G-01QX6LJHDF"></script> 
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag() { dataLayer.push(arguments); }
+                gtag('js', new Date());
+                gtag('config', 'G-01QX6LJHDF');
+            </script>
+
+        </div>
+
+
+        <div class="container">
+            
+
+
+
+
+<div class="row">
+	<div class="col-sm-12 search-bar-wbotborder">
+	<div class="input-group"><input class="form-control" style="max-width: 100% !important;" id="SchoolSearch" list="schList" type="text" aria-label="Search for a school or district" placeholder="Type the name of a School or District..." ><datalist id="schList"></datalist><span class="input-group-btn"><button class="btn btn-secondary" onclick="GoToReportCardPage()" style="background-color: #ffb383;" type="button">Go!</button> </span></div></div>
+</div>
+
+
+<div class="content">
+    
+
+    <br /><br />
+    <div class="pageheading">Download Data</div>
+    <br /><br /><br />
+
+    <h3>Accountability</h3>
+    State accountability indicators including academic achievement, academic progress, graduation, progress in achieving english language proficiency and school quality/student success.<br />
+    <a href="/202425/datafiles/Accountability_202425_v1.1.xlsx">2024-25</a> |
+    <a href="/202122/datafiles/Accountability_202122.xlsx">2021-22</a> |<hr />
+
+<br />
+<h3>Assessment</h3>
+    State assessments data including RICAS (grades 3-8), NGSA (grades 5, 8, 11), SAT (grade 11), and DLM (grades 3-8, 11).<br /><hr />
+
+<br />
+<h3>CRDC</h3>
+    The Civil Rights Data Collection (CRDC) is a biennial (i.e., every other school year) survey required by the U.S. Department of Education’s Office for Civil Rights (OCR).
+    <br />
+    <a href="/202425/datafiles/CRDC_202425.xlsx">2024-25</a> |<hr />
+
+<br />
+<h3>Educator Data</h3>
+    Teachers and building administrators are essential to student success. This dataset includes figures about the experience and certifications of current educators.
+    <br /><hr />
+
+
+<br />
+<h3>Finance</h3>
+    This data adheres to the Uniform Chart of Accounts (UCOA), an accounting method that provides transparency and accountability for the financial information of all schools and districts.
+    <br />
+    <a href="/202425/datafiles/Finance_202425.xlsx">2024-25</a> |
+    <a href="/201718/datafiles/Finance_201718.xlsx">2017-18</a>
+    <hr />
+
+
+<br />
+<h3>Graduation Rates</h3>
+    Graduation is a key indicator of academic success and of college and career readiness. Rhode Island calculates the four-year Adjusted Cohort Graduation Rate (ACGR).
+    <br />
+    <a href="/202425/datafiles/GraduationRates_202425.xlsx">2024-25</a> |
+    <a href="/202223/datafiles/GraduationRates_202223.xlsx">2022-23</a> |<hr />
+
+
+<br />
+<h3>Postsecondary</h3>
+    Using our own data, as well as data from National Student Clearinghouse, we at RIDE determine the types of postsecondary programs that students enroll in after high school graduation.
+    <br />
+    <a href="/202324/datafiles/Postsecondary_202425.xlsx">2024-25</a> |<hr />
+
+ 
+
+<br />
+<h3>Student Chronic Absenteeism</h3>
+   Student chronic absenteeism is defined as the unduplicated number of students absent 10% or more school days during the school year for any reason, including excused and unexcused absences. For a typical school year, this equates to missing 18 or more school days. 
+    <br /><hr />
+
+ 
+
+<br />
+<h3>Student Enrollment</h3>
+    Student enrollment is the total number of students enrolled in Rhode Island public schools on October 1. 
+    <br /><br /><br />
+
+
+</div>
+      
+
+
+
+
+            <br />
+        </div>
+
+        <div class="container" style="background-color: #293557 !important">
+            <footer>
+                 <div class="well region region-footer">
+                <img alt="RIDE" src="/images/logo_sm.png" /> &copy; 2026 Rhode Island Department of Elementary and Secondary Education. All rights reserved.
+                
+            <label for="goog-gt-votingInputSrcLang" class="visually-hidden">Google voting input SrcLang</label>
+            <label for="goog-gt-votingInputTrgLang" class="visually-hidden">Google voting input TrgLang</label>
+            <label for="goog-gt-votingInputSrcText" class="visually-hidden">Google voting input SrcText</label>
+            <label for="goog-gt-votingInputTrgText" class="visually-hidden">Google voting input TrgText</label>
+            <label for="goog-gt-votingInputVote" class="visually-hidden">Google voting input Vote</label>
+
+                 </div>
+            </footer>
+        </div>
+        <br />
+
+
+
+        
+
+    </form>
+
+</body>
+</html>

@@ -300,7 +300,7 @@ def test_a_summary_is_checked_against_its_documents_text(tmp_path):
 def test_an_old_ai_transcript_is_replaced_by_the_documents_own_text(tmp_path):
     config = load_config("gloucester")
     sha = minutes_town(tmp_path)
-    summarize.save_record(tmp_path, sha, {**FakeAnthropic.MINUTES, "kind": "minutes", "transcript": "An AI copy.",
+    summarize.save_record(tmp_path, sha, {**summarize.split_decisions(FakeAnthropic.MINUTES), "kind": "minutes", "transcript": "An AI copy.",
                                           "model": config["summaries"]["model"],
                                           "prompt_version": summarize.KINDS["minutes"]["version"],
                                           "generated_at": "2026-09-01T00:00:00-04:00", "cost": 0.1})
@@ -459,3 +459,36 @@ def test_minutes_over_100_pages_are_not_sent(tmp_path):
     client = FakeAnthropic()
     result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
     assert client.calls == [] and result["errors"] == ["minutes m: 101 pages, over the 100-page limit"]
+
+
+def test_minutes_are_saved_with_each_decisions_outcome_and_quote():
+    result = summarize.split_decisions(FakeAnthropic.MINUTES)
+    assert result["decisions"] == ["Approved the site plan for 12 Main St, 5-0"]
+    assert result["decision_evidence"] == [{"outcome": "approved",
+                                            "quote": "Motion to approve the site plan for 12 Main St. Motion carried 5-0."}]
+    # An agenda, or minutes saved before, pass through as they are.
+    assert summarize.split_decisions(FakeAnthropic.PREVIEW) == FakeAnthropic.PREVIEW
+    older = {"decisions": ["Approved it."]}
+    assert summarize.split_decisions(older) == older
+
+
+def test_minutes_from_an_older_prompt_are_made_again_only_since_remake_since(tmp_path, monkeypatch):
+    model = "claude-test"
+    monkeypatch.setitem(summarize.KINDS["minutes"], "remake_since", "2026-08-04")
+    meetings = {}
+    for n, date in enumerate(("2026-07-20", "2026-08-04", "2026-09-15")):
+        sha = f"{n}" * 64
+        meetings[f"m{n}"] = {"id": f"m{n}", "body": "City Council", "title": "City Council", "date": date,
+                             "url": "", "minutes": [{"sha256": sha, "file": f"{n}.pdf", "id": f"d{n}"}]}
+        summarize.save_record(tmp_path, sha, {"kind": "minutes", "model": model, "prompt_version": 2,
+                                              "headline": "", "summary": "", "decisions": ["Approved it."]})
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(meetings))
+    todo = summarize.pending_documents(tmp_path, "2026-10-03", model)
+    # The meeting before remake_since keeps its summary; the others are made again, newest first.
+    assert [m["date"] for _, m, _ in todo] == ["2026-09-15", "2026-08-04"]
+    # A summary another model made is made again, whatever its meeting's date.
+    assert len(summarize.pending_documents(tmp_path, "2026-10-03", "another-model")) == 3
+    # Without remake_since, every one is.
+    monkeypatch.delitem(summarize.KINDS["minutes"], "remake_since")
+    assert len(summarize.pending_documents(tmp_path, "2026-10-03", model)) == 3

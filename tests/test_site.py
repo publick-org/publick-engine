@@ -3,12 +3,13 @@ technology and every internal link resolves."""
 
 import json
 import re
+from datetime import date
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 import pytest
 
-from pipeline import build_site, i18n
+from pipeline import build_site, i18n, structured
 
 
 class PageParser(HTMLParser):
@@ -609,3 +610,111 @@ def test_home_page_layout(site_dir):
     # Decisions, then the numbers, then one row of links.
     assert home.index('id="coming-up"') < home.index('id="numbers"') < home.index('id="explore"')
     assert 'class="meeting-item single"' not in home
+
+
+def structured_data(path) -> list[dict]:
+    """A page's JSON-LD items."""
+    return [json.loads(s) for s in re.findall(r'<script type="application/ld\+json">(.*?)</script>', path.read_text())]
+
+
+def test_meeting_descriptions_lead_with_the_summary_and_say_it_is_ai(site_dir):
+    """A search result shows the description on its own, so a summary's headline says it was written by AI."""
+    page = (site_dir / "meetings" / "2026-07-14-city-council" / "index.html").read_text()
+    assert '<meta name="description" content="AI summary of the minutes: Approved a site plan for 12 Main St.">' in page
+    # A meeting with no summary keeps saying what the page has.
+    plain = [p.read_text() for p in (site_dir / "meetings").glob("20*/index.html") if "AI summary of the" not in p.read_text()]
+    assert plain and all(re.search(r'<meta name="description" content="[^"]+ on \w+day, ', p) for p in plain)
+
+
+def test_meetings_are_events_for_search_engines(site_dir):
+    events = {}
+    for path in (site_dir / "meetings").glob("20*/index.html"):
+        for item in structured_data(path):
+            if item["@type"] == "Event":
+                events[path.parent.name] = item
+            else:
+                # Every meeting page says where it is in the site.
+                assert item["@type"] == "BreadcrumbList"
+                trail = item["itemListElement"]
+                assert [t["item"] for t in trail][0] == "https://gloucester-ma.publick.org/meetings/"
+                assert trail[-1]["item"] == f"https://gloucester-ma.publick.org/meetings/{path.parent.name}/"
+    assert events
+    event = events["2026-09-28-historical-commission"]
+    assert event["startDate"] == "2026-09-28T18:30:00-04:00"
+    assert event["eventStatus"] == "https://schema.org/EventScheduled"
+    assert event["eventAttendanceMode"] == "https://schema.org/MixedEventAttendanceMode"
+    assert event["location"][0]["address"]["addressLocality"] == "Gloucester"
+    assert event["location"][1]["@type"] == "VirtualLocation"
+    assert event["description"].startswith("AI summary of the agenda: ")
+    # A meeting is an event only when the page says where it is.
+    for slug, item in events.items():
+        assert item["location"], slug
+
+
+def test_event_says_only_what_the_listing_does():
+    town = {"name": "Gloucester", "state": "Massachusetts", "state_abbr": "MA"}
+    m = {"title": "Planning Board Meeting", "body": "Planning Board", "date": "2026-12-03", "start_time": "19:00",
+         "end_time": None, "status": "cancelled", "listed": True, "location_name": "", "address": "", "location": "",
+         "remote_url": "https://zoom.us/j/1", "correction": None}
+    event = structured.event(m, "https://x/", "A &amp; B\n", town, "America/New_York")
+    assert event["startDate"] == "2026-12-03T19:00:00-05:00"
+    assert event["eventStatus"] == "https://schema.org/EventCancelled"
+    assert event["eventAttendanceMode"] == "https://schema.org/OnlineEventAttendanceMode"
+    assert event["description"] == "A & B"
+    assert "endDate" not in event
+    assert structured.event({**m, "remote_url": None}, "https://x/", "", town, "America/New_York") is None
+    assert structured.event({**m, "listed": False}, "https://x/", "", town, "America/New_York") is None
+    assert structured.event({**m, "correction": {"doubtful": True}}, "https://x/", "", town, "America/New_York") is None
+
+
+def test_structured_data_cannot_end_its_script():
+    html = structured.script({"@type": "Thing", "name": "</script><b>&"}, None)
+    assert html.count("<script") == 1 and "</script><b>" not in html
+    assert json.loads(re.search(r">(.*)</script>", html).group(1))["name"] == "</script><b>&"
+    assert structured.script(None) == ""
+
+
+def test_home_and_downloads_for_search_engines(site_dir):
+    home = (site_dir / "index.html").read_text()
+    assert "<title>Gloucester, MA: city meetings, agendas, and data | Gloucester Publick</title>" in home
+    [site] = structured_data(site_dir / "index.html")
+    assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
+    assert site["url"] == "https://gloucester-ma.publick.org/"
+    [decisions] = structured_data(site_dir / "meetings" / "decisions" / "index.html")
+    assert decisions["@type"] == "Dataset"
+    assert decisions["distribution"][0]["contentUrl"] == "https://gloucester-ma.publick.org/meetings/data/decisions.csv"
+    assert decisions["license"] == "https://creativecommons.org/licenses/by/4.0/"
+    [requests] = structured_data(site_dir / "311" / "index.html")
+    assert requests["license"] == "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    # Every file a dataset names is in the site.
+    for item in (decisions, requests):
+        for d in item["distribution"]:
+            assert (site_dir / urlparse(d["contentUrl"]).path.lstrip("/")).exists(), d["contentUrl"]
+
+
+def test_sitemap_dates_say_when_each_page_changed(site_dir):
+    """Not the build's date for every page, which search engines would learn to ignore."""
+    sitemap = (site_dir / "sitemap.xml").read_text()
+    dates = dict(re.findall(r"<loc>https://gloucester-ma.publick.org([^<]*)</loc>(?:<lastmod>([^<]*)</lastmod>)?", sitemap))
+    built = "2026-10-02"
+    assert dates["/"] == dates["/meetings/"] == dates["/311/"] == built
+    # A meeting's page: when its listing, documents or summaries last changed (the fixture's were fetched on September 26).
+    assert dates["/meetings/2026-07-14-city-council/"] == "2026-09-26"
+    # A board's page and the lists of past meetings: their newest meeting's.
+    assert dates["/meetings/boards/city-council/"] == "2026-09-26"
+    assert dates["/meetings/past/"] == max(d for u, d in dates.items() if u.startswith("/meetings/20"))
+    # A page that can't say when it changed has no date.
+    assert dates["/about/accessibility/"] == "" and dates["/311/methodology/"] == ""
+    assert all(d <= built for d in dates.values())
+
+
+def test_meeting_lastmod():
+    m = {"first_seen": "2026-09-01T05:00:00-04:00", "agendas": [{"fetched_at": "2026-09-03T05:00:00-04:00"}], "minutes": [],
+         "history": [{"at": "2026-09-05T05:00:00-04:00"}], "preview": {"generated_at": "2026-09-04T06:00:00-04:00"},
+         "minutes_summary": None, "correction": None, "date": "2026-09-10"}
+    assert build_site.meeting_lastmod(m, date(2026, 9, 8)) == "2026-09-05"
+    # Once its day comes, the page speaks of the meeting as past.
+    assert build_site.meeting_lastmod(m, date(2026, 9, 12)) == "2026-09-10"
+    # A translation that comes later changes that language's page.
+    assert build_site.meeting_lastmod({**m, "preview": {"generated_at": "2026-09-04", "translated_at": "2026-09-11T01:00:00"}},
+                                      date(2026, 9, 12)) == "2026-09-11"
