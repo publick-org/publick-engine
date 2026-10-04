@@ -31,15 +31,17 @@ jobs:
     # For towns with a [storage] table, the bucket that holds agenda and minutes PDFs: its keys
     # only in the steps that save or read them (pipeline/update.py's STORAGE).
     steps:
-      - uses: actions/checkout@v5
+      # With its token saved in git's config: the commit steps push with it.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          persist-credentials: false
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .publick-engine
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -174,18 +176,20 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          persist-credentials: false
           # After an update, build the commit it just pushed.
           ref: ${{ github.event_name == 'pull_request' && github.sha || github.ref }}
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          persist-credentials: false
           repository: ${{ job.workflow_repository }}
           ref: ${{ job.workflow_sha }}
           path: .publick-engine
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
           cache: pip
@@ -203,7 +207,7 @@ jobs:
       - name: Check site
         run: python -m pytest -p no:cacheprovider -n auto .publick-engine/site_checks
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
           path: _site
 
@@ -222,4 +226,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
