@@ -222,7 +222,7 @@ def test_budget_figures(tmp_path):
 
 def test_a_town_in_connecticut_has_the_finance_rhythms():
     labels = [r.label for r in rhythms.for_town(wallingford())]
-    assert "Tax bill (calculated)" in labels and "Town budget" in labels
+    assert "Tax bill (calculated)" in labels and "City budget" in labels
 
 
 # ---- The site ----
@@ -234,6 +234,7 @@ def ct_site(tmp_path, data_dir, monkeypatch):
     for name in ("finance", "schools"):
         shutil.rmtree(data / name, ignore_errors=True)
     config = wallingford()
+    config["site"]["languages"] = ["en", "es"]   # as every town is
     fetch_finance.run(config, FakeOpenData(), data, now=NOW)
     fetch_budget.run(config, FakeOpenData(), data, now=NOW)
     fetch_schools.run(config, FakeEdSight(), data, now=NOW)
@@ -258,6 +259,7 @@ def test_connecticut_budget_page(ct_site):
     budget = (ct_site / "budget" / "index.html").read_text()
     assert "Office of Policy and Management" in budget and "Division of Local Services" not in budget
     assert "24.57" in budget and "27.47" in budget and "$7,414" in budget and "$204.1M" in budget
+    assert "%%" not in budget, "a percent sign doubled in a {% trans %} block"
     assert "Calculated by Publick." in budget and "10,492 single-family homes" in budget
     assert parse(ct_site / "budget" / "index.html").tags.count("h1") == 1
     for name in ("mill-rates", "adopted-budget", "tax-levy", "grand-list"):
@@ -293,3 +295,11 @@ def test_a_town_is_called_a_town(ct_site):
         assert not re.search(r"\bCity of\b|\bcity calendar\b|\bcity's\b|\bla ciudad\b|\bCiudad de\b", text), page
     about = (ct_site / "about" / "index.html").read_text()
     assert "the Town of Wallingford" in about
+
+
+def test_connecticut_pages_in_spanish(ct_site):
+    for section in ("budget", "schools"):
+        page = (ct_site / "es" / section / "index.html").read_text()
+        assert '<html lang="es"' in page and "%%" not in page, section
+    budget = (ct_site / "es" / "budget" / "index.html").read_text()
+    assert "Tasa de impuesto (mill rate)" in budget and "Calculado por Publick" in budget

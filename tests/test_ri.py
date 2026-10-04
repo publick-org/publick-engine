@@ -297,6 +297,7 @@ def ri_site(ri_figures, tmp_path, data_dir, monkeypatch):
     for name in ("finance", "schools"):
         shutil.rmtree(data / name, ignore_errors=True)
     config = south_kingstown()
+    config["site"]["languages"] = ["en", "es"]   # as every town is
     fetch_budget.run(config, None, data, now=NOW)
     fetch_schools.run(config, FakeRIDE(), data, now=NOW)
     # The Census Bureau names South Kingstown a town (pipeline/fetch_place.py).
@@ -354,3 +355,11 @@ def test_a_town_is_called_a_town(ri_site):
     for page in ("budget/index.html", "schools/index.html"):
         text = re.sub(r"<[^>]+>", " ", (ri_site / page).read_text())
         assert not re.search(r"\bcity's\b|\bThe city\b|\bcity website\b", text), page
+
+
+def test_rhode_island_pages_in_spanish(ri_site):
+    for section in ("budget", "schools"):
+        page = (ri_site / "es" / section / "index.html").read_text()
+        assert '<html lang="es"' in page and "%%" not in page, section
+    budget = (ri_site / "es" / "budget" / "index.html").read_text()
+    assert "Tasas del impuesto a la propiedad" in budget and "Calculado por Publick" in budget
