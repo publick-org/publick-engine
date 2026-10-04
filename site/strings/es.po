@@ -1,4 +1,5 @@
-# The Publick sites' wording in one language (es): each English string and its translation.
+# The Publick sites' wording in one language (es): each English string and
+# its translation.
 # Updated with python -m pipeline.i18n update (see pipeline/i18n.py).
 msgid ""
 msgstr ""
@@ -210,6 +211,11 @@ msgstr ""
 #, python-format
 msgid "%(graduated)s of %(cohort)s"
 msgstr "%(graduated)s de %(cohort)s"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "%(name)s website"
+msgstr "sitio web de %(name)s"
 
 #: site/pages/311/index.html
 #, python-format
@@ -2923,6 +2929,16 @@ msgstr ""
 "posterior."
 
 #: site/templates/meeting.html
+msgid "Minutes are posted and linked below."
+msgstr "Las actas están publicadas y enlazadas abajo."
+
+#. %(when)s is the date summaries start from, such as "July 1, 2026".
+#: site/templates/meeting.html
+#, python-format
+msgid "Minutes are posted and linked below. Meetings before %(when)s aren't summarized."
+msgstr "Las actas están publicadas y enlazadas abajo. Las reuniones anteriores al %(when)s no se resumen."
+
+#: site/templates/meeting.html
 msgid ""
 "Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and "
 "older ones a few each day."
@@ -2947,11 +2963,22 @@ msgstr ""
 "reunión. Las recomendaciones de los comités aparecen aparte. Solo son definitivas cuando el "
 "Concejo Municipal vota."
 
+#. %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number
+#. of days.
 #: site/templates/meeting.html
-msgid "Minutes not posted yet. They usually come out after the board approves them at a later meeting."
-msgstr ""
-"Las actas aún no se han publicado. Por lo general salen después de que la junta las aprueba en "
-"una reunión posterior."
+#, python-format
+msgid ""
+"Minutes haven't been posted on the <a href=\"%(url)s\">%(where)s</a> yet, %(num)s day after the "
+"meeting."
+msgid_plural ""
+"Minutes haven't been posted on the <a href=\"%(url)s\">%(where)s</a> yet, %(num)s days after the "
+"meeting."
+msgstr[0] ""
+"Las actas todavía no se han publicado, %(num)s día después de la reunión. Dónde se publicarán: <a"
+" href=\"%(url)s\">%(where)s</a>."
+msgstr[1] ""
+"Las actas todavía no se han publicado, %(num)s días después de la reunión. Dónde se publicarán: "
+"<a href=\"%(url)s\">%(where)s</a>."
 
 #: site/templates/macros.html
 msgid "Minutes posted"
@@ -2960,6 +2987,10 @@ msgstr "Actas publicadas"
 #: pipeline/build_site.py
 msgid "Minutes posted."
 msgstr "Actas publicadas."
+
+#: site/templates/meeting.html
+msgid "Minutes usually come out after the board approves them at a later meeting."
+msgstr "Las actas suelen publicarse después de que la junta las aprueba en una reunión posterior."
 
 #: site/pages/about/index.html
 msgid "Mistakes are corrected openly, with a note on the page."
@@ -3133,10 +3164,6 @@ msgstr "Todavía no hay agenda"
 #: site/templates/meeting.html
 msgid "No agenda posted yet."
 msgstr "Todavía no se ha publicado la agenda."
-
-#: site/templates/meeting.html
-msgid "No agenda was posted."
-msgstr "No se publicó ninguna agenda."
 
 #. {since} is a time, such as "last week" or "August 2025".
 #: pipeline/build_site.py
@@ -4087,6 +4114,11 @@ msgstr[1] "En lo que va de %(year)s, hasta %(month)s: %(homes)s viviendas."
 msgid "Some departments use SeeClickFix more than others."
 msgstr "Algunos departamentos usan SeeClickFix más que otros."
 
+#: site/templates/base.html
+#, python-format
+msgid "Some of this site's data is behind: see <a href=\"%(url)s\">Data status</a>."
+msgstr "Algunos datos de este sitio están atrasados: vea el <a href=\"%(url)s\">Estado de los datos</a>."
+
 #: site/pages/about/index.html
 msgid "Some of what's here keeps its own terms:"
 msgstr "Parte de este contenido tiene sus propias condiciones:"
@@ -4633,6 +4665,12 @@ msgstr "El texto y los controles cumplen los requisitos de contraste."
 msgid "The %(board)s's official page"
 msgstr "%(board)s: página oficial"
 
+#. %(listing)s is where the meeting is listed, such as "city calendar".
+#: site/templates/meeting.html
+#, python-format
+msgid "The %(listing)s doesn't link an agenda for this meeting."
+msgstr "El %(listing)s no tiene un enlace a una agenda para esta reunión."
+
 #. %(time)s is a start time as the city's listing gives it; %(listing)s is where the meeting is listed,
 #. such as "city calendar".
 #: site/templates/meeting.html
@@ -4648,6 +4686,11 @@ msgstr "El percentil 90: cuánto tardan las solicitudes más lentas."
 #, python-format
 msgid "The <a href=\"%(url)s\">agenda</a> is posted on the city website."
 msgstr "La <a href=\"%(url)s\">agenda</a> está publicada en el sitio web de la ciudad."
+
+#: site/templates/macros.html
+#, python-format
+msgid "The <a href=\"%(url)s\">city calendar</a> has the full list."
+msgstr "El <a href=\"%(url)s\">calendario de la ciudad</a> tiene la lista completa."
 
 #: site/templates/meeting.html
 #, python-format
@@ -4812,6 +4855,15 @@ msgstr ""
 "El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo "
 "comunicarse con ellos."
 
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"The minutes are <a href=\"%(url)s\">posted on the city website</a>. A copy hasn't been saved here"
+" yet."
+msgstr ""
+"Las actas están <a href=\"%(url)s\">publicadas en el sitio web de la ciudad</a>. Todavía no se ha"
+" guardado una copia aquí."
+
 #: site/templates/macros.html
 msgid ""
 "The minutes are a scanned document. A readable version of the full text will be added here; until"
@@ -4880,6 +4932,10 @@ msgid "This list will appear after the next data update."
 msgstr "Esta lista aparecerá después de la próxima actualización de datos."
 
 #: site/templates/meeting.html
+msgid "This meeting didn't take place as listed, so no agenda is recorded here."
+msgstr "Esta reunión no se celebró como estaba anunciada, así que no hay una agenda registrada aquí."
+
+#: site/templates/meeting.html
 #, python-format
 msgid ""
 "This meeting is known from its <a href=\"%(url)s\">minutes in the City of %(town)s Archive "
@@ -4946,6 +5002,38 @@ msgid ""
 msgstr ""
 "Esta página se tradujo del inglés automáticamente con IA y puede tener errores. <a "
 "href=\"%(url)s\" hreflang=\"en\">Léala en inglés</a>."
+
+#. %(when)s is the date this site collects minutes from, such as "July 1, 2026".
+#: site/templates/meeting.html
+#, python-format
+msgid "This site collects minutes for meetings from %(when)s on."
+msgstr "Este sitio recopila las actas de las reuniones desde el %(when)s."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"This site doesn't collect this board's minutes. They may be on the <a href=\"%(url)s\">city "
+"website</a>."
+msgstr ""
+"Este sitio no recopila las actas de esta junta. Puede que estén en el <a href=\"%(url)s\">sitio "
+"web de la ciudad</a>."
+
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"This site hasn't been able to check the city's meeting listings since %(when)s, so meetings may "
+"be missing here."
+msgstr ""
+"Este sitio no ha podido revisar las listas de reuniones de la ciudad desde el %(when)s, así que "
+"puede que falten reuniones aquí."
+
+#: site/templates/macros.html
+msgid ""
+"This site hasn't been able to check the city's meeting listings yet, so meetings may be missing "
+"here."
+msgstr ""
+"Este sitio todavía no ha podido revisar las listas de reuniones de la ciudad, así que puede que "
+"falten reuniones aquí."
 
 #: site/templates/meeting.html
 msgid "This summary hasn't been translated yet, so it's shown in English."
@@ -5500,7 +5588,7 @@ msgstr "permisos de construcción"
 msgid "city calendar"
 msgstr "calendario de la ciudad"
 
-#: pipeline/build_site.py pipeline/common_strings.py
+#: pipeline/build_site.py pipeline/common_strings.py site/templates/meeting.html
 msgid "city's Agenda Center"
 msgstr "Centro de Agendas de la ciudad"
 
@@ -5508,7 +5596,7 @@ msgstr "Centro de Agendas de la ciudad"
 msgid "city's Archive Center"
 msgstr "Centro de Archivos de la ciudad"
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "city's meeting portal"
 msgstr "portal de reuniones de la ciudad"
 
