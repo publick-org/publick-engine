@@ -49,7 +49,7 @@ from pipeline import summarize
 from pipeline import translate
 from pipeline.fetch_meetings import slugify
 from pipeline.i18n import N_, _, month_name, month_year, ngettext, pgettext, plain_date, weekday_name
-from pipeline.seeclickfix import short_address
+from pipeline.seeclickfix import block_address, sensitive, short_address
 
 SITE_DIR = ENGINE_DIR / "site"
 PAGES_DIR = SITE_DIR / "pages"
@@ -1129,7 +1129,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
     localize_categories(requests_311, tr)
-    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix)
+    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
+                           sensitive_categories=config.get("seeclickfix", {}).get("sensitive_categories", []))
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
@@ -1265,10 +1266,11 @@ VENUE_MEETINGS = 3
 
 
 def street_index(meetings: list[dict], permits: list[dict], requests: list[dict], today: date, town: dict,
-                 prefix: str = "", limit: int = 30) -> dict:
+                 prefix: str = "", limit: int = 30, sensitive_categories: list[str] | tuple = ()) -> dict:
     """Everything the site knows about each street: agenda and minutes mentions,
-    building and demolition permits, and 311 requests from the past year. prefix is
-    the language's (/es) for links to meetings."""
+    building and demolition permits, and 311 requests from the past year (a sensitive
+    category's to the block: seeclickfix.sensitive). prefix is the language's (/es) for
+    links to meetings."""
     streets: dict = defaultdict(lambda: {"meetings": [], "permits": [], "requests": []})
 
     def place(address: str) -> tuple[str, list[str]]:
@@ -1337,7 +1339,9 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
         for key in streets_mod.street_keys(r.get("address", ""), town["name"]):
             streets[key]["requests"].append({
                 "date": r["created_at"][:10], "category": r["category"], "status": r["status"],
-                "address": short_address(r["address"], town["name"]), "url": f"https://seeclickfix.com/issues/{r['id']}"})
+                "address": (block_address(r["address"], town["name"]) if sensitive(r["category"], sensitive_categories)
+                            else short_address(r["address"], town["name"])),
+                "url": f"https://seeclickfix.com/issues/{r['id']}"})
     out = {}
     for key, s in streets.items():
         entry = {"name": streets_mod.street_name(key)}

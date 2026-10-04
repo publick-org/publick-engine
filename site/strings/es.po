@@ -3015,6 +3015,18 @@ msgstr "En %(year)s, los valores tasados de la ciudad eran el %(ratio)s%% del va
 msgid "In buildings of 5+"
 msgstr "En edificios de 5 o más"
 
+#: site/pages/311/methodology/index.html
+msgid ""
+"In categories that point at a person or a household (homeless encampments, health and police "
+"complaints, noise, problem properties, smoke detector and lost pet requests), an address is shown"
+" only to its block, such as \"200–299 Main Street\", and the map places the request to about 100 "
+"meters."
+msgstr ""
+"En las categorías que se refieren a una persona o un hogar (campamentos de personas sin hogar, "
+"quejas de salud y de policía, ruido, propiedades problemáticas, solicitudes de detectores de humo"
+" y de mascotas perdidas), la dirección se muestra solo hasta la cuadra, como “200–299 Main "
+"Street”, y el mapa ubica la solicitud con una precisión de unos 100 metros."
+
 #: site/templates/macros.html
 msgid "In development"
 msgstr "En desarrollo"

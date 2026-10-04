@@ -86,3 +86,16 @@ def test_street_index_leaves_out_where_boards_meet():
     index = build_site.street_index(meetings, [], [], BUILT_AT.date(), {"name": "Beverly", "state_abbr": "MA"})
     assert sorted(index["streets"]) == ["DODGE ST", "ELM ST"]
     assert index["streets"]["ELM ST"]["meetings_total"] == 2
+
+
+def test_street_index_shows_sensitive_requests_to_the_block():
+    requests = [{"id": "1", "category": "Homeless Encampment", "status": "open", "created_at": "2026-09-20T09:00:00-04:00",
+                 "address": "262 Main St Gloucester, Massachusetts, 01930"},
+                {"id": "2", "category": "Pothole", "status": "open", "created_at": "2026-09-21T09:00:00-04:00",
+                 "address": "264 Main St Gloucester, Massachusetts, 01930"},
+                {"id": "3", "category": "Animal Issues", "status": "open", "created_at": "2026-09-22T09:00:00-04:00",
+                 "address": "266 Main St Gloucester, Massachusetts, 01930"}]
+    town = {"name": "Gloucester", "state_abbr": "MA"}
+    index = build_site.street_index([], [], requests, BUILT_AT.date(), town, sensitive_categories=["Animal Issues"])
+    shown = {r["category"]: r["address"] for r in index["streets"]["MAIN ST"]["requests"]}
+    assert shown == {"Homeless Encampment": "200–299 Main St", "Pothole": "264 Main St", "Animal Issues": "200–299 Main St"}

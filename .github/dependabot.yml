@@ -1,0 +1,24 @@
+# Pull requests that move the workflows' pinned actions (each pinned by commit, with its version in a
+# comment) and the Python requirements (pinned exactly) to their newest releases, once a month, one
+# pull request each. Each runs the engine's tests; nothing moves until a person merges it, and the
+# next morning's release takes it to the towns only once every town passes on it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: Actions
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      requirements:
+        patterns: ["*"]
+    commit-message:
+      prefix: Requirements
