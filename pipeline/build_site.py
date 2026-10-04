@@ -478,6 +478,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             if m["minutes_doc"] and summary_model else None
         )
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
+        m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
@@ -899,6 +900,7 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         entry["definition"] = tr(entry["definition"])
     for source in config.get("freshness", {}).get("sources", []):
         source["label"] = tr(source["label"])
+    config["absences"] = {slug: tr(note) for slug, note in config.get("absences", {}).items()}
     meetings = config.get("meetings", {})
     if "archive_name" in meetings:
         meetings["archive_name"] = tr(meetings["archive_name"])
@@ -1128,6 +1130,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  not_covered=absences.not_covered(config, state),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = []
@@ -1144,6 +1147,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            behind=absences.section_behind(common["data_status"], section_slug),
             moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )

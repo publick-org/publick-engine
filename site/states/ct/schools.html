@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import state_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -65,7 +65,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("The four-year adjusted cohort graduation rate.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">EdSight, Four-Year Graduation Rates</a>.{% endtrans %}</p>
+<p class="small">{{ _("The four-year adjusted cohort graduation rate.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">EdSight, Four-Year Graduation Rates</a>.{% endtrans %}{{ state_dash(ms.graduation.years) }}</p>
 
 <h2 id="absenteeism">{{ _("Chronic absenteeism") }}</h2>
 <p>{{ _("Share of students who missed 10%% or more of the school days they were enrolled, for any reason.") }}</p>
@@ -79,7 +79,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{% trans url=ms.absenteeism.source_url %}Source: <a href="{{ url }}">EdSight, Chronic Absenteeism</a>.{% endtrans %}</p>
+<p class="small">{% trans url=ms.absenteeism.source_url %}Source: <a href="{{ url }}">EdSight, Chronic Absenteeism</a>.{% endtrans %}{{ state_dash(ms.absenteeism.years) }}</p>
 
 <h2 id="tests">{{ _("State test results") }}</h2>
 <p>{{ _("Share of students in grades 3 to 8 who scored at level 3 or 4 (met or exceeded the achievement standard) on Connecticut's Smarter Balanced tests.") }}</p>
@@ -96,7 +96,7 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">{{ _("High school juniors take the SAT instead, so they aren't included. Connecticut sets its own achievement levels, so these results can't be compared with other states' tests, such as Massachusetts's MCAS.") }} {% trans url=ms.tests_ela.source_url %}Source: <a href="{{ url }}">EdSight, Smarter Balanced Achievement</a>.{% endtrans %}</p>
+<p class="small">{{ _("High school juniors take the SAT instead, so they aren't included. Connecticut sets its own achievement levels, so these results can't be compared with other states' tests, such as Massachusetts's MCAS.") }} {% trans url=ms.tests_ela.source_url %}Source: <a href="{{ url }}">EdSight, Smarter Balanced Achievement</a>.{% endtrans %}{{ state_dash(ms.tests_ela.years + ms.tests_math.years) }}</p>
 
 <h2 id="spending">{{ _("Spending per pupil") }}</h2>
 <p>{{ _("What the district spends on its schools for each student, regular and special education together. It leaves out debt, construction, adult education, community services, food services paid for by state or federal funds, and the state's payments to the teachers' retirement fund.") }}</p>
@@ -110,7 +110,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Per pupil enrolled, including students the district pays to educate elsewhere. Earlier years also counted minor school construction.") }} {% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">EdSight, Per Pupil Expenditures by Function</a>.{% endtrans %}</p>
+<p class="small">{{ _("Per pupil enrolled, including students the district pays to educate elsewhere. Earlier years also counted minor school construction.") }} {% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">EdSight, Per Pupil Expenditures by Function</a>.{% endtrans %}{{ state_dash(ms.spending.years) }}</p>
 
 <p class="source-note">{% trans department="https://portal.ct.gov/sde", edsight="https://public-edsight.ct.gov/" %}All figures as published by the <a href="{{ department }}">Connecticut State Department of Education</a> on <a href="{{ edsight }}">EdSight</a>, its public data portal.{% endtrans %}</p>
 {% endif %}

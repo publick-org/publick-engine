@@ -285,3 +285,9 @@ def test_vermont_pages_in_spanish(vt_site):
         assert '<html lang="es"' in page and "%%" not in page, section
     budget = (vt_site / "es" / "budget" / "index.html").read_text()
     assert "Impuesto promedio de una vivienda principal" in budget and "Calculado por Publick" in budget
+
+
+def test_vt_dashes_are_explained(vt_site):
+    """Every – in a table has a legend on its page, as the site checks require."""
+    from test_absences import assert_dashes_explained
+    assert_dashes_explained(vt_site)

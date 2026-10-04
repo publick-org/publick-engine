@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page, calculated %}
+{% from "macros.html" import figures_dash, on_this_page, calculated %}
 {% from "charts.html" import chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
 {% block description %}{% trans town=town.name %}{{ town }}'s property tax rates, what the property tax raises, and the value of the property it taxes.{% endtrans %}{% endblock %}
@@ -107,5 +107,6 @@
 {% endif %}
 
 <p class="source-note">{{ _("Rhode Island doesn't publish an average tax bill, or the assessed values of every home to calculate one from, so this site doesn't show one.") }}{% if config.finance.get("budget_documents_url") %} {% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}{% endif %}</p>
+{{ figures_dash() }}
 {% endif %}
 {% endblock %}

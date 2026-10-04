@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page, calculated %}
+{% from "macros.html" import figures_dash, on_this_page, calculated %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -129,5 +129,6 @@
 {% endif %}
 
 <p class="source-note">{% trans agency="https://education.vermont.gov/", portal="https://data.vermont.gov/" %}All figures from the <a href="{{ agency }}">Vermont Agency of Education</a>, most on the state's open data portal, <a href="{{ portal }}">data.vermont.gov</a>.{% endtrans %}</p>
+{{ figures_dash() }}
 {% endif %}
 {% endblock %}

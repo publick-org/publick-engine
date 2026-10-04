@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import figures_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -121,5 +121,6 @@
 <p class="small">{{ _("Amounts are not adjusted for inflation.") }} {% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Per Pupil Spending).{% endtrans %}</p>
 
 <p class="source-note">{% trans url="https://www.maine.gov/doe/dashboard" %}All figures as published by the Maine Department of Education on its <a href="{{ url }}">ESSA Dashboard</a>.{% endtrans %}</p>
+{{ figures_dash() }}
 {% endif %}
 {% endblock %}
