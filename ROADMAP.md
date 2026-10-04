@@ -174,14 +174,16 @@ Make what's shown checkable, and the process safe, before adding towns.
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
    a dropped "not" is caught. What fails isn't shown. The first half (numbers,
-   amounts, dates, names) is done (#50); the quotes and `outcome` are left.
-   ([Summary checks](#summary-checks))
+   amounts, dates, names) is done (#50); the quotes and `outcome` are built
+   (2026-10-03, minutes prompt version 3) and passed item 8's run; they ship
+   with the engine pull request after v1.34.0. ([Summary checks](#summary-checks))
 7. **"AI summary" on every headline**: done 2026-10-03 (#54), in each list
     row's details line, on its own line in the public hearings box, and after
     the summary in the RSS feed. ([Summary checks](#summary-checks))
-8. **A test set run against the real model**: about 15 documents with known
-    decisions, checked by hand, run before any prompt change ships.
-    ([Summary checks](#summary-checks))
+8. **A test set run against the real model**: done 2026-10-03, 15 minutes
+    and 52 decisions checked by hand (`evals/minutes.json`,
+    `python -m pipeline.evaluate`), run by the network's Evaluate workflow
+    (publick.org #44). ([Summary checks](#summary-checks))
 9. **Failures that look like success, fixed.** Done 2026-10-03: three
     SeeClickFix 403s in a row stop the 311 step instead of marking records
     removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
@@ -225,8 +227,9 @@ Make what's shown checkable, and the process safe, before adding towns.
 ### Then: to about 20 towns
 
 17. **Lowell**: config only. ([Next towns](#next-towns))
-18. **Wallingford's figures**: the Connecticut package's tax bill and budget,
-    then the Affordable Housing Appeals List. ([State packages](#state-packages))
+18. **Wallingford's figures**: the Connecticut package's tax bill and budget
+    are built (2026-10-04); Wallingford's config takes them on the next
+    release, then the Affordable Housing Appeals List. ([State packages](#state-packages))
 19. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
     towns (Burlington, Lewiston, South Kingstown). ([Next towns](#next-towns))
 20. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
@@ -449,10 +452,28 @@ the agenda. Check the original.)"). Never in front of the summary: a badge
 on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA".
 
 **Next.**
-- Each decision anchored to a quote from the minutes, checked without AI
-  (the quote is in the document; the decision's numbers and names are in the
-  quote), with an `outcome` field (approved, denied, tabled, referred), so a
-  dropped "not" is caught.
+- *Done 2026-10-03 (#66), after the test set's runs against the real model:*
+  each decision anchored to a quote from the minutes, checked without AI,
+  with an outcome, so a dropped "not" is caught. The minutes prompt
+  (version 3) asks for each decision's outcome (approved, denied, tabled,
+  continued, referred, recommended, withdrawn, or other) and the minutes'
+  own words for it; `decisions` stay sentences, and `decision_evidence`
+  beside them has each one's outcome and quote, so nothing that shows or
+  translates decisions changed. The check (fact check version 3): the quote
+  is in the document, with spacing, punctuation, page headers, and line
+  numbers ignored, and a quote cut with "..." found part by part; the
+  outcome agrees with the decision's words and the quote's (a failed motion
+  can't be approved, a count with fewer for than against can't be approved,
+  a two-thirds vote that failed 9-5 is a denial); what fails isn't shown.
+  The decision's numbers and names are also looked for near the quote
+  (decided while building: listed, not held, since an item's heading can be
+  pages before its vote; the run says how often a right decision is
+  listed). Written-out counts ("In Favor: 2 In Opposition: 3") now confirm a
+  vote count too. Checked offline on the 15 documents' real text with the
+  quotes written down by hand: all 50 found, and every approved or denied
+  decision turned round caught. Minutes of meetings since 2026-08-04 are
+  made again (about 91 documents, about $2); older ones keep version 2's
+  summary (`remake_since`; decided 2026-10-03).
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
 - *Done 2026-10-03:* each fetching run's record (`data/run.json`) counts
@@ -470,9 +491,28 @@ on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA"
   gained a start time without a bump), once the new hash is pinned with a
   note saying why. The translation review's prompt has no version: a change
   there doesn't call for translating again.
-- Every test, the translation tests too, uses the fake model client. Add a
-  set of about 15 documents with known decisions, checked by hand, run
-  against the real model before a prompt change ships.
+- Every test, the translation tests too, uses the fake model client. *Built
+  2026-10-03:* `evals/minutes.json`, 15 minutes from all six towns and 52
+  decisions checked by hand against each document's own text (failed
+  motions, two-thirds votes, a "not" that's part of what was decided,
+  tabling, referral, withdrawal, numbered lines, a scan), and
+  `python -m pipeline.evaluate`, which runs them through the real model and
+  the checks, plants errors in what passes, and fails on a wrong outcome the
+  site would show (about $1 to $2 a run). Run by hand from the network's
+  Actions -> Evaluate (publick.org #44), on the network's key; first runs
+  2026-10-03. The model gave all 52 decisions written down by hand the right
+  outcome and wrote 199 decisions in all; every one of the 119 errors
+  planted in what passed was caught. The runs found the check's own
+  mistakes, all fixed before it shipped: a roll call quoted as the page
+  shows it ("Yea: 3 - ...") where the PDF's text orders it otherwise; "if
+  they fail" read as a failed motion; "deferred", "re-committed", and "held"
+  in committee not known; "Withdrew" read as a name (the check on main too:
+  ten verb forms the dictionary lacks); and Beverly's long scanned minutes
+  cut off at 16,000 tokens (now 32,000). Checked again on the model's saved
+  answers: none of the 199 held back. The five numbers listed as far from
+  their quote were all on right decisions, so that check stays a note.
+  Tuned on this set, so the run records' counts of what's held back are
+  the measure on new minutes.
 
 **Matters at:** now, before more towns and before open data.
 
@@ -1078,9 +1118,9 @@ After those:
   (text PDFs in every sample): one reader of about two days for all 39
   municipalities. Providence is too big for now.
 
-A new state doesn't wait for its state package: a town in a state without
-one gets meetings, minutes, summaries, officials, unemployment, and housing
-estimates, and the state's tax bill, budget, and school figures follow.
+Every New England state now has a package (2026-10-04), so a town in Maine,
+Vermont, or Rhode Island gets its state's figures from its first day: its
+config needs only the package's keys.
 
 **Matters at:** now.
 
@@ -1117,16 +1157,48 @@ school, and housing figures, fetched once for the state where it can be.
 |---|---|---|---|---|---|
 | Massachusetts | done | done | done | Subsidized Housing Inventory, per town | DLS once for every town, into `states/ma/` |
 | New Hampshire | done | done | done | | Yearly files saved by hand into the engine (`pipeline/states/nh/figures/`) |
-| Connecticut | next | next | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns |
-| Maine, Vermont, Rhode Island | | | | | After each state's first town |
+| Connecticut | done (calculated) | done | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns; the yearly parcel file found by name |
+| Vermont | done (calculated, homesteads) | done | done | | Yearly workbooks found and saved into the engine by `pipeline.states.vt.extract`; VCGI parcels and data.vermont.gov at each run |
+| Maine | done (calculated) | done | done | | MRS's yearly summary PDF and the ESSA Dashboard's Tableau export, saved into the engine by `pipeline.states.me.extract`; the Maine GeoLibrary's parcel table at each run |
+| Rhode Island | none possible | done | done (absenteeism without the state's) | | The Division of Municipal Finance's PDFs saved by hand into the engine (`pipeline.states.ri.extract`); RIDE's report card files and assessment portal at each run |
 
-**Connecticut, what's left.** Mill rates (24.57 for FY2027 in Wallingford)
-and the statewide parcel file, for an average bill worked out as New
-Hampshire's is; adopted budgets and the audited Municipal Fiscal Indicators;
-the Affordable Housing Appeals List, a yearly PDF or .docx. Connecticut
+Connecticut's tax bill and budget, and the Maine, Vermont, and Rhode Island
+packages, were built on 2026-10-04, before each new state's first town, from
+each state's own statewide sources, tested from the network's container. Each package's docstring lists its config keys.
+
+**Connecticut, what's left.** The Affordable Housing Appeals List: data.ct.gov
+has it through 2023 (`3udy-56vi`), and newer years only as a yearly PDF or
+.docx (Wallingford 5.15% in 2025). Wallingford's config needs its `[finance]`
+keys (`opm_town = "Wallingford"`, `opm_code = 148`, `single_family_use =
+["1010"]`) and a budget section, on the release with the package. Connecticut
 replaced its counties with planning regions in 2022, so county codes change
 midway through every history (Wallingford is `0917078740` in the Census now,
-`0900978740` before).
+`0900978740` before); OPM's datasets use town codes, so the package isn't
+affected.
+
+**Vermont, what's left.** Test results before spring 2025 are only in the
+Agency of Education's yearly zip files (about 20 MB each); the extract could
+read them once. Spending per pupil starts in fiscal year 2025, when Vermont
+changed how it weights pupils. Vermont has no single-family category, so the
+average bill is for homesteads on less than six acres (category R1), condos
+and two- to four-family homes included, before the income-based property tax
+credit.
+
+**Maine, what's left.** The parcel table has values for only about 170 of
+Maine's municipalities, sent when each chooses to, so a town's average bill
+depends on its own submission being current; Lewiston's adds up to 1.10 times
+its 2024 taxable land and buildings. The ESSA Dashboard's export isn't a
+published API; the extract also reads the crosstabs downloaded by hand. Test
+results start in spring 2023. There's no statewide source for a town's
+adopted budget.
+
+**Rhode Island, what's left.** The state publishes no average bill and no
+statewide file of assessed values, so a Rhode Island town has no tax bill on
+its home page. The Division of Municipal Finance's site is behind a
+JavaScript challenge, so its yearly rate, levy, and assessed value PDFs are
+downloaded by hand in a browser; fiscal year 2022's rates and 2022 to 2025's
+levies and values haven't been. RIDE publishes no statewide all-students
+chronic absenteeism rate in its data files.
 
 **Wallingford, what else is there.** The town owns its electric, water, and
 sewer utility, and its Public Utilities Commission meets twice a month: news

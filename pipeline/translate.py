@@ -204,6 +204,9 @@ def english_words() -> frozenset:
     return frozenset(get_english_words_set(["gcide"], lower=True, alpha=True))
 
 
+# Forms of verbs the dictionary lacks, which a decision often starts with ("Withdrew DOC #348/19").
+IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", "oversaw", "withdrawn", "withdrew",
+             "withheld"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
                    "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
@@ -225,7 +228,7 @@ def town_words(data_dir: Path | None) -> frozenset:
 def is_word(word: str, also: frozenset = frozenset()) -> bool:
     w = word.lower()
     known = english_words()
-    if w in WEEKDAYS_MONTHS or w in known or w in also:
+    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in known or w in also:
         return True
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
                                                   ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))

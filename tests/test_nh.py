@@ -241,3 +241,9 @@ def test_new_hampshire_links_resolve(nh_site):
     check_links(nh_site, pages)
     for path in (nh_site / "budget" / "index.html", nh_site / "schools" / "index.html"):
         assert parse(path).tags.count("h1") == 1, path
+
+
+def test_nh_dashes_are_explained(nh_site):
+    """Every – in a table has a legend on its page, as the site checks require."""
+    from test_absences import assert_dashes_explained
+    assert_dashes_explained(nh_site)

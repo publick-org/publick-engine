@@ -1,0 +1,4 @@
+{#- The About page's sources list: schools. -#}
+{% if config.schools is defined %}
+  <li>{% trans reportcard="https://reportcard.ride.ri.gov/DataFiles", adp="https://www3.ride.ri.gov/ADP/" %}<strong>Schools:</strong> the Rhode Island Department of Education's <a href="{{ reportcard }}">report card data files</a> (graduation rates, chronic absenteeism, and spending per pupil) and its <a href="{{ adp }}">assessment data portal</a> (RICAS test results).{% endtrans %}</li>
+{% endif %}
