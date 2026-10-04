@@ -1,0 +1,61 @@
+FY 2026 Rhode Island Tax Rates by Class of Property
+Assessment Date December 31, 2024
+Tax Roll Year 2025
+MUNICIPALITY NOTES RRE COMM PP MV
+BARRINGTON 6 $15.34 $15.34 $15.34 $0.00
+BRISTOL 2, 6 10.61 10.61 13.36 0.00
+BURRILLVILLE 2, 6 11.90 11.90 14.39 0.00
+CENTRAL FALLS 2, 6 13.21 21.75 38.33 0.00
+CHARLESTOWN 6 5.93 5.93 5.74 0.00
+COVENTRY 6 16.09 22.61 20.65 0.00
+CRANSTON 13.88 20.82 28.35 0.00
+CUMBERLAND 1, 6 12.27 12.27 30.88 0.00
+EAST GREENWICH 15.57 27.00 45.50 0.00
+EAST PROVIDENCE 1,2, 6 13.07 20.63 56.81 0.00
+EXETER 6 11.75 11.75 11.75 0.00
+FOSTER 6 21.52 21.52 31.12 0.00
+GLOCESTER 6 14.26 17.11 28.50 0.00
+HOPKINTON 6 15.29 15.29 14.66 0.00
+JAMESTOWN 2, 6 5.64 5.64 6.98 0.00
+JOHNSTON 6 15.62 27.98 64.65 0.00
+LINCOLN 2, 6 13.52 23.99 30.07 0.00
+LITTLE COMPTON 2, 6 4.79 4.79 9.92 0.00
+MIDDLETOWN 6 9.06 13.59 18.70 0.00
+NARRAGANSETT 6 6.79 9.17 9.17 0.00
+NEW SHOREHAM 6 5.76 5.76 6.02 0.00
+NEWPORT 6 8.69 10.77 14.88 0.00
+NORTH KINGSTOWN 2 11.04 14.79 17.85 0.00
+NORTH PROVIDENCE 6 17.58 24.32 58.58 0.00
+NORTH SMITHFIELD 2, 6 11.50 16.94 43.63 0.00
+PAWTUCKET 8 13.15 23.01 52.09 0.00
+PORTSMOUTH 6 13.28 13.28 15.65 0.00
+PROVIDENCE 2, 5 8.40 29.20 53.40 0.00
+RICHMOND 6 14.67 14.67 14.76 0.00
+SCITUATE 2, 6 13.91 20.79 35.69 0.00
+SMITHFIELD 2, 6 12.39 18.58 59.74 0.00
+SOUTH KINGSTOWN 2 8.94 8.94 11.05 0.00
+TIVERTON 6 11.33 11.33 11.33 0.00
+WARREN 6 14.89 14.89 18.01 0.00
+WARWICK 2 12.70 23.99 37.46 0.00
+WEST GREENWICH 3 16.00 23.75 34.80 0.00
+WEST WARWICK 2, 4, 6 14.29 22.62 46.99 0.00
+WESTERLY 2, 6 7.11 7.11 11.59 0.00
+WOONSOCKET 2, 6 11.23 21.30 46.58 0.00
+Source: Division of Municipal Finance Represents tax rate per thousand dollars of assessed value.
+CLASSES:
+RRE = Residential Real Estate COMM = Commercial Real Estate PP = Personal Property MV = Motor Vehicles
+NOTES:
+1) Information presented is for this municipality's FY2025
+2) Municipality had a revaluation or statistical update effective 12/31/24.
+3) West Greenwich - Vacant land taxed at $17.00 per thousand of assessed value.
+4) West Warwick - Real Property taxed at four different rates: $14.29 (apartments with 6+ units);
+$25.20 (combination, commercial I, commercial II, industrial, commercial condo, comm./ind. vacant
+land, comm. buildings on leased land, utilities and rails, other vacant land); $15.29 (two to five family);
+$22.62 (one family residence, estates, farms, seasonal/beach property, residential vacant land,
+residential buildings on leased land, residential condo, time shared condo, farm/forest/open space,
+mobile homes, two-family owner occupied properties)
+5) Providence - Real Property taxed at six different rates: $8.40 Residential single family Owner
+Occupied; $7.55 Residential 2-5 family Owner Occumpied; $14.60 Residential single Non Owner
+Occupied; $14.00 Residential 2-5 family Non Owner Occupied; $26.00 6-10 Dwelling units; $28.50 11+
+Dwelling Units.
+6) Rates rounded to two decimals

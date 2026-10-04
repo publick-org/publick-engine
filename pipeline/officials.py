@@ -82,6 +82,10 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
     return {
         "checked": checked.isoformat(),
         "bodies": bodies,
+        # Every seat elected by the whole town: there are no wards to map, and the page says so.
+        # A dash for a term or contact no official source gives, explained under the tables.
+        "dashes": any(not m["term_ends"] or not (m.get("email") or m.get("phone")) for b in bodies for m in b["members"]),
+        "at_large": not any(m.get("ward") is not None or m.get("wards") for b in table["bodies"] for m in b["members"]),
         # Every ward in the ward file, even one with no ward seat, so the list matches the map.
         # In a ward, each body's member for that ward alone comes before its member for a district of wards.
         "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": sorted(by_ward.get(w, []), key=lambda m: m["order"])}
