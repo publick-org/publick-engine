@@ -66,7 +66,7 @@
 {% set m = rate.state_median %}
 {% if m.homestead_rate %}
 <p>{% trans year=rate.tax_year, homestead="%.4f" | format(m.homestead_rate), nonhomestead="%.4f" | format(m.nonhomestead_rate), municipal="%.4f" | format(m.municipal_rate) %}In tax year {{ year }}, the median Vermont town's homestead education rate was ${{ homestead }}, its nonhomestead rate ${{ nonhomestead }}, and its municipal rate ${{ municipal }}.{% endtrans %}</p>
-{{ calculated(budget.rates_median_calculated) }}
+{{ calculated(_("The middle of each kind of rate among the Vermont towns in PVR's table that year; a town with no homesteads (an unorganized town or gore) has no homestead rate that counts.")) }}
 {% endif %}
 <p class="small">{{ _("Each town's education rates depend on what its school district spends per pupil, adjusted for how its listed values compare with sale prices (its common level of appraisal). The local agreement rate pays the town's share of the state's tax stabilization agreements.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">Vermont Department of Taxes, Property Valuation and Review Annual Report</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
@@ -129,7 +129,8 @@
 </table>
 </div>
 {% endif %}
-{{ calculated(bill.calculated ~ " " ~ (_("Vermont doesn't publish an average bill.") | forceescape)) }}
+{% set how %}{% trans homes=bill.parcels | number, year=bill.tax_year %}The average listed value of {{ homes }} homesteads (homes their owners live in, on less than six acres) in VCGI's statewide parcel data, taxed at the town's {{ year }} homestead education, municipal, and local agreement rates, with any part of a home's value not declared as homestead at the nonhomestead rate. It's the bill before the property tax credit, which lowers many homestead bills by household income.{% endtrans %} {{ _("Vermont doesn't publish an average bill.") }}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Most Vermont households that own their home pay less than this bill: the property tax credit lowers the education tax by household income.") }} {% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">Vermont Department of Taxes, tax rates</a>; <a href="{{ parcels }}">VCGI, statewide standardized parcel data</a>.{% endtrans %}</p>
 {% endif %}
 
@@ -137,7 +138,8 @@
 {% if pr %}
 <h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
 <p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Vermont towns and cities was {{ median }}.{% endtrans %}</p>
-{{ calculated(pr.calculated) }}
+{% set how %}{% trans year=pr.tax_year, communities=pr.communities %}Each town's total {{ year }} property tax (education, municipal, and local agreement taxes), from PVR, divided by its Census population estimate for July 1, {{ year }}. The median is of {{ communities }} Vermont towns and cities; the Census doesn't count a few villages and unified towns PVR lists separately.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">Vermont Department of Taxes</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 

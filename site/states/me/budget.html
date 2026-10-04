@@ -62,7 +62,8 @@
   </tbody>
 </table>
 </div>
-{{ calculated(budget.rates_median_calculated) }}
+{% set how %}{% trans count=budget.rates[-1].municipalities %}The middle of the tax rates of the {{ count }} Maine municipalities with a rate that year, as Maine Revenue Services publishes them.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Maine towns and cities assess property at a share of its market value, the certified ratio, which falls as values rise between revaluations. When a city revalues, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }}{% if rate.certified_ratio %} {% trans ratio=rate.certified_ratio, year=rate.tax_year %}In {{ year }} the city's assessed values were {{ ratio }}% of market value.{% endtrans %}{% endif %} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">MRS, Municipal Valuation Return Statistical Summary</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
 
@@ -99,7 +100,8 @@
 </table>
 </div>
 {% endif %}
-{{ calculated(bill.calculated ~ " " ~ (_("Maine doesn't publish an average bill. The parcel table is what each city sends the Maine GeoLibrary, so the figure is shown only while the city's parcels add up to about its taxable land and buildings in MRS's figures for that year.") | forceescape)) }}
+{% set uses = config.finance.single_family_use %}{% set codes = '"' ~ (uses if uses is string or uses is number else uses | join('", "')) ~ '"' %}{% set how %}{% trans parcels=bill.parcels | number, codes=codes, year=bill.tax_year %}The average assessed value, land and buildings, of {{ parcels }} single-family homes (land use {{ codes }}) in the Maine GeoLibrary's parcel table, times the {{ year }} tax rate from Maine Revenue Services. It's the bill before exemptions, such as the homestead exemption.{% endtrans %} {{ _("Maine doesn't publish an average bill. The parcel table is what each city sends the Maine GeoLibrary, so the figure is shown only while the city's parcels add up to about its taxable land and buildings in MRS's figures for that year.") }}{% endset %}
+{{ calculated(how) }}
 <p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">MRS, Municipal Valuation Return Statistical Summary</a>; <a href="{{ parcels }}">Maine GeoLibrary, Maine Parcels Organized Towns</a>.{% endtrans %}</p>
 {{ chart_links("tax-bill", "/budget/data/tax-bill.csv") }}
 {% endif %}
@@ -108,7 +110,8 @@
 {% if pr %}
 <h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
 <p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Maine towns, cities, and plantations was {{ median }}.{% endtrans %}</p>
-{{ calculated(pr.calculated) }}
+{% set how %}{% trans year=pr.tax_year, communities=pr.communities %}Each municipality's {{ year }} property tax commitment, from Maine Revenue Services' Municipal Valuation Return, divided by its Census population estimate for July 1, {{ year }}. The median is of {{ communities }} Maine towns, cities, and plantations.{% endtrans %}{% endset %}
+{{ calculated(how) }}
 <p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">MRS</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 

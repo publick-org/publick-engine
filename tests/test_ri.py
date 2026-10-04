@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import pytest
-from conftest import BUILT_AT, FIXTURES
+from conftest import BUILT_AT, FIXTURES, calculated_notes
 from fakes import FakeResponse
 from test_site import parse
 from test_site import test_internal_links_resolve as check_links
@@ -360,8 +360,9 @@ def test_every_calculated_figure_says_so_on_its_page(ri_site):
     b = json.loads((ri_site.parent / "data" / "finance" / "budget.json").read_text())
     marked = [b["rates_median_calculated"], b["per_resident"]["calculated"]]
     budget = (ri_site / "budget" / "index.html").read_text()
+    notes = calculated_notes(budget)
     for how in marked:
-        assert how.replace("'", "&#39;") in budget, how
+        assert any(how in note for note in notes), how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)
 
 
@@ -383,6 +384,9 @@ def test_rhode_island_pages_in_spanish(ri_site):
         assert '<html lang="es"' in page and "%%" not in page, section
     budget = (ri_site / "es" / "budget" / "index.html").read_text()
     assert "Tasas del impuesto a la propiedad" in budget and "Calculado por Publick" in budget
+    # The methods are worded in Spanish too, not the English saved with the data.
+    notes = calculated_notes(budget)
+    assert notes and not any(re.search(r"\b(The|Each|It's|times|divided)\b", note) for note in notes), notes
 
 
 def test_ri_dashes_are_explained(ri_site):
