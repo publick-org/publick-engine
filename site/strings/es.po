@@ -1468,7 +1468,7 @@ msgstr "Valor tasado promedio"
 msgid "Average bill"
 msgstr "Factura promedio"
 
-#: site/states/vt/budget.html
+#: pipeline/states/vt/__init__.py site/states/vt/budget.html
 msgid "Average homestead tax bill"
 msgstr "Impuesto promedio de una vivienda principal"
 

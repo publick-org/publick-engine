@@ -741,7 +741,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         # A calculated figure links to the page that says how, where the town has it.
         explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
-            "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
+            "label": _(state.tax_label) if state.tax_label else _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
             "source": period + " · " + _(state.tax_source),
         })

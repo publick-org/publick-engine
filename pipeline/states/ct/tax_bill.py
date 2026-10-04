@@ -98,7 +98,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     fin = config["finance"]
     town, code = fin["opm_town"], str(fin["opm_code"])
-    uses = tuple(str(u) for u in fin.get("single_family_use", SINGLE_FAMILY))
+    uses = fin.get("single_family_use", SINGLE_FAMILY)
+    # One code may be written without a list: "1010", not ["1010"].
+    uses = (str(uses),) if isinstance(uses, (str, int)) else tuple(str(u) for u in uses)
     path = data_dir / "finance" / "tax_bill.json"
     saved = {} if force or not path.exists() else {
         y["fiscal_year"]: y for y in json.loads(path.read_text(encoding="utf-8")).get("years", [])}
@@ -124,7 +126,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
         if ratio is None or not VALUE_CHECK[0] <= ratio <= VALUE_CHECK[1]:
             print(f"::warning::{town}'s {file_year} parcel file adds up to "
                   f"{'no grand list' if ratio is None else f'{ratio:.2f} times its grand list'} of October "
-                  f"{file_year - 1}, outside {VALUE_CHECK[0]}–{VALUE_CHECK[1]}; fiscal year {fiscal_year} left out.")
+                  f"{file_year - 1}, outside {VALUE_CHECK[0]}–{VALUE_CHECK[1]}; fiscal year {fiscal_year} "
+                  + ("kept as saved." if fiscal_year in years else "left out."))
             kept.append(fiscal_year)
             continue
         homes = parcel_stats(client, files[file_year], code, uses)
@@ -141,13 +144,13 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     if not years:
         raise FetchError(f"no year with both a parcel file and a mill rate for {town}")
     kept_years = [years[y] for y in sorted(years)][-YEARS_KEPT:]
-    newest_file = max(files)
+    newest_file = kept_years[-1].get("parcel_file", max(files))
     data = {
         "updated_at": now.isoformat(timespec="seconds"),
         "source": "Calculated by Publick from the Connecticut Office of Policy and Management's mill rates "
                   "and the statewide Parcel and CAMA file",
         "source_url": opendata.page(opendata.MILL_RATES),
-        "parcels_url": opendata.page(files[newest_file]),
+        "parcels_url": opendata.page(files.get(newest_file, files[max(files)])),
         "years": kept_years,
     }
     save_json(path, data)

@@ -103,7 +103,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     fin = config["finance"]
     name = figures.municipality(config)
     geocode = str(fin["megis_geocode"])
-    uses = tuple(str(u) for u in fin["single_family_use"])
+    uses = fin["single_family_use"]
+    # One code may be written without a list: "1010", not ["1010"].
+    uses = (str(uses),) if isinstance(uses, (str, int)) else tuple(str(u) for u in uses)
     tax_year, mvr = figures.rows("tax", name)[-1]
     path = data_dir / "finance" / "tax_bill.json"
     saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() and not force else {}

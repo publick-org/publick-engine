@@ -61,6 +61,8 @@ class State:
     sources: dict = field(default_factory=dict)
     # The short credit under the home page's tax bill figure.
     tax_source: str = ""
+    # The figure's name there, when it isn't the average single-family bill (Vermont's is for homesteads).
+    tax_label: str = ""
     # Extra housing figures from state sources: a module with keys (the housing.json keys it adds),
     # parts(config) (those this town has), client(config), and sources(config, client, state_client, now).
     housing: str | None = None

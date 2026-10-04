@@ -288,6 +288,26 @@ def test_saved_years_are_kept_and_not_asked_for_again(tmp_path):
     assert files and all("/202425/" in u for u in files)
 
 
+
+def test_a_kind_of_file_missing_from_the_page_keeps_whats_saved(tmp_path):
+    config = south_kingstown()
+    fetch_schools.run(config, FakeRIDE(), tmp_path, now=NOW)
+    path = tmp_path / "schools" / "schools.json"
+    before = json.loads(path.read_text())["measures"]["absenteeism"]
+    assert before["years"]
+
+    class WithoutAccountability(FakeRIDE):
+        """The Data Files page with its Accountability links gone (renamed, or briefly taken down)."""
+
+        def get(self, url):
+            if url == ri_schools.DATA_FILES:
+                page = (RI / "datafiles.html").read_text()
+                return FakeResponse(re.sub(r'<a [^>]*Accountability[^>]*>.*?</a>', "", page).encode())
+            return super().get(url)
+
+    fetch_schools.run(config, WithoutAccountability(), tmp_path, now=NOW)
+    assert json.loads(path.read_text())["measures"]["absenteeism"] == before
+
 # ---- The site ----
 
 @pytest.fixture

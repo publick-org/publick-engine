@@ -18,7 +18,6 @@ from test_site import test_internal_links_resolve as check_links
 from pipeline import build_site, fetch_budget, fetch_finance, fetch_schools, rhythms, states
 from pipeline.config import load_config
 from pipeline.http import FetchError
-from pipeline.states.ct import budget as ct_budget
 from pipeline.states.ct import opendata
 from pipeline.states.ct import schools as ct_schools
 from pipeline.states.ct import tax_bill as ct_tax_bill
@@ -195,7 +194,13 @@ def test_a_parcel_file_that_doesnt_match_its_grand_list_is_left_out(tmp_path, ca
     assert "fiscal year 2027 left out" in capsys.readouterr().out
 
 
-def test_saved_years_are_kept_and_not_asked_for_again(tmp_path):
+def test_one_single_family_code_can_be_written_without_a_list(tmp_path):
+    config = wallingford()
+    config["finance"]["single_family_use"] = "1010"
+    assert fetch_finance.run(config, FakeOpenData(), tmp_path, now=NOW)["average_bill"] == 7414
+
+
+def test_saved_tax_bill_years_are_kept_and_not_asked_for_again(tmp_path):
     client = FakeOpenData()
     fetch_finance.run(wallingford(), client, tmp_path, now=NOW)
     client.urls.clear()

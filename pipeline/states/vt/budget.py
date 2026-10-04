@@ -84,11 +84,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     rows = figures.rows("tax", name)
     lists = {int(y): r[name] for y, r in figures.load("grand_list")["years"].items() if name in r}
     rates = [{"tax_year": y, **{k: row.get(k) for k in RATES},
-              "state_median": medians(y)} for y, row in rows if row.get("homestead_rate") is not None]
+              "state_median": medians(y)} for y, row in rows if all(row.get(k) is not None for k in RATES[:3])]
     taxes = [{"tax_year": y, "parts": {label: round(row[k]) for k, label in TAXES.items() if row.get(k)},
               "total": round(total_taxes(row))} for y, row in rows if total_taxes(row)]
     grand_list = [{"tax_year": y, "listed_value": round(r["municipal_grand_list"] * 100) if r.get("municipal_grand_list") else None,
-                   "cla": r.get("cla"), "equalized_value": r.get("equalized_value"), "parcels": r.get("parcels")}
+                   "cla": r.get("cla"), "equalized_value": r.get("equalized_municipal_value"), "parcels": r.get("parcels")}
                   for y, r in sorted(lists.items())]
     resident = next((r for y, _ in reversed(rows) if (r := per_resident(y, name))), None)
     if not rates:
