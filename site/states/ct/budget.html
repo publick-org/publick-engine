@@ -91,7 +91,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years.") }} {{ _("The median is of the state's towns with a rate that year.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">OPM, mill rates</a>.{% endtrans %}</p>
+{{ calculated(budget.rates_median_calculated) }}
+<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">OPM, mill rates</a>.{% endtrans %}</p>
 {{ chart_links("mill-rate", "/budget/data/mill-rates.csv") }}
 
 {# ---- Levy and grand list ---- #}

@@ -2,8 +2,8 @@
 Property Valuation and Review (PVR) figures (figures/, from the yearly extract):
 
 - the tax rates by tax year: homestead education, nonhomestead education, and
-  municipal (with the local agreement rate), each with the median of Vermont's
-  towns. Published;
+  municipal (with the local agreement rate). Published; each with the median of
+  Vermont's towns, calculated by Publick;
 - what the property tax raised, by part: the education taxes, which go to the
   state's Education Fund and pay for every town's schools, and the town's own
   municipal tax. Published;
@@ -99,6 +99,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
         "source_urls": {"rates": figures.load("tax")["source_url"], "grand_list": figures.load("grand_list")["source_url"],
                         "population": figures.load("population")["source_url"]},
         "rates": rates,
+        "rates_median_calculated": ("The middle of each kind of rate among the Vermont towns in PVR's table that "
+                                    "year; a town with no homesteads (an unorganized town or gore) has no homestead "
+                                    "rate that counts."),
         "taxes": taxes,
         "grand_list": grand_list,
         "per_resident": resident,
