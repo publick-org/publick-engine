@@ -112,7 +112,8 @@ class FakeAnthropic:
         "headline": "Approved a site plan for 12 Main St.",
         "summary": "The board approved a site plan for 12 Main St.",
         "is_minutes": True,
-        "decisions": ["Approved the site plan for 12 Main St, 5-0"],
+        "decisions": [{"decision": "Approved the site plan for 12 Main St, 5-0", "outcome": "approved",
+                       "quote": "Motion to approve the site plan for 12 Main St. Motion carried 5-0."}],
     }
 
     def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False,

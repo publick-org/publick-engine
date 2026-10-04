@@ -171,8 +171,12 @@ def test_not_covered_says_why_each_section_is_missing():
               "sections": [{"slug": s} for s in ("meetings", "schools", "housing", "officials")],
               "absences": {"311": "The town doesn't publish its service requests."}}
     gaps = absences.not_covered(config, states.for_town(config))
+    # Connecticut has a budget package, so the town's config just doesn't list the section yet.
     assert gaps == [{"section": "311", "reason": "no_311", "note": "The town doesn't publish its service requests."},
-                    {"section": "budget", "reason": "state", "note": None}]
+                    {"section": "budget", "reason": "not_added", "note": None}]
+    # A state the engine has no package for.
+    elsewhere = {**config, "town": {"state": "New York", "state_abbr": "NY"}}
+    assert absences.not_covered(elsewhere, states.for_town(elsewhere))[1] == {"section": "budget", "reason": "state", "note": None}
     config["absences"] = {"parks": "No parks."}
     with pytest.raises(SystemExit, match="parks"):
         absences.not_covered(config, states.for_town(config))
@@ -191,12 +195,17 @@ def test_officials_at_large_and_dashes(config, data_dir):
     assert officials.load(at_large, data_dir)["dashes"]
 
 
-def test_dashes_are_explained_on_the_fixture_site(site_dir):
+def assert_dashes_explained(site):
+    """Every page of a built site with a – in a table has a legend for it (site_checks does the same)."""
     import re
-    for path in site_dir.rglob("*.html"):
+    for path in site.rglob("*.html"):
         html = path.read_text(encoding="utf-8")
         if re.search(r"<td[^>]*>\s*–\s*</td>", html):
             assert "dash-legend" in html, path
+
+
+def test_dashes_are_explained_on_the_fixture_site(site_dir):
+    assert_dashes_explained(site_dir)
 
 
 def test_section_pages_say_what_is_behind(site_dir, data_dir, config):

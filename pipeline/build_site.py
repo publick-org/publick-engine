@@ -729,8 +729,9 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
     state = states.for_town(config)
-    if state.source("tax_bill", config) and tax_path.exists():
-        tax = json.loads(tax_path.read_text(encoding="utf-8"))
+    tax = json.loads(tax_path.read_text(encoding="utf-8")) if tax_path.exists() else {}
+    # A calculated bill's file can have no years yet, when its first check of the parcel values failed.
+    if state.source("tax_bill", config) and tax.get("years"):
         latest, prior = tax["years"][-1], (tax["years"][-2] if len(tax["years"]) > 1 else None)
         change = ""
         if prior:
@@ -742,7 +743,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         # A calculated figure links to the page that says how, where the town has it.
         explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
-            "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
+            "label": _(state.tax_label) if state.tax_label else _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
             "source": period + " · " + _(state.tax_source),
         })

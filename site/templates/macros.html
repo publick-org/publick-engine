@@ -18,6 +18,11 @@
 {%- if years | selectattr("state", "none") | list %} <span class="dash-legend">{{ _("– means the state hasn't published a statewide figure for that year.") }}</span>{% endif -%}
 {%- endmacro %}
 
+{# The legend for a state's figures page, whose tables show – for a figure a year doesn't have. #}
+{% macro figures_dash() -%}
+<p class="small dash-legend">{{ _("– means no figure for that year: the state hasn't published it, or, for a change, there's no earlier year to compare with.") }}</p>
+{%- endmacro %}
+
 {# Status words for a meeting, as plain text. #}
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}
