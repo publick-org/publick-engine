@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import day_group, meeting_item %}
+{% from "macros.html" import calendar_behind_note, day_group, meeting_item %}
 {% block title %}{% trans town=town.name %}This week in {{ town }}{% endtrans %}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
@@ -44,6 +44,7 @@
   </ul>
 </div>
 {% endif %}
+{% if meetings.calendar_behind %}{{ calendar_behind_note(meetings.calendar_behind, meeting_links) }}{% endif %}
 {% set home = meetings.home %}
 {% if home.count %}
 <p class="small">{% trans count=home.count %}{{ count }} public meeting this week.{% pluralize %}{{ count }} public meetings this week.{% endtrans %}</p>
@@ -61,7 +62,7 @@
 </ul>
 {% if home.hidden %}</details>{% endif %}
 {% endif %}
-{% else %}
+{% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
 {% endif %}
 

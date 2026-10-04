@@ -1,0 +1,2159 @@
+{
+ "https://api.us.socrata.com/api/catalog/v1?domains=data.ct.gov&q=Connecticut+Parcel+and+CAMA+Data&limit=50": {
+  "results": [
+   {
+    "resource": {
+     "id": "pqrn-qghw",
+     "name": "2024 Connecticut Parcel and CAMA Data"
+    }
+   },
+   {
+    "resource": {
+     "id": "2a4a-3zkh",
+     "name": "2022 Connecticut Parcel and CAMA Data by COG"
+    }
+   },
+   {
+    "resource": {
+     "id": "rny9-6ak2",
+     "name": "2025 Connecticut Parcel and CAMA Data"
+    }
+   },
+   {
+    "resource": {
+     "id": "ibe8-9i3q",
+     "name": "2026 Connecticut Parcel and CAMA Data"
+    }
+   },
+   {
+    "resource": {
+     "id": "5ygf-diwu",
+     "name": "Connecticut CAMA and Parcel Layer"
+    }
+   },
+   {
+    "resource": {
+     "id": "v875-mr5r",
+     "name": "Connecticut State Parcel Layer 2023"
+    }
+   },
+   {
+    "resource": {
+     "id": "u6rs-jyvg",
+     "name": "Connecticut CAMA and Parcel Layer 2024"
+    }
+   },
+   {
+    "resource": {
+     "id": "kx55-2bvm",
+     "name": "2023 Parcel and CAMA Metadata"
+    }
+   },
+   {
+    "resource": {
+     "id": "hiti-g2m4",
+     "name": "Connecticut Parcels 2009"
+    }
+   },
+   {
+    "resource": {
+     "id": "fyh6-7xga",
+     "name": "Connecticut CAMA and Parcel Layer 2025"
+    }
+   },
+   {
+    "resource": {
+     "id": "m6xx-nb28",
+     "name": "Connecticut 9-1-1 Address Points"
+    }
+   },
+   {
+    "resource": {
+     "id": "bhcd-4mnv",
+     "name": "Bivalent COVID-19 Vaccination - Archived"
+    }
+   },
+   {
+    "resource": {
+     "id": "ezgm-i4uu",
+     "name": "Connecticut CAMA Data 2023"
+    }
+   },
+   {
+    "resource": {
+     "id": "p6hp-fnp7",
+     "name": "Connecticut Town Population Projections, 2015-2040"
+    }
+   },
+   {
+    "resource": {
+     "id": "dagr-u2hb",
+     "name": "CT Business Registrations"
+    }
+   },
+   {
+    "resource": {
+     "id": "ddy2-ijgu",
+     "name": "CT School Learning Model Indicators"
+    }
+   },
+   {
+    "resource": {
+     "id": "bqve-e8um",
+     "name": "COVID-19 DPH Reports Library - Archive"
+    }
+   },
+   {
+    "resource": {
+     "id": "idfh-6qin",
+     "name": "CT Public Schools and Districts Map"
+    }
+   },
+   {
+    "resource": {
+     "id": "yv3e-2z2v",
+     "name": "Connecticut Public Use Parcels"
+    }
+   },
+   {
+    "resource": {
+     "id": "3hd7-ujh3",
+     "name": "Connecticut State Workforce"
+    }
+   },
+   {
+    "resource": {
+     "id": "pv2w-k7qu",
+     "name": "Connecticut Population Projections - State, County, and Regional Councils of Governments Level, 2015-2040"
+    }
+   },
+   {
+    "resource": {
+     "id": "78dt-mzep",
+     "name": "Connecticut Vacant Parcels"
+    }
+   },
+   {
+    "resource": {
+     "id": "puz9-mar2",
+     "name": "Connecticut Sales Tax Dashboard"
+    }
+   },
+   {
+    "resource": {
+     "id": "i7xw-titi",
+     "name": "Connecticut CAMA Data 2022"
+    }
+   },
+   {
+    "resource": {
+     "id": "9nw5-zuuw",
+     "name": "Connecticut Economic Recovery Dashboard"
+    }
+   },
+   {
+    "resource": {
+     "id": "bfnu-rgqt",
+     "name": "COVID-19 Cases, Hospitalizations, and Deaths (By County) - ARCHIVE"
+    }
+   },
+   {
+    "resource": {
+     "id": "ka36-64k6",
+     "name": "Connecticut Business Registry - Principals"
+    }
+   },
+   {
+    "resource": {
+     "id": "rf3k-f8fg",
+     "name": "COVID-19 Tests, Cases, Hospitalizations, and Deaths (Statewide) - ARCHIVE"
+    }
+   },
+   {
+    "resource": {
+     "id": "28fr-iqnx",
+     "name": "COVID-19 Tests, Cases, and Deaths (By Town) - ARCHIVE"
+    }
+   },
+   {
+    "resource": {
+     "id": "7mgg-eyup",
+     "name": "Protected Open Space View"
+    }
+   },
+   {
+    "resource": {
+     "id": "tusz-n3pv",
+     "name": "Vehicle Crash Data Repository"
+    }
+   },
+   {
+    "resource": {
+     "id": "fv7n-cnqr",
+     "name": "Average and Median Single Family Home Sales Prices 2006-2021"
+    }
+   },
+   {
+    "resource": {
+     "id": "u8jq-fxc2",
+     "name": "COVID-19 Cases in CT Schools (By School), 2020-2021 School Year - Archive"
+    }
+   },
+   {
+    "resource": {
+     "id": "haci-zf9x",
+     "name": "COVID-19 Congregate Settings"
+    }
+   },
+   {
+    "resource": {
+     "id": "jpi8-zeza",
+     "name": "Monthly Sale Price of Single Family Homes in CT"
+    }
+   },
+   {
+    "resource": {
+     "id": "nahi-zqrt",
+     "name": "Traffic Stops - Racial Profiling Prohibition Project"
+    }
+   },
+   {
+    "resource": {
+     "id": "5hqs-h5c3",
+     "name": "Connecticut Towns - Crosswalk with Tax Codes and FIPS Codes"
+    }
+   },
+   {
+    "resource": {
+     "id": "dba3-5be5",
+     "name": "Business Filings by Year Since 1950"
+    }
+   },
+   {
+    "resource": {
+     "id": "4vva-amjy",
+     "name": "Connecticut Earned Income Tax Credit By Town, 2011-2020"
+    }
+   },
+   {
+    "resource": {
+     "id": "efuz-5jhe",
+     "name": "Juvenile Justice Policy and Oversight Committee (JJPOC) Equity Dashboard"
+    }
+   },
+   {
+    "resource": {
+     "id": "pvqv-e235",
+     "name": "Personal Income Tax By Town, 2011-2020"
+    }
+   },
+   {
+    "resource": {
+     "id": "xw6v-i328",
+     "name": "Bulk Legislative Data Downloads"
+    }
+   },
+   {
+    "resource": {
+     "id": "m3ib-yiy7",
+     "name": "College Enrollment, Credit Attainment and Remediation of High School Graduates by School"
+    }
+   },
+   {
+    "resource": {
+     "id": "qz8p-bfkn",
+     "name": "Protected Open Space Phase1"
+    }
+   },
+   {
+    "resource": {
+     "id": "vb5y-z4r7",
+     "name": "College Enrollment, Credit Attainment and Remediation of High School Graduates Statewide"
+    }
+   },
+   {
+    "resource": {
+     "id": "gxsw-vnn6",
+     "name": "Upcoming Carnivals"
+    }
+   },
+   {
+    "resource": {
+     "id": "d8eu-4zpa",
+     "name": "ARPA Project Inventory"
+    }
+   },
+   {
+    "resource": {
+     "id": "meyk-xprb",
+     "name": "State Real Property"
+    }
+   },
+   {
+    "resource": {
+     "id": "enwv-52we",
+     "name": "Connecticut Business Registry - Name Change History"
+    }
+   },
+   {
+    "resource": {
+     "id": "eaw8-rbnt",
+     "name": "Municipal Fiscal Indicators Dashboard"
+    }
+   }
+  ]
+ },
+ "https://data.ct.gov/resource/ej6f-y2wf.json?%24select=max%28fiscal_year_end%29+AS+year&%24limit=5000": [
+  {
+   "year": "2023"
+  }
+ ],
+ "https://data.ct.gov/resource/ej6f-y2wf.json?%24select=town%2C+tax_code%2C+population_state_dept_of_public_health%2C+current_year_adjusted_tax&%24where=fiscal_year_end%3D%272023%27&%24limit=5000": [
+  {
+   "current_year_adjusted_tax": "9984226",
+   "population_state_dept_of_public_health": "3144",
+   "tax_code": "1",
+   "town": "ANDOVER"
+  },
+  {
+   "current_year_adjusted_tax": "39342129",
+   "population_state_dept_of_public_health": "19008",
+   "tax_code": "2",
+   "town": "ANSONIA"
+  },
+  {
+   "current_year_adjusted_tax": "11898802",
+   "population_state_dept_of_public_health": "4229",
+   "tax_code": "3",
+   "town": "ASHFORD"
+  },
+  {
+   "current_year_adjusted_tax": "92212284",
+   "population_state_dept_of_public_health": "18883",
+   "tax_code": "4",
+   "town": "AVON"
+  },
+  {
+   "current_year_adjusted_tax": "11730623",
+   "population_state_dept_of_public_health": "3677",
+   "tax_code": "5",
+   "town": "BARKHAMSTED"
+  },
+  {
+   "current_year_adjusted_tax": "17556353",
+   "population_state_dept_of_public_health": "6206",
+   "tax_code": "6",
+   "town": "BEACON FALLS"
+  },
+  {
+   "current_year_adjusted_tax": "84551410",
+   "population_state_dept_of_public_health": "20429",
+   "tax_code": "7",
+   "town": "BERLIN"
+  },
+  {
+   "current_year_adjusted_tax": "21459900",
+   "population_state_dept_of_public_health": "5271",
+   "tax_code": "8",
+   "town": "BETHANY"
+  },
+  {
+   "current_year_adjusted_tax": "75028809",
+   "population_state_dept_of_public_health": "20678",
+   "tax_code": "9",
+   "town": "BETHEL"
+  },
+  {
+   "current_year_adjusted_tax": "10656489",
+   "population_state_dept_of_public_health": "3421",
+   "tax_code": "10",
+   "town": "BETHLEHEM"
+  },
+  {
+   "current_year_adjusted_tax": "83120456",
+   "population_state_dept_of_public_health": "21884",
+   "tax_code": "11",
+   "town": "BLOOMFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "18233585",
+   "population_state_dept_of_public_health": "4834",
+   "tax_code": "12",
+   "town": "BOLTON"
+  },
+  {
+   "current_year_adjusted_tax": "7549973",
+   "population_state_dept_of_public_health": "2412",
+   "tax_code": "13",
+   "town": "BOZRAH"
+  },
+  {
+   "current_year_adjusted_tax": "113568189",
+   "population_state_dept_of_public_health": "28031",
+   "tax_code": "14",
+   "town": "BRANFORD"
+  },
+  {
+   "current_year_adjusted_tax": "335288736",
+   "population_state_dept_of_public_health": "148028",
+   "tax_code": "15",
+   "town": "BRIDGEPORT"
+  },
+  {
+   "current_year_adjusted_tax": "7221137",
+   "population_state_dept_of_public_health": "1646",
+   "tax_code": "16",
+   "town": "BRIDGEWATER"
+  },
+  {
+   "current_year_adjusted_tax": "159277000",
+   "population_state_dept_of_public_health": "61601",
+   "tax_code": "17",
+   "town": "BRISTOL"
+  },
+  {
+   "current_year_adjusted_tax": "72489172",
+   "population_state_dept_of_public_health": "17489",
+   "tax_code": "18",
+   "town": "BROOKFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "18770652",
+   "population_state_dept_of_public_health": "8612",
+   "tax_code": "19",
+   "town": "BROOKLYN"
+  },
+  {
+   "current_year_adjusted_tax": "33479182",
+   "population_state_dept_of_public_health": "9746",
+   "tax_code": "20",
+   "town": "BURLINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "4905637",
+   "population_state_dept_of_public_health": "1082",
+   "tax_code": "21",
+   "town": "CANAAN"
+  },
+  {
+   "current_year_adjusted_tax": "10441796",
+   "population_state_dept_of_public_health": "5140",
+   "tax_code": "22",
+   "town": "CANTERBURY"
+  },
+  {
+   "current_year_adjusted_tax": "38185919",
+   "population_state_dept_of_public_health": "10146",
+   "tax_code": "23",
+   "town": "CANTON"
+  },
+  {
+   "current_year_adjusted_tax": "7284309",
+   "population_state_dept_of_public_health": "2157",
+   "tax_code": "24",
+   "town": "CHAPLIN"
+  },
+  {
+   "current_year_adjusted_tax": "101868911",
+   "population_state_dept_of_public_health": "29200",
+   "tax_code": "25",
+   "town": "CHESHIRE"
+  },
+  {
+   "current_year_adjusted_tax": "13613820",
+   "population_state_dept_of_public_health": "3761",
+   "tax_code": "26",
+   "town": "CHESTER"
+  },
+  {
+   "current_year_adjusted_tax": "51101159",
+   "population_state_dept_of_public_health": "13402",
+   "tax_code": "27",
+   "town": "CLINTON"
+  },
+  {
+   "current_year_adjusted_tax": "42173867",
+   "population_state_dept_of_public_health": "15504",
+   "tax_code": "28",
+   "town": "COLCHESTER"
+  },
+  {
+   "current_year_adjusted_tax": "6365321",
+   "population_state_dept_of_public_health": "1368",
+   "tax_code": "29",
+   "town": "COLEBROOK"
+  },
+  {
+   "current_year_adjusted_tax": "15177207",
+   "population_state_dept_of_public_health": "5268",
+   "tax_code": "30",
+   "town": "COLUMBIA"
+  },
+  {
+   "current_year_adjusted_tax": "6894862",
+   "population_state_dept_of_public_health": "1575",
+   "tax_code": "31",
+   "town": "CORNWALL"
+  },
+  {
+   "current_year_adjusted_tax": "33947435",
+   "population_state_dept_of_public_health": "12308",
+   "tax_code": "32",
+   "town": "COVENTRY"
+  },
+  {
+   "current_year_adjusted_tax": "48510224",
+   "population_state_dept_of_public_health": "14363",
+   "tax_code": "33",
+   "town": "CROMWELL"
+  },
+  {
+   "current_year_adjusted_tax": "231747998",
+   "population_state_dept_of_public_health": "86124",
+   "tax_code": "34",
+   "town": "DANBURY"
+  },
+  {
+   "current_year_adjusted_tax": "151808586",
+   "population_state_dept_of_public_health": "22020",
+   "tax_code": "35",
+   "town": "DARIEN"
+  },
+  {
+   "current_year_adjusted_tax": "16594401",
+   "population_state_dept_of_public_health": "4454",
+   "tax_code": "36",
+   "town": "DEEP RIVER"
+  },
+  {
+   "current_year_adjusted_tax": "32055470",
+   "population_state_dept_of_public_health": "12406",
+   "tax_code": "37",
+   "town": "DERBY"
+  },
+  {
+   "current_year_adjusted_tax": "26531312",
+   "population_state_dept_of_public_health": "7204",
+   "tax_code": "38",
+   "town": "DURHAM"
+  },
+  {
+   "current_year_adjusted_tax": "21696071",
+   "population_state_dept_of_public_health": "5218",
+   "tax_code": "40",
+   "town": "EAST GRANBY"
+  },
+  {
+   "current_year_adjusted_tax": "29770711",
+   "population_state_dept_of_public_health": "8987",
+   "tax_code": "41",
+   "town": "EAST HADDAM"
+  },
+  {
+   "current_year_adjusted_tax": "42934268",
+   "population_state_dept_of_public_health": "12989",
+   "tax_code": "42",
+   "town": "EAST HAMPTON"
+  },
+  {
+   "current_year_adjusted_tax": "139747000",
+   "population_state_dept_of_public_health": "50654",
+   "tax_code": "43",
+   "town": "EAST HARTFORD"
+  },
+  {
+   "current_year_adjusted_tax": "80758991",
+   "population_state_dept_of_public_health": "27533",
+   "tax_code": "44",
+   "town": "EAST HAVEN"
+  },
+  {
+   "current_year_adjusted_tax": "65983948",
+   "population_state_dept_of_public_health": "18929",
+   "tax_code": "45",
+   "town": "EAST LYME"
+  },
+  {
+   "current_year_adjusted_tax": "35244172",
+   "population_state_dept_of_public_health": "11170",
+   "tax_code": "47",
+   "town": "EAST WINDSOR"
+  },
+  {
+   "current_year_adjusted_tax": "4369252",
+   "population_state_dept_of_public_health": "1689",
+   "tax_code": "39",
+   "town": "EASTFORD"
+  },
+  {
+   "current_year_adjusted_tax": "42366391",
+   "population_state_dept_of_public_health": "7636",
+   "tax_code": "46",
+   "town": "EASTON"
+  },
+  {
+   "current_year_adjusted_tax": "50925640",
+   "population_state_dept_of_public_health": "16994",
+   "tax_code": "48",
+   "town": "ELLINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "102535000",
+   "population_state_dept_of_public_health": "40792",
+   "tax_code": "49",
+   "town": "ENFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "24832806",
+   "population_state_dept_of_public_health": "6802",
+   "tax_code": "50",
+   "town": "ESSEX"
+  },
+  {
+   "current_year_adjusted_tax": "319293000",
+   "population_state_dept_of_public_health": "63433",
+   "tax_code": "51",
+   "town": "FAIRFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "111573059",
+   "population_state_dept_of_public_health": "26798",
+   "tax_code": "52",
+   "town": "FARMINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "5585953",
+   "population_state_dept_of_public_health": "1891",
+   "tax_code": "53",
+   "town": "FRANKLIN"
+  },
+  {
+   "current_year_adjusted_tax": "163694359",
+   "population_state_dept_of_public_health": "35204",
+   "tax_code": "54",
+   "town": "GLASTONBURY"
+  },
+  {
+   "current_year_adjusted_tax": "11632379",
+   "population_state_dept_of_public_health": "3232",
+   "tax_code": "55",
+   "town": "GOSHEN"
+  },
+  {
+   "current_year_adjusted_tax": "41953404",
+   "population_state_dept_of_public_health": "11249",
+   "tax_code": "56",
+   "town": "GRANBY"
+  },
+  {
+   "current_year_adjusted_tax": "402697899",
+   "population_state_dept_of_public_health": "63574",
+   "tax_code": "57",
+   "town": "GREENWICH"
+  },
+  {
+   "current_year_adjusted_tax": "23009008",
+   "population_state_dept_of_public_health": "11624",
+   "tax_code": "58",
+   "town": "GRISWOLD"
+  },
+  {
+   "current_year_adjusted_tax": "98865169",
+   "population_state_dept_of_public_health": "37878",
+   "tax_code": "59",
+   "town": "GROTON"
+  },
+  {
+   "current_year_adjusted_tax": "4980657",
+   "town": "GROTON (CITY)"
+  },
+  {
+   "current_year_adjusted_tax": "103972343",
+   "population_state_dept_of_public_health": "22020",
+   "tax_code": "60",
+   "town": "GUILFORD"
+  },
+  {
+   "current_year_adjusted_tax": "32250041",
+   "population_state_dept_of_public_health": "8773",
+   "tax_code": "61",
+   "town": "HADDAM"
+  },
+  {
+   "current_year_adjusted_tax": "226759727",
+   "population_state_dept_of_public_health": "60014",
+   "tax_code": "62",
+   "town": "HAMDEN"
+  },
+  {
+   "current_year_adjusted_tax": "3896443",
+   "population_state_dept_of_public_health": "1740",
+   "tax_code": "63",
+   "town": "HAMPTON"
+  },
+  {
+   "current_year_adjusted_tax": "307510000",
+   "population_state_dept_of_public_health": "119669",
+   "tax_code": "64",
+   "town": "HARTFORD"
+  },
+  {
+   "current_year_adjusted_tax": "5964892",
+   "population_state_dept_of_public_health": "1912",
+   "tax_code": "65",
+   "town": "HARTLAND"
+  },
+  {
+   "current_year_adjusted_tax": "17616452",
+   "population_state_dept_of_public_health": "5612",
+   "tax_code": "66",
+   "town": "HARWINTON"
+  },
+  {
+   "current_year_adjusted_tax": "29460923",
+   "population_state_dept_of_public_health": "9146",
+   "tax_code": "67",
+   "town": "HEBRON"
+  },
+  {
+   "current_year_adjusted_tax": "11466146",
+   "population_state_dept_of_public_health": "3066",
+   "tax_code": "68",
+   "town": "KENT"
+  },
+  {
+   "current_year_adjusted_tax": "38810894",
+   "population_state_dept_of_public_health": "17945",
+   "tax_code": "69",
+   "town": "KILLINGLY"
+  },
+  {
+   "current_year_adjusted_tax": "19206892",
+   "population_state_dept_of_public_health": "6254",
+   "tax_code": "70",
+   "town": "KILLINGWORTH"
+  },
+  {
+   "current_year_adjusted_tax": "20314859",
+   "population_state_dept_of_public_health": "7108",
+   "tax_code": "71",
+   "town": "LEBANON"
+  },
+  {
+   "current_year_adjusted_tax": "42235493",
+   "population_state_dept_of_public_health": "15459",
+   "tax_code": "72",
+   "town": "LEDYARD"
+  },
+  {
+   "current_year_adjusted_tax": "10456240",
+   "population_state_dept_of_public_health": "4228",
+   "tax_code": "73",
+   "town": "LISBON"
+  },
+  {
+   "current_year_adjusted_tax": "29747580",
+   "population_state_dept_of_public_health": "8293",
+   "tax_code": "74",
+   "town": "LITCHFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "10320390",
+   "population_state_dept_of_public_health": "2409",
+   "tax_code": "75",
+   "town": "LYME"
+  },
+  {
+   "current_year_adjusted_tax": "89540679",
+   "population_state_dept_of_public_health": "17498",
+   "tax_code": "76",
+   "town": "MADISON"
+  },
+  {
+   "current_year_adjusted_tax": "164156000",
+   "population_state_dept_of_public_health": "59408",
+   "tax_code": "77",
+   "town": "MANCHESTER"
+  },
+  {
+   "current_year_adjusted_tax": "36371096",
+   "population_state_dept_of_public_health": "25401",
+   "tax_code": "78",
+   "town": "MANSFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "22169807",
+   "population_state_dept_of_public_health": "6106",
+   "tax_code": "79",
+   "town": "MARLBOROUGH"
+  },
+  {
+   "current_year_adjusted_tax": "135890000",
+   "population_state_dept_of_public_health": "60111",
+   "tax_code": "80",
+   "town": "MERIDEN"
+  },
+  {
+   "current_year_adjusted_tax": "36987845",
+   "population_state_dept_of_public_health": "7936",
+   "tax_code": "81",
+   "town": "MIDDLEBURY"
+  },
+  {
+   "current_year_adjusted_tax": "14393449",
+   "population_state_dept_of_public_health": "4257",
+   "tax_code": "82",
+   "town": "MIDDLEFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "141011000",
+   "population_state_dept_of_public_health": "47984",
+   "tax_code": "83",
+   "town": "MIDDLETOWN"
+  },
+  {
+   "current_year_adjusted_tax": "210986000",
+   "population_state_dept_of_public_health": "52793",
+   "tax_code": "84",
+   "town": "MILFORD"
+  },
+  {
+   "current_year_adjusted_tax": "84748960",
+   "population_state_dept_of_public_health": "18831",
+   "tax_code": "85",
+   "town": "MONROE"
+  },
+  {
+   "current_year_adjusted_tax": "43412498",
+   "population_state_dept_of_public_health": "17814",
+   "tax_code": "86",
+   "town": "MONTVILLE"
+  },
+  {
+   "current_year_adjusted_tax": "8509592",
+   "population_state_dept_of_public_health": "2272",
+   "tax_code": "87",
+   "town": "MORRIS"
+  },
+  {
+   "current_year_adjusted_tax": "84617060",
+   "population_state_dept_of_public_health": "31820",
+   "tax_code": "88",
+   "town": "NAUGATUCK"
+  },
+  {
+   "current_year_adjusted_tax": "133617000",
+   "population_state_dept_of_public_health": "74080",
+   "tax_code": "89",
+   "town": "NEW BRITAIN"
+  },
+  {
+   "current_year_adjusted_tax": "146376717",
+   "population_state_dept_of_public_health": "20862",
+   "tax_code": "90",
+   "town": "NEW CANAAN"
+  },
+  {
+   "current_year_adjusted_tax": "54960761",
+   "population_state_dept_of_public_health": "13487",
+   "tax_code": "91",
+   "town": "NEW FAIRFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "22007430",
+   "population_state_dept_of_public_health": "6709",
+   "tax_code": "92",
+   "town": "NEW HARTFORD"
+  },
+  {
+   "current_year_adjusted_tax": "307233981",
+   "population_state_dept_of_public_health": "135319",
+   "tax_code": "93",
+   "town": "NEW HAVEN"
+  },
+  {
+   "current_year_adjusted_tax": "57901431",
+   "population_state_dept_of_public_health": "27560",
+   "tax_code": "95",
+   "town": "NEW LONDON"
+  },
+  {
+   "current_year_adjusted_tax": "90479798",
+   "population_state_dept_of_public_health": "28276",
+   "tax_code": "96",
+   "town": "NEW MILFORD"
+  },
+  {
+   "current_year_adjusted_tax": "107247000",
+   "population_state_dept_of_public_health": "31227",
+   "tax_code": "94",
+   "town": "NEWINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "115750009",
+   "population_state_dept_of_public_health": "27673",
+   "tax_code": "97",
+   "town": "NEWTOWN"
+  },
+  {
+   "current_year_adjusted_tax": "7601848",
+   "population_state_dept_of_public_health": "1596",
+   "tax_code": "98",
+   "town": "NORFOLK"
+  },
+  {
+   "current_year_adjusted_tax": "45731401",
+   "population_state_dept_of_public_health": "13415",
+   "tax_code": "99",
+   "town": "NORTH BRANFORD"
+  },
+  {
+   "current_year_adjusted_tax": "10247246",
+   "population_state_dept_of_public_health": "3204",
+   "tax_code": "100",
+   "town": "NORTH CANAAN"
+  },
+  {
+   "current_year_adjusted_tax": "99491844",
+   "population_state_dept_of_public_health": "24295",
+   "tax_code": "101",
+   "town": "NORTH HAVEN"
+  },
+  {
+   "current_year_adjusted_tax": "17084197",
+   "population_state_dept_of_public_health": "5165",
+   "tax_code": "102",
+   "town": "NORTH STONINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "362037189",
+   "population_state_dept_of_public_health": "92458",
+   "tax_code": "103",
+   "town": "NORWALK"
+  },
+  {
+   "current_year_adjusted_tax": "85362000",
+   "population_state_dept_of_public_health": "39881",
+   "tax_code": "104",
+   "town": "NORWICH"
+  },
+  {
+   "current_year_adjusted_tax": "37379482",
+   "population_state_dept_of_public_health": "7696",
+   "tax_code": "105",
+   "town": "OLD LYME"
+  },
+  {
+   "current_year_adjusted_tax": "47528187",
+   "population_state_dept_of_public_health": "10571",
+   "tax_code": "106",
+   "town": "OLD SAYBROOK"
+  },
+  {
+   "current_year_adjusted_tax": "73378358",
+   "population_state_dept_of_public_health": "14322",
+   "tax_code": "107",
+   "town": "ORANGE"
+  },
+  {
+   "current_year_adjusted_tax": "41637611",
+   "population_state_dept_of_public_health": "13125",
+   "tax_code": "108",
+   "town": "OXFORD"
+  },
+  {
+   "current_year_adjusted_tax": "30331063",
+   "population_state_dept_of_public_health": "15193",
+   "tax_code": "109",
+   "town": "PLAINFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "50612189",
+   "population_state_dept_of_public_health": "17491",
+   "tax_code": "110",
+   "town": "PLAINVILLE"
+  },
+  {
+   "current_year_adjusted_tax": "32255108",
+   "population_state_dept_of_public_health": "11766",
+   "tax_code": "111",
+   "town": "PLYMOUTH"
+  },
+  {
+   "current_year_adjusted_tax": "10457156",
+   "population_state_dept_of_public_health": "4313",
+   "tax_code": "112",
+   "town": "POMFRET"
+  },
+  {
+   "current_year_adjusted_tax": "30797117",
+   "population_state_dept_of_public_health": "9428",
+   "tax_code": "113",
+   "town": "PORTLAND"
+  },
+  {
+   "current_year_adjusted_tax": "13384024",
+   "population_state_dept_of_public_health": "4829",
+   "tax_code": "114",
+   "town": "PRESTON"
+  },
+  {
+   "current_year_adjusted_tax": "29725307",
+   "population_state_dept_of_public_health": "9479",
+   "tax_code": "115",
+   "town": "PROSPECT"
+  },
+  {
+   "current_year_adjusted_tax": "16084004",
+   "population_state_dept_of_public_health": "9312",
+   "tax_code": "116",
+   "town": "PUTNAM"
+  },
+  {
+   "current_year_adjusted_tax": "49979743",
+   "population_state_dept_of_public_health": "8719",
+   "tax_code": "117",
+   "town": "REDDING"
+  },
+  {
+   "current_year_adjusted_tax": "144062183",
+   "population_state_dept_of_public_health": "24931",
+   "tax_code": "118",
+   "town": "RIDGEFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "78945824",
+   "population_state_dept_of_public_health": "20708",
+   "tax_code": "119",
+   "town": "ROCKY HILL"
+  },
+  {
+   "current_year_adjusted_tax": "10568735",
+   "population_state_dept_of_public_health": "2297",
+   "tax_code": "120",
+   "town": "ROXBURY"
+  },
+  {
+   "current_year_adjusted_tax": "13224191",
+   "population_state_dept_of_public_health": "4319",
+   "tax_code": "121",
+   "town": "SALEM"
+  },
+  {
+   "current_year_adjusted_tax": "16226717",
+   "population_state_dept_of_public_health": "4240",
+   "tax_code": "122",
+   "town": "SALISBURY"
+  },
+  {
+   "current_year_adjusted_tax": "4438192",
+   "population_state_dept_of_public_health": "1578",
+   "tax_code": "123",
+   "town": "SCOTLAND"
+  },
+  {
+   "current_year_adjusted_tax": "48208784",
+   "population_state_dept_of_public_health": "16953",
+   "tax_code": "124",
+   "town": "SEYMOUR"
+  },
+  {
+   "current_year_adjusted_tax": "11124263",
+   "population_state_dept_of_public_health": "2744",
+   "tax_code": "125",
+   "town": "SHARON"
+  },
+  {
+   "current_year_adjusted_tax": "104858416",
+   "population_state_dept_of_public_health": "42144",
+   "tax_code": "126",
+   "town": "SHELTON"
+  },
+  {
+   "current_year_adjusted_tax": "13642536",
+   "population_state_dept_of_public_health": "3530",
+   "tax_code": "127",
+   "town": "SHERMAN"
+  },
+  {
+   "current_year_adjusted_tax": "99289145",
+   "population_state_dept_of_public_health": "24953",
+   "tax_code": "128",
+   "town": "SIMSBURY"
+  },
+  {
+   "current_year_adjusted_tax": "26828741",
+   "population_state_dept_of_public_health": "10725",
+   "tax_code": "129",
+   "town": "SOMERS"
+  },
+  {
+   "current_year_adjusted_tax": "116806150",
+   "population_state_dept_of_public_health": "26773",
+   "tax_code": "132",
+   "town": "SOUTH WINDSOR"
+  },
+  {
+   "current_year_adjusted_tax": "63854219",
+   "population_state_dept_of_public_health": "20127",
+   "tax_code": "130",
+   "town": "SOUTHBURY"
+  },
+  {
+   "current_year_adjusted_tax": "134403000",
+   "population_state_dept_of_public_health": "43743",
+   "tax_code": "131",
+   "town": "SOUTHINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "6390818",
+   "population_state_dept_of_public_health": "2940",
+   "tax_code": "133",
+   "town": "SPRAGUE"
+  },
+  {
+   "current_year_adjusted_tax": "30309926",
+   "population_state_dept_of_public_health": "11567",
+   "tax_code": "134",
+   "town": "STAFFORD"
+  },
+  {
+   "current_year_adjusted_tax": "614436818",
+   "population_state_dept_of_public_health": "136226",
+   "tax_code": "135",
+   "town": "STAMFORD"
+  },
+  {
+   "current_year_adjusted_tax": "8077593",
+   "population_state_dept_of_public_health": "3644",
+   "tax_code": "136",
+   "town": "STERLING"
+  },
+  {
+   "current_year_adjusted_tax": "70548113",
+   "population_state_dept_of_public_health": "18431",
+   "tax_code": "137",
+   "town": "STONINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "195327984",
+   "population_state_dept_of_public_health": "52454",
+   "tax_code": "138",
+   "town": "STRATFORD"
+  },
+  {
+   "current_year_adjusted_tax": "44711198",
+   "population_state_dept_of_public_health": "15650",
+   "tax_code": "139",
+   "town": "SUFFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "21512455",
+   "population_state_dept_of_public_health": "7501",
+   "tax_code": "140",
+   "town": "THOMASTON"
+  },
+  {
+   "current_year_adjusted_tax": "18849395",
+   "population_state_dept_of_public_health": "9385",
+   "tax_code": "141",
+   "town": "THOMPSON"
+  },
+  {
+   "current_year_adjusted_tax": "48499795",
+   "population_state_dept_of_public_health": "14574",
+   "tax_code": "142",
+   "town": "TOLLAND"
+  },
+  {
+   "current_year_adjusted_tax": "97987443",
+   "population_state_dept_of_public_health": "35550",
+   "tax_code": "143",
+   "town": "TORRINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "176135666",
+   "population_state_dept_of_public_health": "37269",
+   "tax_code": "144",
+   "town": "TRUMBULL"
+  },
+  {
+   "current_year_adjusted_tax": "2724726",
+   "population_state_dept_of_public_health": "797",
+   "tax_code": "145",
+   "town": "UNION"
+  },
+  {
+   "current_year_adjusted_tax": "75470947",
+   "population_state_dept_of_public_health": "30596",
+   "tax_code": "146",
+   "town": "VERNON"
+  },
+  {
+   "current_year_adjusted_tax": "6442847",
+   "population_state_dept_of_public_health": "2612",
+   "tax_code": "147",
+   "town": "VOLUNTOWN"
+  },
+  {
+   "current_year_adjusted_tax": "133468000",
+   "population_state_dept_of_public_health": "43725",
+   "tax_code": "148",
+   "town": "WALLINGFORD"
+  },
+  {
+   "current_year_adjusted_tax": "5639524",
+   "population_state_dept_of_public_health": "1367",
+   "tax_code": "149",
+   "town": "WARREN"
+  },
+  {
+   "current_year_adjusted_tax": "17984623",
+   "population_state_dept_of_public_health": "3685",
+   "tax_code": "150",
+   "town": "WASHINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "255447000",
+   "population_state_dept_of_public_health": "114990",
+   "tax_code": "151",
+   "town": "WATERBURY"
+  },
+  {
+   "current_year_adjusted_tax": "97046345",
+   "population_state_dept_of_public_health": "19829",
+   "tax_code": "152",
+   "town": "WATERFORD"
+  },
+  {
+   "current_year_adjusted_tax": "67240789",
+   "population_state_dept_of_public_health": "22274",
+   "tax_code": "153",
+   "town": "WATERTOWN"
+  },
+  {
+   "current_year_adjusted_tax": "280326000",
+   "population_state_dept_of_public_health": "63969",
+   "tax_code": "155",
+   "town": "WEST HARTFORD"
+  },
+  {
+   "current_year_adjusted_tax": "106607588",
+   "population_state_dept_of_public_health": "54790",
+   "tax_code": "156",
+   "town": "WEST HAVEN"
+  },
+  {
+   "current_year_adjusted_tax": "29471834",
+   "population_state_dept_of_public_health": "6881",
+   "tax_code": "154",
+   "town": "WESTBROOK"
+  },
+  {
+   "current_year_adjusted_tax": "76345811",
+   "population_state_dept_of_public_health": "10344",
+   "tax_code": "157",
+   "town": "WESTON"
+  },
+  {
+   "current_year_adjusted_tax": "200768698",
+   "population_state_dept_of_public_health": "27470",
+   "tax_code": "158",
+   "town": "WESTPORT"
+  },
+  {
+   "current_year_adjusted_tax": "96887490",
+   "population_state_dept_of_public_health": "27114",
+   "tax_code": "159",
+   "town": "WETHERSFIELD"
+  },
+  {
+   "current_year_adjusted_tax": "14686205",
+   "population_state_dept_of_public_health": "5552",
+   "tax_code": "160",
+   "town": "WILLINGTON"
+  },
+  {
+   "current_year_adjusted_tax": "123491750",
+   "population_state_dept_of_public_health": "18400",
+   "tax_code": "161",
+   "town": "WILTON"
+  },
+  {
+   "current_year_adjusted_tax": "25573526",
+   "population_state_dept_of_public_health": "10236",
+   "tax_code": "162",
+   "town": "WINCHESTER"
+  },
+  {
+   "current_year_adjusted_tax": "41990191",
+   "population_state_dept_of_public_health": "23833",
+   "tax_code": "163",
+   "town": "WINDHAM"
+  },
+  {
+   "current_year_adjusted_tax": "110100288",
+   "population_state_dept_of_public_health": "29372",
+   "tax_code": "164",
+   "town": "WINDSOR"
+  },
+  {
+   "current_year_adjusted_tax": "39419349",
+   "population_state_dept_of_public_health": "12529",
+   "tax_code": "165",
+   "town": "WINDSOR LOCKS"
+  },
+  {
+   "current_year_adjusted_tax": "45327161",
+   "population_state_dept_of_public_health": "16309",
+   "tax_code": "166",
+   "town": "WOLCOTT"
+  },
+  {
+   "current_year_adjusted_tax": "48750070",
+   "population_state_dept_of_public_health": "9021",
+   "tax_code": "167",
+   "town": "WOODBRIDGE"
+  },
+  {
+   "current_year_adjusted_tax": "32866651",
+   "population_state_dept_of_public_health": "9862",
+   "tax_code": "168",
+   "town": "WOODBURY"
+  },
+  {
+   "current_year_adjusted_tax": "20092362",
+   "population_state_dept_of_public_health": "8346",
+   "tax_code": "169",
+   "town": "WOODSTOCK"
+  }
+ ],
+ "https://data.ct.gov/resource/emyx-j53e.json?%24select=fiscal_year%2C+median%28mill_rate_real_personal%29+AS+median%2C+count%28%2A%29+AS+towns&%24where=municipality+NOT+LIKE+%27%25+-+%25%27+AND+mill_rate_real_personal+%3E%3D+1&%24group=fiscal_year&%24limit=5000": [
+  {
+   "fiscal_year": "2017",
+   "median": "37.22",
+   "towns": "54"
+  },
+  {
+   "fiscal_year": "2018",
+   "median": "37.56",
+   "towns": "59"
+  },
+  {
+   "fiscal_year": "2019",
+   "median": "34.565",
+   "towns": "22"
+  },
+  {
+   "fiscal_year": "2020",
+   "median": "48.055",
+   "towns": "12"
+  },
+  {
+   "fiscal_year": "2021",
+   "median": "31.21",
+   "towns": "168"
+  },
+  {
+   "fiscal_year": "2022",
+   "median": "31.505",
+   "towns": "168"
+  },
+  {
+   "fiscal_year": "2023",
+   "median": "30.64",
+   "towns": "167"
+  },
+  {
+   "fiscal_year": "2024",
+   "median": "29.3004",
+   "towns": "168"
+  },
+  {
+   "fiscal_year": "2025",
+   "median": "28.67",
+   "towns": "169"
+  },
+  {
+   "fiscal_year": "2026",
+   "median": "28.39",
+   "towns": "169"
+  },
+  {
+   "fiscal_year": "2027",
+   "median": "27.47",
+   "towns": "168"
+  }
+ ],
+ "https://data.ct.gov/resource/emyx-j53e.json?%24where=town_code%3D148+AND+municipality%3D%27Wallingford%27&%24limit=5000": [
+  {
+   "fiscal_year": "2026",
+   "grand_list_year": "2024",
+   "mill_rate_motor_vehicle": "24.12",
+   "mill_rate_real_personal": "24.12",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2025",
+   "grand_list_year": "2023",
+   "mill_rate_motor_vehicle": "30.66",
+   "mill_rate_real_personal": "30.66",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2024",
+   "grand_list_year": "2022",
+   "mill_rate_motor_vehicle": "29.34",
+   "mill_rate_real_personal": "29.34",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2023",
+   "grand_list_year": "2021",
+   "mill_rate_motor_vehicle": "29.04",
+   "mill_rate_real_personal": "29.04",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2022",
+   "grand_list_year": "2020",
+   "mill_rate_motor_vehicle": "28.52",
+   "mill_rate_real_personal": "28.52",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2021",
+   "grand_list_year": "2019",
+   "mill_rate_motor_vehicle": "29.19",
+   "mill_rate_real_personal": "29.19",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2020",
+   "grand_list_year": "2018",
+   "mill_rate": "29.19",
+   "municipality": "Wallingford",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2019",
+   "grand_list_year": "2017",
+   "mill_rate": "28.64",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2018",
+   "grand_list_year": "2016",
+   "mill_rate": "28.55",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2017",
+   "grand_list_year": "2015",
+   "mill_rate": "27.89",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2016",
+   "grand_list_year": "2014",
+   "mill_rate": "27.47",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2015",
+   "grand_list_year": "2013",
+   "mill_rate": "26.89",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2014",
+   "grand_list_year": "2012",
+   "mill_rate": "26.22",
+   "municipality": "Wallingford",
+   "service_district_code": "0",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2027",
+   "grand_list_year": "2025",
+   "mill_rate_motor_vehicle": "24.57",
+   "mill_rate_real_personal": "24.57",
+   "municipality": "Wallingford",
+   "service_district_code": "148",
+   "town_code": "148"
+  }
+ ],
+ "https://data.ct.gov/resource/he33-brru.json?%24where=town_code%3D%27148%27&%24limit=5000": [
+  {
+   "fiscal_year": "2026",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "10899637.66",
+   "net_personal_prop_tax_levy": "9131888.65",
+   "net_real_property_tax_levy": "126416818",
+   "supplemental_mv": "2072260.87",
+   "total_tax_levy": "146448345",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2025",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "15518949.89",
+   "net_personal_prop_tax_levy": "11315276.31",
+   "net_real_property_tax_levy": "115141929.76",
+   "supplemental_mv": "1914909.21",
+   "total_tax_levy": "141976155.96",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2024",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "15612322.31",
+   "net_personal_prop_tax_levy": "10201190.35",
+   "net_real_property_tax_levy": "109564840.10",
+   "supplemental_mv": "1761648.62",
+   "total_tax_levy": "135378352.80",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2023",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "14652305.08",
+   "net_personal_prop_tax_levy": "9483106.92",
+   "net_real_property_tax_levy": "108088971.70",
+   "supplemental_mv": "1917451.91",
+   "total_tax_levy": "132224383.70",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2022",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "11501064.89",
+   "net_personal_prop_tax_levy": "9646525.09",
+   "net_real_property_tax_levy": "106224479.90",
+   "supplemental_mv": "1466810.97",
+   "total_tax_levy": "127372069.80",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2021",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "11037582.16",
+   "net_personal_prop_tax_levy": "9111816.64",
+   "net_real_property_tax_levy": "104417024.90",
+   "supplemental_mv": "1609536.28",
+   "total_tax_levy": "124566423.70",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2020",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "10795343.59",
+   "net_personal_prop_tax_levy": "8425834.09",
+   "net_real_property_tax_levy": "104078173.70",
+   "supplemental_mv": "1629900",
+   "total_tax_levy": "123299351.40",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2019",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "10238790",
+   "net_personal_prop_tax_levy": "8197389",
+   "net_real_property_tax_levy": "101232810",
+   "supplemental_mv": "1521126",
+   "total_tax_levy": "119668989",
+   "town_code": "148"
+  },
+  {
+   "fiscal_year": "2027",
+   "municipality_district": "Wallingford",
+   "net_motor_vehicle_tax_levy": "11584709.76",
+   "net_personal_prop_tax_levy": "9809916.76",
+   "net_real_property_tax_levy": "128884936.92",
+   "supplemental_mv": "1595323.46",
+   "total_tax_levy": "150279563.44",
+   "town_code": "148"
+  }
+ ],
+ "https://data.ct.gov/resource/ibe8-9i3q.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0&%24limit=5000": [
+  {
+   "average": "361857.538999940685",
+   "count": "16859",
+   "total": "6100556250.0"
+  }
+ ],
+ "https://data.ct.gov/resource/ibe8-9i3q.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0+AND+state_use+IN+%28%271010%27%29&%24limit=5000": [
+  {
+   "average": "301752.794510102936",
+   "count": "10492",
+   "total": "3165990320.0"
+  }
+ ],
+ "https://data.ct.gov/resource/pcg4-s5rc.json?%24where=entity_name%3D%27WALLINGFORD%27&%24limit=5000": [
+  {
+   "adopted_budget_file_upload": "2025-06-09T14:34:24.000",
+   "all_other_expenditures": "75133356.00",
+   "all_other_revenue": "20130787.00",
+   "budgeted_tax_collection": "0.9820",
+   "contingency_amount": "500000.00",
+   "date_budget_adopted": "2025-05-13T00:00:00.000",
+   "debt_service": "6694695.00",
+   "education_expenditures": "121722102.00",
+   "entity_name": "WALLINGFORD",
+   "fiscal_period_of_budget": "2026",
+   "mill_rate_motor_vehicle": "24.12",
+   "mill_rate_real_estate_personal": "24.12",
+   "property_tax_revenue": "147972729.00",
+   "revenues_from_federal": "0",
+   "revenues_from_state_of_ct": "26946637.00",
+   "total_expenditures": "204050153.00",
+   "total_revenue": "204050153.00",
+   "use_of_fund_balance": "9000000.00"
+  },
+  {
+   "adopted_budget_file_upload": "2024-06-18T15:14:50.000",
+   "all_other_expenditures": "70593786.00",
+   "all_other_revenue": "17773528.00",
+   "budgeted_tax_collection": "0.9820",
+   "contingency_amount": "1050000.00",
+   "date_budget_adopted": "2024-05-23T00:00:00.000",
+   "debt_service": "6556728.00",
+   "education_expenditures": "118017277.00",
+   "entity_name": "WALLINGFORD",
+   "fiscal_period_of_budget": "2025",
+   "mill_rate_motor_vehicle": "30.66",
+   "mill_rate_real_estate_personal": "30.66",
+   "property_tax_revenue": "143670261.00",
+   "revenues_from_federal": "0",
+   "revenues_from_state_of_ct": "26874002.00",
+   "total_expenditures": "196217791.00",
+   "total_revenue": "196217791.00",
+   "use_of_fund_balance": "7900000.00"
+  },
+  {
+   "adopted_budget_file_upload": "2023-06-09T11:14:56.000",
+   "all_other_expenditures": "67217642.00",
+   "all_other_revenue": "15347299.00",
+   "budgeted_tax_collection": "0.9820",
+   "contingency_amount": "900000.00",
+   "date_budget_adopted": "2023-05-17T00:00:00.000",
+   "debt_service": "5196119.00",
+   "education_expenditures": "113511919.00",
+   "entity_name": "WALLINGFORD",
+   "fiscal_period_of_budget": "2024",
+   "mill_rate_motor_vehicle": "29.34",
+   "mill_rate_real_estate_personal": "29.34",
+   "property_tax_revenue": "137005561.00",
+   "revenues_from_federal": "0",
+   "revenues_from_state_of_ct": "26572820.00",
+   "total_expenditures": "186825680.00",
+   "total_revenue": "186825680.00",
+   "use_of_fund_balance": "7900000.00"
+  },
+  {
+   "adopted_budget_file_upload": "2022-06-14T16:26:12.000",
+   "all_other_expenditures": "64091118.00",
+   "all_other_revenue": "14328340.00",
+   "budgeted_tax_collection": "0.9820",
+   "contingency_amount": "775000.00",
+   "date_budget_adopted": "2022-05-24T00:00:00.000",
+   "debt_service": "5939482.00",
+   "education_expenditures": "109897692.00",
+   "entity_name": "WALLINGFORD",
+   "fiscal_period_of_budget": "2023",
+   "mill_rate_motor_vehicle": "29.04",
+   "mill_rate_real_estate_personal": "29.04",
+   "property_tax_revenue": "134059171.00",
+   "revenues_from_federal": "0",
+   "revenues_from_state_of_ct": "25915781.00",
+   "total_expenditures": "180703292.00",
+   "total_revenue": "180703292.00",
+   "use_of_fund_balance": "6400000.00"
+  },
+  {
+   "adopted_budget_file_upload": "2021-06-25T14:06:51.000",
+   "all_other_expenditures": "62589942.00",
+   "all_other_revenue": "13969492.00",
+   "budgeted_tax_collection": "0.9820",
+   "contingency_amount": "2053552.00",
+   "date_budget_adopted": "2021-05-18T00:00:00.000",
+   "debt_service": "5729669.00",
+   "education_expenditures": "106716916.00",
+   "entity_name": "WALLINGFORD",
+   "fiscal_period_of_budget": "2022",
+   "mill_rate_motor_vehicle": "28.52",
+   "mill_rate_real_estate_personal": "28.52",
+   "property_tax_revenue": "129151439.00",
+   "revenues_from_federal": "946914.00",
+   "revenues_from_state_of_ct": "25122234.00",
+   "total_expenditures": "177090079.00",
+   "total_revenue": "177090079.00",
+   "use_of_fund_balance": "7900000.00"
+  }
+ ],
+ "https://data.ct.gov/resource/pqrn-qghw.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0&%24limit=5000": [
+  {
+   "average": "263936.665718012570",
+   "count": "16866",
+   "total": "4451555804"
+  }
+ ],
+ "https://data.ct.gov/resource/pqrn-qghw.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0+AND+state_use+IN+%28%271010%27%29&%24limit=5000": [
+  {
+   "average": "208492.220635827146",
+   "count": "10506",
+   "total": "2190419270"
+  }
+ ],
+ "https://data.ct.gov/resource/rny9-6ak2.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0&%24limit=5000": [
+  {
+   "average": "358682.995850622407",
+   "count": "16870",
+   "total": "6050982140.0"
+  }
+ ],
+ "https://data.ct.gov/resource/rny9-6ak2.json?%24select=count%28%2A%29+AS+count%2C+sum%28assessed_total%29+AS+total%2C+avg%28assessed_total%29+AS+average&%24where=town_id%3D148+AND+assessed_total+%3E+0+AND+state_use+IN+%28%271010%27%29&%24limit=5000": [
+  {
+   "average": "300695.956981060246",
+   "count": "10507",
+   "total": "3159412420.0"
+  }
+ ],
+ "https://data.ct.gov/resource/webp-fgt3.json?%24select=year%2C+net_real_property&%24where=town_code%3D148&%24limit=5000": [
+  {
+   "net_real_property": "5237210930",
+   "year": "2024"
+  },
+  {
+   "net_real_property": "3757572639",
+   "year": "2023"
+  },
+  {
+   "net_real_property": "3744589889",
+   "year": "2022"
+  },
+  {
+   "net_real_property": "3731100989",
+   "year": "2021"
+  },
+  {
+   "net_real_property": "3728998889",
+   "year": "2020"
+  },
+  {
+   "net_real_property": "3580242625",
+   "year": "2019"
+  },
+  {
+   "net_real_property": "3575275770",
+   "year": "2018"
+  },
+  {
+   "net_real_property": "3544209640",
+   "year": "2017"
+  },
+  {
+   "net_real_property": "3590138350",
+   "year": "2016"
+  },
+  {
+   "net_real_property": "3580842530",
+   "year": "2015"
+  },
+  {
+   "net_real_property": "3602090490",
+   "year": "2014"
+  },
+  {
+   "net_real_property": "3581369800",
+   "year": "2013"
+  },
+  {
+   "net_real_property": "3569279270",
+   "year": "2012"
+  },
+  {
+   "net_real_property": "3542319120",
+   "year": "2011"
+  },
+  {
+   "net_real_property": "5259621880",
+   "year": "2025"
+  }
+ ],
+ "https://data.ct.gov/resource/webp-fgt3.json?%24where=town_code%3D148&%24limit=5000": [
+  {
+   "apartment": "79072900",
+   "commercial": "664334530",
+   "exemptions": "21780400",
+   "income_and_expense": "0",
+   "industrial": "321676790",
+   "land_use": "1884800",
+   "motor_vehicle": "450053090",
+   "motor_vehicle_exemption": "10179347",
+   "net_personal_property": "378557050",
+   "net_real_property": "5237210930",
+   "personal_property": "582799323",
+   "personal_property_exemptions": "204242273",
+   "public_utility": "13101200",
+   "residential": "4144257110",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "6055641723",
+   "total_net_motor_vehicle": "439873743",
+   "total_real_property": "5258991330",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "34664000",
+   "year": "2024"
+  },
+  {
+   "apartment": "60449770",
+   "commercial": "566661499",
+   "exemptions": "14517800",
+   "income_and_expense": "0",
+   "industrial": "255336500",
+   "land_use": "1846300",
+   "motor_vehicle": "524154430",
+   "motor_vehicle_exemption": "13788850",
+   "net_personal_property": "369048339",
+   "net_real_property": "3757572639",
+   "personal_property": "549137291",
+   "personal_property_exemptions": "180088952",
+   "public_utility": "11576700",
+   "residential": "2851610370",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4636986558",
+   "total_net_motor_vehicle": "510365580",
+   "total_real_property": "3772090439",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "24609300",
+   "year": "2023"
+  },
+  {
+   "apartment": "60353670",
+   "commercial": "563482699",
+   "exemptions": "14962450",
+   "income_and_expense": "0",
+   "industrial": "256074900",
+   "land_use": "1868600",
+   "motor_vehicle": "549261057",
+   "motor_vehicle_exemption": "13825440",
+   "net_personal_property": "347672198",
+   "net_real_property": "3744589889",
+   "personal_property": "515125504",
+   "personal_property_exemptions": "167453306",
+   "public_utility": "11352700",
+   "residential": "2842334870",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4627697704",
+   "total_net_motor_vehicle": "535435617",
+   "total_real_property": "3759552339",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "24084900",
+   "year": "2022"
+  },
+  {
+   "apartment": "57950970",
+   "commercial": "567355609",
+   "exemptions": "15346360",
+   "income_and_expense": "0",
+   "industrial": "252190900",
+   "land_use": "1868900",
+   "motor_vehicle": "524352765",
+   "motor_vehicle_exemption": "13774930",
+   "net_personal_property": "326556839",
+   "net_real_property": "3731100989",
+   "personal_property": "488018679",
+   "personal_property_exemptions": "161461840",
+   "public_utility": "11240700",
+   "residential": "2831156170",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4568235663",
+   "total_net_motor_vehicle": "510577835",
+   "total_real_property": "3746447349",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "24684100",
+   "year": "2021"
+  },
+  {
+   "apartment": "57023470",
+   "commercial": "571953549",
+   "exemptions": "15778300",
+   "income_and_expense": "5362280",
+   "industrial": "254400800",
+   "land_use": "1861600",
+   "motor_vehicle": "415712562",
+   "motor_vehicle_exemption": "9349150",
+   "net_personal_property": "338411836",
+   "net_real_property": "3728998889",
+   "personal_property": "497236405",
+   "personal_property_exemptions": "158824569",
+   "public_utility": "11240700",
+   "residential": "2823075370",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4473774137",
+   "total_net_motor_vehicle": "406363412",
+   "total_real_property": "3744777189",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "25221700",
+   "year": "2020"
+  },
+  {
+   "apartment": "41104615",
+   "commercial": "564922215",
+   "exemptions": "15653880",
+   "income_and_expense": "7169822",
+   "industrial": "240176090",
+   "land_use": "2260100",
+   "motor_vehicle": "391156975",
+   "motor_vehicle_exemption": "9727970",
+   "net_personal_property": "311696566",
+   "net_real_property": "3580242625",
+   "personal_property": "470677186",
+   "personal_property_exemptions": "158980620",
+   "public_utility": "8678800",
+   "residential": "2712785595",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4273368196",
+   "total_net_motor_vehicle": "381429005",
+   "total_real_property": "3595896505",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "25969090",
+   "year": "2019"
+  },
+  {
+   "apartment": "31891400",
+   "commercial": "562536780",
+   "exemptions": "22152520",
+   "industrial": "260023390",
+   "land_use": "2196900",
+   "motor_vehicle": "382102378",
+   "motor_vehicle_exemption": "9242009",
+   "net_personal_property": "288652314",
+   "net_real_property": "3575275770",
+   "personal_property": "442179412",
+   "personal_property_exemptions": "153527098",
+   "public_utility": "8678800",
+   "residential": "2706280230",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4236788453",
+   "total_net_motor_vehicle": "372860369",
+   "total_real_property": "3597428290",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "25820790",
+   "year": "2018"
+  },
+  {
+   "apartment": "24763800",
+   "commercial": "557971230",
+   "exemptions": "29553400",
+   "industrial": "257059790",
+   "land_use": "2166600",
+   "motor_vehicle": "369261565",
+   "motor_vehicle_exemption": "8900990",
+   "net_personal_property": "285144760",
+   "net_real_property": "3544209640",
+   "personal_property": "482769715",
+   "personal_property_exemptions": "197624955",
+   "public_utility": "8398800",
+   "residential": "2695542130",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4189714975",
+   "total_net_motor_vehicle": "360360575",
+   "total_real_property": "3573763040",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "27860690",
+   "year": "2017"
+  },
+  {
+   "apartment": "24122700",
+   "commercial": "557824810",
+   "exemptions": "31501400",
+   "industrial": "313879790",
+   "land_use": "2167900",
+   "motor_vehicle": "363675520",
+   "motor_vehicle_exemption": "7390970",
+   "net_personal_property": "270668918",
+   "net_real_property": "3590138350",
+   "personal_property": "478210468",
+   "personal_property_exemptions": "207541550",
+   "public_utility": "8118800",
+   "residential": "2688050060",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4217091818",
+   "total_net_motor_vehicle": "356284550",
+   "total_real_property": "3621639750",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "27475690",
+   "year": "2016"
+  },
+  {
+   "apartment": "23595300",
+   "commercial": "561107580",
+   "exemptions": "32713420",
+   "industrial": "313916890",
+   "land_use": "2164100",
+   "motor_vehicle": "356825113",
+   "motor_vehicle_exemption": "7910725",
+   "net_personal_property": "273939689",
+   "net_real_property": "3580842530",
+   "personal_property": "476980959",
+   "personal_property_exemptions": "203041270",
+   "public_utility": "5376500",
+   "residential": "2676810890",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4203696607",
+   "total_net_motor_vehicle": "348914388",
+   "total_real_property": "3613555950",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "30584690",
+   "year": "2015"
+  },
+  {
+   "apartment": "28225590",
+   "commercial": "512877020",
+   "exemptions": "22604320",
+   "industrial": "311881790",
+   "land_use": "1890800",
+   "motor_vehicle": "348129537",
+   "motor_vehicle_exemption": "7218110",
+   "net_personal_property": "325209083",
+   "net_real_property": "3602090490",
+   "personal_property": "517999659",
+   "personal_property_exemptions": "192790576",
+   "public_utility": "13985400",
+   "residential": "2725309280",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4268211000",
+   "total_net_motor_vehicle": "340911427",
+   "total_real_property": "3624694810",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "30524930",
+   "year": "2014"
+  },
+  {
+   "apartment": "24172800",
+   "commercial": "508463020",
+   "exemptions": "22521820",
+   "industrial": "306746890",
+   "land_use": "1897000",
+   "motor_vehicle": "340828421",
+   "motor_vehicle_exemption": "5377790",
+   "net_personal_property": "333761734",
+   "net_real_property": "3581369800",
+   "personal_property": "499884994",
+   "personal_property_exemptions": "166123260",
+   "public_utility": "13648500",
+   "residential": "2717664280",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4250582165",
+   "total_net_motor_vehicle": "335450631",
+   "total_real_property": "3603891620",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "31299130",
+   "year": "2013"
+  },
+  {
+   "apartment": "24172800",
+   "commercial": "508862920",
+   "exemptions": "22806690",
+   "industrial": "304457790",
+   "land_use": "1863000",
+   "motor_vehicle": "331575171",
+   "motor_vehicle_exemption": "4997550",
+   "net_personal_property": "321195894",
+   "net_real_property": "3569279270",
+   "personal_property": "474562394",
+   "personal_property_exemptions": "153366500",
+   "public_utility": "13492500",
+   "residential": "2704956120",
+   "ten_mill_land": "0",
+   "total_net_motor_vehicle": "326577621",
+   "total_real_property": "3592085960",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "34280830",
+   "year": "2012"
+  },
+  {
+   "apartment": "24090900",
+   "commercial": "491778320",
+   "exemptions": "21134550",
+   "industrial": "305515690",
+   "land_use": "1861600",
+   "motor_vehicle": "333767708",
+   "motor_vehicle_exemption": "4627441",
+   "net_personal_property": "308868067",
+   "net_real_property": "3542319120",
+   "personal_property": "457807860",
+   "personal_property_exemptions": "148939793",
+   "public_utility": "13516100",
+   "residential": "2689177530",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "4180327454",
+   "total_net_motor_vehicle": "329140267",
+   "total_real_property": "3563453670",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "37513530",
+   "year": "2011"
+  },
+  {
+   "apartment": "113551820",
+   "commercial": "650666900",
+   "exemptions": "30918880",
+   "income_and_expense": "0",
+   "industrial": "320181890",
+   "land_use": "1870300",
+   "motor_vehicle": "483757040",
+   "motor_vehicle_exemption": "10681570",
+   "net_personal_property": "399128152",
+   "net_real_property": "5259621880",
+   "personal_property": "629117240",
+   "personal_property_exemptions": "229989088",
+   "public_utility": "12961200",
+   "residential": "4157422250",
+   "ten_mill_land": "0",
+   "total_net_grand_list": "6131825502",
+   "total_net_motor_vehicle": "473075470",
+   "total_real_property": "5290540760",
+   "town_code": "148",
+   "town_name": "Wallingford",
+   "vacant_land": "33886400",
+   "year": "2025"
+  }
+ ]
+}

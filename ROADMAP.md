@@ -4,7 +4,9 @@ Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
 evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
 publick.org #42), and that afternoon after every town moved to engine v1.33.0
-by hand (publick.org #43) and the scheduler took over the morning's release.
+by hand (publick.org #43) and the scheduler took over the morning's release;
+on 2026-10-04, state legislators decided for later, and the audit of what
+pages leave unexplained.
 
 This file has four parts:
 
@@ -212,12 +214,21 @@ Make what's shown checkable, and the process safe, before adding towns.
 16. **A `RUNBOOK.md`** in the network repository, and **a second person with
     owner access** to GitHub, Cloudflare, and Anthropic.
     ([Security and privacy](#security-and-privacy))
+17. **Every page says why something is missing.** First, the wrong
+    statements: "Minutes not posted yet" on cancelled meetings and on boards
+    whose minutes Publick doesn't collect, "A summary will be added" for one
+    that never will be, "No agenda was posted" before Publick was collecting,
+    and a calendar that couldn't be read shown as an empty week. Then one
+    reason for every other gap, worked out from what the engine already
+    knows, and a site check that fails a gap shown without one.
+    ([Saying why something is missing](#saying-why-something-is-missing))
 
 ### Then: to about 20 towns
 
 17. **Lowell**: config only. ([Next towns](#next-towns))
-18. **Wallingford's figures**: the Connecticut package's tax bill and budget,
-    then the Affordable Housing Appeals List. ([State packages](#state-packages))
+18. **Wallingford's figures**: the Connecticut package's tax bill and budget
+    are built (2026-10-04); Wallingford's config takes them on the next
+    release, then the Affordable Housing Appeals List. ([State packages](#state-packages))
 19. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
     towns (Burlington, Lewiston, South Kingstown). ([Next towns](#next-towns))
 20. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
@@ -290,6 +301,20 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   Gloucester). Simple, and useful without any summary of the video.
 - **Towns queued separately**, so runs for different towns don't block or
   replace each other. Only if replaced runs turn out to delay towns.
+- **State legislators on the Officials page** (decided 2026-10-04: yes,
+  after the municipal work). In an at-large town such as Wallingford, a
+  state representative is the only official elected by a reader's own part
+  of town, and state law (school aid, payments in lieu of taxes, housing
+  appeals) is behind much of what the boards take up. Kept narrow: a "Your
+  state legislators" block, labeled as the state's, with the House and
+  Senate district map, each member's name, and a link to the legislature's
+  own page for them; no votes or summaries of state business. Boundaries
+  from the Census's state legislative district files and the members from
+  each legislature, both fetched or kept once per state (see
+  [Shared sources once per state](#shared-sources-once-per-state)), so it
+  costs nothing more per town; the map reuses the ward map. Comes after
+  explaining what a page is missing, roll call votes for at-large bodies,
+  and collecting a town's data before it launches.
 - **A town that runs its own site** gets its own repository calling
   `town.yml`, which keeps working for that.
 - **The meetings audit stays by hand** (decided 2026-10-02): a person
@@ -426,7 +451,7 @@ the agenda. Check the original.)"). Never in front of the summary: a badge
 on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA".
 
 **Next.**
-- *Built 2026-10-03, waiting on the test set's first run before it ships:*
+- *Done 2026-10-03 (#66), after the test set's runs against the real model:*
   each decision anchored to a quote from the minutes, checked without AI,
   with an outcome, so a dropped "not" is caught. The minutes prompt
   (version 3) asks for each decision's outcome (approved, denied, tabled,
@@ -1092,9 +1117,9 @@ After those:
   (text PDFs in every sample): one reader of about two days for all 39
   municipalities. Providence is too big for now.
 
-A new state doesn't wait for its state package: a town in a state without
-one gets meetings, minutes, summaries, officials, unemployment, and housing
-estimates, and the state's tax bill, budget, and school figures follow.
+Every New England state now has a package (2026-10-04), so a town in Maine,
+Vermont, or Rhode Island gets its state's figures from its first day: its
+config needs only the package's keys.
 
 **Matters at:** now.
 
@@ -1131,16 +1156,48 @@ school, and housing figures, fetched once for the state where it can be.
 |---|---|---|---|---|---|
 | Massachusetts | done | done | done | Subsidized Housing Inventory, per town | DLS once for every town, into `states/ma/` |
 | New Hampshire | done | done | done | | Yearly files saved by hand into the engine (`pipeline/states/nh/figures/`) |
-| Connecticut | next | next | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns |
-| Maine, Vermont, Rhode Island | | | | | After each state's first town |
+| Connecticut | done (calculated) | done | done (EdSight) | Appeals List, after | data.ct.gov: one query covers all 169 towns; the yearly parcel file found by name |
+| Vermont | done (calculated, homesteads) | done | done | | Yearly workbooks found and saved into the engine by `pipeline.states.vt.extract`; VCGI parcels and data.vermont.gov at each run |
+| Maine | done (calculated) | done | done | | MRS's yearly summary PDF and the ESSA Dashboard's Tableau export, saved into the engine by `pipeline.states.me.extract`; the Maine GeoLibrary's parcel table at each run |
+| Rhode Island | none possible | done | done (absenteeism without the state's) | | The Division of Municipal Finance's PDFs saved by hand into the engine (`pipeline.states.ri.extract`); RIDE's report card files and assessment portal at each run |
 
-**Connecticut, what's left.** Mill rates (24.57 for FY2027 in Wallingford)
-and the statewide parcel file, for an average bill worked out as New
-Hampshire's is; adopted budgets and the audited Municipal Fiscal Indicators;
-the Affordable Housing Appeals List, a yearly PDF or .docx. Connecticut
+Connecticut's tax bill and budget, and the Maine, Vermont, and Rhode Island
+packages, were built on 2026-10-04, before each new state's first town, from
+each state's own statewide sources, tested from the network's container. Each package's docstring lists its config keys.
+
+**Connecticut, what's left.** The Affordable Housing Appeals List: data.ct.gov
+has it through 2023 (`3udy-56vi`), and newer years only as a yearly PDF or
+.docx (Wallingford 5.15% in 2025). Wallingford's config needs its `[finance]`
+keys (`opm_town = "Wallingford"`, `opm_code = 148`, `single_family_use =
+["1010"]`) and a budget section, on the release with the package. Connecticut
 replaced its counties with planning regions in 2022, so county codes change
 midway through every history (Wallingford is `0917078740` in the Census now,
-`0900978740` before).
+`0900978740` before); OPM's datasets use town codes, so the package isn't
+affected.
+
+**Vermont, what's left.** Test results before spring 2025 are only in the
+Agency of Education's yearly zip files (about 20 MB each); the extract could
+read them once. Spending per pupil starts in fiscal year 2025, when Vermont
+changed how it weights pupils. Vermont has no single-family category, so the
+average bill is for homesteads on less than six acres (category R1), condos
+and two- to four-family homes included, before the income-based property tax
+credit.
+
+**Maine, what's left.** The parcel table has values for only about 170 of
+Maine's municipalities, sent when each chooses to, so a town's average bill
+depends on its own submission being current; Lewiston's adds up to 1.10 times
+its 2024 taxable land and buildings. The ESSA Dashboard's export isn't a
+published API; the extract also reads the crosstabs downloaded by hand. Test
+results start in spring 2023. There's no statewide source for a town's
+adopted budget.
+
+**Rhode Island, what's left.** The state publishes no average bill and no
+statewide file of assessed values, so a Rhode Island town has no tax bill on
+its home page. The Division of Municipal Finance's site is behind a
+JavaScript challenge, so its yearly rate, levy, and assessed value PDFs are
+downloaded by hand in a browser; fiscal year 2022's rates and 2022 to 2025's
+levies and values haven't been. RIDE publishes no statewide all-students
+chronic absenteeism rate in its data files.
 
 **Wallingford, what else is there.** The town owns its electric, water, and
 sewer utility, and its Public Utilities Commission meets twice a month: news
@@ -1207,6 +1264,51 @@ called a city.
   page grows in a heavy week, the six-meeting rule already holds it.
 
 **Matters at:** now.
+
+#### Saying why something is missing
+
+**Why.** A reader can't tell "the town hasn't posted it" from "Publick
+missed it", and a gap with no reason reads as a broken site, even when the
+data is right. Raised looking at Wallingford's site (2026-10-04): no
+ward map (the town has no wards) and meetings that looked incomplete (the
+records matched the town's own page).
+
+**Found** (2026-10-04, every template, and every town's data from the
+10-03 run, on engine v1.30.0 data):
+- *Wrong statements.* "Minutes not posted yet" on 53 cancelled meetings
+  and on 75 Manchester calendar-board meetings whose minutes are never
+  collected; "A summary will be added" for documents before `[summaries]
+  since`, or in a town without `[summaries]`; "No agenda was posted" for any
+  past meeting without one, including those before Publick collected
+  agendas; "No public meetings are listed" when the calendar couldn't be
+  read; a board's "Meetings recorded here start in" giving the site's first
+  month, not the board's.
+- *Gaps with no reason* (out of 1,125 held meetings): 644 without minutes,
+  453 of them over 60 days old; 928 without a time and 1,002 without a
+  place, most from sources that list neither; 698 with nothing summarized.
+  Sections, maps and figures that a town doesn't have are left out with
+  nothing said (no wards, no 311, no state budget figures), and freshness
+  is shown only on the About page.
+- Every gap has one of six reasons, and the engine knows which at build
+  time: not posted yet (and for how long), the source doesn't include it,
+  Publick doesn't collect it (a start date, a board, a size limit), held
+  back by a check, Publick's copy is behind, or it doesn't apply to the
+  town (no member has a ward, so every seat is at-large).
+- Also found: 408 of 481 summaries are shown in English on the Spanish
+  pages, and about 70% of translations fail their review (see
+  [Spanish quality](#spanish-quality)).
+
+**Next.**
+1. The wrong statements fixed, in one release.
+2. One function that gives the reason for any gap, with each reason's
+   sentence written and translated once, used by every page; a town's config
+   only overrides a sentence ("Beverly's 311 system has no public data").
+3. A site check that fails a page showing a gap without a reason: a dash
+   with no legend, "not posted yet" on a cancelled meeting.
+4. A section page says when its data is behind, from the freshness rows
+   the About page already shows.
+
+**Matters at:** now; every town added without it adds gaps nobody explains.
 
 #### Who represents you
 

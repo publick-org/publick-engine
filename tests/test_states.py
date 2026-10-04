@@ -31,9 +31,9 @@ def test_a_town_gets_its_states_sources():
 
 
 def test_a_state_without_a_package_has_no_state_sources():
-    town = in_state(load_config("gloucester"), "VT", "Vermont")
+    town = in_state(load_config("gloucester"), "NY", "New York")
     state = states.for_town(town)
-    assert state.name == "Vermont" and state.sources == {} and state.housing_module() is None
+    assert state.name == "New York" and state.sources == {} and state.housing_module() is None
     assert all(state.source(kind, town) is None for kind in states.KINDS)
 
 
@@ -45,9 +45,9 @@ def test_state_tables_are_checked_against_the_towns_state():
 
 
 def test_fetch_skips_a_state_without_the_source(tmp_path, capsys):
-    town = in_state(load_config("gloucester"), "VT", "Vermont")
+    town = in_state(load_config("gloucester"), "NY", "New York")
     assert states.main(town, "tax_bill", tmp_path) == 0
-    assert "no tax bill source for Vermont yet; skipping" in capsys.readouterr().out
+    assert "no tax bill source for New York yet; skipping" in capsys.readouterr().out
     with pytest.raises(LookupError):
         fetch_finance.run(town, None, tmp_path)
     assert not (tmp_path / "finance").exists()
@@ -61,7 +61,7 @@ def test_fetch_skips_a_town_without_the_table(tmp_path, capsys):
 
 
 def test_housing_outside_a_state_with_its_own_figures(tmp_path):
-    town = in_state(load_config("gloucester"), "VT", "Vermont")
+    town = in_state(load_config("gloucester"), "NY", "New York")
     client = FakeHousing()
     result = fetch_housing.run(town, client, tmp_path, now=NOW)
     assert result["problems"] == []
@@ -71,9 +71,9 @@ def test_housing_outside_a_state_with_its_own_figures(tmp_path):
 
 
 def test_a_section_the_state_cant_fill_stops_the_build(tmp_path, monkeypatch, data_dir):
-    town = in_state(load_config("gloucester"), "VT", "Vermont")
+    town = in_state(load_config("gloucester"), "NY", "New York")
     monkeypatch.setattr(build_site, "load_config", lambda slug: town)
-    with pytest.raises(SystemExit, match="The schools section needs Vermont's school figures"):
+    with pytest.raises(SystemExit, match="The schools section needs New York's school figures"):
         build_site.build("gloucester", tmp_path / "site", data_dir=data_dir)
 
 
