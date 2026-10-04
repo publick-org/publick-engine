@@ -79,7 +79,7 @@ higher on this list goes first:
 **Constraints today.** The network repository is public on GitHub's free
 plan: Actions minutes are free, at most 20 jobs run at once, and a run's
 matrix is at most 256 jobs. AI summaries and translations share a network
-budget of **$50 a month**. One person runs and merges everything; about two
+budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
 ## Where things stand (2026-10-02)
@@ -202,13 +202,15 @@ Make what's shown checkable, and the process safe, before adding towns.
     ([Open data](#open-data))
 13. **A budget floor per town**, so one town's launch backlog can't take most
     of a day's money. ([AI costs](#ai-summary-and-translation-costs))
-14. **Push runs build and check but don't publish**, so they never wait hours
-    behind a daily run; the next daily run publishes. ([Releases](#releases))
+14. ~~Push runs build and check but don't publish~~: dropped 2026-10-03. A
+    push keeps publishing, so corrections and engine moves reach readers the
+    same day (publick.org #47, closed). ([Releases](#releases))
 15. **A check of each live site after publishing**: done 2026-10-03, the
     homepage, fetched through the Worker, is the build just published.
     ([Releases](#releases))
-16. **A `RUNBOOK.md`** in the network repository, and **a second person with
-    owner access** to GitHub, Cloudflare, and Anthropic.
+16. **A `RUNBOOK.md`** in the network repository: in a pull request
+    (publick.org #45). A second person with owner access: not planned
+    (decided 2026-10-03).
     ([Security and privacy](#security-and-privacy))
 
 ### Then: to about 20 towns
@@ -360,14 +362,17 @@ would take.
 
 From the October 2026 review, still to decide:
 
-- 311 addresses already in git history: rewritten once, or coarsened from now
-  on only.
 - The order of the next towns (the lists under [Next towns](#next-towns) are
   a proposal).
-- The budget after October ($80 for October 2026, decided 2026-10-02; $50
-  otherwise): raised for good, or kept with backlog summaries through the
-  Batches API.
-- Who the second person with owner access is.
+
+Decided 2026-10-03:
+
+- 311 addresses already in git history stay as they are: no rewrite.
+  `requests.json` keeps SeeClickFix's full addresses (the street lookup
+  needs them); only what the pages show is cut to the block.
+- The budget is $80 every month (publick.org #48).
+- No second person with owner access.
+- Push runs keep publishing (item 14 dropped).
 
 ## The work, by theme
 
@@ -785,10 +790,11 @@ fetchers from saved pages, each with the page, link, and browser checks.
   source was fetched or something changed.
 
 **Next.**
-- A push builds and checks the towns it touched but doesn't publish them, so
-  it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
-  that's too slow, towns queued separately lets a push wait only for its
-  own towns.
+- ~~A push builds and checks the towns it touched but doesn't publish
+  them~~ (chosen 2026-10-02, dropped 2026-10-03): it would have put each
+  morning's engine and every correction a day behind. A push keeps
+  publishing after any daily run in progress; if the wait becomes a
+  problem, towns queued separately lets a push wait only for its own towns.
 - *Done 2026-10-03:* the scheduler Worker starts the engine's release at
   08:20 UTC and the network's engine pull request at 08:40, as it starts the
   daily runs, since GitHub's own schedule started neither on the first
@@ -855,7 +861,7 @@ and the 311 data has people's house numbers.
 #### AI summary and translation costs
 
 **Why.** A per-town limit grew with the number of towns ($5,000 a day at a
-thousand). The network has $50 a month for summaries and translations, and
+thousand). The network has $80 a month for summaries and translations, and
 one Anthropic key whose rate limits apply to the whole network.
 
 **Done.**
