@@ -212,7 +212,8 @@ Make what's shown checkable, and the process safe, before adding towns.
 16. **A `RUNBOOK.md`** in the network repository, and **a second person with
     owner access** to GitHub, Cloudflare, and Anthropic.
     ([Security and privacy](#security-and-privacy))
-17. **Every page says why something is missing.** First, the wrong
+17. **Every page says why something is missing.** Mostly done (#72 and the
+    next): what's left is in the theme. First, the wrong
     statements: "Minutes not posted yet" on cancelled meetings and on boards
     whose minutes Publick doesn't collect, "A summary will be added" for one
     that never will be, "No agenda was posted" before Publick was collecting,
@@ -1226,15 +1227,29 @@ records matched the town's own page).
   pages, and about 70% of translations fail their review (see
   [Spanish quality](#spanish-quality)).
 
+**Done.**
+1. The wrong statements fixed (#72): meetings not held, boards whose
+   minutes aren't collected, minutes not posted (with where and for how
+   long), summaries that won't come, agendas a listing doesn't link, a
+   calendar not read lately, a board's first month.
+2. The reasons from one module, `pipeline/absences.py`, from what the build
+   knows; each sentence written and translated once. Also: a section page
+   says which of its sources are behind; the Officials page says when every
+   seat is at-large; the About page lists the sections a town doesn't have
+   and why, with `[absences]` for the town's own sentence; every table's –
+   has a legend; a saved agenda without a summary says whether one is coming.
+3. Site checks fail a page with an unexplained –, an empty Agenda or minutes
+   section, minutes "coming" for a meeting not held, an Officials page with
+   no ward map and no reason, or an About page missing the sections a town
+   lacks.
+
 **Next.**
-1. The wrong statements fixed, in one release.
-2. One function that gives the reason for any gap, with each reason's
-   sentence written and translated once, used by every page; a town's config
-   only overrides a sentence ("Beverly's 311 system has no public data").
-3. A site check that fails a page showing a gap without a reason: a dash
-   with no legend, "not posted yet" on a cancelled meeting.
-4. A section page says when its data is behind, from the freshness rows
-   the About page already shows.
+- `[absences]` sentences for Beverly, Lawrence and Wallingford's 311, from
+  their configs' own notes.
+- Lists (past meetings, Decisions, search, the street lookup) say what they
+  leave out: unsummarized documents aren't searchable or in Decisions yet.
+- Decisions held back by the fact check counted on the Decisions page, as
+  on the meeting page.
 
 **Matters at:** now; every town added without it adds gaps nobody explains.
 
