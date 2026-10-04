@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import state_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, state test results, and cost per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -65,7 +65,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("The four-year adjusted cohort graduation rate.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, iPlatform</a> (Cohort Counts By School).{% endtrans %}</p>
+<p class="small">{{ _("The four-year adjusted cohort graduation rate.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, iPlatform</a> (Cohort Counts By School).{% endtrans %}{{ state_dash(ms.graduation.years) }}</p>
 
 <h2 id="sas">{{ _("State test results") }}</h2>
 <p>{{ _("Share of students who scored proficient or above (levels 3 and 4) on the New Hampshire Statewide Assessment System (NH SAS). The figures are for every grade tested together: grades 3 to 8, and 11th graders, whose scores come from the SAT.") }}</p>
@@ -82,7 +82,7 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">{{ _("New Hampshire sets its own proficiency levels, so these results can't be compared with other states' tests. No tests were given in spring 2020.") }} {% trans url=ms.sas_ela.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, assessment data</a>.{% endtrans %}</p>
+<p class="small">{{ _("New Hampshire sets its own proficiency levels, so these results can't be compared with other states' tests. No tests were given in spring 2020.") }} {% trans url=ms.sas_ela.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, assessment data</a>.{% endtrans %}{{ state_dash(ms.sas_ela.years + ms.sas_math.years) }}</p>
 
 <h2 id="cost">{{ _("Cost per pupil") }}</h2>
 <p>{{ _("What the district spends to run its schools for each student, from all sources: local, state, and federal. It leaves out construction, debt, transportation, and tuition paid to other districts.") }}</p>
@@ -96,7 +96,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("The state average is of district-operated schools.") }} {% trans url=ms.cost_per_pupil.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, financial reports</a> (Cost Per Pupil by District).{% endtrans %}</p>
+<p class="small">{{ _("The state average is of district-operated schools.") }} {% trans url=ms.cost_per_pupil.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, financial reports</a> (Cost Per Pupil by District).{% endtrans %}{{ state_dash(ms.cost_per_pupil.years) }}</p>
 
 <p class="source-note">{% trans url="https://www.education.nh.gov/" %}All figures as published by the <a href="{{ url }}">New Hampshire Department of Education</a>.{% endtrans %} {{ _("New Hampshire doesn't publish chronic absenteeism.") }}</p>
 {% endif %}

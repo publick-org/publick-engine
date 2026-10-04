@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
+from pipeline import absences
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import dnn
@@ -43,6 +44,7 @@ from pipeline import i18n
 from pipeline import officials as officials_mod
 from pipeline import states
 from pipeline import streets as streets_mod
+from pipeline import structured
 from pipeline import summarize
 from pipeline import translate
 from pipeline.fetch_meetings import slugify
@@ -395,7 +397,8 @@ def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None
         return record
     translated = translate.shown(data_dir, lang, doc["sha256"], record, kind)
     if translated:
-        return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True}
+        return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True,
+                "translated_at": translated.get("generated_at")}
     return {**record, "english": "failed" if translate.failed(data_dir, lang, doc["sha256"], record, kind) else True}
 
 
@@ -477,6 +480,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             if m["minutes_doc"] and summary_model else None
         )
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
+        m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
@@ -547,6 +551,18 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "status": status,
         "tracking_since": min((m["first_seen"] for m in meetings), default=None),
     }
+
+
+def meeting_lastmod(m: dict, today: date) -> str:
+    """The day a meeting's page last changed, for the sitemap: when the meeting was first listed,
+    a document posted, the listing changed, a summary written or a correction checked, or the
+    meeting day itself, when the page starts speaking of it as past. Never after today."""
+    stamps = [m["first_seen"], *(d["fetched_at"] for d in m["agendas"] + m["minutes"]), *(h["at"] for h in m["history"]),
+              *((s or {}).get(at) or "" for s in (m["preview"], m["minutes_summary"]) for at in ("generated_at", "translated_at")),
+              (m["correction"] or {}).get("checked") or ""]
+    if m["date"] <= today.isoformat():
+        stamps.append(m["date"])
+    return min(max(s[:10] for s in stamps), today.isoformat())
 
 
 # School boards, by their usual names: a town's main boards with its governing body.
@@ -727,8 +743,9 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
     state = states.for_town(config)
-    if state.source("tax_bill", config) and tax_path.exists():
-        tax = json.loads(tax_path.read_text(encoding="utf-8"))
+    tax = json.loads(tax_path.read_text(encoding="utf-8")) if tax_path.exists() else {}
+    # A calculated bill's file can have no years yet, when its first check of the parcel values failed.
+    if state.source("tax_bill", config) and tax.get("years"):
         latest, prior = tax["years"][-1], (tax["years"][-2] if len(tax["years"]) > 1 else None)
         change = ""
         if prior:
@@ -740,7 +757,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         # A calculated figure links to the page that says how, where the town has it.
         explained = latest.get("calculated") and any(s["slug"] == "budget" for s in config["sections"])
         numbers.append({
-            "label": _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
+            "label": _(state.tax_label) if state.tax_label else _("Average single-family tax bill"), "value": f"${latest['average_bill']:,}",
             "href": "/budget/#tax-bill" if explained else tax["source_url"], "change": change,
             "source": period + " · " + _(state.tax_source),
         })
@@ -897,6 +914,7 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         entry["definition"] = tr(entry["definition"])
     for source in config.get("freshness", {}).get("sources", []):
         source["label"] = tr(source["label"])
+    config["absences"] = {slug: tr(note) for slug, note in config.get("absences", {}).items()}
     meetings = config.get("meetings", {})
     if "archive_name" in meetings:
         meetings["archive_name"] = tr(meetings["archive_name"])
@@ -951,8 +969,9 @@ def languages(config: dict) -> list[str]:
 
 
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
-          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None) -> list[str]:
-    """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built.
+          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None) -> dict[str, str | None]:
+    """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built,
+    each with the day it last changed (for the sitemap) or None.
 
     English pages are at the site's root; another language's are under /<language>/
     (/es/meetings/), with the same data. Files that aren't pages (static files, downloads,
@@ -962,19 +981,19 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     config = load_config(town)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
-    urls = []
+    urls = {}
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
-            urls += build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr)
+            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
-    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, built_at)
+    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls)
     return urls
 
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
-                   town_static: Path, tr: TownStrings) -> list[str]:
+                   town_static: Path, tr: TownStrings) -> dict[str, str | None]:
     """One language's pages, and with English the files every language shares."""
     town = config["slug"]
     site = config["site"]
@@ -1001,6 +1020,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
+    # Why a meeting's minutes, agenda or summary isn't here, and whether the calendar is behind.
+    absences.annotate(meetings, config, built_at.date())
+    meetings["calendar_behind"] = absences.calendar_behind(config, meetings["status"], built_at)
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
@@ -1087,6 +1109,15 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals["document_url"] = open_documents(config, data_dir).url
     env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version,
                        change=lambda diff, since: change_text(diff, "", since))
+    # Structured data for search engines (pipeline/structured.py); site_url is this language's home, without its slash.
+    site_url = base_url + prefix
+    env.globals.update(
+        structured=structured.script, breadcrumbs=structured.breadcrumbs, site_url=site_url,
+        website=lambda: structured.website(site, site_url + "/", lang),
+        event=lambda m, url, description: structured.event(m, url, description, config["town"], site["timezone"]),
+        dataset=lambda name, description, url, files, **kw: structured.dataset(
+            name, description, url, [base_url + f for f in files], site, config["town"], base_url + "/", **kw),
+        seeclickfix_license=structured.SEECLICKFIX)
 
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
@@ -1123,13 +1154,23 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  not_covered=absences.not_covered(config, state),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
-    urls = []
+    urls = {}
+    today = built_at.date()
+    # The day each meeting's page last changed (meeting_lastmod); a board's and a list's is their newest meeting's.
+    changed = {id(m): meeting_lastmod(m, today) for m in meetings["all"]}
+    newest = max(changed.values(), default=None)
+    # Pages of the site's own folders whose content changes every day: the week ahead, the 311 numbers.
+    # Each other page has no date in the sitemap: what's on it (an explanation, yearly figures) can't say when it changed.
+    daily = {"/", "/meetings/", "/311/", "/311/repeat-locations/"}
+    listed = {"/meetings/past/": newest, "/meetings/decisions/": newest, "/meetings/boards/": newest}
 
-    def render(template: str, url: str, canonical: str | None = None, **context) -> None:
+    def render(template: str, url: str, canonical: str | None = None, lastmod: str | None = None, **context) -> None:
         """Render a page. url is its English address (/meetings/); another language's is under its prefix.
-        A page that shows another's content (canonical, its address) is kept out of the sitemap."""
+        lastmod is the day it last changed, for the sitemap. A page that shows another's content
+        (canonical, its address) is kept out of the sitemap."""
         section_slug = url.strip("/").split("/")[0] or None
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
@@ -1139,6 +1180,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            behind=absences.section_behind(common["data_status"], section_slug),
             moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )
@@ -1151,7 +1193,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
         if url not in UNLISTED_PAGES and not canonical:
-            urls.append(prefix + url)
+            urls[prefix + url] = lastmod
 
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
         rel = page_path.relative_to(PAGES_DIR)
@@ -1159,16 +1201,17 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             continue
         if rel.as_posix() in DOCUMENT_PAGES and not documents:
             continue
-        render(rel.as_posix(), url_for(rel))
+        url = url_for(rel)
+        render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
 
     if "meetings" in config:
         for m in meetings["all"]:
-            render("meeting.html", m["url"], meeting=m)
+            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m)
             # The address of a listing shown as part of another meeting sends readers there.
             for n, also in enumerate(m["also_urls"], 1):
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
         for b in meetings["boards"]:
-            render("board.html", b["url"], board=b)
+            render("board.html", b["url"], lastmod=max(changed[id(m)] for m in b["meetings"]), board=b)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
@@ -1177,9 +1220,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         populations = {w["ward"]: w for w in scorecard["by_ward"]}
         for w in scorecard.get("wards", []):
             if w["ward"] != "outside":
-                render("ward.html", f"/311/ward/{w['ward']}/", ward={**populations.get(w["ward"], {}), **w})
+                render("ward.html", f"/311/ward/{w['ward']}/", lastmod=today.isoformat(), ward={**populations.get(w["ward"], {}), **w})
         for c in scorecard.get("categories", []):
-            render("category.html", f"/311/category/{c['slug']}/", category=c)
+            render("category.html", f"/311/category/{c['slug']}/", lastmod=today.isoformat(), category=c)
         if english:
             write_311_csvs(out_dir / "311" / "data", scorecard)
     if not english:
@@ -1391,16 +1434,17 @@ def write_311_csvs(folder: Path, sc: dict) -> None:
         write_csv(folder / f"category-{c['slug']}.csv", ["ward", *summary], [[w["ward"], *row(w)] for w in c["by_ward"]])
 
 
-def write_support_files(out_dir: Path, site: dict, base_url: str, urls: list[str], built_at: datetime) -> None:
+def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str, str | None]) -> None:
     # Custom domain for GitHub Pages. With Actions deploys the domain is also set
     # in the repo's Pages settings; the file keeps the build self-describing.
     (out_dir / "CNAME").write_text(site["domain"] + "\n", encoding="utf-8")
     # Serve files as-is; don't run Jekyll over the output.
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
 
-    lastmod = built_at.date().isoformat()
+    # Each page with the day it last changed, when that's known (build_language): a date that changed
+    # every day whatever the page said would teach search engines to ignore them all.
     entries = "\n".join(
-        f"  <url><loc>{base_url}{u}</loc><lastmod>{lastmod}</lastmod></url>" for u in sorted(urls)
+        f"  <url><loc>{base_url}{u}</loc>" + (f"<lastmod>{urls[u]}</lastmod>" if urls[u] else "") + "</url>" for u in sorted(urls)
     )
     (out_dir / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'

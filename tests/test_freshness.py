@@ -37,7 +37,7 @@ def test_report_writes_the_rows(tmp_path, monkeypatch):
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
     assert freshness.main() == 1
     rows = json.loads(report.read_text())
-    assert rows[0] == {"label": "Meetings calendar", "updated_at": None, "max_days": 2, "stale": True}
+    assert rows[0] == {"label": "Meetings calendar", "file": "meetings/status.json", "updated_at": None, "max_days": 2, "stale": True}
     assert all(r["updated_at"] is None for r in rows)
 
 

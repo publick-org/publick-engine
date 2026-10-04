@@ -55,6 +55,11 @@
   </li>
   {% endfor %}
 </ul>
+{% elif o.at_large %}
+{# No seat is elected by a ward (pipeline/officials.py at_large), so there's no ward map to show. #}
+<p data-gap="at-large">{{ _("Every seat on this page is elected by the whole city, so the city has no wards to look up: each member represents everyone.") }}</p>
+{% else %}
+<p data-gap="no-ward-map">{{ _("The ward map isn't available yet. Each member's seat is listed under its office below.") }}</p>
 {% endif %}
 
 {% for b in o.bodies %}
@@ -91,5 +96,6 @@
 </div>
 {% endfor %}
 
+{% if o.dashes %}<p class="small dash-legend">{{ _("– means no official source gives it: the end of a term, or a city- or school-issued email address or office phone.") }}</p>{% endif %}
 <p class="source-note">{% trans %}Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.{% endtrans %}</p>
 {% endblock %}
