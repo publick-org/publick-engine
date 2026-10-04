@@ -109,6 +109,7 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
+  absences.py               Why a meeting's minutes, agenda or summary isn't shown, and whether its calendar is behind, for the pages to say
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, finalsite.py, ical.py, schedule.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name

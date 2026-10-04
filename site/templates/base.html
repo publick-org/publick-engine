@@ -83,7 +83,8 @@
       <p>{% trans %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities.{% endtrans %} {% trans url="/about/#reuse" %}Its summaries and data are <a href="{{ url }}">free to reuse with credit</a>.{% endtrans %}</p>
       {% endif %}
       <p>{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %}</p>
-      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+      {# The page was built that day; a source it uses may be older (pipeline/freshness.py), and then it says so. #}
+      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% if data_status | selectattr("stale") | list %} {% trans url="/about/#data-status" %}Some of this site's data is behind: see <a href="{{ url }}">Data status</a>.{% endtrans %}{% endif %}</p>
       {% if lang != "en" and versions %}
       {# On a page in another language: no person checks its translation. #}
       <p>{% trans url=versions[0].path %}This page was translated from English automatically with AI and may have errors. <a href="{{ url }}" hreflang="en">Read it in English</a>.{% endtrans %}</p>
