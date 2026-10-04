@@ -5,6 +5,7 @@ evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
 publick.org #42), and that afternoon after every town moved to engine v1.33.0
 by hand (publick.org #43) and the scheduler took over the morning's release;
+and that night with every "before the next town" item in a pull request; and
 on 2026-10-04, state legislators decided for later, and the audit of what
 pages leave unexplained.
 
@@ -81,7 +82,7 @@ higher on this list goes first:
 **Constraints today.** The network repository is public on GitHub's free
 plan: Actions minutes are free, at most 20 jobs run at once, and a run's
 matrix is at most 256 jobs. AI summaries and translations share a network
-budget of **$50 a month**. One person runs and merges everything; about two
+budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
 ## Where things stand (2026-10-02)
@@ -170,6 +171,27 @@ What's left:
 
 Make what's shown checkable, and the process safe, before adding towns.
 
+**Where it stands (2026-10-04).** Every item below is done, dropped, or in a
+pull request with its checks green:
+
+| Item | Where |
+|---|---|
+| 6, 8. Decisions anchored to quotes, with `outcome`; the test set | Done: engine #66, in v1.34.0, live on every town 2026-10-04 |
+| 7, 9, 12, 15 | Done |
+| 10. Security hardening | engine #69 (HSTS, pins, Dependabot), publick.org #46 (no keys on pull requests) |
+| 11. 311 addresses cut to the block on pages | engine #68 |
+| 13. A budget floor per town | engine #67 |
+| 14. Push runs that don't publish | Dropped (publick.org #47, closed) |
+| 16. `RUNBOOK.md` | publick.org #45; no second owner |
+| The budget at $80 every month | publick.org #48 |
+
+To go live, in order:
+1. 2026-10-04, after the daily runs: merge engine #67 to #70, for the
+   release of 2026-10-05, and publick.org #45, #46, and #48.
+2. 2026-10-05, after the engine moves to that release: **Actions → Worker**
+   once, for the HSTS header; check every town published on it, and the
+   budget floor in the plan job.
+
 6. **Summaries and decisions checked against their documents.** Every number,
    amount, date, and name in a summary is in the document's text; each
    decision anchored to a quote from the minutes, with an `outcome` field so
@@ -196,23 +218,33 @@ Make what's shown checkable, and the process safe, before adding towns.
     `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
     from the Worker. Done: storage and sites keys only in the steps that use
     them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
-    (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
+    (a `<meta>` tag). Done 2026-10-04: the rest, in both repositories
+    (#69; publick.org #46 for the network's workflows). The HSTS header goes
+    live when the sites Worker is next deployed by hand.
+    ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
-    health reports), on the pages and in the CSVs.
+    health reports), on the pages and in the CSVs: done 2026-10-04 (#68),
+    from now on. `requests.json` keeps SeeClickFix's addresses (the street
+    lookup needs them), and git history isn't rewritten (decided
+    2026-10-03).
     ([Security and privacy](#security-and-privacy))
 12. **The data license**: done 2026-10-03 (#54, publick.org #42), CC BY 4.0 in the network
     repository's `LICENSE`, a "Reusing what's here" section on every About
     page, and a footer link. Left: SeeClickFix's terms saved as read.
     ([Open data](#open-data))
-13. **A budget floor per town**, so one town's launch backlog can't take most
-    of a day's money. ([AI costs](#ai-summary-and-translation-costs))
-14. **Push runs build and check but don't publish**, so they never wait hours
-    behind a daily run; the next daily run publishes. ([Releases](#releases))
+13. **A budget floor per town**: done 2026-10-04 (#67). Every town keeps half
+    its even share of each day's budget for every day left in the month; one
+    town's run gets only what's left beyond the others' floors.
+    ([AI costs](#ai-summary-and-translation-costs))
+14. ~~Push runs build and check but don't publish~~: dropped 2026-10-03. A
+    push keeps publishing, so corrections and engine moves reach readers the
+    same day (publick.org #47, closed). ([Releases](#releases))
 15. **A check of each live site after publishing**: done 2026-10-03, the
     homepage, fetched through the Worker, is the build just published.
     ([Releases](#releases))
-16. **A `RUNBOOK.md`** in the network repository, and **a second person with
-    owner access** to GitHub, Cloudflare, and Anthropic.
+16. **A `RUNBOOK.md`** in the network repository: in a pull request
+    (publick.org #45). A second person with owner access: not planned
+    (decided 2026-10-03).
     ([Security and privacy](#security-and-privacy))
 17. **Every page says why something is missing.** Mostly done (#72 and the
     next): what's left is in the theme. First, the wrong
@@ -388,14 +420,17 @@ would take.
 
 From the October 2026 review, still to decide:
 
-- 311 addresses already in git history: rewritten once, or coarsened from now
-  on only.
 - The order of the next towns (the lists under [Next towns](#next-towns) are
   a proposal).
-- The budget after October ($80 for October 2026, decided 2026-10-02; $50
-  otherwise): raised for good, or kept with backlog summaries through the
-  Batches API.
-- Who the second person with owner access is.
+
+Decided 2026-10-03:
+
+- 311 addresses already in git history stay as they are: no rewrite.
+  `requests.json` keeps SeeClickFix's full addresses (the street lookup
+  needs them); only what the pages show is cut to the block.
+- The budget is $80 every month (publick.org #48).
+- No second person with owner access.
+- Push runs keep publishing (item 14 dropped).
 
 ## The work, by theme
 
@@ -850,10 +885,11 @@ fetchers from saved pages, each with the page, link, and browser checks.
   source was fetched or something changed.
 
 **Next.**
-- A push builds and checks the towns it touched but doesn't publish them, so
-  it doesn't wait; the next daily run publishes (chosen 2026-10-02). If
-  that's too slow, towns queued separately lets a push wait only for its
-  own towns.
+- ~~A push builds and checks the towns it touched but doesn't publish
+  them~~ (chosen 2026-10-02, dropped 2026-10-03): it would have put each
+  morning's engine and every correction a day behind. A push keeps
+  publishing after any daily run in progress; if the wait becomes a
+  problem, towns queued separately lets a push wait only for its own towns.
 - *Done 2026-10-03:* the scheduler Worker starts the engine's release at
   08:20 UTC and the network's engine pull request at 08:40, as it starts the
   daily runs, since GitHub's own schedule started neither on the first
@@ -899,16 +935,33 @@ and the 311 data has people's house numbers.
   hold the document keys, since they read the PDFs from the bucket: keeping
   them apart would take a download step of its own.
 - *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
-  headers. Every page already sets a Content Security Policy in a `<meta>`
+  headers. *Done 2026-10-04 (#69):* `Strict-Transport-Security:
+  max-age=31536000` on every page and redirect the Worker serves, without
+  `includeSubDomains` (other hostnames on the zone are served elsewhere) or
+  `preload`, so it can be taken back; live after **Actions → Worker**. Every page already sets a Content Security Policy in a `<meta>`
   tag (`base.html`: scripts from the site only, no inline scripts); what a
   `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
 - *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
-  `v1` moved on every release; tag protection.
+  `v1` moved on every release; tag protection. *Done 2026-10-04
+  (#69, publick.org #46):* every action in both repositories pinned by commit, at the
+  commit its major tag points to (the same code), with its version in a
+  comment; `persist-credentials: false` on every checkout but those whose
+  jobs push (the release's tags, a town's data commits); no keys at all on
+  the network's pull request runs; Dependabot once a month, grouped, for
+  actions in both and the engine's requirements.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
   389 Manchester "Homeless Encampment" and 273 Gloucester Health Department
-  reports, and the CSVs export locations (`build_site.py:1243-1246`). Cut
-  addresses to the block for sensitive categories. Decide whether to rewrite
-  git history once or coarsen from now on.
+  reports, and the CSVs export locations (`build_site.py:1243-1246`). *Done
+  2026-10-04 (#68):* a sensitive category's address is shown to its
+  block ("200–299 Main St") on every page, map, CSV, and in the street
+  lookup, and its map point to three decimal places (about 100 meters):
+  encampments, health and police complaints, noise, problem and private
+  property, smoke detector, lost pet, and lead service requests
+  (`seeclickfix.SENSITIVE_CATEGORIES`, plus a town's `[seeclickfix]
+  sensitive_categories`). The requests stay listed and mapped, and still
+  link to SeeClickFix, which shows the full address. `requests.json` keeps
+  SeeClickFix's addresses for the street lookup, and git history isn't
+  rewritten (decided 2026-10-03).
 - *The privacy line:* the `lang` cookie against "No cookies" (see
   [Spanish quality](#spanish-quality)).
 - *Continuity:* a `RUNBOOK.md` in the network repository (secrets, rotation,
@@ -920,7 +973,7 @@ and the 311 data has people's house numbers.
 #### AI summary and translation costs
 
 **Why.** A per-town limit grew with the number of towns ($5,000 a day at a
-thousand). The network has $50 a month for summaries and translations, and
+thousand). The network has $80 a month for summaries and translations, and
 one Anthropic key whose rate limits apply to the whole network.
 
 **Done.**
@@ -958,8 +1011,11 @@ Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
   (`ADDING-A-TOWN.md`), since a launch's history is what took most of the
   money (Beverly, 58% of October's first two days). The live towns keep
   theirs (94 documents left, about $8.50).
-- A floor per town, so the equal share (`network.py:404-406`) can't let one
-  town's backlog take most of a day's money.
+- *Done 2026-10-04 (#67):* a floor per town. Each town keeps `TOWN_FLOOR_SHARE`
+  (half) of its even share of each day's budget for every day left in the
+  month; a run's towns get what's left beyond the others' floors, so one
+  town's launch backlog or busy week can't take the month. The budget step
+  prints each day's `floor` and what's `kept_for_floors`.
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
 - The Batches API, at least for backlog summaries: cheaper, and out of the

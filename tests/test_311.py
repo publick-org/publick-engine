@@ -321,3 +321,59 @@ def test_311_areas_must_be_wards_or_precincts(config):
 def test_wards_are_in_number_order():
     from pipeline.compute_311 import ward_order
     assert sorted(["10", "2", "outside", "1", "12", "3"], key=ward_order) == ["1", "2", "3", "10", "12", "outside"]
+
+
+def test_block_address_keeps_only_the_hundred_block():
+    from pipeline.seeclickfix import block_address
+    assert block_address("67 Middle St Gloucester, Massachusetts, 01930", "Gloucester") == "1–99 Middle St"
+    assert block_address("262 Main Street Apt 4", "Gloucester") == "200–299 Main Street"
+    assert block_address("1895 S Willow St", "Manchester") == "1800–1899 S Willow St"
+    assert block_address("144–172 Frontage Rd", "Manchester") == "100–199 Frontage Rd"
+    assert block_address("105R Washington St #2", "Gloucester") == "100–199 Washington St"
+    assert block_address("25 1/2 Cleveland St", "Gloucester") == "1–99 Cleveland St"
+    assert block_address("125½ Cleveland St", "Gloucester") == "100–199 Cleveland St"
+    # An intersection or a landmark has no house number to hide.
+    assert block_address("Bray St & Salt Marsh Ln", "Gloucester") == "Bray St & Salt Marsh Ln"
+    assert block_address("Heritage Trail", "Manchester") == "Heritage Trail"
+    assert block_address("01930", "Gloucester") == ""
+
+
+def test_sensitive_categories():
+    from pipeline.seeclickfix import sensitive
+    for c in ("Homeless Encampment", "Health Department (Housing) - Internal", "Police Department (Non-Emergency)",
+              "Problem Property", "Private Property Issue", "Fire - Smoke Detector Request", "Animal - Lost or Missing Pet",
+              "Water - Lead Service Inspection", "Noise/ Business and Construction activity"):
+        assert sensitive(c), c
+    for c in ("Pothole", "Trash - Missed Pickup", "Street Light Issue", "Animal - Dead Animal"):
+        assert not sensitive(c), c
+    assert sensitive("Animal Issues", ["Animal Issues"])
+
+
+def test_sensitive_requests_are_shown_to_the_block():
+    """A sensitive category's requests are still listed and mapped, with the address to the block and
+    the map point to about 100 meters; other categories keep the address SeeClickFix shows."""
+    encampment = {**request("1", "2026-09-01T09:00:00-04:00", lat=42.615432, lng=-70.660876, status="open",
+                            category="Homeless Encampment"), "sensitive": True}
+    pothole = request("2", "2026-09-01T10:00:00-04:00", lat=42.615432, lng=-70.660876, status="open")
+    recent = compute_311.recent_open([encampment, pothole], FETCHED_AT, 30, "https://seeclickfix.com/issues", "Gloucester")
+    shown = {r["id"]: r for r in recent}
+    assert shown["1"]["address"] == "1–99 Main St" and (shown["1"]["lat"], shown["1"]["lng"]) == (42.615, -70.661)
+    assert shown["2"]["address"] == "12 Main St" and (shown["2"]["lat"], shown["2"]["lng"]) == (42.6154, -70.6609)
+    oldest = compute_311.oldest_open([encampment], FETCHED_AT, "https://seeclickfix.com/issues", "Gloucester")
+    assert oldest[0]["address"] == "1–99 Main St"
+    again = {**encampment, "id": "3", "created_at": "2026-05-01T09:00:00-04:00", "status": "closed",
+             "updated_at": "2026-05-02T09:00:00-04:00", "detail": {"closed_at": "2026-05-02T09:00:00-04:00"}}
+    places = compute_311.repeat_locations([again, {**encampment, "created_at": "2026-05-10T09:00:00-04:00"}], 50, 60,
+                                          "https://seeclickfix.com/issues", "Gloucester")
+    assert places[0]["address"] == "1–99 Main St" and (places[0]["lat"], places[0]["lng"]) == (42.615, -70.661)
+
+
+def test_scorecard_cuts_sensitive_addresses_and_keeps_the_store(config, data):
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=500)
+    store = load(data)
+    config["seeclickfix"]["sensitive_categories"] = sorted({r["category"] for r in store.values()})
+    sc = compute_311.compute(config, data, now=FETCHED_AT)
+    shown = [r["address"] for r in sc["recent_open"]["requests"] + sc["backlog"]["oldest"] if r["address"]]
+    assert shown and all("–" in a or not a[0].isdigit() for a in shown)
+    # requests.json keeps what SeeClickFix lists.
+    assert load(data) == store

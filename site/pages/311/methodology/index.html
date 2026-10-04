@@ -43,7 +43,7 @@
 
 <h2 id="locations">{{ _("Maps and locations") }}</h2>
 <dl class="defs">
-  <dt>{{ _("Locations shown") }}</dt><dd>{{ _("Addresses, intersections, and landmarks are shown as they appear on SeeClickFix. Every public request can appear on the maps and lists, in every category. Requests without a map location are listed but not mapped.") }}</dd>
+  <dt>{{ _("Locations shown") }}</dt><dd>{{ _("Addresses, intersections, and landmarks are shown as they appear on SeeClickFix. Every public request can appear on the maps and lists, in every category. Requests without a map location are listed but not mapped.") }} {{ _("In categories that point at a person or a household (homeless encampments, health and police complaints, noise, problem properties, smoke detector and lost pet requests), an address is shown only to its block, such as \"200–299 Main Street\", and the map places the request to about 100 meters.") }}</dd>
   <dt>{{ _("Repeat location") }}</dt><dd>{% trans meters=config.seeclickfix.repeats.radius_m, days=config.seeclickfix.repeats.window_days %}Requests in the same category within {{ meters }} meters and {{ days }} days of each other, in a chain, count as one place. A place is listed when a request there came in after an earlier request at that place was closed. Past 12 months.{% endtrans %}</dd>
   <dt>{{ _("Map") }}</dt><dd>{% trans %}Points are placed within about 10 meters. Map data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>. Every place on a map is also listed on the page.{% endtrans %}</dd>
 </dl>
