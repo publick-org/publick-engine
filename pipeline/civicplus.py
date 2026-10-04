@@ -297,11 +297,14 @@ def collection_body(name: str) -> tuple[str, str]:
     """Split a collection name into (public body, document kind).
 
     'Planning Board - Minutes' -> ('Planning Board', 'minutes')
-    'City Council Agendas and Packets' -> ('City Council', 'agendas')"""
+    'City Council Agendas and Packets' -> ('City Council', 'agendas')
+    'Finance Committee - Minutes 2026' -> ('Finance Committee', 'minutes'): a collection of one
+    year's documents, or of a range of years ('Planning Board Minutes 2026 - 2030')"""
+    years = r"(?:\s+\d{4}(?:\s*-\s*\d{4})?)?"
     kinds = [
-        (r"\s*-?\s*Meeting Results$", "results"),
-        (r"\s*-?\s*Minutes$", "minutes"),
-        (r"\s*-?\s*Agendas(?: and Packets)?$", "agendas"),
+        (r"\s*-?\s*Meeting Results" + years + "$", "results"),
+        (r"\s*-?\s*Minutes" + years + "$", "minutes"),
+        (r"\s*-?\s*Agendas(?: and Packets)?" + years + "$", "agendas"),
     ]
     for pattern, kind in kinds:
         if re.search(pattern, name, re.I):

@@ -28,8 +28,18 @@ def ward_key(ward: str) -> tuple:
 
 
 def wards_file(config: dict) -> str | None:
-    """The town's ward file: [officials] wards_file, or the one 311 uses."""
-    return config.get("officials", {}).get("wards_file") or config.get("seeclickfix", {}).get("precincts_file")
+    """The town's ward file: [officials] wards_file, or the one 311 uses when its areas are wards.
+    A town that places 311 requests in voting precincts ([seeclickfix] areas) has no wards to look up."""
+    sc = config.get("seeclickfix", {})
+    return config.get("officials", {}).get("wards_file") or (sc.get("precincts_file") if not precincts(config) else None)
+
+
+def precincts(config: dict) -> bool:
+    """Whether the town's 311 areas are voting precincts rather than wards ([seeclickfix] areas)."""
+    areas = config.get("seeclickfix", {}).get("areas", "wards")
+    if areas not in ("wards", "precincts"):
+        raise SystemExit(f'[seeclickfix] areas in config/{config["slug"]}.toml must be "wards" or "precincts", not {areas!r}.')
+    return areas == "precincts"
 
 
 def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> dict:

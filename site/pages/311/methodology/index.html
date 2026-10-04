@@ -32,8 +32,13 @@
   <dt>{{ _("No update in over a year") }}</dt><dd>{{ _("An open request whose last change on SeeClickFix (a status change, comment, or edit) was more than a year ago. Some may have been fixed and never closed; others may never have been handled. The data doesn't show which. They still count as open.") }}</dd>
   <dt>{{ _("Typical (median)") }}</dt><dd>{{ _("Half took less time, half took more. Unlike an average, a few very old requests don't skew it.") }}</dd>
   <dt>{{ _("1 in 10 took over") }}</dt><dd>{{ _("The 90th percentile: how long the slowest requests take.") }}</dd>
+  {% if precincts %}
+  <dt>{{ _("Precinct") }}</dt><dd>{% trans url=wards.url, year=wards.year, publisher=wards.publisher %}Based on the request's map location and the <a href="{{ url }}">{{ year }} {{ publisher }} voting precinct boundaries</a>.{% endtrans %}</dd>
+  <dt>{{ _("Per 1,000 residents") }}</dt><dd>{{ _("Requests divided by the precinct's 2020 census population, times 1,000. Precinct populations come from the census, so they differ slightly from the state's newer citywide estimate used on the budget page.") }}</dd>
+  {% else %}
   <dt>{{ _("Ward") }}</dt><dd>{% trans url=wards.url, year=wards.year, publisher=wards.publisher %}Based on the request's map location and the <a href="{{ url }}">{{ year }} {{ publisher }} ward boundaries</a>.{% endtrans %}</dd>
   <dt>{{ _("Per 1,000 residents") }}</dt><dd>{{ _("Requests divided by the ward's 2020 census population, times 1,000. Ward populations come from the census, so they differ slightly from the state's newer citywide estimate used on the budget page.") }}</dd>
+  {% endif %}
 </dl>
 
 <h2 id="locations">{{ _("Maps and locations") }}</h2>
@@ -47,7 +52,7 @@
 <ul>
   <li>{{ _("A closed request isn't always a fixed problem. Duplicates and requests outside the city's responsibility also get closed.") }}</li>
   <li>{{ _("Some departments use SeeClickFix more than others.") }}</li>
-  <li>{{ _("Ward differences reflect how often people report problems, not only how the city responds.") }}</li>
+  <li>{% if precincts %}{{ _("Precinct differences reflect how often people report problems, not only how the city responds.") }}{% else %}{{ _("Ward differences reflect how often people report problems, not only how the city responds.") }}{% endif %}</li>
   <li>{{ _("Recent months will change as requests close.") }}</li>
   <li>{{ _("A repeat location isn't always the same problem. It can be a problem that came back, a fix that didn't hold, or a separate problem nearby.") }}</li>
   <li>{{ _("Numbers based on fewer than 5 requests aren't shown.") }}</li>

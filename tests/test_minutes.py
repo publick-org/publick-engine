@@ -33,6 +33,11 @@ def test_parse_title_date(title, expected):
     ("Budget and Finance Standing Committee Minutes", ("Budget and Finance Standing Committee", "minutes")),
     ("Zoning Board of Appeals Meeting Results", ("Zoning Board of Appeals", "results")),
     ("Contributory Retirement System: Minutes", ("Contributory Retirement System", "minutes")),
+    ("Finance Committee - Minutes 2026", ("Finance Committee", "minutes")),
+    ("City Council Meeting Minutes 2026", ("City Council Meeting", "minutes")),
+    ("Planning Board Minutes 2026 - 2030", ("Planning Board", "minutes")),
+    ("Planning Board Agendas 2026", ("Planning Board", "agendas")),
+    ("Board of Health Minutes 2025-2026", ("Board of Health", "minutes")),
 ])
 def test_collection_body(name, expected):
     assert civicplus.collection_body(name) == expected
