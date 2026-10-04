@@ -4,7 +4,8 @@ Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
 evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
 publick.org #42), and that afternoon after every town moved to engine v1.33.0
-by hand (publick.org #43) and the scheduler took over the morning's release.
+by hand (publick.org #43) and the scheduler took over the morning's release;
+and that night with every "before the next town" item in a pull request.
 
 This file has four parts:
 
@@ -167,6 +168,31 @@ What's left:
 ### Next: October, before the next town
 
 Make what's shown checkable, and the process safe, before adding towns.
+
+**Where it stands (2026-10-04).** Every item below is done, dropped, or in a
+pull request with its checks green:
+
+| Item | Where |
+|---|---|
+| 6, 8. Decisions anchored to quotes, with `outcome`; the test set | engine #66 |
+| 7, 9, 12, 15 | Done |
+| 10. Security hardening | engine #69 (HSTS, pins, Dependabot), publick.org #46 (no keys on pull requests) |
+| 11. 311 addresses cut to the block on pages | engine #68 |
+| 13. A budget floor per town | engine #67 |
+| 14. Push runs that don't publish | Dropped (publick.org #47, closed) |
+| 16. `RUNBOOK.md` | publick.org #45; no second owner |
+| The budget at $80 every month | publick.org #48 |
+
+To go live, in order:
+1. 2026-10-04, after that morning's engine pull request merges (about
+   09:15 UTC): merge engine #66 to #70, for the release of 2026-10-05.
+2. 2026-10-04, after the daily runs finish (about 15:00 UTC): merge
+   publick.org #45, #46, and #48.
+3. 2026-10-05, after the engine moves to that release: **Actions → Worker**
+   once, for the HSTS header.
+4. 2026-10-05, after the daily runs: check every town published on the new
+   engine, the decision quotes' fact checks, and the budget floor in the
+   plan job. Then the next town: Lowell, config only (item 17).
 
 6. **Summaries and decisions checked against their documents.** Every number,
    amount, date, and name in a summary is in the document's text; each
