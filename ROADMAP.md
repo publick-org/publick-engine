@@ -4,7 +4,8 @@ Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
 evening after the meetings audit (engine #52, publick.org #40), and on
 2026-10-03 after the AI summary label and the data license (engine #54,
 publick.org #42), and that afternoon after every town moved to engine v1.33.0
-by hand (publick.org #43) and the scheduler took over the morning's release.
+by hand (publick.org #43) and the scheduler took over the morning's release;
+on 2026-10-04, state legislators decided for later.
 
 This file has four parts:
 
@@ -288,6 +289,20 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   Gloucester). Simple, and useful without any summary of the video.
 - **Towns queued separately**, so runs for different towns don't block or
   replace each other. Only if replaced runs turn out to delay towns.
+- **State legislators on the Officials page** (decided 2026-10-04: yes,
+  after the municipal work). In an at-large town such as Wallingford, a
+  state representative is the only official elected by a reader's own part
+  of town, and state law (school aid, payments in lieu of taxes, housing
+  appeals) is behind much of what the boards take up. Kept narrow: a "Your
+  state legislators" block, labeled as the state's, with the House and
+  Senate district map, each member's name, and a link to the legislature's
+  own page for them; no votes or summaries of state business. Boundaries
+  from the Census's state legislative district files and the members from
+  each legislature, both fetched or kept once per state (see
+  [Shared sources once per state](#shared-sources-once-per-state)), so it
+  costs nothing more per town; the map reuses the ward map. Comes after
+  explaining what a page is missing, roll call votes for at-large bodies,
+  and collecting a town's data before it launches.
 - **A town that runs its own site** gets its own repository calling
   `town.yml`, which keeps working for that.
 - **The meetings audit stays by hand** (decided 2026-10-02): a person
