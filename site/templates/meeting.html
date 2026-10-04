@@ -5,6 +5,13 @@
 {# Translators: a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
 {% block title %}{% if m.day_part %}{% trans body=m.body, when=m.date | date, part=m.day_part %}{{ body }}, {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ m.body }}, {{ m.date | date }}, {{ m.start_time | time }}{% else %}{{ m.body }}, {{ m.date | date }}{% endif %}{% endblock %}
 {% block description %}
+{# A search result shows the description on its own, so a summary's headline says it was written by AI, as the feed's does.
+   One shown in English on another language's page isn't used: the description is in the page's language. #}
+{% set ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes", True) and not m.minutes_summary.get("english") else none %}
+{% set pv = m.preview if m.preview and not m.preview.get("english") else none %}
+{% if ms and ms.get("headline") %}{% trans headline=ms.headline %}AI summary of the minutes: {{ headline }}{% endtrans %}
+{% elif not ms and pv and pv.get("headline") %}{% trans headline=pv.headline %}AI summary of the agenda: {{ headline }}{% endtrans %}
+{% else %}
 {# Translators: %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community". #}
 {% set what = m.title if m.title.lower().endswith(("meeting", "hearing")) else _("%(title)s meeting", title=m.title) %}
 {# Translators: %(what)s is a meeting, such as "City Council meeting". #}
@@ -13,7 +20,10 @@
 {% elif m.minutes_doc %}{% trans when=m.date | date %}{{ what }} on {{ when }}: decisions, minutes, and agenda.{% endtrans %}
 {% else %}{% trans when=m.date | date %}{{ what }} on {{ when }}: location, how to attend, and agenda.{% endtrans %}
 {% endif %}
+{% endif %}
 {% endblock %}
+{% block structured_data %}{{ structured(event(m, canonical_url, self.description()),
+  breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
 {% set district = m.source in ("drive", "finalsite", "ical", "schedule") %}

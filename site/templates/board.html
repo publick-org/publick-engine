@@ -5,6 +5,8 @@
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town and %(board)s a board's name, such as "City Council". #}
 {% block description %}{% trans town=town.name, board=b.name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
+{% block structured_data %}{{ structured(breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"),
+  (_("Boards and committees"), site_url ~ "/meetings/boards/"), (b.name, canonical_url)])) }}{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>
