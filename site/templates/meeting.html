@@ -5,6 +5,13 @@
 {# Translators: a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
 {% block title %}{% if m.day_part %}{% trans body=m.body, when=m.date | date, part=m.day_part %}{{ body }}, {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ m.body }}, {{ m.date | date }}, {{ m.start_time | time }}{% else %}{{ m.body }}, {{ m.date | date }}{% endif %}{% endblock %}
 {% block description %}
+{# A search result shows the description on its own, so a summary's headline says it was written by AI, as the feed's does.
+   One shown in English on another language's page isn't used: the description is in the page's language. #}
+{% set ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes", True) and not m.minutes_summary.get("english") else none %}
+{% set pv = m.preview if m.preview and not m.preview.get("english") else none %}
+{% if ms and ms.get("headline") %}{% trans headline=ms.headline %}AI summary of the minutes: {{ headline }}{% endtrans %}
+{% elif not ms and pv and pv.get("headline") %}{% trans headline=pv.headline %}AI summary of the agenda: {{ headline }}{% endtrans %}
+{% else %}
 {# Translators: %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community". #}
 {% set what = m.title if m.title.lower().endswith(("meeting", "hearing")) else _("%(title)s meeting", title=m.title) %}
 {# Translators: %(what)s is a meeting, such as "City Council meeting". #}
@@ -13,7 +20,10 @@
 {% elif m.minutes_doc %}{% trans when=m.date | date %}{{ what }} on {{ when }}: decisions, minutes, and agenda.{% endtrans %}
 {% else %}{% trans when=m.date | date %}{{ what }} on {{ when }}: location, how to attend, and agenda.{% endtrans %}
 {% endif %}
+{% endif %}
 {% endblock %}
+{% block structured_data %}{{ structured(event(m, canonical_url, self.description()),
+  breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
 {% set district = m.source in ("drive", "finalsite", "ical", "schedule") %}
@@ -25,7 +35,7 @@
   </ol>
 </nav>
 
-<div class="page-head">
+<div class="page-head" data-status="{{ m.status }}">
   <h1>{{ m.title }}</h1>
   <p class="lede"><time datetime="{{ m.date }}{% if m.start_time %}T{{ m.start_time }}{% endif %}">{{ m.date | date }}{% if m.start_time %} · {{ m.start_time | time }}{% endif %}</time>{% if m.special %} · {{ _("Special meeting") }}{% endif %}</p>
   {% if m.status != "scheduled" or not m.listed or (m.get("correction") or {}).get("doubtful") %}<p>{{ meeting_flags(m) }}</p>{% endif %}
@@ -140,6 +150,11 @@
 {{ full_text("minutes", ms) }}
 {% elif m.minutes_too_large %}
 <p>{{ _("Minutes are posted. The file is too large to summarize automatically; the minutes are linked below.") }}</p>
+{% elif m.summary_gap and m.summary_gap.reason == "before" %}
+{# Translators: %(when)s is the date summaries start from, such as "July 1, 2026". #}
+<p>{% trans when=m.summary_gap.since | date("plain") %}Minutes are posted and linked below. Meetings before {{ when }} aren't summarized.{% endtrans %}</p>
+{% elif m.summary_gap %}
+<p>{{ _("Minutes are posted and linked below.") }}</p>
 {% else %}
 <p>{{ _("Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and older ones a few each day.") }}</p>
 {% endif %}
@@ -156,9 +171,26 @@
   {% endfor %}
 </ul>
 {% endif %}
-{% elif m.date < built_at.date().isoformat() %}
+{% elif m.minutes_gap %}
+{# Why there are no minutes (pipeline/absences.py). A meeting that wasn't held has none to wait for, and says nothing. #}
+{% set g = m.minutes_gap %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
-<p>{{ _("Minutes not posted yet. They usually come out after the board approves them at a later meeting.") }}</p>
+{% if g.reason == "not_posted" %}
+{% if g.source in ("finalsite", "drive") %}{% set where_url, where = m.source_url, _("%(name)s website", name=m.source_name) %}
+{% elif g.source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
+{% elif g.source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
+{% elif g.source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
+{% else %}{% set where_url, where = meeting_links.archive, meeting_links.archive_name %}{% endif %}
+{# Translators: %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number of days. #}
+<p data-gap="not_posted">{% trans count=g.days, num=g.days | number, url=where_url, where=where %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} day after the meeting.{% pluralize %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} days after the meeting.{% endtrans %} {{ _("Minutes usually come out after the board approves them at a later meeting.") }}</p>
+{% elif g.reason == "linked" %}
+<p>{% trans url=g.url %}The minutes are <a href="{{ url }}">posted on the city website</a>. A copy hasn't been saved here yet.{% endtrans %}</p>
+{% elif g.reason == "before" %}
+{# Translators: %(when)s is the date this site collects minutes from, such as "July 1, 2026". #}
+<p>{% trans when=g.since | date("plain") %}This site collects minutes for meetings from {{ when }} on.{% endtrans %}</p>
+{% else %}
+<p>{% trans url=town.get("official_site") or meeting_links.calendar %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+{% endif %}
 {% endif %}
 
 <h2 id="agenda">{% if m.date >= built_at.date().isoformat() %}{{ _("What's on the agenda") }}{% else %}{{ _("Agenda") }}{% endif %}</h2>
@@ -177,6 +209,12 @@
 {%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none) }}
 {{ full_text("agenda", m.preview) }}
+{% endif %}
+{% if m.agenda and not m.preview %}
+{# Why a saved agenda has no summary (pipeline/absences.py summary_gap); a town without summaries says nothing. #}
+{% if m.agenda_too_large %}<p>{{ _("The file is too large to summarize automatically; the agenda is linked below.") }}</p>
+{% elif m.summary_gap and m.summary_gap.reason == "before" %}<p>{% trans when=m.summary_gap.since | date("plain") %}Meetings before {{ when }} aren't summarized; the agenda is linked below.{% endtrans %}</p>
+{% elif not m.summary_gap %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
 {% endif %}
 {% if m.agenda %}
 <ul>
@@ -206,10 +244,13 @@
 {% elif district %}
 {# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}
 <p>{% trans url=m.source_url, name=m.source_name %}Agenda not recorded here. It may be on the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}</p>
-{% elif m.get("agenda_url") %}
-<p>{% trans url=m.agenda_url %}A copy of the agenda wasn't saved here. It is on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
-{% else %}
-<p>{{ _("No agenda was posted.") }}</p>
+{% elif m.get("agenda_url") or m.documents_url %}
+<p>{% trans url=m.get("agenda_url") or m.documents_url %}A copy of the agenda wasn't saved here. It is on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+{% elif m.agenda_gap and m.agenda_gap.reason == "not_held" %}
+<p>{{ _("This meeting didn't take place as listed, so no agenda is recorded here.") }}</p>
+{% elif m.agenda_gap %}
+{# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
+<p>{% trans listing=m.listing %}The {{ listing }} doesn't link an agenda for this meeting.{% endtrans %}</p>
 {% endif %}
 {% endif %}
 

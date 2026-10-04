@@ -89,8 +89,11 @@ pipeline/                   Python package
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
                             reviewed by a second model -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
-  factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts.
-                            Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+  factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts,
+                            and each decision's quote from the minutes and its outcome (approved, denied, ...), so a dropped "not"
+                            is caught. Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+  evaluate.py               The minutes prompt run against the real model on minutes checked by hand (evals/minutes.json), with the
+                            checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   votes.py                  Roll call votes from a supported style's minutes, checked against the body's [officials] members (no AI);
                             read with the minutes' text, kept in data/summaries/, not yet shown. `python -m pipeline.votes` lists them for review
@@ -98,8 +101,11 @@ pipeline/                   Python package
   compute_311.py            Daily: requests -> data/311/scorecard.json
   fetch_finance.py, fetch_budget.py, fetch_schools.py   Tax bill, budget, school figures, from the town's state's source -> data/finance/, data/schools/
   states/                   What differs by state (see States below): states/ma/ is Massachusetts (DLS, DESE),
-                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT);
-                            states/ma/dls.py can fetch each DLS report once for every town (a network's states/)
+                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT), states/ct/
+                            Connecticut (OPM on data.ct.gov, EdSight), states/vt/ Vermont (PVR, VCGI, AOE),
+                            states/me/ Maine (MRS, Maine GeoLibrary, ESSA Dashboard), states/ri/ Rhode Island
+                            (Division of Municipal Finance, RIDE); states/ma/dls.py can fetch each DLS report once
+                            for every town (a network's states/)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
   fetch_place.py            Whether the town is a city or a town by law (Census TIGERweb) -> data/place.json, once;
                             the site's wording says "the city" or "the town" to match (i18n.py)
@@ -109,12 +115,16 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
+  absences.py               Why something isn't shown, for the pages to say: a meeting's minutes, agenda or summary, a calendar
+                            or a section's sources behind, a section the town doesn't have
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, finalsite.py, ical.py, schedule.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
-  build_site.py             Renders site/ + the town's data/ into the town's _site/
+  build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
+  structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
+                            breadcrumbs, and the downloads as datasets
   i18n.py                   The sites' wording in other languages: the language being built, and
                             `python -m pipeline.i18n update` to keep site/strings/ current
   common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
@@ -181,15 +191,16 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
-   | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
-   | `[schools]` | School district figures, from the state | Massachusetts, New Hampshire, and Connecticut (EdSight's exports: `edsight_district`, the district's name in EdSight). See [States](#states) |
+   | `[finance]` | Tax bill and budget, from the state | Every New England state, each with a package in `pipeline/states/`; Rhode Island has budget figures but no tax bill, since the state publishes nothing to calculate one from. Its keys are the state's own; see [States](#states) |
+   | `[schools]` | School district figures, from the state | Every New England state. Its keys are the state's own (Connecticut's `edsight_district` is the district's name in EdSight); see [States](#states) |
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. Building permits find the town by its Census place (`bps_place`), or, for a New England town that isn't a Census place (Wallingford), by its town code (`bps_mcd`). In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
    | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5. `since` (a date) summarizes only meetings on or after it, so a new town's history doesn't take the month's budget; older meetings keep their records and documents. New documents (upcoming agendas, and those posted in the last two weeks for a recent meeting) go first. In a network, the run also gives each town its share of a monthly budget (`pipeline/summarize.py`). Each summary is then checked against its document's own text, without AI (`pipeline/factcheck.py`): a decision, item, headline, or sentence with a number, amount, date, or name the document doesn't have isn't shown, the page says how many weren't, and a vote count the document doesn't give is left out |
    | `[analytics]` | Page view counts, with GoatCounter (no cookies, never what was searched) | Anywhere. `goatcounter` is the account's code; `prefix` (optional) goes in front of every counted path, so towns sharing one GoatCounter site can be told apart; `public_stats` links its public dashboard from the About page |
    | `[freshness]` | Stale-data alerts | List the sources that change daily (meetings, 311, a city's permits); figure sources (tax bill, budget, schools, unemployment, housing) are judged by their rhythms in the engine (`pipeline/rhythms.py`). `grace_months` (default 2) is how long after a new period's usual date before it counts as behind |
-   | `[officials]` | Who represents you: the Officials page (`/officials/`), with the section `officials` | Anywhere; kept by hand from the city's website. `checked` is the date the list was last checked against official city and school websites (shown on the page). Each `[[officials.bodies]]` (the mayor, the City Council, the School Committee) has a `name`, `members`, and optionally `url` (its official page, on the city's or the school district's website), `note`, and `board` (the meeting board whose page it links, if not named the same). A body's members are also who its minutes' roll call votes are checked against (`pipeline/votes.py`; collected, not yet shown). Each member has a `name` and `seat` ("Ward 1", "At-large"), and optionally `ward` (the ward the seat is elected by, a ward in the ward file) or `wards` (a district of several wards, like `[1, 2, 3]`; leave both out for a citywide seat), `role`, `term_ends` (`"2028-01"`), `email`, `phone` and `url`. The ward map uses the ward file (`wards_file`, in `data/static/`; defaults to `[seeclickfix]`'s), credited on the About page by `wards_publisher`, `wards_year` and `wards_url` here for a town without `[seeclickfix]`; its "Find my ward" checks a visitor's location in their browser, and never sends or saves it |
+   | `[officials]` | Who represents you: the Officials page (`/officials/`), with the section `officials` | Anywhere; kept by hand from the city's website. `checked` is the date the list was last checked against official city and school websites (shown on the page). Each `[[officials.bodies]]` (the mayor, the City Council, the School Committee) has a `name`, `members`, and optionally `url` (its official page, on the city's or the school district's website), `note`, and `board` (the meeting board whose page it links, if not named the same). A body's members are also who its minutes' roll call votes are checked against (`pipeline/votes.py`; collected, not yet shown). Each member has a `name` and `seat` ("Ward 1", "At-large"), and optionally `ward` (the ward the seat is elected by, a ward in the ward file) or `wards` (a district of several wards, like `[1, 2, 3]`; leave both out for a citywide seat), `role`, `term_ends` (`"2028-01"`), `email`, `phone` and `url`. The ward map uses the ward file (`wards_file`, in `data/static/`; defaults to `[seeclickfix]`'s), credited on the About page by `wards_publisher`, `wards_year` and `wards_url` here for a town without `[seeclickfix]`; its "Find my ward" checks a visitor's location in their browser, and never sends or saves it. With no member's seat elected by a ward, the page says every seat is elected by the whole town instead of showing a map |
+   | `[absences]` | Optional: the town's own sentence for a section it doesn't have, on the About page's "What this site doesn't cover" (`pipeline/absences.py`) | Keys are sections (`311`, `budget`, `schools`, `housing`, `officials`, `meetings`), each a sentence such as `311 = "The city takes requests through its own MyBeverly app, which has no public data."`. Without one, the page gives the engine's reason: 311 isn't in a public system the site reads, the state's figures aren't collected yet, or the section isn't on the site yet. Translated as the town's other text |
    | `[storage]` | Keeps agenda and minutes PDFs in a bucket instead of git | Recommended for every town; see [Document storage](#document-storage) |
 
    Rewrite the hand-written content for the new town from its own sources: `[meetings.aliases]`, `[archive.aliases]`, `[participation.*]`, `[[glossary]]` and `[[seeclickfix.annotations]]`.
@@ -265,17 +276,88 @@ bill is calculated daily from those rates and NH GRANIT's parcel map (which
 answers automated requests), and held back after a revaluation until the DRA's
 figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).
 
-### Connecticut's school figures
+### Connecticut's figures
 
-Connecticut's school figures come from EdSight, the State Department of
+Connecticut's tax bill and budget come from the Office of Policy and
+Management's statewide datasets on data.ct.gov, through its Socrata API
+(`pipeline/states/ct/opendata.py`), which answers one query for one town or for
+all 169: mill rates, tax levies, grand lists, adopted budgets, and the audited
+Municipal Fiscal Indicators. The average single-family bill is calculated as New
+Hampshire's is: the average assessed value of the town's single-family homes in
+the state's yearly Parcel and CAMA file times the mill rate. Each year's parcel
+file is found by its name in the portal's catalog, paired with the fiscal year
+its grand list is taxed in, and used only when its total for the town is close
+to OPM's grand list (see `pipeline/states/ct/tax_bill.py`). Towns code their
+single-family homes differently, so `[finance] single_family_use` lists the
+town's codes when they aren't "101" or "1010".
+
+The school figures come from EdSight, the State Department of
 Education's data portal, through the CSV export each of its reports has
 (`pipeline/states/ct/schools.py`). The exports answer without a login as long as
 the session keeps the cookies EdSight's redirects set; without them EdSight
 answers with its sign-in page, and the step fails rather than saving anything.
 A trend export covers the last five school years, so the figures already saved
 are kept and the new years added; spending per pupil has an export per school
-year, and only years not yet saved are asked for. Connecticut's tax bill and
-budget aren't in the package yet.
+year, and only years not yet saved are asked for.
+
+### Vermont's yearly figures
+
+Vermont's Department of Taxes (Property Valuation and Review) and Agency of
+Education publish tax rates, grand lists, taxes raised, and spending per pupil
+as statewide workbooks once a year, under names that change each year. One
+command finds the newest on the state's pages, by their links' text, and saves
+every town's and district's rows into the engine:
+
+```sh
+python -m pipeline.states.vt.extract                # or name workbooks downloaded by hand
+python -m pipeline.states.vt.extract --population   # Census estimates, matched to the state's town names
+```
+
+Commit `pipeline/states/vt/figures/`, as for New Hampshire. The average
+homestead bill is calculated daily from those rates and VCGI's statewide parcel
+data, while the parcel data's grand list year has rates in the saved figures and
+its homestead values add up to the state's homestead grand list. Graduation
+rates, chronic absenteeism, and test results come from data.vermont.gov at each
+run; each spring's test results are a dataset of their own, found by name.
+
+### Maine's yearly figures
+
+Maine Revenue Services publishes every municipality's tax rate, commitment, and
+valuation once a year in a 150-page PDF, and the Department of Education's ESSA
+Dashboard, a Tableau workbook, holds every district's school figures. Neither
+suits a daily run, so one command saves both into the engine once a year:
+
+```sh
+python -m pipeline.states.me.extract                # the MVR summaries not yet saved
+python -m pipeline.states.me.extract --population   # Census estimates, matched to MRS's names
+python -m pipeline.states.me.extract --schools      # the dashboard's four measures, every district (about 15 minutes)
+```
+
+`--schools` uses the requests the dashboard's own Download button makes, which
+Tableau doesn't publish; if they stop working, the four crosstabs downloaded by
+hand can be named instead (see `pipeline/states/me/extract.py`). The average
+single-family bill is calculated daily from the newest tax rate and the Maine
+GeoLibrary's parcel table, which towns send when they choose to: so it's shown
+only while the town's parcels add up to about its taxable land and buildings,
+and `[finance] single_family_use` lists the town's own single-family codes.
+
+### Rhode Island's yearly figures
+
+Rhode Island's Division of Municipal Finance publishes each fiscal year's tax
+rates, net assessed values, and levies by class of property as PDFs, on a site
+that refuses automated requests. Download them by hand in a browser once a year
+and save them into the engine:
+
+```sh
+python -m pipeline.states.ri.extract ~/Downloads/*.pdf
+python -m pipeline.states.ri.extract --population
+```
+
+Each file is recognized by its own heading. The state publishes no average
+bill and no statewide assessed values, so a Rhode Island town has no tax bill;
+its budget page has the rates, levy, assessed values, and property tax per
+resident. School figures come from RIDE's report card data files and its
+assessment data portal at each run.
 
 ## Meetings from other calendars
 
