@@ -265,17 +265,49 @@ bill is calculated daily from those rates and NH GRANIT's parcel map (which
 answers automated requests), and held back after a revaluation until the DRA's
 figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).
 
-### Connecticut's school figures
+### Connecticut's figures
 
-Connecticut's school figures come from EdSight, the State Department of
+Connecticut's tax bill and budget come from the Office of Policy and
+Management's statewide datasets on data.ct.gov, through its Socrata API
+(`pipeline/states/ct/opendata.py`), which answers one query for one town or for
+all 169: mill rates, tax levies, grand lists, adopted budgets, and the audited
+Municipal Fiscal Indicators. The average single-family bill is calculated as New
+Hampshire's is: the average assessed value of the town's single-family homes in
+the state's yearly Parcel and CAMA file times the mill rate. Each year's parcel
+file is found by its name in the portal's catalog, paired with the fiscal year
+its grand list is taxed in, and used only when its total for the town is close
+to OPM's grand list (see `pipeline/states/ct/tax_bill.py`). Towns code their
+single-family homes differently, so `[finance] single_family_use` lists the
+town's codes when they aren't "101" or "1010".
+
+The school figures come from EdSight, the State Department of
 Education's data portal, through the CSV export each of its reports has
 (`pipeline/states/ct/schools.py`). The exports answer without a login as long as
 the session keeps the cookies EdSight's redirects set; without them EdSight
 answers with its sign-in page, and the step fails rather than saving anything.
 A trend export covers the last five school years, so the figures already saved
 are kept and the new years added; spending per pupil has an export per school
-year, and only years not yet saved are asked for. Connecticut's tax bill and
-budget aren't in the package yet.
+year, and only years not yet saved are asked for.
+
+### Vermont's yearly figures
+
+Vermont's Department of Taxes (Property Valuation and Review) and Agency of
+Education publish tax rates, grand lists, taxes raised, and spending per pupil
+as statewide workbooks once a year, under names that change each year. One
+command finds the newest on the state's pages, by their links' text, and saves
+every town's and district's rows into the engine:
+
+```sh
+python -m pipeline.states.vt.extract                # or name workbooks downloaded by hand
+python -m pipeline.states.vt.extract --population   # Census estimates, matched to the state's town names
+```
+
+Commit `pipeline/states/vt/figures/`, as for New Hampshire. The average
+homestead bill is calculated daily from those rates and VCGI's statewide parcel
+data, while the parcel data's grand list year has rates in the saved figures and
+its homestead values add up to the state's homestead grand list. Graduation
+rates, chronic absenteeism, and test results come from data.vermont.gov at each
+run; each spring's test results are a dataset of their own, found by name.
 
 ## Meetings from other calendars
 
