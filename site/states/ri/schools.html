@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import figures_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -123,5 +123,6 @@
 <p class="small">{% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">RIDE report card data files</a> (Finance, total per pupil).{% endtrans %}</p>
 
 <p class="source-note">{% trans department="https://ride.ri.gov/", reportcard="https://reportcard.ride.ri.gov/" %}All figures as published by the <a href="{{ department }}">Rhode Island Department of Education</a>, on its <a href="{{ reportcard }}">school report cards</a> and assessment data portal.{% endtrans %}</p>
+{{ figures_dash() }}
 {% endif %}
 {% endblock %}

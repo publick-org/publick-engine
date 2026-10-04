@@ -13,7 +13,8 @@ gap has one of a few reasons, and the build already knows which:
 - it doesn't apply to the town.
 
 This module works out the reason for a meeting's missing minutes, agenda and
-summary, and whether the meetings calendar is behind. Each reason is a small
+summary, whether the meetings calendar is behind, which of a section's sources
+are behind, and which sections a town doesn't have and why. Each reason is a small
 dict the templates turn into one sentence, written and translated once, so
 every town gets the same wording with nothing in its config.
 """
@@ -126,3 +127,50 @@ def calendar_behind(config: dict, status: dict | None, now: datetime) -> dict | 
     if updated and now - updated <= timedelta(days=max_days):
         return None
     return {"since": updated.date().isoformat() if updated else None}
+
+
+# The data files each section's pages show, by the start of their path under data/
+# (pipeline/freshness.py names each source's file).
+SECTION_FILES = {"meetings": ("meetings/", "summaries"), "311": ("311/",), "budget": ("finance/",),
+                 "schools": ("schools/",), "housing": ("housing/", "permits/")}
+# Said by the calendar's own note instead (calendar_behind), where meetings are listed.
+CALENDAR_FILE = "meetings/status.json"
+
+
+def section_behind(data_status: list[dict], section: str | None) -> list[dict]:
+    """The freshness rows (pipeline/freshness.check) of a section's sources that are behind, for
+    its pages to say so; none for a page outside a section."""
+    prefixes = SECTION_FILES.get(section or "", ())
+    return [r for r in data_status if r.get("stale") and r.get("file") != CALENDAR_FILE
+            and str(r.get("file", "")).startswith(prefixes)] if prefixes else []
+
+
+# The sections every town can have, in the order the About page lists what a town lacks.
+SECTIONS = ("meetings", "311", "budget", "schools", "housing", "officials")
+# A section whose page is a state's own (pipeline/states SECTIONS), and the source it shows.
+STATE_SECTIONS = {"budget": "budget", "schools": "schools"}
+
+
+def not_covered(config: dict, state) -> list[dict]:
+    """The sections this town's site doesn't have, and why, for the About page: {"section": slug,
+    "reason": ..., "note": the town's own sentence ([absences] <slug> in its config) or None}.
+    The reason is "no_311" (311 comes only from SeeClickFix), "state" (the engine has no source of
+    this kind for the town's state yet), or "not_added" (the town's config doesn't list it)."""
+    notes = config.get("absences", {})
+    unknown = set(notes) - set(SECTIONS)
+    if unknown:
+        raise SystemExit(f"[absences] in config/{config.get('slug', 'the town')}.toml names {', '.join(sorted(unknown))}; "
+                         f"it takes a sentence for any of {', '.join(SECTIONS)}.")
+    listed = {s["slug"] for s in config.get("sections", [])}
+    gaps = []
+    for slug in SECTIONS:
+        if slug in listed:
+            continue
+        if slug == "311":
+            reason = "no_311"
+        elif slug in STATE_SECTIONS and not state.sources.get(STATE_SECTIONS[slug]):
+            reason = "state"
+        else:
+            reason = "not_added"
+        gaps.append({"section": slug, "reason": reason, "note": notes.get(slug)})
+    return gaps

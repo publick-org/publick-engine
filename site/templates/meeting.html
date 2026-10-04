@@ -25,7 +25,7 @@
   </ol>
 </nav>
 
-<div class="page-head">
+<div class="page-head" data-status="{{ m.status }}">
   <h1>{{ m.title }}</h1>
   <p class="lede"><time datetime="{{ m.date }}{% if m.start_time %}T{{ m.start_time }}{% endif %}">{{ m.date | date }}{% if m.start_time %} · {{ m.start_time | time }}{% endif %}</time>{% if m.special %} · {{ _("Special meeting") }}{% endif %}</p>
   {% if m.status != "scheduled" or not m.listed or (m.get("correction") or {}).get("doubtful") %}<p>{{ meeting_flags(m) }}</p>{% endif %}
@@ -172,7 +172,7 @@
 {% elif g.source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
 {% else %}{% set where_url, where = meeting_links.archive, meeting_links.archive_name %}{% endif %}
 {# Translators: %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number of days. #}
-<p>{% trans count=g.days, num=g.days | number, url=where_url, where=where %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} day after the meeting.{% pluralize %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} days after the meeting.{% endtrans %} {{ _("Minutes usually come out after the board approves them at a later meeting.") }}</p>
+<p data-gap="not_posted">{% trans count=g.days, num=g.days | number, url=where_url, where=where %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} day after the meeting.{% pluralize %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} days after the meeting.{% endtrans %} {{ _("Minutes usually come out after the board approves them at a later meeting.") }}</p>
 {% elif g.reason == "linked" %}
 <p>{% trans url=g.url %}The minutes are <a href="{{ url }}">posted on the city website</a>. A copy hasn't been saved here yet.{% endtrans %}</p>
 {% elif g.reason == "before" %}
@@ -199,6 +199,12 @@
 {%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none) }}
 {{ full_text("agenda", m.preview) }}
+{% endif %}
+{% if m.agenda and not m.preview %}
+{# Why a saved agenda has no summary (pipeline/absences.py summary_gap); a town without summaries says nothing. #}
+{% if m.agenda_too_large %}<p>{{ _("The file is too large to summarize automatically; the agenda is linked below.") }}</p>
+{% elif m.summary_gap and m.summary_gap.reason == "before" %}<p>{% trans when=m.summary_gap.since | date("plain") %}Meetings before {{ when }} aren't summarized; the agenda is linked below.{% endtrans %}</p>
+{% elif not m.summary_gap %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
 {% endif %}
 {% if m.agenda %}
 <ul>

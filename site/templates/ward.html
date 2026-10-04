@@ -33,7 +33,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{# Translators: the dash (–) is what the table shows in place of a typical time. #}{{ _("– fewer than 5 requests, too few for a typical time.") }}</p>
+<p class="small dash-legend">{# Translators: the dash (–) is what the table shows in place of a typical time. #}{{ _("– fewer than 5 requests, too few for a typical time.") }}</p>
 {{ chart_links("categories", "/311/data/ward-" ~ w.ward ~ ".csv") }}
 
 {% if w.oldest %}

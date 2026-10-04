@@ -351,6 +351,29 @@ msgstr ""
 "Domestick</cite>, el primer periódico de las colonias americanas. Se imprimió en Boston en 1690 y"
 " lo cerraron después de un solo número por imprimirse sin permiso."
 
+#. %(source)s is a data source, such as "School figures (DESE)", and %(why)s why it's behind.
+#: site/templates/base.html
+#, python-format
+msgid "%(source)s: %(num)s new document is waiting for its summary."
+msgid_plural "%(source)s: %(num)s new documents are waiting for their summaries."
+msgstr[0] "%(source)s: %(num)s documento nuevo espera su resumen."
+msgstr[1] "%(source)s: %(num)s documentos nuevos esperan su resumen."
+
+#: site/templates/base.html
+#, python-format
+msgid "%(source)s: %(why)s."
+msgstr "%(source)s: %(why)s."
+
+#: site/templates/base.html
+#, python-format
+msgid "%(source)s: last updated %(when)s."
+msgstr "%(source)s: actualizado por última vez el %(when)s."
+
+#: site/templates/base.html
+#, python-format
+msgid "%(source)s: not collected yet."
+msgstr "%(source)s: todavía no se ha recopilado."
+
 #: site/pages/streets/index.html
 #, python-format
 msgid "%(sources)s for one street, from public records."
@@ -590,6 +613,10 @@ msgstr "Solicitudes al 311, últimos 12 meses"
 #: pipeline/common_strings.py
 msgid "311 scorecard"
 msgstr "Cómo responde la ciudad al 311"
+
+#: site/pages/about/index.html
+msgid "311 service requests"
+msgstr "Solicitudes de servicio 311"
 
 #. %(listing)s is where the city lists meetings, such as "city calendar"; %(title)s is the listing's
 #. own title.
@@ -1105,6 +1132,14 @@ msgstr ""
 "Una parte de una reunión pública que se hace a puerta cerrada. La ley estatal la permite solo por"
 " razones específicas, como demandas, negociaciones o asuntos de personal."
 
+#: site/templates/meeting.html
+msgid ""
+"A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized"
+" first, and older ones a few each day."
+msgstr ""
+"Se agregará un resumen de la agenda en lenguaje sencillo: primero se resumen las agendas de las "
+"próximas reuniones, y las anteriores, unas pocas cada día."
+
 #: site/pages/311/methodology/index.html
 msgid ""
 "A repeat location isn't always the same problem. It can be a problem that came back, a fix that "
@@ -1116,6 +1151,13 @@ msgstr ""
 #: site/templates/macros.html
 msgid "A revised agenda was posted."
 msgstr "Se publicó una agenda revisada."
+
+#. "Not enough data" is what a typical time shows when there are too few requests; use the same words
+#. as its translation.
+#: site/pages/311/index.html
+#, python-format
+msgid "A typical time from fewer than %(min)s requests shows \"Not enough data\"."
+msgstr "Un tiempo típico calculado con menos de %(min)s solicitudes aparece como “Datos insuficientes”."
 
 #: site/states/ri/budget.html
 msgid "A year missing from the table is one whose file Publick doesn't have."
@@ -1581,6 +1623,10 @@ msgstr "Ruta de navegación"
 #: pipeline/build_site.py site/states/ct/budget.html site/states/nh/budget.html
 msgid "Budget"
 msgstr "Presupuesto"
+
+#: site/pages/about/index.html
+msgid "Budget and tax figures"
+msgstr "Cifras de presupuesto e impuestos"
 
 #: site/states/vt/schools.html
 msgid "Budget per pupil"
@@ -2183,6 +2229,10 @@ msgstr "Impuesto de educación sobre otras propiedades"
 msgid "Elected citywide for four years."
 msgstr "Elegido por toda la ciudad por cuatro años."
 
+#: site/pages/about/index.html
+msgid "Elected officials"
+msgstr "Funcionarios electos"
+
 #: site/pages/officials/index.html
 #, python-format
 msgid "Elected officials in %(town)s, by office and by ward, and how to reach them."
@@ -2265,6 +2315,14 @@ msgstr ""
 "Todas las solicitudes públicas desde %(since)s, más las más antiguas que siguen abiertas, "
 "revisadas a diario."
 
+#: site/pages/officials/index.html
+msgid ""
+"Every seat on this page is elected by the whole city, so the city has no wards to look up: each "
+"member represents everyone."
+msgstr ""
+"Todos los cargos de esta página se eligen por toda la ciudad, así que no hay distritos que "
+"buscar: cada miembro representa a todos."
+
 #: site/pages/about/accessibility/index.html
 msgid ""
 "Every update is checked automatically on every page, at phone and desktop sizes, and isn't "
@@ -2305,13 +2363,6 @@ msgstr "febrero"
 #: pipeline/states/ct/budget.py
 msgid "Federal aid"
 msgstr "Ayuda federal"
-
-#. "Not enough data" is what a typical time shows when there are too few requests; use the same words
-#. as its translation.
-#: site/pages/311/index.html
-#, python-format
-msgid "Figures from fewer than %(min)s requests show \"Not enough data\"."
-msgstr "Las cifras basadas en menos de %(min)s solicitudes muestran “Datos insuficientes”."
 
 #: site/pages/311/index.html
 msgid "Figures will appear here after the first data collection."
@@ -2712,7 +2763,7 @@ msgstr "Educación, vivienda principal"
 msgid "Homestead tax rate"
 msgstr "Tasa de vivienda principal"
 
-#: pipeline/build_site.py site/pages/housing/index.html
+#: pipeline/build_site.py site/pages/about/index.html site/pages/housing/index.html
 msgid "Housing"
 msgstr "Vivienda"
 
@@ -2933,6 +2984,16 @@ msgstr ""
 "En el año tributario %(year)s, el impuesto a la propiedad recaudó %(total)s en total. Los "
 "impuestos de educación van al Fondo de Educación del estado, que paga todos los distritos "
 "escolares de Vermont; la ciudad se queda con el impuesto municipal."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"In the tables, – means fewer than %(min)s requests, too few for a typical time, or, for requests "
+"outside the wards, no population to count per 1,000 residents."
+msgstr ""
+"En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
+"típico, o, para las solicitudes fuera de los distritos, que no hay población con la que contar "
+"por cada 1,000 residentes."
 
 #: pipeline/common_strings.py
 msgid "Inland Wetlands Commission"
@@ -3352,7 +3413,7 @@ msgstr ""
 "revisa antes de publicarlos. El documento de la ciudad es el registro oficial, y cada resumen "
 "enlaza a él."
 
-#: pipeline/build_site.py site/pages/meetings/boards/index.html
+#: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/boards/index.html
 #: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
 #: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
 #: site/templates/meeting.html
@@ -3368,6 +3429,11 @@ msgstr "Reuniones (Centro de Agendas)"
 #, python-format
 msgid "Meetings are broadcast and recorded by <a href=\"%(url)s\">%(title)s</a>."
 msgstr "Las reuniones las transmite y graba <a href=\"%(url)s\">%(title)s</a>."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Meetings before %(when)s aren't summarized; the agenda is linked below."
+msgstr "Las reuniones anteriores al %(when)s no se resumen; la agenda está enlazada abajo."
 
 #. %(name)s is where the city keeps older documents, such as "city's Archive Center".
 #: site/pages/meetings/past/index.html
@@ -4523,7 +4589,7 @@ msgid "School board meetings from the <a href=\"%(url)s\">%(name)s website</a>."
 msgstr "Reuniones de la junta escolar: <a href=\"%(url)s\">sitio web de %(name)s</a>."
 
 #: pipeline/states/me/schools.py pipeline/states/nh/schools.py pipeline/states/ri/schools.py
-#: pipeline/states/vt/schools.py
+#: pipeline/states/vt/schools.py site/pages/about/index.html
 msgid "School figures"
 msgstr "Cifras escolares"
 
@@ -4611,6 +4677,11 @@ msgstr "Puesto"
 #: pipeline/common_strings.py
 msgid "Secretary"
 msgstr "Secretario"
+
+#: site/templates/base.html
+#, python-format
+msgid "See <a href=\"%(url)s\">Data status</a> for every source."
+msgstr "Vea el <a href=\"%(url)s\">Estado de los datos</a> de cada fuente."
 
 #: site/pages/311/index.html
 msgid "See as a list"
@@ -4765,6 +4836,10 @@ msgid "So far in %(year)s, through %(month)s: %(homes)s home."
 msgid_plural "So far in %(year)s, through %(month)s: %(homes)s homes."
 msgstr[0] "En lo que va de %(year)s, hasta %(month)s: %(homes)s vivienda."
 msgstr[1] "En lo que va de %(year)s, hasta %(month)s: %(homes)s viviendas."
+
+#: site/templates/base.html
+msgid "Some data on this page may be out of date:"
+msgstr "Puede que algunos datos de esta página estén desactualizados:"
 
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
@@ -5950,6 +6025,10 @@ msgstr ""
 msgid "The figures are from each town's audit, so they are two to three years behind."
 msgstr "Las cifras vienen de la auditoría de cada pueblo, así que tienen dos o tres años de atraso."
 
+#: site/templates/meeting.html
+msgid "The file is too large to summarize automatically; the agenda is linked below."
+msgstr "El archivo es demasiado grande para resumirlo automáticamente; la agenda está enlazada abajo."
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "The fiscal year %(year)s figure was certified as of July 1, %(start)s."
@@ -6149,6 +6228,12 @@ msgstr ""
 " libremente, incluso con fines comerciales, bajo la <a href=\"%(license)s\">licencia Creative "
 "Commons Atribución 4.0</a> (CC BY 4.0). Por favor, dé crédito así, con un enlace al documento del"
 " que se tomó el resumen:"
+
+#: site/pages/officials/index.html
+msgid "The ward map isn't available yet. Each member's seat is listed under its office below."
+msgstr ""
+"El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
+"oficina."
 
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
@@ -6719,6 +6804,10 @@ msgstr "Sobre qué se cobra el impuesto a la propiedad"
 msgid "What the property tax raises"
 msgstr "Lo que recauda el impuesto a la propiedad"
 
+#: site/pages/about/index.html
+msgid "What this site doesn't cover"
+msgstr "Lo que este sitio no incluye"
+
 #: site/templates/meeting.html
 msgid "What was decided"
 msgstr "Qué se decidió"
@@ -6972,6 +7061,24 @@ msgctxt "start time"
 msgid "not listed"
 msgstr "no indicada"
 
+#: site/pages/about/index.html
+msgid "not on this site yet."
+msgstr "este sitio todavía no incluye esta información."
+
+#. %(state)s is a state, such as "Connecticut".
+#: site/pages/about/index.html
+#, python-format
+msgid "not on this site yet. It doesn't collect %(state)s's figures of this kind yet."
+msgstr ""
+"este sitio todavía no incluye esta información: todavía no recopila este tipo de cifras de "
+"%(state)s."
+
+#: site/pages/about/index.html
+msgid "not on this site. The city's service requests aren't in a public system this site reads."
+msgstr ""
+"este sitio no incluye esta información. Las solicitudes de servicio de la ciudad no están en un "
+"sistema público que este sitio lea."
+
 #. A part of the vacant homes in the row above.
 #: site/pages/housing/index.html
 msgid "of which seasonal or vacation homes"
@@ -7217,6 +7324,42 @@ msgid "– fewer than 5 requests, too few for a typical time."
 msgstr "– menos de 5 solicitudes, muy pocas para calcular un tiempo típico."
 
 #: site/states/ma/budget.html
+msgid "– for the first year: there's no earlier year to compare with."
+msgstr "– en el primer año: no hay un año anterior con el cual comparar."
+
+#: site/templates/macros.html
+msgid ""
+"– means no figure for that year: the state hasn't published it, or, for a change, there's no "
+"earlier year to compare with."
+msgstr ""
+"– significa que no hay cifra para ese año: el estado no la ha publicado o, en un cambio, no hay "
+"un año anterior con el cual comparar."
+
+#: site/pages/officials/index.html
+msgid ""
+"– means no official source gives it: the end of a term, or a city- or school-issued email address"
+" or office phone."
+msgstr ""
+"– significa que ninguna fuente oficial lo da: el fin de un mandato, o un correo electrónico o "
+"teléfono de oficina oficial de la ciudad o del distrito escolar."
+
+#: site/pages/about/index.html
+msgid "– means none yet: no figures collected, or not checked yet."
+msgstr "– significa que todavía no hay nada: no se han recopilado cifras o todavía no se ha revisado."
+
+#: site/states/ma/budget.html
 msgid "– means not yet reported."
 msgstr "– significa que aún no se ha informado."
+
+#: site/states/nh/budget.html
+msgid ""
+"– means that year's budget has no such line, or, for the change, that there's no earlier year to "
+"compare with."
+msgstr ""
+"– significa que el presupuesto de ese año no tiene esa partida o, en el cambio, que no hay un año"
+" anterior con el cual comparar."
+
+#: site/templates/macros.html
+msgid "– means the state hasn't published a statewide figure for that year."
+msgstr "– significa que el estado no ha publicado una cifra estatal para ese año."
 

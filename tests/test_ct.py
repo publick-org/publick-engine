@@ -308,3 +308,9 @@ def test_connecticut_pages_in_spanish(ct_site):
         assert '<html lang="es"' in page and "%%" not in page, section
     budget = (ct_site / "es" / "budget" / "index.html").read_text()
     assert "Tasa de impuesto (mill rate)" in budget and "Calculado por Publick" in budget
+
+
+def test_ct_dashes_are_explained(ct_site):
+    """Every – in a table has a legend on its page, as the site checks require."""
+    from test_absences import assert_dashes_explained
+    assert_dashes_explained(ct_site)
