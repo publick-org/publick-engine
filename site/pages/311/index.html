@@ -4,6 +4,11 @@
 {% block title %}{{ _("311 Requests") }}{% endblock %}
 {% block description %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endblock %}
 {% set sc = scorecard %}
+{# The downloads as a dataset for dataset search, once, on the English page. #}
+{% block structured_data %}{% if lang == "en" and sc and sc.monthly %}{{ structured(dataset(town.name ~ " 311 requests", self.description(), canonical_url,
+  ["/311/data/monthly.csv", "/311/data/by-ward.csv", "/311/data/by-category.csv", "/311/data/open-by-age.csv",
+   "/311/data/recent-open.csv", "/311/data/repeat-locations.csv"], license=seeclickfix_license,
+  start=sc.monthly[0].month, end=sc.monthly[-1].month)) }}{% endif %}{% endblock %}
 {% block head %}{% if scorecard %}{{ map_assets() }}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
