@@ -4,6 +4,7 @@
 {% set c = category %}
 {% block title %}{% trans category=c.category %}{{ category }}: 311 requests{% endtrans %}{% endblock %}
 {% block description %}{% trans category=c.category, town=town.name %}{{ category }} requests in {{ town }}: how many, how quickly the city responds, and where.{% endtrans %}{% endblock %}
+{% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (c.category, canonical_url)])) }}{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#categories">{{ _("Categories") }}</a></li></ol></nav>
 <div class="page-head">

@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% from "macros.html" import calendar_behind_note, day_group, meeting_item %}
-{% block title %}{% trans town=town.name %}This week in {{ town }}{% endtrans %}{% endblock %}
+{# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say. #}
+{% block title %}{% if config.meetings is defined %}
+{# Translators: the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city meetings, agendas, and data{% endtrans %}
+{%- else %}
+{# Translators: the home page's title in search results and browser tabs, for a site without meetings; %(town)s is the town and %(state)s its state's abbreviation. #}
+{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city data{% endtrans %}{% endif %}{% endblock %}
+{% block structured_data %}{{ structured(website()) }}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
 <h1>{% trans town=town.name %}This week in {{ town }}{% endtrans %}</h1>
