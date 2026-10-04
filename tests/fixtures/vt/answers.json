@@ -1,0 +1,873 @@
+{
+ "https://api.us.socrata.com/api/catalog/v1?domains=data.vermont.gov&q=General+Assessment&limit=50": {
+  "results": [
+   {
+    "resource": {
+     "id": "c874-7tma",
+     "name": "Vermont Education Dashboard: General Assessment 2025"
+    }
+   }
+  ]
+ },
+ "https://data.vermont.gov/resource/c874-7tma.json?%24select=testname%2C+indicatorlabel%2C+value_w_susd%2C+value_w_st&%24where=schoolidentifier%3D%27SU015%27+AND+assessgroup%3D%27All+Students%27+AND+indicatorlabel+IN+%28%27Number+of+Students+Tested%27%2C+%27Total+Proficient+and+Above%27%29&%24limit=5000": [
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 03",
+   "value_w_st": "0.478805222679306",
+   "value_w_susd": "0.440329218106996"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 03",
+   "value_w_st": "5591.0",
+   "value_w_susd": "243.0"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 04",
+   "value_w_st": "5239.0",
+   "value_w_susd": "209.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 04",
+   "value_w_st": "0.610040083985493",
+   "value_w_susd": "0.650717703349282"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 05",
+   "value_w_st": "5720.0",
+   "value_w_susd": "233.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 05",
+   "value_w_st": "0.550699300699301",
+   "value_w_susd": "0.59656652360515"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 06",
+   "value_w_st": "0.573800401386608",
+   "value_w_susd": "0.578199052132701"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 06",
+   "value_w_st": "5481.0",
+   "value_w_susd": "211.0"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 07",
+   "value_w_st": "5500.0",
+   "value_w_susd": "203.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 07",
+   "value_w_st": "0.556363636363636",
+   "value_w_susd": "0.536945812807882"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 08",
+   "value_w_st": "0.598425196850394",
+   "value_w_susd": "0.59375"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 08",
+   "value_w_st": "5461.0",
+   "value_w_susd": "224.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "English Language Arts Grade 09",
+   "value_w_st": "0.457056944183424",
+   "value_w_susd": "0.523809523809524"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "English Language Arts Grade 09",
+   "value_w_st": "5321.0",
+   "value_w_susd": "189.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 03",
+   "value_w_st": "0.330357142857143",
+   "value_w_susd": "0.273469387755102"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 03",
+   "value_w_st": "5600.0",
+   "value_w_susd": "245.0"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 04",
+   "value_w_st": "5249.0",
+   "value_w_susd": "213.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 04",
+   "value_w_st": "0.342541436464088",
+   "value_w_susd": "0.333333333333333"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 05",
+   "value_w_st": "0.35588491717524",
+   "value_w_susd": "0.363247863247863"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 05",
+   "value_w_st": "5735.0",
+   "value_w_susd": "234.0"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 06",
+   "value_w_st": "5490.0",
+   "value_w_susd": "215.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 06",
+   "value_w_st": "0.481056466302368",
+   "value_w_susd": "0.451162790697674"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 07",
+   "value_w_st": "0.437409288824383",
+   "value_w_susd": "0.373134328358209"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 07",
+   "value_w_st": "5512.0",
+   "value_w_susd": "201.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 08",
+   "value_w_st": "0.368440299872006",
+   "value_w_susd": "0.408071748878924"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 08",
+   "value_w_st": "5469.0",
+   "value_w_susd": "223.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Math Grade 09",
+   "value_w_st": "0.405916495038382",
+   "value_w_susd": "0.548223350253807"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Math Grade 09",
+   "value_w_st": "5341.0",
+   "value_w_susd": "197.0"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Science Grade 05",
+   "value_w_st": "5719.0",
+   "value_w_susd": "235.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Science Grade 05",
+   "value_w_st": "0.44203532086029",
+   "value_w_susd": "0.476595744680851"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Science Grade 08",
+   "value_w_st": "5432.0",
+   "value_w_susd": "219.0"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Science Grade 08",
+   "value_w_st": "0.404086892488954",
+   "value_w_susd": "0.452054794520548"
+  },
+  {
+   "indicatorlabel": "Total Proficient and Above",
+   "testname": "Science Grade 11",
+   "value_w_st": "0.444592790387183",
+   "value_w_susd": "0.53953488372093"
+  },
+  {
+   "indicatorlabel": "Number of Students Tested",
+   "testname": "Science Grade 11",
+   "value_w_st": "5243.0",
+   "value_w_susd": "215.0"
+  }
+ ],
+ "https://data.vermont.gov/resource/fjrz-5mmw.json?%24select=schoolyear%2C+supervisoryunionpercentage%2C+statepercentage&%24where=supervisoryunionidentifier%3D%27SU015%27+AND+studentinformationgroup%3D%27Graduation+Rate%27+AND+studentinformationlabel+IN+%28%27Four-year%27%2C+%274-year+Graduation+Rate%27%29&%24limit=5000": [
+  {
+   "schoolyear": "2025",
+   "statepercentage": "0.8234",
+   "supervisoryunionpercentage": "0.7121"
+  },
+  {
+   "schoolyear": "2025",
+   "statepercentage": "0.8234",
+   "supervisoryunionpercentage": "0.7121"
+  },
+  {
+   "schoolyear": "2024",
+   "statepercentage": "0.82",
+   "supervisoryunionpercentage": "0.75"
+  },
+  {
+   "schoolyear": "2024",
+   "statepercentage": "0.82",
+   "supervisoryunionpercentage": "0.75"
+  },
+  {
+   "schoolyear": "2023",
+   "statepercentage": "0.82",
+   "supervisoryunionpercentage": "0.842"
+  },
+  {
+   "schoolyear": "2023",
+   "statepercentage": "0.82",
+   "supervisoryunionpercentage": "0.842"
+  },
+  {
+   "schoolyear": "2022",
+   "statepercentage": "0.828000009",
+   "supervisoryunionpercentage": "0.75999999"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2021",
+   "statepercentage": "0.83099997",
+   "supervisoryunionpercentage": "0.727999985"
+  },
+  {
+   "schoolyear": "2020",
+   "statepercentage": "0.829999983",
+   "supervisoryunionpercentage": "0.699000001"
+  },
+  {
+   "schoolyear": "2019",
+   "statepercentage": "0.845000029",
+   "supervisoryunionpercentage": "0.741999984"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994",
+   "supervisoryunionpercentage": "0.697799981"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2018",
+   "statepercentage": "0.850899994"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023",
+   "supervisoryunionpercentage": "0.843100011"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2017",
+   "statepercentage": "0.891300023"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024",
+   "supervisoryunionpercentage": "0.795799971"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2016",
+   "statepercentage": "0.877300024"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017",
+   "supervisoryunionpercentage": "0.811100006"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2015",
+   "statepercentage": "0.876900017"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995",
+   "supervisoryunionpercentage": "0.880400002"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2014",
+   "statepercentage": "0.878199995"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997",
+   "supervisoryunionpercentage": "0.799300015"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2013",
+   "statepercentage": "0.865999997"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981",
+   "supervisoryunionpercentage": "0.867500007"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2012",
+   "statepercentage": "0.877399981"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983",
+   "supervisoryunionpercentage": "0.825200021"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2011",
+   "statepercentage": "0.874899983"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989",
+   "supervisoryunionpercentage": "0.848800004"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2010",
+   "statepercentage": "0.871699989"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006",
+   "supervisoryunionpercentage": "0.855400026"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2009",
+   "statepercentage": "0.856000006"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001",
+   "supervisoryunionpercentage": "0.858500004"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2008",
+   "statepercentage": "0.859200001"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  },
+  {
+   "schoolyear": "2007",
+   "statepercentage": "0"
+  }
+ ],
+ "https://data.vermont.gov/resource/u4te-7p3s.json?%24select=schoolyear%2C+organizationidentifier%2C+chronicallyabsentcount%2C+notchronicallyabsentcount&%24where=organizationidentifier+IN+%28%27SU015%27%2C+%27VT001%27%29+AND+organizationtype+IN+%28%27Authorizing+District%27%2C+%27State%27%29+AND+upper%28grouptype%29+%3D+%27ALL+STUDENTS%27&%24limit=5000": [
+  {
+   "chronicallyabsentcount": "17672",
+   "notchronicallyabsentcount": "52584",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2025"
+  },
+  {
+   "chronicallyabsentcount": "794",
+   "notchronicallyabsentcount": "2259",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2025"
+  },
+  {
+   "chronicallyabsentcount": "19273",
+   "notchronicallyabsentcount": "51492",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2024"
+  },
+  {
+   "chronicallyabsentcount": "974",
+   "notchronicallyabsentcount": "2301",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2024"
+  },
+  {
+   "chronicallyabsentcount": "21631",
+   "notchronicallyabsentcount": "52993",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2023"
+  },
+  {
+   "chronicallyabsentcount": "984",
+   "notchronicallyabsentcount": "2288",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2023"
+  },
+  {
+   "chronicallyabsentcount": "30223",
+   "notchronicallyabsentcount": "44989",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2022"
+  },
+  {
+   "chronicallyabsentcount": "1222",
+   "notchronicallyabsentcount": "2043",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2022"
+  },
+  {
+   "chronicallyabsentcount": "18522",
+   "notchronicallyabsentcount": "44039",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2021"
+  },
+  {
+   "chronicallyabsentcount": "329",
+   "notchronicallyabsentcount": "345",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2021"
+  },
+  {
+   "chronicallyabsentcount": "14761",
+   "notchronicallyabsentcount": "57175",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2020"
+  },
+  {
+   "chronicallyabsentcount": "***",
+   "notchronicallyabsentcount": "***",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2020"
+  },
+  {
+   "chronicallyabsentcount": "12811",
+   "notchronicallyabsentcount": "56864",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2019"
+  },
+  {
+   "chronicallyabsentcount": "779",
+   "notchronicallyabsentcount": "2878",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2019"
+  },
+  {
+   "chronicallyabsentcount": "13821",
+   "notchronicallyabsentcount": "53366",
+   "organizationidentifier": "VT001",
+   "schoolyear": "2018"
+  },
+  {
+   "chronicallyabsentcount": "1439",
+   "notchronicallyabsentcount": "2266",
+   "organizationidentifier": "SU015",
+   "schoolyear": "2018"
+  }
+ ],
+ "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?where=TNAME+%3D+%27Burlington%27+AND+1%3D1&f=json&outStatistics=%5B%7B%22statisticType%22%3A+%22count%22%2C+%22onStatisticField%22%3A+%22OBJECTID%22%2C+%22outStatisticFieldName%22%3A+%22count%22%7D%2C+%7B%22statisticType%22%3A+%22sum%22%2C+%22onStatisticField%22%3A+%22GLVAL_HS%22%2C+%22outStatisticFieldName%22%3A+%22homestead_list%22%7D%2C+%7B%22statisticType%22%3A+%22max%22%2C+%22onStatisticField%22%3A+%22GLYEAR%22%2C+%22outStatisticFieldName%22%3A+%22year%22%7D%5D": {
+  "features": [
+   {
+    "attributes": {
+     "count": 10818,
+     "homestead_list": 23632707.779999994,
+     "year": 2025
+    }
+   }
+  ]
+ },
+ "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?where=TNAME+%3D+%27Burlington%27+AND+CAT+%3D+%27R1%27+AND+HSDECL+%3D+%27Y%27&f=json&outStatistics=%5B%7B%22statisticType%22%3A+%22count%22%2C+%22onStatisticField%22%3A+%22OBJECTID%22%2C+%22outStatisticFieldName%22%3A+%22count%22%7D%2C+%7B%22statisticType%22%3A+%22avg%22%2C+%22onStatisticField%22%3A+%22REAL_FLV%22%2C+%22outStatisticFieldName%22%3A+%22value%22%7D%2C+%7B%22statisticType%22%3A+%22avg%22%2C+%22onStatisticField%22%3A+%22HSTED_FLV%22%2C+%22outStatisticFieldName%22%3A+%22homestead%22%7D%5D": {
+  "features": [
+   {
+    "attributes": {
+     "count": 5674,
+     "homestead": 411441.6921043356,
+     "value": 421593.07366936904
+    }
+   }
+  ]
+ }
+}
