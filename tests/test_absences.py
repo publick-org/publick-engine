@@ -149,3 +149,60 @@ def test_a_calendar_link_to_the_agenda_is_given(tmp_path):
     m = build_site.load_meetings(data, BUILT_AT.date())["all"][0]
     absences.annotate({"all": [m]}, {"meetings": {}}, BUILT_AT.date())
     assert m["agenda_gap"] is None and m["minutes_gap"] == {"reason": "not_collected"}
+
+
+# ---- Sections: behind, and not covered ---------------------------------------------
+
+def test_section_behind_picks_the_sections_own_sources():
+    rows = [{"label": "Meetings calendar", "file": "meetings/status.json", "stale": True},
+            {"label": "Board of Education meetings", "file": "meetings/finalsite_status.json", "stale": True},
+            {"label": "Meeting summaries", "file": "summaries", "stale": True, "waiting": ["agenda"]},
+            {"label": "School figures", "file": "schools/schools.json", "stale": True},
+            {"label": "Housing figures", "file": "housing/housing.json", "stale": False}]
+    # The calendar's own note says when it's behind, where meetings are listed.
+    assert [r["label"] for r in absences.section_behind(rows, "meetings")] == ["Board of Education meetings", "Meeting summaries"]
+    assert [r["label"] for r in absences.section_behind(rows, "schools")] == ["School figures"]
+    assert absences.section_behind(rows, "housing") == [] and absences.section_behind(rows, None) == []
+
+
+def test_not_covered_says_why_each_section_is_missing():
+    from pipeline import states
+    config = {"slug": "wallingford", "town": {"state": "Connecticut", "state_abbr": "CT"},
+              "sections": [{"slug": s} for s in ("meetings", "schools", "housing", "officials")],
+              "absences": {"311": "The town doesn't publish its service requests."}}
+    gaps = absences.not_covered(config, states.for_town(config))
+    assert gaps == [{"section": "311", "reason": "no_311", "note": "The town doesn't publish its service requests."},
+                    {"section": "budget", "reason": "state", "note": None}]
+    config["absences"] = {"parks": "No parks."}
+    with pytest.raises(SystemExit, match="parks"):
+        absences.not_covered(config, states.for_town(config))
+
+
+def test_officials_at_large_and_dashes(config, data_dir):
+    import copy
+    from pipeline import officials
+    at_large = copy.deepcopy(config)
+    for body in at_large["officials"]["bodies"]:
+        for m in body["members"]:
+            m.pop("ward", None), m.pop("wards", None)
+    assert officials.load(at_large, data_dir)["at_large"]
+    assert not officials.load(config, data_dir)["at_large"]
+    at_large["officials"]["bodies"][0]["members"][0].pop("term_ends", None)
+    assert officials.load(at_large, data_dir)["dashes"]
+
+
+def test_dashes_are_explained_on_the_fixture_site(site_dir):
+    import re
+    for path in site_dir.rglob("*.html"):
+        html = path.read_text(encoding="utf-8")
+        if re.search(r"<td[^>]*>\s*–\s*</td>", html):
+            assert "dash-legend" in html, path
+
+
+def test_section_pages_say_what_is_behind(site_dir, data_dir, config):
+    from pipeline import freshness
+    behind = absences.section_behind(freshness.check(config, data_dir, BUILT_AT), "311")
+    page = (site_dir / "311" / "index.html").read_text()
+    assert ('id="data-behind"' in page) == bool(behind)
+    for r in behind:
+        assert r["label"] in page

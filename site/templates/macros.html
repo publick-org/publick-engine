@@ -13,6 +13,11 @@
 <p class="notice">{% if behind.since %}{% trans when=behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}{% if links.calendar %} {% trans url=links.calendar %}The <a href="{{ url }}">city calendar</a> has the full list.{% endtrans %}{% endif %}</p>
 {%- endmacro %}
 
+{# What a dash in a table means, said once under it; the site checks fail a dash without one. #}
+{% macro state_dash(years) -%}
+{%- if years | selectattr("state", "none") | list %} <span class="dash-legend">{{ _("– means the state hasn't published a statewide figure for that year.") }}</span>{% endif -%}
+{%- endmacro %}
+
 {# Status words for a meeting, as plain text. #}
 {% macro meeting_flags(m) -%}
 {%- set parts = [] -%}

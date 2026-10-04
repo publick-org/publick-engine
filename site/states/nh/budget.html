@@ -71,7 +71,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} {% trans url=cb.source_url, source=cb.source_name %}Source: <a href="{{ url }}">{{ source }}</a>.{% endtrans %}</p>
+<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} <span class="dash-legend">{{ _("– means that year's budget has no such line, or, for the change, that there's no earlier year to compare with.") }}</span> {% trans url=cb.source_url, source=cb.source_name %}Source: <a href="{{ url }}">{{ source }}</a>.{% endtrans %}</p>
 {{ chart_links("budget", "/budget/data/city-budget.csv") }}
 {% endif %}
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
+{% from "macros.html" import state_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, and MCAS results.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
@@ -64,7 +64,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{% trans url=ms.graduation.dataset_url %}Source: <a href="{{ url }}">DESE High School Graduation Rates</a>.{% endtrans %}</p>
+<p class="small">{% trans url=ms.graduation.dataset_url %}Source: <a href="{{ url }}">DESE High School Graduation Rates</a>.{% endtrans %}{{ state_dash(ms.graduation.years) }}</p>
 
 <h2 id="absenteeism">{{ _("Chronic absenteeism") }}</h2>
 <p>{{ _("Share of students who missed 10%% or more of the school days they were enrolled, for any reason.") }}</p>
@@ -78,7 +78,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Schools closed in spring 2020 and many were remote in 2020–21, which affects those years.") }} {% trans url=ms.absenteeism.dataset_url %}Source: <a href="{{ url }}">DESE Student Attendance</a>.{% endtrans %}</p>
+<p class="small">{{ _("Schools closed in spring 2020 and many were remote in 2020–21, which affects those years.") }} {% trans url=ms.absenteeism.dataset_url %}Source: <a href="{{ url }}">DESE Student Attendance</a>.{% endtrans %}{{ state_dash(ms.absenteeism.years) }}</p>
 
 <h2 id="mcas">{{ _("MCAS results") }}</h2>
 <p>{{ _("Share of students in grades 3 to 8 who met or exceeded expectations on the state MCAS tests.") }}</p>
@@ -95,7 +95,7 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">{{ _("No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and fewer students took part, so 2021 results aren't directly comparable with other years.") }} {% trans url=ms.mcas_ela.dataset_url %}Source: <a href="{{ url }}">DESE MCAS Achievement Results</a>.{% endtrans %}</p>
+<p class="small">{{ _("No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and fewer students took part, so 2021 results aren't directly comparable with other years.") }} {% trans url=ms.mcas_ela.dataset_url %}Source: <a href="{{ url }}">DESE MCAS Achievement Results</a>.{% endtrans %}{{ state_dash(ms.mcas_ela.years + ms.mcas_math.years) }}</p>
 
 <p class="source-note">{% trans url=sch.portal %}All figures from the state's <a href="{{ url }}">Education-to-Career (E2C) data hub</a>, published by DESE.{% endtrans %}{% if sch.report_url is defined %} {% trans url=sch.report_url, report=sch.report_name %}School-by-school figures and more are on the <a href="{{ url }}">{{ report }}</a>.{% endtrans %}{% endif %}</p>
 {% endif %}

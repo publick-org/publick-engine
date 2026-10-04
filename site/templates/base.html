@@ -71,6 +71,22 @@
 
   <main id="main" tabindex="-1">
     <div class="wrap">
+      {% if behind %}
+      {# A source this section's pages show is behind (pipeline/absences.py), said before what it shows. #}
+      <div class="notice" id="data-behind">
+        <p>{{ _("Some data on this page may be out of date:") }}</p>
+        <ul>
+          {% for r in behind %}
+          {# Translators: %(source)s is a data source, such as "School figures (DESE)", and %(why)s why it's behind. #}
+          <li>{% if r.get("waiting") %}{% trans source=r.label, count=r.waiting | length, num=r.waiting | length | number %}{{ source }}: {{ num }} new document is waiting for its summary.{% pluralize %}{{ source }}: {{ num }} new documents are waiting for their summaries.{% endtrans %}
+          {%- elif r.get("behind") %}{% trans source=r.label, why=r.behind %}{{ source }}: {{ why }}.{% endtrans %}
+          {%- elif r.updated_at %}{% trans source=r.label, when=r.updated_at[:10] | date("plain") %}{{ source }}: last updated {{ when }}.{% endtrans %}
+          {%- else %}{% trans source=r.label %}{{ source }}: not collected yet.{% endtrans %}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        <p>{% trans url="/about/#data-status" %}See <a href="{{ url }}">Data status</a> for every source.{% endtrans %}</p>
+      </div>
+      {% endif %}
       {% block content %}{% endblock %}
     </div>
   </main>
