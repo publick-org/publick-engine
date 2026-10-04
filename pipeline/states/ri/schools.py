@@ -273,6 +273,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
                 state.update(s)
         report_cards[measure] = sorted(set(read_before.get(measure, [])) | set(wanted))
         measures[measure] = {"source_url": SOURCE_PAGES[measure], "years": merged(years(measure), town, state)}
+    # A kind of file missing from the page this run (renamed, or briefly taken down) keeps what's saved.
+    for measure in SOURCE_PAGES:
+        if measure not in measures and measure in saved_measures:
+            measures[measure], report_cards[measure] = saved_measures[measure], read_before.get(measure, [])
 
     for measure, assessment in ASSESSMENTS.items():
         town, state = parse_adp(client.get(adp_url(assessment, district, adp_years(client, assessment))).text)

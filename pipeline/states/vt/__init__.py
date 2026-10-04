@@ -26,5 +26,6 @@ STATE = State(
         "schools": Source("schools", ("aoe_org", "aoe_lea", "district_name"), "pipeline.states.vt.schools"),
     },
     tax_source=N_("Calculated by Publick from state figures"),
+    tax_label=N_("Average homestead tax bill"),
     pages="pipeline.states.vt.pages",
 )

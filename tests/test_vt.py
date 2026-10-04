@@ -181,7 +181,7 @@ def test_budget_figures(vt_figures, tmp_path):
         round(statistics.median(t["homestead_rate"] for t in towns if t["homestead_rate"]), 4)
     assert b["taxes"][-1]["total"] == 135905023 and b["taxes"][-1]["parts"]["City tax"] == 50322986
     assert b["grand_list"][-1] == {"tax_year": 2025, "listed_value": 5880914517, "cla": 76.25,
-                                   "equalized_value": 7545223000.0, "parcels": 10451}
+                                   "equalized_value": 7676311000.0, "parcels": 10451}
     pr = b["per_resident"]
     assert pr["population"] == 44019 and "July 1, 2025" in pr["calculated"] and pr["communities"] >= 6
 
@@ -252,6 +252,7 @@ def test_vermont_pages(vt_site):
     assert "Agency of Education" in schools and "Statewide Assessment System" not in schools
     home = (vt_site / "index.html").read_text()
     assert "Tax year 2025 · Calculated by Publick from state figures" in home and 'href="/budget/#tax-bill"' in home
+    assert "Average homestead tax bill" in home and "Average single-family tax bill" not in home
     about = (vt_site / "about" / "index.html").read_text()
     assert "Property Valuation and Review" in about and "VCGI" in about and "VTCAP" in about
 

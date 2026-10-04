@@ -84,7 +84,7 @@
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num wide">{{ _("Education") }}</th><th scope="col" class="num">{{ _("Municipal") }}</th></tr></thead>
   <tbody>
   {% for y in budget.taxes | reverse %}
-    <tr><th scope="row">{{ y.tax_year }}</th><td class="num"><strong>{{ y.total | money("short") }}</strong></td><td class="num wide">{{ ((y.parts["Education tax on homesteads"] or 0) + (y.parts["Education tax on other property"] or 0)) | money("short") }}</td><td class="num">{{ y.parts["City tax"] | money("short") }}</td></tr>
+    <tr><th scope="row">{{ y.tax_year }}</th><td class="num"><strong>{{ y.total | money("short") }}</strong></td><td class="num wide">{{ (y.parts.get("Education tax on homesteads", 0) + y.parts.get("Education tax on other property", 0)) | money("short") }}</td><td class="num">{{ y.parts.get("City tax") | money("short") }}</td></tr>
   {% endfor %}
   </tbody>
 </table>

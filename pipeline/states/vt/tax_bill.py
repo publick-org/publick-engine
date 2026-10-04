@@ -98,6 +98,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     tax_year = int(totals["year"])
     result: dict = {"tax_year": tax_year}
     row = pvr.get(tax_year)
+    if row and any(row.get(k) is None for k in ("homestead_rate", "nonhomestead_rate", "municipal_rate")):
+        row = None   # a year whose figures lack a rate can't be used
     ratio = totals["homestead_list"] / row["homestead_grand_list"] if row and row.get("homestead_grand_list") else None
     result["value_ratio"] = ratio and round(ratio, 4)
     if row and ratio and VALUE_CHECK[0] <= ratio <= VALUE_CHECK[1]:
