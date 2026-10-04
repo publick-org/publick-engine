@@ -23,7 +23,7 @@ from pipeline.fetch_311 import load_store, save_json, store_dir, tag_wards
 from pipeline.fetch_meetings import slugify
 from pipeline.geo import PrecinctLookup
 from pipeline.i18n import N_
-from pipeline.seeclickfix import street_address
+from pipeline.seeclickfix import COARSE_DIGITS, block_address, sensitive, street_address
 
 # Statistics from fewer requests than this are not shown.
 MIN_SAMPLE = 5
@@ -109,10 +109,15 @@ def open_at(record: dict, when: datetime) -> bool:
     return closed is None or closed > when
 
 
+def shown_address(r: dict, town: str) -> str:
+    """A request's address as the site shows it: to the block for a sensitive category."""
+    return (block_address if r.get("sensitive") else street_address)(r["address"], town)
+
+
 def oldest_open(records: list[dict], now: datetime, link_base: str, town: str, n: int = 10) -> list[dict]:
     """Longest-open requests."""
     return [{
-        "id": r["id"], "category": r["category"], "address": street_address(r["address"], town), "ward": r.get("ward"),
+        "id": r["id"], "category": r["category"], "address": shown_address(r, town), "ward": r.get("ward"),
         "created_at": r["created_at"], "age_days": round(days_between(parse(r["created_at"]), now), 1),
         "url": f"{link_base}/{r['id']}",
     } for r in sorted(records, key=lambda r: r["created_at"])[:n]]
@@ -173,8 +178,9 @@ def mappable(records: list[dict]) -> list[dict]:
 
 
 def point(r: dict) -> dict:
-    # Four decimal places: about 10 meters, enough to place a marker.
-    return {"lat": round(r["lat"], 4), "lng": round(r["lng"], 4)}
+    # Four decimal places: about 10 meters, enough to place a marker. A sensitive category's: about 100.
+    digits = COARSE_DIGITS if r.get("sensitive") else 4
+    return {"lat": round(r["lat"], digits), "lng": round(r["lng"], digits)}
 
 
 def repeat_locations(records: list[dict], radius_m: float, window_days: int, link_base: str, town: str) -> list[dict]:
@@ -220,7 +226,9 @@ def repeat_locations(records: list[dict], radius_m: float, window_days: int, lin
                     if any(c and c < parse(r["created_at"]) for c in closes[:i]))
         if not again:
             continue
-        address = Counter(street_address(r["address"], town) for r in rs).most_common(1)[0][0]
+        address = Counter(shown_address(r, town) for r in rs).most_common(1)[0][0]
+        # A place's requests share a category, so all or none are sensitive.
+        digits = COARSE_DIGITS if rs[0].get("sensitive") else 4
         ward = Counter(r.get("ward") for r in rs).most_common(1)[0][0]
         places.append({
             "category": rs[0]["category"], "slug": slugify(rs[0]["category"]),
@@ -228,8 +236,8 @@ def repeat_locations(records: list[dict], radius_m: float, window_days: int, lin
             "reports": len(rs), "again_after_close": again,
             "open": sum(1 for r in rs if r["status"] == "open"),
             "first": rs[0]["created_at"][:10], "last": rs[-1]["created_at"][:10],
-            "lat": round(sum(r["lat"] for r in rs) / len(rs), 4),
-            "lng": round(sum(r["lng"] for r in rs) / len(rs), 4),
+            "lat": round(sum(r["lat"] for r in rs) / len(rs), digits),
+            "lng": round(sum(r["lng"] for r in rs) / len(rs), digits),
             "requests": [{"id": r["id"], "created_at": r["created_at"][:10], "status": r["status"],
                           "url": f"{link_base}/{r['id']}"} for r in rs],
         })
@@ -242,7 +250,7 @@ def recent_open(records: list[dict], now: datetime, days: int, link_base: str, t
     since = now - timedelta(days=days)
     rs = [r for r in records if r["status"] == "open" and parse(r["created_at"]) >= since]
     return [{
-        "id": r["id"], "category": r["category"], "address": street_address(r["address"], town),
+        "id": r["id"], "category": r["category"], "address": shown_address(r, town),
         "ward": r.get("ward"), "created_at": r["created_at"], **(point(r) if mappable([r]) else {}),
         "url": f"{link_base}/{r['id']}",
     } for r in sorted(rs, key=lambda r: r["created_at"], reverse=True)]
@@ -254,6 +262,11 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     store = load_store(data_dir)
     records = [r for r in store.values() if not r.get("removed") and r.get("created_at")]
     tag_wards(store, PrecinctLookup(data_dir / "static" / config["seeclickfix"]["precincts_file"]))
+    # After the wards, which are found from the exact map point. Not saved: requests.json keeps what
+    # SeeClickFix lists, and only what's shown is cut to the block.
+    extra = config["seeclickfix"].get("sensitive_categories", [])
+    for r in records:
+        r["sensitive"] = sensitive(r["category"], extra)
     precincts = json.loads((data_dir / "static" / config["seeclickfix"]["precincts_file"]).read_text())
     population = defaultdict(int)
     for f in precincts["features"]:

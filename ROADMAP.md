@@ -198,7 +198,10 @@ Make what's shown checkable, and the process safe, before adding towns.
     them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
     (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
-    health reports), on the pages and in the CSVs.
+    health reports), on the pages and in the CSVs: in a pull request
+    (2026-10-03), from now on. Left: whether to rewrite what's already in
+    git history, and `requests.json` itself, which keeps SeeClickFix's
+    addresses until 311's raw requests move to R2 (item 20).
     ([Security and privacy](#security-and-privacy))
 12. **The data license**: done 2026-10-03 (#54, publick.org #42), CC BY 4.0 in the network
     repository's `LICENSE`, a "Reusing what's here" section on every About
@@ -908,9 +911,17 @@ and the 311 data has people's house numbers.
   `v1` moved on every release; tag protection.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
   389 Manchester "Homeless Encampment" and 273 Gloucester Health Department
-  reports, and the CSVs export locations (`build_site.py:1243-1246`). Cut
-  addresses to the block for sensitive categories. Decide whether to rewrite
-  git history once or coarsen from now on.
+  reports, and the CSVs export locations (`build_site.py:1243-1246`). *In a
+  pull request (2026-10-03):* a sensitive category's address is shown to its
+  block ("200–299 Main St") on every page, map, CSV, and in the street
+  lookup, and its map point to three decimal places (about 100 meters):
+  encampments, health and police complaints, noise, problem and private
+  property, smoke detector, lost pet, and lead service requests
+  (`seeclickfix.SENSITIVE_CATEGORIES`, plus a town's `[seeclickfix]
+  sensitive_categories`). The requests stay listed and mapped, and still
+  link to SeeClickFix, which shows the full address. Left: whether to
+  rewrite git history once; `requests.json` and older `scorecard.json`
+  commits keep full addresses in the public repository.
 - *The privacy line:* the `lang` cookie against "No cookies" (see
   [Spanish quality](#spanish-quality)).
 - *Continuity:* a `RUNBOOK.md` in the network repository (secrets, rotation,
