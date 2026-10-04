@@ -98,8 +98,11 @@ pipeline/                   Python package
   compute_311.py            Daily: requests -> data/311/scorecard.json
   fetch_finance.py, fetch_budget.py, fetch_schools.py   Tax bill, budget, school figures, from the town's state's source -> data/finance/, data/schools/
   states/                   What differs by state (see States below): states/ma/ is Massachusetts (DLS, DESE),
-                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT);
-                            states/ma/dls.py can fetch each DLS report once for every town (a network's states/)
+                            states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT), states/ct/
+                            Connecticut (OPM on data.ct.gov, EdSight), states/vt/ Vermont (PVR, VCGI, AOE),
+                            states/me/ Maine (MRS, Maine GeoLibrary, ESSA Dashboard), states/ri/ Rhode Island
+                            (Division of Municipal Finance, RIDE); states/ma/dls.py can fetch each DLS report once
+                            for every town (a network's states/)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
   fetch_place.py            Whether the town is a city or a town by law (Census TIGERweb) -> data/place.json, once;
                             the site's wording says "the city" or "the town" to match (i18n.py)
@@ -182,8 +185,8 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
    | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages |
-   | `[finance]` | Tax bill and budget, from the state | States with a package in `pipeline/states/` (Massachusetts, New Hampshire). Its keys are the state's own; see [States](#states) |
-   | `[schools]` | School district figures, from the state | Massachusetts, New Hampshire, and Connecticut (EdSight's exports: `edsight_district`, the district's name in EdSight). See [States](#states) |
+   | `[finance]` | Tax bill and budget, from the state | Every New England state, each with a package in `pipeline/states/`; Rhode Island has budget figures but no tax bill, since the state publishes nothing to calculate one from. Its keys are the state's own; see [States](#states) |
+   | `[schools]` | School district figures, from the state | Every New England state. Its keys are the state's own (Connecticut's `edsight_district` is the district's name in EdSight); see [States](#states) |
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. Building permits find the town by its Census place (`bps_place`), or, for a New England town that isn't a Census place (Wallingford), by its town code (`bps_mcd`). In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
    | `[labor]` | BLS unemployment | Anywhere BLS publishes a local series; set `bulk_file` to the state's file (defaults to Massachusetts's) |
    | `[permits]` | The city's permit spreadsheet | Gloucester's Data Hub layout only |
@@ -266,17 +269,88 @@ bill is calculated daily from those rates and NH GRANIT's parcel map (which
 answers automated requests), and held back after a revaluation until the DRA's
 figures for the new year are saved (see `pipeline/states/nh/tax_bill.py`).
 
-### Connecticut's school figures
+### Connecticut's figures
 
-Connecticut's school figures come from EdSight, the State Department of
+Connecticut's tax bill and budget come from the Office of Policy and
+Management's statewide datasets on data.ct.gov, through its Socrata API
+(`pipeline/states/ct/opendata.py`), which answers one query for one town or for
+all 169: mill rates, tax levies, grand lists, adopted budgets, and the audited
+Municipal Fiscal Indicators. The average single-family bill is calculated as New
+Hampshire's is: the average assessed value of the town's single-family homes in
+the state's yearly Parcel and CAMA file times the mill rate. Each year's parcel
+file is found by its name in the portal's catalog, paired with the fiscal year
+its grand list is taxed in, and used only when its total for the town is close
+to OPM's grand list (see `pipeline/states/ct/tax_bill.py`). Towns code their
+single-family homes differently, so `[finance] single_family_use` lists the
+town's codes when they aren't "101" or "1010".
+
+The school figures come from EdSight, the State Department of
 Education's data portal, through the CSV export each of its reports has
 (`pipeline/states/ct/schools.py`). The exports answer without a login as long as
 the session keeps the cookies EdSight's redirects set; without them EdSight
 answers with its sign-in page, and the step fails rather than saving anything.
 A trend export covers the last five school years, so the figures already saved
 are kept and the new years added; spending per pupil has an export per school
-year, and only years not yet saved are asked for. Connecticut's tax bill and
-budget aren't in the package yet.
+year, and only years not yet saved are asked for.
+
+### Vermont's yearly figures
+
+Vermont's Department of Taxes (Property Valuation and Review) and Agency of
+Education publish tax rates, grand lists, taxes raised, and spending per pupil
+as statewide workbooks once a year, under names that change each year. One
+command finds the newest on the state's pages, by their links' text, and saves
+every town's and district's rows into the engine:
+
+```sh
+python -m pipeline.states.vt.extract                # or name workbooks downloaded by hand
+python -m pipeline.states.vt.extract --population   # Census estimates, matched to the state's town names
+```
+
+Commit `pipeline/states/vt/figures/`, as for New Hampshire. The average
+homestead bill is calculated daily from those rates and VCGI's statewide parcel
+data, while the parcel data's grand list year has rates in the saved figures and
+its homestead values add up to the state's homestead grand list. Graduation
+rates, chronic absenteeism, and test results come from data.vermont.gov at each
+run; each spring's test results are a dataset of their own, found by name.
+
+### Maine's yearly figures
+
+Maine Revenue Services publishes every municipality's tax rate, commitment, and
+valuation once a year in a 150-page PDF, and the Department of Education's ESSA
+Dashboard, a Tableau workbook, holds every district's school figures. Neither
+suits a daily run, so one command saves both into the engine once a year:
+
+```sh
+python -m pipeline.states.me.extract                # the MVR summaries not yet saved
+python -m pipeline.states.me.extract --population   # Census estimates, matched to MRS's names
+python -m pipeline.states.me.extract --schools      # the dashboard's four measures, every district (about 15 minutes)
+```
+
+`--schools` uses the requests the dashboard's own Download button makes, which
+Tableau doesn't publish; if they stop working, the four crosstabs downloaded by
+hand can be named instead (see `pipeline/states/me/extract.py`). The average
+single-family bill is calculated daily from the newest tax rate and the Maine
+GeoLibrary's parcel table, which towns send when they choose to: so it's shown
+only while the town's parcels add up to about its taxable land and buildings,
+and `[finance] single_family_use` lists the town's own single-family codes.
+
+### Rhode Island's yearly figures
+
+Rhode Island's Division of Municipal Finance publishes each fiscal year's tax
+rates, net assessed values, and levies by class of property as PDFs, on a site
+that refuses automated requests. Download them by hand in a browser once a year
+and save them into the engine:
+
+```sh
+python -m pipeline.states.ri.extract ~/Downloads/*.pdf
+python -m pipeline.states.ri.extract --population
+```
+
+Each file is recognized by its own heading. The state publishes no average
+bill and no statewide assessed values, so a Rhode Island town has no tax bill;
+its budget page has the rates, levy, assessed values, and property tax per
+resident. School figures come from RIDE's report card data files and its
+assessment data portal at each run.
 
 ## Meetings from other calendars
 

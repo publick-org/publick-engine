@@ -1,0 +1,35 @@
+Index	District Name	District ID	School Name	School ID	Disaggregated	Population	Year	Number of Students Chronically Absent	Total Students	Percentage of Students Chronically Absent	
+1	Statewide	  	All Schools	  	All Students	All Students	2024-2025	38,172	163,356	23.37%	
+2	Statewide	  	All Schools	  	All Students	All Students	2023-2024	38,770	165,125	23.48%	
+3	Statewide	  	All Schools	  	All Students	All Students	2022-2023	42,642	166,952	25.54%	
+4	Statewide	  	All Schools	  	All Students	All Students	2021-2022	49,135	165,105	29.76%	
+5	Statewide	  	All Schools	  	All Students	All Students	2020-2021	35,519	170,122	20.88%	
+6	Statewide	  	All Schools	  	Sex	Female	2024-2025	18,640	79,076	23.57%	
+7	Statewide	  	All Schools	  	Sex	Female	2023-2024	19,061	79,906	23.85%	
+8	Statewide	  	All Schools	  	Sex	Female	2022-2023	20,969	80,903	25.92%	
+9	Statewide	  	All Schools	  	Sex	Female	2021-2022	24,129	79,990	30.17%	
+10	Statewide	  	All Schools	  	Sex	Female	2020-2021	16,535	82,375	20.07%	
+11	Statewide	  	All Schools	  	Sex	Male	2024-2025	19,507	84,195	23.17%	
+12	Statewide	  	All Schools	  	Sex	Male	2023-2024	19,680	85,148	23.11%	
+13	Statewide	  	All Schools	  	Sex	Male	2022-2023	21,665	86,018	25.19%	
+14	Statewide	  	All Schools	  	Sex	Male	2021-2022	25,004	85,111	29.38%	
+15	Statewide	  	All Schools	  	Sex	Male	2020-2021	18,984	87,747	21.63%	
+16	Statewide	  	All Schools	  	Sex	Sex Not Selected	2024-2025	25	85	29.41%	
+17	Statewide	  	All Schools	  	Sex	Sex Not Selected	2023-2024	29	71	40.85%	
+18	Statewide	  	All Schools	  	Sex	Sex Not Selected	2022-2023	8	31	25.81%	
+19	Statewide	  	All Schools	  	Sex	Sex Not Selected	2021-2022	*	*	*	
+90	Lewiston Public Schools	250	All Schools	  	All Students	All Students	2024-2025	1,769	5,198	34.03%	
+91	Lewiston Public Schools	250	All Schools	  	All Students	All Students	2023-2024	1,623	5,026	32.29%	
+92	Lewiston Public Schools	250	All Schools	  	All Students	All Students	2022-2023	1,600	4,813	33.24%	
+93	Lewiston Public Schools	250	All Schools	  	All Students	All Students	2021-2022	2,344	4,812	48.71%	
+94	Lewiston Public Schools	250	All Schools	  	All Students	All Students	2020-2021	2,138	5,135	41.64%	
+95	Lewiston Public Schools	250	All Schools	  	Sex	Female	2024-2025	840	2,546	32.99%	
+96	Lewiston Public Schools	250	All Schools	  	Sex	Female	2023-2024	745	2,467	30.20%	
+97	Lewiston Public Schools	250	All Schools	  	Sex	Female	2022-2023	778	2,377	32.73%	
+98	Lewiston Public Schools	250	All Schools	  	Sex	Female	2021-2022	1,158	2,352	49.23%	
+99	Lewiston Public Schools	250	All Schools	  	Sex	Female	2020-2021	1,001	2,533	39.52%	
+100	Lewiston Public Schools	250	All Schools	  	Sex	Male	2024-2025	929	2,652	35.03%	
+101	Lewiston Public Schools	250	All Schools	  	Sex	Male	2023-2024	878	2,559	34.31%	
+102	Lewiston Public Schools	250	All Schools	  	Sex	Male	2022-2023	822	2,436	33.74%	
+103	Lewiston Public Schools	250	All Schools	  	Sex	Male	2021-2022	1,186	2,460	48.21%	
+104	Lewiston Public Schools	250	All Schools	  	Sex	Male	2020-2021	1,137	2,602	43.70%	

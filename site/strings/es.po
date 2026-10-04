@@ -146,6 +146,11 @@ msgstr ""
 "%(district)s en comparación con el estado, según el Departamento de Educación del Estado de "
 "Connecticut."
 
+#: site/states/me/schools.html
+#, python-format
+msgid "%(district)s compared with the state, from the Maine Department of Education."
+msgstr "%(district)s en comparación con el estado, según el Departamento de Educación de Maine."
+
 #: site/states/ma/schools.html
 #, python-format
 msgid ""
@@ -160,6 +165,18 @@ msgstr ""
 msgid "%(district)s compared with the state, from the New Hampshire Department of Education."
 msgstr "%(district)s en comparación con el estado, según el Departamento de Educación de New Hampshire."
 
+#: site/states/ri/schools.html
+#, python-format
+msgid "%(district)s compared with the state, from the Rhode Island Department of Education (RIDE)."
+msgstr ""
+"%(district)s en comparación con el estado, según el Departamento de Educación de Rhode Island "
+"(RIDE)."
+
+#: site/states/vt/schools.html
+#, python-format
+msgid "%(district)s compared with the state, from the Vermont Agency of Education."
+msgstr "%(district)s en comparación con el estado, según la Agencia de Educación de Vermont."
+
 #: site/states/ma/schools.html
 #, python-format
 msgid "%(district)s compared with the state: graduation rate, chronic absenteeism, and MCAS results."
@@ -167,7 +184,8 @@ msgstr ""
 "%(district)s en comparación con el estado: tasa de graduación, ausentismo crónico y resultados "
 "del MCAS."
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/me/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 #, python-format
 msgid ""
 "%(district)s compared with the state: graduation rate, chronic absenteeism, state test results, "
@@ -207,7 +225,7 @@ msgstr ""
 "De %(first)s a %(last)s. Con rayas: meses recientes, cuyas cifras todavía pueden cambiar. Color "
 "vino: vea la nota más abajo."
 
-#: site/states/nh/schools.html
+#: site/states/me/schools.html site/states/nh/schools.html
 #, python-format
 msgid "%(graduated)s of %(cohort)s"
 msgstr "%(graduated)s de %(cohort)s"
@@ -363,6 +381,15 @@ msgstr "%(sources)s de cualquier calle."
 msgid "%(title)s meeting"
 msgstr "%(title)s: reunión"
 
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"%(town)s's adopted budget, its mill rate, what the property tax raises, and the average single-"
+"family tax bill."
+msgstr ""
+"El presupuesto aprobado de %(town)s, su tasa de impuesto (mill rate), lo que recauda el impuesto "
+"a la propiedad y el impuesto promedio de una casa unifamiliar."
+
 #: site/states/nh/budget.html
 #, python-format
 msgid ""
@@ -371,6 +398,33 @@ msgid ""
 msgstr ""
 "El presupuesto aprobado de %(town)s, su tasa del impuesto a la propiedad y adónde va ese "
 "impuesto, y la factura promedio del impuesto de una casa unifamiliar."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"%(town)s's property tax rate, what the property tax raises, and the average single-family tax "
+"bill."
+msgstr ""
+"La tasa del impuesto a la propiedad de %(town)s, lo que recauda y el impuesto promedio de una "
+"casa unifamiliar."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"%(town)s's property tax rates, what the property tax raises for the city and for schools, and the"
+" average homestead tax bill."
+msgstr ""
+"Las tasas del impuesto a la propiedad de %(town)s, lo que recauda para la ciudad y para las "
+"escuelas, y el impuesto promedio de una vivienda principal."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"%(town)s's property tax rates, what the property tax raises, and the value of the property it "
+"taxes."
+msgstr ""
+"Las tasas del impuesto a la propiedad de %(town)s, lo que recauda y el valor de las propiedades "
+"sobre las que se cobra."
 
 #. %(what)s is a meeting, such as "City Council meeting".
 #: site/templates/meeting.html
@@ -433,6 +487,17 @@ msgstr "(se abre en una pestaña nueva)"
 #: site/pages/311/index.html
 msgid "(recent)"
 msgstr "(reciente)"
+
+#: site/states/ri/budget.html
+msgid ""
+"* The city revalued its property, or updated its values, as of the December before. Rhode Island "
+"cities and towns update their assessments every three years; assessed values jump and the rate "
+"falls to match, so a lower rate doesn't by itself mean lower bills."
+msgstr ""
+"* La ciudad volvió a tasar sus propiedades, o actualizó sus valores, al diciembre anterior. Las "
+"ciudades y pueblos de Rhode Island actualizan sus tasaciones cada tres años; los valores tasados "
+"suben de golpe y la tasa baja en proporción, así que una tasa más baja no significa por sí sola "
+"facturas más bajas."
 
 #. Continues a list of housing sources: "U.S. Census Bureau Building Permits Survey and American
 #. Community Survey (through Census Reporter)".
@@ -645,6 +710,19 @@ msgstr ""
 "<strong>Agendas y actas:</strong> cualquier línea que nombre una dirección de la calle, en los "
 "documentos guardados en las <a href=\"/meetings/\">páginas de reuniones</a> de este sitio."
 
+#: site/states/ct/about_finance.html
+#, python-format
+msgid ""
+"<strong>Budget and property tax:</strong> the Connecticut <a href=\"%(url)s\">Office of Policy "
+"and Management</a>'s mill rates, tax levies, grand lists, adopted budgets, and Municipal Fiscal "
+"Indicators, on the state's open data portal, <a href=\"%(portal)s\">data.ct.gov</a>."
+msgstr ""
+"<strong>Presupuesto e impuesto a la propiedad:</strong> las tasas de impuesto (mill rates), "
+"recaudaciones, listas de propiedades gravables (grand lists), presupuestos aprobados e "
+"Indicadores Fiscales Municipales de la <a href=\"%(url)s\">Oficina de Política y "
+"Administración</a> de Connecticut, en el portal de datos abiertos del estado, <a "
+"href=\"%(portal)s\">data.ct.gov</a>."
+
 #: site/pages/about/index.html
 #, python-format
 msgid ""
@@ -815,6 +893,26 @@ msgstr ""
 "<strong>Reuniones:</strong> el <a href=\"%(calendar)s\">calendario</a> de la ciudad. La página de"
 " cada reunión enlaza a su agenda y a sus actas donde la ciudad las publica."
 
+#: site/states/ri/about_finance.html
+#, python-format
+msgid ""
+"<strong>Property tax:</strong> the Rhode Island <a href=\"%(url)s\">Division of Municipal "
+"Finance</a>'s tables of tax rates, net assessed values, and tax levies by class of property."
+msgstr ""
+"<strong>Impuesto a la propiedad:</strong> las tablas de tasas de impuesto, valores tasados netos "
+"y recaudaciones por tipo de propiedad de la <a href=\"%(url)s\">División de Finanzas "
+"Municipales</a> de Rhode Island."
+
+#: site/states/vt/about_finance.html
+#, python-format
+msgid ""
+"<strong>Property tax:</strong> the Vermont Department of Taxes' <a href=\"%(url)s\">Property "
+"Valuation and Review Annual Report</a>: tax rates, taxes raised, and grand lists."
+msgstr ""
+"<strong>Impuesto a la propiedad:</strong> el <a href=\"%(url)s\">informe anual de Valoración y "
+"Revisión de la Propiedad</a> del Departamento de Impuestos de Vermont: tasas de impuesto, lo "
+"recaudado y listas de propiedades gravables (grand lists)."
+
 #. %(source)s is who publishes the schedule, such as "Malden Public Schools".
 #: site/pages/about/index.html
 #, python-format
@@ -855,6 +953,17 @@ msgstr ""
 "Hampshire</a> sobre tasas de graduación, resultados del examen estatal (NH SAS) y costo por "
 "estudiante."
 
+#: site/states/vt/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> the <a href=\"%(url)s\">Vermont Agency of Education</a>'s graduation "
+"rates, chronic absenteeism, and state test (VTCAP) results, on <a "
+"href=\"%(portal)s\">data.vermont.gov</a>, and its per pupil spending reports."
+msgstr ""
+"<strong>Escuelas:</strong> las tasas de graduación, el ausentismo crónico y los resultados del "
+"examen estatal (VTCAP) de la <a href=\"%(url)s\">Agencia de Educación de Vermont</a>, en <a "
+"href=\"%(portal)s\">data.vermont.gov</a>, y sus informes de gasto por estudiante."
+
 #: site/states/ct/about_schools.html
 #, python-format
 msgid ""
@@ -865,6 +974,28 @@ msgstr ""
 "<strong>Escuelas:</strong> el portal de datos <a href=\"%(url)s\">EdSight</a> del Departamento de"
 " Educación del Estado de Connecticut: tasas de graduación, ausentismo crónico, resultados de los "
 "exámenes Smarter Balanced y gasto por estudiante."
+
+#: site/states/me/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> the Maine Department of Education's <a href=\"%(url)s\">ESSA "
+"Dashboard</a>: graduation rates, chronic absenteeism, state test results, and spending per pupil."
+msgstr ""
+"<strong>Escuelas:</strong> el <a href=\"%(url)s\">ESSA Dashboard</a> del Departamento de "
+"Educación de Maine: tasas de graduación, ausentismo crónico, resultados de los exámenes estatales"
+" y gasto por estudiante."
+
+#: site/states/ri/about_schools.html
+#, python-format
+msgid ""
+"<strong>Schools:</strong> the Rhode Island Department of Education's <a "
+"href=\"%(reportcard)s\">report card data files</a> (graduation rates, chronic absenteeism, and "
+"spending per pupil) and its <a href=\"%(adp)s\">assessment data portal</a> (RICAS test results)."
+msgstr ""
+"<strong>Escuelas:</strong> los <a href=\"%(reportcard)s\">archivos de datos de los informes "
+"escolares</a> del Departamento de Educación de Rhode Island (tasas de graduación, ausentismo "
+"crónico y gasto por estudiante) y su <a href=\"%(adp)s\">portal de datos de evaluación</a> "
+"(resultados de los exámenes RICAS)."
 
 #: site/pages/about/index.html
 #, python-format
@@ -885,6 +1016,17 @@ msgstr ""
 "<strong>Factura del impuesto a la propiedad y presupuesto de la ciudad:</strong> el Municipal "
 "Databank de la <a href=\"%(url)s\">División de Servicios Locales (DLS) de Massachusetts</a>, con "
 "los informes que la ciudad presenta al estado."
+
+#: site/states/me/about_finance.html
+#, python-format
+msgid ""
+"<strong>Tax rate and property tax:</strong> Maine Revenue Services' <a href=\"%(url)s\">Municipal"
+" Valuation Return Statistical Summary</a>, every municipality's tax rate, commitment, and "
+"valuation."
+msgstr ""
+"<strong>Tasa e impuesto a la propiedad:</strong> el <a href=\"%(url)s\">resumen estadístico de "
+"las declaraciones de valoración municipal</a> de Maine Revenue Services, con la tasa de impuesto,"
+" lo recaudado y la valoración de cada municipio."
 
 #: site/states/nh/about_finance.html
 #, python-format
@@ -975,6 +1117,16 @@ msgstr ""
 msgid "A revised agenda was posted."
 msgstr "Se publicó una agenda revisada."
 
+#: site/states/ri/budget.html
+msgid "A year missing from the table is one whose file Publick doesn't have."
+msgstr "Si falta un año en la tabla, es porque Publick no tiene el archivo de ese año."
+
+#: site/states/vt/schools.html
+msgid "A year the Agency of Education doesn't publish, to protect students' privacy, is left out."
+msgstr ""
+"No aparecen los años que la Agencia de Educación no publica para proteger la privacidad de los "
+"estudiantes."
+
 #: pipeline/fetch_housing.py
 #, python-brace-format
 msgid "ACS {year} 5-year estimates"
@@ -997,7 +1149,8 @@ msgstr "Acerca de"
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
-#: site/states/ct/schools.html site/states/ma/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/ri/schools.html site/states/vt/schools.html
 msgid "Absenteeism"
 msgstr "Ausentismo"
 
@@ -1043,7 +1196,7 @@ msgstr ""
 "Cualquier solicitud pública puede aparecer en los mapas y las listas, en todas las categorías. "
 "Las solicitudes sin ubicación en el mapa aparecen en las listas, pero no en el mapa."
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/nh/budget.html
 msgid "Adopted budget"
 msgstr "Presupuesto aprobado"
 
@@ -1051,6 +1204,16 @@ msgstr "Presupuesto aprobado"
 #, python-format
 msgid "Adopted budget by function, fiscal year %(year)s"
 msgstr "Presupuesto aprobado por función, año fiscal %(year)s"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Adopted budget by purpose, fiscal year %(year)s"
+msgstr "Presupuesto aprobado por destino, año fiscal %(year)s"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Adopted budget by source of revenue, fiscal year %(year)s"
+msgstr "Presupuesto aprobado por fuente de ingresos, año fiscal %(year)s"
 
 #: pipeline/common_strings.py
 msgid "Affordable Housing Trust"
@@ -1136,12 +1299,41 @@ msgstr ""
 "Todas las cifras son las que publica el <a href=\"%(department)s\">Departamento de Educación del "
 "Estado de Connecticut</a> en <a href=\"%(edsight)s\">EdSight</a>, su portal público de datos."
 
+#: site/states/ri/schools.html
+#, python-format
+msgid ""
+"All figures as published by the <a href=\"%(department)s\">Rhode Island Department of "
+"Education</a>, on its <a href=\"%(reportcard)s\">school report cards</a> and assessment data "
+"portal."
+msgstr ""
+"Todas las cifras tal como las publica el <a href=\"%(department)s\">Departamento de Educación de "
+"Rhode Island</a>, en sus <a href=\"%(reportcard)s\">informes escolares</a> y su portal de datos "
+"de evaluación."
+
 #: site/states/nh/schools.html
 #, python-format
 msgid "All figures as published by the <a href=\"%(url)s\">New Hampshire Department of Education</a>."
 msgstr ""
 "Todas las cifras tal como las publica el <a href=\"%(url)s\">Departamento de Educación de New "
 "Hampshire</a>."
+
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"All figures as published by the Maine Department of Education on its <a href=\"%(url)s\">ESSA "
+"Dashboard</a>."
+msgstr ""
+"Todas las cifras tal como las publica el Departamento de Educación de Maine en su <a "
+"href=\"%(url)s\">ESSA Dashboard</a>."
+
+#: site/states/vt/schools.html
+#, python-format
+msgid ""
+"All figures from the <a href=\"%(agency)s\">Vermont Agency of Education</a>, most on the state's "
+"open data portal, <a href=\"%(portal)s\">data.vermont.gov</a>."
+msgstr ""
+"Todas las cifras son de la <a href=\"%(agency)s\">Agencia de Educación de Vermont</a>, la mayoría"
+" en el portal de datos abiertos del estado, <a href=\"%(portal)s\">data.vermont.gov</a>."
 
 #: site/states/ma/schools.html
 #, python-format
@@ -1174,7 +1366,7 @@ msgstr ""
 "Ley de Estadounidenses con Discapacidades (Americans with Disabilities Act), la ley federal sobre"
 " el acceso para las personas con discapacidad."
 
-#: site/states/ma/budget.html
+#: site/states/ma/budget.html site/states/me/schools.html
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
 
@@ -1243,6 +1435,17 @@ msgstr ""
 "Al %(when)s, %(units)s de las %(homes)s viviendas de uso todo el año de %(town)s estaban en la "
 "lista: <strong>%(percent)s%%</strong>."
 
+#: site/states/ri/budget.html
+msgid "Assessed value"
+msgstr "Valor tasado"
+
+#: site/states/me/budget.html
+#, python-format
+msgid "Assessed values were %(ratio)s%% of market value that year, so the home's market value was higher."
+msgstr ""
+"Ese año, los valores tasados eran el %(ratio)s%% del valor de mercado, así que el valor de "
+"mercado de la casa era más alto."
+
 #: pipeline/common_strings.py
 msgid "At-large"
 msgstr "Toda la ciudad"
@@ -1262,15 +1465,26 @@ msgctxt "month"
 msgid "August"
 msgstr "agosto"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html
+msgid "Average assessed value"
+msgstr "Valor tasado promedio"
+
+#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
+#: site/states/vt/budget.html
 msgid "Average bill"
 msgstr "Factura promedio"
 
-#: pipeline/build_site.py site/states/nh/budget.html
+#: pipeline/states/vt/__init__.py site/states/vt/budget.html
+msgid "Average homestead tax bill"
+msgstr "Impuesto promedio de una vivienda principal"
+
+#: pipeline/build_site.py site/states/ct/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html
 msgid "Average single-family tax bill"
 msgstr "Impuesto promedio de una casa unifamiliar"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
+#: site/states/vt/budget.html
 msgid "Average tax bill"
 msgstr "Factura promedio del impuesto"
 
@@ -1278,7 +1492,7 @@ msgstr "Factura promedio del impuesto"
 msgid "Average tax bill (Mass. DLS)"
 msgstr "Factura promedio del impuesto a la propiedad (DLS de Massachusetts)"
 
-#: site/states/nh/budget.html
+#: site/states/nh/budget.html site/states/vt/budget.html
 msgid "Average value"
 msgstr "Valor promedio"
 
@@ -1364,11 +1578,15 @@ msgstr "Calificaciones crediticias"
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
-#: pipeline/build_site.py site/states/nh/budget.html
+#: pipeline/build_site.py site/states/ct/budget.html site/states/nh/budget.html
 msgid "Budget"
 msgstr "Presupuesto"
 
-#: site/states/nh/budget.html
+#: site/states/vt/schools.html
+msgid "Budget per pupil"
+msgstr "Presupuesto por estudiante"
+
+#: site/states/ct/budget.html site/states/nh/budget.html
 msgid ""
 "Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for "
 "inflation."
@@ -1376,9 +1594,22 @@ msgstr ""
 "Presupuestos tal como se aprobaron, no lo que se gastó. El cambio es en el total. Las cantidades "
 "no están ajustadas por inflación."
 
+#: site/states/vt/schools.html
+msgid ""
+"Budgets as voted for the year, not what was spent. Vermont changed how it counts pupils in fiscal"
+" year 2025, so earlier years can't be compared and aren't shown."
+msgstr ""
+"Presupuestos tal como se votaron para el año, no lo que se gastó. Vermont cambió su forma de "
+"contar a los estudiantes en el año fiscal 2025, así que los años anteriores no se pueden comparar"
+" y no se muestran."
+
 #: site/pages/streets/index.html
 msgid "Building and demolition permits"
 msgstr "Permisos de construcción y demolición"
+
+#: site/states/ct/budget.html
+msgid "Businesses"
+msgstr "Negocios"
 
 #: site/pages/311/index.html site/templates/ward.html
 msgid "By category"
@@ -1396,11 +1627,13 @@ msgstr "Por mes"
 msgid "By ward"
 msgstr "Por distrito"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
+#: site/states/ri/budget.html site/states/vt/budget.html
 msgid "Calculated by Publick"
 msgstr "Calculado por Publick"
 
-#: pipeline/states/nh/__init__.py
+#: pipeline/states/ct/__init__.py pipeline/states/me/__init__.py pipeline/states/nh/__init__.py
+#: pipeline/states/vt/__init__.py
 msgid "Calculated by Publick from state figures"
 msgstr "Calculado por Publick con datos del estado"
 
@@ -1435,6 +1668,10 @@ msgstr ""
 "Las cifras de la Oficina del Censo de EE. UU. y de la Oficina de Estadísticas Laborales (BLS) son"
 " de dominio público."
 
+#: site/states/me/budget.html
+msgid "Certified ratio"
+msgstr "Proporción certificada"
+
 #: pipeline/common_strings.py
 msgid "Chair"
 msgstr "Presidente"
@@ -1447,7 +1684,8 @@ msgstr "Presidente"
 msgid "Chairperson"
 msgstr "Presidente"
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html
 msgid "Change"
 msgstr "Cambio"
 
@@ -1469,8 +1707,10 @@ msgstr ""
 " cambian después de las elecciones y cuando se llena un puesto vacante; esos sitios web son el "
 "registro oficial."
 
-#: site/pages/meetings/index.html site/states/ct/schools.html site/states/ma/budget.html
-#: site/states/ma/schools.html site/states/nh/budget.html
+#: site/pages/meetings/index.html site/states/ct/budget.html site/states/ct/schools.html
+#: site/states/ma/budget.html site/states/ma/schools.html site/states/me/budget.html
+#: site/states/nh/budget.html site/states/ri/budget.html site/states/ri/schools.html
+#: site/states/vt/budget.html site/states/vt/schools.html
 #, python-format
 msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>."
@@ -1491,11 +1731,13 @@ msgstr ""
 "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>. Si la ciudad cambia esta publicación, "
 "esta nota se quita hasta que se revise de nuevo."
 
-#: site/states/ct/schools.html site/states/ma/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/ri/schools.html site/states/vt/schools.html
 msgid "Chronic absenteeism"
 msgstr "Ausentismo crónico"
 
-#: site/states/ct/schools.html site/states/ma/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/ri/schools.html site/states/vt/schools.html
 msgid "Chronically absent"
 msgstr "Con ausentismo crónico"
 
@@ -1547,8 +1789,10 @@ msgstr "Comité de Seguridad Pública del Concejo Municipal"
 msgid "City Hall updates"
 msgstr "Novedades de la Alcaldía"
 
-#: pipeline/build_site.py pipeline/states/nh/budget.py site/states/ma/budget.html
-#: site/states/nh/budget.html
+#: pipeline/build_site.py pipeline/states/ct/budget.py pipeline/states/nh/budget.py
+#: pipeline/states/vt/budget.py site/states/ct/budget.html site/states/ma/budget.html
+#: site/states/me/budget.html site/states/nh/budget.html site/states/ri/budget.html
+#: site/states/vt/budget.html
 msgid "City budget"
 msgstr "Presupuesto de la ciudad"
 
@@ -1556,7 +1800,8 @@ msgstr "Presupuesto de la ciudad"
 msgid "City budget (Mass. DLS)"
 msgstr "Presupuesto de la ciudad (DLS de Massachusetts)"
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html site/states/ri/budget.html site/states/vt/budget.html
 #, python-format
 msgid ""
 "City budget documents, including department detail, are on the <a href=\"%(url)s\">city "
@@ -1580,20 +1825,27 @@ msgstr ""
 "El personal de la ciudad confirmó que la recibió. Sigue contando como abierta. Solo el personal "
 "puede hacer esto."
 
+#: pipeline/states/vt/budget.py
+msgid "City tax"
+msgstr "Impuesto municipal"
+
 #: pipeline/common_strings.py
 msgid "Citywide"
 msgstr "Toda la ciudad"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Class of"
 msgstr "Promoción"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 #, python-format
 msgid "Class of %(year)s"
 msgstr "Promoción %(year)s"
 
-#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/nh/schools.py
+#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/me/schools.py
+#: pipeline/states/nh/schools.py pipeline/states/ri/schools.py pipeline/states/vt/schools.py
 #, python-brace-format
 msgid "Class of {year} graduation rate"
 msgstr "Tasa de graduación de la promoción {year}"
@@ -1624,9 +1876,21 @@ msgstr "El color nunca es la única forma de mostrar la información."
 msgid "Coming up"
 msgstr "Lo que viene"
 
+#: site/states/ri/budget.html
+msgid "Commercial"
+msgstr "Comercial"
+
+#: site/states/ri/budget.html
+msgid "Commercial and industrial"
+msgstr "Comercial e industrial"
+
 #: pipeline/common_strings.py
 msgid "Commission on Disabilities"
 msgstr "Comisión sobre Discapacidades"
+
+#: site/states/me/budget.html
+msgid "Commitment"
+msgstr "Impuesto recaudado"
 
 #: pipeline/common_strings.py
 msgid "Committee on Aging"
@@ -1635,6 +1899,10 @@ msgstr "Comité de Personas Mayores"
 #: site/pages/meetings/decisions/index.html
 msgid "Committee recommendations to the City Council"
 msgstr "Recomendaciones de los comités al Concejo Municipal"
+
+#: site/states/vt/budget.html
+msgid "Common level of appraisal"
+msgstr "Nivel común de tasación"
 
 #: pipeline/common_strings.py
 msgid ""
@@ -1657,6 +1925,10 @@ msgstr "No se incluyen los eventos comunitarios."
 msgid "Condominiums"
 msgstr "Condominios"
 
+#: site/states/ct/budget.html
+msgid "Connecticut doesn't publish an average bill."
+msgstr "Connecticut no publica una factura promedio."
+
 #: pipeline/common_strings.py
 msgid "Conservation Commission"
 msgstr "Comisión de Conservación"
@@ -1664,6 +1936,10 @@ msgstr "Comisión de Conservación"
 #: site/pages/officials/index.html
 msgid "Contact"
 msgstr "Contacto"
+
+#: pipeline/states/ct/budget.py
+msgid "Contingency"
+msgstr "Imprevistos"
 
 #: pipeline/build_site.py
 #, python-brace-format
@@ -1764,7 +2040,7 @@ msgstr "La fecha cambió del %(old)s al %(new)s."
 msgid "Dates"
 msgstr "Fechas"
 
-#: pipeline/states/ma/budget.py
+#: pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Debt service"
 msgstr "Pago de deudas"
 
@@ -1828,6 +2104,16 @@ msgstr ""
 "Cada lugar enlaza a su solicitud más reciente en SeeClickFix. El CSV incluye todas las "
 "solicitudes."
 
+#: site/states/ri/budget.html
+msgid ""
+"Each rate is the property tax in dollars for each $1,000 of assessed value. Rhode Island lets a "
+"city tax homes, businesses, and business equipment (personal property) at different rates, within"
+" limits set by state law."
+msgstr ""
+"Cada tasa es el impuesto a la propiedad en dólares por cada $1,000 de valor tasado. Rhode Island "
+"permite cobrar tasas distintas a las viviendas, a los negocios y al equipo de los negocios "
+"(propiedad personal), dentro de los límites que fija la ley estatal."
+
 #. "Behind" is the status the table below shows for such a source.
 #: site/pages/about/index.html
 msgid ""
@@ -1841,6 +2127,17 @@ msgstr ""
 "cada año se revisan cada semana o cada mes, y se marcan como “Atrasado” solo cuando ya deberían "
 "haberse publicado cifras más nuevas; en ese caso, el encargado del sitio recibe un aviso "
 "automático."
+
+#: site/states/vt/budget.html
+msgid ""
+"Each town's education rates depend on what its school district spends per pupil, adjusted for how"
+" its listed values compare with sale prices (its common level of appraisal). The local agreement "
+"rate pays the town's share of the state's tax stabilization agreements."
+msgstr ""
+"Las tasas de educación de cada pueblo dependen de lo que gasta su distrito escolar por "
+"estudiante, ajustado según cómo se comparan sus valores registrados con los precios de venta (su "
+"nivel común de tasación). La tasa de acuerdo local paga la parte que le toca de los acuerdos "
+"estatales de estabilización de impuestos."
 
 #. %(name)s is a school district, such as "Beverly Public Schools".
 #: site/templates/board.html
@@ -1866,9 +2163,21 @@ msgstr "Versiones anteriores de esta agenda:"
 msgid "Economic Development Committee"
 msgstr "Comité de Desarrollo Económico"
 
-#: pipeline/states/ma/budget.py
+#: pipeline/states/ct/budget.py pipeline/states/ma/budget.py site/states/vt/budget.html
 msgid "Education"
 msgstr "Educación"
+
+#: site/states/vt/schools.html
+msgid "Education spending per pupil"
+msgstr "Gasto en educación por estudiante"
+
+#: pipeline/states/vt/budget.py
+msgid "Education tax on homesteads"
+msgstr "Impuesto de educación sobre viviendas principales"
+
+#: pipeline/states/vt/budget.py
+msgid "Education tax on other property"
+msgstr "Impuesto de educación sobre otras propiedades"
 
 #: pipeline/common_strings.py
 msgid "Elected citywide for four years."
@@ -1897,7 +2206,8 @@ msgstr "Avisos de la ciudad por correo electrónico o mensaje de texto"
 msgid "Email<span class=\"visually-hidden\"> %(name)s</span>"
 msgstr "Correo<span class=\"visually-hidden\"> de %(name)s</span>"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "English"
 msgstr "Inglés"
 
@@ -1914,6 +2224,10 @@ msgstr "Escriba la calle, no la dirección completa; por ejemplo, “%(example)s
 #: site/pages/streets/index.html
 msgid "Enter the street, not a full address."
 msgstr "Escriba la calle, no la dirección completa."
+
+#: site/states/vt/budget.html
+msgid "Equalized value"
+msgstr "Valor ajustado"
 
 #: site/pages/streets/index.html
 msgid "Estimated costs are as the applicant gave them."
@@ -1966,6 +2280,10 @@ msgstr ""
 "Todo viene de las solicitudes públicas en SeeClickFix, el sistema de solicitudes de servicio de "
 "la ciudad."
 
+#: pipeline/states/ct/budget.py
+msgid "Everything else"
+msgstr "Todo lo demás"
+
 #: site/pages/index.html
 msgid "Explore"
 msgstr "Explorar"
@@ -1984,6 +2302,10 @@ msgctxt "month"
 msgid "February"
 msgstr "febrero"
 
+#: pipeline/states/ct/budget.py
+msgid "Federal aid"
+msgstr "Ayuda federal"
+
 #. "Not enough data" is what a typical time shows when there are too few requests; use the same words
 #. as its translation.
 #: site/pages/311/index.html
@@ -1995,8 +2317,11 @@ msgstr "Las cifras basadas en menos de %(min)s solicitudes muestran “Datos ins
 msgid "Figures will appear here after the first data collection."
 msgstr "Las cifras aparecerán aquí después de la primera recopilación de datos."
 
-#: site/pages/housing/index.html site/states/ct/schools.html site/states/ma/budget.html
-#: site/states/ma/schools.html site/states/nh/budget.html site/states/nh/schools.html
+#: site/pages/housing/index.html site/states/ct/budget.html site/states/ct/schools.html
+#: site/states/ma/budget.html site/states/ma/schools.html site/states/me/budget.html
+#: site/states/me/schools.html site/states/nh/budget.html site/states/nh/schools.html
+#: site/states/ri/budget.html site/states/ri/schools.html site/states/vt/budget.html
+#: site/states/vt/schools.html
 msgid "Figures will appear here after the next data update."
 msgstr "Las cifras aparecerán aquí después de la próxima actualización de datos."
 
@@ -2022,24 +2347,36 @@ msgstr "Buscando su ubicación…"
 msgid "First recorded by %(site)s on <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "%(site)s la registró por primera vez el <time datetime=\"%(iso)s\">%(when)s</time>."
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ri/budget.html site/states/vt/schools.html
 msgid "Fiscal year"
 msgstr "Año fiscal"
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ri/budget.html
 #, python-format
 msgid "Fiscal year %(year)s"
 msgstr "Año fiscal %(year)s"
 
-#: pipeline/build_site.py pipeline/states/ma/tax_bill.py
+#: pipeline/build_site.py pipeline/states/ct/tax_bill.py pipeline/states/ma/tax_bill.py
 #, python-brace-format
 msgid "Fiscal year {year}"
 msgstr "Año fiscal {year}"
+
+#: pipeline/states/ct/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} adopted budget"
+msgstr "Presupuesto aprobado del año fiscal {year}"
 
 #: pipeline/states/nh/budget.py
 #, python-brace-format
 msgid "Fiscal year {year} city budget"
 msgstr "Presupuesto de la ciudad del año fiscal {year}"
+
+#: pipeline/states/ct/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} mill rate"
+msgstr "Tasa de impuesto (mill rate) del año fiscal {year}"
 
 #: pipeline/fetch_housing.py
 #, python-brace-format
@@ -2051,7 +2388,17 @@ msgstr "Conteo de parcelas del año fiscal {year}"
 msgid "Fiscal year {year} spending"
 msgstr "Gastos del año fiscal {year}"
 
-#: site/states/nh/budget.html
+#: pipeline/states/ri/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} tax levy"
+msgstr "Recaudación del año fiscal {year}"
+
+#: pipeline/states/ri/budget.py
+#, python-brace-format
+msgid "Fiscal year {year} tax rates"
+msgstr "Tasas de impuesto del año fiscal {year}"
+
+#: site/states/ct/budget.html site/states/nh/budget.html
 #, python-format
 msgid "Fiscal years start July 1: fiscal year %(year)s runs from July %(start)s to June %(year)s."
 msgstr ""
@@ -2263,15 +2610,17 @@ msgstr "Ir al %(report)s"
 msgid "Go to the home page"
 msgstr "Ir a la página principal"
 
-#: site/states/nh/schools.html
+#: site/states/me/schools.html site/states/nh/schools.html
 msgid "Graduated"
 msgstr "Graduados"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Graduation"
 msgstr "Graduación"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Graduation rate"
 msgstr "Tasa de graduación"
 
@@ -2282,6 +2631,10 @@ msgstr "Graduación, asistencia y resultados del MCAS, comparados con el estado.
 #: pipeline/common_strings.py
 msgid "Graffiti"
 msgstr "Grafiti"
+
+#: site/states/ct/budget.html site/states/vt/budget.html
+msgid "Grand list"
+msgstr "Lista de propiedades gravables"
 
 #: site/pages/311/methodology/index.html
 msgid "Half took less time, half took more. Unlike an average, a few very old requests don't skew it."
@@ -2319,7 +2672,7 @@ msgstr ""
 msgid "Home values and rents"
 msgstr "Valores de las viviendas y alquileres"
 
-#: site/pages/housing/index.html
+#: site/pages/housing/index.html site/states/ct/budget.html
 msgid "Homes"
 msgstr "Viviendas"
 
@@ -2332,6 +2685,15 @@ msgstr ""
 "unidad de vivienda: un dúplex cuenta como dos. Algunas viviendas con permiso nunca se construyen,"
 " y otras tardan años en terminarse."
 
+#: site/states/ct/budget.html
+msgid ""
+"Homes are houses, condominiums, and apartment buildings; businesses are commercial and industrial"
+" real estate. Values are assessed values, before exemptions, except the total."
+msgstr ""
+"Las viviendas son casas, condominios y edificios de apartamentos; los negocios son los bienes "
+"raíces comerciales e industriales. Los valores son valores tasados, antes de exenciones, salvo el"
+" total."
+
 #: site/pages/housing/index.html
 msgid "Homes counted as affordable"
 msgstr "Viviendas contadas como asequibles"
@@ -2341,6 +2703,14 @@ msgstr "Viviendas contadas como asequibles"
 #, python-format
 msgid "Homes in %(town)s by who lives in them, %(years)s."
 msgstr "Viviendas en %(town)s según quién vive en ellas, %(years)s."
+
+#: site/states/vt/budget.html
+msgid "Homestead education"
+msgstr "Educación, vivienda principal"
+
+#: site/states/vt/budget.html
+msgid "Homestead tax rate"
+msgstr "Tasa de vivienda principal"
 
 #: pipeline/build_site.py site/pages/housing/index.html
 msgid "Housing"
@@ -2446,6 +2816,11 @@ msgstr ""
 msgid "In %(year)s"
 msgstr "En %(year)s"
 
+#: site/states/me/budget.html
+#, python-format
+msgid "In %(year)s the city's assessed values were %(ratio)s%% of market value."
+msgstr "En %(year)s, los valores tasados de la ciudad eran el %(ratio)s%% del valor de mercado."
+
 #: site/pages/housing/index.html
 msgid "In buildings of 5+"
 msgstr "En edificios de 5 o más"
@@ -2453,6 +2828,24 @@ msgstr "En edificios de 5 o más"
 #: site/templates/macros.html
 msgid "In development"
 msgstr "En desarrollo"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"In fiscal year %(year)s, %(town)s's property tax came to %(amount)s per resident. The median "
+"across %(communities)s Connecticut towns was %(median)s."
+msgstr ""
+"En el año fiscal %(year)s, el impuesto a la propiedad de %(town)s fue de %(amount)s por "
+"residente. La mediana de %(communities)s pueblos de Connecticut fue de %(median)s."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"In fiscal year %(year)s, %(town)s's property tax came to %(amount)s per resident. The median "
+"across %(communities)s Rhode Island cities and towns was %(median)s."
+msgstr ""
+"En el año fiscal %(year)s, el impuesto a la propiedad de %(town)s fue de %(amount)s por "
+"residente. La mediana de %(communities)s pueblos y ciudades de Rhode Island fue de %(median)s."
 
 #: site/states/ma/budget.html
 #, python-format
@@ -2463,6 +2856,25 @@ msgstr ""
 "En el año fiscal %(year)s, el gasto del fondo general fue de %(amount)s por residente. La mediana"
 " entre %(communities)s ciudades y pueblos de Massachusetts fue de %(median)s."
 
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"In fiscal year %(year)s, the average single-family home in %(town)s was assessed at %(value)s. At"
+" that year's mill rate of %(rate)s, its tax bill was <strong>%(amount)s</strong>."
+msgstr ""
+"En el año fiscal %(year)s, la casa unifamiliar promedio de %(town)s estaba tasada en %(value)s. "
+"Con la tasa de ese año, %(rate)s, su impuesto fue de <strong>%(amount)s</strong>."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, %(town)s's property tax came to %(amount)s per resident. The median across "
+"%(communities)s Maine towns, cities, and plantations was %(median)s."
+msgstr ""
+"En el año tributario %(year)s, el impuesto a la propiedad de %(town)s fue de %(amount)s por "
+"residente. La mediana de %(communities)s pueblos, ciudades y plantaciones de Maine fue de "
+"%(median)s."
+
 #: site/states/nh/budget.html
 #, python-format
 msgid ""
@@ -2472,7 +2884,26 @@ msgstr ""
 "En el año tributario %(year)s, el impuesto a la propiedad de %(town)s fue de %(amount)s por "
 "residente. La mediana de %(communities)s pueblos y ciudades de New Hampshire fue de %(median)s."
 
-#: site/states/nh/budget.html
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, %(town)s's property tax came to %(amount)s per resident. The median across "
+"%(communities)s Vermont towns and cities was %(median)s."
+msgstr ""
+"En el año tributario %(year)s, el impuesto a la propiedad de %(town)s fue de %(amount)s por "
+"residente. La mediana de %(communities)s pueblos y ciudades de Vermont fue de %(median)s."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, the average homestead in %(town)s was listed at %(value)s. At that year's "
+"rates, its tax bill was <strong>%(amount)s</strong>, before the property tax credit."
+msgstr ""
+"En el año tributario %(year)s, la vivienda principal promedio de %(town)s tenía un valor "
+"registrado de %(value)s. Con las tasas de ese año, su impuesto fue de "
+"<strong>%(amount)s</strong>, antes del crédito del impuesto a la propiedad."
+
+#: site/states/me/budget.html site/states/nh/budget.html
 #, python-format
 msgid ""
 "In tax year %(year)s, the average single-family home in %(town)s was assessed at %(value)s. At "
@@ -2482,9 +2913,35 @@ msgstr ""
 "%(value)s. Con la tasa de ese año, $%(rate)s por cada $1,000, su factura del impuesto fue de "
 "<strong>%(amount)s</strong>."
 
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, the median Vermont town's homestead education rate was $%(homestead)s, its "
+"nonhomestead rate $%(nonhomestead)s, and its municipal rate $%(municipal)s."
+msgstr ""
+"En el año tributario %(year)s, la mediana de los pueblos de Vermont fue de $%(homestead)s en la "
+"tasa de educación para viviendas principales, $%(nonhomestead)s en la tasa para otras propiedades"
+" y $%(municipal)s en la tasa municipal."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"In tax year %(year)s, the property tax raised %(total)s in all. The education taxes go to the "
+"state's Education Fund, which pays for every Vermont school district; the city keeps the "
+"municipal tax."
+msgstr ""
+"En el año tributario %(year)s, el impuesto a la propiedad recaudó %(total)s en total. Los "
+"impuestos de educación van al Fondo de Educación del estado, que paga todos los distritos "
+"escolares de Vermont; la ciudad se queda con el impuesto municipal."
+
 #: pipeline/common_strings.py
 msgid "Inland Wetlands Commission"
 msgstr "Comisión de Humedales Interiores"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "It was adopted on <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr "Se aprobó el <time datetime=\"%(iso)s\">%(when)s</time>."
 
 #: site/templates/base.html
 #, python-format
@@ -2592,9 +3049,21 @@ msgstr "Enlace a esta sección"
 msgid "Listed on the %(listing)s again."
 msgstr "Volvió a aparecer en el %(listing)s."
 
+#: site/states/vt/budget.html
+msgid "Listed value"
+msgstr "Valor registrado"
+
 #: site/pages/housing/index.html
 msgid "Lived in by the owner"
 msgstr "Ocupadas por el dueño"
+
+#: site/states/vt/budget.html
+msgid "Local agreement"
+msgstr "Acuerdo local"
+
+#: pipeline/states/vt/budget.py
+msgid "Local agreement tax"
+msgstr "Impuesto de acuerdo local"
 
 #: site/states/nh/budget.html
 msgid "Local education"
@@ -2670,6 +3139,27 @@ msgstr "Resultados del MCAS"
 #: site/templates/base.html
 msgid "Main"
 msgstr "Principal"
+
+#: site/states/me/budget.html
+msgid ""
+"Maine doesn't publish an average bill. The parcel table is what each city sends the Maine "
+"GeoLibrary, so the figure is shown only while the city's parcels add up to about its taxable land"
+" and buildings in MRS's figures for that year."
+msgstr ""
+"Maine no publica una factura promedio. La tabla de parcelas tiene lo que cada ciudad envía a la "
+"Maine GeoLibrary, así que la cifra se muestra solo mientras las parcelas de la ciudad suman más o"
+" menos lo mismo que sus terrenos y edificios gravables en las cifras de MRS de ese año."
+
+#: site/states/me/budget.html
+msgid ""
+"Maine towns and cities assess property at a share of its market value, the certified ratio, which"
+" falls as values rise between revaluations. When a city revalues, assessed values jump and the "
+"rate falls to match, so a lower rate doesn't by itself mean lower bills."
+msgstr ""
+"Los pueblos y ciudades de Maine tasan las propiedades a una parte de su valor de mercado, la "
+"proporción certificada, que baja a medida que suben los valores entre una tasación general y "
+"otra. Cuando una ciudad vuelve a tasar, los valores tasados suben de golpe y la tasa baja en "
+"proporción, así que una tasa más baja no significa por sí sola facturas más bajas."
 
 #: site/pages/about/accessibility/index.html
 msgid ""
@@ -2777,7 +3267,8 @@ msgstr ""
 "en su Inventario de Vivienda Subsidiada (SHI). Según la ley estatal Chapter 40B, la meta es que "
 "el %(goal)s%% de las viviendas de uso todo el año de cada comunidad estén en la lista."
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Math"
 msgstr "Matemáticas"
 
@@ -2908,6 +3399,10 @@ msgstr ""
 msgid "Methodology"
 msgstr "Metodología"
 
+#: site/states/ct/budget.html
+msgid "Mill rate"
+msgstr "Tasa de impuesto (mill rate)"
+
 #: pipeline/build_site.py site/pages/meetings/decisions/index.html
 msgid "Minutes"
 msgstr "Actas"
@@ -3009,6 +3504,22 @@ msgstr "lunes"
 #: site/pages/311/index.html
 msgid "Month"
 msgstr "Mes"
+
+#: site/states/vt/budget.html
+msgid ""
+"Most Vermont households that own their home pay less than this bill: the property tax credit "
+"lowers the education tax by household income."
+msgstr ""
+"La mayoría de los hogares de Vermont que son dueños de su casa pagan menos que esta factura: el "
+"crédito del impuesto a la propiedad reduce el impuesto de educación según los ingresos del hogar."
+
+#: site/states/ct/budget.html site/states/ri/budget.html
+msgid "Motor vehicles"
+msgstr "Vehículos de motor"
+
+#: site/states/vt/budget.html
+msgid "Municipal"
+msgstr "Municipal"
 
 #: site/pages/311/methodology/index.html
 msgctxt "311 status"
@@ -3232,6 +3743,15 @@ msgstr "Sin dirección"
 msgid "No street by that name was found."
 msgstr "No se encontró ninguna calle con ese nombre."
 
+#: site/states/ri/schools.html
+msgid ""
+"No tests were given in spring 2020. RICAS is adapted from Massachusetts's MCAS tests and uses the"
+" same achievement levels, so its results can be compared with Massachusetts's only loosely."
+msgstr ""
+"No hubo exámenes en la primavera de 2020. Los exámenes RICAS se basan en los MCAS de "
+"Massachusetts y usan los mismos niveles de logro, así que sus resultados solo se pueden comparar "
+"a grandes rasgos con los de Massachusetts."
+
 #: site/pages/meetings/boards/index.html
 msgid "No upcoming meeting listed"
 msgstr "No hay una próxima reunión anunciada"
@@ -3258,6 +3778,10 @@ msgstr "Sin actualizar en más de un año"
 #: site/pages/streets/index.html
 msgid "None found."
 msgstr "No se encontró nada."
+
+#: site/states/vt/budget.html
+msgid "Nonhomestead education"
+msgstr "Educación, otras propiedades"
 
 #: site/templates/meeting.html
 #, python-format
@@ -3314,6 +3838,14 @@ msgstr "Cantidad"
 msgid "Numbers based on fewer than 5 requests aren't shown."
 msgstr "No se muestran los números basados en menos de 5 solicitudes."
 
+#: site/states/ct/budget.html
+msgid ""
+"OPM adds each fiscal year's budgets and mill rates once towns have filed them, in the summer and "
+"fall."
+msgstr ""
+"La OPM agrega los presupuestos y las tasas de cada año fiscal cuando los pueblos los presentan, "
+"en el verano y el otoño."
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Oct"
@@ -3323,6 +3855,11 @@ msgstr "oct"
 msgctxt "month"
 msgid "October"
 msgstr "octubre"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "October %(year)s"
+msgstr "Octubre de %(year)s"
 
 #: site/states/ma/budget.html
 #, python-format
@@ -3420,7 +3957,7 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
 
-#: pipeline/common_strings.py pipeline/states/ma/budget.py
+#: pipeline/common_strings.py pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Other"
 msgstr "Otros"
 
@@ -3510,9 +4047,13 @@ msgstr "Reuniones pasadas"
 msgid "Past public meetings in %(town)s, %(state)s, by month, with saved agendas."
 msgstr "Reuniones públicas pasadas en %(town)s, %(state)s, por mes, con las agendas guardadas."
 
-#: site/states/nh/budget.html
+#: site/states/me/budget.html site/states/nh/budget.html site/states/ri/budget.html
 msgid "Per $1,000 of assessed value"
 msgstr "Por cada $1,000 de valor tasado"
+
+#: site/states/vt/budget.html
+msgid "Per $100 of listed value"
+msgstr "Por cada $100 de valor registrado"
 
 #: site/pages/311/index.html
 msgid "Per 1,000"
@@ -3530,9 +4071,14 @@ msgstr ""
 "Por estudiante matriculado, incluidos los estudiantes que el distrito paga para que estudien en "
 "otro lugar. En años anteriores también se contaban obras menores de construcción escolar."
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html site/states/ri/budget.html site/states/vt/budget.html
 msgid "Per resident"
 msgstr "Por residente"
+
+#: site/states/ct/budget.html site/states/ri/budget.html
+msgid "Personal property"
+msgstr "Propiedad personal"
 
 #: pipeline/common_strings.py
 msgid "Personnel Board"
@@ -3580,7 +4126,8 @@ msgstr ""
 msgid "Population %(population)s (2020 census)."
 msgstr "Población: %(population)s (censo de 2020)."
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html site/states/ri/budget.html site/states/vt/budget.html
 #, python-format
 msgid "Population: %(population)s."
 msgstr "Población: %(population)s."
@@ -3625,19 +4172,25 @@ msgstr ""
 "cada condominio es su propia parcela, mientras que un edificio de apartamentos es una sola "
 "parcela."
 
-#: pipeline/states/ma/budget.py
+#: pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Property tax"
 msgstr "Impuesto a la propiedad"
+
+#: site/states/ri/budget.html
+msgid "Property tax levy"
+msgstr "Recaudación del impuesto a la propiedad"
 
 #: site/states/ma/budget.html
 msgid "Property tax limit"
 msgstr "Límite del impuesto a la propiedad"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
+#: site/states/ri/budget.html site/states/vt/budget.html
 msgid "Property tax per resident"
 msgstr "Impuesto a la propiedad por residente"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
+#: site/states/ri/budget.html site/states/vt/budget.html
 msgid ""
 "Property tax per resident depends on how much of a town's tax base is businesses rather than "
 "homes, and on seasonal homes, whose owners pay tax but aren't counted as residents."
@@ -3646,14 +4199,42 @@ msgstr ""
 "son negocios y no viviendas, y de las casas de temporada, cuyos dueños pagan impuesto pero no se "
 "cuentan como residentes."
 
-#: site/states/nh/budget.html
+#: site/states/ri/about_finance.html
+#, python-format
+msgid ""
+"Property tax per resident, and the state's median rate, are calculated by Publick, with the U.S. "
+"Census Bureau's <a href=\"%(population)s\">population estimates</a>."
+msgstr ""
+"Publick calcula el impuesto a la propiedad por residente y la tasa mediana del estado, con las <a"
+" href=\"%(population)s\">estimaciones de población</a> de la Oficina del Censo de EE. UU."
+
+#: site/states/ri/about_finance.html
+#, python-format
+msgid ""
+"Property tax per resident, and the state's median rate, are calculated by Publick, with the U.S. "
+"Census Bureau's <a href=\"%(population)s\">population estimates</a>; the <a "
+"href=\"%(budget)s\">budget page</a> says how."
+msgstr ""
+"Publick calcula el impuesto a la propiedad por residente y la tasa mediana del estado, con las <a"
+" href=\"%(population)s\">estimaciones de población</a> de la Oficina del Censo de EE. UU.; la <a "
+"href=\"%(budget)s\">página del presupuesto</a> explica cómo."
+
+#: site/states/me/budget.html site/states/vt/budget.html
+msgid "Property tax raised"
+msgstr "Impuesto a la propiedad recaudado"
+
+#: site/states/nh/budget.html site/states/vt/budget.html
 #, python-format
 msgid "Property tax raised by part, tax year %(year)s"
 msgstr "Impuesto a la propiedad recaudado por parte, año tributario %(year)s"
 
-#: site/states/nh/budget.html
+#: site/states/me/budget.html site/states/nh/budget.html
 msgid "Property tax rate"
 msgstr "Tasa del impuesto a la propiedad"
+
+#: site/states/ri/budget.html site/states/vt/budget.html
+msgid "Property tax rates"
+msgstr "Tasas del impuesto a la propiedad"
 
 #: site/states/ma/budget.html
 msgid "Property tax share"
@@ -3678,7 +4259,7 @@ msgstr "Seguridad pública"
 msgid "Public works"
 msgstr "Obras públicas"
 
-#: site/states/nh/budget.html
+#: site/states/me/budget.html site/states/nh/budget.html site/states/vt/budget.html
 msgid "Rate"
 msgstr "Tasa"
 
@@ -3689,6 +4270,10 @@ msgstr "Leer la agenda completa"
 #: site/templates/macros.html
 msgid "Read the full minutes"
 msgstr "Leer las actas completas"
+
+#: site/states/ct/budget.html
+msgid "Real estate"
+msgstr "Bienes raíces"
 
 #: site/pages/311/methodology/index.html
 msgid "Recent months will change as requests close."
@@ -3852,9 +4437,17 @@ msgstr "Reservas"
 msgid "Reserves and bond ratings"
 msgstr "Reservas y calificaciones crediticias"
 
+#: site/states/ri/budget.html
+msgid "Residential"
+msgstr "Residencial"
+
 #: site/pages/housing/index.html
 msgid "Residential property by type"
 msgstr "Propiedades residenciales por tipo"
+
+#: site/states/ri/budget.html
+msgid "Residential tax rate"
+msgstr "Tasa residencial"
 
 #: pipeline/common_strings.py
 msgid "Retirement Board"
@@ -3872,6 +4465,24 @@ msgstr "Ingresos"
 msgid "Revised minutes were posted."
 msgstr "Se publicaron actas revisadas."
 
+#: site/states/ri/budget.html
+msgid ""
+"Rhode Island doesn't publish an average tax bill, or the assessed values of every home to "
+"calculate one from, so this site doesn't show one."
+msgstr ""
+"Rhode Island no publica una factura promedio ni los valores tasados de todas las casas para "
+"calcularla, así que este sitio no la muestra."
+
+#: site/states/ri/budget.html
+msgid "Rhode Island phased out its tax on cars from fiscal year 2018; it ended in fiscal year 2024."
+msgstr ""
+"Rhode Island fue eliminando su impuesto sobre los carros desde el año fiscal 2018; terminó en el "
+"año fiscal 2024."
+
+#: site/states/ri/about_finance.html
+msgid "Rhode Island publishes no average tax bill."
+msgstr "Rhode Island no publica una factura promedio."
+
 #: pipeline/i18n.py
 msgctxt "weekday, short"
 msgid "Sat"
@@ -3881,6 +4492,10 @@ msgstr "sáb"
 msgctxt "weekday"
 msgid "Saturday"
 msgstr "sábado"
+
+#: pipeline/states/ct/budget.py
+msgid "Savings (fund balance)"
+msgstr "Ahorros (saldo del fondo)"
 
 #: site/pages/about/index.html
 msgid ""
@@ -3907,7 +4522,8 @@ msgstr "Comité Escolar"
 msgid "School board meetings from the <a href=\"%(url)s\">%(name)s website</a>."
 msgstr "Reuniones de la junta escolar: <a href=\"%(url)s\">sitio web de %(name)s</a>."
 
-#: pipeline/states/nh/schools.py
+#: pipeline/states/me/schools.py pipeline/states/nh/schools.py pipeline/states/ri/schools.py
+#: pipeline/states/vt/schools.py
 msgid "School figures"
 msgstr "Cifras escolares"
 
@@ -3919,7 +4535,8 @@ msgstr "Cifras escolares (DESE)"
 msgid "School figures (EdSight)"
 msgstr "Cifras escolares (EdSight)"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "School year"
 msgstr "Año escolar"
 
@@ -3936,7 +4553,8 @@ msgid "School-by-school figures and more are on the <a href=\"%(url)s\">%(report
 msgstr "Las cifras escuela por escuela y más están en el <a href=\"%(url)s\">%(report)s</a>."
 
 #: pipeline/build_site.py site/states/ct/schools.html site/states/ma/schools.html
-#: site/states/nh/schools.html
+#: site/states/me/schools.html site/states/nh/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 msgid "Schools"
 msgstr "Escuelas"
 
@@ -4020,6 +4638,15 @@ msgstr "septiembre"
 msgid "Share"
 msgstr "Porcentaje"
 
+#: site/states/ri/schools.html
+msgid ""
+"Share of students in grades 3 to 8 who met or exceeded expectations on the Rhode Island "
+"Comprehensive Assessment System (RICAS), in English language arts and math."
+msgstr ""
+"Porcentaje de estudiantes de los grados 3 a 8 que alcanzaron o superaron las expectativas en el "
+"Sistema Integral de Evaluación de Rhode Island (RICAS), en Artes del Lenguaje en Inglés y "
+"Matemáticas."
+
 #: site/states/ma/schools.html
 msgid "Share of students in grades 3 to 8 who met or exceeded expectations on the state MCAS tests."
 msgstr ""
@@ -4034,18 +4661,47 @@ msgstr ""
 "Porcentaje de estudiantes de los grados 3 a 8 que obtuvieron nivel 3 o 4 (alcanzaron o superaron "
 "el nivel esperado) en los exámenes Smarter Balanced de Connecticut."
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/vt/schools.html
+msgid ""
+"Share of students in grades 3 to 9 who scored proficient or proficient with distinction on the "
+"Vermont Comprehensive Assessment Program (VTCAP)."
+msgstr ""
+"Porcentaje de estudiantes de los grados 3 a 9 que obtuvieron un nivel competente o competente con"
+" distinción en el Programa Integral de Evaluación de Vermont (VTCAP)."
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Share of students who graduated high school within four years of starting ninth grade."
 msgstr ""
 "Porcentaje de estudiantes que se graduaron de la escuela secundaria en cuatro años o menos desde "
 "que empezaron el 9.º grado."
 
-#: site/states/ct/schools.html site/states/ma/schools.html
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"Share of students who missed 10%% or more of the school days they were enrolled, for any reason, "
+"excused or not."
+msgstr ""
+"Porcentaje de estudiantes que faltaron al 10%% o más de los días escolares en que estaban "
+"matriculados, por cualquier motivo, justificado o no."
+
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 #, python-format
 msgid "Share of students who missed 10%% or more of the school days they were enrolled, for any reason."
 msgstr ""
 "Porcentaje de estudiantes que faltaron al 10%% o más de los días escolares en que estaban "
 "matriculados, por cualquier motivo."
+
+#: site/states/me/schools.html
+msgid ""
+"Share of students who scored at or above state expectations on Maine's state tests: the Maine "
+"Through Year Assessment in grades 3 to 8, and the SAT in the third year of high school. The "
+"figures are for every grade tested together."
+msgstr ""
+"Porcentaje de estudiantes que alcanzaron o superaron las expectativas del estado en los exámenes "
+"estatales de Maine: el Maine Through Year Assessment en los grados 3 a 8 y el SAT en el tercer "
+"año de la escuela secundaria. Las cifras son de todos los grados evaluados juntos."
 
 #: site/states/nh/schools.html
 msgid ""
@@ -4237,6 +4893,49 @@ msgstr ""
 "Fuente: <a href=\"%(url)s\">Executive Office of Housing and Livable Communities, Inventario de "
 "Vivienda Subsidiada</a>."
 
+#: site/states/me/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">MRS, Municipal Valuation Return Statistical Summary</a>."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">MRS, resumen estadístico de las declaraciones de valoración "
+"municipal</a>."
+
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Maine Department of Education, ESSA Dashboard</a> (Chronic "
+"Absenteeism)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">Departamento de Educación de Maine, ESSA Dashboard</a> (ausentismo "
+"crónico)."
+
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Maine Department of Education, ESSA Dashboard</a> (High School "
+"Graduation Rate)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">Departamento de Educación de Maine, ESSA Dashboard</a> (tasa de "
+"graduación de la escuela secundaria)."
+
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Maine Department of Education, ESSA Dashboard</a> (Per Pupil "
+"Spending)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">Departamento de Educación de Maine, ESSA Dashboard</a> (gasto por "
+"estudiante)."
+
+#: site/states/me/schools.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Maine Department of Education, ESSA Dashboard</a> (Student "
+"Assessment)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">Departamento de Educación de Maine, ESSA Dashboard</a> (evaluación de"
+" estudiantes)."
+
 #: site/pages/housing/index.html
 #, python-format
 msgid "Source: <a href=\"%(url)s\">Mass. Division of Local Services, parcel counts (LA-4)</a>."
@@ -4267,6 +4966,86 @@ msgstr ""
 "Fuente: <a href=\"%(url)s\">Departamento de Educación de New Hampshire, iPlatform</a> (Cohort "
 "Counts By School)."
 
+#: site/states/ct/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">OPM, Municipal Fiscal Indicators</a>."
+msgstr "Fuente: <a href=\"%(url)s\">OPM, Indicadores Fiscales Municipales</a>."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">OPM, adopted budgets from the Fiscal Health Monitoring System</a>."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">OPM, presupuestos aprobados del Sistema de Supervisión de la Salud "
+"Fiscal</a>."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">OPM, mill rates</a>."
+msgstr "Fuente: <a href=\"%(url)s\">OPM, tasas de impuesto (mill rates)</a>."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">OPM, net grand list</a>."
+msgstr "Fuente: <a href=\"%(url)s\">OPM, lista neta de propiedades gravables</a>."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">OPM, tax levy</a>."
+msgstr "Fuente: <a href=\"%(url)s\">OPM, recaudación</a>."
+
+#: site/states/ri/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">RIDE assessment data portal</a>."
+msgstr "Fuente: <a href=\"%(url)s\">portal de datos de evaluación de RIDE</a>."
+
+#: site/states/ri/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">RIDE report card data files</a> (Accountability)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">archivos de datos de los informes escolares de RIDE</a> (rendición de"
+" cuentas)."
+
+#: site/states/ri/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">RIDE report card data files</a> (Finance, total per pupil)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">archivos de datos de los informes escolares de RIDE</a> (finanzas, "
+"total por estudiante)."
+
+#: site/states/ri/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">RIDE report card data files</a> (Graduation Rates)."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">archivos de datos de los informes escolares de RIDE</a> (tasas de "
+"graduación)."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Rhode Island Division of Municipal Finance</a>, Net Assessed Value by"
+" Class of Property."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">División de Finanzas Municipales de Rhode Island</a>, valor tasado "
+"neto por tipo de propiedad."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Rhode Island Division of Municipal Finance</a>, Tax Levy by Class of "
+"Property."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">División de Finanzas Municipales de Rhode Island</a>, recaudación por"
+" tipo de propiedad."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Rhode Island Division of Municipal Finance</a>, Tax Rates by Class of"
+" Property."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">División de Finanzas Municipales de Rhode Island</a>, tasas de "
+"impuesto por tipo de propiedad."
+
 #: site/pages/housing/index.html
 #, python-format
 msgid "Source: <a href=\"%(url)s\">U.S. Census Bureau via Census Reporter</a>."
@@ -4287,6 +5066,35 @@ msgstr ""
 "Fuente: <a href=\"%(url)s\">Oficina del Censo de EE. UU., Encuesta de Permisos de "
 "Construcción</a>."
 
+#: site/states/vt/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">Vermont Agency of Education, chronic absenteeism</a>."
+msgstr "Fuente: <a href=\"%(url)s\">Agencia de Educación de Vermont, ausentismo crónico</a>."
+
+#: site/states/vt/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">Vermont Agency of Education, per pupil spending</a>."
+msgstr "Fuente: <a href=\"%(url)s\">Agencia de Educación de Vermont, gasto por estudiante</a>."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"Source: <a href=\"%(url)s\">Vermont Department of Taxes, Property Valuation and Review Annual "
+"Report</a>."
+msgstr ""
+"Fuente: <a href=\"%(url)s\">Departamento de Impuestos de Vermont, informe anual de Valoración y "
+"Revisión de la Propiedad</a>."
+
+#: site/states/vt/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">Vermont Education Dashboard, general assessment</a>."
+msgstr "Fuente: <a href=\"%(url)s\">Vermont Education Dashboard, evaluación general</a>."
+
+#: site/states/vt/schools.html
+#, python-format
+msgid "Source: <a href=\"%(url)s\">Vermont Education Dashboard, student information</a>."
+msgstr "Fuente: <a href=\"%(url)s\">Vermont Education Dashboard, información de los estudiantes</a>."
+
 #: site/pages/about/index.html
 msgid "Sources"
 msgstr "Fuentes"
@@ -4299,6 +5107,15 @@ msgid ""
 msgstr ""
 "Fuentes: <a href=\"%(free_cash)s\">efectivo disponible certificado</a> y <a "
 "href=\"%(stabilization)s\">fondo de estabilización</a> de la DLS."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(levy)s\">Rhode Island Division of Municipal Finance</a>; <a "
+"href=\"%(population)s\">U.S. Census Bureau population estimates</a>."
+msgstr ""
+"Fuentes: <a href=\"%(levy)s\">División de Finanzas Municipales de Rhode Island</a>; <a "
+"href=\"%(population)s\">estimaciones de población de la Oficina del Censo de EE. UU.</a>"
 
 #: site/states/nh/budget.html
 #, python-format
@@ -4318,6 +5135,51 @@ msgstr ""
 "Fuentes: <a href=\"%(rates)s\">DRA</a>; <a href=\"%(population)s\">Oficina del Censo de EE. UU., "
 "estimaciones de población</a>."
 
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">MRS, Municipal Valuation Return Statistical Summary</a>; <a "
+"href=\"%(parcels)s\">Maine GeoLibrary, Maine Parcels Organized Towns</a>."
+msgstr ""
+"Fuentes: <a href=\"%(rates)s\">MRS, resumen estadístico de las declaraciones de valoración "
+"municipal</a>; <a href=\"%(parcels)s\">Maine GeoLibrary, Maine Parcels Organized Towns</a>."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">MRS</a>; <a href=\"%(population)s\">U.S. Census Bureau population "
+"estimates</a>."
+msgstr ""
+"Fuentes: <a href=\"%(rates)s\">MRS</a>; <a href=\"%(population)s\">estimaciones de población de "
+"la Oficina del Censo de EE. UU.</a>"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">OPM, mill rates</a>; <a href=\"%(parcels)s\">OPM, Connecticut "
+"Parcel and CAMA Data</a>."
+msgstr ""
+"Fuentes: <a href=\"%(rates)s\">OPM, tasas de impuesto (mill rates)</a>; <a "
+"href=\"%(parcels)s\">OPM, Connecticut Parcel and CAMA Data</a>."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">Vermont Department of Taxes, tax rates</a>; <a "
+"href=\"%(parcels)s\">VCGI, statewide standardized parcel data</a>."
+msgstr ""
+"Fuentes: <a href=\"%(rates)s\">Departamento de Impuestos de Vermont, tasas de impuesto</a>; <a "
+"href=\"%(parcels)s\">VCGI, datos estandarizados de parcelas del estado</a>."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"Sources: <a href=\"%(rates)s\">Vermont Department of Taxes</a>; <a href=\"%(population)s\">U.S. "
+"Census Bureau population estimates</a>."
+msgstr ""
+"Fuentes: <a href=\"%(rates)s\">Departamento de Impuestos de Vermont</a>; <a "
+"href=\"%(population)s\">estimaciones de población de la Oficina del Censo de EE. UU.</a>"
+
 #: site/templates/macros.html site/templates/meeting.html
 msgid "Special meeting"
 msgstr "Reunión especial"
@@ -4326,7 +5188,8 @@ msgstr "Reunión especial"
 msgid "Spending"
 msgstr "Gasto"
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/me/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 msgid "Spending per pupil"
 msgstr "Gasto por estudiante"
 
@@ -4363,22 +5226,28 @@ msgstr ""
 msgid "Spot a mistake? See <a href=\"/about/#corrections\">Corrections</a>."
 msgstr "¿Encontró un error? Vea <a href=\"/about/#corrections\">Correcciones</a>."
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgctxt "season"
 msgid "Spring"
 msgstr "Primavera"
+
+#: site/states/me/schools.html
+#, python-format
+msgid "Spring %(year)s, at or above expectations"
+msgstr "Primavera de %(year)s, alcanzaron o superaron las expectativas"
 
 #: site/states/ma/schools.html
 #, python-format
 msgid "Spring %(year)s, meeting or exceeding"
 msgstr "Primavera de %(year)s, cumplen o superan las expectativas"
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/ri/schools.html
 #, python-format
 msgid "Spring %(year)s, met or exceeded"
 msgstr "Primavera de %(year)s, alcanzaron o superaron el nivel"
 
-#: site/states/nh/schools.html
+#: site/states/nh/schools.html site/states/vt/schools.html
 #, python-format
 msgid "Spring %(year)s, proficient or above"
 msgstr "Primavera de %(year)s, nivel competente o superior"
@@ -4388,7 +5257,8 @@ msgstr "Primavera de %(year)s, nivel competente o superior"
 msgid "Spring {year} MCAS results"
 msgstr "Resultados del MCAS de primavera de {year}"
 
-#: pipeline/states/ct/schools.py pipeline/states/nh/schools.py
+#: pipeline/states/ct/schools.py pipeline/states/me/schools.py pipeline/states/nh/schools.py
+#: pipeline/states/ri/schools.py pipeline/states/vt/schools.py
 #, python-brace-format
 msgid "Spring {year} state test results"
 msgstr "Resultados de los exámenes estatales de primavera de {year}"
@@ -4403,17 +5273,20 @@ msgstr "Fondo de estabilización"
 msgid "Start time changed from %(old)s to %(new)s."
 msgstr "La hora de inicio cambió de %(old)s a %(new)s."
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgctxt "the state as a whole"
 msgid "State"
 msgstr "Estado"
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/me/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 #, python-format
 msgid "State %(amount)s"
 msgstr "Estado: %(amount)s"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
+#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 #, python-format
 msgid "State %(pct)s%%"
 msgstr "Estado: %(pct)s%%"
@@ -4424,7 +5297,7 @@ msgstr "Estado: %(pct)s%%"
 msgid "State %(value)s"
 msgstr "Estado: %(value)s"
 
-#: pipeline/states/ma/budget.py
+#: pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "State aid"
 msgstr "Ayuda estatal"
 
@@ -4445,10 +5318,19 @@ msgstr "Promedio estatal: %(amount)s"
 msgid "State education"
 msgstr "Educación estatal"
 
-#: site/states/nh/schools.html
+#: site/states/me/schools.html site/states/nh/schools.html
 #, python-format
 msgid "State figures as of <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Cifras estatales al <time datetime=\"%(iso)s\">%(when)s</time>."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"State figures as of <time datetime=\"%(iso)s\">%(when)s</time>; MRS publishes each tax year's "
+"figures in the November or December after the next."
+msgstr ""
+"Cifras del estado al <time datetime=\"%(iso)s\">%(when)s</time>; MRS publica las cifras de cada "
+"año tributario en noviembre o diciembre del año siguiente."
 
 #: site/states/nh/budget.html
 #, python-format
@@ -4459,38 +5341,86 @@ msgstr ""
 "Cifras estatales al <time datetime=\"%(iso)s\">%(when)s</time>; el DRA publica las tasas de "
 "impuesto de cada año en el otoño, cuando se fijan."
 
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"State figures as of <time datetime=\"%(iso)s\">%(when)s</time>; the Department of Taxes publishes"
+" each year's figures the January after."
+msgstr ""
+"Cifras del estado al <time datetime=\"%(iso)s\">%(when)s</time>; el Departamento de Impuestos "
+"publica las cifras de cada año en el enero siguiente."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"State figures as of <time datetime=\"%(iso)s\">%(when)s</time>; the Division of Municipal Finance"
+" publishes each fiscal year's rates, values, and levies once a year, in the late fall."
+msgstr ""
+"Cifras del estado al <time datetime=\"%(iso)s\">%(when)s</time>; la División de Finanzas "
+"Municipales publica las tasas, los valores y las recaudaciones de cada año fiscal una vez al año,"
+" a fines del otoño."
+
 #. %(goal)s is a percentage, the share of homes the state wants to be affordable.
 #: site/pages/housing/index.html
 #, python-format
 msgid "State goal %(goal)s%%"
 msgstr "Meta estatal: %(goal)s%%"
 
-#: site/states/ma/budget.html site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/me/budget.html
+msgid "State median"
+msgstr "Mediana estatal"
+
+#: site/states/me/budget.html site/states/ri/budget.html
+#, python-format
+msgid "State median $%(median)s"
+msgstr "Mediana estatal: $%(median)s"
+
+#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
+#: site/states/nh/budget.html site/states/ri/budget.html site/states/vt/budget.html
 #, python-format
 msgid "State median %(amount)s"
 msgstr "Mediana estatal: %(amount)s"
 
-#: site/states/ct/schools.html site/states/nh/schools.html
+#: site/states/ct/budget.html
+#, python-format
+msgid "State median %(median)s"
+msgstr "Mediana estatal: %(median)s"
+
+#: site/states/ri/budget.html
+msgid "State median, residential"
+msgstr "Mediana estatal, residencial"
+
+#: site/states/ct/schools.html site/states/me/schools.html site/states/nh/schools.html
+#: site/states/ri/schools.html site/states/vt/schools.html
 msgid "State test results"
 msgstr "Resultados de exámenes estatales"
 
-#: site/states/nh/schools.html
+#: site/states/me/schools.html site/states/nh/schools.html
 msgid "State test, English"
 msgstr "Examen estatal, inglés"
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/ri/schools.html
 msgid "State test, English, grades 3–8"
 msgstr "Examen estatal de inglés, grados 3–8"
 
-#: site/states/nh/schools.html
+#: site/states/vt/schools.html
+msgid "State test, English, grades 3–9"
+msgstr "Examen estatal de inglés, grados 3–9"
+
+#: site/states/me/schools.html site/states/nh/schools.html
 msgid "State test, math"
 msgstr "Examen estatal, matemáticas"
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/ri/schools.html
 msgid "State test, math, grades 3–8"
 msgstr "Examen estatal de matemáticas, grados 3–8"
 
-#: site/states/ct/schools.html site/states/nh/schools.html
+#: site/states/vt/schools.html
+msgid "State test, math, grades 3–9"
+msgstr "Examen estatal de matemáticas, grados 3–9"
+
+#: site/states/ct/schools.html site/states/me/schools.html site/states/nh/schools.html
+#: site/states/ri/schools.html site/states/vt/schools.html
 msgid "State tests"
 msgstr "Exámenes estatales"
 
@@ -4523,6 +5453,10 @@ msgstr "Nombre de la calle"
 #: pipeline/common_strings.py
 msgid "Streetlight Out"
 msgstr "Luz de la calle apagada"
+
+#: site/states/me/schools.html
+msgid "Students enrolled fewer than 10 days aren't counted."
+msgstr "No se cuentan los estudiantes matriculados menos de 10 días."
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -4561,8 +5495,10 @@ msgstr ""
 "reunión."
 
 #: pipeline/build_site.py site/pages/311/index.html site/pages/housing/index.html
-#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
-#: site/states/nh/budget.html site/states/nh/schools.html
+#: site/states/ct/budget.html site/states/ct/schools.html site/states/ma/budget.html
+#: site/states/ma/schools.html site/states/me/budget.html site/states/me/schools.html
+#: site/states/nh/budget.html site/states/nh/schools.html site/states/ri/budget.html
+#: site/states/ri/schools.html site/states/vt/budget.html site/states/vt/schools.html
 msgid "Summary"
 msgstr "Resumen"
 
@@ -4617,32 +5553,62 @@ msgctxt "weekday"
 msgid "Sunday"
 msgstr "domingo"
 
-#: pipeline/states/nh/tax_bill.py
+#: pipeline/states/ct/tax_bill.py pipeline/states/me/tax_bill.py pipeline/states/nh/tax_bill.py
+#: pipeline/states/vt/tax_bill.py
 msgid "Tax bill (calculated)"
 msgstr "Factura del impuesto a la propiedad (calculada)"
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/ri/budget.html
+msgid "Tax levy"
+msgstr "Recaudación"
+
+#: site/states/me/budget.html site/states/nh/budget.html
 msgid "Tax rate"
 msgstr "Tasa de impuesto"
 
-#: site/states/nh/budget.html
+#: pipeline/states/me/budget.py
+msgid "Tax rate and property tax"
+msgstr "Tasa e impuesto a la propiedad"
+
+#: site/states/ri/budget.html site/states/vt/budget.html
+msgid "Tax rates"
+msgstr "Tasas de impuesto"
+
+#: pipeline/states/ri/budget.py
+msgid "Tax rates and levy"
+msgstr "Tasas de impuesto y recaudación"
+
+#: site/states/me/budget.html site/states/nh/budget.html site/states/vt/budget.html
 msgid "Tax year"
 msgstr "Año tributario"
 
-#: site/states/nh/budget.html
+#: site/states/me/budget.html site/states/nh/budget.html site/states/vt/budget.html
 #, python-format
 msgid "Tax year %(year)s"
 msgstr "Año tributario %(year)s"
 
-#: pipeline/build_site.py pipeline/states/nh/tax_bill.py
+#: pipeline/build_site.py pipeline/states/me/tax_bill.py pipeline/states/nh/tax_bill.py
+#: pipeline/states/vt/tax_bill.py
 #, python-brace-format
 msgid "Tax year {year}"
 msgstr "Año tributario {year}"
 
-#: pipeline/states/nh/budget.py
+#: pipeline/states/me/budget.py pipeline/states/nh/budget.py pipeline/states/vt/budget.py
 #, python-brace-format
 msgid "Tax year {year} tax rates"
 msgstr "Tasas de impuesto del año tributario {year}"
+
+#: site/states/me/budget.html
+msgid "Taxable valuation"
+msgstr "Valoración gravable"
+
+#: site/states/vt/budget.html
+msgid "Taxes for fire, village, and other districts within the city aren't included."
+msgstr "No se incluyen los impuestos de los distritos de bomberos, de aldea y otros dentro de la ciudad."
+
+#: site/states/vt/budget.html
+msgid "Taxes raised"
+msgstr "Impuestos recaudados"
 
 #: site/pages/officials/index.html
 msgid "Term ends"
@@ -4701,11 +5667,23 @@ msgstr ""
 "La <a href=\"%(url)s\">agenda publicada</a> es el aviso oficial. Puede incluir instrucciones para"
 " los comentarios del público."
 
+#: site/states/vt/schools.html
+msgid "The Agency of Education updates each figure once a year."
+msgstr "La Agencia de Educación actualiza cada cifra una vez al año."
+
+#: site/states/me/schools.html
+msgid ""
+"The Department of Education adds each school year's figures to its ESSA Dashboard once a year, in"
+" the winter after the year ends."
+msgstr ""
+"El Departamento de Educación agrega las cifras de cada año escolar a su ESSA Dashboard una vez al"
+" año, en el invierno después de que termina el año."
+
 #: site/states/nh/schools.html
 msgid "The Department of Education publishes each figure once a year."
 msgstr "El Departamento de Educación publica cada cifra una vez al año."
 
-#: site/states/ct/schools.html
+#: site/states/ct/schools.html site/states/ri/schools.html
 msgid "The Department of Education updates each figure once a year."
 msgstr "El Departamento de Educación actualiza cada cifra una vez al año."
 
@@ -4745,6 +5723,75 @@ msgstr ""
 msgid "The agenda is on the <a href=\"%(url)s\">city's meeting portal</a>."
 msgstr "La agenda está en el <a href=\"%(url)s\">portal de reuniones de la ciudad</a>."
 
+#: site/states/vt/about_finance.html
+#, python-format
+msgid ""
+"The average homestead tax bill is calculated by Publick from the tax rates and the listed values "
+"in <a href=\"%(parcels)s\">VCGI's statewide parcel data</a>, and property tax per resident from "
+"the U.S. Census Bureau's <a href=\"%(population)s\">population estimates</a>; the <a "
+"href=\"%(budget)s\">budget page</a> says how."
+msgstr ""
+"Publick calcula el impuesto promedio de una vivienda principal con las tasas de impuesto y los "
+"valores registrados en los <a href=\"%(parcels)s\">datos de parcelas del estado de VCGI</a>, y el"
+" impuesto a la propiedad por residente con las <a href=\"%(population)s\">estimaciones de "
+"población</a> de la Oficina del Censo de EE. UU.; la <a href=\"%(budget)s\">página del "
+"presupuesto</a> explica cómo."
+
+#: site/states/vt/about_finance.html
+#, python-format
+msgid ""
+"The average homestead tax bill is calculated by Publick from the tax rates and the listed values "
+"in <a href=\"%(parcels)s\">VCGI's statewide parcel data</a>."
+msgstr ""
+"Publick calcula el impuesto promedio de una vivienda principal con las tasas de impuesto y los "
+"valores registrados en los <a href=\"%(parcels)s\">datos de parcelas del estado de VCGI</a>."
+
+#: site/states/ct/about_finance.html
+#, python-format
+msgid ""
+"The average single-family tax bill is calculated by Publick from the mill rate and the assessed "
+"values in the state's Parcel and CAMA file, and property tax per resident from the Municipal "
+"Fiscal Indicators; the <a href=\"%(budget)s\">budget page</a> says how."
+msgstr ""
+"Publick calcula el impuesto promedio de una casa unifamiliar con la tasa de impuesto y los "
+"valores tasados del archivo de parcelas del estado (Parcel and CAMA), y el impuesto a la "
+"propiedad por residente con los Indicadores Fiscales Municipales; la <a "
+"href=\"%(budget)s\">página del presupuesto</a> explica cómo."
+
+#: site/states/ct/about_finance.html
+msgid ""
+"The average single-family tax bill is calculated by Publick from the mill rate and the assessed "
+"values in the state's Parcel and CAMA file."
+msgstr ""
+"Publick calcula el impuesto promedio de una casa unifamiliar con la tasa de impuesto y los "
+"valores tasados del archivo de parcelas del estado (Parcel and CAMA)."
+
+#: site/states/me/about_finance.html
+#, python-format
+msgid ""
+"The average single-family tax bill is calculated by Publick from the tax rate and assessed values"
+" in the <a href=\"%(parcels)s\">Maine GeoLibrary's parcel table</a>, and property tax per "
+"resident from the U.S. Census Bureau's <a href=\"%(population)s\">population estimates</a>."
+msgstr ""
+"Publick calcula el impuesto promedio de una casa unifamiliar con la tasa de impuesto y los "
+"valores tasados de la <a href=\"%(parcels)s\">tabla de parcelas de la Maine GeoLibrary</a>, y el "
+"impuesto a la propiedad por residente con las <a href=\"%(population)s\">estimaciones de "
+"población</a> de la Oficina del Censo de EE. UU."
+
+#: site/states/me/about_finance.html
+#, python-format
+msgid ""
+"The average single-family tax bill is calculated by Publick from the tax rate and assessed values"
+" in the <a href=\"%(parcels)s\">Maine GeoLibrary's parcel table</a>, and property tax per "
+"resident from the U.S. Census Bureau's <a href=\"%(population)s\">population estimates</a>; the "
+"<a href=\"%(budget)s\">budget page</a> says how."
+msgstr ""
+"Publick calcula el impuesto promedio de una casa unifamiliar con la tasa de impuesto y los "
+"valores tasados de la <a href=\"%(parcels)s\">tabla de parcelas de la Maine GeoLibrary</a>, y el "
+"impuesto a la propiedad por residente con las <a href=\"%(population)s\">estimaciones de "
+"población</a> de la Oficina del Censo de EE. UU.; la <a href=\"%(budget)s\">página del "
+"presupuesto</a> explica cómo."
+
 #: site/states/nh/about_finance.html
 #, python-format
 msgid ""
@@ -4771,6 +5818,10 @@ msgstr ""
 "población</a> de la Oficina del Censo de EE. UU.; la <a href=\"%(budget)s\">página del "
 "presupuesto</a> explica cómo."
 
+#: site/states/me/budget.html
+msgid "The change is in the commitment. Amounts are not adjusted for inflation."
+msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustadas por inflación."
+
 #: site/templates/meeting.html
 msgid "The city"
 msgstr "La ciudad"
@@ -4778,6 +5829,13 @@ msgstr "La ciudad"
 #: site/pages/about/index.html
 msgid "The city's agendas and minutes, and their full text on this site, are public records."
 msgstr "Las agendas y actas de la ciudad, y su texto completo en este sitio, son documentos públicos."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid "The city's budget for fiscal year %(year)s, as adopted and filed with the state."
+msgstr ""
+"El presupuesto de la ciudad para el año fiscal %(year)s, tal como se aprobó y se presentó al "
+"estado."
 
 #: site/states/nh/budget.html
 #, python-format
@@ -4795,24 +5853,120 @@ msgstr ""
 "La ciudad enlaza a <a href=\"%(url)s\">los documentos de la junta</a>, que no son la agenda de "
 "esta reunión."
 
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"The city's property tax commitment, the tax it levied, was %(total)s in tax year %(year)s, on "
+"%(valuation)s of taxable property: land, buildings, and business equipment, after exemptions."
+msgstr ""
+"El impuesto a la propiedad que cobró la ciudad fue de %(total)s en el año tributario %(year)s, "
+"sobre %(valuation)s de propiedad gravable: terrenos, edificios y equipo de negocios, después de "
+"exenciones."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"The city's property tax levy for fiscal year %(year)s was %(total)s: the tax on homes, on "
+"businesses' real estate, on business equipment, and, until fiscal year 2024, on cars."
+msgstr ""
+"La recaudación del impuesto a la propiedad de la ciudad para el año fiscal %(year)s fue de "
+"%(total)s: el impuesto sobre las viviendas, los bienes raíces de los negocios, el equipo de los "
+"negocios y, hasta el año fiscal 2024, los carros."
+
+#: site/states/me/budget.html
+msgid ""
+"The city's property tax rate, what the property tax raises, and what it comes to for a home and "
+"for each resident, from Maine Revenue Services (MRS)."
+msgstr ""
+"La tasa del impuesto a la propiedad de la ciudad, lo que recauda y lo que representa para una "
+"casa y para cada residente, según Maine Revenue Services (MRS)."
+
+#: site/states/vt/budget.html
+msgid ""
+"The city's property tax rates, what the property tax raises for the city and for Vermont's "
+"schools, and the value of the city's property, from the Vermont Department of Taxes."
+msgstr ""
+"Las tasas del impuesto a la propiedad de la ciudad, lo que recauda para la ciudad y para las "
+"escuelas de Vermont, y el valor de sus propiedades, según el Departamento de Impuestos de "
+"Vermont."
+
+#: site/states/ri/budget.html
+msgid ""
+"The city's property tax rates, what the property tax raises, and the value of the property it "
+"taxes, from the Rhode Island Division of Municipal Finance."
+msgstr ""
+"Las tasas del impuesto a la propiedad de la ciudad, lo que recauda y el valor de las propiedades "
+"sobre las que se cobra, según la División de Finanzas Municipales de Rhode Island."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"The city's tax levy for fiscal year %(year)s was %(total)s: the tax on real estate, on business "
+"equipment (personal property), and on cars."
+msgstr ""
+"La recaudación de la ciudad para el año fiscal %(year)s fue de %(total)s: el impuesto sobre los "
+"bienes raíces, el equipo de los negocios (propiedad personal) y los carros."
+
 #: site/states/nh/budget.html
 #, python-format
 msgid "The city's total property tax commitment was %(commitment)s."
 msgstr "El total del impuesto a la propiedad que la ciudad debía cobrar fue de %(commitment)s."
+
+#: site/states/me/schools.html
+msgid ""
+"The dashboard has results from spring 2023 on. Maine sets its own expectations, so these results "
+"can't be compared with other states' tests."
+msgstr ""
+"El dashboard tiene resultados desde la primavera de 2023. Maine fija sus propias expectativas, "
+"así que estos resultados no se pueden comparar con los exámenes de otros estados."
 
 #: site/pages/311/methodology/index.html
 #, python-format
 msgid "The data and code are in the <a href=\"%(url)s\">public repository</a>."
 msgstr "Los datos y el código están en el <a href=\"%(url)s\">repositorio público</a>."
 
+#: site/states/vt/schools.html
+msgid ""
+"The district's budget for each student, as voters approved it, and its education spending: the "
+"part of the budget its own other revenues, such as grants, don't cover, which the statewide "
+"education tax pays. Both are per long-term weighted pupil, Vermont's count of students, weighted "
+"for the higher cost of educating some of them."
+msgstr ""
+"El presupuesto del distrito por cada estudiante, tal como lo aprobaron los votantes, y su gasto "
+"en educación: la parte del presupuesto que no cubren sus otros ingresos, como las subvenciones, y"
+" que paga el impuesto estatal de educación. Ambos son por estudiante ponderado a largo plazo, la "
+"forma en que Vermont cuenta a los estudiantes, con más peso para los que cuesta más educar."
+
+#: site/states/ri/schools.html
+msgid ""
+"The district's rate as RIDE's school accountability system counts it. RIDE's data files have no "
+"statewide rate for all students, so the state's isn't shown."
+msgstr ""
+"La tasa del distrito según la cuenta el sistema de rendición de cuentas escolar de RIDE. Los "
+"archivos de datos de RIDE no tienen una tasa estatal para todos los estudiantes, así que no se "
+"muestra la del estado."
+
+#: site/states/ct/budget.html
+msgid "The figures are from each town's audit, so they are two to three years behind."
+msgstr "Las cifras vienen de la auditoría de cada pueblo, así que tienen dos o tres años de atraso."
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "The fiscal year %(year)s figure was certified as of July 1, %(start)s."
 msgstr "La cifra del año fiscal %(year)s se certificó al 1 de julio de %(start)s."
 
-#: site/states/ct/schools.html site/states/nh/schools.html
+#: site/states/ct/schools.html site/states/nh/schools.html site/states/ri/schools.html
+#: site/states/vt/schools.html
 msgid "The four-year adjusted cohort graduation rate."
 msgstr "La tasa de graduación ajustada por cohorte de cuatro años."
+
+#: site/states/me/schools.html
+msgid ""
+"The four-year adjusted cohort graduation rate. The dashboard names each class by its senior year:"
+" 2024-2025 is the class of 2025."
+msgstr ""
+"La tasa de graduación ajustada por cohorte de cuatro años. El dashboard nombra cada promoción por"
+" su último año: 2024-2025 es la promoción de 2025."
 
 #: pipeline/common_strings.py
 msgid ""
@@ -4843,6 +5997,32 @@ msgstr ""
 "El fondo general cubre la mayoría de los servicios de la ciudad; el agua, el alcantarillado y "
 "otros servicios que se pagan con sus propios ingresos tienen presupuestos aparte."
 
+#: site/states/ct/budget.html site/states/vt/budget.html
+msgid "The grand list"
+msgstr "La lista de propiedades gravables"
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"The grand list is the assessed value of everything the city taxes. The October %(year)s list, "
+"%(total)s after exemptions, is taxed in fiscal year %(fy)s."
+msgstr ""
+"La lista de propiedades gravables (grand list) es el valor tasado de todo lo que grava la ciudad."
+" La lista de octubre de %(year)s, %(total)s después de exenciones, paga impuestos en el año "
+"fiscal %(fy)s."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"The grand list is the listed value of everything the city taxes: %(listed)s in tax year %(year)s."
+" Listed values were %(cla)s%% of what properties sold for (the common level of appraisal), so the"
+" state puts the city's property at %(equalized)s (its equalized value)."
+msgstr ""
+"La lista de propiedades gravables (grand list) es el valor registrado de todo lo que grava la "
+"ciudad: %(listed)s en el año tributario %(year)s. Los valores registrados eran el %(cla)s%% de "
+"los precios de venta de las propiedades (el nivel común de tasación), así que el estado calcula "
+"el valor de sus propiedades en %(equalized)s (su valor ajustado)."
+
 #: site/states/ma/budget.html
 msgid "The maximum allowable levy is the Proposition 2½ levy limit plus voter-approved debt exclusions."
 msgstr ""
@@ -4854,6 +6034,17 @@ msgid "The mayor, City Council, and School Committee, by office and by ward, and
 msgstr ""
 "El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo "
 "comunicarse con ellos."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"The mill rate is the property tax in dollars for each $1,000 of assessed value. Connecticut "
+"assesses property at 70%% of its market value, so a home worth $400,000 is assessed at $280,000. "
+"The same rate applies to homes, businesses, and cars."
+msgstr ""
+"La tasa de impuesto (mill rate) es el impuesto a la propiedad en dólares por cada $1,000 de valor"
+" tasado. Connecticut tasa las propiedades al 70%% de su valor de mercado, así que una casa que "
+"vale $400,000 se tasa en $280,000. La misma tasa se aplica a viviendas, negocios y carros."
 
 #: site/templates/meeting.html
 #, python-format
@@ -4876,6 +6067,27 @@ msgstr ""
 msgid "The minutes do not record any votes or decisions."
 msgstr "Las actas no registran ninguna votación ni decisión."
 
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"The net assessed value of everything the city taxed in fiscal year %(year)s was %(total)s, after "
+"exemptions such as those for older residents and veterans."
+msgstr ""
+"El valor tasado neto de todo lo que gravó la ciudad en el año fiscal %(year)s fue de %(total)s, "
+"después de exenciones como las de personas mayores y veteranos."
+
+#: site/states/me/budget.html
+msgid ""
+"The rate is in dollars for each $1,000 of a property's assessed value, and the same rate applies "
+"to homes and businesses. It pays for the city, its schools, and its share of the county. Maine "
+"names each rate by its tax year: the rate is set on property as it stood on April 1, and the "
+"city's fiscal year usually starts that July."
+msgstr ""
+"La tasa está en dólares por cada $1,000 del valor tasado de una propiedad, y es la misma para "
+"viviendas y negocios. Paga los servicios municipales, las escuelas y la parte que le toca del "
+"condado. Maine nombra cada tasa por su año tributario: se fija sobre las propiedades tal como "
+"estaban el 1 de abril, y el año fiscal suele empezar ese julio."
+
 #: site/states/nh/budget.html
 msgid ""
 "The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the "
@@ -4895,6 +6107,23 @@ msgstr "El estado agrega las cifras de cada año después de que la ciudad las p
 #: site/states/nh/schools.html
 msgid "The state average is of district-operated schools."
 msgstr "El promedio estatal es de las escuelas administradas por distritos."
+
+#: site/states/ct/budget.html
+msgid ""
+"The state groups every town's budget the same way: schools, debt payments, money set aside for "
+"the unexpected, and everything else the city does."
+msgstr ""
+"El estado agrupa el presupuesto de cada pueblo de la misma manera: escuelas, pago de deudas, "
+"dinero reservado para imprevistos y todo lo demás que hace la ciudad."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"The state names each rate by its fiscal year: fiscal year %(year)s runs from July %(start)s to "
+"June %(year)s, and taxes property as it was assessed on December 31, %(assessed)s."
+msgstr ""
+"El estado nombra cada tasa por su año fiscal: el año fiscal %(year)s va de julio de %(start)s a "
+"junio de %(year)s, y grava las propiedades según su tasación al 31 de diciembre de %(assessed)s."
 
 #: site/pages/housing/index.html
 msgid "The state updates the list about every two years, with some changes in between."
@@ -5096,7 +6325,8 @@ msgstr ""
 msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
 msgstr "El título cambió de “%(old)s” a “%(new)s”."
 
-#: site/states/nh/budget.html
+#: site/states/ct/budget.html site/states/nh/budget.html site/states/ri/budget.html
+#: site/states/vt/budget.html
 msgid "Total"
 msgstr "Total"
 
@@ -5274,6 +6504,39 @@ msgstr "Desocupadas"
 msgid "Values and rents"
 msgstr "Valores y alquileres"
 
+#: site/states/vt/budget.html
+msgid "Vermont doesn't publish an average bill."
+msgstr "Vermont no publica una factura promedio."
+
+#: site/states/vt/schools.html
+msgid ""
+"Vermont first gave the VTCAP in spring 2023 and sets its own achievement levels, so these results"
+" can't be compared with other states' tests, such as Massachusetts's MCAS."
+msgstr ""
+"Vermont dio el VTCAP por primera vez en la primavera de 2023 y fija sus propios niveles de logro,"
+" así que estos resultados no se pueden comparar con los exámenes de otros estados, como los MCAS "
+"de Massachusetts."
+
+#: site/states/vt/budget.html
+msgid ""
+"Vermont names each tax year by its grand list of April 1: tax year 2025's taxes pay for July 2025"
+" to June 2026."
+msgstr ""
+"Vermont nombra cada año tributario por su lista de propiedades gravables del 1 de abril: los "
+"impuestos del año tributario 2025 pagan de julio de 2025 a junio de 2026."
+
+#: site/states/vt/budget.html
+msgid ""
+"Vermont's property tax has two parts. The education tax pays for schools across the state: a home"
+" its owner lives in (a homestead) is taxed at the homestead rate, and everything else at the "
+"nonhomestead rate. The municipal tax pays for the city. Rates are in dollars for each $100 of "
+"listed value."
+msgstr ""
+"El impuesto a la propiedad de Vermont tiene dos partes. El impuesto de educación paga las "
+"escuelas de todo el estado: la casa donde vive su dueño (vivienda principal) paga la tasa de "
+"vivienda principal, y todo lo demás paga la tasa de otras propiedades. El impuesto municipal paga"
+" los servicios de la ciudad. Las tasas están en dólares por cada $100 de valor registrado."
+
 #: pipeline/common_strings.py
 msgid "Vice Chair"
 msgstr "Vicepresidente"
@@ -5374,6 +6637,10 @@ msgstr "miércoles"
 msgid "What %(site)s is, where its data comes from, and how to report a mistake."
 msgstr "Qué es %(site)s, de dónde vienen sus datos y cómo informar un error."
 
+#: site/states/ct/budget.html
+msgid "What it pays for"
+msgstr "En qué se gasta"
+
 #: pipeline/build_site.py
 msgid "What it should say, and where you saw it (if you know):"
 msgstr "Qué debería decir y dónde lo vio (si lo sabe):"
@@ -5389,6 +6656,14 @@ msgstr ""
 "Lo que decidieron el Concejo Municipal, las juntas y los comités, según sus actas, empezando por "
 "la reunión más reciente."
 
+#: site/states/ct/budget.html
+msgid ""
+"What the city budgets, its mill rate, and what the property tax raises, from the Connecticut "
+"Office of Policy and Management (OPM)."
+msgstr ""
+"Lo que presupuesta la ciudad, su tasa de impuesto (mill rate) y lo que recauda el impuesto a la "
+"propiedad, según la Oficina de Política y Administración de Connecticut (OPM)."
+
 #: site/states/nh/budget.html
 msgid ""
 "What the city budgets, its property tax rate, and where the tax goes, from the city and the New "
@@ -5396,6 +6671,24 @@ msgid ""
 msgstr ""
 "Lo que la ciudad presupuesta, su tasa del impuesto a la propiedad y adónde va el impuesto, según "
 "la ciudad y el Departamento de Administración de Ingresos de New Hampshire (DRA)."
+
+#: site/states/ri/schools.html
+msgid ""
+"What the district spends for each student, from local, state, and federal funds together, as RIDE"
+" reports it on its school report cards."
+msgstr ""
+"Lo que gasta el distrito por cada estudiante, con fondos locales, estatales y federales juntos, "
+"según lo informa RIDE en sus informes escolares."
+
+#: site/states/me/schools.html
+msgid ""
+"What the district spends for each student, from local, state, and federal funds: salaries, "
+"benefits, and everything else, at its schools and its central office, as reported under the "
+"federal Every Student Succeeds Act. It leaves out construction and debt payments."
+msgstr ""
+"Lo que gasta el distrito por cada estudiante, con fondos locales, estatales y federales: "
+"salarios, beneficios y todo lo demás, en sus escuelas y su oficina central, según se informa bajo"
+" la ley federal Every Student Succeeds Act. No incluye construcción ni pago de deudas."
 
 #: site/states/ct/schools.html
 msgid ""
@@ -5416,6 +6709,15 @@ msgstr ""
 "Lo que el distrito gasta en operar sus escuelas por cada estudiante, de todas las fuentes: "
 "locales, estatales y federales. No incluye construcción, deuda, transporte ni la matrícula pagada"
 " a otros distritos."
+
+#: site/states/ri/budget.html
+msgid "What the property tax is on"
+msgstr "Sobre qué se cobra el impuesto a la propiedad"
+
+#: site/states/ct/budget.html site/states/me/budget.html site/states/ri/budget.html
+#: site/states/vt/budget.html
+msgid "What the property tax raises"
+msgstr "Lo que recauda el impuesto a la propiedad"
 
 #: site/templates/meeting.html
 msgid "What was decided"
@@ -5461,9 +6763,27 @@ msgstr ""
 "Cuando una ciudad vuelve a tasar sus propiedades, los valores tasados suben de golpe y la tasa "
 "baja en proporción, así que una tasa más baja no significa por sí sola facturas más bajas."
 
+#: site/states/ct/budget.html
+msgid ""
+"When a city revalues its property, assessed values jump and the rate falls to match, so a lower "
+"rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years."
+msgstr ""
+"Cuando una ciudad vuelve a tasar sus propiedades, los valores tasados suben de golpe y la tasa "
+"baja en proporción, así que una tasa más baja no significa por sí sola facturas más bajas. Los "
+"pueblos de Connecticut vuelven a tasar al menos cada cinco años."
+
 #: site/pages/meetings/boards/index.html
 msgid "When each board and committee meets next."
 msgstr "Cuándo es la próxima reunión de cada junta y comité."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"When the common level of appraisal falls well below 100%%, listed values have fallen behind the "
+"market and the state may order a reappraisal."
+msgstr ""
+"Cuando el nivel común de tasación queda muy por debajo del 100%%, los valores registrados se han "
+"quedado atrás del mercado y el estado puede ordenar una nueva tasación."
 
 #: site/templates/meeting.html
 msgid "Where"
@@ -5498,6 +6818,10 @@ msgid ""
 msgstr ""
 "De dónde viene el dinero del fondo general de la ciudad y cómo se gasta, según los informes "
 "anuales que la ciudad presenta a la División de Servicios Locales (DLS) de Massachusetts."
+
+#: site/states/ct/budget.html
+msgid "Where the money comes from"
+msgstr "De dónde viene el dinero"
 
 #: site/states/nh/budget.html
 msgid "Where the property tax goes"
@@ -5860,17 +7184,24 @@ msgstr "{weekday}, {day} {month}"
 msgid "{weekday}, {month} {day}, {year}"
 msgstr "{weekday}, {day} de {month} de {year}"
 
-#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py
+#: pipeline/states/ct/schools.py pipeline/states/ma/schools.py pipeline/states/ri/schools.py
+#: pipeline/states/vt/schools.py
 #, python-brace-format
 msgid "{years} attendance"
 msgstr "Asistencia de {years}"
+
+#: pipeline/states/me/schools.py
+#, python-brace-format
+msgid "{years} chronic absenteeism"
+msgstr "Ausentismo crónico de {years}"
 
 #: pipeline/states/nh/schools.py
 #, python-brace-format
 msgid "{years} cost per pupil"
 msgstr "Costo por estudiante de {years}"
 
-#: pipeline/states/ct/schools.py
+#: pipeline/states/ct/schools.py pipeline/states/me/schools.py pipeline/states/ri/schools.py
+#: pipeline/states/vt/schools.py
 #, python-brace-format
 msgid "{years} spending per pupil"
 msgstr "Gasto por estudiante de {years}"
