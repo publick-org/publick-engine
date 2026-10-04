@@ -2,8 +2,9 @@
 
 Every state publishes these differently (Massachusetts through its Division of
 Local Services and DESE, New Hampshire through its Department of Revenue
-Administration and Department of Education, Connecticut's schools through
-EdSight), so each state has a package here,
+Administration and Department of Education, Connecticut through OPM's datasets
+and EdSight, Vermont, Maine, and Rhode Island through their tax and education
+departments), so each state has a package here,
 pipeline/states/<code>/, and page templates in site/states/<code>/. A town names
 its state in [town] state_abbr, and everything state-specific goes through that
 state's package: adding a town in a state that already has one needs only its
@@ -27,7 +28,8 @@ from pathlib import Path
 from types import ModuleType
 
 # States with a package here, by their two-letter code.
-PACKAGES = {"CT": "pipeline.states.ct", "MA": "pipeline.states.ma", "NH": "pipeline.states.nh"}
+PACKAGES = {"CT": "pipeline.states.ct", "MA": "pipeline.states.ma", "ME": "pipeline.states.me", "NH": "pipeline.states.nh",
+            "RI": "pipeline.states.ri", "VT": "pipeline.states.vt"}
 
 # The kinds of state source, with the plain name used in messages.
 KINDS = {"tax_bill": "Tax bill", "budget": "Budget figures", "schools": "School figures"}
@@ -59,6 +61,8 @@ class State:
     sources: dict = field(default_factory=dict)
     # The short credit under the home page's tax bill figure.
     tax_source: str = ""
+    # The figure's name there, when it isn't the average single-family bill (Vermont's is for homesteads).
+    tax_label: str = ""
     # Extra housing figures from state sources: a module with keys (the housing.json keys it adds),
     # parts(config) (those this town has), client(config), and sources(config, client, state_client, now).
     housing: str | None = None

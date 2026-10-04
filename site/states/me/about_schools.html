@@ -1,0 +1,4 @@
+{#- The About page's sources list: schools. -#}
+{% if config.schools is defined %}
+  <li>{% trans url="https://www.maine.gov/doe/dashboard" %}<strong>Schools:</strong> the Maine Department of Education's <a href="{{ url }}">ESSA Dashboard</a>: graduation rates, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}</li>
+{% endif %}
