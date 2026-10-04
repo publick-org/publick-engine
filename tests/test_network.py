@@ -412,11 +412,55 @@ def test_summary_budget_splits_whats_left_of_the_month(tmp_path):
         path.write_text(json.dumps({"2026-08": {"cost": 30.0}, "2026-10": {"cost": cost, "failed_cost": 0.53}}))
     budget = network.summary_budget(root, 50.0, towns_in_run=2, today=date(2026, 10, 11))
     assert budget["spent"] == 12.53 and budget["left"] == 37.47
-    assert budget["allowance"] == 18.73
+    # Each town's floor is half its even share of a day: 50 / 31 days / 3 towns / 2 = 0.2688. Kept back:
+    # every town's for the 20 days after today, and today's for the town not in the run (16.40).
+    assert budget["floor"] == 0.26 and budget["kept_for_floors"] == 16.4
+    # (37.47 - 16.40) between the 2 towns in the run.
+    assert budget["allowance"] == 10.53
     # (37.47 - 10 kept for new documents) over 21 days left and 3 towns in the network.
     assert budget["backlog_allowance"] == 0.43
     spent = network.summary_budget(root, 12.0, towns_in_run=1, today=date(2026, 10, 11))
     assert spent["left"] == 0 and spent["allowance"] == 0 and spent["backlog_allowance"] == 0
+
+
+def write_ledger(root, name, month, cost):
+    path = root / "towns" / name / "data" / network.SUMMARY_LEDGER
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({month: {"cost": cost}}))
+
+
+def test_one_town_cant_spend_the_other_towns_floors(tmp_path):
+    """A town launching early in the month, alone in its run, gets what's left beyond every other town's
+    floor for the rest of the month, not the whole month's budget."""
+    from datetime import date
+    towns = ("beverly-ma", "gloucester-ma", "lawrence-ma", "malden-ma", "manchester-nh", "wallingford-ct")
+    root = make_root(tmp_path, towns)
+    write_ledger(root, "beverly-ma", "2026-11", 5.0)
+    budget = network.summary_budget(root, 50.0, towns_in_run=1, today=date(2026, 11, 2))
+    # 50 / 30 days / 6 towns / 2 = 0.1389 a town a day; kept: 6 towns for the 28 days after today, and
+    # today's for the 5 towns not in the run.
+    floor = 0.5 * 50 / 30 / 6
+    assert budget["kept_for_floors"] == round(floor * 6 * 28 + floor * 5, 2) == 24.03
+    assert budget["allowance"] == 20.97
+    # Spent to the floors, the town still gets its own floor for today; the others keep theirs.
+    write_ledger(root, "beverly-ma", "2026-11", 26.0)
+    tight = network.summary_budget(root, 50.0, towns_in_run=1, today=date(2026, 11, 2))
+    assert tight["allowance"] == tight["floor"] == 0.13
+
+
+def test_the_floors_dont_hold_back_more_than_is_left(tmp_path):
+    from datetime import date
+    root = make_root(tmp_path)
+    write_ledger(root, "gloucester-ma", "2026-10", 49.0)
+    # $1 left on the 30th, less than the floors: each town in the run gets its floor, never more than its
+    # share of what's left.
+    budget = network.summary_budget(root, 50.0, towns_in_run=3, today=date(2026, 10, 30))
+    assert budget["allowance"] == budget["floor"] == 0.26
+    budget = network.summary_budget(root, 50.0, towns_in_run=3, today=date(2026, 10, 31))
+    # The last day keeps nothing back for later days: what's left, split among the run's towns.
+    assert budget["kept_for_floors"] == 0 and budget["allowance"] == 0.33
+    write_ledger(root, "gloucester-ma", "2026-10", 49.9)
+    assert network.summary_budget(root, 50.0, towns_in_run=3, today=date(2026, 10, 30))["allowance"] == 0.03
 
 
 def test_network_reads_the_ledger_summarize_writes():
