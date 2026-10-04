@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% from "macros.html" import on_this_page, calculated %}
+{% from "charts.html" import bars, chart_links %}
+{% block title %}{{ _("City budget") }}{% endblock %}
+{% block description %}{% trans town=town.name %}{{ town }}'s property tax rates, what the property tax raises for the city and for schools, and the average homestead tax bill.{% endtrans %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ _("City budget") }}</h1>
+  <p class="lede">{{ _("The city's property tax rates, what the property tax raises for the city and for Vermont's schools, and the value of the city's property, from the Vermont Department of Taxes.") }}</p>
+  {% if budget %}
+  <p class="source-note">{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; the Department of Taxes publishes each year's figures the January after.{% endtrans %}</p>
+  {% endif %}
+</div>
+
+{% if not budget %}
+<p>{{ _("Figures will appear here after the next data update.") }}</p>
+{% else %}
+{% set rate = budget.rates[-1] %}
+{% set raised = budget.taxes[-1] if budget.taxes else none %}
+{% set bill = tax_bill.years[-1] if tax_bill and tax_bill.years else none %}
+{% set pr = budget.per_resident %}
+<h2 class="visually-hidden">{{ _("Summary") }}</h2>
+<ul class="stats">
+  <li class="stat"><a href="#tax-rate">
+    <span class="stat-label">{{ _("Homestead tax rate") }}</span>
+    <span class="stat-value">${{ "%.4f" | format(rate.homestead_rate + rate.municipal_rate + (rate.local_agreement_rate or 0)) }}</span>
+    <span class="stat-change">{{ _("Per $100 of listed value") }} · {% trans year=rate.tax_year %}Tax year {{ year }}{% endtrans %}</span>
+  </a></li>
+  {% if raised %}
+  <li class="stat"><a href="#taxes">
+    <span class="stat-label">{{ _("Property tax raised") }}</span>
+    <span class="stat-value">{{ raised.total | money("short") }}</span>
+    <span class="stat-change">{% trans year=raised.tax_year %}Tax year {{ year }}{% endtrans %}</span>
+  </a></li>
+  {% endif %}
+  {% if bill %}
+  <li class="stat"><a href="#tax-bill">
+    <span class="stat-label">{{ _("Average homestead tax bill") }}</span>
+    <span class="stat-value">{{ bill.average_bill | money }}</span>
+    <span class="stat-change">{% trans year=bill.tax_year %}Tax year {{ year }}{% endtrans %} · {{ _("Calculated by Publick") }}</span>
+  </a></li>
+  {% endif %}
+  {% if pr %}
+  <li class="stat"><a href="#per-resident">
+    <span class="stat-label">{{ _("Property tax per resident") }}</span>
+    <span class="stat-value">{{ pr.town | money }}</span>
+    <span class="stat-change">{% trans year=pr.tax_year %}Tax year {{ year }}{% endtrans %} · {% trans amount=pr.state_median | money %}State median {{ amount }}{% endtrans %} · {{ _("Calculated by Publick") }}</span>
+  </a></li>
+  {% endif %}
+</ul>
+{{ on_this_page([("tax-rate", _("Tax rates"))] + ([("taxes", _("Taxes raised"))] if raised else []) + ([("grand-list", _("Grand list"))] if budget.grand_list else []) + ([("tax-bill", _("Average tax bill"))] if bill else []) + ([("per-resident", _("Per resident"))] if pr else [])) }}
+
+{# ---- Tax rates ---- #}
+<h2 id="tax-rate">{{ _("Property tax rates") }}</h2>
+<p>{{ _("Vermont's property tax has two parts. The education tax pays for schools across the state: a home its owner lives in (a homestead) is taxed at the homestead rate, and everything else at the nonhomestead rate. The municipal tax pays for the city. Rates are in dollars for each $100 of listed value.") }} {{ _("Vermont names each tax year by its grand list of April 1: tax year 2025's taxes pay for July 2025 to June 2026.") }}</p>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Homestead education") }}</th><th scope="col" class="num wide">{{ _("Nonhomestead education") }}</th><th scope="col" class="num">{{ _("Municipal") }}</th><th scope="col" class="num wide">{{ _("Local agreement") }}</th></tr></thead>
+  <tbody>
+  {% for r in budget.rates | reverse %}
+    <tr><th scope="row">{{ r.tax_year }}</th><td class="num">${{ "%.4f" | format(r.homestead_rate) }}</td><td class="num wide">${{ "%.4f" | format(r.nonhomestead_rate) }}</td><td class="num">${{ "%.4f" | format(r.municipal_rate) }}</td><td class="num wide">${{ "%.4f" | format(r.local_agreement_rate or 0) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% set m = rate.state_median %}
+{% if m.homestead_rate %}
+<p>{% trans year=rate.tax_year, homestead="%.4f" | format(m.homestead_rate), nonhomestead="%.4f" | format(m.nonhomestead_rate), municipal="%.4f" | format(m.municipal_rate) %}In tax year {{ year }}, the median Vermont town's homestead education rate was ${{ homestead }}, its nonhomestead rate ${{ nonhomestead }}, and its municipal rate ${{ municipal }}.{% endtrans %}</p>
+{{ calculated(budget.rates_median_calculated) }}
+{% endif %}
+<p class="small">{{ _("Each town's education rates depend on what its school district spends per pupil, adjusted for how its listed values compare with sale prices (its common level of appraisal). The local agreement rate pays the town's share of the state's tax stabilization agreements.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">Vermont Department of Taxes, Property Valuation and Review Annual Report</a>.{% endtrans %}</p>
+{{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
+
+{# ---- Taxes raised ---- #}
+{% if raised %}
+<h2 id="taxes">{{ _("What the property tax raises") }}</h2>
+<p>{% trans year=raised.tax_year, total=raised.total | money("short") %}In tax year {{ year }}, the property tax raised {{ total }} in all. The education taxes go to the state's Education Fund, which pays for every Vermont school district; the city keeps the municipal tax.{% endtrans %}</p>
+{% set rows = [] %}
+{% for name, amount in raised.parts | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": data_label(name), "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / raised.total * 100) | round | int) ~ "%"}) %}{% endfor %}
+{{ bars(rows, _("Property tax raised by part, tax year %(year)s", year=raised.tax_year), wide_numbers=true, wide_labels=true) }}
+{% if budget.taxes | length > 1 %}
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num wide">{{ _("Education") }}</th><th scope="col" class="num">{{ _("Municipal") }}</th></tr></thead>
+  <tbody>
+  {% for y in budget.taxes | reverse %}
+    <tr><th scope="row">{{ y.tax_year }}</th><td class="num"><strong>{{ y.total | money("short") }}</strong></td><td class="num wide">{{ (y.parts.get("Education tax on homesteads", 0) + y.parts.get("Education tax on other property", 0)) | money("short") }}</td><td class="num">{{ y.parts.get("City tax") | money("short") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<p class="small">{{ _("Taxes for fire, village, and other districts within the city aren't included.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">Vermont Department of Taxes, Property Valuation and Review Annual Report</a>.{% endtrans %}</p>
+{{ chart_links("taxes", "/budget/data/taxes-raised.csv") }}
+{% endif %}
+
+{# ---- Grand list ---- #}
+{% if budget.grand_list %}
+{% set gl = budget.grand_list[-1] %}
+<h2 id="grand-list">{{ _("The grand list") }}</h2>
+<p>{% trans year=gl.tax_year, listed=gl.listed_value | money("short"), cla=gl.cla, equalized=gl.equalized_value | money("short") %}The grand list is the listed value of everything the city taxes: {{ listed }} in tax year {{ year }}. Listed values were {{ cla }}% of what properties sold for (the common level of appraisal), so the state puts the city's property at {{ equalized }} (its equalized value).{% endtrans %}</p>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Listed value") }}</th><th scope="col" class="num">{{ _("Common level of appraisal") }}</th><th scope="col" class="num wide">{{ _("Equalized value") }}</th></tr></thead>
+  <tbody>
+  {% for y in budget.grand_list | reverse %}
+    <tr><th scope="row">{{ y.tax_year }}</th><td class="num">{{ y.listed_value | money("short") }}</td><td class="num">{% if y.cla is not none %}{{ y.cla }}%{% else %}–{% endif %}</td><td class="num wide">{{ y.equalized_value | money("short") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small">{{ _("When the common level of appraisal falls well below 100%%, listed values have fallen behind the market and the state may order a reappraisal.") }} {% trans url=budget.source_urls.grand_list %}Source: <a href="{{ url }}">Vermont Department of Taxes, Property Valuation and Review Annual Report</a>.{% endtrans %}</p>
+{{ chart_links("grand-list", "/budget/data/grand-list.csv") }}
+{% endif %}
+
+{# ---- Average bill ---- #}
+{% if bill %}
+<h2 id="tax-bill">{{ _("Average homestead tax bill") }}</h2>
+<p>{% trans year=bill.tax_year, town=town.name, value=bill.average_value | money, amount=bill.average_bill | money %}In tax year {{ year }}, the average homestead in {{ town }} was listed at {{ value }}. At that year's rates, its tax bill was <strong>{{ amount }}</strong>, before the property tax credit.{% endtrans %}</p>
+{% if tax_bill.years | length > 1 %}
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Average value") }}</th><th scope="col" class="num">{{ _("Rate") }}</th><th scope="col" class="num">{{ _("Average bill") }}</th></tr></thead>
+  <tbody>
+  {% for y in tax_bill.years | reverse %}
+    <tr><th scope="row">{{ y.tax_year }}</th><td class="num">{{ y.average_value | money }}</td><td class="num">${{ "%.4f" | format(y.rate) }}</td><td class="num">{{ y.average_bill | money }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{{ calculated(bill.calculated ~ " " ~ (_("Vermont doesn't publish an average bill.") | forceescape)) }}
+<p class="small">{{ _("Most Vermont households that own their home pay less than this bill: the property tax credit lowers the education tax by household income.") }} {% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">Vermont Department of Taxes, tax rates</a>; <a href="{{ parcels }}">VCGI, statewide standardized parcel data</a>.{% endtrans %}</p>
+{% endif %}
+
+{# ---- Per resident ---- #}
+{% if pr %}
+<h2 id="per-resident">{{ _("Property tax per resident") }}</h2>
+<p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Vermont towns and cities was {{ median }}.{% endtrans %}</p>
+{{ calculated(pr.calculated) }}
+<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">Vermont Department of Taxes</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
+{% endif %}
+
+{% if config.finance.get("budget_documents_url") %}
+<p class="source-note">{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,4 @@
+{#- The About page's sources list: schools. -#}
+{% if config.schools is defined %}
+  <li>{% trans url="https://education.vermont.gov/", portal="https://data.vermont.gov/" %}<strong>Schools:</strong> the <a href="{{ url }}">Vermont Agency of Education</a>'s graduation rates, chronic absenteeism, and state test (VTCAP) results, on <a href="{{ portal }}">data.vermont.gov</a>, and its per pupil spending reports.{% endtrans %}</li>
+{% endif %}
