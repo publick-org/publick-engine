@@ -1,7 +1,9 @@
 import contextlib
 import functools
+import html
 import http.server
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -33,6 +35,12 @@ from pipeline.config import load_config  # noqa: E402
 TZ = ZoneInfo("America/New_York")
 FETCHED_AT = datetime(2026, 9, 26, 12, 0, tzinfo=TZ)
 BUILT_AT = datetime(2026, 10, 2, 7, 0, tzinfo=TZ)
+
+
+def calculated_notes(page: str) -> list[str]:
+    """The text of each "Calculated by Publick" note on a built page, without its markup."""
+    return [re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", note))).strip()
+            for note in re.findall(r'<div class="credit calculated">(.*?)</div>', page, re.S)]
 
 
 def make_fixture_data(data_dir: Path) -> None:

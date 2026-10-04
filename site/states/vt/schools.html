@@ -86,7 +86,7 @@
   </tbody>
 </table>
 </div>
-{{ calculated(ms.absenteeism.calculated) }}
+{{ calculated(_("The AOE publishes how many students were chronically absent and how many weren't; this is the first over both.")) }}
 <p class="small">{{ _("A year the Agency of Education doesn't publish, to protect students' privacy, is left out.") }} {% trans url=ms.absenteeism.source_url %}Source: <a href="{{ url }}">Vermont Agency of Education, chronic absenteeism</a>.{% endtrans %}</p>
 {% endif %}
 
@@ -106,7 +106,7 @@
 </table>
 </div>
 {% endfor %}
-{{ calculated(ms.tests_ela.calculated) }}
+{{ calculated(_("The AOE publishes each grade's results; this is the share proficient or above across grades 3 to 9 together, each grade weighted by the number of its students tested.")) }}
 <p class="small">{{ _("Vermont first gave the VTCAP in spring 2023 and sets its own achievement levels, so these results can't be compared with other states' tests, such as Massachusetts's MCAS.") }} {% trans url=ms.tests_ela.source_url %}Source: <a href="{{ url }}">Vermont Education Dashboard, general assessment</a>.{% endtrans %}</p>
 {% endif %}
 

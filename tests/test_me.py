@@ -3,6 +3,7 @@ Dashboard's crosstabs), the town sources that read it, and the pages they fill."
 
 import copy
 import json
+import re
 import shutil
 import statistics
 from datetime import datetime
@@ -10,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 import pytest
-from conftest import BUILT_AT, FIXTURES
+from conftest import BUILT_AT, FIXTURES, calculated_notes
 from fakes import FakeJSONResponse, FakeResponse
 from test_site import parse
 from test_site import test_internal_links_resolve as check_links
@@ -383,8 +384,9 @@ def test_every_calculated_figure_says_so_on_its_page(me_site):
     marked.append(json.loads((data / "finance" / "budget.json").read_text())["per_resident"]["calculated"])
     marked.append(json.loads((data / "finance" / "budget.json").read_text())["rates_median_calculated"])
     budget = (me_site / "budget" / "index.html").read_text()
+    notes = calculated_notes(budget)
     for how in marked:
-        assert how.replace("'", "&#39;").replace('"', "&#34;") in budget, how
+        assert any(how in note for note in notes), how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)
 
 
@@ -401,6 +403,9 @@ def test_maine_pages_in_spanish(me_site):
         assert '<html lang="es"' in page and "%%" not in page, section
     budget = (me_site / "es" / "budget" / "index.html").read_text()
     assert "Proporción certificada" in budget and "Calculado por Publick" in budget
+    # The methods are worded in Spanish too, not the English saved with the data.
+    notes = calculated_notes(budget)
+    assert notes and not any(re.search(r"\b(The|Each|It's|times|divided)\b", note) for note in notes), notes
 
 
 def test_me_dashes_are_explained(me_site):

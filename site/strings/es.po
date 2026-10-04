@@ -2150,6 +2150,29 @@ msgstr ""
 "Cada lugar enlaza a su solicitud más reciente en SeeClickFix. El CSV incluye todas las "
 "solicitudes."
 
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"Each municipality's %(year)s property tax commitment, from Maine Revenue Services' Municipal "
+"Valuation Return, divided by its Census population estimate for July 1, %(year)s. The median is "
+"of %(communities)s Maine towns, cities, and plantations."
+msgstr ""
+"El impuesto a la propiedad recaudado por cada municipio en %(year)s, según el Municipal Valuation"
+" Return de Maine Revenue Services, dividido entre su población estimada por el Censo al 1 de "
+"julio de %(year)s. La mediana es de %(communities)s pueblos, ciudades y plantaciones de Maine."
+
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"Each municipality's total property tax levy for fiscal year %(year)s, from the Division of "
+"Municipal Finance, divided by its Census population estimate for July 1, %(start)s, when the "
+"fiscal year began. The median is of %(communities)s Rhode Island cities and towns."
+msgstr ""
+"La recaudación total del impuesto a la propiedad de cada municipio en el año fiscal %(year)s, "
+"según la División de Finanzas Municipales, dividida entre su población estimada por el Censo al 1"
+" de julio de %(start)s, cuando empezó el año fiscal. La mediana es de %(communities)s ciudades y "
+"pueblos de Rhode Island."
+
 #: site/states/ri/budget.html
 msgid ""
 "Each rate is the property tax in dollars for each $1,000 of assessed value. Rhode Island lets a "
@@ -2174,6 +2197,17 @@ msgstr ""
 "haberse publicado cifras más nuevas; en ese caso, el encargado del sitio recibe un aviso "
 "automático."
 
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"Each town's adjusted tax levy for fiscal year %(year)s, from its audit as reported to OPM, "
+"divided by its population, the Department of Public Health's estimate. The median is of "
+"%(communities)s Connecticut towns."
+msgstr ""
+"La recaudación ajustada de cada pueblo en el año fiscal %(year)s, según su auditoría informada a "
+"la OPM, dividida entre su población, según la estimación del Departamento de Salud Pública. La "
+"mediana es de %(communities)s pueblos de Connecticut."
+
 #: site/states/vt/budget.html
 msgid ""
 "Each town's education rates depend on what its school district spends per pupil, adjusted for how"
@@ -2184,6 +2218,30 @@ msgstr ""
 "estudiante, ajustado según cómo se comparan sus valores registrados con los precios de venta (su "
 "nivel común de tasación). La tasa de acuerdo local paga la parte que le toca de los acuerdos "
 "estatales de estabilización de impuestos."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"Each town's total %(year)s property tax (education, municipal, and local agreement taxes), from "
+"PVR, divided by its Census population estimate for July 1, %(year)s. The median is of "
+"%(communities)s Vermont towns and cities; the Census doesn't count a few villages and unified "
+"towns PVR lists separately."
+msgstr ""
+"El impuesto a la propiedad total de cada pueblo en %(year)s (los impuestos de educación, "
+"municipal y de acuerdos locales), según PVR, dividido entre su población estimada por el Censo al"
+" 1 de julio de %(year)s. La mediana es de %(communities)s pueblos y ciudades de Vermont; el Censo"
+" no cuenta algunas villas y pueblos unificados que PVR lista por separado."
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"Each town's total %(year)s property tax commitment, from the DRA, divided by its Census "
+"population estimate for July 1, %(year)s. The median is of %(communities)s New Hampshire towns "
+"and cities."
+msgstr ""
+"El impuesto a la propiedad total recaudado por cada pueblo en %(year)s, según el DRA, dividido "
+"entre su población estimada por el Censo al 1 de julio de %(year)s. La mediana es de "
+"%(communities)s pueblos y ciudades de New Hampshire."
 
 #. %(name)s is a school district, such as "Beverly Public Schools".
 #: site/templates/board.html
@@ -5743,6 +5801,23 @@ msgstr ""
 " los comentarios del público."
 
 #: site/states/vt/schools.html
+msgid ""
+"The AOE publishes each grade's results; this is the share proficient or above across grades 3 to "
+"9 together, each grade weighted by the number of its students tested."
+msgstr ""
+"La AOE publica los resultados de cada grado; esta cifra es el porcentaje con nivel competente o "
+"superior en los grados 3 a 9 juntos, con cada grado ponderado según el número de sus estudiantes "
+"evaluados."
+
+#: site/states/vt/schools.html
+msgid ""
+"The AOE publishes how many students were chronically absent and how many weren't; this is the "
+"first over both."
+msgstr ""
+"La AOE publica cuántos estudiantes tuvieron ausentismo crónico y cuántos no; esta cifra es la "
+"primera cantidad dividida entre la suma de las dos."
+
+#: site/states/vt/schools.html
 msgid "The Agency of Education updates each figure once a year."
 msgstr "La Agencia de Educación actualiza cada cifra una vez al año."
 
@@ -5798,6 +5873,39 @@ msgstr ""
 msgid "The agenda is on the <a href=\"%(url)s\">city's meeting portal</a>."
 msgstr "La agenda está en el <a href=\"%(url)s\">portal de reuniones de la ciudad</a>."
 
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"The average assessed value of %(parcels)s single-family homes in the state's %(file)s parcel "
+"file, times the fiscal year %(year)s mill rate. Connecticut assesses homes at 70%% of market "
+"value. It's the bill before exemptions and credits."
+msgstr ""
+"El valor tasado promedio de %(parcels)s casas unifamiliares en el archivo de parcelas de %(file)s"
+" del estado, multiplicado por la tasa de impuesto (mill rate) del año fiscal %(year)s. "
+"Connecticut tasa las viviendas al 70%% de su valor de mercado. Es el impuesto antes de exenciones"
+" y créditos."
+
+#: site/states/nh/budget.html
+#, python-format
+msgid ""
+"The average assessed value of %(parcels)s single-family homes on NH GRANIT's parcel map, times "
+"the %(year)s tax rate. It's the bill before exemptions and credits."
+msgstr ""
+"El valor tasado promedio de %(parcels)s casas unifamiliares en el mapa de parcelas de NH GRANIT, "
+"multiplicado por la tasa de impuesto de %(year)s. Es el impuesto antes de exenciones y créditos."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"The average assessed value, land and buildings, of %(parcels)s single-family homes (land use "
+"%(codes)s) in the Maine GeoLibrary's parcel table, times the %(year)s tax rate from Maine Revenue"
+" Services. It's the bill before exemptions, such as the homestead exemption."
+msgstr ""
+"El valor tasado promedio, terreno y edificios, de %(parcels)s casas unifamiliares (uso del suelo "
+"%(codes)s) en la tabla de parcelas de la Maine GeoLibrary, multiplicado por la tasa de impuesto "
+"de %(year)s de Maine Revenue Services. Es el impuesto antes de exenciones, como la exención para "
+"la vivienda principal (homestead)."
+
 #: site/states/vt/about_finance.html
 #, python-format
 msgid ""
@@ -5820,6 +5928,22 @@ msgid ""
 msgstr ""
 "Publick calcula el impuesto promedio de una vivienda principal con las tasas de impuesto y los "
 "valores registrados en los <a href=\"%(parcels)s\">datos de parcelas del estado de VCGI</a>."
+
+#: site/states/vt/budget.html
+#, python-format
+msgid ""
+"The average listed value of %(homes)s homesteads (homes their owners live in, on less than six "
+"acres) in VCGI's statewide parcel data, taxed at the town's %(year)s homestead education, "
+"municipal, and local agreement rates, with any part of a home's value not declared as homestead "
+"at the nonhomestead rate. It's the bill before the property tax credit, which lowers many "
+"homestead bills by household income."
+msgstr ""
+"El valor registrado promedio de %(homes)s viviendas principales (casas donde viven sus dueños, en"
+" menos de seis acres) en los datos de parcelas del estado de VCGI, con las tasas de %(year)s del "
+"pueblo: la de educación para viviendas principales, la municipal y la de acuerdos locales; la "
+"parte del valor de una casa que no se declara como vivienda principal paga la tasa para otras "
+"propiedades. Es el impuesto antes del crédito del impuesto a la propiedad, que baja el impuesto "
+"de muchas viviendas principales según los ingresos del hogar."
 
 #: site/states/ct/about_finance.html
 #, python-format
@@ -6113,6 +6237,40 @@ msgid "The mayor, City Council, and School Committee, by office and by ward, and
 msgstr ""
 "El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo "
 "comunicarse con ellos."
+
+#: site/states/vt/budget.html
+msgid ""
+"The middle of each kind of rate among the Vermont towns in PVR's table that year; a town with no "
+"homesteads (an unorganized town or gore) has no homestead rate that counts."
+msgstr ""
+"La mediana de cada tipo de tasa entre los pueblos de Vermont en la tabla de PVR de ese año; un "
+"pueblo sin viviendas principales (un pueblo no organizado o un gore) no tiene una tasa para "
+"viviendas principales que cuente."
+
+#: site/states/ct/budget.html
+msgid ""
+"The middle of the mill rates of the Connecticut towns with a rate that fiscal year, as OPM "
+"publishes them."
+msgstr ""
+"La mediana de las tasas de impuesto (mill rates) de los pueblos de Connecticut con una tasa ese "
+"año fiscal, tal como las publica la OPM."
+
+#: site/states/ri/budget.html
+msgid ""
+"The middle of the residential rates of the Rhode Island cities and towns in each year's table, as"
+" the Division of Municipal Finance publishes them."
+msgstr ""
+"La mediana de las tasas residenciales de las ciudades y pueblos de Rhode Island en la tabla de "
+"cada año, tal como las publica la División de Finanzas Municipales."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"The middle of the tax rates of the %(count)s Maine municipalities with a rate that year, as Maine"
+" Revenue Services publishes them."
+msgstr ""
+"La mediana de las tasas de impuesto de los %(count)s municipios de Maine con una tasa ese año, "
+"tal como las publica Maine Revenue Services (MRS)."
 
 #: site/states/ct/budget.html
 #, python-format
