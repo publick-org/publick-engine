@@ -21,7 +21,8 @@ those whose figure checks keep failing, for the one daily alert. A run that only
 any town does.
 
 budget splits what's left of the month's summary budget among the towns in a
-run, from each town's data/summary-costs.json (pipeline.summarize).
+run, from each town's data/summary-costs.json (pipeline.summarize), keeping
+back every other town's floor for the rest of the month.
 
 states fetches the statewide sources the network's towns use, once per state
 for all of them, into states/ (for Massachusetts, the DLS exports: see
@@ -91,6 +92,10 @@ BEHIND_HOURS = 30
 DUE_HOURS = 18
 # The part of the monthly summary budget older documents can't use, kept for new ones.
 NEW_DOCUMENTS_RESERVE = 0.2
+# Each town's floor: the part of its even share of each day's budget (the monthly budget over the
+# month's days and the network's towns) that's kept for it for every day left in the month, so no
+# other town's spending, a launch's history or a big week of agendas, can take it.
+TOWN_FLOOR_SHARE = 0.5
 # Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
 # there: the network's plan and report jobs run without the engine's packages installed.
 SUMMARY_LEDGER = "summary-costs.json"
@@ -478,7 +483,12 @@ def newly_behind_text(rows: list[dict], previous: str) -> str:
 def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | None = None) -> dict:
     """Each town's share, for one run, of what's left of the month's summary budget.
 
-    allowance is what's left, split among the run's towns, which run side by side.
+    allowance is what's left beyond the other towns' floors, split among the run's
+    towns, which run side by side. Every town has a floor for each day left in the
+    month (TOWN_FLOOR_SHARE of its even share of a day): the floors for the days
+    after today, and today's for the towns not in this run, are kept back, so one
+    town can't spend what the others need for the rest of the month. When what's
+    left doesn't cover the floors, each town in the run gets its floor for today.
     backlog_allowance paces older documents over the rest of the month: what's
     left beyond a reserve for new documents, spread over the days left and every
     town in the network (each has one daily run). Both are rounded down to the cent."""
@@ -493,11 +503,16 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
             # A summary, a cut-off request, a transcription, or a translation: all paid for this month.
             spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
     left = max(monthly - spent, 0.0)
-    allowance = left / max(towns_in_run, 1)
-    days_left = calendar.monthrange(today.year, today.month)[1] - today.day + 1
+    days_in_month = calendar.monthrange(today.year, today.month)[1]
+    days_left = days_in_month - today.day + 1
+    in_run = max(towns_in_run, 1)
+    floor = TOWN_FLOOR_SHARE * monthly / days_in_month / max(len(towns), 1)
+    kept = floor * len(towns) * (days_left - 1) + floor * max(len(towns) - in_run, 0)
+    allowance = min(left / in_run, max((left - kept) / in_run, floor))
     backlog = max(left - monthly * NEW_DOCUMENTS_RESERVE, 0.0) / days_left / max(len(towns), 1)
     cents = lambda x: math.floor(x * 100) / 100
     return {"month": month, "budget": monthly, "spent": round(spent, 2), "left": round(left, 2),
+            "floor": cents(floor), "kept_for_floors": round(kept, 2),
             "allowance": cents(allowance), "backlog_allowance": cents(min(backlog, allowance))}
 
 

@@ -218,16 +218,24 @@ To go live, in order:
     `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
     from the Worker. Done: storage and sites keys only in the steps that use
     them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
-    (a `<meta>` tag). ([Security and privacy](#security-and-privacy))
+    (a `<meta>` tag). Done 2026-10-04: the rest, in both repositories
+    (#69; publick.org #46 for the network's workflows). The HSTS header goes
+    live when the sites Worker is next deployed by hand.
+    ([Security and privacy](#security-and-privacy))
 11. **311 addresses cut to the block** for sensitive categories (encampments,
-    health reports), on the pages and in the CSVs.
+    health reports), on the pages and in the CSVs: done 2026-10-04 (#68),
+    from now on. `requests.json` keeps SeeClickFix's addresses (the street
+    lookup needs them), and git history isn't rewritten (decided
+    2026-10-03).
     ([Security and privacy](#security-and-privacy))
 12. **The data license**: done 2026-10-03 (#54, publick.org #42), CC BY 4.0 in the network
     repository's `LICENSE`, a "Reusing what's here" section on every About
     page, and a footer link. Left: SeeClickFix's terms saved as read.
     ([Open data](#open-data))
-13. **A budget floor per town**, so one town's launch backlog can't take most
-    of a day's money. ([AI costs](#ai-summary-and-translation-costs))
+13. **A budget floor per town**: done 2026-10-04 (#67). Every town keeps half
+    its even share of each day's budget for every day left in the month; one
+    town's run gets only what's left beyond the others' floors.
+    ([AI costs](#ai-summary-and-translation-costs))
 14. ~~Push runs build and check but don't publish~~: dropped 2026-10-03. A
     push keeps publishing, so corrections and engine moves reach readers the
     same day (publick.org #47, closed). ([Releases](#releases))
@@ -927,16 +935,33 @@ and the 311 data has people's house numbers.
   hold the document keys, since they read the PDFs from the bucket: keeping
   them apart would take a download step of its own.
 - *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
-  headers. Every page already sets a Content Security Policy in a `<meta>`
+  headers. *Done 2026-10-04 (#69):* `Strict-Transport-Security:
+  max-age=31536000` on every page and redirect the Worker serves, without
+  `includeSubDomains` (other hostnames on the zone are served elsewhere) or
+  `preload`, so it can be taken back; live after **Actions → Worker**. Every page already sets a Content Security Policy in a `<meta>`
   tag (`base.html`: scripts from the site only, no inline scripts); what a
   `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
 - *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
-  `v1` moved on every release; tag protection.
+  `v1` moved on every release; tag protection. *Done 2026-10-04
+  (#69, publick.org #46):* every action in both repositories pinned by commit, at the
+  commit its major tag points to (the same code), with its version in a
+  comment; `persist-credentials: false` on every checkout but those whose
+  jobs push (the release's tags, a town's data commits); no keys at all on
+  the network's pull request runs; Dependabot once a month, grouped, for
+  actions in both and the engine's requirements.
 - *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
   389 Manchester "Homeless Encampment" and 273 Gloucester Health Department
-  reports, and the CSVs export locations (`build_site.py:1243-1246`). Cut
-  addresses to the block for sensitive categories. Decide whether to rewrite
-  git history once or coarsen from now on.
+  reports, and the CSVs export locations (`build_site.py:1243-1246`). *Done
+  2026-10-04 (#68):* a sensitive category's address is shown to its
+  block ("200–299 Main St") on every page, map, CSV, and in the street
+  lookup, and its map point to three decimal places (about 100 meters):
+  encampments, health and police complaints, noise, problem and private
+  property, smoke detector, lost pet, and lead service requests
+  (`seeclickfix.SENSITIVE_CATEGORIES`, plus a town's `[seeclickfix]
+  sensitive_categories`). The requests stay listed and mapped, and still
+  link to SeeClickFix, which shows the full address. `requests.json` keeps
+  SeeClickFix's addresses for the street lookup, and git history isn't
+  rewritten (decided 2026-10-03).
 - *The privacy line:* the `lang` cookie against "No cookies" (see
   [Spanish quality](#spanish-quality)).
 - *Continuity:* a `RUNBOOK.md` in the network repository (secrets, rotation,
@@ -986,8 +1011,11 @@ Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
   (`ADDING-A-TOWN.md`), since a launch's history is what took most of the
   money (Beverly, 58% of October's first two days). The live towns keep
   theirs (94 documents left, about $8.50).
-- A floor per town, so the equal share (`network.py:404-406`) can't let one
-  town's backlog take most of a day's money.
+- *Done 2026-10-04 (#67):* a floor per town. Each town keeps `TOWN_FLOOR_SHARE`
+  (half) of its even share of each day's budget for every day left in the
+  month; a run's towns get what's left beyond the others' floors, so one
+  town's launch backlog or busy week can't take the month. The budget step
+  prints each day's `floor` and what's `kept_for_floors`.
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
 - The Batches API, at least for backlog summaries: cheaper, and out of the
