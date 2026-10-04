@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import day_group, search_form %}
+{% from "macros.html" import calendar_behind_note, day_group, search_form %}
 {% block title %}{{ _("Meetings") }}{% endblock %}
 {# Translators: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block description %}{% trans town=town.name, state=town.state_abbr %}Upcoming public meetings in {{ town }}, {{ state }}, with times, places, how to attend, agendas, and what was decided.{% endtrans %}{% endblock %}
@@ -18,9 +18,10 @@
 </div>
 
 <h2 id="upcoming">{{ pgettext("meetings", "Upcoming") }}</h2>
+{% if meetings.calendar_behind %}{{ calendar_behind_note(meetings.calendar_behind, meeting_links) }}{% endif %}
 {% if meetings.upcoming %}
 {% for day, items in group_by(meetings.upcoming, "date") %}{{ day_group(day, items) }}{% endfor %}
-{% else %}
+{% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No upcoming meetings are listed on the city calendar right now.") }}{% else %}{{ _("No upcoming meetings are listed right now.") }}{% endif %}</p>
 {% endif %}
 {# Where the meetings come from: each of the town's sources, in a sentence of its own. #}
