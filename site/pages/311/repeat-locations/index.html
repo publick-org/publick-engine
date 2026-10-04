@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "charts.html" import map_figure, map_assets, chart_links %}
+{% from "macros.html" import area with context %}
 {% block title %}{{ _("Repeat 311 locations") }}{% endblock %}
 {% block description %}{% trans town=town.name %}Places in {{ town }} where a problem was reported to 311 again after an earlier request there was closed.{% endtrans %}{% endblock %}
 {% set rep = scorecard.get("repeats") if scorecard else none %}
@@ -32,7 +33,7 @@
   <tbody>
   {% for pl in places %}
     <tr>
-      <th scope="row"><a href="{{ pl.requests[-1].url }}">{{ pl.address or _("No street address") }}</a>{% if pl.ward %}<span class="small">, {{ _("Ward %(ward)s", ward=pl.ward) }}</span>{% endif %}<br><span class="cell-note"><a href="/311/category/{{ pl.slug }}/">{{ pl.category }}</a></span></th>
+      <th scope="row"><a href="{{ pl.requests[-1].url }}">{{ pl.address or _("No street address") }}</a>{% if pl.ward %}<span class="small">, {{ area(pl.ward) }}</span>{% endif %}<br><span class="cell-note"><a href="/311/category/{{ pl.slug }}/">{{ pl.category }}</a></span></th>
       <td class="num">{{ pl.reports | number }}</td>
       <td class="num">{{ pl.again_after_close | number }}</td>
       <td class="num wide">{{ pl.open | number }}</td>

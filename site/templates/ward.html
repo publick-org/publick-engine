@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% from "charts.html" import month_columns, bars, chart_links %}
 {% from "macros.html" import city_report_button %}
+{% from "macros.html" import area with context %}
 {% set w = ward %}
-{% block title %}{% trans ward=w.ward %}Ward {{ ward }}: 311 requests{% endtrans %}{% endblock %}
-{% block description %}{% trans ward=w.ward, town=town.name %}311 requests in Ward {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% endblock %}
-{% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (_("Ward %(ward)s", ward=w.ward), canonical_url)])) }}{% endblock %}
+{% block title %}{% if precincts %}{% trans ward=w.ward %}Precinct {{ ward }}: 311 requests{% endtrans %}{% else %}{% trans ward=w.ward %}Ward {{ ward }}: 311 requests{% endtrans %}{% endif %}{% endblock %}
+{% block description %}{% if precincts %}{% trans ward=w.ward, town=town.name %}311 requests in Precinct {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% else %}{% trans ward=w.ward, town=town.name %}311 requests in Ward {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% endif %}{% endblock %}
+{% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (area(w.ward) | string, canonical_url)])) }}{% endblock %}
 {% block content %}
-<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#wards">{{ _("Wards") }}</a></li></ol></nav>
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li><li><a href="/311/#wards">{% if precincts %}{{ _("Precincts") }}{% else %}{{ _("Wards") }}{% endif %}</a></li></ol></nav>
 <div class="page-head">
-  <h1>{{ _("Ward %(ward)s", ward=w.ward) }}</h1>
-  <p class="lede">{% trans ward=w.ward %}311 requests placed in Ward {{ ward }} over the past 12 months.{% endtrans %}{% if w.population_2020 %} {% trans population=w.population_2020 | number %}Population {{ population }} (2020 census).{% endtrans %}{% endif %}</p>
+  <h1>{{ area(w.ward) }}</h1>
+  <p class="lede">{% if precincts %}{% trans ward=w.ward %}311 requests placed in Precinct {{ ward }} over the past 12 months.{% endtrans %}{% else %}{% trans ward=w.ward %}311 requests placed in Ward {{ ward }} over the past 12 months.{% endtrans %}{% endif %}{% if w.population_2020 %} {% trans population=w.population_2020 | number %}Population {{ population }} (2020 census).{% endtrans %}{% endif %}</p>
   {{ city_report_button(config) }}
 </div>
 <ul class="stats">
@@ -20,7 +21,7 @@
 </ul>
 
 <h2 id="monthly">{{ _("Requests by month") }}</h2>
-{{ month_columns(w.monthly, _("Ward %(ward)s requests by month", ward=w.ward)) }}
+{{ month_columns(w.monthly, _("Precinct %(ward)s requests by month", ward=w.ward) if precincts else _("Ward %(ward)s requests by month", ward=w.ward)) }}
 {{ chart_links("monthly") }}
 
 <h2 id="categories">{{ _("By category") }}</h2>
@@ -38,10 +39,10 @@
 {{ chart_links("categories", "/311/data/ward-" ~ w.ward ~ ".csv") }}
 
 {% if w.oldest %}
-<h2 id="longest-open">{% trans ward=w.ward %}Longest-open requests in Ward {{ ward }}{% endtrans %}</h2>
+<h2 id="longest-open">{% if precincts %}{% trans ward=w.ward %}Longest-open requests in Precinct {{ ward }}{% endtrans %}{% else %}{% trans ward=w.ward %}Longest-open requests in Ward {{ ward }}{% endtrans %}{% endif %}</h2>
 <ol class="plain-list">
   {% for r in w.oldest %}<li><a href="{{ r.url }}">{{ r.category }}</a><span class="item-detail">{{ r.address or _("No street address") }} · {% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
-<p class="source-note">{% trans year=wards.year, publisher=wards.publisher %}Wards use the {{ year }} boundaries from {{ publisher }}. Differences between wards reflect how often residents report problems as well as how the city responds.{% endtrans %} <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
+<p class="source-note">{% if precincts %}{% trans year=wards.year, publisher=wards.publisher %}Voting precincts use the {{ year }} boundaries from {{ publisher }}. Differences between precincts reflect how often residents report problems as well as how the city responds.{% endtrans %}{% else %}{% trans year=wards.year, publisher=wards.publisher %}Wards use the {{ year }} boundaries from {{ publisher }}. Differences between wards reflect how often residents report problems as well as how the city responds.{% endtrans %}{% endif %} <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endblock %}

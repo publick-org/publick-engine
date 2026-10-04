@@ -184,3 +184,9 @@
   <p><strong>{{ _("Calculated by Publick.") }}</strong> {{ how }}</p>
 </div>
 {%- endmacro %}
+
+{#- A 311 area's name: "Ward 3", or "Precinct 3201" in a town whose 311 requests are placed
+    in voting precincts ([seeclickfix] areas). Import it with context, for precincts. -#}
+{% macro area(n) -%}
+{% if precincts %}{{ _("Precinct %(ward)s", ward=n) }}{% else %}{{ _("Ward %(ward)s", ward=n) }}{% endif %}
+{%- endmacro %}

@@ -273,9 +273,27 @@ def test_a_maine_town_gets_maines_sources():
     assert states.for_town(config).source("tax_bill", config).module == "pipeline.states.me.tax_bill"
     assert {r.file for r in rhythms.for_town(config)} >= {"finance/tax_bill.json", "finance/budget.json",
                                                          "schools/schools.json"}
-    del config["finance"]["single_family_use"], config["finance"]["megis_geocode"]
-    with pytest.raises(SystemExit, match="needs megis_geocode, single_family_use for Maine's tax bill"):
+    # Half the tax bill's keys is a mistake in the config.
+    del config["finance"]["single_family_use"]
+    with pytest.raises(SystemExit, match="needs single_family_use for Maine's tax bill"):
         states.check(config)
+
+
+def test_a_maine_town_without_single_family_codes_has_the_budget_but_no_tax_bill(tmp_path, capsys):
+    # Bangor's parcels give homes no land use code, so it leaves out the tax bill's own keys.
+    config = lewiston()
+    del config["finance"]["single_family_use"], config["finance"]["megis_geocode"]
+    states.check(config)
+    state = states.for_town(config)
+    assert state.source("tax_bill", config) is None
+    assert state.source("budget", config).module == "pipeline.states.me.budget"
+    assert "finance/tax_bill.json" not in {r.file for r in rhythms.for_town(config)}
+    assert states.main(config, "tax_bill", tmp_path) == 0
+    assert "leaves out megis_geocode, single_family_use" in capsys.readouterr().out
+
+
+def test_maines_school_figures_need_their_keys():
+    config = lewiston()
     del config["schools"]["doe_district"]
     config["finance"] = {"mrs_municipality": "Lewiston", "megis_geocode": "01050", "single_family_use": ["101"]}
     with pytest.raises(SystemExit, match="needs doe_district for Maine's school figures"):
@@ -375,6 +393,24 @@ def test_maine_pages(me_site):
     about = (me_site / "about" / "index.html").read_text()
     assert "Municipal Valuation Return Statistical Summary" in about and "ESSA Dashboard" in about
     assert "Division of Local Services" not in about
+
+
+def test_a_maine_town_without_a_tax_bill(me_figures, tmp_path, data_dir, monkeypatch):
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    for name in ("finance", "schools"):
+        shutil.rmtree(data / name, ignore_errors=True)
+    config = lewiston()
+    del config["finance"]["single_family_use"], config["finance"]["megis_geocode"]
+    fetch_budget.run(config, None, data, now=NOW)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    budget = (out / "budget" / "index.html").read_text()
+    assert "$31.77" in budget and "single-family" not in budget
+    about = (out / "about" / "index.html").read_text()
+    assert "Property tax per resident, and the state's median rate, are calculated by Publick" in about
+    assert "parcel table" not in about
 
 
 def test_every_calculated_figure_says_so_on_its_page(me_site):
