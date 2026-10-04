@@ -33,6 +33,7 @@ from markupsafe import Markup, escape
 
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
+from pipeline import absences
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import dnn
@@ -1002,6 +1003,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
+    # Why a meeting's minutes, agenda or summary isn't here, and whether the calendar is behind.
+    absences.annotate(meetings, config, built_at.date())
+    meetings["calendar_behind"] = absences.calendar_behind(config, meetings["status"], built_at)
     # A section folder is built only for a town that lists the section in its
     # config, and data for a section the town doesn't list is left out.
     built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
