@@ -63,7 +63,7 @@ jobs:
       id-token: write
 ```
 
-The engine's workflow checks out the engine at the same version as the workflow file itself, so the version is set in one place. It fetches new data and commits it (on the schedule or **Run workflow**), builds the site, checks it (`site_checks/`: every page's structure and links, and the WCAG 2.2 AA checks in light and dark mode at desktop and phone widths), and deploys it from `main`. Pull requests build and check only.
+The engine's workflow checks out the engine at the same version as the workflow file itself, so the version is set in one place. It fetches new data and commits it (on the schedule or **Run workflow**), builds the site, checks it (`site_checks/`: every page's structure and links, and the WCAG 2.2 AA checks at desktop and phone widths), and deploys it from `main`. Pull requests build and check only.
 
 ### Versions
 
@@ -142,10 +142,15 @@ site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
-worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by
-                            hostname; scheduler-index.js starts a network's daily runs on time and watches they finish
+evals/minutes.json          Minutes checked by hand, decision by decision, for pipeline/evaluate.py
+worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by hostname
+                            (the logic in sites.js); scheduler-index.js starts a network's daily runs, the engine's
+                            release, and the network's engine pull request on time, and watches the runs finish
+                            (the logic in scheduler.js)
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's tests, on every push and pull request
+.github/workflows/release.yml   The daily release (see Versions)
+.github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes
 ```
 
 ## Build and test locally
@@ -224,7 +229,7 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    The engine's icon is the Publick "P". A site outside the network draws its own in the town's `site/static/favicon.svg`. Then run `python -m pipeline.make_share_image` for the share image (and PNG icons, for a town with its own icon).
 6. **Deploy** as under [Deploying](#deploying), and set up [Document storage](#document-storage) and the [secrets](#secrets).
 
-Page text is written for a city. A town (rather than a city) needs a read through the page wording.
+Page text says "the city" or "the town" to match the place (see `[town] kind` under [States](#states)).
 
 ## States
 
@@ -461,7 +466,7 @@ languages = ["en", "es"]
 ```
 
 - English pages are at the site's root, as before; Spanish pages are the same pages under `/es/` (`/es/meetings/`). Every page links its other version (`hreflang`), and a link at the top of each page goes to the same page in the other language. The homepage opens in the language the visitor's browser asks for first: the network's Worker redirects `/` to `/es/` for a browser set to Spanish (`worker/sites.js`). Choosing a language with the link (`?lang=es`) is remembered in a cookie and wins over the browser's there. Every other address opens as asked, so a shared link opens in the language it was shared in. A site on GitHub Pages, without the Worker, opens in English.
-- **The engine's own wording** (about 840 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
+- **The engine's own wording** (about 1,300 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
 - **The town's own text** (tagline, masthead, section summaries, glossary, participation notes, officials' seats, and the names in its data: boards and 311 categories) needs no one's translation to start. Each comes from the first of:
   1. the town's `[strings.es]`;
   2. the engine's Spanish for what many towns share: section names, common boards ("Planning Board"), roles, seats, and the section summaries town configs copy (`pipeline/common_strings.py`, translated in `es.po`), and numbered seats ("Ward 3" is "Distrito 3");
@@ -481,7 +486,7 @@ languages = ["en", "es"]
 
 ## Accessibility
 
-The site targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) Level AA. Every build runs axe-core against each page at desktop and 320px widths, and checks reflow, text resizing, and keyboard access. A failing check blocks deployment. The sites have only a light theme and every page declares `color-scheme: light`, so a reader in dark mode sees the same page; a town's checks hold every page to that, and the engine's own tests also run axe in dark mode.
+The site targets [WCAG 2.2](https://www.w3.org/TR/WCAG22/) Level AA. Every build runs axe-core against each page at desktop and 320px widths, and checks reflow, text resizing, and keyboard access. A failing check blocks deployment. The sites have only a light theme and every page declares `color-scheme: light`, so a reader in dark mode sees the same page; a town's checks hold every page to that, so the axe checks run in light only. If the sites ever get dark styles, the dark-mode checks come back (`tests/test_accessibility.py`).
 
 A network's daily runs set `PUBLICK_CHECK_PAGES=sample` to run the axe checks on a sample of each town's pages instead: every hand-written page, and the first and largest page of each record template (a meeting, a board, a ward, a 311 category). The same templates render every page of a kind, so the sample covers each template, and the largest page is the likeliest to hold data that breaks a layout. Structure and link checks still cover every page, and any change to the engine or a town's config gets the full run (`site_checks/pages.py`).
 
@@ -541,7 +546,7 @@ python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete ol
 
 Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
-GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
+GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
 
 Setup, once for the network:
 
@@ -575,7 +580,7 @@ The files remain in the repository's git history. Shrinking the history means re
 
 ## Data and licenses
 
-The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
+The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources. On the Publick network, what Publick makes (summaries, headlines, decision lists, compiled data) is under CC BY 4.0, as the network repository's [`LICENSE`](https://github.com/publick-org/publick.org/blob/main/LICENSE) says. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
 
 ## Email
 
@@ -603,8 +608,9 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Documents bucket | R2 bucket `publick-documents` at `https://files.publick.org`, `prefix = "<town>-<state>"` |
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
 | Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
-| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries share a $50 monthly budget. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
+| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share an $80 monthly budget, with a floor per town. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
+| Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker; the network pins the exact release in its `engine-version` |
 | Alerts | One GitHub issue, "Towns need attention", kept up to date by each daily run and assigned to the maintainer; the scheduler opens "The network's daily runs have stopped" after 30 hours without one |
-| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, set once on the network repository |
+| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, `ENGINE_PR_TOKEN`, set once on the network repository; its `RUNBOOK.md` says when each expires |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.

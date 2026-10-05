@@ -1,13 +1,9 @@
 # Roadmap
 
-Last reorganized 2026-10-02, at six towns on engine v1.30.0; updated the same
-evening after the meetings audit (engine #52, publick.org #40), and on
-2026-10-03 after the AI summary label and the data license (engine #54,
-publick.org #42), and that afternoon after every town moved to engine v1.33.0
-by hand (publick.org #43) and the scheduler took over the morning's release;
-and that night with every "before the next town" item in a pull request; and
-on 2026-10-04, state legislators decided for later, and the audit of what
-pages leave unexplained.
+Last cleaned up 2026-10-05, at seven towns on engine v1.36.0. The work
+finished from 2026-10-02 to 2026-10-05 is now in the theme sections and
+under [Done, by release](#done-by-release). The priority list starts again
+from what's left.
 
 This file has four parts:
 
@@ -37,8 +33,9 @@ want to know what happened, in the language they read first.
 **Where it's going.**
 
 - *This year:* a town in every New England state. Massachusetts, New
-  Hampshire, and Connecticut have towns; Maine, Vermont, and Rhode Island are
-  next. About 20 towns, each launched in English and Spanish.
+  Hampshire, Connecticut, and Vermont have towns; Maine and Rhode Island's
+  first are in a pull request (publick.org #58). About 20 towns, each
+  launched in English and Spanish.
 - *Next:* most of the cities and larger towns of New England, chosen for the
   people they reach and how little local coverage they have, not only for
   how easy they are.
@@ -56,7 +53,7 @@ want to know what happened, in the language they read first.
 - *Complete.* Meetings, money, schools, housing, and services, plus who
   represents you and how they voted.
 - *Current, and honest about it.* Each source on its own rhythm, and a page
-  that says when its data is behind.
+  that says when its data is behind, and why something is missing.
 - *In the reader's language.* English and Spanish at every town; more
   languages where a town's people need them.
 - *Open.* Free to read, no tracking cookies, and the data reusable under
@@ -85,239 +82,145 @@ matrix is at most 256 jobs. AI summaries and translations share a network
 budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
-## Where things stand (2026-10-02)
+## Where things stand (2026-10-05)
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
 | Gloucester, MA | moved in | CivicPlus calendar (month by month) and Archive Center; School Committee in Google Drive, with its schedule | SeeClickFix | City permits file |
 | Malden, MA | moved in | CivicPlus calendar and Agenda Center; School Committee dates from the district's page | SeeClickFix | Roll-call votes collected, not shown |
-| Manchester, NH | moved in | CivicClerk and DotNetNuke | SeeClickFix | First New Hampshire town; NH figures saved by hand; the school board's site blocks automated reading |
-| Beverly, MA | 2026-10-01 | CivicPlus calendar and Agenda Center; School Committee from the district's calendar feed | none | First town added from scratch; council minutes are scans |
-| Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite, with its schedule | none | First Connecticut town; summaries from July 2026; worded as a town |
+| Manchester, NH | moved in | CivicClerk and DotNetNuke | SeeClickFix | NH figures saved by hand; the school board's site blocks automated reading |
+| Beverly, MA | 2026-10-01 | CivicPlus calendar and Agenda Center; School Committee from the district's calendar feed | none | Council minutes are scans |
+| Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite, with its schedule | none | Connecticut's tax bill and budget since 2026-10-04 (publick.org #51); no wards |
 | Lawrence, MA | 2026-10-02 | CivicPlus calendar and Agenda Center | none | Launched in English and Spanish |
+| Burlington, VT | 2026-10-04 | CivicClerk | SeeClickFix | First Vermont town, from config alone (publick.org #54); the School Board is on Diligent Community, not read yet |
 
-- Every town is in English and Spanish (`/es/`), engine v1.27.0 and later.
-- Every town is on engine v1.33.0, published 2026-10-03 at 13:07 to 13:09 UTC,
-  and passed "Check live site" on its first real run.
-- 445 summaries live (agenda prompt v4: 62; minutes v2: 383).
-- Summary and translation spending: September $21.82 (three towns); October
-  $9.22 after two days, projected $50 to $60, so the cap binds this month.
+In a pull request: **Lewiston and Bangor, Maine, and South Kingstown, Rhode
+Island** (publick.org #58), from config alone on v1.36.0, which reads
+year-named Archive Center collections, a Maine budget without a tax bill, and
+311 grouped by voting precinct (#76).
+
+- Every town is on engine v1.36.0, in English and Spanish. Merged since, for
+  the release of 2026-10-06: Vermont's graduation and attendance expected a
+  year after the school year (#79), and Dependabot's action and requirement
+  updates (#77, #78).
+- The scheduler Worker started the release and the engine pull request on
+  time on 2026-10-04 and 2026-10-05; both engine moves merged by themselves
+  at about 08:52 UTC. v1.35.0 was released and moved by hand on 2026-10-04.
+- 585 summaries, 351 of them with a Spanish translation saved. October's
+  summaries and translations: $13.34 after five days (Beverly $3.27,
+  Manchester $2.45, Malden $2.18, Burlington $2.08, Gloucester $1.71,
+  Wallingford $1.21, Lawrence $0.43).
+- Fact checks (the 2026-10-05 run records): 4 summaries of 80 held back in
+  Burlington, 3 of 79 in Gloucester, 1 each in Malden and Wallingford; 199
+  summaries not yet checked at 60 documents a run, most in Malden (96) and
+  Beverly (61).
+- "Towns need attention" (publick.org #56) lists Burlington, for school
+  figures behind: the state posts them a year later than the engine expected,
+  fixed in #79.
+- 311 history in git: about 29 MB across four towns.
 - Network status: [publick.org/status/](https://publick.org/status/).
-- 311 history in git: 24.5 MB across three towns, growing about 0.4 MB a day;
-  Malden's and Manchester's backfills have about 20 and 14 days to go.
 
 ## Priorities
 
 Each line points to its section under [The work, by theme](#the-work-by-theme).
-Order within a group is the order to do them in.
+Order within a group is the order to do them in. The list was renumbered on
+2026-10-05; [Where the old numbered items went](#where-the-old-numbered-items-went)
+maps the October list's numbers.
 
 ### Now: this week
 
-Done on 2026-10-02: the open redirect closed (Worker deployed), the Spanish
-disclosed and checked without a person, releases and engine moves once a day
-and by themselves, the status page right after a push, the rulesets on both
-repositories, `ENGINE_PR_TOKEN`, $80 for October, Lawrence's catch-up run, and
-summaries checked against their documents (engine v1.30.0 and pull request
-#50), and the meetings audit's fixes, with a shorter home page (engine #52,
-publick.org #40; see [Meetings, complete and correct](#meetings-complete-and-correct)).
-Done on 2026-10-03: "AI summary" on every summary shown in a list (item 7) and
-the data license (item 12), engine #54 and publick.org #42; items 4, 9, and 15;
-and every town moved to engine v1.33.0 (publick.org #43), with the scheduler
-deployed to start the release and the engine pull request each morning.
-What's left:
-
-1. **Watch the first scheduled release and engine move** (2026-10-04, 08:20
-   and 08:40 UTC, started by the scheduler Worker). On 2026-10-03 neither
-   started on GitHub's schedule by noon (its scheduled runs here start 5 to 7
-   hours late), so the engine moved by hand, and the network's pull request
-   check caught three problems before anything was published:
-   - the engine workflow pushed with its read-only token, not
-     `ENGINE_PR_TOKEN` (fixed: `persist-credentials: false`, publick.org #43);
-   - v1.31.0's `network.py` needed `feedparser` in jobs that don't install it
-     (fixed in #62, v1.32.0);
-   - on v1.32.0 the browser checks opened moved meeting pages, which redirect
-     themselves, and failed in Beverly, Lawrence, and Malden (fixed in #63,
-     v1.33.0).
-   Every town published on v1.33.0 at 13:09 UTC and passed "Check live
-   site". Checked on the live sites: "AI summary" in the lists, the hearings
-   box, and `/feed.xml`; "Reusing what's here" with its `LICENSE` link; the
-   footer link; and the Spanish. Left: the 311 pages' "Updated" date shows
-   the last fetch from the next daily run, whose scorecard records it.
-   ([Releases](#releases))
-2. **Check the first daily runs on the new engine**: every translation made
-   again on prompt 3 and reviewed (about 450 summaries, about $4), how many
-   fail the checks, and every summary's fact check recorded (60 documents a
-   run, so about two days). ([Spanish quality](#spanish-quality),
-   [Summary checks](#summary-checks))
-3. **Check the first daily run with the meetings audit's fixes** (2026-10-03):
-   in each town, `python -m pipeline.listings` lists the meetings shown as
-   one, and a calendar meeting next to an Agenda Center one of the same day,
-   not put together, needs an alias; the new boards' Spanish drafted; Gloucester's
-   School Committee subcommittees listed once; Wallingford worded as a town;
-   the Arts Commission correction shown on Manchester's November 9.
-   ([Meetings, complete and correct](#meetings-complete-and-correct))
-4. **Read two summaries by hand**: done 2026-10-03, both right. The Beverly
-   City Council's "January 20, 2025, at 7:30 PM" is in the minutes as printed
-   (page 3, Order #009), a typo of the city's the summary copied; the Golf and
-   Tennis Commission's $8,000 and $3,100 are "NTE $8K" and "NTE $3.1K" in the
-   scan. The check flagged the second because a written-out amount wasn't
-   matched to the document's "$8K" (fixed the same day, fact check version 2).
-   ([Summary checks](#summary-checks))
-5. **The next meetings audit, by hand**, a week on: every town's upcoming
-   meetings against its city's own sites, as on 2026-10-02.
-   ([Meetings, complete and correct](#meetings-complete-and-correct))
-
-### Next: October, before the next town
-
-Make what's shown checkable, and the process safe, before adding towns.
-
-**Where it stands (2026-10-04).** Every item below is done, dropped, or in a
-pull request with its checks green:
-
-| Item | Where |
-|---|---|
-| 6, 8. Decisions anchored to quotes, with `outcome`; the test set | Done: engine #66, in v1.34.0, live on every town 2026-10-04 |
-| 7, 9, 12, 15 | Done |
-| 10. Security hardening | engine #69 (HSTS, pins, Dependabot), publick.org #46 (no keys on pull requests) |
-| 11. 311 addresses cut to the block on pages | engine #68 |
-| 13. A budget floor per town | engine #67 |
-| 14. Push runs that don't publish | Dropped (publick.org #47, closed) |
-| 16. `RUNBOOK.md` | publick.org #45; no second owner |
-| The budget at $80 every month | publick.org #48 |
-
-To go live, in order:
-1. 2026-10-04, after the daily runs: merge engine #67 to #70, for the
-   release of 2026-10-05, and publick.org #45, #46, and #48.
-2. 2026-10-05, after the engine moves to that release: **Actions → Worker**
-   once, for the HSTS header; check every town published on it, and the
-   budget floor in the plan job.
-
-6. **Summaries and decisions checked against their documents.** Every number,
-   amount, date, and name in a summary is in the document's text; each
-   decision anchored to a quote from the minutes, with an `outcome` field so
-   a dropped "not" is caught. What fails isn't shown. The first half (numbers,
-   amounts, dates, names) is done (#50); the quotes and `outcome` are built
-   (2026-10-03, minutes prompt version 3) and passed item 8's run; they ship
-   with the engine pull request after v1.34.0. ([Summary checks](#summary-checks))
-7. **"AI summary" on every headline**: done 2026-10-03 (#54), in each list
-    row's details line, on its own line in the public hearings box, and after
-    the summary in the RSS feed. ([Summary checks](#summary-checks))
-8. **A test set run against the real model**: done 2026-10-03, 15 minutes
-    and 52 decisions checked by hand (`evals/minutes.json`,
-    `python -m pipeline.evaluate`), run by the network's Evaluate workflow
-    (publick.org #44). ([Summary checks](#summary-checks))
-9. **Failures that look like success, fixed.** Done 2026-10-03: three
-    SeeClickFix 403s in a row stop the 311 step instead of marking records
-    removed (none had been wrongly marked: 0 of 41,718, checked 2026-10-02).
-    Also done: the 311 pages are dated by the last fetch; a calendar that
-    listed meetings and now lists none fails; the daily alert comments on
-    each town newly behind (the network workflow's step goes in once the
-    engine release with `behind --new-since` reaches `engine-version`).
-    ([Monitoring](#monitoring))
-10. **Security hardening.** No secrets on pull request runs,
-    `persist-credentials: false`, actions pinned by SHA, Dependabot, HSTS
-    from the Worker. Done: storage and sites keys only in the steps that use
-    them (2026-10-03), boto3 pinned, tag protection, and a CSP on every page
-    (a `<meta>` tag). Done 2026-10-04: the rest, in both repositories
-    (#69; publick.org #46 for the network's workflows). The HSTS header goes
-    live when the sites Worker is next deployed by hand.
-    ([Security and privacy](#security-and-privacy))
-11. **311 addresses cut to the block** for sensitive categories (encampments,
-    health reports), on the pages and in the CSVs: done 2026-10-04 (#68),
-    from now on. `requests.json` keeps SeeClickFix's addresses (the street
-    lookup needs them), and git history isn't rewritten (decided
-    2026-10-03).
-    ([Security and privacy](#security-and-privacy))
-12. **The data license**: done 2026-10-03 (#54, publick.org #42), CC BY 4.0 in the network
-    repository's `LICENSE`, a "Reusing what's here" section on every About
-    page, and a footer link. Left: SeeClickFix's terms saved as read.
-    ([Open data](#open-data))
-13. **A budget floor per town**: done 2026-10-04 (#67). Every town keeps half
-    its even share of each day's budget for every day left in the month; one
-    town's run gets only what's left beyond the others' floors.
-    ([AI costs](#ai-summary-and-translation-costs))
-14. ~~Push runs build and check but don't publish~~: dropped 2026-10-03. A
-    push keeps publishing, so corrections and engine moves reach readers the
-    same day (publick.org #47, closed). ([Releases](#releases))
-15. **A check of each live site after publishing**: done 2026-10-03, the
-    homepage, fetched through the Worker, is the build just published.
-    ([Releases](#releases))
-16. **A `RUNBOOK.md`** in the network repository: in a pull request
-    (publick.org #45). A second person with owner access: not planned
-    (decided 2026-10-03).
-    ([Security and privacy](#security-and-privacy))
-17. **Every page says why something is missing.** Mostly done (#72 and the
-    next): what's left is in the theme. First, the wrong
-    statements: "Minutes not posted yet" on cancelled meetings and on boards
-    whose minutes Publick doesn't collect, "A summary will be added" for one
-    that never will be, "No agenda was posted" before Publick was collecting,
-    and a calendar that couldn't be read shown as an empty week. Then one
-    reason for every other gap, worked out from what the engine already
-    knows, and a site check that fails a gap shown without one.
-    ([Saying why something is missing](#saying-why-something-is-missing))
+1. **Lewiston, Bangor, and South Kingstown live**: merge publick.org #58, then
+   **Actions → Network → Run workflow** with fetching for the three, again
+   until no meetings are waiting; an email routing rule for each. All three
+   elect on 2026-11-03: check their officials right after.
+   ([Next towns](#next-towns))
+2. **HSTS live**: run **Actions → Worker** once. #69 put the header in the
+   sites Worker, but it isn't deployed: checked on gloucester-ma.publick.org
+   on 2026-10-05, no `Strict-Transport-Security`. Then check a site's
+   headers, and the budget floor in a daily run's plan job.
+   ([Security and privacy](#security-and-privacy))
+3. **Burlington caught up**: the release of 2026-10-06 takes #79; the next
+   daily run should take Burlington off issue #56. If it doesn't, read its
+   `schools` step. ([Monitoring](#monitoring))
+4. **Read what the fact check holds back** in Burlington (4 summaries, 13
+   entries), the network's first new town since the quotes check: each one
+   wrong in the summary, or the check's mistake? Fix the check if it's the
+   check's. ([Summary checks](#summary-checks))
+5. **Why most translations fail their review**: the 2026-10-04 audit found
+   about 70% failing and 408 of 481 summaries shown in English on the Spanish
+   pages. Read a sample of what the review flags: a real error is the prompt's
+   to fix, a false flag the review's; never loosen the review to pass more.
+   ([Spanish quality](#spanish-quality))
+6. **The meetings audit, by hand**: every town's upcoming meetings against its
+   city's own sites; the last was 2026-10-02, and Burlington has never had
+   one. ([Meetings, complete and correct](#meetings-complete-and-correct))
 
 ### Then: to about 20 towns
 
-17. **Lowell**: config only. ([Next towns](#next-towns))
-18. **Wallingford's figures**: the Connecticut package's tax bill and budget
-    are built (2026-10-04); Wallingford's config takes them on the next
-    release, then the Affordable Housing Appeals List. ([State packages](#state-packages))
-19. **A town each in Maine, Vermont, and Rhode Island**, preferring config-only
-    towns (Burlington, Lewiston, South Kingstown). ([Next towns](#next-towns))
-20. **311's raw requests in R2, and one SeeClickFix job paced across towns**,
-    before the next 311 town. ([Data out of git](#data-out-of-git),
-    [Shared sources](#shared-sources-once-per-state))
-21. **Springfield**, after Medford: CivicClerk with meetings sorted into
+7. **311's raw requests in R2, and one SeeClickFix job paced across towns.**
+   Planned for before the next 311 town; Burlington went live with 311
+   without it, and South Kingstown (#58) will too. Before any further 311
+   town. ([Data out of git](#data-out-of-git),
+   [Shared sources](#shared-sources-once-per-state))
+8. **Lowell**: config only. ([Next towns](#next-towns))
+9. **Saying why something is missing, the rest**: `[absences]` sentences
+   for the towns without 311, lists that say what they leave out, held-back
+   decisions counted on the Decisions page.
+   ([Saying why something is missing](#saying-why-something-is-missing))
+10. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
-22. **The open data export**: each town's `/data/meetings.json` and a Data
+11. **The open data export**: each town's `/data/meetings.json` and a Data
     page. ([Open data](#open-data))
-23. **The next readers**: Foxit full text (Manchester's minutes, the most
-    common style not read free), and the next meeting platform a chosen town
-    needs. ([Readers](#readers-for-more-platforms))
-24. **Officials kept current**: each town's next election date, with the
-    status page flagging a list not checked since. ([Who represents you](#who-represents-you))
-25. **Vote records shown**, for Malden's council first, after a few weeks of
+12. **The next readers**: Foxit full text (Manchester's minutes, the most
+    common style not read free); school boards on Diligent Community
+    (Burlington) and BoardDocs; nested Google Drive folders (Lewiston's
+    School Committee); then the next platform a chosen town needs.
+    ([Readers](#readers-for-more-platforms))
+13. **Officials kept current**: each town's next election date in its config,
+    with the status page flagging a list not checked since.
+    ([Who represents you](#who-represents-you))
+14. **Vote records shown**, for Malden's council first, after a few weeks of
     a person checking every new vote. ([Vote records](#vote-records))
-26. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
+15. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
     once for Massachusetts. ([Shared sources](#shared-sources-once-per-state))
-27. **The helper for adding a town**, which also runs the first fetches and
+16. **The helper for adding a town**, which also runs the first fetches and
     sets up email routing. ([Adding a town](#adding-a-town))
-28. **Statewide sources, phase 3**: BLS and the Census, once for the country.
+17. **Statewide sources, phase 3**: BLS and the Census, once for the country.
     ([Shared sources](#shared-sources-once-per-state))
-29. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
+18. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
     labels matched by content rather than position, and Ward and District
     kept apart in Spanish. ([Spanish quality](#spanish-quality))
-30. **Accessibility**: a table for every chart (every scrollable table
-    reachable by keyboard: done 2026-10-03). ([Accessibility](#accessibility))
-31. **Upkeep**: workflows' actions off Node 20; config keys only one town uses
-    folded into their readers; a monthly page-view report.
-    ([Upkeep](#upkeep))
+19. **Wallingford's Affordable Housing Appeals List**, from Connecticut's
+    package. ([State packages](#state-packages))
+20. **Accessibility**: a table for every chart. ([Accessibility](#accessibility))
+21. **Upkeep**: config keys only one town uses folded into their readers; a
+    monthly page-view report. ([Upkeep](#upkeep))
 
 ### Stage 2: about 20 to 50 towns
 
-32. Town data moved to R2, with git keeping config and code, when the run
+22. Town data moved to R2, with git keeping config and code, when the run
     records' sizes say so. ([Data out of git](#data-out-of-git))
-33. Canary towns (Manchester and Malden) on the newest release, and sampled
+23. Canary towns (Manchester and Malden) on the newest release, and sampled
     checks when `engine-version` moves. ([Releases](#releases))
-34. `CODEOWNERS` and required reviews, before the first editor from outside
+24. `CODEOWNERS` and required reviews, before the first editor from outside
     Publick. ([Who can change what](#who-can-change-what))
-35. The scheduler Worker deployed when it changes, and reminders for the
+25. The scheduler Worker deployed when it changes, and reminders for the
     steps that stay by hand. ([Steps done by hand](#steps-done-by-hand))
-36. Officials compared with each city's own pages, with differences opened
+26. Officials compared with each city's own pages, with differences opened
     as one issue for a person. ([Who represents you](#who-represents-you))
-37. Summaries through the Batches API, at least for the backlog.
+27. Summaries through the Batches API, at least for the backlog.
     ([AI costs](#ai-summary-and-translation-costs))
 
 ### Stage 3: about 100 to 1,000 towns
 
-38. The work queue: sources due, per scope, with per-vendor rate limits, and
+28. The work queue: sources due, per scope, with per-vendor rate limits, and
     a new town's history fetched on its own. ([Runner capacity](#runner-capacity-and-the-work-queue))
-39. A paid GitHub plan or other workers, as the queue's length shows the need.
-40. A summary budget sized to the network, with one priority order across
+29. A paid GitHub plan or other workers, as the queue's length shows the need.
+30. A summary budget sized to the network, with one priority order across
     towns. ([AI costs](#ai-summary-and-translation-costs))
-41. A status page with search and filters, and a daily digest instead of an
+31. A status page with search and filters, and a daily digest instead of an
     alert. ([Monitoring](#monitoring))
-42. Self-hosted page counts, if GoatCounter's free use runs out.
+32. Self-hosted page counts, if GoatCounter's free use runs out.
 
 ### Decided, not scheduled
 
@@ -332,6 +235,8 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.
+  Wallingford's and its Board of Education's YouTube links are already
+  collected (`video_id`), not shown.
 - **Towns queued separately**, so runs for different towns don't block or
   replace each other. Only if replaced runs turn out to delay towns.
 - **State legislators on the Officials page** (decided 2026-10-04: yes,
@@ -361,8 +266,7 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
 
 ### Ideas to decide
 
-New in this reorganization: proposals, not decisions. Each says what it
-would take.
+Proposals, not decisions. Each says what it would take.
 
 - **Follow an issue across meetings.** A project, an address, or a budget
   line comes up at several boards over months; a page per address or project
@@ -392,6 +296,28 @@ would take.
 - **Compare with the neighbors.** Tax bill, budget per resident, school
   spending per pupil, and permits beside nearby towns, on each state's page.
   The figures are already fetched once per state.
+- **How fast the town posts its records.** Per board: how far ahead each
+  agenda goes up, how long minutes take, and which meetings still have none,
+  beside the state's own deadlines (Massachusetts: notice 48 hours ahead not
+  counting weekends and holidays, minutes approved by the later of 30 days or
+  the third meeting after; New Hampshire: 24 hours, minutes in 5 business
+  days; Connecticut: 24 hours, minutes in 7 days), never ranked against other
+  towns (see [Not planned](#not-planned)). It measures *posted online*, which
+  isn't compliance: a notice on the clerk's board or minutes kept at the
+  clerk's office meet the law, so a page says "posted online", never "late"
+  or "broke the law". When each document went up comes from the platform
+  where it says so (CivicClerk's `publishOn`; Agenda Center's "Posted" time,
+  kept today only inside `agenda_id`), and elsewhere from upload order
+  (CivicPlus Archive Center's `ADID` and Wallingford's `FileID` rise as files
+  are uploaded); PDF timestamps help but aren't evidence alone (Gloucester's
+  main copier runs 11 hours slow). Measured by hand on 2026-10-04: Manchester
+  posts agendas a median 5.1 days ahead and minutes 7.7 days after;
+  Gloucester's agendas a median 6 days ahead, its minutes at least a median
+  34 days after, 29 of 206 at least 90. What it would take: each document's
+  posted time kept as its own field in `meetings.json`, a computation like
+  `compute_311.py` per board counting only meetings after a board's first run
+  (a backfilled town would otherwise show months of false delay), and a
+  "Record keeping" block on each board's page. No AI calls.
 - **Running costs, published.** What a town costs per month (summaries,
   storage, serving) on the status page, once costs are steady; useful for
   grants and for any sponsor.
@@ -415,22 +341,25 @@ would take.
 - **Scores, rankings, or "voted with" figures** for officials.
 - **A change of the engine's license.** It stays MIT (moving to the AGPL was
   considered and dropped, 2026-10-02).
+- **Push runs that build but don't publish** (dropped 2026-10-03,
+  publick.org #47 closed): a push keeps publishing, so corrections and engine
+  moves reach readers the same day.
 
 ### Open decisions for the maintainer
-
-From the October 2026 review, still to decide:
 
 - The order of the next towns (the lists under [Next towns](#next-towns) are
   a proposal).
 
-Decided 2026-10-03:
+Decided 2026-10-03 and 2026-10-04, and kept here for reference:
 
 - 311 addresses already in git history stay as they are: no rewrite.
   `requests.json` keeps SeeClickFix's full addresses (the street lookup
   needs them); only what the pages show is cut to the block.
 - The budget is $80 every month (publick.org #48).
-- No second person with owner access.
-- Push runs keep publishing (item 14 dropped).
+- No second person with owner access; `RUNBOOK.md` says what one owner does
+  (publick.org #45).
+- Push runs keep publishing.
+- State legislators on the Officials page, after the municipal work.
 
 ## The work, by theme
 
@@ -441,232 +370,130 @@ Each section: why it matters, what's done, what's next, and when it matters.
 #### Summary checks
 
 **Why.** Summaries, headlines, and decisions (who moved and seconded, how
-the vote went) are written by a model from agendas and minutes and published
-without being checked against the document. A wrong amount, name, or vote
-count reaches readers and, with open data, whoever reuses it. Of everything
-not checked, it's the thing that can mislead a reader most. Each summary
-links its source and the sites say summaries can be wrong, but nothing
-catches the mistake.
+the vote went) are written by a model from agendas and minutes. A wrong
+amount, name, or vote count reaches readers and, with open data, whoever
+reuses it. Of everything shown, it's what can mislead a reader most.
 
-**Done.** Prompt versions are tracked, and every live summary is on the
-current version (agenda v4, minutes v2). The minutes prompt no longer has the
-model retype the document. Summaries' decisions record who moved and
-seconded.
-
-*Done 2026-10-02 (pull request #50, released with the next morning's release; decided the same day):* `pipeline/factcheck.py`
-checks every number, amount, date, name, vote count, and reference number in
-a summary, its headline, and each decision or agenda item against the PDF's
-own text, without AI, and saves the result in the summary's record. What the
-site shows (decided): a decision, agenda item, headline, or sentence of the
-summary with something not in the document's full text isn't shown, and the
-page says how many decisions weren't; a vote count the document doesn't give
-(counted from a roll call) is left out of the text, until vote records can
-confirm it. Documents with scanned pages, and scans checked against the
-model's transcription, hide nothing but those counts. `python -m
-pipeline.factcheck` lists what it finds.
-
-Measured on the 449 live summaries: every one checked against full text
-passes; planted errors are caught 89 to 100% of the time; 103 of 1,131 vote
-counts aren't in the minutes and come out. Two read by hand on 2026-10-03,
-on scanned pages, were both right: a Beverly City Council decision dated
-"January 20, 2025, at 7:30 PM" is what the minutes say (the city's typo for
-2026), and a Beverly Golf and Tennis Commission summary's $8,000 and $3,100
-are "$8K" and "$3.1K" in the scan. The check counted an amount written out in
-full ("$8,000") as missing when the document abbreviates it ("$8K"), since
-only the summary's own scale words were read. *Done 2026-10-03 (fact check
-version 2):* an amount counts when the document gives exactly that amount
-with a scale ("$8K", "$1.2 million"). Of the 81 saved scans' summaries, only
-those two amounts change. No summary had a fact check saved yet, so the new
-version re-checks nothing.
-
-*Done 2026-10-03 (#54):* "AI summary" wherever a summary is shown in a list. In a
-meeting row it goes in the grey line under the summary ("AI summary · Agenda
-posted"), only on rows that show one; in the public hearings box, on its own
-line under the summary; in the RSS feed, after the summary ("(AI summary of
-the agenda. Check the original.)"). Never in front of the summary: a badge
-on every row was tried and taken out as clutter. Spanish: "Resumen hecho con IA".
+**Done.**
+- Prompt versions tracked, and a test that fails when a prompt changes
+  without its version (`tests/test_prompt_versions.py`): each versioned
+  prompt's words and schema pinned by a hash beside its version. The
+  translation review's prompt has no version: a change there doesn't call
+  for translating again.
+- *The fact check* (`pipeline/factcheck.py`, #50, fact check version 2 on
+  2026-10-03): every number, amount, date, name, vote count, and reference
+  number in a summary, its headline, and each decision or agenda item is
+  looked for in the PDF's own text, without AI. A decision, item, headline,
+  or sentence with something not in the document isn't shown, and the page
+  says how many decisions weren't; a vote count the document doesn't give
+  (counted from a roll call) is left out. An amount counts when the document
+  gives it with a scale ("$8K", "$1.2 million"). On the 449 summaries live
+  then, every one checked against full text passed, and planted errors were
+  caught 89 to 100% of the time.
+- *Decisions anchored to quotes* (#66, minutes prompt version 3, fact check
+  version 3, in v1.35.0): each decision has an outcome (approved, denied,
+  tabled, continued, referred, recommended, withdrawn, or other) and the
+  minutes' own words for it, in `decision_evidence` beside the decision. The
+  quote must be in the document (spacing, punctuation, page headers, and line
+  numbers ignored; a quote cut with "..." found part by part), and the
+  outcome must agree with the decision's words and the quote's (a failed
+  motion can't be approved, a two-thirds vote that failed 9-5 is a denial).
+  What fails isn't shown, so a dropped "not" is caught. Numbers far from
+  their quote are listed, not held. Minutes since 2026-08-04 were made again
+  (`remake_since`); older ones keep version 2.
+- *A test set against the real model*: `evals/minutes.json`, 15 minutes from
+  six towns and 52 decisions checked by hand, run by `python -m
+  pipeline.evaluate` (about $1 to $2) from the network's **Actions →
+  Evaluate** (publick.org #44). On 2026-10-03 the model gave all 52 the right
+  outcome, and all 119 planted errors were caught. The runs found the check's
+  own mistakes, all fixed before it shipped.
+- *Counted*: each fetching run's record (`data/run.json`, `fact_checks`)
+  counts the town's summaries by result, how many are held back, and the
+  decisions, items, and vote counts left out. `python -m pipeline.factcheck`
+  lists each problem.
+- *Labeled*: "AI summary" wherever a summary is shown in a list (#54): in the
+  grey line under a meeting row's summary, in the public hearings box, and
+  after the summary in the RSS feed; never as a badge in front. Spanish:
+  "Resumen hecho con IA".
+- Two summaries read by hand on 2026-10-03, both right (a typo copied from
+  Beverly's minutes; "$8K" in a scan).
 
 **Next.**
-- *Done 2026-10-03 (#66), after the test set's runs against the real model:*
-  each decision anchored to a quote from the minutes, checked without AI,
-  with an outcome, so a dropped "not" is caught. The minutes prompt
-  (version 3) asks for each decision's outcome (approved, denied, tabled,
-  continued, referred, recommended, withdrawn, or other) and the minutes'
-  own words for it; `decisions` stay sentences, and `decision_evidence`
-  beside them has each one's outcome and quote, so nothing that shows or
-  translates decisions changed. The check (fact check version 3): the quote
-  is in the document, with spacing, punctuation, page headers, and line
-  numbers ignored, and a quote cut with "..." found part by part; the
-  outcome agrees with the decision's words and the quote's (a failed motion
-  can't be approved, a count with fewer for than against can't be approved,
-  a two-thirds vote that failed 9-5 is a denial); what fails isn't shown.
-  The decision's numbers and names are also looked for near the quote
-  (decided while building: listed, not held, since an item's heading can be
-  pages before its vote; the run says how often a right decision is
-  listed). Written-out counts ("In Favor: 2 In Opposition: 3") now confirm a
-  vote count too. Checked offline on the 15 documents' real text with the
-  quotes written down by hand: all 50 found, and every approved or denied
-  decision turned round caught. Minutes of meetings since 2026-08-04 are
-  made again (about 91 documents, about $2); older ones keep version 2's
-  summary (`remake_since`; decided 2026-10-03).
+- Read what's held back in a new town's first runs (Burlington's 4 of 80, on
+  2026-10-05), to tell the model's mistakes from the check's.
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
-- *Done 2026-10-03:* each fetching run's record (`data/run.json`) counts
-  the town's summaries by fact check result, how many the site holds
-  something back from, the decisions and agenda items it leaves out, and the
-  vote counts it takes out (`fact_checks`, from what `shown()` shows), to show
-  how often the model gets one wrong. `python -m pipeline.factcheck` still
-  lists each problem.
 - The document's own date and any "draft" marking read from it.
-- *Done 2026-10-03:* a test that fails when a prompt changes without its
-  version (`tests/test_prompt_versions.py`): each versioned prompt's words and
-  schema (agenda, minutes, transcription, translation, drafted text) pinned by
-  a hash beside its version. A change passes once its version goes up, or,
-  where what the old prompt made should stay on purpose (as when agendas
-  gained a start time without a bump), once the new hash is pinned with a
-  note saying why. The translation review's prompt has no version: a change
-  there doesn't call for translating again.
-- Every test, the translation tests too, uses the fake model client. *Built
-  2026-10-03:* `evals/minutes.json`, 15 minutes from all six towns and 52
-  decisions checked by hand against each document's own text (failed
-  motions, two-thirds votes, a "not" that's part of what was decided,
-  tabling, referral, withdrawal, numbered lines, a scan), and
-  `python -m pipeline.evaluate`, which runs them through the real model and
-  the checks, plants errors in what passes, and fails on a wrong outcome the
-  site would show (about $1 to $2 a run). Run by hand from the network's
-  Actions -> Evaluate (publick.org #44), on the network's key; first runs
-  2026-10-03. The model gave all 52 decisions written down by hand the right
-  outcome and wrote 199 decisions in all; every one of the 119 errors
-  planted in what passed was caught. The runs found the check's own
-  mistakes, all fixed before it shipped: a roll call quoted as the page
-  shows it ("Yea: 3 - ...") where the PDF's text orders it otherwise; "if
-  they fail" read as a failed motion; "deferred", "re-committed", and "held"
-  in committee not known; "Withdrew" read as a name (the check on main too:
-  ten verb forms the dictionary lacks); and Beverly's long scanned minutes
-  cut off at 16,000 tokens (now 32,000). Checked again on the model's saved
-  answers: none of the 199 held back. The five numbers listed as far from
-  their quote were all on right decisions, so that check stays a note.
-  Tuned on this set, so the run records' counts of what's held back are
-  the measure on new minutes.
+- A switch to hold back one summary by hand, for a reader's report
+  (`RUNBOOK.md` names it as a gap).
 
 **Matters at:** now, before more towns and before open data.
 
 #### Spanish quality
 
 **Why.** Every town's site is in Spanish, translated by Haiku 4.5 and shown
-before a person has read it. The second review (2026-10-02, v1.29.0) read all
+without a person reading it. The second review (2026-10-02, v1.29.0) read all
 77 saved translations beside their English and found meaning errors on live
-pages that the check passed.
-
-**What the review found, by harm.**
-- *Live translations with meaning errors*, all passing the check and shown:
-  "adjourned" as "se disolvió" ("dissolved itself", Beverly `05fa7a22`,
-  `98a5657e`); "reappointment" as "reelección"/"reeligió" 7 times, and the
-  non-word "renonombramientos" (`05842d82`); "Chair Houseman" (Scott D.
-  Houseman) as "La presidenta Houseman", and other guessed genders ("la
-  solicitante", "la Abogada Dole", "La directora"); "name the road after X"
-  as "nombrar... después de"; "underage operative" as "un operativo menor de
-  edad"; "all-alcoholic beverages license" lost "all-"; business signs as
-  "señales" 19 times; "Enmiendó"; and Lawrence's own summary in Spanglish
-  ("redeveloper el sitio en uso mixto commercial", `9c6ec1ee`). The summary
-  translation prompt has no rule against guessing gender (`translate.py:60-70`;
-  only the drafts prompt has one, `:274`).
-- *The check passes wrong translations.* It compares digits, list lengths,
-  and dates (`translate.py:149-168`). On crafted inputs, all of these pass:
-  "voted not to approve" as "para aprobar"; Approved as Negó; "failed 3-4"
-  as "aprobada 4-3"; Maria Rodriguez as Mario Rodrigues; Essex Street as
-  Calle Elm; "$3 million" as "$3 mil millones"; "$1.2 million" as "$1.2 mil";
-  7:00 pm as 7:00 a. m.; Tabled as Aprobó; unanimously as por mayoría;
-  decisions reordered; invented extra numbers. Correct Spanish fails it:
-  "$1.500", "$5,8 millones", "$2500" written "$2,500". Three of Beverly's
-  four failures were correct translations.
-- *A failed translation is never retried* (`current()` accepts a saved record
-  whatever its check, `translate.py:96-101`), and the page says "aún no se ha
-  traducido" (`meeting.html:118`), which isn't true.
-- *Translations from an older prompt are still shown*: `shown()` ignores
-  `prompt_version` (`translate.py:103-111`); Lawrence's two v1 translations.
-- *Machine translation isn't disclosed.* The Spanish credit says only
-  "Resumen escrito con inteligencia artificial (IA)" (`es.po`); the About
-  page names only the summary model (`about/index.html:108`). The "(en
-  inglés)" note on agenda and minutes links doesn't exist (`meeting.html:127`,
-  `:160`).
-- *The privacy line is false.* The Worker sets a one-year `lang` cookie
-  (`worker/sites.js:134`); every About page says "No cookies"
-  (`about/index.html:116`).
-- *Machine drafts of a town's text are unlabeled and barely checked.* Nothing
-  on the page marks a draft (`drafted` only feeds a build notice,
-  `build_site.py:1291`). `check_text` (`translate.py:305-315`) passes "Mayor"
-  as "Gobernador", "Conservation Commission" as "Comisión de Conversación",
-  "Chairman" as "Presidenta". A batch of 80 is checked only by its length
-  (`:349`), so a shifted batch puts every text on the wrong English.
-- *A Spanish gap can freeze the English site.* With no budget left,
-  `draft_texts` stops (`translate.py:328`) and the build exits 1 for any
-  config text without Spanish (`build_site.py:1299-1306`), so a new tagline
-  late in a month stops both languages from publishing.
-- *Decision labels are matched by position.* A decision's kind (decided,
-  recommended, procedural) is put on the Spanish by index
-  (`build_site.py:422`); a reordered translation passes the check, so
-  "Committee recommendations" can label a final decision.
-- US dates pass as written ("10/17 y 11/8", Beverly `04ef6699`), and a
-  Spanish reader takes 11/8 as 11 August. Write ambiguous dates out.
-- Ward and District both become "Distrito {n}" (`es.po`), which garbles
-  Beverly's School Committee (Wards 1-6 and Districts A and B).
-- Gendered roles keyed by role, not person: Lawrence's "Vicepresidenta" and
-  "Vicepresidenta del Concejo" (`lawrence.toml:313-314`) will be wrong for
-  the next holder. Use the generic form.
-- The feed and share image are English only (`build_site.py:1075`, `:986`),
-  but Spanish pages link `/feed.xml` with a Spanish title (`base.html:37`).
-- Lawrence's config still says its Spanish is checked "before the site
-  launches".
-
-*Done well:* what's shown is keyed by the hash of the English it came from and
-checked again at display, so a stale translation can't sit beside newer
-English; English fallback is marked `lang="en"`; only `/` negotiates
-language, with `Vary` and a no-store 302; `hreflang` and `x-default` set; a
-404 per language; board names keep the official English; Spanish search
-covers the translations; translation is cheap.
+pages that the check of the time passed: "adjourned" as "se disolvió",
+"reappointment" as "reelección", guessed genders ("La presidenta Houseman"
+for Scott D. Houseman), business signs as "señales", and Spanglish. The check
+compared only digits, list lengths, and dates, so "voted not to approve" as
+"para aprobar" or "failed 3-4" as "aprobada 4-3" passed, while correct
+Spanish number formats failed. A failed translation was never retried,
+older prompt versions were still shown, machine translation wasn't
+disclosed, and the About page said "No cookies" beside the Worker's `lang`
+cookie.
 
 **Decided 2026-10-02: no person checks the Spanish.** A human reviewer isn't
 realistic, so the sites say plainly that the Spanish is machine-translated,
-always link the English, and two checks stand in for a person, failing to
-English rather than showing a doubtful translation.
+always link the English, and two checks stand in for a person, falling back
+to English rather than showing a doubtful translation.
 
-*Done 2026-10-02 (engine v1.30.0):*
+**Done** (engine v1.30.0, 2026-10-02):
 - Disclosure: a translated summary's credit says "Traducido automáticamente
   con IA del resumen en inglés; puede tener errores" and links the English;
-  every Spanish page's footer says the page was translated with AI and links
-  the English; agenda and minutes links say "(en inglés)"; the About page
-  names the translation model and both checks; the cookie line says the
-  language switch sets one cookie and nothing else (decided: reword, keep the
-  cookie).
-- A config text with no Spanish shows in English with a warning instead of
-  stopping the build (decided: reverses the morning's rule that a town isn't
-  built in Spanish until all its text is), and drafting may spend $0.05 a run
-  past the budget so the gap fills the next run.
+  every Spanish page's footer says so too; agenda and minutes links say "(en
+  inglés)"; the About page names the translation model and both checks; the
+  cookie line says the language switch sets one cookie and nothing else.
 - The check without AI, entry by entry: numbers kept and none added,
   whatever the Spanish number format; amounts' million or billion; a.m. and
-  p.m.; names kept as written (a capitalized word that isn't an English word);
-  and outcomes not turned round (a "not" lost or added, denied as approved,
-  tabled as approved, unanimous changed). Every crafted case above fails it;
-  76 of the 77 saved live translations pass.
+  p.m.; names kept as written; outcomes not turned round (a "not" lost or
+  added, denied as approved, tabled as approved, unanimous changed). Every
+  crafted case from the review fails it.
 - Claude Sonnet 5.5 reviews each translation that passes, and each batch of
-  drafted town text, for meaning (adjourned as dissolved, guessed gender,
-  "Comisión de Conversación"): about a cent each. Anything it flags shows
+  drafted town text, for meaning: about a cent each. Anything it flags shows
   the English.
 - A failed translation or draft is made again once, then left; the page says
-  the translation didn't pass our checks. Older prompt versions aren't shown.
-- The prompt (version 3): never guess gender (use the English's, else the
-  name and then the role); write dates with the month's name; a glossary for
-  adjourn, appoint and reappoint, table, sign, name after, all-alcoholic
-  license, underage operative.
-- Lawrence's config: generic Vicepresidente for roles whose holder changes.
+  the translation didn't pass. Older prompt versions aren't shown.
+- The prompt (version 3): never guess gender; write dates with the month's
+  name; a glossary for adjourn, appoint and reappoint, table, sign, name
+  after, all-alcoholic license, underage operative.
+- A config text with no Spanish shows in English with a warning instead of
+  stopping the build, and drafting may spend $0.05 a run past the budget so
+  the gap fills the next run.
+- Gendered roles in the generic form where the holder changes (Lawrence's
+  Vicepresidente).
+
+*Done well from the start:* what's shown is keyed by the hash of the English
+it came from and checked again at display; English fallback is marked
+`lang="en"`; only `/` negotiates language, with `Vary` and a no-store 302;
+`hreflang` and `x-default` set; a 404 per language; board names keep the
+official English; Spanish search covers the translations.
 
 **Still to do.**
+- *Most translations fail their review* (the 2026-10-04 audit: about 70%,
+  and 408 of 481 summaries shown in English on the Spanish pages). Readers
+  get English, which is safe, but most of the Spanish site isn't Spanish.
+  Find out whether the review is right; fix the prompt, or the review's
+  false flags. Some towns also have few translations because the month's
+  budget goes to summaries first (Malden 26 of 157, Manchester 24 of 82, on
+  2026-10-05).
 - Decision labels matched by content rather than position (a reordered list
   now fails the check entry by entry, so this is belt and braces).
 - Ward and District both "Distrito" in Spanish; Beverly's districts are
   lettered, so they read apart, but a town with numbered districts would not.
-- `/es/feed.xml` and a Spanish share image.
+- `/es/feed.xml` and a Spanish share image: Spanish pages link the English
+  feed.
 - A "report a translation error" path that reaches the glossary: today's
   report link goes to the same place as every other error.
 
@@ -752,49 +579,34 @@ are behind and why, without flooding the inbox, and to say so truthfully.
   build and deploy result, and when the town last had a good update. A run
   that only builds, as for a pull request, still fails, so a broken site
   can't be merged.
+- A run that publishes a town without fetching (a push) records it in the
+  town's run record too, and rebuilds the status page and the daily issue; a
+  fetching run's report names the towns it didn't publish, and fails when it
+  published none (v1.30.0, after the status page said "Some data delayed"
+  for most of 2026-10-02 about three towns already republished).
 - The network status page, [publick.org/status/](https://publick.org/status/),
   built by `scripts/build_status.py` after each run. It's public, so it says
   in plain words which data may be out of date and leaves internals to the
   run's summary.
 - One alert a day: `pipeline.network behind` lists towns more than about 30
   hours without a good update and towns whose figure checks keep failing;
-  the daily run opens, updates, or closes one issue, assigned to the owner.
+  the daily run opens, updates, or closes one issue, assigned to the owner,
+  and comments with the towns newly behind (`behind --new-since`), since an
+  edit sends no email and a comment does.
 - The scheduler Worker (`worker/scheduler.js`) opens, and later closes, a
   "network stopped" issue when no daily run has finished for 30 hours.
-
-**Found 2026-10-02, and fixed the same day (v1.30.0).** The status
-page and the alert were wrong for most of a day. The 09:06Z daily run failed "Check site" for Gloucester, Malden, and
-Manchester (`/311/` scrolled sideways by 1px on a phone once charts had a
-25th month). v1.28.0 fixed it and push runs republished all three, but a
-push run doesn't write `run.json`, so they stayed `deployed: false`, the
-status page said "Some data delayed", and issue #34 stayed open until the
-next fetching run. The daily run finished green with 3 of 3 towns not
-deployed; the only sign was warnings.
-
-*Built:* a run that publishes a town without fetching records it in the
-town's run record (that run's build, checks, and publish replace the failed
-ones), commits it, and rebuilds the status page and the daily issue; a
-fetching run's report names the towns it didn't publish, and fails when it
-published none.
+- Failures that looked like success (2026-10-03): three SeeClickFix 403s in
+  a row (`REFUSED_IN_A_ROW`) are a block, which stops the 311 step without
+  marking any request removed (none had been wrongly marked: 0 of 41,718);
+  the 311 pages say "Updated" with when SeeClickFix was last read
+  (`fetched_at`); a calendar that listed meetings and now lists none counts
+  as failed, every run until it lists meetings again.
+- *2026-10-05 (#79, released 2026-10-06):* Vermont's graduation rate and
+  attendance are expected by October 1 of the year after the school year,
+  when the Agency of Education posts them; the engine expected them a year
+  early, so Burlington was reported behind from its first day.
 
 **Next.**
-- *Done 2026-10-03:* a SeeClickFix 403 no longer marks a request removed on
-  its own. A 403 followed by a lookup that works is a request made private,
-  marked removed as before; three in a row (`REFUSED_IN_A_ROW`) is a block:
-  the lookups stop, none of the three is marked removed, what was fetched is
-  saved, and the step fails, so the run reports 311 behind.
-- *Done 2026-10-03:* the 311 pages say "Updated" with when SeeClickFix was
-  last read (`fetched_at`, from `311/status.json`), not when the scorecard
-  was worked out again, so a day the fetch failed doesn't read as updated.
-- *Done 2026-10-03:* a calendar that listed meetings and now lists none
-  counts as failed (decided: every run until it lists meetings again, so a
-  person looks; none had ever listed zero). The meetings recorded stay as
-  they were, and the town shows as behind after about two days.
-- *Done 2026-10-03:* `python -m pipeline.network behind --new-since FILE`
-  prints a comment naming the towns not in the issue's earlier text
-  (decided: only towns newly behind; one already listed or caught up says
-  nothing). The network workflow saves the issue's text, edits it, and
-  posts that comment, since an edit sends no email and a comment does.
 - The status page flags an officials list not checked since the town's last
   election.
 - At hundreds of towns: search and filters on the status page, and a daily
@@ -823,7 +635,6 @@ replaces it, silently.
   about 2027-10-01; a reminder is set for 2027-09-17).
 
 **Next.**
-- One GitHub backup schedule, not four (see [Releases](#releases)).
 - Renew the scheduler token before 2027-10-01. When it lapses, runs fall
   back to GitHub's schedule and the "network stopped" check can't open its
   issue.
@@ -834,85 +645,55 @@ replaces it, silently.
 #### Releases
 
 **Why.** The network runs every town on one engine version, so a bad release
-breaks every site that uses the broken part. And the way code moves costs
-more than the checks do: the engine released 22 times in four days and
-`engine-version` moved 17 times, 8 on 2026-10-01 alone (7 releases in about
-10 hours on 2026-10-02). Each change is two pull requests, and every move
-checks every page of every town and republishes them all. At that pace,
-canary towns can't work: every release reaches every town within the hour.
+breaks every site that uses the broken part. Before 2026-10-02 the engine
+released on every merge (22 times in four days), and every move of
+`engine-version` checked and republished every page of every town; one
+person merged their own pull requests into unprotected branches.
 
-Also from the process review (2026-10-02):
-- A push to `main` waits up to 320 minutes behind a daily run, holding a
-  runner (`network.yml`); on 2026-10-01 three push runs were cancelled after
-  waiting 1, 1, and 5 hours.
-- Ten starts a day (the scheduler's six and four GitHub backups), and 11 of
-  91 network commits are "Update statewide sources", written even when
-  nothing was fetched.
-- The accessibility tests check every page in dark mode too
-  (`tests/test_accessibility.py`), doubling the browser runs, though every
-  page sets `color-scheme: light` and has no dark styles.
-- Nothing looks at the live sites after `deploy publish`.
-- One person merges their own pull requests, neither repository protects
-  `main`, and a merge releases to every town. The tests are the only check.
-
-**Done.** Automatic releases: when the engine's tests pass on `main`, that
-commit is released, and a pull request's label picks patch, major, or none.
-The engine's tests build Gloucester (CivicPlus calendar), a New Hampshire
-site, and two sample towns (`tests/test_sample_towns.py`): Manchester
-(CivicClerk and DotNetNuke) and Malden (Agenda Center), through the real
-fetchers from saved pages, each with the page, link, and browser checks.
-
-*Done 2026-10-02 (engine v1.30.0, publick.org #38):*
-- The engine releases once a day (08:20 UTC), not on every merge: the newest
-  tested commit on `main`, with everything merged since, at the largest bump
-  its pull requests' labels ask for. **Actions → Release → Run workflow**
-  releases now, for an urgent fix. A Markdown-only pull request is left out
-  without a label.
-- The network moves `engine-version` once a day by itself (publick.org's
-  `engine.yml`, 08:40 UTC, decided 2026-10-02): it opens a pull request, waits
-  for its run to check every page of every town, and merges it if every town
-  passes; the merge publishes them. If one fails, nothing moves and the
-  workflow's failure emails the owner. The network doesn't follow the `v1`
-  tag: the pinned version is what rolls back, and its pull request is what
-  checks a release.
-- Rulesets (decided 2026-10-02, set the same day): the engine's `main`
-  requires a pull request and the `test` check, and its `v*.*.*` tags can't be
-  changed or deleted; the network's `main` blocks force-pushes and deletion.
-  Engine pull requests are merged by a person: the one human look before code
-  reaches every town.
-- Accessibility tests in light only, until the sites have dark styles.
-- One GitHub backup schedule; the statewide status written only when a
-  source was fetched or something changed.
+**Done.**
+- The engine's tests build Gloucester (CivicPlus calendar), a New Hampshire
+  site, and two sample towns (`tests/test_sample_towns.py`): Manchester
+  (CivicClerk and DotNetNuke) and Malden (Agenda Center), through the real
+  fetchers from saved pages, each with the page, link, and browser checks.
+- *Once a day* (v1.30.0, publick.org #38): the engine releases at 08:20 UTC
+  the newest tested commit on `main`, with everything merged since, at the
+  largest bump its pull requests' labels ask for; a Markdown-only pull
+  request is left out without a label. **Actions → Release → Run workflow**
+  releases now, for an urgent fix. At 08:40 the network's `engine.yml` opens
+  a pull request moving `engine-version`, waits for its run to check every
+  page of every town, and merges it if every town passes; the merge
+  publishes them. If one fails, nothing moves and the failure emails the
+  owner. The network doesn't follow the `v1` tag: the pinned version is what
+  rolls back.
+- *Started on time* (2026-10-03, #61, publick.org #43): the scheduler Worker
+  starts the release and the engine pull request, as it starts the daily
+  runs (`RELEASE_CRON`, `ENGINE_CRON`), since GitHub's own schedule started
+  neither on the first morning; the workflows keep their schedules as a late
+  backup. Both started on time on 2026-10-04 and 2026-10-05.
+- *Rulesets* (2026-10-02): the engine's `main` requires a pull request and the
+  `test` check, and its `v*.*.*` tags can't be changed or deleted; the
+  network's `main` blocks force-pushes and deletion. Engine pull requests
+  are merged by a person: the one human look before code reaches every town.
+- *A check of each live site after publishing* (#60): a "Check live site"
+  step fetches each town's homepage through the Worker until it is the built
+  `index.html`, byte for byte, for up to two minutes; a mismatch fails the
+  town (`pipeline.deploy check`).
+- Accessibility tests in light only, until the sites have dark styles; one
+  GitHub backup schedule; the statewide status written only when a source
+  was fetched or something changed.
 
 **Next.**
-- ~~A push builds and checks the towns it touched but doesn't publish
-  them~~ (chosen 2026-10-02, dropped 2026-10-03): it would have put each
-  morning's engine and every correction a day behind. A push keeps
-  publishing after any daily run in progress; if the wait becomes a
-  problem, towns queued separately lets a push wait only for its own towns.
-- *Done 2026-10-03:* the scheduler Worker starts the engine's release at
-  08:20 UTC and the network's engine pull request at 08:40, as it starts the
-  daily runs, since GitHub's own schedule started neither on the first
-  morning (`worker/scheduler.js`, `RELEASE_CRON`, `ENGINE_CRON`). The
-  workflows keep their schedules as a late backup. On since 2026-10-03:
-  `SCHEDULER_GITHUB_TOKEN` widened to the engine repository (Actions read
-  and write), the two crons and `ENGINE_REPOSITORY` in
-  `wrangler.scheduler.toml` (publick.org #43), and the Worker deployed at
-  13:50 UTC with triggers at 08:20, 08:40, and 09:05 to 14:05.
-- *Done 2026-10-03:* after publishing, a "Check live site" step fetches each
-  town's homepage through the Worker until it is the built `index.html`,
-  byte for byte, for up to two minutes (a Worker reuses a manifest for one).
-  A mismatch fails the town, and it doesn't count as published in its run
-  record (`pipeline.deploy check`). The page itself is compared because
-  Cloudflare drops the Worker's ETag from HTML (checked on the live sites).
 - Sample towns still to add: one with SeeClickFix departments, one on the
-  town-website reader (Wallingford), one on Finalsite.
+  town-website reader (Wallingford), one on Finalsite, one on CivicClerk
+  alone (Burlington).
 - At 20 to 50 towns: canary towns, Manchester and Malden (chosen
   2026-10-02), take each release a day ahead; `engine-version` moves for the
   rest after a day with the canaries green, by a one-line pull request a bot
   can open, which checks every page of the canaries and a sample of the
   rest. Rolling back is moving `engine-version` back; no town is kept a
   release behind.
+- If a push's wait behind a daily run becomes a problem, towns queued
+  separately lets a push wait only for its own towns.
 
 **Matters at:** now; canaries and sampled checks at about 50 towns.
 
@@ -921,52 +702,42 @@ fetchers from saved pages, each with the page, link, and browser checks.
 **Why.** One Worker serves every site, one set of secrets serves every town,
 and the 311 data has people's house numbers.
 
-**Next** (from the October review, rechecked on v1.29.0).
-- *The open redirect* (now): `worker/sites.js:135`, checked live.
-- *Secrets only where needed:* pull request runs get every secret
-  (`network.yml:371-381`); no `persist-credentials: false`. *Done
-  2026-10-03:* each of a town's steps gets only the keys it uses. In
-  `pipeline/update.py`, the document bucket's keys go to the six steps that
-  save or read agendas and minutes (`STORAGE`), and no step gets the sites
-  bucket's; in `pipeline/network.py` (`keyed`), the fetch gets the fetching
-  keys, Publish the sites keys, and the freshness check, build, and checks
-  none; `town.yml` the same, step by step. So a pull request run's steps get
-  no keys, whatever the workflow passes. The steps that parse PDFs still
-  hold the document keys, since they read the PDFs from the bucket: keeping
-  them apart would take a download step of its own.
-- *The Worker:* no HSTS (`sites.js:94-100`, checked live); add security
-  headers. *Done 2026-10-04 (#69):* `Strict-Transport-Security:
-  max-age=31536000` on every page and redirect the Worker serves, without
-  `includeSubDomains` (other hostnames on the zone are served elsewhere) or
-  `preload`, so it can be taken back; live after **Actions → Worker**. Every page already sets a Content Security Policy in a `<meta>`
-  tag (`base.html`: scripts from the site only, no inline scripts); what a
-  `<meta>` policy can't set, `frame-ancestors`, would come from the Worker.
-- *Supply chain:* actions pinned by tag, not SHA; boto3 unpinned; Dependabot;
-  `v1` moved on every release; tag protection. *Done 2026-10-04
-  (#69, publick.org #46):* every action in both repositories pinned by commit, at the
-  commit its major tag points to (the same code), with its version in a
-  comment; `persist-credentials: false` on every checkout but those whose
-  jobs push (the release's tags, a town's data commits); no keys at all on
-  the network's pull request runs; Dependabot once a month, grouped, for
-  actions in both and the engine's requirements.
-- *Privacy:* 26,878 of 41,718 311 records carry a house number, among them
-  389 Manchester "Homeless Encampment" and 273 Gloucester Health Department
-  reports, and the CSVs export locations (`build_site.py:1243-1246`). *Done
-  2026-10-04 (#68):* a sensitive category's address is shown to its
+**Done** (from the October review).
+- *The open redirect* in the sites Worker, closed and deployed (v1.30.0,
+  2026-10-02).
+- *Secrets only where needed* (2026-10-03, and #69 and publick.org #46 on
+  2026-10-04): each of a town's steps gets only the keys it uses (`STORAGE` in
+  `pipeline/update.py`, `keyed` in `pipeline/network.py`, `town.yml` step by
+  step), and the network's pull request runs get no keys at all. The steps
+  that parse PDFs still hold the document keys, since they read the PDFs
+  from the bucket.
+- *Supply chain* (#69, publick.org #46): every action in both repositories
+  pinned by commit, with its version in a comment; `persist-credentials:
+  false` on every checkout but those whose jobs push; boto3 pinned; tag
+  protection; Dependabot once a month, grouped, for actions in both and the
+  engine's requirements (its first updates merged 2026-10-04 and 10-05).
+- *Headers:* every page sets a Content Security Policy in a `<meta>` tag
+  (scripts from the site only, no inline scripts). The sites Worker sends
+  `Strict-Transport-Security: max-age=31536000` on every page and redirect
+  (#69), without `includeSubDomains` or `preload`, so it can be taken back.
+- *311 addresses* (#68): a sensitive category's address is shown to its
   block ("200–299 Main St") on every page, map, CSV, and in the street
-  lookup, and its map point to three decimal places (about 100 meters):
-  encampments, health and police complaints, noise, problem and private
-  property, smoke detector, lost pet, and lead service requests
-  (`seeclickfix.SENSITIVE_CATEGORIES`, plus a town's `[seeclickfix]
-  sensitive_categories`). The requests stay listed and mapped, and still
-  link to SeeClickFix, which shows the full address. `requests.json` keeps
+  lookup, and its map point to about 100 meters: encampments, health and
+  police complaints, noise, problem and private property, smoke detector,
+  lost pet, and lead service requests (`seeclickfix.SENSITIVE_CATEGORIES`,
+  plus a town's `[seeclickfix] sensitive_categories`). `requests.json` keeps
   SeeClickFix's addresses for the street lookup, and git history isn't
   rewritten (decided 2026-10-03).
-- *The privacy line:* the `lang` cookie against "No cookies" (see
-  [Spanish quality](#spanish-quality)).
-- *Continuity:* a `RUNBOOK.md` in the network repository (secrets, rotation,
-  rollback, what to do when a source refuses), and a second person with
-  owner access to GitHub, Cloudflare, and Anthropic.
+- *The privacy line:* the About page says the language switch sets one
+  cookie and nothing else.
+- *Continuity:* `RUNBOOK.md` in the network repository (publick.org #45):
+  each morning's checks, the alerts, rollback, secrets and their expiry. No
+  second person with owner access (decided 2026-10-03).
+
+**Next.**
+- *HSTS live:* the header goes out once the sites Worker is deployed by hand
+  (**Actions → Worker**); on 2026-10-05 it wasn't yet.
+- `frame-ancestors`, which a `<meta>` policy can't set, from the Worker.
 
 **Matters at:** now.
 
@@ -981,41 +752,36 @@ one Anthropic key whose rate limits apply to the whole network.
   documents, recounted from the saved summaries (which record their cost),
   plus what cut-off responses cost.
 - The network budget: the plan job adds up the month across towns and gives
-  each town in the run an equal share of what's left (`pipeline.network
-  budget`). A town stops at its share, or its per-run limit ($5 and 50
-  documents), whichever comes first. Translations count in it
-  (`network.py:400`).
+  each town in the run a share of what's left (`pipeline.network budget`),
+  $80 every month (publick.org #48). A town stops at its share, or its
+  per-run limit ($5 and 50 documents), whichever comes first. Translations
+  count in it.
+- *A floor per town* (#67): each town keeps `TOWN_FLOOR_SHARE` (half) of its
+  even share of each day's budget for every day left in the month; a run's
+  towns get what's left beyond the others' floors, so one town's launch
+  backlog or busy week can't take the month. The budget step prints each
+  day's `floor` and what's `kept_for_floors`.
 - The priority order, within each town: upcoming agendas, then documents
   fetched in the last two weeks for a meeting in the last two months, then
   the backlog, which may use what's left beyond a fifth of the budget,
   spread over the month and every town.
+- `[summaries] since` (#59): only meetings on or after a date are summarized;
+  a new town starts about three months before it launches, since a launch's
+  history took most of the money (Beverly, 58% of October's first two days).
 - Summaries no longer have the model retype the document (about 60% of the
   cost). A document's full text is laid out free from its PDF for a style
   the engine supports (`pipeline/pdftext.py`, Legistar's to start); a scan
   is transcribed by the model after every summary waiting, from what's
   left; any other PDF has a text layer and the page links it.
-- Documents of up to 100 pages are summarized (60 before).
+- Documents of up to 100 pages are summarized.
 - Costs are the maintainer's: never on public pages, left out of exports.
 
-**Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003.
-October after two days: $9.22 (Beverly $5.37, 58%, its launch backlog and
-$1.92 of transcripts; Wallingford $1.33; Manchester $1.26; Malden $0.92;
-Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
+**Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003,
+and their review about a cent. September: $21.82 (three towns). October
+after five days: $13.34 across seven towns (see
+[Where things stand](#where-things-stand-2026-10-05)).
 
 **Next.**
-- A one-time `catch_up` run for Lawrence (launched with a $0.17-a-run backlog
-  allowance).
-- *Done 2026-10-03:* `[summaries] since` summarizes only meetings on or after
-  a date; older ones keep their records and documents, without summaries.
-  Decided: a new town summarizes from about three months before it launches
-  (`ADDING-A-TOWN.md`), since a launch's history is what took most of the
-  money (Beverly, 58% of October's first two days). The live towns keep
-  theirs (94 documents left, about $8.50).
-- *Done 2026-10-04 (#67):* a floor per town. Each town keeps `TOWN_FLOOR_SHARE`
-  (half) of its even share of each day's budget for every day left in the
-  month; a run's towns get what's left beyond the others' floors, so one
-  town's launch backlog or busy week can't take the month. The budget step
-  prints each day's `floor` and what's `kept_for_floors`.
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
 - The Batches API, at least for backlog summaries: cheaper, and out of the
@@ -1049,7 +815,9 @@ Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
 
 #### Upkeep
 
-- Move the workflows' actions off Node 20, which GitHub has deprecated.
+- Actions off Node 20, which GitHub has deprecated: Dependabot moved both
+  repositories' actions to their newest major versions on 2026-10-04 and
+  2026-10-05; check a run's annotations for any warning left.
 - Config keys used by one town: 143 of 277, plus 320 of 325 `[strings.es]`
   keys. Fold one-town keys into their readers where the reader can know them.
 - A monthly page-view report from GoatCounter (the one `publick` site, each
@@ -1078,7 +846,9 @@ its colors, its officials, and its Spanish text. Hours a town by hand.
   DOR code from `states/ma/`, the DESE district from the state's education
   data portal, the BLS area (and so the Census place) from BLS's area list,
   and the ward and precinct file from MassGIS. Beverly went live 2026-10-01,
-  Wallingford the same day, Lawrence on 2026-10-02.
+  Wallingford the same day, Lawrence on 2026-10-02, Burlington on 2026-10-04
+  (from config alone, on the Vermont package); Lewiston, Bangor, and South
+  Kingstown were built the same way (publick.org #58).
 - A town's Spanish text needs no one's translation to launch (v1.29.0): its
   own `[strings.es]` if it has it, else the engine's Spanish for what many
   towns share (`pipeline/common_strings.py`), else a machine draft checked
@@ -1112,9 +882,12 @@ its colors, its officials, and its Spanish text. Hours a town by hand.
 - School districts often post on their own websites (ParentSquare, Campus
   Suite with Google Drive files, Finalsite, BoardDocs, Diligent Community):
   each platform a small reader, used by every district on it.
-- Small New Hampshire towns need building permits found by the Census's
-  town (MCD) code (done, `[housing] bps_mcd`, for Wallingford) and school
-  districts without a high school, so without a graduation rate.
+- New England towns that aren't Census places need building permits found
+  by the Census's town (MCD) code (done, `[housing] bps_mcd`, for
+  Wallingford); small New Hampshire towns have school districts without a
+  high school, so without a graduation rate.
+- A town without wards or precincts (Bangor: everyone votes in one place)
+  has no area file to place 311 requests in, so no 311 section yet.
 
 **Matters at:** the next town; the helper at about 20 towns.
 
@@ -1123,17 +896,32 @@ its colors, its officials, and its Spanish text. Hours a town by hand.
 Chosen for the people they reach and how little local coverage they have,
 not only for ease. A proposal: the order is an open decision.
 
-**Massachusetts** (from a survey of about 65 city and town websites,
+**Live or in a pull request.** Lawrence (89,000) went live 2026-10-02 in
+English and Spanish; its council posts minutes late (5 for 2026 by October),
+so its decisions are thin. Burlington, Vermont (45,000) went live 2026-10-04:
+CivicClerk with text minutes and SeeClickFix the city answers, where the
+Free Press no longer covers City Hall. In publick.org #58, all config only on
+v1.36.0:
+- *Lewiston, Maine* (37,000): CivicPlus calendar and Archive Center, text
+  minutes, a contentious council, no 311. Its School Committee's Google Drive
+  uses nested folders, which `[drive_meetings]` can't read yet.
+- *Bangor, Maine* (32,000): Agenda Center and calendar; its council and
+  School Committee are at-large. Its 311 is off: the city has no wards or
+  precincts to place requests in. Some committees post minutes as Word
+  files, which the engine doesn't read.
+- *South Kingstown, Rhode Island* (32,000): CivicClerk and SeeClickFix, grouped
+  by its 11 voting precincts; URI's college town, with an overflowing
+  school-cuts meeting in 2026. Its School Committee is on BoardDocs (which
+  refused the crawler) and the Secretary of State's portal.
+
+**Massachusetts next** (from a survey of about 65 city and town websites,
 2026-10-01; Salem and Medford were already in the works).
-1. **Lawrence** (89,000). *Live 2026-10-02*, in English and Spanish. Its
-   council posts minutes late (5 for 2026 by October), so its decisions are
-   thin; the page should say so.
-2. **Lowell** (115,000, the fourth-largest city). Config only: the City
+1. **Lowell** (115,000, the fourth-largest city). Config only: the City
    Council (30 agendas and 28 minutes in 2026) and School Committee (23 and
    20) in one Agenda Center, minutes with a text layer. Councillors elected
    by district, which the Officials page's wards fit. A large Cambodian
    community (see the languages idea under [Ideas to decide](#ideas-to-decide)).
-3. **Springfield** (155,000, the third-largest). CivicClerk, as Manchester:
+2. **Springfield** (155,000, the third-largest). CivicClerk, as Manchester:
    428 events from January to September 2026, most filed under "General", so
    meetings have to be sorted into boards. Medford is on CivicClerk too, so
    Springfield comes after it. Nearly half its residents are Hispanic.
@@ -1153,30 +941,20 @@ After those:
   Everett. Framingham and Melrose have Agenda Centers that load only with
   JavaScript.
 
-**Maine, Vermont, Rhode Island** (researched 2026-10-01, none chosen):
-- *Vermont: Burlington* (45,000). CivicClerk with text minutes, and
-  SeeClickFix the city answers: config only. The Free Press no longer covers
-  City Hall. Needs its current ward file found; the school board is on
-  Diligent Community, a new reader. Montpelier and Winooski (8,000 each,
-  CivicPlus) are config only too, but have no 311 and may be too small for
-  BLS figures.
-- *Maine: Lewiston* (37,000). CivicPlus as Gloucester's, text minutes, the
-  School Committee in Google Drive: config only, schools included; a
-  contentious council; no 311. Portland (68,000) is config only too
-  (CivicClerk, SeeClickFix), with a bigger audience, but 22 boards and its
-  311 volume weigh on the summary budget, and its school board is on
-  BoardDocs.
-- *Rhode Island: South Kingstown* (32,000). CivicClerk and SeeClickFix the
-  town answers: config only; URI's college town, with an overflowing
-  school-cuts meeting in 2026. Pawtucket (76,000) has the bigger audience
-  and needs a reader for the Secretary of State's Open Meetings portal,
-  where every Rhode Island public body posts agendas and must file minutes
-  (text PDFs in every sample): one reader of about two days for all 39
-  municipalities. Providence is too big for now.
+**Elsewhere in New England** (researched 2026-10-01):
+- *Vermont:* Montpelier and Winooski (8,000 each, CivicPlus) are config only,
+  but have no 311 and may be too small for BLS figures.
+- *Maine:* Portland (68,000) is config only (CivicClerk, SeeClickFix), with a
+  bigger audience, but 22 boards and its 311 volume weigh on the summary
+  budget, and its school board is on BoardDocs.
+- *Rhode Island:* Pawtucket (76,000) needs a reader for the Secretary of
+  State's Open Meetings portal, where every Rhode Island public body posts
+  agendas and must file minutes (text PDFs in every sample): one reader of
+  about two days for all 39 municipalities. Providence is too big for now.
 
-Every New England state now has a package (2026-10-04), so a town in Maine,
-Vermont, or Rhode Island gets its state's figures from its first day: its
-config needs only the package's keys.
+Every New England state has a package (2026-10-04), so a new town gets its
+state's figures from its first day: its config needs only the package's
+keys.
 
 **Matters at:** now.
 
@@ -1187,19 +965,21 @@ follows the towns chosen.
 
 | Platform | Reads | Towns |
 |---|---|---|
-| CivicPlus calendar, month by month, and Archive Center | done (v1.31.0 for month by month) | Gloucester; Beverly, Lawrence, Malden beside their Agenda Centers |
-| CivicPlus Agenda Center | done | Malden, Beverly, Lawrence; Lowell next |
-| CivicClerk | done | Manchester; Springfield, Medford, Burlington, Portland, South Kingstown |
+| CivicPlus calendar, month by month, and Archive Center | done (month by month v1.31.0; collections named by year v1.36.0) | Gloucester, Lewiston; Beverly, Lawrence, Malden, Bangor beside their Agenda Centers |
+| CivicPlus Agenda Center | done | Malden, Beverly, Lawrence, Bangor; Lowell next |
+| CivicClerk | done | Manchester, Burlington, South Kingstown; Springfield, Medford, Portland |
 | DotNetNuke | done | Manchester |
-| Google Drive folders | done | Gloucester's School Committee |
+| Google Drive folders, one per committee | done | Gloucester's School Committee |
+| Google Drive, nested folders | not yet | Lewiston's School Committee |
 | Town website file list | done | Wallingford |
 | Finalsite district boards, with Google Docs | done (v1.22.0; the district's schedule, v1.31.0) | Wallingford's Board of Education |
 | A district's iCalendar feed | done (v1.31.0) | Beverly's School Committee (Edlio) |
 | A page of a board's dates | done (v1.31.0) | Malden's School Committee (Finalsite) |
-| Rhode Island Open Meetings portal | not yet; about two days | every RI public body |
+| Rhode Island Open Meetings portal | not yet; about two days | every RI public body, South Kingstown's School Committee |
 | Govstack, older Drupal CivicPlus | not yet; about two days each | several surveyed cities |
 | Agenda Centers that need JavaScript | not yet | Framingham, Melrose |
-| Diligent Community, BoardDocs, ParentSquare, Campus Suite | not yet; small each | school boards (Burlington, Portland, others) |
+| Diligent Community, BoardDocs, ParentSquare, Campus Suite | not yet; small each | school boards (Burlington, Portland, South Kingstown, others) |
+| Minutes as Word files | not yet | some of Bangor's committees |
 
 Free full text (`pipeline/pdftext.py`), so documents aren't transcribed or
 re-read by the model: Legistar's style done; Foxit (Manchester's) next.
@@ -1219,14 +999,14 @@ school, and housing figures, fetched once for the state where it can be.
 | Rhode Island | none possible | done | done (absenteeism without the state's) | | The Division of Municipal Finance's PDFs saved by hand into the engine (`pipeline.states.ri.extract`); RIDE's report card files and assessment portal at each run |
 
 Connecticut's tax bill and budget, and the Maine, Vermont, and Rhode Island
-packages, were built on 2026-10-04, before each new state's first town, from
-each state's own statewide sources, tested from the network's container. Each package's docstring lists its config keys.
+packages, were built on 2026-10-04 (#71), before each new state's first town,
+from each state's own statewide sources. Each package's docstring lists its
+config keys.
 
 **Connecticut, what's left.** The Affordable Housing Appeals List: data.ct.gov
 has it through 2023 (`3udy-56vi`), and newer years only as a yearly PDF or
-.docx (Wallingford 5.15% in 2025). Wallingford's config needs its `[finance]`
-keys (`opm_town = "Wallingford"`, `opm_code = 148`, `single_family_use =
-["1010"]`) and a budget section, on the release with the package. Connecticut
+.docx (Wallingford 5.15% in 2025). Wallingford's tax bill and budget are live
+from the package since 2026-10-04 (publick.org #51). Connecticut
 replaced its counties with planning regions in 2022, so county codes change
 midway through every history (Wallingford is `0917078740` in the Census now,
 `0900978740` before); OPM's datasets use town codes, so the package isn't
@@ -1238,7 +1018,8 @@ read them once. Spending per pupil starts in fiscal year 2025, when Vermont
 changed how it weights pupils. Vermont has no single-family category, so the
 average bill is for homesteads on less than six acres (category R1), condos
 and two- to four-family homes included, before the income-based property tax
-credit.
+credit. Graduation rates and attendance are expected a year after their
+school year, when the Agency of Education posts them (#79).
 
 **Maine, what's left.** The parcel table has values for only about 170 of
 Maine's municipalities, sent when each chooses to, so a town's average bill
@@ -1246,7 +1027,9 @@ depends on its own submission being current; Lewiston's adds up to 1.10 times
 its 2024 taxable land and buildings. The ESSA Dashboard's export isn't a
 published API; the extract also reads the crosstabs downloaded by hand. Test
 results start in spring 2023. There's no statewide source for a town's
-adopted budget.
+adopted budget. A town whose parcels carry no land use code (Bangor) gets
+its budget page, with the tax rate and what the property tax raises, and no
+average bill (v1.36.0).
 
 **Rhode Island, what's left.** The state publishes no average bill and no
 statewide file of assessed values, so a Rhode Island town has no tax bill on
@@ -1310,8 +1093,8 @@ called a city.
   5.8 to 4.3 screens, Wallingford 4.7 to 3.8.
 
 **Next.**
-- The first daily run's check, and an audit by hand about weekly while towns
-  are added (decided: it stays by hand).
+- An audit by hand about weekly while towns are added (decided: it stays
+  by hand). The last was 2026-10-02; Burlington hasn't had one.
 - Manchester's school board: its site stops automated reading, so ask the
   district to allow Publick's crawler (see [Not planned](#not-planned)).
 - Manchester's Highway, Parks and Police commissions, whose dates are only
@@ -1351,17 +1134,16 @@ records matched the town's own page).
   Publick doesn't collect it (a start date, a board, a size limit), held
   back by a check, Publick's copy is behind, or it doesn't apply to the
   town (no member has a ward, so every seat is at-large).
-- Also found: 408 of 481 summaries are shown in English on the Spanish
-  pages, and about 70% of translations fail their review (see
-  [Spanish quality](#spanish-quality)).
+- Also found: most Spanish pages show English summaries, since most
+  translations fail their review (see [Spanish quality](#spanish-quality)).
 
 **Done.**
 1. The wrong statements fixed (#72): meetings not held, boards whose
    minutes aren't collected, minutes not posted (with where and for how
    long), summaries that won't come, agendas a listing doesn't link, a
    calendar not read lately, a board's first month.
-2. The reasons from one module, `pipeline/absences.py`, from what the build
-   knows; each sentence written and translated once. Also: a section page
+2. The reasons from one module, `pipeline/absences.py` (#73, v1.35.0), from
+   what the build knows; each sentence written and translated once. Also: a section page
    says which of its sources are behind; the Officials page says when every
    seat is at-large; the About page lists the sections a town doesn't have
    and why, with `[absences]` for the town's own sentence; every table's –
@@ -1372,8 +1154,9 @@ records matched the town's own page).
    lacks.
 
 **Next.**
-- `[absences]` sentences for Beverly, Lawrence and Wallingford's 311, from
-  their configs' own notes.
+- `[absences]` sentences for the towns without 311 (Beverly, Lawrence,
+  Wallingford, and Lewiston and Bangor once live), from their configs' own
+  notes; no town has one yet.
 - Lists (past meetings, Decisions, search, the street lookup) say what they
   leave out: unsummarized documents aren't searchable or in Decisions yet.
 - Decisions held back by the fact check counted on the Decisions page, as
@@ -1389,13 +1172,21 @@ records matched the town's own page).
 `[officials]` table: each body's members with seat, term end, and official
 email; who represents each ward; and the ward map, whose "Find my ward"
 checks the visitor's location in the browser without sending or saving it.
-A seat can be elected by several wards. Every town lists its mayor, council,
-and school committee.
+A seat can be elected by several wards; a town where every seat is
+at-large (Wallingford; Bangor and South Kingstown in #58) says so instead of
+showing a map. Every town lists its mayor or equivalent, council, and school
+committee.
+
+**Next elections.** Lewiston, Bangor, and South Kingstown on 2026-11-03 (once
+live); Burlington on Town Meeting Day, 2027-03-02, with new terms from the
+first Monday in April; every other town in November 2027, with new terms in
+January 2028. The network README's "Keeping officials current" keeps the
+list.
 
 **Next.**
 - Each town's next municipal election in its config, and the status page
   flagging a list not checked since. Today the `checked` date is shown and
-  never compared with anything (`officials.py:43`).
+  never compared with anything (`pipeline/officials.py`).
 - The street lookup says which wards a street runs through.
 - At 20 to 50 towns: a check that compares each town's list with its city's
   own council and school committee pages (most are CivicPlus, so one reader
@@ -1444,7 +1235,13 @@ when they're reused.
   document's hash, so joining them to meetings is left to the reader.
 - Each site publishes `/meetings/data/decisions.csv`, `/feed.xml`,
   `/meetings/search-index.json`, and permits and 311 tables as CSV.
-- No license for the data, so reuse is unclear. The engine's code is MIT.
+- The network repository's `LICENSE` (2026-10-03, #54, publick.org #42)
+  says in plain words what's Publick's (CC BY 4.0, full text in
+  `LICENSE-CC-BY-4.0.txt`), how to credit it, and what keeps its own terms
+  (311, public records, Census and BLS, state figures, maps); the code is
+  MIT. Every About page has "Reusing what's here" with the credit line, and
+  every footer on a network site says the summaries and data are free to
+  reuse with credit.
 
 **The license (decided 2026-10-01): CC BY 4.0** for what Publick makes: the
 summaries, headlines, decision lists, and data compiled from public sources.
@@ -1456,15 +1253,8 @@ entirely by a model may have little copyright protection in the US, so
 credit rests more on custom than on law.
 
 **Next.**
-- *Done 2026-10-03:* the network repository's `LICENSE` says in plain words
-  what's Publick's (CC BY 4.0, full text in `LICENSE-CC-BY-4.0.txt`), how to
-  credit it, and what keeps its own terms (311, public records, Census and
-  BLS, state figures, maps); its code is MIT, like the engine's. Every About
-  page has "Reusing what's here" with the credit line, and every footer says
-  the summaries and data are free to reuse with credit, on network sites
-  only (`site.network`).
-- *Now:* SeeClickFix's terms, saved as read when the license was written.
-- *Then:* a per-town export, `/data/meetings.json`, in a fixed, documented,
+- SeeClickFix's terms, saved as read when the license was written.
+- A per-town export, `/data/meetings.json`, in a fixed, documented,
   versioned format: each meeting with its board, date, status, links,
   summaries, and decisions joined to it, built with the site as a static
   file. A Data page on each site describing the files and the credit line,
@@ -1494,8 +1284,8 @@ is there, and after the summary checks.
 
 #### Data out of git
 
-**Why.** Collected data is committed daily. A town's data folder is 8 to 13
-MB, most of it 311 requests, much of it rewritten every run. At a thousand
+**Why.** Collected data is committed daily. A 311 town's data folder is 3 to
+15 MB (2026-10-05), most of it 311 requests, much of it rewritten every run. At a thousand
 towns that's about 10 GB of working data changing by gigabytes a week, and a
 thousand jobs a day pushing to `main` means constant conflicts.
 
@@ -1503,12 +1293,13 @@ thousand jobs a day pushing to `main` means constant conflicts.
 the run added (`data/run.json`).
 
 **Next.** Keep data files line-stable (sorted keys, one field per line).
-311's raw requests to R2 first, before the next 311 town; then each town's
-working data, as agenda and minutes PDFs already are, with git keeping config
-and code and sites built from the bucket. Every town has a `[storage]`
-table. Also before the next 311 town: commit each town's data as soon as it
-finishes, so a timeout loses nothing (the commit step is skipped on a
-timeout today, `network.yml:387`).
+311's raw requests to R2 first: planned for before the next 311 town, but
+Burlington went live with 311 in git, and South Kingstown (#58) will too, so
+before any further one. Then each town's working data, as agenda and minutes
+PDFs already are, with git keeping config and code and sites built from the
+bucket. Every town has a `[storage]` table. Also: commit each town's data as
+soon as it finishes, so a timeout loses nothing (the network's "Commit data"
+step doesn't run when a job times out).
 
 **Matters at:** 20 to 50 towns, sooner for a big 311 history.
 
@@ -1536,8 +1327,8 @@ was saved, and three failures in a row put the state in the daily alert.
 - *Per vendor:* SeeClickFix paced across all towns that use it (pacing is
   per town today, `fetch_311.py:251`), and the same for meeting portals.
 
-**Matters at:** tens of towns in one state; SeeClickFix before the next 311
-town.
+**Matters at:** tens of towns in one state; SeeClickFix before any further
+311 town (four use it now, five with South Kingstown).
 
 #### Sources on their own rhythm
 
@@ -1567,7 +1358,7 @@ of its 300 minutes.
 on every core (Manchester's full check from 481 to 168 seconds).
 
 **Next.**
-- The matrix's 256-job limit checked in `plan()` (`network.py:145-166`).
+- The matrix's 256-job limit checked in `plan()` (`pipeline/network.py`).
 - At about 100 towns: a work queue. The scheduler adds whatever is due
   ("Malden meetings", "Massachusetts tax bills", "Manchester 311"), and
   workers take items under per-vendor rate limits. A late run only means a
@@ -1601,8 +1392,10 @@ releases.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs (v1.30.0)
+  engine-version              the engine release every town runs (v1.36.0 on 2026-10-05)
   ADDING-A-TOWN.md            the checklist for a new town
+  RUNBOOK.md                  what to do when something needs a person
+  LICENSE                     CC BY 4.0 for what Publick makes; the code is MIT
   towns/<town>-<state>/
     config/<town>.toml
     data/                     with run.json (the last fetching run) and
@@ -1613,7 +1406,9 @@ publick-org/publick.org
   scripts/                    build_home.py, build_status.py
   wrangler.toml               the Worker that serves every site
   wrangler.scheduler.toml     the Worker that starts the daily runs
-  .github/workflows/network.yml, worker.yml
+  .github/workflows/          network.yml (the daily runs, pushes, pull requests), engine.yml
+                              (moves engine-version each morning), evaluate.yml (the minutes
+                              test set, by hand), worker.yml (deploys both Workers, by hand)
 ```
 
 The engine reads a town's config, data, and static files from
@@ -1621,7 +1416,7 @@ The engine reads a town's config, data, and static files from
 town's folder, each town in its own process (`pipeline/network.py`).
 
 **The daily run.** The `publick-scheduler` Worker starts `network.yml` every
-hour from 09:05 to 14:05 UTC; GitHub schedules in the same hours are a
+hour from 09:05 to 14:05 UTC; one GitHub schedule (12:17 UTC) is a
 backup.
 1. A plan job takes the towns that are due (last fetching run over 18 hours
    ago), oldest first, splits them into jobs (four towns a job on a daily
@@ -1653,9 +1448,11 @@ newest ten are deleted daily. Agenda and minutes PDFs are in a second
 bucket, `publick-documents`, served at files.publick.org.
 
 **Secrets.** One set, nothing per town: the Anthropic key, the storage keys,
-the sites bucket keys, the BLS key, the Cloudflare deploy token, and
-`SCHEDULER_GITHUB_TOKEN` (fine-grained, the network repository's Actions and
-Issues, made 2026-09-30 for 366 days).
+the sites bucket keys, the BLS key, the Cloudflare deploy token,
+`ENGINE_PR_TOKEN` (for `engine.yml`'s pull request), and
+`SCHEDULER_GITHUB_TOKEN` (fine-grained: the network repository's Actions and
+Issues, and the engine's Actions; made 2026-09-30 for 366 days). `RUNBOOK.md`
+lists when each expires.
 
 **Page views.** One GoatCounter site, `publick` (no cookies, never what was
 searched); each town's `[analytics] prefix` is its folder name, so one
@@ -1696,15 +1493,39 @@ quiet days.
 | v1.31.0 (2026-10-03, never reached the towns) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full. "AI summary" on every summary shown in a list, and in the feed; "Reusing what's here" on every About page, with the data license (#54). A SeeClickFix block stops the 311 step instead of marking requests removed (#56); the 311 pages dated by the last fetch (#57); an emptied calendar fails, and `behind --new-since` for the alert's comment (#58); `[summaries] since` (#59); a check of each live site after publishing (#60) |
 | v1.32.0 (2026-10-03) | `network.py` loads with the standard library only again (#62); the scheduler starts the release and the engine pull request (#61) |
 | v1.33.0 (2026-10-03) | The browser checks leave out a moved meeting's page, which redirects itself (#63). Every town on it from 13:09 UTC (publick.org #43) |
+| v1.34.0 (2026-10-04) | A state package for every New England state: Connecticut's tax bill and budget, Vermont, Maine, and Rhode Island (#71); meeting pages say why minutes or an agenda aren't there, instead of something untrue (#72); five small items: amounts with a scale, keyboard tables, fact check counts in the run record, prompt versions pinned by a test, keys per step (#65). The first release and engine move started by the scheduler |
+| v1.35.0 (2026-10-04, by hand) | Decisions anchored to quotes from the minutes, each with its outcome (#66); every page says why something is missing (#73); "Calculated by Publick" notes in Spanish (#74); sitemaps, structured data, and search engine tags for the town sites (#75). The same day: Wallingford's tax bill and budget (publick.org #51) and Burlington (publick.org #54) |
+| v1.36.0 (2026-10-05) | A budget floor per town (#67); 311 addresses in sensitive categories cut to the block (#68); HSTS from the Worker, actions pinned by commit, Dependabot (#69); year-named Archive Center collections, Maine budgets without a tax bill, and 311 by voting precinct (#76) |
+| next (2026-10-06) | Vermont's graduation and attendance expected a year after the school year (#79); Dependabot's updates (#77, #78) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
-live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second
-review the same day are folded into the sections above.
+live sites; its plan, `REVIEW-PLAN.md`, was never merged (commit e3963ee, on
+the branch `claude/quirky-newton-jsqvn0`). It and the second review the same
+day are folded into the sections above.
 
 ### Where the old numbered items went
 
-Earlier versions of this file numbered its items 1 to 18; commits refer to
-them.
+Commits and pull requests refer to earlier numbers.
+
+**The October list** (2026-10-02 to 2026-10-04, items 1 to 42):
+
+| Old item | Now |
+|---|---|
+| 1, 2, 3, 4 (the first scheduled release, the first daily runs, two summaries read by hand) | Done |
+| 5. The next meetings audit | Item 6 |
+| 6, 8. Decisions anchored to quotes; the test set | Done (#66, v1.35.0) |
+| 7, 9, 12, 13, 15, 16 | Done; see their theme sections |
+| 10. Security hardening | Done but for HSTS going live: item 2 |
+| 11. 311 addresses cut to the block | Done (#68, v1.36.0) |
+| 14. Push runs that don't publish | Dropped: [Not planned](#not-planned) |
+| 17 (first). Every page says why something is missing | Mostly done (#72, #73); the rest is item 9 |
+| 17 (second). Lowell | Item 8 |
+| 18. Wallingford's figures | Done (publick.org #51); the Appeals List is item 19 |
+| 19. A town each in Maine, Vermont, Rhode Island | Burlington live; the rest are item 1 |
+| 20 to 31 | Items 7, 10 to 18, 20, 21 |
+| 32 to 42 | Items 22 to 32 |
+
+**The first list** (to 2026-10-01, items 1 to 18):
 
 | Old item | Now |
 |---|---|
