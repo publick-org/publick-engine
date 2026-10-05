@@ -222,6 +222,20 @@ def test_a_town_in_vermont_has_vermonts_rhythms():
     assert {"Tax bill (calculated)", "City budget", "School figures"} <= set(labels)
 
 
+def test_graduation_and_attendance_are_expected_a_year_after_the_school_year(tmp_path):
+    # As data.vermont.gov had them in October 2026: the class of 2025 and 2024-25 attendance, posted in July 2026.
+    measures = {"graduation": [2024, 2025], "absenteeism": [2024, 2025], "tests_ela": [2025], "budget_per_pupil": [2026]}
+    path = tmp_path / "schools" / "schools.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps({"updated_at": NOW.isoformat(), "measures": {
+        name: {"years": [{"year": y} for y in years]} for name, years in measures.items()}}))
+    row = rhythms.row(vt_schools.RHYTHM, tmp_path, NOW)
+    assert not row["stale"]
+    assert "Class of 2026 graduation rate usually by October 1, 2027" in row["next"]
+    assert "2025–26 attendance usually by October 1, 2027" in row["next"]
+    assert "Class of 2026" in rhythms.row(vt_schools.RHYTHM, tmp_path, datetime(2027, 12, 1, tzinfo=NOW.tzinfo))["behind"]
+
+
 # ---- The site ----
 
 @pytest.fixture
