@@ -50,11 +50,15 @@ YEARS_KEPT = 8
 SUBJECTS = {"tests_ela": "English Language Arts Grade", "tests_math": "Math Grade"}
 
 
-# The dashboard's graduation rates and attendance reach data.vermont.gov in the summer after the school year;
-# test results the next spring; the spending report in February, for the fiscal year under way.
+# The dashboard's graduation rates and attendance reach data.vermont.gov a year after the school year: the class
+# of 2020 in April 2021, of 2021 in May 2022, of 2022 in September 2023 (the dashboard's release notes), of 2025
+# in July 2026 (the datasets' own dates). Test results the next spring; the spending report in February, for the
+# fiscal year under way.
 RHYTHM = Rhythm(N_("School figures"), "schools/schools.json", "Fetch school figures", "yearly", (
-    Part(latest_year("measures.graduation.years", "year"), on(8), lambda y: _("Class of {year} graduation rate").format(year=y)),
-    Part(latest_year("measures.absenteeism.years", "year"), on(8), lambda y: _("{years} attendance").format(years=f"{y - 1}–{y % 100:02d}")),
+    Part(latest_year("measures.graduation.years", "year"), on(10, years_after=1),
+         lambda y: _("Class of {year} graduation rate").format(year=y)),
+    Part(latest_year("measures.absenteeism.years", "year"), on(10, years_after=1),
+         lambda y: _("{years} attendance").format(years=f"{y - 1}–{y % 100:02d}")),
     Part(latest_year("measures.tests_ela.years", "year"), on(5, years_after=1),
          lambda y: _("Spring {year} state test results").format(year=y)),
     Part(latest_year("measures.budget_per_pupil.years", "year"), on(3),
