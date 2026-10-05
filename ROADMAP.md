@@ -424,6 +424,10 @@ reuses it. Of everything shown, it's what can mislead a reader most.
 - For a scan, the check runs against the model's transcription, which is
   weaker since both come from the model; a failure is listed, not held.
 - The document's own date and any "draft" marking read from it.
+- Names in a decision checked against the body's `[officials]` members, as
+  vote records are (from the October review's plan).
+- A scan's decisions marked on the page as checked only against the model's
+  transcription, not the document's own text.
 - A switch to hold back one summary by hand, for a reader's report
   (`RUNBOOK.md` names it as a gap).
 
@@ -694,6 +698,8 @@ person merged their own pull requests into unprotected branches.
   release behind.
 - If a push's wait behind a daily run becomes a problem, towns queued
   separately lets a push wait only for its own towns.
+- Whether the moving `v1` tag is still needed: the network pins
+  `engine-version`, so only a town repository calling `town.yml@v1` uses it.
 
 **Matters at:** now; canaries and sampled checks at about 50 towns.
 
@@ -738,6 +744,10 @@ and the 311 data has people's house numbers.
 - *HSTS live:* the header goes out once the sites Worker is deployed by hand
   (**Actions → Worker**); on 2026-10-05 it wasn't yet.
 - `frame-ancestors`, which a `<meta>` policy can't set, from the Worker.
+- *311 requests made private:* a request SeeClickFix stops showing is marked
+  removed and left off the pages, but `requests.json` keeps its full
+  address, public in git. Drop a removed record's address (from the October
+  review's plan).
 
 **Matters at:** now.
 
@@ -1299,7 +1309,8 @@ before any further one. Then each town's working data, as agenda and minutes
 PDFs already are, with git keeping config and code and sites built from the
 bucket. Every town has a `[storage]` table. Also: commit each town's data as
 soon as it finishes, so a timeout loses nothing (the network's "Commit data"
-step doesn't run when a job times out).
+step doesn't run when a job times out), and give each town a time budget
+that ends well before its job's.
 
 **Matters at:** 20 to 50 towns, sooner for a big 311 history.
 
@@ -1499,9 +1510,10 @@ quiet days.
 | next (2026-10-06) | Vermont's graduation and attendance expected a year after the school year (#79); Dependabot's updates (#77, #78) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
-live sites; its plan, `REVIEW-PLAN.md`, was never merged (commit e3963ee, on
-the branch `claude/quirky-newton-jsqvn0`). It and the second review the same
-day are folded into the sections above.
+live sites. Its plan, `REVIEW-PLAN.md`, was never merged; every item in it
+is done, in the sections above, or was decided otherwise (311 history isn't
+rewritten, no person reviews the Spanish, Lawrence launched before Lowell).
+The second review the same day is folded in too.
 
 ### Where the old numbered items went
 
