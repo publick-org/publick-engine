@@ -2445,14 +2445,6 @@ msgstr ""
 "Todas las solicitudes públicas desde %(since)s, más las más antiguas que siguen abiertas, "
 "revisadas a diario."
 
-#: site/pages/officials/index.html
-msgid ""
-"Every seat on this page is elected by the whole city, so the city has no wards to look up: each "
-"member represents everyone."
-msgstr ""
-"Todos los cargos de esta página se eligen por toda la ciudad, así que no hay distritos que "
-"buscar: cada miembro representa a todos."
-
 #: site/pages/about/accessibility/index.html
 msgid ""
 "Every update is checked automatically on every page, at phone and desktop sizes, and isn't "
