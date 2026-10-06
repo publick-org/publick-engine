@@ -338,11 +338,19 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   meetings, and hours after the morning's run); one email account with a tag
   for each town and language rather than a list per town; open and click
   tracking off, with GoatCounter `?ref=` on the email's links to measure
-  use; English first, Spanish later (Lawrence first). Next: choose the
-  provider, the send at each issue's date (the scheduler Worker, or the
-  provider's own schedule), the signup form, and the About page's privacy
-  text, which today says nothing that identifies a reader is kept. An `.ics`
-  meetings calendar is still worth doing on its own.
+  use; English first, Spanish later (Lawrence first). The email says what
+  it holds first, and that its lines are written by AI once per section,
+  above them. Decided 2026-10-06: Buttondown, pending its answers on API
+  access and turning tracking off (half price for a registered 501(c)(3));
+  the scheduler Worker sends each town's issue at its date through the
+  provider's API; the signup form posts to the sites Worker, which adds the
+  town and language tag and passes it on, so the pages' `form-action 'self'`
+  stays. Waiting on the owner: the account, the sending address and its DNS
+  records, a mailing address for the footer, and the API key as a
+  repository secret. Then: the send and the signup (off until the key is
+  set), and the About page's privacy text, which today says nothing that
+  identifies a reader is kept and must change when the form goes live. An
+  `.ics` meetings calendar is still worth doing on its own.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.
