@@ -55,10 +55,8 @@
   </li>
   {% endfor %}
 </ul>
-{% elif o.at_large %}
-{# No seat is elected by a ward (pipeline/officials.py at_large), so there's no ward map to show. #}
-<p data-gap="at-large">{{ _("Every seat on this page is elected by the whole city, so the city has no wards to look up: each member represents everyone.") }}</p>
-{% else %}
+{# No seat elected by a ward (pipeline/officials.py at_large): no map, and nothing to explain. #}
+{% elif not o.at_large %}
 <p data-gap="no-ward-map">{{ _("The ward map isn't available yet. Each member's seat is listed under its office below.") }}</p>
 {% endif %}
 
@@ -73,14 +71,14 @@
 {% endif %}
 <div class="table-wrap">
 <table class="data-table officials">
-  <thead><tr><th scope="col">{{ _("Seat") }}</th><th scope="col">{{ _("Member") }}</th><th scope="col">{{ _("Term ends") }}</th><th scope="col">{{ _("Contact") }}</th></tr></thead>
+  <thead><tr>{% if b.show_seat %}<th scope="col">{{ _("Seat") }}</th>{% endif %}<th scope="col">{{ _("Member") }}</th><th scope="col">{{ _("Term ends") }}</th><th scope="col">{{ _("Contact") }}</th></tr></thead>
   <tbody>
   {% for m in b.members %}
     <tr id="{{ m.anchor }}">
-      <td>{% if m.wards | length == 1 %}<a href="#{{ m.wards[0].id }}">{{ m.seat }}</a>
+      {% if b.show_seat %}<td>{% if m.wards | length == 1 %}<a href="#{{ m.wards[0].id }}">{{ m.seat }}</a>
         {%- else %}{{ m.seat }}{% if m.wards %}{% set ward_links = [] %}{% for w in m.wards %}{% set __ = ward_links.append(('<a href="#%s">%s</a>' | safe) % (w.id, w.ward)) %}{% endfor %}
         {#- Translators: a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward, %(last)s the last. -#}
-        <span class="cell-note"> {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}</span>{% endif %}{% endif %}</td>
+        <span class="cell-note"> {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}</span>{% endif %}{% endif %}</td>{% endif %}
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
       <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
       <td>

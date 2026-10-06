@@ -193,6 +193,19 @@ def test_officials_at_large_and_dashes(config, data_dir):
     assert not officials.load(config, data_dir)["at_large"]
     at_large["officials"]["bodies"][0]["members"][0].pop("term_ends", None)
     assert officials.load(at_large, data_dir)["dashes"]
+    assert officials.at_large(at_large) and not officials.at_large(config)
+
+
+def test_officials_seat_column_only_where_seats_differ(config, data_dir):
+    import copy
+    from pipeline import officials
+    same = copy.deepcopy(config)
+    for m in same["officials"]["bodies"][1]["members"]:
+        m["seat"] = "At-large"
+        m.pop("ward", None), m.pop("wards", None)
+    assert not officials.load(same, data_dir)["bodies"][1]["show_seat"]
+    mayor, council = officials.load(config, data_dir)["bodies"][:2]
+    assert not mayor["show_seat"] and council["show_seat"]
 
 
 def assert_dashes_explained(site):
