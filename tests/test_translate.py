@@ -10,8 +10,8 @@ from fakes import FakeAnthropic, FakeCityClient
 from pipeline import build_site, fetch_meetings, fetch_minutes, i18n, summarize, translate
 from pipeline.config import load_config
 
-# What one FakeAnthropic translation costs at Claude Haiku 4.5's prices: 600 tokens in at $1, 300 out at $5 a million.
-TRANSLATION = 0.0021
+# What one FakeAnthropic translation costs at Claude Sonnet 5.5's prices: 600 tokens in at $2, 300 out at $10 a million.
+TRANSLATION = 0.0042
 # And its review at Claude Sonnet 5.5's: 500 tokens in at $2, 50 out at $10 a million.
 REVIEW = 0.0015
 
@@ -76,14 +76,16 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     assert len(saved) == 16
     record = next(r for r in saved.values() if r["kind"] == "minutes")
     assert record["headline"].startswith("ES ") and record["decisions"] == ["ES aprobó the site plan for 12 Main St, 5-0"]
-    assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-haiku-4-5-20251001"
+    assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-sonnet-5-5"
     assert record["cost"] == pytest.approx(TRANSLATION + REVIEW) and record["prompt_version"] == translate.VERSION
     call = translation_calls(client)[0]
-    assert call["model"] == "claude-haiku-4-5-20251001" and "Spanish" in call["system"]
-    assert call["output_config"]["format"]["type"] == "json_schema"
+    assert call["model"] == "claude-sonnet-5-5" and "Spanish" in call["system"]
+    assert call["output_config"]["format"]["type"] == "json_schema" and call["output_config"]["effort"] == "low"
     # Each translation's meaning is reviewed by the larger model, English beside Spanish.
     reviews = [c for c in client.calls if "problems" in c["output_config"]["format"]["schema"]["properties"]]
     assert reviews and reviews[0]["model"] == "claude-sonnet-5-5" and reviews[0]["output_config"]["effort"] == "low"
+    # The review knows the words the translator was told to use, so it doesn't fail them.
+    assert "public hearing = audiencia pública" in reviews[0]["system"]
     assert "Never guess anyone's gender" in call["system"] and "levantar la sesión" in call["system"]
 
 
@@ -114,6 +116,21 @@ def test_new_documents_translations_come_before_the_backlog(tmp_path):
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, backlog_allowance=0)
     # The 12 new documents are summarized and translated; the 4 older ones wait for both.
     assert result["summarized"] == 12 and result["translated"] == 12 and result["remaining"] == 4
+    assert "older documents wait" in result["stopped"]
+
+
+def test_older_summaries_are_translated_before_older_documents_are_summarized(tmp_path):
+    """Older summaries already on the site get their translations before the backlog's English,
+    which costs ten times as much: a run that spends its backlog budget on English summaries
+    would otherwise never translate them."""
+    config = spanish_town(tmp_path, languages=("en",))
+    # 12 new documents and 2 of the 4 older ones summarized, in English only.
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=14, now=FETCHED_AT)
+    config["site"]["languages"] = ["en", "es"]
+    # Enough for older documents to pay for two translations, not one more summary.
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT,
+                           backlog_allowance=2 * (TRANSLATION + REVIEW))
+    assert result["translated"] == 14 and result["summarized"] == 0 and result["remaining"] == 2
     assert "older documents wait" in result["stopped"]
 
 
@@ -237,6 +254,45 @@ def test_the_check_catches_what_turns_a_translation_round():
     # Spanish number formats, and English ordinals written as words.
     assert headline("Approved $1,500, $5.8 million, and $2,500.", "Aprobó $1.500, $5,8 millones y $2500.") == "ok"
     assert headline("Renewed a 2nd hand dealer's license.", "Renovó una licencia de comerciante de segunda mano.") == "ok"
+
+
+def test_a_second_try_corrects_the_first(tmp_path):
+    """A translation that fails is made again with the first translation and what was wrong with
+    it, so the model fixes it rather than trying its luck again."""
+    config = spanish_town(tmp_path)
+    flagged = FakeAnthropic(review_problems=[{"id": "headline", "problem": "\"la presidenta\" guesses the Chair's gender"}])
+    summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)
+    sha, first = next(iter(translations(tmp_path).items()))
+    again = FakeAnthropic()
+    summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)
+    prompt = next(c for c in translation_calls(again) if first["headline"] in c["messages"][0]["content"])["messages"][0]["content"]
+    assert "didn't pass a check" in prompt and "headline: \"la presidenta\" guesses the Chair's gender" in prompt
+    assert translations(tmp_path)[sha]["attempts"] == 2 and translations(tmp_path)[sha]["review"] == "ok"
+    # A first try, or one whose review couldn't be made, has nothing to correct.
+    assert all("didn't pass a check" not in c["messages"][0]["content"] for c in translation_calls(flagged))
+    assert translate.what_failed(tmp_path, {**first, "review": "not reviewed: overloaded"},
+                                 json.loads((tmp_path / "summaries" / f"{sha}.json").read_text()), first["kind"], "es") is None
+
+
+def test_a_review_that_finds_nothing_wrong_doesnt_fail_it(tmp_path):
+    """The review sometimes writes an entry that ends "No error": it's not a problem."""
+    config = spanish_town(tmp_path)
+    reviewed = FakeAnthropic(review_problems=[{"id": "summary", "problem": "This is faithful. No error.", "is_error": False}])
+    summarize.run(config, reviewed, tmp_path, limit=50, now=FETCHED_AT)
+    assert all(r["review"] == "ok" for r in translations(tmp_path).values())
+
+
+def test_a_model_without_effort_gets_none(tmp_path):
+    """Claude Haiku 4.5 refuses an effort, so a town that goes back to it sends none."""
+    config = spanish_town(tmp_path)
+    config["summaries"].update(translation_model="claude-haiku-4-5-20251001", translation_input_price=1.0,
+                               translation_output_price=5.0)
+    client = FakeAnthropic()
+    summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    calls = translation_calls(client)
+    assert calls and all(c["model"] == "claude-haiku-4-5-20251001" and "effort" not in c["output_config"] for c in calls)
+    config["summaries"]["translation_effort"] = "medium"
+    assert translate.output_config(config, {})["effort"] == "medium"
 
 
 def test_a_translation_the_review_flags_isnt_shown(tmp_path):
