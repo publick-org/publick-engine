@@ -329,12 +329,28 @@ To go live, in order:
 
 Kept so they aren't lost. Each comes into a stage when it's chosen.
 
-- **A weekly digest for readers.** In this order, stopping when a step is
-  enough: an `.ics` meetings calendar; a static `/digest/<week>/` page with
-  its own feed (upcoming meetings, and decisions from minutes posted that
-  week; no AI calls); then email sent from that feed by a provider such as
-  Buttondown. Waits until the daily runs are stable and there's evidence
-  people want email. Sections whose data is stale are skipped or flagged.
+- **A weekly digest for readers.** The pages and their feed are built
+  (2026-10-06, `pipeline/digest.py`): each Sunday's issue at
+  `/digest/<Monday>/`, with the week's meetings and the minutes posted the
+  week before, no AI calls, and `/digest/feed.xml` dated for the email.
+  Decided 2026-10-06: sent weekly, Sunday at 5:30 PM in the town's own time
+  (a day's notice of Monday evening meetings, which are about a fifth of all
+  meetings, and hours after the morning's run); one email account with a tag
+  for each town and language rather than a list per town; open and click
+  tracking off, with GoatCounter `?ref=` on the email's links to measure
+  use; English first, Spanish later (Lawrence first). The email says what
+  it holds first, and that its lines are written by AI once per section,
+  above them. Decided 2026-10-06: Buttondown, pending its answers on API
+  access and turning tracking off (half price for a registered 501(c)(3));
+  the scheduler Worker sends each town's issue at its date through the
+  provider's API; the signup form posts to the sites Worker, which adds the
+  town and language tag and passes it on, so the pages' `form-action 'self'`
+  stays. Waiting on the owner: the account, the sending address and its DNS
+  records, a mailing address for the footer, and the API key as a
+  repository secret. Then: the send and the signup (off until the key is
+  set), and the About page's privacy text, which today says nothing that
+  identifies a reader is kept and must change when the form goes live. An
+  `.ics` meetings calendar is still worth doing on its own.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.

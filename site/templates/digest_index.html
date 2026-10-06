@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{# Every issue of the weekly digest (pipeline/digest.py), newest first. #}
+{% block title %}{{ _("Weekly digest") }}{% endblock %}
+{# Translators: %(town)s is the town's name. #}
+{% block description %}{% trans town=town.name %}Each week, {{ town }}'s public meetings coming up, and what was decided at the meetings whose minutes were posted the week before.{% endtrans %}{% endblock %}
+{% block head %}<link rel="alternate" type="application/rss+xml" title="{{ site.name }}: {{ _("Weekly digest") }}" href="/digest/feed.xml">{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ _("Weekly digest") }}</h1>
+  <p class="lede">{{ self.description() }}</p>
+  <p class="small">{{ _("A new issue every Sunday. It's made from the meetings and minutes on this site, with no new AI writing.") }}</p>
+</div>
+<ul class="link-row">
+  <li><a href="/digest/feed.xml">{{ _("Follow the weekly digest by RSS") }}</a></li>
+</ul>
+
+<h2 id="issues">{{ _("Issues") }}</h2>
+{% if issues %}
+<ul class="meeting-list">
+  {% for issue in issues %}
+  <li class="meeting-item">
+    <span class="meeting-when"><time datetime="{{ issue.sunday }}">{{ issue.sunday | date("mon_day") }}</time></span>
+    <div class="meeting-main">
+      <a class="meeting-link" href="{{ issue.url }}">{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}</a>
+      {# Translators: %(count)s is how many meetings an issue of the digest lists. #}
+      <span class="meeting-meta">{% trans count=issue.meetings | length %}{{ count }} meeting{% pluralize %}{{ count }} meetings{% endtrans %}
+      {#- Translators: %(count)s is how many meetings' minutes an issue of the digest lists. #}
+      {%- if issue.minutes %} · {% trans count=issue.minutes | length %}minutes of {{ count }} meeting{% pluralize %}minutes of {{ count }} meetings{% endtrans %}{% endif %}</span>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>{{ _("The first issue comes out on the first Sunday after this site has a week of meetings to list.") }}</p>
+{% endif %}
+{% endblock %}

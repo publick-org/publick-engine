@@ -127,6 +127,8 @@ pipeline/                   Python package
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
+  digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
+                            before (no AI), built into /digest/ with a feed for email
   structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
                             breadcrumbs, and the downloads as datasets
   i18n.py                   The sites' wording in other languages: the language being built, and
@@ -484,6 +486,17 @@ languages = ["en", "es"]
 - **Summaries** are translated from the English summary (never from the PDF) by Claude Sonnet 5.5 at low effort (`pipeline/translate.py`; `translation_model` in `[summaries]` to change it, with its `translation_input_price`, `translation_output_price`, and `translation_effort`, which Claude Haiku 4.5 takes none of). Until October 2026 Claude Haiku 4.5 translated them, and more of its translations failed the checks than passed, so it cost more per translation shown. No person checks them, so two checks do. One without AI, entry by entry: numbers kept and none added (whatever the Spanish number format), amounts' million or billion, a.m. and p.m., names kept as written, and what happened not turned round (a "not" lost or added, approved as denied, tabled as approved, unanimous changed); a date in figures may be written out. Then a second request (Claude Sonnet 5.5; `translation_review_model`, with its prices) reviews the meaning of each translation that passes, given the translator's rules and words so it doesn't fail a translation for following them; the whole, translation and review, is about a cent. A translation that fails either is made again once, as a correction (the model gets its first translation and what was wrong with it), then kept, so it isn't paid for again, and the page shows the English with a note that the translation didn't pass. The check runs again each build. Every translated summary says it was translated automatically by AI and links the English, as does every Spanish page's footer. Each translation is its own record, `data/summaries/es/<document hash>.json`, made again only when its English summary changes, so turning Spanish on never regenerates an English summary. Translations come out of the same budget as summaries, new documents first, and older summaries' translations before the older documents still waiting for an English summary, which cost about ten times as much (`translation_cost` in the month's ledger). A summary not translated yet is shown in English, marked `lang="en"`, with a note saying so. Decisions are sorted, and public hearings and glossary terms found, in the English.
 - Agendas, minutes, and transcripts stay in English, as the official record. Downloads, saved PDFs, and the feed are shared by both languages. Search on the Spanish pages also finds the translated summaries.
 - The site checks run on every page in both languages. A missing page under `/es/` gets the Spanish 404 page from the network's Worker (`worker/sites.js`), which must be deployed before the first town with Spanish goes live.
+
+## Weekly digest
+
+Each town with meetings has a weekly digest at `/digest/` (`pipeline/digest.py`), in English for now. An issue is dated a Sunday and lists:
+
+- the meetings of the week ahead, Monday to Sunday, by day, each with its agenda summary's line once an agenda is posted;
+- the minutes this site first collected in the week before, Monday to Sunday, with what each meeting decided, as the decisions page shows them (after the fact check).
+
+It's made from what the site already has, with no AI calls. A week with no meetings and no new minutes has no issue. Minutes collected on the day a town's meetings were first read are its history, not news, and are left out, as are minutes of a meeting more than 90 days before the issue (a source's history read for the first time). An issue's page shows what the site knows about its week as of the latest build, so a meeting cancelled after the Sunday is shown cancelled. When the meetings calendar is behind (`absences.calendar_behind`), an issue whose week isn't over says meetings may be missing.
+
+Each issue is at `/digest/<its Monday>/`, and `/digest/feed.xml` has the last 12, each whole as plain HTML with every link in full, for an email provider to send. An item's date is when its email is due: the Sunday at 5:30 PM, the town's own time (`digest.SEND_TIME`; decided 2026-10-06, because it gives a day's notice of Monday evening meetings, and leaves the morning's daily run hours to finish). An issue first appears in the build on its Sunday, so a town whose Sunday run doesn't happen has no new issue to send until its next build. Sending the email isn't built yet: whatever sends it sends each item once its date has passed.
 
 ## Data collection
 

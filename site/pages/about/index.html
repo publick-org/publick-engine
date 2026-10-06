@@ -19,6 +19,10 @@
   {% if config.meetings is defined and meeting_links.documents %}
   <li>{% trans url="/feed.xml" %}New agendas and minutes are in an <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>
   {% endif %}
+  {# The weekly digest is in English for now (pipeline/digest.py). #}
+  {% if config.meetings is defined and lang == "en" %}
+  <li>{% trans url="/digest/" %}Each Sunday, a <a href="{{ url }}">weekly digest</a> lists the week's meetings and what was decided at those whose minutes were posted.{% endtrans %}</li>
+  {% endif %}
   {% if config.summaries is defined %}
   <li>{{ _("Summaries written by AI are labeled on each meeting page.") }}</li>
   {% endif %}
