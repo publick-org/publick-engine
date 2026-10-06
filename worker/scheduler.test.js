@@ -256,3 +256,10 @@ test("the newest issue in a feed, with the site's name and its body unescaped", 
   assert.equal(issue.body, BODY);
   assert.equal(newestIssue('<rss version="2.0"><channel>\n<title>X: Weekly digest</title></channel></rss>'), null);
 });
+
+test("the digest's Cron Trigger names its days, as Cloudflare takes them", () => {
+  // Cloudflare numbers days 1 (Sunday) to 7 and refused "0,1" (2026-10-06); names mean the same everywhere.
+  const days = DIGEST_CRON.split(" ")[4];
+  assert.match(days, /^(SUN|MON|TUE|WED|THU|FRI|SAT)(,(SUN|MON|TUE|WED|THU|FRI|SAT))*$/);
+  assert.equal(DIGEST_CRON.split(" ").length, 5);
+});
