@@ -121,6 +121,14 @@ msgid_plural "%(count)s decisions aren't shown: they couldn't be matched to the 
 msgstr[0] "%(count)s decisión no aparece: no se pudo comprobar con las actas."
 msgstr[1] "%(count)s decisiones no aparecen: no se pudieron comprobar con las actas."
 
+#. %(count)s is how many meetings an issue of the digest lists.
+#: site/templates/digest_index.html
+#, python-format
+msgid "%(count)s meeting"
+msgid_plural "%(count)s meetings"
+msgstr[0] ""
+msgstr[1] ""
+
 #. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -128,6 +136,14 @@ msgid "%(count)s more decision"
 msgid_plural "%(count)s more decisions"
 msgstr[0] "%(count)s decisión más"
 msgstr[1] "%(count)s decisiones más"
+
+#. %(count)s is how many of a meeting's decisions aren't listed here, 1 or more.
+#: site/templates/digest.html site/templates/digest_email.html
+#, python-format
+msgid "%(count)s more decision on the meeting's page"
+msgid_plural "%(count)s more decisions on the meeting's page"
+msgstr[0] ""
+msgstr[1] ""
 
 #. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
@@ -459,6 +475,14 @@ msgstr ""
 "Las tasas del impuesto a la propiedad de %(town)s, lo que recauda y el valor de las propiedades "
 "sobre las que se cobra."
 
+#. %(town)s is the town's name and %(when)s a Monday, such as "October 12, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid ""
+"%(town)s's public meetings the week of %(when)s, and what was decided at the meetings whose "
+"minutes were posted the week before."
+msgstr ""
+
 #. the home page's title in search results and browser tabs, for a site without meetings; %(town)s is
 #. the town and %(state)s its state's abbreviation.
 #: site/pages/index.html
@@ -679,6 +703,13 @@ msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
 #, python-format
 msgid "<a href=\"%(url)s\">Minutes on %(where)s</a>"
 msgstr "<a href=\"%(url)s\">Actas en %(where)s</a> (en inglés)"
+
+#: site/templates/digest_email.html
+#, python-format
+msgid ""
+"<a href=\"%(url)s\">Read this week's digest on the site</a>, where each meeting's page has its "
+"agenda, its minutes, and any correction."
+msgstr ""
 
 #: site/templates/meeting.html
 #, python-format
@@ -1169,6 +1200,12 @@ msgstr ""
 msgid "A month, %(years)s"
 msgstr "Al mes, %(years)s"
 
+#: site/templates/digest_index.html
+msgid ""
+"A new issue every Sunday. It's made from the meetings and minutes on this site, with no new AI "
+"writing."
+msgstr ""
+
 #: pipeline/common_strings.py
 msgid ""
 "A part of a public meeting closed to the public. State law allows it only for specific reasons, "
@@ -1223,7 +1260,8 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
 
-#: site/pages/index.html site/templates/macros.html
+#: site/pages/index.html site/templates/digest.html site/templates/digest_email.html
+#: site/templates/macros.html
 msgid "AI summary"
 msgstr "Resumen hecho con IA"
 
@@ -1242,7 +1280,7 @@ msgstr "Resumen de las actas hecho con IA: %(headline)s"
 msgid "About"
 msgstr "Acerca de"
 
-#: site/pages/meetings/decisions/index.html site/templates/macros.html
+#: site/pages/meetings/decisions/index.html site/templates/digest.html site/templates/macros.html
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
@@ -1680,7 +1718,7 @@ msgstr "Calificaciones crediticias"
 #: site/pages/about/accessibility/index.html site/pages/meetings/boards/index.html
 #: site/pages/meetings/decisions/index.html site/pages/meetings/past/index.html
 #: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
-#: site/templates/meeting.html site/templates/ward.html
+#: site/templates/digest.html site/templates/meeting.html site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -2176,7 +2214,7 @@ msgstr "diciembre"
 msgid "Decisions"
 msgstr "Decisiones"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/decisions/index.html site/templates/digest.html site/templates/digest_email.html
 msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one."
 msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
@@ -2211,6 +2249,13 @@ msgstr "Descargar todas las decisiones (CSV)"
 #, python-format
 msgid "Each %(town)s figure has a margin of error (±) because it comes from a sample."
 msgstr "Cada cifra de %(town)s tiene un margen de error (±) porque viene de una muestra."
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"Each Sunday, a <a href=\"%(url)s\">weekly digest</a> lists the week's meetings and what was "
+"decided at those whose minutes were posted."
+msgstr ""
 
 #: site/states/ma/budget.html
 msgid "Each figure is certified as of July 1, the start of that year."
@@ -2314,6 +2359,21 @@ msgstr ""
 "El impuesto a la propiedad total recaudado por cada pueblo en %(year)s, según el DRA, dividido "
 "entre su población estimada por el Censo al 1 de julio de %(year)s. La mediana es de "
 "%(communities)s pueblos y ciudades de New Hampshire."
+
+#. %(town)s is the town's name.
+#: site/templates/digest_index.html
+#, python-format
+msgid ""
+"Each week, %(town)s's public meetings coming up, and what was decided at the meetings whose "
+"minutes were posted the week before."
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid ""
+"Each week, {town}'s public meetings coming up, and what was decided at the meetings whose minutes"
+" were posted the week before."
+msgstr ""
 
 #. %(name)s is a school district, such as "Beverly Public Schools".
 #: site/templates/board.html
@@ -2601,6 +2661,10 @@ msgstr ""
 #: site/pages/index.html
 msgid "Follow City Hall updates by RSS"
 msgstr "Siga las novedades de la Alcaldía por RSS"
+
+#: site/templates/digest_index.html
+msgid "Follow the weekly digest by RSS"
+msgstr ""
 
 #: site/pages/311/methodology/index.html
 msgid "For each one: category, location, and when it was submitted, acknowledged, closed, or reopened."
@@ -3160,6 +3224,10 @@ msgstr ""
 msgid "Inland Wetlands Commission"
 msgstr "Comisión de Humedales Interiores"
 
+#: site/templates/digest_index.html
+msgid "Issues"
+msgstr ""
+
 #: site/states/ct/budget.html
 #, python-format
 msgid "It was adopted on <time datetime=\"%(iso)s\">%(when)s</time>."
@@ -3582,7 +3650,7 @@ msgstr ""
 #: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/boards/index.html
 #: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
 #: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
-#: site/templates/meeting.html
+#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
 
@@ -3608,6 +3676,12 @@ msgid "Meetings before this site began recording are on the <a href=\"%(url)s\">
 msgstr ""
 "Las reuniones de antes de que este sitio empezara a registrarlas están en el <a "
 "href=\"%(url)s\">%(name)s</a>."
+
+#. %(start)s and %(end)s are dates, such as "Monday, October 12, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid "Meetings from %(start)s, to %(end)s."
+msgstr ""
 
 #. %(month)s is a month and year, such as "January 2026".
 #: site/templates/board.html
@@ -3707,13 +3781,19 @@ msgstr[1] ""
 "Las actas todavía no se han publicado, %(num)s días después de la reunión. Dónde se publicarán: "
 "<a href=\"%(url)s\">%(where)s</a>."
 
-#: site/templates/macros.html
+#: site/templates/digest.html site/templates/digest_email.html site/templates/macros.html
 msgid "Minutes posted"
 msgstr "Actas publicadas"
 
 #: pipeline/build_site.py
 msgid "Minutes posted."
 msgstr "Actas publicadas."
+
+#. %(start)s and %(end)s are dates, such as "October 5, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid "Minutes this site collected from %(start)s, to %(end)s, and what each meeting decided."
+msgstr ""
 
 #: site/templates/meeting.html
 msgid "Minutes usually come out after the board approves them at a later meeting."
@@ -3744,6 +3824,12 @@ msgid ""
 msgstr ""
 "La mayoría de los hogares de Vermont que son dueños de su casa pagan menos que esta factura: el "
 "crédito del impuesto a la propiedad reduce el impuesto de educación según los ingresos del hogar."
+
+#: site/templates/digest.html
+msgid ""
+"Most agendas are posted two to four days before the meeting, so the week's later meetings may not"
+" have one yet. Each meeting's page has its agenda once it's posted."
+msgstr ""
 
 #: site/states/ct/budget.html site/states/ri/budget.html
 msgid "Motor vehicles"
@@ -3900,7 +3986,7 @@ msgstr ""
 "Aquí no se guardó una agenda para esta reunión. La ciudad enlaza a <a href=\"%(url)s\">los "
 "documentos de la junta</a>."
 
-#: site/templates/macros.html
+#: site/templates/digest_email.html site/templates/macros.html
 msgid "No agenda posted yet"
 msgstr "Todavía no hay agenda"
 
@@ -3924,9 +4010,17 @@ msgstr ""
 "Todavía no hay decisiones registradas. Esta página se irá llenando a medida que se publiquen "
 "actas."
 
+#: site/templates/digest.html
+msgid "No decisions recorded in these minutes."
+msgstr ""
+
 #: site/pages/streets/index.html
 msgid "No exact match. Did you mean one of these?"
 msgstr "No hay una coincidencia exacta. ¿Quiso decir una de estas?"
+
+#: site/templates/digest.html site/templates/digest_email.html
+msgid "No meetings are listed for this week."
+msgstr ""
 
 #: site/pages/meetings/boards/index.html
 msgid "No meetings have been recorded yet."
@@ -4629,6 +4723,10 @@ msgstr "Informar un problema con esta página"
 #: site/pages/meetings/decisions/index.html
 msgid "Report an error in a decision"
 msgstr "Informar un error en una decisión"
+
+#: site/templates/digest.html
+msgid "Report an error in this digest"
+msgstr ""
 
 #: site/templates/macros.html
 msgid "Report an error in this summary"
@@ -6323,6 +6421,10 @@ msgstr "Las cifras vienen de la auditoría de cada pueblo, así que tienen dos o
 msgid "The file is too large to summarize automatically; the agenda is linked below."
 msgstr "El archivo es demasiado grande para resumirlo automáticamente; la agenda está enlazada abajo."
 
+#: site/templates/digest_index.html
+msgid "The first issue comes out on the first Sunday after this site has a week of meetings to list."
+msgstr ""
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "The fiscal year %(year)s figure was certified as of July 1, %(start)s."
@@ -6660,7 +6762,7 @@ msgstr ""
 "Este sitio no recopila las actas de esta junta. Puede que estén en el <a href=\"%(url)s\">sitio "
 "web de la ciudad</a>."
 
-#: site/templates/macros.html
+#: site/templates/digest_email.html site/templates/macros.html
 #, python-format
 msgid ""
 "This site hasn't been able to check the city's meeting listings since %(when)s, so meetings may "
@@ -6669,7 +6771,7 @@ msgstr ""
 "Este sitio no ha podido revisar las listas de reuniones de la ciudad desde el %(when)s, así que "
 "puede que falten reuniones aquí."
 
-#: site/templates/macros.html
+#: site/templates/digest_email.html site/templates/macros.html
 msgid ""
 "This site hasn't been able to check the city's meeting listings yet, so meetings may be missing "
 "here."
@@ -7054,6 +7156,22 @@ msgctxt "weekday"
 msgid "Wednesday"
 msgstr "miércoles"
 
+#. the title of one week's digest; %(when)s is its Monday, such as "October 12, 2026".
+#: site/templates/digest.html site/templates/digest_index.html
+#, python-format
+msgid "Week of %(when)s"
+msgstr ""
+
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "Week of {when}"
+msgstr ""
+
+#: pipeline/build_site.py site/pages/index.html site/templates/digest.html
+#: site/templates/digest_index.html
+msgid "Weekly digest"
+msgstr ""
+
 #: site/pages/about/index.html
 #, python-format
 msgid "What %(site)s is, where its data comes from, and how to report a mistake."
@@ -7378,6 +7496,14 @@ msgstr "la semana pasada"
 #: pipeline/build_site.py
 msgid "last year"
 msgstr "el año pasado"
+
+#. %(count)s is how many meetings' minutes an issue of the digest lists.
+#: site/templates/digest_index.html
+#, python-format
+msgid "minutes of %(count)s meeting"
+msgid_plural "minutes of %(count)s meetings"
+msgstr[0] ""
+msgstr[1] ""
 
 #: pipeline/rhythms.py
 msgid "no data yet"
