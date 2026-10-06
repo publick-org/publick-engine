@@ -329,12 +329,20 @@ To go live, in order:
 
 Kept so they aren't lost. Each comes into a stage when it's chosen.
 
-- **A weekly digest for readers.** In this order, stopping when a step is
-  enough: an `.ics` meetings calendar; a static `/digest/<week>/` page with
-  its own feed (upcoming meetings, and decisions from minutes posted that
-  week; no AI calls); then email sent from that feed by a provider such as
-  Buttondown. Waits until the daily runs are stable and there's evidence
-  people want email. Sections whose data is stale are skipped or flagged.
+- **A weekly digest for readers.** The pages and their feed are built
+  (2026-10-06, `pipeline/digest.py`): each Sunday's issue at
+  `/digest/<Monday>/`, with the week's meetings and the minutes posted the
+  week before, no AI calls, and `/digest/feed.xml` dated for the email.
+  Decided 2026-10-06: sent weekly, Sunday at 5:30 PM in the town's own time
+  (a day's notice of Monday evening meetings, which are about a fifth of all
+  meetings, and hours after the morning's run); one email account with a tag
+  for each town and language rather than a list per town; open and click
+  tracking off, with GoatCounter `?ref=` on the email's links to measure
+  use; English first, Spanish later (Lawrence first). Next: choose the
+  provider, the send at each issue's date (the scheduler Worker, or the
+  provider's own schedule), the signup form, and the About page's privacy
+  text, which today says nothing that identifies a reader is kept. An `.ics`
+  meetings calendar is still worth doing on its own.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.

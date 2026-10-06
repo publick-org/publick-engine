@@ -109,6 +109,8 @@
 <ul class="link-row">
   {% for s in sections if s.slug != "about" %}<li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>{% endfor %}
   {% if config.meetings is defined and meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
+  {# The weekly digest is in English for now (pipeline/digest.py). #}
+  {% if config.meetings is defined and lang == "en" %}<li><a href="/digest/">{{ _("Weekly digest") }}</a></li>{% endif %}
   {% if config.meetings is defined and meeting_links.documents %}<li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   <li><a href="{{ town.official_site }}">{{ _("City services and news") }}</a></li>
 </ul>

@@ -36,6 +36,7 @@ from pipeline.documents import open_documents
 from pipeline import absences
 from pipeline import freshness
 from pipeline import common_strings
+from pipeline import digest
 from pipeline import dnn
 from pipeline import factcheck
 from pipeline import listings
@@ -61,6 +62,8 @@ STATIC_DIR = SITE_DIR / "static"
 UNLISTED_PAGES = {"/404.html"}
 # Page folders built for every town, whether or not they are in the navigation.
 SHARED_FOLDERS = {"streets"}
+# Page folders built in English only, for now, on a site in more languages: they link no other version.
+ENGLISH_ONLY_FOLDERS = {"digest"}
 
 
 def url_for(rel_path: Path) -> str:
@@ -1178,7 +1181,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
         versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
-                    for code in langs] if len(langs) > 1 else []
+                    for code in langs] if len(langs) > 1 and section_slug not in ENGLISH_ONLY_FOLDERS else []
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
@@ -1215,6 +1218,14 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
         for b in meetings["boards"]:
             render("board.html", b["url"], lastmod=max(changed[id(m)] for m in b["meetings"]), board=b)
+    # The weekly digest (pipeline/digest.py), in English for now: a page for each week, a list, and a feed for email.
+    issues = digest.issues(meetings["all"], meetings["tracking_since"], today, ZoneInfo(site["timezone"])) if english and "meetings" in config else []
+    if english and "meetings" in config:
+        for issue in issues:
+            issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
+            render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
+            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue)
+        render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
@@ -1253,6 +1264,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                 shutil.copytree(src, out_dir / "meetings" / folder)
         (out_dir / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
         write_feed(out_dir / "feed.xml", meetings["all"], config, base_url, built_at)
+    if "meetings" in config:
+        write_digest_feed(out_dir / "digest" / "feed.xml", issues, config, base_url, built_at)
     if wards_json:
         (out_dir / "officials" / "wards.json").write_text(wards_json, encoding="utf-8")
     if "streets" in built_folders:
@@ -1401,6 +1414,29 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
         f"<title>{xml_escape(site['name'])}: {xml_escape(feed_title)}</title><link>{base_url}/</link>"
+        f"<description>{xml_escape(feed_description)}</description>"
+        f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
+        encoding="utf-8",
+    )
+
+
+def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: str, built_at: datetime) -> None:
+    """RSS feed of the weekly digest (pipeline/digest.py), for an email provider to send: each issue
+    whole, as HTML, dated when its email is due (digest.SEND_TIME on its Sunday)."""
+    site = config["site"]
+    entries = "".join(
+        f"<item><title>{xml_escape(title)}</title><link>{base_url}{i['url']}</link>"
+        f"<guid isPermaLink=\"true\">{base_url}{i['url']}</guid>"
+        f"<pubDate>{format_datetime(i['send_at'])}</pubDate>"
+        f"<description>{xml_escape(i['email'])}</description></item>\n"
+        for i, title in ((i, _("Week of {when}").format(when=plain_date(date.fromisoformat(i["monday"])))) for i in issues[:digest.FEED_ISSUES])
+    )
+    feed_title = _("Weekly digest")
+    feed_description = _("Each week, {town}'s public meetings coming up, and what was decided at the meetings whose minutes were posted the week before.").format(town=config["town"]["name"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
+        f"<title>{xml_escape(site['name'])}: {xml_escape(feed_title)}</title><link>{base_url}/digest/</link>"
         f"<description>{xml_escape(feed_description)}</description>"
         f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
         encoding="utf-8",

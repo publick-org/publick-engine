@@ -1,0 +1,37 @@
+{# One issue of the weekly digest as an email's body, in the feed (/digest/feed.xml): plain HTML,
+   with no styles of its own (the email provider's template frames it) and every link in full. #}
+{% from "macros.html" import meeting_flags %}
+{% set issue_url = site_url ~ issue.url %}
+{% if meetings.calendar_behind and issue.end >= today %}
+<p><strong>{% if meetings.calendar_behind.since %}{% trans when=meetings.calendar_behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}</strong></p>
+{% endif %}
+<h2>{{ _("Meetings") }}</h2>
+{% if issue.meetings %}
+{% for day, items in issue.days %}
+<h3>{{ day | date }}</h3>
+<ul>
+  {% for m in items %}
+  <li><a href="{{ site_url }}{{ m.url }}">{{ m.body }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}</a>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% set flags = meeting_flags(m) | striptags %}{% if flags %} ({{ flags }}){% endif %}
+    {% if m.preview_line %}<br>{{ m.preview_line }} ({{ _("AI summary") }}){% elif m.status == "scheduled" and not (m.agenda or m.get("documents_url")) %}<br>{{ _("No agenda posted yet") }}{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endfor %}
+{% else %}
+<p>{{ _("No meetings are listed for this week.") }}</p>
+{% endif %}
+{% if issue.minutes %}
+<h2>{{ _("Minutes posted") }}</h2>
+{% for m in issue.minutes %}
+<p><a href="{{ site_url }}{{ m.url }}">{{ m.body }}, {{ m.date | date("plain") }}</a></p>
+{% if m.decisions.decided %}
+<ul>
+  {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}</li>{% endfor %}
+</ul>
+{% if m.decisions.decided | length > 5 %}<p>{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</p>{% endif %}
+{% elif m.preview_line %}
+<p>{{ m.preview_line }} ({{ _("AI summary") }})</p>
+{% endif %}
+{% endfor %}
+<p><em>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }}</em></p>
+{% endif %}
+<p>{% trans url=issue_url %}<a href="{{ url }}">Read this week's digest on the site</a>, where each meeting's page has its agenda, its minutes, and any correction.{% endtrans %}</p>
