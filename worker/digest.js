@@ -31,8 +31,9 @@
 
 export const API = "https://api.buttondown.com/v1";
 export const SIGNUP_PATH = "/digest/subscribe";
-// Every hour of Sunday and Monday, UTC: Sunday evening in every US time zone.
-export const DIGEST_CRON = "35 * * * 0,1";
+// Every hour of Sunday and Monday, UTC: Sunday evening in every US time zone. Days by name:
+// Cloudflare numbers them 1 (Sunday) to 7, not cron's usual 0 to 6, and refuses a 0.
+export const DIGEST_CRON = "35 * * * SUN,MON";
 export const SEND_WINDOW_HOURS = 6;
 // The digest's languages: English for now.
 export const LANGUAGES = ["en"];
