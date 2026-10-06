@@ -232,6 +232,8 @@ main .meeting-list > li { max-width: none; margin: 0; }
 .compact .meeting-item { padding: 0.55rem 0; }
 .compact .meeting-meta { display: inline; margin: 0 0 0 0.4rem; }
 details.more-meetings { margin: 0; border-top: 0; border-bottom: 1px solid var(--line); }
+/* The home page's day above the time, in capitals ("MON, MAR 10"), is wider than any time. */
+.meeting-item:has(.meeting-day) { grid-template-columns: 6.5rem 1fr; }
 /* The column fits the longest time, "12:00 PM" ("12:00 p. m." in Spanish), with room to spare;
    "time to be announced" may wrap. */
 :lang(es) .meeting-item { grid-template-columns: 6.75rem 1fr; }
