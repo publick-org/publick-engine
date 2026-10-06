@@ -129,6 +129,14 @@ msgid_plural "%(count)s meetings"
 msgstr[0] ""
 msgstr[1] ""
 
+#. the start of the weekly digest's email; %(count)s is how many meetings it lists.
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s meeting this week."
+msgid_plural "%(count)s meetings this week."
+msgstr[0] ""
+msgstr[1] ""
+
 #. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -1260,8 +1268,7 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
 
-#: site/pages/index.html site/templates/digest.html site/templates/digest_email.html
-#: site/templates/macros.html
+#: site/pages/index.html site/templates/digest.html site/templates/macros.html
 msgid "AI summary"
 msgstr "Resumen hecho con IA"
 
@@ -2214,7 +2221,7 @@ msgstr "diciembre"
 msgid "Decisions"
 msgstr "Decisiones"
 
-#: site/pages/meetings/decisions/index.html site/templates/digest.html site/templates/digest_email.html
+#: site/pages/meetings/decisions/index.html site/templates/digest.html
 msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one."
 msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
@@ -3763,6 +3770,14 @@ msgstr ""
 "Las actas salen después de que una junta las aprueba, por lo general unas semanas después de la "
 "reunión. Las recomendaciones de los comités aparecen aparte. Solo son definitivas cuando el "
 "Concejo Municipal vota."
+
+#. in the weekly digest's email; %(count)s is how many meetings' minutes it lists.
+#: site/templates/digest_email.html
+#, python-format
+msgid "Minutes from %(count)s meeting, with what it decided."
+msgid_plural "Minutes from %(count)s meetings, with what they decided."
+msgstr[0] ""
+msgstr[1] ""
 
 #. %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number
 #. of days.
@@ -6498,6 +6513,10 @@ msgstr ""
 "los precios de venta de las propiedades (el nivel común de tasación), así que el estado calcula "
 "el valor de sus propiedades en %(equalized)s (su valor ajustado)."
 
+#: site/templates/digest_email.html
+msgid "The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it."
+msgstr ""
+
 #: site/states/ma/budget.html
 msgid "The maximum allowable levy is the Proposition 2½ levy limit plus voter-approved debt exclusions."
 msgstr ""
@@ -7176,6 +7195,12 @@ msgstr ""
 #, python-format
 msgid "What %(site)s is, where its data comes from, and how to report a mistake."
 msgstr "Qué es %(site)s, de dónde vienen sus datos y cómo informar un error."
+
+#: site/templates/digest_email.html
+msgid ""
+"What each meeting decided is written by AI from its minutes. Check the minutes before relying on "
+"it."
+msgstr ""
 
 #: site/states/ct/budget.html
 msgid "What it pays for"

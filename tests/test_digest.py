@@ -87,18 +87,28 @@ def test_digest_feed(site_dir):
     # Every link in the email is in full; no page's markup (navigation, scripts) comes with it.
     links = re.findall(r'href="([^"]+)"', body)
     assert links and all(link.startswith("https://gloucester-ma.publick.org/") for link in links)
-    assert "<h2>Meetings</h2>" in body and "(AI summary)" in body and "<script" not in body and "<nav" not in body
+    assert "<script" not in body and "<nav" not in body
+    # It says what's inside first, and once, above the meetings, that their lines are written by AI.
+    assert body.startswith("<p>10 meetings this week.</p>")
+    assert body.count("is an AI summary of its agenda") == 1 and "(AI summary)" not in body
 
 
 @pytest.fixture(scope="module")
 def with_new_minutes(data_dir):
-    """The fixture town with one set of minutes collected on Wednesday, September 30, built on Sunday, October 4."""
+    """The fixture town with one set of minutes, recording seven decisions, collected on Wednesday,
+    September 30, built on Sunday, October 4."""
     base = Path(tempfile.mkdtemp(prefix="publick-digest-"))
     shutil.copytree(data_dir, base / "data")
     path = base / "data" / "meetings" / "meetings.json"
     store = json.loads(path.read_text())
-    store["archive-20079"]["minutes"][-1]["fetched_at"] = "2026-09-30T06:00:00-04:00"
+    minutes = store["archive-20079"]["minutes"][-1]
+    minutes["fetched_at"] = "2026-09-30T06:00:00-04:00"
     path.write_text(json.dumps(store))
+    summary_path = base / "data" / "summaries" / f"{minutes['sha256']}.json"
+    summary = json.loads(summary_path.read_text())
+    summary["decisions"] += [f"Approved the site plan for {n} Main St" for n in range(14, 20)]
+    summary["decision_evidence"] *= 7
+    summary_path.write_text(json.dumps(summary))
     build_site.build("gloucester", base / "site", data_dir=base / "data", now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
     return base / "site"
 
@@ -109,5 +119,13 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     assert 'href="/meetings/2026-08-25-city-council/"' in minutes
     assert "Approved the site plan for 12 Main St" in minutes
     assert "pulled from each meeting's minutes by AI" in minutes
-    feed = (with_new_minutes / "digest" / "feed.xml").read_text()
-    assert feed.index("Week of October 5, 2026") < feed.index("Week of September 28, 2026")
+    assert "2 more decisions on the meeting's page" in minutes
+    feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
+    titles = [t.firstChild.data for t in feed.getElementsByTagName("title")]
+    assert titles.index("Week of October 5, 2026") < titles.index("Week of September 28, 2026")
+    body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
+    assert "Minutes from 1 meeting, with what it decided." in body.split("</p>")[0]
+    assert body.count("written by AI from its minutes") == 1
+    # The decisions not listed are a link away.
+    assert ('<a href="https://gloucester-ma.publick.org/meetings/2026-08-25-city-council/">2 more decisions on the meeting\'s page</a>'
+            in body)
