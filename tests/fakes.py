@@ -167,14 +167,16 @@ class FakeAnthropic:
                 # The review of a translation's meaning: what the test says it finds, or nothing.
                 return SimpleNamespace(
                     stop_reason=stop_reason,
-                    content=[SimpleNamespace(type="text", text=json.dumps({"problems": review_problems or []}))],
+                    content=[SimpleNamespace(type="text", text=json.dumps(
+                        {"problems": [{"is_error": True, **p} for p in review_problems or []]}))],
                     usage=SimpleNamespace(input_tokens=500, output_tokens=50),
                 )
             if "translations" in properties:
                 # A town's own text and names, drafted: a list of texts, a list back.
                 payload = {"translations": [es(x) for x in json.loads(text[text.index("\n[") + 1:])]}
             else:
-                english = json.loads(text[text.index("\n{") + 1:])
+                # The summary to translate; a second try has the first translation after it.
+                english, _ = json.JSONDecoder().raw_decode(text, text.index("\n{") + 1)
                 payload = {k: [es(x) for x in v] if isinstance(v, list) else es(v) for k, v in english.items()}
             return SimpleNamespace(
                 stop_reason=stop_reason,

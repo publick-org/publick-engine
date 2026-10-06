@@ -2,8 +2,10 @@
 
 A town with Spanish pages ([site] languages) gets each English summary of an
 agenda or minutes in Spanish too: translated from the English summary (never
-from the PDF again) by a small model, Claude Haiku 4.5 unless [summaries]
-translation_model says otherwise. The rules are the summaries' own: only what
+from the PDF again) by Claude Sonnet 5.5 at low effort, unless [summaries]
+translation_model says otherwise. (Claude Haiku 4.5 did it until version 4,
+and more of its translations failed the checks than passed them, so it cost
+more per translation shown.) The rules are the summaries' own: only what
 the summary says, neutral, plain, with names, addresses, amounts, dates, and
 vote counts kept.
 
@@ -12,20 +14,23 @@ entry: each list (agenda items, decisions) has as many entries, every number
 is kept and none added (however Spanish writes it), amounts keep their million
 or billion, times their a.m. or p.m., names are kept as written, and what
 happened isn't turned round (a "not" lost, approved as denied, tabled as
-approved, unanimous changed). Then, for a translation that passes, a larger
-model (Claude Sonnet 5.5 unless [summaries] translation_review_model says
-otherwise) reviews its meaning against the English: adjourned shown as
-dissolved, a guessed gender, a mistranslated board. A translation that fails
-either is made again once (ATTEMPTS), then kept, so it isn't paid for again,
-but not shown: the page shows the English summary, and says so.
+approved, unanimous changed). Then, for a translation that passes, a second
+request (Claude Sonnet 5.5 unless [summaries] translation_review_model says
+otherwise) reviews its meaning against the English, knowing the translator's
+rules and words: adjourned shown as dissolved, a guessed gender, a
+mistranslated board. A translation that fails either is made again once
+(ATTEMPTS), as a correction: the model gets its first translation and what
+was wrong with it. Then it's kept, so it isn't paid for again, but not shown:
+the page shows the English summary, and says so.
 
 Each translation is its own record, data/summaries/<language>/<document's
 SHA-256>.json, holding the hash of the English it came from. Turning a
 language on never regenerates an English summary, and a translation is made
 again only when its English summary changes (or this module's prompt does:
 VERSION). summarize.py runs the translations within the same budget as the
-summaries, new documents first; their cost is in the month's ledger as
-translation_cost.
+summaries, new documents first, and older documents' before the older English
+summaries waiting, which cost about ten times as much; their cost is in the
+month's ledger as translation_cost.
 
 A town's own text (its config's tagline, section summaries, officials' seats)
 and the names in its data (boards, 311 categories) come from the town's
@@ -50,10 +55,12 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-VERSION = 3
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
-# Claude Haiku 4.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
-DEFAULT_PRICES = {"input_price": 1.0, "output_price": 5.0}
+VERSION = 4
+DEFAULT_MODEL = "claude-sonnet-5-5"
+# Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
+DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
+# Translating a short summary needs little thinking.
+DEFAULT_EFFORT = "low"
 MAX_TOKENS = 8000
 
 # The fields of each kind of summary that are shown, and so translated.
@@ -84,6 +91,16 @@ Rules:
 PROMPT = """Translate this summary of the {kind} of a meeting ({title}, {date}) into {language}.
 {boards}
 {summary}"""
+
+# Added to the prompt for a second try: the first translation, and what the checks found wrong with it.
+CORRECT = """
+
+An earlier translation of it didn't pass a check:
+{previous}
+
+What was wrong: {problems}
+
+Translate it again, fixing these, and keep what was right."""
 
 
 def path(data_dir: Path, lang: str, sha256: str) -> Path:
@@ -135,6 +152,16 @@ def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> di
             and passes(data_dir, found, record, kind, lang):
         return found
     return None
+
+
+def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str) -> str | None:
+    """What was wrong with a saved translation, for the model to correct: the check's finding,
+    else the review's. None when it passed, or when the review couldn't be made (nothing to correct)."""
+    checked = check(english(record, kind), found, kind, lang, town_words(data_dir))
+    if checked != "ok":
+        return checked
+    review = found.get("review", "")
+    return None if review == "ok" or review.startswith(UNREVIEWED) else review
 
 
 def failed(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> bool:
@@ -348,14 +375,23 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
 
 
 def settings(config: dict) -> dict:
-    """The translation model and its prices: [summaries] translation_model, translation_input_price,
-    and translation_output_price, or Claude Haiku 4.5's."""
+    """The translation model, its prices, and its effort: [summaries] translation_model,
+    translation_input_price, translation_output_price, and translation_effort, or Claude Sonnet
+    5.5's at low effort. Another model has no effort unless the town gives one (Claude Haiku 4.5
+    takes none)."""
     s = config.get("summaries", {})
     model = s.get("translation_model", DEFAULT_MODEL)
     prices = DEFAULT_PRICES if model == DEFAULT_MODEL else {}
     return {"model": model,
             "input_price": s.get("translation_input_price", prices.get("input_price")),
-            "output_price": s.get("translation_output_price", prices.get("output_price"))}
+            "output_price": s.get("translation_output_price", prices.get("output_price")),
+            "effort": s.get("translation_effort", DEFAULT_EFFORT if model == DEFAULT_MODEL else None)}
+
+
+def output_config(config: dict, schema: dict) -> dict:
+    """The request's output_config: the schema, and the translation model's effort if it has one."""
+    effort = settings(config)["effort"]
+    return {**({"effort": effort} if effort else {}), "format": {"type": "json_schema", "schema": schema}}
 
 
 def languages(config: dict) -> list[str]:
@@ -375,18 +411,23 @@ def schema(kind: str) -> dict:
     return {"type": "object", "properties": props, "required": list(FIELDS[kind]), "additionalProperties": False}
 
 
-def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict) -> tuple[dict, dict]:
-    """The model's translation of one English summary, and the tokens it used."""
+def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
+              previous: dict | None = None, problems: str = "") -> tuple[dict, dict]:
+    """The model's translation of one English summary, and the tokens it used. previous: an
+    earlier translation that failed a check, to correct, and problems: what was wrong with it."""
     source = english(record, kind)
+    prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
+                           boards=board_names(config, lang, meeting["body"]),
+                           summary=json.dumps(source, ensure_ascii=False, indent=1))
+    if previous:
+        prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in FIELDS[kind]}, ensure_ascii=False, indent=1),
+                                 problems=problems)
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
         system=SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
-        messages=[{"role": "user", "content": PROMPT.format(
-            kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
-            boards=board_names(config, lang, meeting["body"]),
-            summary=json.dumps(source, ensure_ascii=False, indent=1))}],
-        output_config={"format": {"type": "json_schema", "schema": schema(kind)}},
+        messages=[{"role": "user", "content": prompt}],
+        output_config=output_config(config, schema(kind)),
     )
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
     if response.stop_reason != "end_turn":
@@ -404,17 +445,19 @@ def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
          now: datetime, cost) -> tuple[dict, float]:
     """Translate one summary, check it, have the AI review its meaning if it passes, and save it.
+    A second try corrects the first: the model gets it and what was wrong with it.
     Returns the saved record and what it cost."""
-    result, usage = translate(client, config, lang, kind, record, meeting)
-    paid = cost(usage, settings(config))
     source = english(record, kind)
+    before = saved(data_dir, lang, doc["sha256"])
+    again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
+    wrong = what_failed(data_dir, before, record, kind, lang) if again else None
+    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
+    paid = cost(usage, settings(config))
     checked = check(source, result, kind, lang, town_words(data_dir))
     reviewed, review_cost = "not reviewed: the check failed", 0.0
     if checked == "ok":
         problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]], cost)
         reviewed = "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok"
-    before = saved(data_dir, lang, doc["sha256"])
-    again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     out = {
         **{field: result.get(field) for field in FIELDS[kind]},
         "language": lang,
@@ -449,7 +492,10 @@ For each English text and its translation, report every error that changes the m
 - a mistranslation ("Conservation Commission" as "Comisión de Conversación", "Mayor" as "Gobernador", a business sign as a traffic sign);
 - English words left in a {language} sentence (names of people, places, businesses, and programs excepted), or words that don't exist.
 
-Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation."""
+Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation: if, once you've looked, a translation is right, leave it out, or mark it is_error false.
+
+The translator was given these words and rules, so a translation that follows them isn't wrong for it:
+{readers}"""
 
 REVIEW_PROMPT = """Check these translations. Each has an id, the English, and the {language}:
 {pairs}"""
@@ -491,14 +537,15 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang]),
+            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
                 "type": "object", "additionalProperties": False, "required": ["problems"],
                 "properties": {"problems": {"type": "array", "items": {
-                    "type": "object", "additionalProperties": False, "required": ["id", "problem"],
-                    "properties": {"id": {"type": "string"}, "problem": {"type": "string"}}}}}}}},
+                    "type": "object", "additionalProperties": False, "required": ["id", "problem", "is_error"],
+                    "properties": {"id": {"type": "string"}, "problem": {"type": "string"},
+                                   "is_error": {"type": "boolean"}}}}}}}},
         )
     except Exception as e:
         if "credit balance" in str(e).lower():
@@ -509,6 +556,9 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
     problems: dict[str, str] = {}
     for p in json.loads(next(b.text for b in response.content if b.type == "text"))["problems"]:
+        # An entry that, written out, found nothing wrong ("this is faithful") isn't a problem.
+        if not p["is_error"]:
+            continue
         problems[p["id"]] = f"{problems[p['id']]}; {p['problem']}" if p["id"] in problems else p["problem"]
     return problems, paid
 
@@ -606,9 +656,9 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
             messages=[{"role": "user", "content": NAMES_PROMPT.format(
                 town=config["town"]["name"], state=config["town"]["state"], n=len(batch), language=LANGUAGE_NAMES[lang],
                 texts=json.dumps(batch, ensure_ascii=False, indent=1))}],
-            output_config={"format": {"type": "json_schema", "schema": {
+            output_config=output_config(config, {
                 "type": "object", "properties": {"translations": {"type": "array", "items": {"type": "string"}}},
-                "required": ["translations"], "additionalProperties": False}}},
+                "required": ["translations"], "additionalProperties": False}),
         )
         usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
         paid = cost(usage, tsettings)

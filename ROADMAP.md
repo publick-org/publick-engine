@@ -667,6 +667,28 @@ English rather than showing a doubtful translation.
   license, underage operative.
 - Lawrence's config: generic Vicepresidente for roles whose holder changes.
 
+*Done 2026-10-06 (translation prompt version 4):* most summaries had no
+Spanish shown: 126 of 630, across ten towns. Of the translations made, about
+190 failed the meaning review and 70 the check; about 245 had never been
+made.
+- Older summaries were translated only when the run hadn't stopped, and the
+  backlog's English summaries spent the backlog budget first (Malden: "older
+  documents wait: this run's $0.26 for them is spent", 131 of 157 never
+  translated). Translations now come before the older English summaries.
+- Haiku 4.5's translations failed the review more often than they passed:
+  guessed genders (53), "Pospon", "posponemos", "redevelación". The
+  network spent $2.77 on 390 tries for 126 shown, about 2.2 cents each.
+  Claude Sonnet 5.5 translates now, at low effort, for about a cent with
+  the review.
+- The second try is a correction: the model gets its first translation and
+  what the check or the review found wrong, rather than trying again blind.
+- The review is given the translator's words and rules (it failed
+  "audiencia pública", which the prompt asks for), and an entry it marks as
+  no error ("This is faithful. No error.", 11 times) no longer fails a
+  translation.
+- Every translation is made again on version 4 (about 630, about $6),
+  newest meetings first; until then a summary is shown in English.
+
 **Still to do.**
 - Decision labels matched by content rather than position (a reordered list
   now fails the check entry by entry, so this is belt and braces).
@@ -1425,8 +1447,9 @@ for all, v1.29.0 for any number of towns):
 - About 10,000 words of the sites' wording in one string file per language,
   English pages unchanged; the Spanish written once, with a style guide
   (`site/strings/es-guide.md`).
-- Summaries translated from the English summary, never the PDF, by Haiku 4.5;
-  each translation keyed by the English it came from, so turning Spanish on
+- Summaries translated from the English summary, never the PDF, by Haiku 4.5
+  (Sonnet 5.5 since version 4); each translation keyed by the English it
+  came from, so turning Spanish on
   regenerates nothing and a translation is made again only when its English
   changes. Translations count in the budget in the same priority order.
 - Agendas, minutes, and transcripts stay in English, the official record.

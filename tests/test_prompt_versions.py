@@ -34,7 +34,7 @@ PROMPTS = {
         fingerprint(summarize.TRANSCRIBE["system"], summarize.TRANSCRIBE["prompt"], summarize.TRANSCRIBE["schema"])),
     "translation (translate.VERSION)": lambda: (
         translate.VERSION,
-        fingerprint(translate.SYSTEM, translate.PROMPT, translate.READERS, translate.schema("agenda"),
+        fingerprint(translate.SYSTEM, translate.PROMPT, translate.CORRECT, translate.READERS, translate.schema("agenda"),
                     translate.schema("minutes"))),
     "drafted text (translate.NAMES_VERSION)": lambda: (
         translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT)),
@@ -45,7 +45,7 @@ PINNED = {
     "summary of an agenda (summarize.KINDS)": (4, "5c47543097a4a51c"),
     "summary of minutes (summarize.KINDS)": (3, "595a7b4a9a916b72"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
-    "translation (translate.VERSION)": (3, "fdd9a3df7a4c8741"),
+    "translation (translate.VERSION)": (4, "67e42f3d54351063"),
     "drafted text (translate.NAMES_VERSION)": (2, "1ac57feb64f0ccfd"),
 }
 

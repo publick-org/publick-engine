@@ -63,7 +63,7 @@ def test_english_pages_are_unchanged(built, site_dir):
                        r'|\s*<p>On the pages in other languages, each summary is translated[^<]*</p>')
     cookie = re.compile(r'<li>No ads, and no tracking across other sites.</li>\s*<li>One cookie, only if you use the language switch[^<]*</li>')
     about = (out / "about" / "index.html").read_text(encoding="utf-8")
-    assert "translated automatically by AI (Claude Haiku 4.5, by Anthropic)" in about and cookie.search(about)
+    assert "translated automatically by AI (Claude Sonnet 5.5, by Anthropic)" in about and cookie.search(about)
     for path in sorted(site_dir.rglob("*.html")):
         rel = path.relative_to(site_dir)
         bilingual = cookie.sub("<li>No cookies, no ads, and no tracking across other sites.</li>",

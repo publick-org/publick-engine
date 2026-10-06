@@ -16,9 +16,11 @@ Minutes of a body in the town's [officials] table also get their roll call
 votes, read from the same text without AI (pipeline/votes.py).
 
 A town with pages in another language also gets each summary translated, from
-the English summary, by a smaller model (pipeline/translate.py): a new
-document's translation right after the new documents' summaries, older ones
-after the older summaries, within the same budget.
+the English summary (pipeline/translate.py), within the same budget: right
+after the new documents' summaries, the new documents' translations, then the
+translations of older summaries already made, which cost about a tenth of a
+summary, before the older documents still waiting for one. An older document
+summarized in the run is translated after, if the budget allows.
 
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
 
@@ -345,8 +347,9 @@ def month_cost(ledger: dict, month: str) -> float:
     return sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
 
 
-# Where, among the documents a run summarizes, the new documents' translations are made.
-TRANSLATE_NEW = object()
+# Where, among the documents a run summarizes, translations are made: after the new documents'
+# summaries, before the older documents'.
+TRANSLATE = object()
 
 
 def doc_key(item: tuple[str, dict, dict]) -> str:
@@ -506,8 +509,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
     batch = (new + backlog)[:limit]
-    # New documents' translations come right after their summaries, before older documents'.
-    batch.insert(sum(1 for item in batch if doc_key(item) not in older), TRANSLATE_NEW)
+    # Translations come right after the new documents' summaries, new documents' first: an older
+    # summary already on the site waits for its translation no longer than a new one.
+    batch.insert(sum(1 for item in batch if doc_key(item) not in older), TRANSLATE)
     if "input_price" not in settings or "output_price" not in settings:
         # Without prices the spending limit can't be enforced, so nothing is sent.
         batch = []
@@ -583,8 +587,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                     spent_backlog += paid
 
     for item in batch:
-        if item is TRANSLATE_NEW:
+        if item is TRANSLATE:
             translations(only_new=True)
+            translations(only_new=False)
             continue
         kind, meeting, doc = item
         if spent >= settings["max_cost_per_run"]:
@@ -668,7 +673,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
         save_record(data_dir, doc["sha256"], record)
         laid_out += 1
-    # Older documents' translations, from what's left of the budget for older documents.
+    # The translations of older documents summarized in this run, from what's left of the budget for them.
     if not stopped:
         translations(only_new=False)
     # Then the model's transcription of scans, which screen readers can't read, only once
