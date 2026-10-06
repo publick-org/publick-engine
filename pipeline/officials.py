@@ -42,6 +42,13 @@ def precincts(config: dict) -> bool:
     return areas == "precincts"
 
 
+def at_large(config: dict) -> bool:
+    """Every seat is elected by the whole town: there are no wards to map. Readers know whether
+    their town has wards, so the page shows no map and doesn't say why."""
+    return not any(m.get("ward") is not None or m.get("wards")
+                   for b in config.get("officials", {}).get("bodies", []) for m in b.get("members", []))
+
+
 def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> dict:
     """The page's officials: each body with its members, and who represents each ward.
     boards maps meeting board names to their pages, to link each body's meetings."""
@@ -88,14 +95,16 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
                 by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]),
                                       "order": (len(bodies), len(linked)), **member})
         board = body.get("board", body["name"])
-        bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board)})
+        bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board),
+                       # A Seat column only where seats differ: "At-large" on every row, or a mayor's one
+                       # "Citywide", says nothing the body's note doesn't.
+                       "show_seat": len({m["seat"] for m in members}) > 1})
     return {
         "checked": checked.isoformat(),
         "bodies": bodies,
-        # Every seat elected by the whole town: there are no wards to map, and the page says so.
         # A dash for a term or contact no official source gives, explained under the tables.
         "dashes": any(not m["term_ends"] or not (m.get("email") or m.get("phone")) for b in bodies for m in b["members"]),
-        "at_large": not any(m.get("ward") is not None or m.get("wards") for b in table["bodies"] for m in b["members"]),
+        "at_large": at_large(config),
         # Every ward in the ward file, even one with no ward seat, so the list matches the map.
         # In a ward, each body's member for that ward alone comes before its member for a district of wards.
         "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": sorted(by_ward.get(w, []), key=lambda m: m["order"])}
