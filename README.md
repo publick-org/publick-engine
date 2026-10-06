@@ -13,7 +13,9 @@ A fix made here reaches every town when it moves to the new version.
 
 The code is MIT-licensed, so anyone can run a site like this for their own town, on their own domain and accounts: see [Starting a site for another town](#starting-a-site-for-another-town). The Publick name and "P" icon identify the Publick network's sites, so a site outside the network should use its own. [How Publick runs it](#how-publick-runs-it) lists the network's own setup.
 
-## How a town uses the engine
+## A town in its own repository
+
+This is the stand-alone way to run a town. A town in a network repository has the same files in its folder, `towns/<town>-<state>/`, and the network's own workflow runs it instead of `town.yml`: see the [network's README](https://github.com/publick-org/publick.org#readme).
 
 A town's repository holds:
 
@@ -63,11 +65,13 @@ jobs:
       id-token: write
 ```
 
-The engine's workflow checks out the engine at the same version as the workflow file itself, so the version is set in one place. It fetches new data and commits it (on the schedule or **Run workflow**), builds the site, checks it (`site_checks/`: every page's structure and links, and the WCAG 2.2 AA checks in light and dark mode at desktop and phone widths), and deploys it from `main`. Pull requests build and check only.
+The engine's workflow checks out the engine at the same version as the workflow file itself, so the version is set in one place. It fetches new data and commits it (on the schedule or **Run workflow**), builds the site, checks it (`site_checks/`: every page's structure and links, and the WCAG 2.2 AA checks at desktop and phone widths), and deploys it from `main`. Pull requests build and check only.
 
 ### Versions
 
 Releases are tagged `v1.0.0`, `v1.1.0` and so on, with a `v1` tag that moves to the newest `v1.x` release. A town pinned to `@v1` takes each compatible release on its next run; one pinned to an exact tag moves when its pin is bumped, which Dependabot can do with a `github-actions` entry in the town's `.github/dependabot.yml`. A change that needs every town's config edited gets a new major version.
+
+A network repository pins every town at once, with an exact tag in one `engine-version` file; publick.org's moves to each new release once every town passes on it (see its [README](https://github.com/publick-org/publick.org#how-it-runs)).
 
 Releasing is automatic, once a day. Each morning at 08:20 UTC, before the network's daily runs, `.github/workflows/release.yml` releases the newest commit on `main` whose engine tests passed, with everything merged since the last release, as the next minor version (`v1.4.0` → `v1.5.0`), and moves `v1` to it. Label a pull request `patch` for a patch version (the release is a patch when every pull request in it is), `major` for a change that needs every town's config edited (`v2.0.0`; towns on `@v1` stay there until they move), or `no release` to leave it out; a pull request that changes only Markdown files is left out without a label. An urgent fix needn't wait: **Actions → Release → Run workflow** releases now. A release published by hand (**Releases → Draft a new release**) also moves its major tag.
 
@@ -77,7 +81,7 @@ Releasing is automatic, once a day. Each morning at 08:20 UTC, before the networ
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
-  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page),
+  fetch_meetings.py         Daily: city calendars (CivicPlus, a CivicPlus Agenda Center, CivicClerk, DotNetNuke, a calendar with a documents page),
                             a school district's calendar feed or page of dates -> data/meetings/
   listings.py               One meeting listed in more than one place (a calendar and an Agenda Center, a repost) shown as one;
                             `python -m pipeline.listings` lists the meetings put together, and why
@@ -129,7 +133,7 @@ pipeline/                   Python package
                             `python -m pipeline.i18n update` to keep site/strings/ current
   common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
-  network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
+  network.py                Runs many towns from one repository (towns/<town>-<state>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
                             states (statewide sources); a fetching run writes each town's result to its data/run.json,
                             with a few counts for the network homepage (boards followed, meetings in the next 14 days)
@@ -146,6 +150,7 @@ worker/                     The Cloudflare Workers: index.js serves every site p
                             hostname; scheduler-index.js starts a network's daily runs on time and watches they finish
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's tests, on every push and pull request
+.github/workflows/release.yml  The daily release (see Versions)
 ```
 
 ## Build and test locally
@@ -169,9 +174,16 @@ python -m pytest ../publick-engine/site_checks       # the checks the workflow r
 
 Commands use the town repository's one config file, or `--town <town>` or `TOWN` when there are several. To run from elsewhere, set `PUBLICK_TOWN_DIR` to the town's repository.
 
+In a network repository, clone the engine next to it and run the same commands from the network repository's root, with `PUBLICK_TOWN_DIR` set to the town's folder:
+
+```sh
+export PYTHONPATH=../publick-engine PUBLICK_TOWN_DIR=towns/<town>-<state>
+python -m pipeline.build_site             # writes towns/<town>-<state>/_site/
+```
+
 A town with a `[storage]` table keeps agenda and minutes PDFs in a bucket (see [Document storage](#document-storage)). A local fetch then needs the bucket's keys (`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`), or set `DOCUMENTS_LOCAL=1` to keep PDFs under `data/meetings/` instead. Building the site needs no keys.
 
-The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`:
+The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`, with whole sites for Manchester, Malden and Wallingford built from their meeting systems' saved pages (`tests/test_sample_towns.py`):
 
 ```sh
 python -m pytest
@@ -179,16 +191,18 @@ python -m pytest
 
 ## Starting a site for another town
 
-Each town gets its own repository, with its own `config/<town>.toml`, its own `data/`, and its own site address. The code stays here.
+Each town gets its own `config/<town>.toml`, its own `data/`, and its own site address, in its own repository or in a folder of a network repository (publick.org's checklist is [ADDING-A-TOWN.md](https://github.com/publick-org/publick.org/blob/main/ADDING-A-TOWN.md)). The code stays here.
 
-1. **Create the town's repository** with the layout under [How a town uses the engine](#how-a-town-uses-the-engine): an empty `data/`, and the workflow file with `town` set.
+1. **Create the town's repository** with the layout under [A town in its own repository](#a-town-in-its-own-repository): an empty `data/`, and the workflow file with `town` set. In a network, add its folder instead.
 2. **Write `config/<town>.toml`**, starting from a copy of [`tests/fixtures/town/config/gloucester.toml`](tests/fixtures/town/config/gloucester.toml). `[site]`, `[town]` and `[[sections]]` are required. Every other table is one data source. Leave out a table the town doesn't have and the command that fetches it does nothing:
 
    | Table | Source | Works for |
    |---|---|---|
-   | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
+   | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. A town with none of this table's meetings sources has no meetings section or RSS feed |
+   | `[meetings.civicplus]`, `[meetings.agenda_center]` | A CivicPlus calendar read month by month, and a CivicPlus Agenda Center | CivicPlus towns, like Malden and Beverly (both). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[meetings.civicclerk]`, `[meetings.dnn]`, `[meetings.file_list]` | A CivicClerk meeting portal, a DotNetNuke (DNN Events) city calendar, and a meetings calendar with one documents page for every board | Towns whose meetings are on these, like Manchester (the first two) and Wallingford, Connecticut (the third). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
+   | `[ical_meetings]`, `[schedule_meetings]` | A school district's calendar feed (iCalendar), and a page listing a board's meeting dates | Beverly's School Committee (the first) and Malden's (the second). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date. See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages. A town without wards, its seats all elected townwide, places requests in its voting precincts instead: `areas = "precincts"` names them so on the pages ("Precinct 3201"), and keeps the file off the Officials page. Requests in categories that point at a person or a household (an encampment, a health or police complaint, noise, a smoke detector or lost pet request: `seeclickfix.SENSITIVE_CATEGORIES`) are shown with their address to the block ("200–299 Main St") and their map point to about 100 meters; `sensitive_categories` adds a town's own category names |
    | `[finance]` | Tax bill and budget, from the state | Every New England state, each with a package in `pipeline/states/`; Rhode Island has budget figures but no tax bill, since the state publishes nothing to calculate one from. Its keys are the state's own; see [States](#states) |
@@ -218,13 +232,13 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    - `name`, plus `name_prefix` (shown in dark ink) and `name_suffix` (in the accent color). Include a trailing space in `name_prefix` for two words, e.g. `name_prefix = "Gloucester "`.
    - `domain`: the site's address.
    - `network` (optional): the family of sites it belongs to, named in every footer. Leave it out for a stand-alone site.
+   - `network_url` (optional): the network's homepage, which the network's name in the footer links to.
    - `contact_email`: shown on the About and Accessibility pages and used by the "Report an error" buttons.
-   - `[site.colors]` (optional): the town's own colors, as `"#rrggbb"`. `primary` (links, buttons, map markers), `primary_dark` (headings, rules, the masthead), `primary_soft` (light backgrounds), and `accent` (the current page in the menu, flags, notices). Take them from the city's own website and check each against white for WCAG AA contrast (4.5:1). `network` is the network's name in the masthead and share image; Publick's is slate `#2c4a63`, the same for every town. Unset colors keep the defaults (Gloucester's navy and maroon).
+   - `[site.colors]` (optional): the town's own colors, as `"#rrggbb"`. `primary` (links, buttons, map markers), `primary_dark` (headings, rules, the masthead), `primary_soft` (light backgrounds), and `accent` (the current page in the menu, flags, notices). Take them from the city's own website and check each against white for WCAG AA contrast (4.5:1). `network` is the color of the network's name in the masthead and share image; Publick's is slate `#2c4a63`, the same for every town. Unset colors keep the defaults (Gloucester's navy and maroon).
 
    The engine's icon is the Publick "P". A site outside the network draws its own in the town's `site/static/favicon.svg`. Then run `python -m pipeline.make_share_image` for the share image (and PNG icons, for a town with its own icon).
 6. **Deploy** as under [Deploying](#deploying), and set up [Document storage](#document-storage) and the [secrets](#secrets).
 
-Page text is written for a city. A town (rather than a city) needs a read through the page wording.
 
 ## States
 
@@ -370,7 +384,6 @@ archive_url = "https://www.manchesternh.gov/Departments/City-Clerk/Meeting-Minut
 archive_name = "city's Meeting Minutes and Agendas page"   # where earlier agendas and minutes are
 governing_body = "Board of Mayor and Aldermen"             # "City Council" if left out
 # notify_url = "..."                                       # the city's meeting alerts, if it has them
-documents = false   # agendas and minutes aren't collected yet: see below
 boards = ["Board of Mayor and Aldermen", "Planning Board", ...]
 
 [meetings.aliases]
@@ -534,12 +547,12 @@ If nobody relies on the old domain, deleting its GitHub records is enough; don't
 GitHub Pages serves one custom domain per repository. A network that runs many towns from one repository publishes each built site to a Cloudflare R2 bucket instead, and one Cloudflare Worker (`worker/index.js`) serves them all, choosing the site by hostname:
 
 ```sh
-python -m pipeline.deploy publish [--town <town>] [--site _site]   # the site goes live at its config's domain
-python -m pipeline.deploy rollback [--town <town>] [--build <build>] # back to the previous build, or a named one
+python -m pipeline.deploy publish [--town <town>] [--site _site] [--domain <domain>]   # the site goes live at its config's domain
+python -m pipeline.deploy rollback [--town <town>] [--build <build>] [--domain <domain>] # back to the previous build, or a named one
 python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete old builds and unused files
 ```
 
-Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
+`--domain` names the site by its address instead of by its town's config, as the network's rollback does. Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
 GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
 
@@ -552,7 +565,7 @@ Setup, once for the network:
 
 ## Document storage
 
-Agenda and minutes PDFs average well over a megabyte, git keeps every version forever, and a GitHub Pages site may be at most 1 GB. Without a `[storage]` table they're committed under `data/meetings/` and copied into the site, which works for a small or short-lived town. With one, they go to an S3-compatible bucket and pages link to the bucket's public address. Git keeps each document's text, summary and SHA-256 hash, so the site is still rebuilt entirely from the repository.
+Agenda and minutes PDFs average well over a megabyte, and git keeps every version forever, so a repository that holds them only grows: one holding every town's, as a network's does, would soon be too large to clone quickly (and a GitHub Pages site may be at most 1 GB). Without a `[storage]` table they're committed under `data/meetings/` and copied into the site, which works for a small or short-lived town. With one, they go to an S3-compatible bucket and pages link to the bucket's public address. Git keeps each document's text, summary and SHA-256 hash, so the site is still rebuilt entirely from the repository.
 
 One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 is the suggested host: no charge for downloads, and the first 10 GB are free. Steps 1–3 are done once per bucket; each town then needs step 4, and step 5 if it already has PDFs in git.
 
@@ -568,6 +581,8 @@ One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 i
    public_url = "https://files.example.org"
    prefix = "<town>"   # optional; defaults to the config file's name
    ```
+
+   The default is the config file's name (`gloucester`), so a town in a network sets its folder's name, `<town>-<state>`, to keep two towns' files apart.
 
 5. **Run the workflow.** New PDFs go straight to the bucket. The **Move saved documents to storage** step uploads the ones already in `data/meetings/`, checks each copy, and commits their removal. Until a file is moved, the site keeps linking to its copy in the repository.
 
@@ -603,8 +618,8 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Documents bucket | R2 bucket `publick-documents` at `https://files.publick.org`, `prefix = "<town>-<state>"` |
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
 | Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
-| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries share a $50 monthly budget. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
+| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share an $80 monthly budget. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
 | Alerts | One GitHub issue, "Towns need attention", kept up to date by each daily run and assigned to the maintainer; the scheduler opens "The network's daily runs have stopped" after 30 hours without one |
-| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, set once on the network repository |
+| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ENGINE_PR_TOKEN`, `SCHEDULER_GITHUB_TOKEN`, set once on the network repository |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.

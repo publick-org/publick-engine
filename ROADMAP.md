@@ -85,7 +85,7 @@ matrix is at most 256 jobs. AI summaries and translations share a network
 budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
-## Where things stand (2026-10-02)
+## Where things stand (2026-10-02; towns as of 2026-10-06)
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
@@ -95,13 +95,19 @@ thirds of commits are written by AI.
 | Beverly, MA | 2026-10-01 | CivicPlus calendar and Agenda Center; School Committee from the district's calendar feed | none | First town added from scratch; council minutes are scans |
 | Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite, with its schedule | none | First Connecticut town; summaries from July 2026; worded as a town |
 | Lawrence, MA | 2026-10-02 | CivicPlus calendar and Agenda Center | none | Launched in English and Spanish |
+| Burlington, VT | 2026-10-04 | CivicClerk | SeeClickFix | First Vermont town |
+| Bangor, ME | 2026-10-05 | CivicPlus calendar and Agenda Center, with the School Committee's | none | First Maine town; Maine's figures saved once a year |
+| Lewiston, ME | 2026-10-05 | CivicPlus calendar and Archive Center | none | |
+| South Kingstown, RI | 2026-10-05 | CivicClerk | SeeClickFix, by voting precinct | First Rhode Island town; no tax bill, which the state publishes nothing to calculate |
 
 - Every town is in English and Spanish (`/es/`), engine v1.27.0 and later.
-- Every town is on engine v1.33.0, published 2026-10-03 at 13:07 to 13:09 UTC,
-  and passed "Check live site" on its first real run.
+- Every town moved to engine v1.33.0 on 2026-10-03 at 13:07 to 13:09 UTC,
+  and passed "Check live site" on its first real run; since then
+  `engine-version` moves by itself once a day (v1.37.0 on 2026-10-06).
 - 445 summaries live (agenda prompt v4: 62; minutes v2: 383).
 - Summary and translation spending: September $21.82 (three towns); October
-  $9.22 after two days, projected $50 to $60, so the cap binds this month.
+  $9.22 after two days, projected $50 to $60, over the $50 cap then; the
+  budget is $80 a month since (publick.org #48).
 - Network status: [publick.org/status/](https://publick.org/status/).
 - 311 history in git: 24.5 MB across three towns, growing about 0.4 MB a day;
   Malden's and Manchester's backfills have about 20 and 14 days to go.
@@ -1000,7 +1006,7 @@ one Anthropic key whose rate limits apply to the whole network.
 **Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003.
 October after two days: $9.22 (Beverly $5.37, 58%, its launch backlog and
 $1.92 of transcripts; Wallingford $1.33; Manchester $1.26; Malden $0.92;
-Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, so the cap binds.
+Lawrence $0.21; Gloucester $0.13). Projected $50 to $60, within the $80 budget.
 
 **Next.**
 - A one-time `catch_up` run for Lawrence (launched with a $0.17-a-run backlog
@@ -1601,7 +1607,7 @@ releases.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs (v1.30.0)
+  engine-version              the engine release every town runs, an exact tag
   ADDING-A-TOWN.md            the checklist for a new town
   towns/<town>-<state>/
     config/<town>.toml
@@ -1613,7 +1619,7 @@ publick-org/publick.org
   scripts/                    build_home.py, build_status.py
   wrangler.toml               the Worker that serves every site
   wrangler.scheduler.toml     the Worker that starts the daily runs
-  .github/workflows/network.yml, worker.yml
+  .github/workflows/network.yml, engine.yml, evaluate.yml, worker.yml
 ```
 
 The engine reads a town's config, data, and static files from
@@ -1621,7 +1627,7 @@ The engine reads a town's config, data, and static files from
 town's folder, each town in its own process (`pipeline/network.py`).
 
 **The daily run.** The `publick-scheduler` Worker starts `network.yml` every
-hour from 09:05 to 14:05 UTC; GitHub schedules in the same hours are a
+hour from 09:05 to 14:05 UTC; one GitHub schedule, at 12:17 UTC, is a
 backup.
 1. A plan job takes the towns that are due (last fetching run over 18 hours
    ago), oldest first, splits them into jobs (four towns a job on a daily
@@ -1653,9 +1659,11 @@ newest ten are deleted daily. Agenda and minutes PDFs are in a second
 bucket, `publick-documents`, served at files.publick.org.
 
 **Secrets.** One set, nothing per town: the Anthropic key, the storage keys,
-the sites bucket keys, the BLS key, the Cloudflare deploy token, and
-`SCHEDULER_GITHUB_TOKEN` (fine-grained, the network repository's Actions and
-Issues, made 2026-09-30 for 366 days).
+the sites bucket keys, the BLS key, the Cloudflare deploy token,
+`ENGINE_PR_TOKEN` (fine-grained, the network repository's Contents and Pull
+requests, for the daily engine move), and `SCHEDULER_GITHUB_TOKEN`
+(fine-grained, the network repository's Actions and Issues and the engine's
+Actions, made 2026-09-30 for 366 days, widened 2026-10-03).
 
 **Page views.** One GoatCounter site, `publick` (no cookies, never what was
 searched); each town's `[analytics] prefix` is its folder name, so one
@@ -1696,6 +1704,10 @@ quiet days.
 | v1.31.0 (2026-10-03, never reached the towns) | Summaries checked against their documents' own text: what isn't in the document isn't shown, and vote counts it doesn't give are left out (#50). The meetings audit (#52): CivicPlus calendars month by month; one meeting listed in several places shown as one; corrections shown openly; "town" for a town, from the Census; each meeting source named; school board schedules and calendar feeds; a home page of six meetings in full. "AI summary" on every summary shown in a list, and in the feed; "Reusing what's here" on every About page, with the data license (#54). A SeeClickFix block stops the 311 step instead of marking requests removed (#56); the 311 pages dated by the last fetch (#57); an emptied calendar fails, and `behind --new-since` for the alert's comment (#58); `[summaries] since` (#59); a check of each live site after publishing (#60) |
 | v1.32.0 (2026-10-03) | `network.py` loads with the standard library only again (#62); the scheduler starts the release and the engine pull request (#61) |
 | v1.33.0 (2026-10-03) | The browser checks leave out a moved meeting's page, which redirects itself (#63). Every town on it from 13:09 UTC (publick.org #43) |
+| v1.34.0 (2026-10-03) | A state package for every New England state (#71); meeting pages say why minutes or an agenda aren't there (#72); amounts, keyboard tables, fact check counts, prompt versions, keys per step (#65) |
+| v1.35.0 (2026-10-04) | Decisions anchored to the minutes, each with its outcome and a quote, checked without AI (#66); every page says why something is missing (#73); "Calculated by Publick" in Spanish (#74); search engines (#75) |
+| v1.36.0 (2026-10-04) | A floor per town in the summary budget (#67); a sensitive 311 category's address shown only to its block (#68); HSTS, actions pinned by commit, Dependabot (#69); year-named minutes, Maine budgets without a tax bill, 311 by voting precinct (#76) |
+| v1.37.0 (2026-10-05) | Vermont's graduation and attendance expected a year after the school year (#79) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites; its plan, `REVIEW-PLAN.md` (commit e3963ee), and the second
