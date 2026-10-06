@@ -3,11 +3,11 @@
 {% from "macros.html" import area with context %}
 {% from "charts.html" import month_columns, bars, chart_links, map_figure, map_assets %}
 {% block title %}{{ _("311 Requests") }}{% endblock %}
-{% block description %}{% if precincts %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and voting precinct.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endif %}{% endblock %}
+{% block description %}{% if not has_areas %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category.{% endtrans %}{% elif precincts %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and voting precinct.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endif %}{% endblock %}
 {% set sc = scorecard %}
 {# The downloads as a dataset for dataset search, once, on the English page. #}
 {% block structured_data %}{% if lang == "en" and sc and sc.monthly %}{{ structured(dataset(town.name ~ " 311 requests", self.description(), canonical_url,
-  ["/311/data/monthly.csv", "/311/data/by-ward.csv", "/311/data/by-category.csv", "/311/data/open-by-age.csv",
+  ["/311/data/monthly.csv"] + (["/311/data/by-ward.csv"] if has_areas else []) + ["/311/data/by-category.csv", "/311/data/open-by-age.csv",
    "/311/data/recent-open.csv", "/311/data/repeat-locations.csv"], license=seeclickfix_license,
   start=sc.monthly[0].month, end=sc.monthly[-1].month)) }}{% endif %}{% endblock %}
 {% block head %}{% if scorecard %}{{ map_assets() }}{% endif %}{% endblock %}
@@ -69,7 +69,7 @@
 </ul>
 {% endif %}
 
-{{ on_this_page([("monthly", _("By month")), ("wards", _("By precinct") if precincts else _("By ward")), ("categories", _("By category")), ("open", _("Open requests")), ("recent", _("Past 30 days")), ("repeats", _("Repeat locations"))]) }}
+{{ on_this_page([("monthly", _("By month"))] + ([("wards", _("By precinct") if precincts else _("By ward"))] if has_areas else []) + [("categories", _("By category")), ("open", _("Open requests")), ("recent", _("Past 30 days")), ("repeats", _("Repeat locations"))]) }}
 
 {# ---- Monthly ---- #}
 {% set months = sc.monthly %}
@@ -97,7 +97,8 @@
 </details>
 {{ chart_links("monthly", "/311/data/monthly.csv") }}
 
-{# ---- Wards ---- #}
+{# ---- Wards (none in a town without wards or precincts) ---- #}
+{% if has_areas %}
 <h2 id="wards">{% if precincts %}{{ _("Requests per 1,000 residents, by voting precinct") }}{% else %}{{ _("Requests per 1,000 residents, by ward") }}{% endif %}</h2>
 <p class="small">{% if precincts %}{{ _("Past 12 months. Differences partly reflect how often people in each precinct report problems.") }}{% else %}{{ _("Past 12 months. Differences partly reflect how often people in each ward report problems.") }}{% endif %}</p>
 {% set ward_rows = [] %}
@@ -117,6 +118,7 @@
   </div>
 </details>
 {{ chart_links("wards", "/311/data/by-ward.csv") }}
+{% endif %}
 
 {# ---- Categories ---- #}
 <h2 id="categories">{{ _("By category") }}</h2>
@@ -161,7 +163,7 @@
 <h3 id="no-update">{{ _("No update in over a year") }}</h3>
 <p>{% trans num=nu.count | number, open=b.open | number %}{{ num }} of the {{ open }} open requests haven't been updated on SeeClickFix in over a year: no status change, comment, or edit. SeeClickFix doesn't show whether these were fixed and never closed, or never handled.{% endtrans %}</p>
 <details class="expand">
-  <summary>{% if precincts %}{{ _("By category and precinct") }}{% else %}{{ _("By category and ward") }}{% endif %}</summary>
+  <summary>{% if not has_areas %}{{ _("By category") }}{% elif precincts %}{{ _("By category and precinct") }}{% else %}{{ _("By category and ward") }}{% endif %}</summary>
   <div class="table-wrap">
   <table class="data-table">
     <caption>{{ _("Open requests with no update in over a year, by category") }}</caption>
@@ -171,6 +173,7 @@
     </tbody>
   </table>
   </div>
+  {% if nu.by_ward %}
   <div class="table-wrap">
   <table class="data-table">
     <caption>{% if precincts %}{{ _("Open requests with no update in over a year, by precinct") }}{% else %}{{ _("Open requests with no update in over a year, by ward") }}{% endif %}</caption>
@@ -180,6 +183,7 @@
     </tbody>
   </table>
   </div>
+  {% endif %}
 </details>
 {% endif %}
 
@@ -226,6 +230,6 @@
 </ul>
 
 <p class="source-note">{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
-recorded back to {{ since }}.{% endtrans %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% if precincts %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the precincts, no population to count per 1,000 residents.{% endtrans %}{% else %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}{% endif %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
+recorded back to {{ since }}.{% endtrans %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% if not has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time.{% endtrans %}{% elif precincts %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the precincts, no population to count per 1,000 residents.{% endtrans %}{% else %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}{% endif %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endif %}
 {% endblock %}

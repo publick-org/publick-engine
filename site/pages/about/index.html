@@ -92,7 +92,7 @@
   {% endif %}
   {% if config.seeclickfix is defined or wards_url %}
   {# Translators: %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year. #}
-  <li>{% if precincts and not wards_url %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>
+  {% if has_areas or wards_url %}<li>{% if precincts and not wards_url %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>{% endif %}
   <li>{% trans osm="https://www.openstreetmap.org/copyright", leaflet="https://leafletjs.com" %}<strong>Street maps:</strong> <a href="{{ osm }}">OpenStreetMap</a>, drawn with <a href="{{ leaflet }}">Leaflet</a>. Map images load from OpenStreetMap's servers.{% endtrans %}</li>
   {% endif %}
 </ul>

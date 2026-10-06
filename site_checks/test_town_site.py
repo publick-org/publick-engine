@@ -200,8 +200,12 @@ def test_meeting_pages_say_why_something_is_missing(site_dir):
 
 
 def test_officials_page_says_why_there_is_no_ward_map(site_dir, config):
+    """A ward map missing from a town with wards is explained; a town with none says nothing."""
+    from pipeline import officials
     if not any(s["slug"] == "officials" for s in config["sections"]):
         pytest.skip("No Officials page.")
+    if officials.at_large(config):
+        pytest.skip("Every seat is at-large: no wards to map.")
     for prefix in PREFIXES.values():
         html = (site_dir / prefix.lstrip("/") / "officials" / "index.html").read_text(encoding="utf-8")
         assert 'id="wards"' in html or "data-gap=" in html, f"{prefix}/officials/: no ward map, and nothing says why"
