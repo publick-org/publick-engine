@@ -90,6 +90,13 @@ goatcounter = "publick"
 prefix = "gloucester-ma"
 public_stats = ""
 
+# The weekly digest's email signup (pipeline/digest.py): posted to the site's own
+# /digest/subscribe, which the network's Worker answers (worker/digest.js).
+[digest]
+signup = true
+provider = "Buttondown"
+privacy_url = "https://buttondown.com/legal/privacy"
+
 # Public meetings, from the city's CivicPlus calendar.
 [meetings]
 base_url = "https://www.gloucester-ma.gov"

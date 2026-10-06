@@ -59,7 +59,7 @@ STATES_DIR = SITE_DIR / "states"
 STATIC_DIR = SITE_DIR / "static"
 
 # Built but kept out of the sitemap.
-UNLISTED_PAGES = {"/404.html"}
+UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 # Page folders built for every town, whether or not they are in the navigation.
 SHARED_FOLDERS = {"streets"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
@@ -1162,7 +1162,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
-                  not_covered=absences.not_covered(config, state),
+                  not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
     urls = {}
@@ -1226,8 +1226,12 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for issue in issues:
             issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
             render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
-            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue)
+            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
+        if common["digest_signup"]:
+            # Where the signup form leads (worker/digest.js); not for search engines.
+            for outcome in ("thanks", "problem"):
+                render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]

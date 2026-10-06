@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "macros.html" import contact %}
+{# Where the weekly digest's signup form leads (worker/digest.js): "check your email", or "that didn't work". #}
+{% block title %}{% if outcome == "thanks" %}{{ _("Check your email") }}{% else %}{{ _("That didn't go through") }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/digest/">{{ _("Weekly digest") }}</a></li></ol>
+</nav>
+<div class="page-head">
+  <h1>{{ self.title() }}</h1>
+  {% if outcome == "thanks" %}
+  <p class="lede">{{ _("We've sent you an email. Open the link in it to confirm your address, and the digest will start on the next Sunday.") }}</p>
+  <p>{{ _("If it isn't there in a few minutes, check your spam folder. If you're already signed up, there's nothing more to do.") }}</p>
+  {% else %}
+  <p class="lede">{{ _("Your address couldn't be signed up just now. Check that it's written correctly, and try again.") }}</p>
+  {# Translators: %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the project's public issue tracker". #}
+  <p>{% trans contact=contact(site) %}If it keeps happening, {{ contact }}.{% endtrans %}</p>
+  {% endif %}
+</div>
+<p><a href="/digest/">{{ _("Back to the weekly digest") }}</a></p>
+{% endblock %}

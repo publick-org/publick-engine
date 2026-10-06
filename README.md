@@ -149,7 +149,8 @@ tests/                      The engine's tests: pipeline, structure, link, and a
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
 worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by
-                            hostname; scheduler-index.js starts a network's daily runs on time and watches they finish
+                            hostname; scheduler-index.js starts a network's daily runs on time and watches they finish;
+                            digest.js signs readers up for the weekly digest's email, and sends it, through Buttondown
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's tests, on every push and pull request
 .github/workflows/release.yml  The daily release (see Versions)
@@ -496,7 +497,14 @@ Each town with meetings has a weekly digest at `/digest/` (`pipeline/digest.py`)
 
 It's made from what the site already has, with no AI calls. A week with no meetings and no new minutes has no issue. Minutes collected on the day a town's meetings were first read are its history, not news, and are left out, as are minutes of a meeting more than 90 days before the issue (a source's history read for the first time). An issue's page shows what the site knows about its week as of the latest build, so a meeting cancelled after the Sunday is shown cancelled. When the meetings calendar is behind (`absences.calendar_behind`), an issue whose week isn't over says meetings may be missing.
 
-Each issue is at `/digest/<its Monday>/`, and `/digest/feed.xml` has the last 12, each whole as plain HTML with every link in full, for an email provider to send. An item's date is when its email is due: the Sunday at 5:30 PM, the town's own time (`digest.SEND_TIME`; decided 2026-10-06, because it gives a day's notice of Monday evening meetings, and leaves the morning's daily run hours to finish). An issue first appears in the build on its Sunday, so a town whose Sunday run doesn't happen has no new issue to send until its next build. Sending the email isn't built yet: whatever sends it sends each item once its date has passed.
+Each issue is at `/digest/<its Monday>/`, and `/digest/feed.xml` has the last 12, each whole as plain HTML with every link in full, for an email provider to send. An item's date is when its email is due: the Sunday at 5:30 PM, the town's own time (`digest.SEND_TIME`; decided 2026-10-06, because it gives a day's notice of Monday evening meetings, and leaves the morning's daily run hours to finish). An issue first appears in the build on its Sunday, so a town whose Sunday run doesn't happen has no new issue to send until its next build. Each email link ends `?ref=digest-email`, so the page counts (`site/static/js/count.js`) show visits from the email, where mail apps send no referrer.
+
+### The email
+
+The network's Workers send it through [Buttondown](https://buttondown.com) (`worker/digest.js`), on one newsletter for every town, each reader tagged with the town and language they signed up for (`gloucester-ma-en`). Tags are a paid Buttondown feature.
+
+- **Signing up.** With `[digest] signup = true` (and `provider` and `privacy_url`, which the form and the About page name), `/digest/` has a form that posts to the site's own `/digest/subscribe`: the pages' Content-Security-Policy allows a form nowhere else. The sites Worker answers it, with `BUTTONDOWN_SUBSCRIBE_KEY` (subscribers read and write, sending disabled): a new address is added unconfirmed, and Buttondown asks it to confirm; an address already confirmed gets the town's tag; one that unsubscribed or never confirmed is asked to confirm again; one Buttondown won't send to is left alone. Every one goes on to `/digest/thanks/` (or `/digest/problem/`), so the form never says whether an address is subscribed. A hidden field catches bots, and Buttondown is given the reader's IP address for its firewall, since the form has no CAPTCHA; the About page says so. Only a site whose Worker answers `/digest/subscribe` can turn the form on.
+- **Sending.** Every hour of Sunday and Monday (UTC), the scheduler Worker reads the newest issue in the feed of each town in its `DIGEST_TOWNS`, and sends it with `BUTTONDOWN_SEND_KEY` (emails read and write, sending enabled) once its date has passed, to that town's tag alone. It isn't sent more than 6 hours late, nor twice (an email with its subject already made). A town no one has signed up for sends nothing. A run that fails for any town opens one issue, **The weekly digest didn't send** (label `digest not sent`), or comments on the one open. Each run makes a request for each town and a few for each one sending; Workers on the free plan may make 50, so about 20 towns.
 
 ## Data collection
 
