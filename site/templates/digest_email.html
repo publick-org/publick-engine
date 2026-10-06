@@ -1,37 +1,43 @@
 {# One issue of the weekly digest as an email's body, in the feed (/digest/feed.xml): plain HTML,
-   with no styles of its own (the email provider's template frames it) and every link in full. #}
+   with no styles of its own (the email provider's template frames it) and every link in full.
+   The email is read as a whole, so each section says once that its lines are written by AI,
+   above them, where the site's lists label each line. #}
 {% from "macros.html" import meeting_flags %}
 {% set issue_url = site_url ~ issue.url %}
+{# What's inside, before any of it. #}
+<p>
+{%- if issue.meetings %}{# Translators: the start of the weekly digest's email; %(count)s is how many meetings it lists. #}{% trans count=issue.meetings | length %}{{ count }} meeting this week.{% pluralize %}{{ count }} meetings this week.{% endtrans %}{% else %}{{ _("No meetings are listed for this week.") }}{% endif %}
+{%- if issue.minutes %} {# Translators: in the weekly digest's email; %(count)s is how many meetings' minutes it lists. #}{% trans count=issue.minutes | length %}Minutes from {{ count }} meeting, with what it decided.{% pluralize %}Minutes from {{ count }} meetings, with what they decided.{% endtrans %}{% endif -%}
+</p>
 {% if meetings.calendar_behind and issue.end >= today %}
 <p><strong>{% if meetings.calendar_behind.since %}{% trans when=meetings.calendar_behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}</strong></p>
 {% endif %}
-<h2>{{ _("Meetings") }}</h2>
 {% if issue.meetings %}
+<h2>{{ _("Meetings") }}</h2>
+{% if issue.meetings | selectattr("preview_line") | list %}<p><em>{{ _("The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it.") }}</em></p>{% endif %}
 {% for day, items in issue.days %}
 <h3>{{ day | date }}</h3>
 <ul>
   {% for m in items %}
   <li><a href="{{ site_url }}{{ m.url }}">{{ m.body }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}</a>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% set flags = meeting_flags(m) | striptags %}{% if flags %} ({{ flags }}){% endif %}
-    {% if m.preview_line %}<br>{{ m.preview_line }} ({{ _("AI summary") }}){% elif m.status == "scheduled" and not (m.agenda or m.get("documents_url")) %}<br>{{ _("No agenda posted yet") }}{% endif %}</li>
+    {% if m.preview_line %}<br>{{ m.preview_line }}{% elif m.status == "scheduled" and not (m.agenda or m.get("documents_url")) %}<br>{{ _("No agenda posted yet") }}{% endif %}</li>
   {% endfor %}
 </ul>
 {% endfor %}
-{% else %}
-<p>{{ _("No meetings are listed for this week.") }}</p>
 {% endif %}
 {% if issue.minutes %}
 <h2>{{ _("Minutes posted") }}</h2>
+<p><em>{{ _("What each meeting decided is written by AI from its minutes. Check the minutes before relying on it.") }}</em></p>
 {% for m in issue.minutes %}
 <p><a href="{{ site_url }}{{ m.url }}">{{ m.body }}, {{ m.date | date("plain") }}</a></p>
 {% if m.decisions.decided %}
 <ul>
   {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}</li>{% endfor %}
 </ul>
-{% if m.decisions.decided | length > 5 %}<p>{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</p>{% endif %}
+{% if m.decisions.decided | length > 5 %}<p><a href="{{ site_url }}{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
 {% elif m.preview_line %}
-<p>{{ m.preview_line }} ({{ _("AI summary") }})</p>
+<p>{{ m.preview_line }}</p>
 {% endif %}
 {% endfor %}
-<p><em>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }}</em></p>
 {% endif %}
 <p>{% trans url=issue_url %}<a href="{{ url }}">Read this week's digest on the site</a>, where each meeting's page has its agenda, its minutes, and any correction.{% endtrans %}</p>
