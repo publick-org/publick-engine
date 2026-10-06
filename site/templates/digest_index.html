@@ -10,6 +10,7 @@
   <p class="lede">{{ self.description() }}</p>
   <p class="small">{{ _("A new issue every Sunday. It's made from the meetings and minutes on this site, with no new AI writing.") }}</p>
 </div>
+{% if digest_signup %}{% include "digest_signup.html" %}{% endif %}
 <ul class="link-row">
   <li><a href="/digest/feed.xml">{{ _("Follow the weekly digest by RSS") }}</a></li>
 </ul>

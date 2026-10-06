@@ -51,5 +51,6 @@
 </ul>
 {% endif %}
 
+{% if digest_signup %}<p><a href="/digest/#signup">{{ _("Get the weekly digest by email") }}</a></p>{% endif %}
 {{ report_button(report_link(page_url, "Weekly digest"), _("Report an error in this digest")) }}
 {% endblock %}
