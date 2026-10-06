@@ -2932,6 +2932,15 @@ msgstr ""
 "Qué tan rápido la Ciudad de %(town)s confirma y cierra las solicitudes de servicios públicos, y "
 "cuántas siguen abiertas, por categoría y distrito."
 
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How quickly the City of %(town)s acknowledges and closes public service requests, how many are "
+"still open, by category."
+msgstr ""
+"Qué tan rápido la Ciudad de %(town)s confirma y cierra las solicitudes de servicios públicos, y "
+"cuántas siguen abiertas, por categoría."
+
 #: site/pages/311/repeat-locations/index.html
 msgid "How repeat locations are found"
 msgstr "Cómo se identifican los lugares con solicitudes repetidas"
@@ -3147,6 +3156,11 @@ msgstr ""
 "En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
 "típico, o, para las solicitudes fuera de los distritos, que no hay población con la que contar "
 "por cada 1,000 residentes."
+
+#: site/pages/311/index.html
+#, python-format
+msgid "In the tables, – means fewer than %(min)s requests, too few for a typical time."
+msgstr "En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo típico."
 
 #: pipeline/common_strings.py
 msgid "Inland Wetlands Commission"

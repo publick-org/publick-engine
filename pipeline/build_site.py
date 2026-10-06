@@ -1155,6 +1155,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   precincts=officials_mod.precincts(config),
+                  # 311 requests placed in wards or precincts; a town with neither has no precincts_file.
+                  has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state),
@@ -1423,8 +1425,9 @@ def write_311_csvs(folder: Path, sc: dict) -> None:
     def row(x):
         return [x["received"], x["closed"], x["open"], med(x["time_to_acknowledge"]), med(x["time_to_close"])]
     write_csv(folder / "monthly.csv", ["month", *summary], [[m["month"], *row(m)] for m in sc["monthly"]])
-    write_csv(folder / "by-ward.csv", ["ward", "population_2020", "per_1000_residents", *summary],
-              [[w["ward"], w.get("population_2020"), w.get("per_1000_residents"), *row(w)] for w in sc["by_ward"]])
+    if sc["by_ward"]:  # none in a town without wards or precincts
+        write_csv(folder / "by-ward.csv", ["ward", "population_2020", "per_1000_residents", *summary],
+                  [[w["ward"], w.get("population_2020"), w.get("per_1000_residents"), *row(w)] for w in sc["by_ward"]])
     write_csv(folder / "by-category.csv", ["category", *summary], [[c["category"], *row(c)] for c in sc["categories"]])
     write_csv(folder / "recent-open.csv", ["id", "submitted", "category", "location", "ward", "url"],
               [[r["id"], r["created_at"][:10], r["category"], r["address"], r["ward"], r["url"]]
@@ -1436,7 +1439,7 @@ def write_311_csvs(folder: Path, sc: dict) -> None:
     write_csv(folder / "open-by-age.csv", ["open_for", "requests"], [[b["label"], b["count"]] for b in sc["backlog"]["buckets"]])
     for w in sc.get("wards", []):
         write_csv(folder / f"ward-{w['ward']}.csv", ["category", *summary], [[c["category"], *row(c)] for c in w["by_category"]])
-    for c in sc.get("categories", []):
+    for c in sc.get("categories", []) if sc["by_ward"] else []:
         write_csv(folder / f"category-{c['slug']}.csv", ["ward", *summary], [[w["ward"], *row(w)] for w in c["by_ward"]])
 
 

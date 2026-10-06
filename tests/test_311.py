@@ -311,6 +311,42 @@ def test_a_town_without_wards_places_requests_in_precincts(config, data, tmp_pat
         assert "Precinto 1" in spanish.read_text()
 
 
+def test_a_town_with_no_areas(config, data, tmp_path, monkeypatch):
+    # Bangor has neither wards nor voting precincts: [seeclickfix] has no precincts_file, requests
+    # aren't placed in any area, and the pages leave areas out instead of explaining their absence.
+    from conftest import BUILT_AT, DATA_DIR
+    from pipeline import build_site
+    from pipeline.fetch_meetings import save_json
+    del config["seeclickfix"]["precincts_file"]
+    for body in config["officials"]["bodies"]:
+        for m in body["members"]:
+            m.pop("ward", None), m.pop("wards", None)
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=500)
+    assert not any(r.get("ward") for r in load(data).values())
+    sc = compute_311.compute(config, data, now=FETCHED_AT)
+    assert sc["overall"]["received"] == 114
+    assert sc["by_ward"] == [] and sc["wards"] == [] and sc["backlog"]["no_update"]["by_ward"] == []
+    assert all(c["by_ward"] == [] for c in sc["categories"])
+
+    site_data = tmp_path / "site-data"
+    shutil.copytree(DATA_DIR, site_data)
+    save_json(site_data / "311" / "scorecard.json", sc)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=site_data, now=BUILT_AT)
+    scorecard = (out / "311" / "index.html").read_text()
+    assert "by category.</" not in scorecard and "open, by category." in scorecard
+    assert 'id="wards"' not in scorecard and "by-ward.csv" not in scorecard and "Precinct" not in scorecard
+    assert not (out / "311" / "ward").exists() and not (out / "311" / "data" / "by-ward.csv").exists()
+    category = next((out / "311" / "category").glob("*/index.html")).read_text()
+    assert 'id="wards"' not in category and "By ward" not in category
+    methodology = (out / "311" / "methodology" / "index.html").read_text()
+    assert "ward boundaries" not in methodology and "Ward differences" not in methodology
+    assert "Ward maps:" not in (out / "about" / "index.html").read_text()
+    officials_page = (out / "officials" / "index.html").read_text()
+    assert "Find your ward" not in officials_page and "data-gap=" not in officials_page
+
+
 def test_311_areas_must_be_wards_or_precincts(config):
     from pipeline import officials
     config["seeclickfix"]["areas"] = "districts"

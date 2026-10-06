@@ -229,8 +229,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
                 record["detail"]["checked_at"] = ""  # force a recheck
 
     limit = detail_limit if detail_limit is not None else source.get("max_details_per_run", 400)
-    lookup = PrecinctLookup(data_dir / "static" / source["precincts_file"])
-    tagged = tag_wards(store, lookup)
+    # A town with no wards or precincts to place requests in has no precincts_file.
+    tagged = tag_wards(store, PrecinctLookup(data_dir / "static" / source["precincts_file"])) if source.get("precincts_file") else 0
 
     def checkpoint():
         save_json(store_dir(data_dir) / "requests.json", store)
