@@ -345,12 +345,20 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   the scheduler Worker sends each town's issue at its date through the
   provider's API; the signup form posts to the sites Worker, which adds the
   town and language tag and passes it on, so the pages' `form-action 'self'`
-  stays. Waiting on the owner: the account, the sending address and its DNS
-  records, a mailing address for the footer, and the API key as a
-  repository secret. Then: the send and the signup (off until the key is
-  set), and the About page's privacy text, which today says nothing that
-  identifies a reader is kept and must change when the form goes live. An
-  `.ics` meetings calendar is still worth doing on its own.
+  stays. Done the same day: the account, sending from
+  `hello@digest.publick.org` (its DNS records on the `digest.` subdomain),
+  tracking off, and two keys, one for each Worker
+  (`BUTTONDOWN_SUBSCRIBE_KEY`, which can't send, and `BUTTONDOWN_SEND_KEY`).
+  Built: the signup (`[digest] signup`, `worker/digest.js`), the send
+  (`DIGEST_TOWNS` in the scheduler, off while empty), and the About page's
+  privacy text. Going live, in order: Buttondown's tags add-on (+$9 a month;
+  tags and metadata are both paid, and sending by town needs one); the
+  footer's mailing address (Buttondown's own, if they confirm it's
+  allowed); the Workers deployed; one town's signup on and a test address
+  signed up, confirmed, and sent an issue; then every town. Past about 20
+  towns the send needs Workers' paid plan (50 requests a run on the free
+  one), or a list of what's due built with the homepage. An `.ics` meetings
+  calendar is still worth doing on its own.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.

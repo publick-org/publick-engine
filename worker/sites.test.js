@@ -223,3 +223,123 @@ test("the Worker's module exports only its handler", async () => {
   assert.deepEqual(Object.keys(module), ["default"]);
   assert.equal(typeof module.default.fetch, "function");
 });
+
+// ---- The weekly digest's signup (digest.js) ----
+
+const SIGNUP_MANIFEST = { ...MANIFEST, files: { ...MANIFEST.files, "digest/thanks/index.html": entry("thanks") } };
+
+// Buttondown's API, recorded: each call's method, path, headers and body; answers from `answers` ("METHOD path" -> [status, body]).
+function fakeButtondown(answers) {
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = url.replace("https://api.buttondown.com/v1", "");
+    const method = init.method || "GET";
+    calls.push({ method, path, headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
+    const [status, body] = answers[`${method} ${path}`] || [500, { detail: "not expected" }];
+    return new Response(JSON.stringify(body), { status });
+  };
+  return { calls, restore: () => { globalThis.fetch = realFetch; } };
+}
+
+function signup(fields, headers = { Origin: "https://t.publick.org" }) {
+  return new Request("https://t.publick.org/digest/subscribe", {
+    method: "POST",
+    body: new URLSearchParams(fields),
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "CF-Connecting-IP": "203.0.113.9",
+               Referer: "https://t.publick.org/digest/", ...headers },
+  });
+}
+
+async function signUp(answers, fields = { email: "reader@example.org" }, headers = undefined, withKey = true) {
+  const fake = fakeButtondown(answers);
+  try {
+    const e = { ...env(SIGNUP_MANIFEST), ...(withKey ? { BUTTONDOWN_SUBSCRIBE_KEY: "subscribe-key" } : {}) };
+    const response = await worker.fetch(signup(fields, headers), e);
+    return { response, calls: fake.calls };
+  } finally {
+    fake.restore();
+  }
+}
+
+const LOOKUP = "GET /subscribers/reader%40example.org";
+
+test("a new address is added with its town's tag, unconfirmed, and told to check its email", async () => {
+  const { response, calls } = await signUp({ [LOOKUP]: [404, {}], "POST /subscribers": [201, {}] });
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].headers.Authorization, "Token subscribe-key");
+  // No type and no collision behavior: Buttondown's default, which asks the address to confirm.
+  assert.deepEqual(calls[1].body, { email_address: "reader@example.org", tags: ["t-en"],
+                                    referrer_url: "https://t.publick.org/digest/", ip_address: "203.0.113.9" });
+  assert.equal(calls[1].headers["X-Buttondown-Collision-Behavior"], undefined);
+});
+
+test("an address already confirmed gets the town's tag, added to its others", async () => {
+  const { response, calls } = await signUp({ [LOOKUP]: [200, { type: "regular", tags: ["u-en"] }], "POST /subscribers": [201, {}] });
+  assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  assert.equal(calls[1].headers["X-Buttondown-Collision-Behavior"], "add");
+  assert.deepEqual(calls[1].body.tags, ["t-en"]);
+  assert.equal(calls[1].body.type, undefined);
+});
+
+test("an address that unsubscribed, or never confirmed, is asked to confirm again", async () => {
+  for (const type of ["unsubscribed", "unactivated"]) {
+    const { calls } = await signUp({ [LOOKUP]: [200, { type }], "POST /subscribers": [201, {}] });
+    assert.equal(calls[1].headers["X-Buttondown-Collision-Behavior"], "add");
+    assert.equal(calls[1].body.type, "unactivated", type);
+  }
+});
+
+test("an address Buttondown won't send to is left alone, and answered the same way", async () => {
+  for (const type of ["blocked", "complained", "undeliverable"]) {
+    const { response, calls } = await signUp({ [LOOKUP]: [200, { type }] });
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+    assert.equal(calls.length, 1, type);
+  }
+});
+
+test("a bot that fills in the hidden field is answered as if done, and nothing is sent", async () => {
+  const { response, calls } = await signUp({}, { email: "bot@example.org", website: "https://spam.example" });
+  assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  assert.equal(calls.length, 0);
+});
+
+test("an address that isn't one, a missing key, or Buttondown failing: the 'didn't work' page", async () => {
+  for (const email of ["", "not an address", `${"a".repeat(250)}@example.org`]) {
+    const { response, calls } = await signUp({}, { email });
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/problem/", email);
+    assert.equal(calls.length, 0);
+  }
+  const { response: noKey, calls: none } = await signUp({}, undefined, undefined, false);
+  assert.equal(noKey.headers.get("Location"), "https://t.publick.org/digest/problem/");
+  assert.equal(none.length, 0);
+  const logged = [];
+  const realError = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    const { response: failed } = await signUp({ [LOOKUP]: [404, {}],
+      "POST /subscribers": [400, { code: "email_invalid", detail: "reader@example.org is not valid" }] });
+    assert.equal(failed.headers.get("Location"), "https://t.publick.org/digest/problem/");
+  } finally {
+    console.error = realError;
+  }
+  // The Worker's logs say what failed, never whose address it was.
+  assert.deepEqual(logged, ["Digest signup on t.publick.org: adding a subscriber: HTTP 400 email_invalid"]);
+});
+
+test("only the town's own pages can sign someone up", async () => {
+  for (const origin of ["https://evil.example", "https://u.publick.org", "null"]) {
+    const { response, calls } = await signUp({}, undefined, { Origin: origin });
+    assert.equal(response.status, 403, origin);
+    assert.equal(calls.length, 0);
+  }
+});
+
+test("a site without the digest's signup takes no POST", async () => {
+  const response = await worker.fetch(signup({ email: "reader@example.org" }), env());
+  assert.equal(response.status, 405);
+  const other = await worker.fetch(new Request("https://t.publick.org/digest/", { method: "POST" }), env(SIGNUP_MANIFEST));
+  assert.equal(other.status, 405);
+});

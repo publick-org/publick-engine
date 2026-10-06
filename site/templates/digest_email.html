@@ -1,9 +1,10 @@
 {# One issue of the weekly digest as an email's body, in the feed (/digest/feed.xml): plain HTML,
    with no styles of its own (the email provider's template frames it) and every link in full.
    The email is read as a whole, so each section says once that its lines are written by AI,
-   above them, where the site's lists label each line. #}
+   above them, where the site's lists label each line. Each link says it's from the email (?ref=,
+   digest.EMAIL_REF), for the page counts. #}
 {% from "macros.html" import meeting_flags %}
-{% set issue_url = site_url ~ issue.url %}
+{% set issue_url = site_url ~ issue.url ~ "?ref=" ~ ref %}
 {# What's inside, before any of it. #}
 <p>
 {%- if issue.meetings %}{# Translators: the start of the weekly digest's email; %(count)s is how many meetings it lists. #}{% trans count=issue.meetings | length %}{{ count }} meeting this week.{% pluralize %}{{ count }} meetings this week.{% endtrans %}{% else %}{{ _("No meetings are listed for this week.") }}{% endif %}
@@ -19,7 +20,7 @@
 <h3>{{ day | date }}</h3>
 <ul>
   {% for m in items %}
-  <li><a href="{{ site_url }}{{ m.url }}">{{ m.body }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}</a>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% set flags = meeting_flags(m) | striptags %}{% if flags %} ({{ flags }}){% endif %}
+  <li><a href="{{ site_url }}{{ m.url }}?ref={{ ref }}">{{ m.body }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}</a>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% set flags = meeting_flags(m) | striptags %}{% if flags %} ({{ flags }}){% endif %}
     {% if m.preview_line %}<br>{{ m.preview_line }}{% elif m.status == "scheduled" and not (m.agenda or m.get("documents_url")) %}<br>{{ _("No agenda posted yet") }}{% endif %}</li>
   {% endfor %}
 </ul>
@@ -29,12 +30,12 @@
 <h2>{{ _("Minutes posted") }}</h2>
 <p><em>{{ _("What each meeting decided is written by AI from its minutes. Check the minutes before relying on it.") }}</em></p>
 {% for m in issue.minutes %}
-<p><a href="{{ site_url }}{{ m.url }}">{{ m.body }}, {{ m.date | date("plain") }}</a></p>
+<p><a href="{{ site_url }}{{ m.url }}?ref={{ ref }}">{{ m.body }}, {{ m.date | date("plain") }}</a></p>
 {% if m.decisions.decided %}
 <ul>
   {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}</li>{% endfor %}
 </ul>
-{% if m.decisions.decided | length > 5 %}<p><a href="{{ site_url }}{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
+{% if m.decisions.decided | length > 5 %}<p><a href="{{ site_url }}{{ m.url }}?ref={{ ref }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
 {% elif m.preview_line %}
 <p>{{ m.preview_line }}</p>
 {% endif %}
