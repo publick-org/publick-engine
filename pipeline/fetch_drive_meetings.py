@@ -21,6 +21,17 @@ October 14th and 28th, 2026; ..."), for the next few weeks. Documents attach to
 those meetings when they are posted. A scheduled meeting that drops off the
 schedule before it happens is marked as no longer listed, not deleted.
 
+Other districts keep a folder per meeting instead (Lewiston's School
+Committee, with `meetings_folder`): one folder a school year ("2026-2027 School
+Committee"), and in it one folder a meeting, named by its date ("04 10-5-26",
+"01 September 8, 2025"). The meeting's agenda is in its folder ("00 10-5-26
+Amended Agenda.pdf"), and its minutes come later, in the packet of the meeting
+that approves them ("03a 9-21-26 Minutes.pdf"), so each set of minutes is
+attached by the date in its own name. A folder named "CANCELED MEETING 3/23/26"
+cancels that day's meeting; one named "... NOTICE" holds a notice, not a
+meeting, and is left out. The time comes from the agenda ("Call meeting to
+order on or about 5:30 pm") when its text says so.
+
 Usage:
     python -m pipeline.fetch_drive_meetings [--town gloucester]
 """
@@ -41,6 +52,7 @@ from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, pdf_has_text, record_change, save_json, slugify, unique_slug
 from pipeline.http import FetchError, PoliteClient
+from pipeline.pdftext import plain_text
 
 FOLDER_URL = "https://drive.google.com/embeddedfolderview?id={folder}"
 FILE_URL = "https://drive.google.com/uc?export=download&id={id}"
@@ -57,6 +69,19 @@ MONTHS = {name: n for n, name in enumerate(["january", "february", "march", "apr
                                               "september", "october", "november", "december"], 1)}
 # "School Committee - " or "Building and Finance Subcommittee - " starts a committee's dates.
 SCHEDULE_ENTRY = re.compile(r"([A-Z][A-Za-z& ]*?(?:Committee|Subcommittee)) ?- ")
+# A folder a meeting: "10-5-26", "8-24-2026", "3/23/26", or "September 8, 2025", anywhere in the name.
+NUMERIC_DATE = re.compile(r"(?<![\d.])(\d{1,2})[-/](\d{1,2})[-/](\d{4}|\d{2})(?![\d/-])")
+LONG_DATE = re.compile(r"\b([A-Za-z]+)\.? (\d{1,2}),? (\d{4})\b")
+CANCELLED = re.compile(r"\bcancell?ed\b", re.I)
+NOTICE = re.compile(r"\bnotice\b", re.I)
+AGENDA = re.compile(r"\bagenda\b", re.I)
+# "03b 10-5-26 Personnel Agenda Cover.pdf" is the cover of a confidential item, not the agenda.
+NOT_THE_AGENDA = re.compile(r"\b(?:personnel|cover|executive session)\b", re.I)
+MINUTES = re.compile(r"\bminutes\b", re.I)
+# "Call meeting to order on or about 5:30 pm", "called to order at 6:00 p.m."
+CALL_TO_ORDER = re.compile(r"\border\b\W+(?:\w+\W+){0,4}?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\b", re.I)
+# A packet's place in the folder ("00 ", "03a "), left out when telling copies of one document apart.
+PACKET_NUMBER = re.compile(r"^\d+[a-z]?\s+", re.I)
 
 
 def list_folder(page: str) -> list[dict]:
@@ -90,6 +115,86 @@ def parse_name(name: str, abbreviations: list[str]) -> dict | None:
         "special": bool(re.search(r"\bspecial\b", words, re.I)),
         "variant": re.sub(r"\s+", " ", rest).strip(" -()"),
         "left_out": bool(LEFT_OUT.search(words)),
+    }
+
+
+def find_date(text: str) -> str | None:
+    """The first date in a folder or file name: '04 10-5-26', '01 September 8, 2025', 'CANCELED MEETING 3/23/26'."""
+    if found := NUMERIC_DATE.search(text):
+        month, day, year = (int(n) for n in found.groups())
+    elif (found := LONG_DATE.search(text)) and found.group(1).lower() in MONTHS:
+        month, day, year = MONTHS[found.group(1).lower()], int(found.group(2)), int(found.group(3))
+    else:
+        return None
+    try:
+        return date(year + 2000 if year < 100 else year, month, day).isoformat()
+    except ValueError:
+        return None
+
+
+def start_time(text: str) -> str | None:
+    """The time an agenda calls the meeting to order, as "17:30", or None if it doesn't say."""
+    found = CALL_TO_ORDER.search(text)
+    if not found:
+        return None
+    hour, minute = int(found.group(1)), int(found.group(2) or 0)
+    if not (1 <= hour <= 12 and minute < 60):
+        return None
+    hour = hour % 12 + (12 if found.group(3).lower() == "p" else 0)
+    return f"{hour:02d}:{minute:02d}"
+
+
+def folder_url(folder_id: str, resource_key: str | None = None) -> str:
+    """A public folder's page; an older shared folder also needs its resource key."""
+    return FOLDER_URL.format(folder=folder_id) + (f"&resourcekey={resource_key}" if resource_key else "")
+
+
+def meeting_folders(client, settings: dict, since: str) -> dict:
+    """What a folder-a-meeting layout holds from `since` on: each meeting's date and whether it was
+    cancelled, its agendas, and every set of minutes by the date in its name. A copy of the same
+    minutes in a later meeting's packet is the same document: the latest copy is kept."""
+    root = list_folder(client.get(folder_url(settings["meetings_folder"], settings.get("resource_key"))).text)
+    meetings, agendas, minutes, left_out, unreadable = {}, [], {}, [], []
+    for year in root:
+        found = SCHOOL_YEAR.search(year["name"])
+        if not year["folder"] or not found or int(found.group(2)) < int(since[:4]):
+            continue
+        for folder in list_folder(client.get(folder_url(year["id"])).text):
+            if not folder["folder"]:
+                continue
+            day = find_date(folder["name"])
+            if day is None:
+                unreadable.append(folder["name"])
+                continue
+            if day < since:
+                continue
+            if NOTICE.search(folder["name"]):
+                left_out.append(folder["name"])
+                continue
+            cancelled = bool(CANCELLED.search(folder["name"]))
+            meetings[day] = meetings.get(day, False) or cancelled
+            if cancelled:
+                continue
+            for file in list_folder(client.get(folder_url(folder["id"])).text):
+                if file["folder"]:
+                    continue
+                if LEFT_OUT.search(file["name"]):
+                    left_out.append(file["name"])
+                elif MINUTES.search(file["name"]):
+                    if (when := find_date(file["name"])) is None:
+                        unreadable.append(file["name"])
+                    elif when >= since:
+                        minutes[(when, PACKET_NUMBER.sub("", file["name"]).lower())] = (when, file)
+                elif AGENDA.search(file["name"]) and not NOT_THE_AGENDA.search(file["name"]):
+                    agendas.append((day, file))
+    info = lambda day, name: {"date": day, "revised": bool(re.search(r"\b(?:revised|amended)\b", name, re.I)),
+                              "special": bool(re.search(r"\bspecial\b", name, re.I)), "variant": "", "left_out": False}
+    return {
+        "meetings": meetings,
+        "documents": [("agendas", f, info(d, f["name"])) for d, f in agendas]
+                     + [("minutes", f, info(d, f["name"])) for d, f in minutes.values()],
+        "left_out": left_out,
+        "unreadable": unreadable,
     }
 
 
@@ -199,12 +304,12 @@ def new_meeting(store: dict, meeting_id: str, body: str, info: dict, settings: d
     return meeting
 
 
-def save_document(client, file: dict, storage, folder: str, settings: dict, stamp: str) -> dict:
+def save_document(client, file: dict, storage, folder: str, settings: dict, stamp: str) -> tuple[dict, bytes]:
     content = client.get(FILE_URL.format(id=file["id"])).content
     if not content.startswith(b"%PDF"):
         raise FetchError(f"{file['name']}: not a PDF")
     storage.put(folder, f"{file['id']}.pdf", content)
-    return {
+    return content, {
         "id": file["id"],
         "title": file["name"],
         "source_url": VIEW_URL.format(id=file["id"]),
@@ -230,27 +335,45 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     scheduled = (update_schedule(store, client.get(settings["schedule_url"]).text, settings, now.date(), stamp)
                  if settings.get("schedule_url") else 0)
 
-    found = []
-    for kind, root in (("agendas", settings["agendas_folder"]), ("minutes", settings["minutes_folder"])):
-        for committee in list_folder(client.get(FOLDER_URL.format(folder=root)).text):
-            body = body_for(committee["name"], settings["bodies"])
-            if committee["folder"] and body:
-                found += [(kind, body, f) for f in committee_files(client, committee["id"], since)]
-
     added, created, left_out, unreadable, errors = 0, 0, [], [], []
     documents = []
-    for kind, body, file in found:
-        info = parse_name(file["name"], settings.get("abbreviations", []))
-        if info is None:
-            unreadable.append(file["name"])
-        elif info["left_out"]:
-            left_out.append(file["name"])
-        elif info["date"] >= since and file["id"] not in known:
-            documents.append((kind, body, file, info))
+    if settings.get("meetings_folder"):
+        body = settings["body"]
+        layout = meeting_folders(client, settings, since)
+        found, left_out, unreadable = layout["documents"], layout["left_out"], layout["unreadable"]
+        # The same minutes copied into another packet: already attached under another file's id.
+        copies = {(m["date"], kind, PACKET_NUMBER.sub("", doc["original_filename"]).lower())
+                  for m in store.values() if m["body"] == body for kind in ("agendas", "minutes") for doc in m.get(kind, [])}
+        for day, cancelled in sorted(layout["meetings"].items()):
+            info = {"date": day, "variant": "", "special": False}
+            meeting = find_meeting(store, body, day, "")
+            if meeting is None:
+                meeting = new_meeting(store, f"drive-{slugify(body)}-{day}", body, info, settings, stamp)
+                created += 1
+            if cancelled and meeting["status"] != "cancelled":
+                record_change(meeting, "status", meeting["status"], "cancelled", stamp)
+                meeting["status"] = "cancelled"
+        documents = [(kind, body, file, info) for kind, file, info in found if file["id"] not in known
+                     and (info["date"], kind, PACKET_NUMBER.sub("", file["name"]).lower()) not in copies]
+    else:
+        found = []
+        for kind, root in (("agendas", settings["agendas_folder"]), ("minutes", settings["minutes_folder"])):
+            for committee in list_folder(client.get(FOLDER_URL.format(folder=root)).text):
+                body = body_for(committee["name"], settings["bodies"])
+                if committee["folder"] and body:
+                    found += [(kind, body, f) for f in committee_files(client, committee["id"], since)]
+        for kind, body, file in found:
+            info = parse_name(file["name"], settings.get("abbreviations", []))
+            if info is None:
+                unreadable.append(file["name"])
+            elif info["left_out"]:
+                left_out.append(file["name"])
+            elif info["date"] >= since and file["id"] not in known:
+                documents.append((kind, body, file, info))
     # Originals before revisions, so a meeting's latest version is its last.
     for kind, body, file, info in sorted(documents, key=lambda d: (d[3]["date"], d[3]["revised"], d[2]["name"])):
         try:
-            doc = save_document(client, file, storage, kind, settings, stamp)
+            content, doc = save_document(client, file, storage, kind, settings, stamp)
         except FetchError as e:
             errors.append(str(e))
             continue
@@ -262,6 +385,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if docs:
             record_change(meeting, "agenda" if kind == "agendas" else "minutes", docs[-1]["id"], doc["id"], stamp)
         docs.append(doc)
+        # The agenda says when the meeting starts, where no listing does.
+        if kind == "agendas" and not meeting.get("start_time") and doc["has_text"]:
+            if when := start_time(plain_text(content)):
+                meeting["start_time"] = when
         known.add(file["id"])
         added += 1
 

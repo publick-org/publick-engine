@@ -289,9 +289,11 @@ class FakeDrive:
         self.pdf = (FIXTURES / "civicplus_agenda_scanned.pdf").read_bytes()
 
     def get(self, url):
+        import re
         self.urls.append(url)
         if "embeddedfolderview?id=" in url:
-            page = FIXTURES / "drive" / f"{url.rsplit('=', 1)[1]}.html"
+            # An older shared folder's address also carries its resource key.
+            page = FIXTURES / "drive" / f"{re.search(r'[?&]id=([\w-]+)', url).group(1)}.html"
             return FakeResponse(page.read_bytes() if page.exists() else self.EMPTY_FOLDER)
         if url.endswith("/meeting-schedule"):
             return FakeResponse((FIXTURES / "drive" / "schedule.html").read_bytes())
