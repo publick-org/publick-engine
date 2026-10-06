@@ -357,6 +357,14 @@ msgstr "%(num)s sin actualizar en más de un año"
 msgid "%(pct)s%% of the maximum"
 msgstr "%(pct)s%% del máximo"
 
+#. %(provider)s is the email service that sends the digest, such as "Buttondown".
+#: site/templates/digest_signup.html
+#, python-format
+msgid ""
+"%(provider)s, the service that sends the digest, keeps your address until you unsubscribe. <a "
+"href=\"%(url)s\">What's kept</a>."
+msgstr ""
+
 #: site/pages/about/accessibility/index.html
 #, python-format
 msgid ""
@@ -1638,6 +1646,10 @@ msgstr "Factura promedio del impuesto a la propiedad (DLS de Massachusetts)"
 msgid "Average value"
 msgstr "Valor promedio"
 
+#: site/templates/digest_answer.html
+msgid "Back to the weekly digest"
+msgstr ""
+
 #: site/pages/311/methodology/index.html
 #, python-format
 msgid ""
@@ -1725,7 +1737,8 @@ msgstr "Calificaciones crediticias"
 #: site/pages/about/accessibility/index.html site/pages/meetings/boards/index.html
 #: site/pages/meetings/decisions/index.html site/pages/meetings/past/index.html
 #: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
-#: site/templates/digest.html site/templates/meeting.html site/templates/ward.html
+#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
+#: site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -1859,6 +1872,10 @@ msgstr "Cambios desde que se publicó"
 #: site/templates/macros.html
 msgid "Check the original before relying on it."
 msgstr "Revise el original antes de basarse en él."
+
+#: site/templates/digest_answer.html
+msgid "Check your email"
+msgstr ""
 
 #: site/pages/officials/index.html
 #, python-format
@@ -2257,6 +2274,12 @@ msgstr "Descargar todas las decisiones (CSV)"
 msgid "Each %(town)s figure has a margin of error (±) because it comes from a sample."
 msgstr "Cada cifra de %(town)s tiene un margen de error (±) porque viene de una muestra."
 
+#: site/templates/digest_signup.html
+msgid ""
+"Each Sunday afternoon. First we'll email you to confirm your address, and every email has a link "
+"to unsubscribe."
+msgstr ""
+
 #: site/pages/about/index.html
 #, python-format
 msgid ""
@@ -2443,6 +2466,10 @@ msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ell
 #: pipeline/common_strings.py
 msgid "Election Commission"
 msgstr "Comisión Electoral"
+
+#: site/templates/digest_signup.html
+msgid "Email address"
+msgstr ""
 
 #: site/pages/index.html
 msgid "Email or text alerts from the city"
@@ -2845,6 +2872,14 @@ msgstr "Gasto del fondo general en el año fiscal %(year)s, según en qué se us
 msgid "General government"
 msgstr "Gobierno general"
 
+#: site/templates/digest_signup.html
+msgid "Get it by email"
+msgstr ""
+
+#: site/templates/digest.html
+msgid "Get the weekly digest by email"
+msgstr ""
+
 #: site/states/ma/schools.html
 #, python-format
 msgid "Go to the %(report)s"
@@ -3052,6 +3087,19 @@ msgstr "Comisión de Derechos Humanos"
 #: pipeline/states/ma/budget.py
 msgid "Human services"
 msgstr "Servicios humanos"
+
+#: site/templates/digest_answer.html
+msgid ""
+"If it isn't there in a few minutes, check your spam folder. If you're already signed up, there's "
+"nothing more to do."
+msgstr ""
+
+#. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
+#. project's public issue tracker".
+#: site/templates/digest_answer.html
+#, python-format
+msgid "If it keeps happening, %(contact)s."
+msgstr ""
 
 #. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
 #. project's public issue tracker".
@@ -3320,6 +3368,10 @@ msgstr "Últimos datos"
 #: pipeline/build_site.py
 msgid "Latest request on SeeClickFix"
 msgstr "Última solicitud en SeeClickFix"
+
+#: site/templates/digest_signup.html
+msgid "Leave this empty"
+msgstr ""
 
 #: site/states/nh/budget.html
 #, python-format
@@ -5154,6 +5206,10 @@ msgstr ""
 "Se muestran {shown} de {total} reuniones que coinciden con {query}. Agregue una palabra para "
 "reducir la lista."
 
+#: site/templates/digest_signup.html
+msgid "Sign up"
+msgstr ""
+
 #: pipeline/states/ma/housing.py
 msgid "Single-family homes"
 msgstr "Casas unifamiliares"
@@ -6048,6 +6104,10 @@ msgstr "Pruebas"
 msgid "Text and controls meet contrast requirements."
 msgstr "El texto y los controles cumplen los requisitos de contraste."
 
+#: site/templates/digest_answer.html
+msgid "That didn't go through"
+msgstr ""
+
 #: site/pages/officials/index.html
 #, python-format
 msgid "The %(board)s's official page"
@@ -6610,6 +6670,17 @@ msgstr ""
 "El valor tasado neto de todo lo que gravó la ciudad en el año fiscal %(year)s fue de %(total)s, "
 "después de exenciones como las de personas mayores y veteranos."
 
+#. %(provider)s is the email service that sends the digest, such as "Buttondown".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"The one exception is the weekly digest by email, if you sign up: your email address, the town and"
+" language you chose, and the IP address you signed up from go to %(provider)s, the service that "
+"sends it, which keeps them until you unsubscribe (<a href=\"%(url)s\">its privacy policy</a>). "
+"The emails don't record whether you open them or which links you click, and this site keeps none "
+"of it."
+msgstr ""
+
 #: site/states/me/budget.html
 msgid ""
 "The rate is in dollars for each $1,000 of a property's assessed value, and the same rate applies "
@@ -7171,6 +7242,12 @@ msgstr "Vea o participe en línea: <a href=\"%(url)s\">únase por Zoom</a>."
 msgid "We count visits so we know which pages are useful. That's all."
 msgstr "Contamos las visitas para saber qué páginas son útiles. Nada más."
 
+#: site/templates/digest_answer.html
+msgid ""
+"We've sent you an email. Open the link in it to confirm your address, and the digest will start "
+"on the next Sunday."
+msgstr ""
+
 #: pipeline/i18n.py
 msgctxt "weekday, short"
 msgid "Wed"
@@ -7193,7 +7270,7 @@ msgid "Week of {when}"
 msgstr ""
 
 #: pipeline/build_site.py site/pages/index.html site/templates/digest.html
-#: site/templates/digest_index.html
+#: site/templates/digest_answer.html site/templates/digest_index.html
 msgid "Weekly digest"
 msgstr ""
 
@@ -7441,6 +7518,10 @@ msgstr "También puede <a href=\"/meetings/search/\">buscar en agendas y actas</
 #, python-brace-format
 msgid "You're in Ward {ward}."
 msgstr "Usted está en el Distrito {ward}."
+
+#: site/templates/digest_answer.html
+msgid "Your address couldn't be signed up just now. Check that it's written correctly, and try again."
+msgstr ""
 
 #: site/pages/officials/index.html
 msgid ""

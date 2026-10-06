@@ -166,9 +166,10 @@
 <p>{% trans url=site.repo_url ~ "/blob/main/LICENSE" %}The full terms are in the <a href="{{ url }}">network's license</a>.{% endtrans %}</p>
 {% endif %}
 
-{% if config.get("analytics", {}).get("goatcounter") %}
+{% set counting = config.get("analytics", {}).get("goatcounter") %}
+{% if counting or digest_signup %}
 <h2 id="privacy">{{ _("Privacy") }}</h2>
-<p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>
+{% if counting %}<p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>{% endif %}
 <ul>
   {% if config.site.get("languages", ["en"]) | length > 1 %}
   <li>{{ _("No ads, and no tracking across other sites.") }}</li>
@@ -179,10 +180,15 @@
   <li>{{ _("What you search for, and which street you look up, is never recorded.") }}</li>
   {% if wards_url %}<li>{# Translators: "Find my ward" is the label of the button that finds the reader's ward. #}{% trans %}If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}</li>{% endif %}
   <li>{{ _("Nothing that identifies you is kept, not even your IP address.") }}</li>
+  {# The weekly digest's email ([digest] signup; worker/digest.js). #}
+  {# Translators: %(provider)s is the email service that sends the digest, such as "Buttondown". #}
+  {% if digest_signup %}<li>{% trans provider=digest_signup.provider, url=digest_signup.privacy_url %}The one exception is the weekly digest by email, if you sign up: your email address, the town and language you chose, and the IP address you signed up from go to {{ provider }}, the service that sends it, which keeps them until you unsubscribe (<a href="{{ url }}">its privacy policy</a>). The emails don't record whether you open them or which links you click, and this site keeps none of it.{% endtrans %}</li>{% endif %}
 </ul>
+{% if counting %}
 <p class="small">{% trans url="https://www.goatcounter.com" %}Counting is done by <a href="{{ url }}">GoatCounter</a>, a privacy-friendly service. It notes the page, the site that linked here, and your screen size, along with the browser type and rough location (such as the country or state) that every website can see. We only look at the totals.{% endtrans %}
 {#- Translators: "They" are the visit totals of the sentence before. #}
 {% if config.analytics.public_stats %} {% trans url=config.analytics.public_stats %}They're <a href="{{ url }}">public</a>.{% endtrans %}{% endif %}</p>
+{% endif %}
 {% endif %}
 
 <h2 id="corrections">{{ _("Corrections and contact") }}</h2>

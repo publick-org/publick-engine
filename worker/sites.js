@@ -15,6 +15,11 @@
 // every page links with ?lang=<language>, which remembers the choice in a
 // cookie, over the browser's, for the homepage. Every other address is served
 // as asked, so a shared link opens in the language it was shared in.
+//
+// The one address that takes a POST is the weekly digest's signup form's
+// (digest.js), on a site whose digest has a signup (its digest/thanks/ page).
+
+import { SIGNUP_PATH, subscribe } from "./digest.js";
 
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
@@ -120,10 +125,14 @@ async function serve(request, env, url, key, entry, status, vary = null) {
 }
 
 export async function handle(request, env) {
+  const url = new URL(request.url);
+  if (request.method === "POST" && url.pathname === SIGNUP_PATH) {
+    const manifest = await loadManifest(env, url.hostname.toLowerCase());
+    if (manifest && manifest.files["digest/thanks/index.html"]) return subscribe(request, env, url);
+  }
   if (request.method !== "GET" && request.method !== "HEAD") {
     return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
   }
-  const url = new URL(request.url);
   const host = url.hostname.toLowerCase();
   if (host.startsWith("www.")) {
     return Response.redirect(`${url.protocol}//${host.slice(4)}${url.pathname}${url.search}`, 301);

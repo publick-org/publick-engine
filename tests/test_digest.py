@@ -87,6 +87,8 @@ def test_digest_feed(site_dir):
     # Every link in the email is in full; no page's markup (navigation, scripts) comes with it.
     links = re.findall(r'href="([^"]+)"', body)
     assert links and all(link.startswith("https://gloucester-ma.publick.org/") for link in links)
+    # Each says it's from the email, for the page counts (count.js).
+    assert all(link.endswith("?ref=digest-email") for link in links)
     assert "<script" not in body and "<nav" not in body
     # It says what's inside first, and once, above the meetings, that their lines are written by AI.
     assert body.startswith("<p>10 meetings this week.</p>")
@@ -127,5 +129,36 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     assert "Minutes from 1 meeting, with what it decided." in body.split("</p>")[0]
     assert body.count("written by AI from its minutes") == 1
     # The decisions not listed are a link away.
-    assert ('<a href="https://gloucester-ma.publick.org/meetings/2026-08-25-city-council/">2 more decisions on the meeting\'s page</a>'
-            in body)
+    assert ('<a href="https://gloucester-ma.publick.org/meetings/2026-08-25-city-council/?ref=digest-email">'
+            "2 more decisions on the meeting's page</a>" in body)
+
+
+def test_the_signup_form_posts_to_the_site_itself(site_dir):
+    """[digest] signup in the test town's config: the form on /digest/, which the network's Worker answers."""
+    index = (site_dir / "digest" / "index.html").read_text()
+    form = index[index.index('<section aria-labelledby="signup">'):index.index("</section>")]
+    assert '<form class="search-form" action="/digest/subscribe" method="post">' in form
+    assert 'name="email" type="email" required' in form and 'name="lang" value="en"' in form
+    # The field for bots is hidden from people, and from keyboards and screen readers with it.
+    assert re.search(r'<div hidden>\s*<label for="signup-website">', form)
+    assert "Buttondown, the service that sends the digest, keeps your address until you unsubscribe." in form
+    assert 'href="/digest/#signup"' in (site_dir / "digest" / "2026-09-28" / "index.html").read_text()
+    for outcome, title in (("thanks", "Check your email"), ("problem", "That didn't go through")):
+        page = (site_dir / "digest" / outcome / "index.html").read_text()
+        assert f"<h1>{title}</h1>" in page
+    # Pages a form leads to aren't for search engines.
+    assert "/digest/thanks/" not in (site_dir / "sitemap.xml").read_text()
+
+
+def test_the_about_page_says_what_the_signup_keeps(site_dir):
+    about = (site_dir / "about" / "index.html").read_text()
+    assert "The one exception is the weekly digest by email, if you sign up" in about
+    assert "the IP address you signed up from go to Buttondown" in about
+    assert 'href="https://buttondown.com/legal/privacy"' in about
+    assert "The emails don't record whether you open them or which links you click" in about
+
+
+def test_a_signup_needs_who_keeps_the_addresses(config):
+    assert digest.signup({**config, "digest": {"signup": False}}) is None
+    with pytest.raises(SystemExit, match="needs provider and privacy_url"):
+        digest.signup({**config, "digest": {"signup": True}})

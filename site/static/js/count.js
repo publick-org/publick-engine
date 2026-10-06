@@ -1,7 +1,9 @@
 // Page view counting with GoatCounter (no cookies), loaded only when the site
 // config turns it on. Sends the page path without any query string, the page's
 // built title, where the visitor came from (without its query string), and the
-// screen width. Searches and street lookups are counted as events, never with
+// screen width. A visit from a link that names where it's from (?ref=digest-email, the
+// weekly digest's email, where mail apps send no referrer) is counted as from there.
+// Searches and street lookups are counted as events, never with
 // what was searched. When several sites share one GoatCounter site, data-prefix
 // names this one (e.g. "malden-ma"), and goes in front of every path and event
 // so the shared dashboard can tell the sites apart.
@@ -19,6 +21,8 @@
   }
 
   function referrer() {
+    var ref = new URLSearchParams(location.search).get("ref");
+    if (ref && /^[a-z0-9-]{1,40}$/.test(ref)) return ref;
     if (!document.referrer) return "";
     try {
       var r = new URL(document.referrer);

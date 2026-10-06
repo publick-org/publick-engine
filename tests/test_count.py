@@ -76,3 +76,12 @@ def test_search_is_an_event_without_what_was_searched(browser, site_dir):
 def test_without_a_prefix_paths_are_sent_as_they_are(browser, site_dir):
     view, event = counted(browser, site_dir, [SITE + "/meetings/search/?q=harbor"], prefix=False)
     assert view["p"] == "/meetings/search/" and event["p"] == "meeting-search"
+
+
+def test_a_link_from_the_digest_email_says_so(browser, site_dir):
+    """Mail apps send no referrer, so the digest's email links name it (?ref=digest-email); the page is counted
+    without the query, and anything else in ref is ignored."""
+    [view] = counted(browser, site_dir, [SITE + "/meetings/?ref=digest-email"])
+    assert view["p"] == "gloucester-ma/meetings/" and view["r"] == "digest-email"
+    [view] = counted(browser, site_dir, [SITE + "/meetings/?ref=<script>"])
+    assert view["r"] == ""
