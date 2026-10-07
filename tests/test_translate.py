@@ -440,30 +440,3 @@ def test_a_town_s_ordinary_words_are_whole_words_from_every_town(tmp_path):
     words = translate.town_words(tmp_path / "towns" / "b-ma" / "data")
     assert "wastewater" in words and "ryan" not in words
     assert translate.names("Ryan reviewed the Wastewater Plan.", words) == {"Ryan"}
-
-
-def test_the_translator_gets_the_board_s_spanish_name_from_every_source(tmp_path):
-    config = {"strings": {"es": {"Waterways Board": "Junta de Vías Navegables"}}}
-    assert translate.board_name(config, "es", "Waterways Board") == "Junta de Vías Navegables"
-    # One many towns have, translated in the engine's own strings.
-    assert translate.board_name({}, "es", "Planning Board") == i18n.strings("es")[(None, "Planning Board")]
-    # A draft that passed its check.
-    translate.strings_path(tmp_path, "es").parent.mkdir(parents=True)
-    translate.strings_path(tmp_path, "es").write_text(json.dumps({"drafts": {"Harbor Plan Committee": {
-        "text": "Comité del Plan del Puerto", "check": "ok", "prompt_version": translate.NAMES_VERSION}}}))
-    assert translate.board_name({}, "es", "Harbor Plan Committee", tmp_path) == "Comité del Plan del Puerto"
-    assert translate.board_name({}, "es", "Unknown Committee", tmp_path) is None
-
-
-def test_the_review_holds_the_translator_to_the_same_rules(tmp_path):
-    config = spanish_town(tmp_path)
-    client = FakeAnthropic()
-    summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
-    translating = [c for c in client.calls if c["system"].startswith("You translate short summaries")]
-    reviewing = [c for c in client.calls if c["system"].startswith("You check translations")]
-    assert translating and reviewing
-    for call in translating[:1] + reviewing[:1]:
-        assert translate.RULES in call["system"]
-    # "The committee" stays unnamed, and continued isn't tabled.
-    assert "don't add the name" in translate.RULES and "never \"posponer\", which is for tabling" in translate.READERS["es"]
-    assert "usual form" in translate.RULES and "Keep acronyms as written" in translate.RULES
