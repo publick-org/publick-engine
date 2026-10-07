@@ -49,9 +49,30 @@ def test_finds_towns_and_their_config_names(tmp_path):
 
 def test_plan_batches_every_town(tmp_path):
     root = make_root(tmp_path)
-    assert batches(network.plan(root, batch_size=2)) == [["gloucester-ma", "manchester-nh"], ["salem-ma"]]
+    assert batches(network.plan(root, batch_size=2)) == [["gloucester-ma", "salem-ma"], ["manchester-nh"]]
     assert network.plan(root, batch_size=2)["include"][0]["name"] == "gloucester-ma +1"
+    assert batches(network.plan(root, batch_size=4)) == [["gloucester-ma", "manchester-nh", "salem-ma"]]
     assert network.plan(make_root(tmp_path / "empty", ()))["include"] == []
+
+
+def test_plan_spreads_the_slow_towns_over_the_jobs(tmp_path):
+    """The 2026-10-07 daily run, by the time each town's last fetching run took: in order, the three
+    slow 311 towns and Lewiston made one job of over two hours, whose runner was lost."""
+    minutes = {"malden-ma": 45, "manchester-nh": 44, "burlington-vt": 47, "lewiston-me": 5, "lawrence-ma": 3,
+               "wallingford-ct": 8, "beverly-ma": 5, "gloucester-ma": 16, "bangor-me": 28, "south-kingstown-ri": 5}
+    root = make_root(tmp_path, tuple(minutes))
+    for name, took in minutes.items():
+        write_record(root, name, started_at="2026-10-06T09:00:00+00:00",
+                     finished_at=f"2026-10-06T{9 + took // 60:02d}:{took % 60:02d}:00+00:00")
+    jobs = batches(network.plan(root, batch_size=4))
+    assert len(jobs) == 3 and all(len(job) <= 4 for job in jobs)
+    assert sorted(sum(jobs, [])) == sorted(minutes)
+    assert all(len({"malden-ma", "manchester-nh", "burlington-vt"} & set(job)) == 1 for job in jobs)
+    assert max(sum(minutes[t] for t in job) for job in jobs) <= 75
+    # A town with no record, or one that can't be read, counts as UNKNOWN_RUN_SECONDS.
+    (root / "towns" / "lewiston-me" / "data" / network.RUN_RECORD).write_text("{")
+    assert network.last_run_seconds(root, "lewiston-me") == network.UNKNOWN_RUN_SECONDS
+    assert network.last_run_seconds(make_root(tmp_path / "new", ("salem-ma",)), "salem-ma") == network.UNKNOWN_RUN_SECONDS
 
 
 def test_slots_split_towns_stably(tmp_path):
