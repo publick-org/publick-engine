@@ -79,6 +79,8 @@
 {% endif %}
 
 {% set part = config.get("participation", {}).get(m.body_en, {}) %}
+{# The meeting's own recording, where the listing links one (a YouTube video, sometimes from a time in it). #}
+{% set recording = ("https://www.youtube.com/watch?v=" ~ m.video_id ~ (("&t=" ~ m.video_start ~ "s") if m.get("video_start") else "")) if m.get("video_id") else none %}
 {% if upcoming and m.status == "scheduled" %}
 <h2 id="take-part">{{ _("How to take part") }}</h2>
 {% if m.public_hearing %}
@@ -90,10 +92,13 @@
   {# Translators: after the city's own instructions for public comment; %(title)s is the page they come from. #}
   {% if part.get("comment") %}<li>{{ part.comment }} {% trans url=part.source_url, title=part.source_title %}Source: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
   {# Translators: %(title)s is a local TV station or video channel. #}
-  {% if part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
+  {% if recording %}<li>{% trans url=recording %}Watch it on <a href="{{ url }}">YouTube</a>.{% endtrans %}</li>
+  {% elif part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
   {% if m.agenda or m.documents_url %}<li>{% trans url=m.agenda.source_url if m.agenda else m.documents_url %}The <a href="{{ url }}">posted agenda</a> is the official notice. It may give instructions for public comment.{% endtrans %}</li>{% endif %}
   {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts about this board, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
 </ul>
+{% elif recording and m.status != "cancelled" %}
+<p>{% trans url=recording %}<a href="{{ url }}">Watch the recording</a> of this meeting on YouTube.{% endtrans %}</p>
 {% elif part.get("video_url") %}
 <p>{% trans body=m.body, url=part.video_url, title=part.video_title %}Recordings of {{ body }} meetings: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</p>
 {% endif %}
