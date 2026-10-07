@@ -45,7 +45,7 @@ PINNED = {
     "summary of an agenda (summarize.KINDS)": (4, "5c47543097a4a51c"),
     "summary of minutes (summarize.KINDS)": (3, "595a7b4a9a916b72"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
-    "translation (translate.VERSION)": (5, "bca993058e452f4f"),
+    "translation (translate.VERSION)": (6, "31827a1a71f307cb"),
     "drafted text (translate.NAMES_VERSION)": (2, "1ac57feb64f0ccfd"),
 }
 

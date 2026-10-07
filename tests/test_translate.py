@@ -466,3 +466,4 @@ def test_the_review_holds_the_translator_to_the_same_rules(tmp_path):
         assert translate.RULES in call["system"]
     # "The committee" stays unnamed, and continued isn't tabled.
     assert "don't add the name" in translate.RULES and "never \"posponer\", which is for tabling" in translate.READERS["es"]
+    assert "usual form" in translate.RULES and "Keep acronyms as written" in translate.RULES
