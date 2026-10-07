@@ -33,7 +33,8 @@ def translations(tmp_path):
 
 
 def translation_calls(client):
-    return [c for c in client.calls if "translate" in c["system"]]
+    """The calls that translate, not those that review a translation."""
+    return [c for c in client.calls if "translate" in c["system"] and not c["system"].startswith("You check")]
 
 
 def test_numbers_are_checked_without_ai():
@@ -401,3 +402,41 @@ def test_a_decision_that_fails_its_fact_check_isnt_shown_in_either_language(tmp_
     assert "Approved the site plan for 12 Main St" not in page
     spanish = (out / "es" / english.relative_to(out)).read_text()
     assert "1 decisión no aparece: no se pudo comprobar con las actas." in spanish
+
+
+def test_what_the_english_writes_short_may_be_written_out():
+    """False alarms from the 2026-10-07 audit of prompt 4's translations: each a right translation."""
+    def headline(en, es):
+        return translate.check({"headline": en, "summary": "", "decisions": []}, {"headline": es, "summary": "", "decisions": []}, "minutes")
+    # A fiscal year, written out, with the English kept after it, or with two figures.
+    assert headline("Accepted the FY27 grant.", "Aceptó la subvención del año fiscal 2027.") == "ok"
+    assert headline("Reviewed FY26 balances.", "Revisó los saldos del año fiscal 2026 (FY26).") == "ok"
+    assert headline("Reviewed the FY 27 budget.", "Revisó el presupuesto del año fiscal 27.") == "ok"
+    assert headline("Accepted the FY27 grant.", "Aceptó la subvención del año fiscal 2028.") != "ok"
+    # An abbreviation written out; a name at the end of a sentence still counts.
+    assert headline("Amended Ch. 22 Sec. 22-270.", "Enmendó el capítulo 22, sección 22-270.") == "ok"
+    assert headline("Disclosure by Jennifer Duran, Asst City Clerk.", "Divulgación de Jennifer Duran, subsecretaria municipal.") == "ok"
+    assert "Cruz" in headline("Seconded by Councilor Cruz.", "Secundado por el concejal.")
+    # A name the Spanish writes with its accent.
+    assert headline("Celebrates America's 250th.", "Celebra los 250 años de América.") == "ok"
+    # A cap, not a "not"; a time range's a.m.; a date with dots.
+    assert headline("Awarded a contract not to exceed $15,545.", "Adjudicó un contrato por un máximo de $15,545.") == "ok"
+    assert headline("Interviews 9:00-11:00 A.M.", "Entrevistas de 9:00 a. m. a 11:00 a. m.") == "ok"
+    assert headline("Capital Plan - 1.28.26", "Plan de capital - 28 de enero de 2026") == "ok"
+    assert headline("Capital Plan - 1.28.26", "Plan de capital - 27 de enero de 2026") != "ok"
+    # Failed and declined, in either language's words.
+    assert headline("Failed motion to reconsider.", "Fracasa la moción para reconsiderar.") == "ok"
+    assert headline("Declined to sell the land.", "Rechazó vender el terreno.") == "ok"
+    assert headline("Declined to sell the land.", "Aprobó vender el terreno.") != "ok"
+
+
+def test_a_town_s_ordinary_words_are_whole_words_from_every_town(tmp_path):
+    """"Bryan" doesn't make "ryan" an ordinary word, so a Ryan is still checked; a word another town
+    of the network writes in lowercase is ordinary everywhere."""
+    for town, text in (("a-ma", "Bryan Lee spoke about wastewater."), ("b-ma", "Ryan spoke.")):
+        folder = tmp_path / "towns" / town / "data" / "summaries"
+        folder.mkdir(parents=True)
+        (folder / "x.json").write_text(json.dumps({"summary": text}))
+    words = translate.town_words(tmp_path / "towns" / "b-ma" / "data")
+    assert "wastewater" in words and "ryan" not in words
+    assert translate.names("Ryan reviewed the Wastewater Plan.", words) == {"Ryan"}
