@@ -442,8 +442,33 @@ def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str
     return problems
 
 
+WITHHELD_KINDS = ("agenda", "minutes")
+
+
+def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[str, str]]:
+    """The summaries taken down by hand ([[summaries.withheld]]): a reader reported an error, and
+    the summary stays down until it's fixed and the entry removed. Each entry names its meeting as
+    a correction does, by `board` and `date` or its record's `meeting` id, and `kind`, "agenda" or
+    "minutes". Returns (meeting id, kind) pairs. An entry that names no meeting, or more than one,
+    stops the build, so a typo can't leave a summary up that was meant to come down: a pull
+    request's run fails before it merges."""
+    found = set()
+    for w in withheld:
+        what = f"{w.get('board', w.get('meeting'))} {w.get('date', '')} {w.get('kind', '')}".strip()
+        if w.get("kind") not in WITHHELD_KINDS:
+            raise SystemExit(f"[[summaries.withheld]] {what}: kind must be \"agenda\" or \"minutes\".")
+        matches = [m for m in meetings
+                   if w.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
+                   or (m["date"] == str(w.get("date")) and words(m["body"]) == words(w.get("board", "")))]
+        if len(matches) != 1:
+            raise SystemExit(f"[[summaries.withheld]] {what}: {len(matches)} meetings match it; name one, by board "
+                             "and date or by its meeting id, so its summary is taken down.")
+        found.add((matches[0]["id"], w["kind"]))
+    return found
+
+
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
-                  corrections: list[dict] | None = None) -> dict:
+                  corrections: list[dict] | None = None, withheld: list[dict] | None = None) -> dict:
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     status_path = data_dir / "meetings" / "status.json"
@@ -452,6 +477,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     # A meeting the city lists in more than one place is shown as one (pipeline/listings.py).
     store, _moved = listings.combined(store, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)))
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
+    taken_down = withheld_summaries(meetings, withheld or [])
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
                     source="calendar", source_url=None, correction=None)
@@ -482,6 +508,13 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             summarize.cached(data_dir, m["minutes_doc"]["sha256"], summary_model, "minutes", current=False)
             if m["minutes_doc"] and summary_model else None
         )
+        # A summary taken down by hand isn't shown anywhere: not on its page, in lists, the feed,
+        # the digest, search, or the decisions; the page says it was taken down.
+        m["withheld"] = {kind: (m["id"], kind) in taken_down for kind in WITHHELD_KINDS}
+        if m["withheld"]["agenda"]:
+            m["preview"] = None
+        if m["withheld"]["minutes"]:
+            m["minutes_summary"] = None
         m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
         m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
@@ -879,7 +912,8 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
     with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
         meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
-                             config.get("meetings", {}).get("corrections", []))
+                             config.get("meetings", {}).get("corrections", []),
+                             config.get("summaries", {}).get("withheld", []))
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -1017,7 +1051,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
-                             config.get("meetings", {}).get("corrections", []))
+                             config.get("meetings", {}).get("corrections", []),
+                             config.get("summaries", {}).get("withheld", []))
     for m in meetings["all"]:
         m["body"] = tr.board(m["body"])
     for b in meetings["boards"]:
