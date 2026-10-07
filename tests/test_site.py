@@ -237,6 +237,17 @@ def test_311_ward_and_category_pages_and_csv(site_dir):
     assert header.startswith("category,requests,closed,still_open")
 
 
+def test_311_monthly_charts_have_tables(site_dir):
+    """The Accessibility page says every chart has a table with the same numbers."""
+    for page in (site_dir / "311" / "ward" / "1" / "index.html", next((site_dir / "311" / "category").iterdir()) / "index.html"):
+        html = page.read_text()
+        chart = html.index('<div class="columns" role="img"')
+        table = html[chart:html.index('<h2', chart)]
+        assert "See as a table" in table and "<th scope=\"col\">Month</th>" in table
+        first_row = re.search(r'<tr><th scope="row">([^<]+)</th><td class="num">([\d,]+)</td></tr>', table)
+        assert first_row, page
+
+
 def test_city_report_button_on_311_and_street_pages(site_dir, config):
     # The build marks it as off-site (class "external", a new tab, hidden text saying so).
     button = re.compile(r'<a class="[^"]*\bbutton\b[^"]*" href="' + re.escape(config["seeclickfix"]["report_url"])
