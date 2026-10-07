@@ -15,7 +15,9 @@
 // (bounced, marked as spam) is left alone. Every one is answered the same
 // way, so the form never says whether an address is subscribed. Buttondown is
 // given the reader's IP address, for its firewall, which flags an address
-// submitting many signups: the form has no CAPTCHA.
+// submitting many signups: the form has no CAPTCHA. With SIGNUP_LIMITER bound,
+// the Worker also limits how often one IP address, and one email address, can
+// sign up (withinLimits).
 //
 // Sending: on each DIGEST_CRON trigger the scheduler reads each town in
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
@@ -27,7 +29,8 @@
 //
 // Environment: BUTTONDOWN_SUBSCRIBE_KEY (the sites Worker's: subscribers read
 // and write, sending disabled) and BUTTONDOWN_SEND_KEY (the scheduler's:
-// emails read and write, sending enabled), secrets; DIGEST_TOWNS.
+// emails read and write, sending enabled), secrets; DIGEST_TOWNS; and, optionally,
+// SIGNUP_LIMITER, a rate limiting binding for the sites Worker.
 
 export const API = "https://api.buttondown.com/v1";
 export const SIGNUP_PATH = "/digest/subscribe";
@@ -107,6 +110,27 @@ export async function addSubscriber(key, email, tag, { ip = null, referrer = "" 
   return again ? "confirm_again" : "tagged";
 }
 
+// Whether a signup is within SIGNUP_LIMITER's limits (a Workers rate limiting binding, set in the
+// network's wrangler.toml), counted for the visitor's IP address and, apart, for the address being
+// signed up, so a script can't have Buttondown send someone confirmation after confirmation. The
+// address is counted by its hash, so it isn't kept anywhere. Without the binding, or if it fails,
+// every signup is within limits: Buttondown's own firewall still sees the IP address.
+export async function withinLimits(env, request, email) {
+  if (!env.SIGNUP_LIMITER) return true;
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email.toLowerCase()));
+    const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const keys = [`email:${hash}`, `ip:${request.headers.get("CF-Connecting-IP") || "unknown"}`];
+    const results = await Promise.all(keys.map((key) => env.SIGNUP_LIMITER.limit({ key })));
+    if (results.every((r) => r.success)) return true;
+    console.error("Digest signup: over the rate limit");
+    return false;
+  } catch (error) {
+    console.error(`Digest signup: the rate limit couldn't be checked: ${error.message}`);
+    return true;
+  }
+}
+
 // The answer to the signup form: on to the town's "check your email" page, or its "that didn't work" page.
 export async function subscribe(request, env, url) {
   const answer = (page) => new Response(null, {
@@ -126,6 +150,7 @@ export async function subscribe(request, env, url) {
   const email = String(form.get("email") || "").trim();
   if (email.length > 254 || !EMAIL.test(email)) return answer("problem");
   const lang = LANGUAGES.includes(form.get("lang")) ? form.get("lang") : LANGUAGES[0];
+  if (!(await withinLimits(env, request, email))) return answer("problem");
   if (!env.BUTTONDOWN_SUBSCRIBE_KEY) {
     console.error("Digest signup: BUTTONDOWN_SUBSCRIBE_KEY isn't set.");
     return answer("problem");
