@@ -110,11 +110,19 @@ thirds of commits are written by AI.
   is on, and the first email goes out Sunday 2026-10-11 at 5:30 PM. The other
   nine towns are in publick.org #72, after that send works.
 - HSTS is live from the sites Worker (deployed 2026-10-05).
-- 661 summaries, 402 with a Spanish translation saved. Spanish summaries by
-  Claude Sonnet 5.5 since #82 (v1.38.0). October's summaries and translations
-  after six days: $16.88 (Beverly $3.28, Manchester $2.65, Malden $2.40,
-  Burlington $2.29, Gloucester $1.71, Bangor $1.40, Wallingford $1.23,
-  Lewiston $0.77, South Kingstown $0.71, Lawrence $0.44).
+- 661 summaries. Spanish summaries by Claude Sonnet 5.5 since #82 (v1.38.0),
+  with the translation prompt at version 4: every one of the 396 Spanish
+  translations saved is version 3, so since the towns moved past v1.38.0 on
+  2026-10-06 every Spanish page shows its summaries in English, marked "not
+  translated yet", until each is made again (653 to make, about a cent
+  each; older documents' are paced at $0.16 a town a day).
+- Waiting for a first summary: 84 documents, most of them older minutes in
+  Malden (32), Burlington (24, since July), and Manchester (23); paced the
+  same way, Manchester's take about two weeks.
+- October's summaries, transcriptions, and translations after six days:
+  $22.90 of $80 (Beverly $5.94, Manchester $2.87, Gloucester $2.73,
+  Burlington $2.69, Malden $2.58, Wallingford $2.09, Bangor $1.53, Lawrence
+  $0.85, Lewiston $0.84, South Kingstown $0.78).
 - Fact checks (the 2026-10-06 run records): 19 of 654 summaries held back
   (Bangor 5, Burlington 5, Gloucester 3, Lewiston 3, Malden, South Kingstown
   and Wallingford 1 each); 66 not yet checked, most in Beverly (23), Malden
@@ -174,11 +182,18 @@ Burlington caught up (#79).
    most in Bangor and Burlington (5 each). Each one wrong in the summary, or
    the check's mistake? Fix the check if it's the check's.
    ([Summary checks](#summary-checks))
-7. **Spanish translations, measured again** now that Sonnet 5.5 translates
-   (#82): the 2026-10-04 audit found about 70% failing their review. Read a
-   sample of what the review flags: a real error is the prompt's to fix, a
-   false flag the review's; never loosen the review to pass more.
-   ([Spanish quality](#spanish-quality))
+7. **Spanish translations made again, and measured.** Every translation
+   saved is prompt version 3, and pages show only version 4 (#82), so the
+   Spanish pages show every summary in English until it's remade: 653
+   translations, about $6 to $7, paced at $0.16 a town a day for older
+   documents, so one to two weeks. A run by hand with `catch_up` set (a few
+   dollars a town, after the morning's runs) clears it in a day or two,
+   well within what's left of October. Then measure: the 2026-10-04 audit
+   found about 70% failing their review. Read a sample of what the review
+   flags: a real error is the prompt's to fix, a false flag the review's;
+   never loosen the review to pass more. A prompt change should come with
+   a way to keep showing the last version's passing translations until the
+   new ones are made. ([Spanish quality](#spanish-quality))
 8. **The meetings audit, by hand**: every town's upcoming meetings against its
    city's own sites; the last was 2026-10-02, and Burlington, Bangor,
    Lewiston, and South Kingstown have never had one.
@@ -885,7 +900,7 @@ one Anthropic key whose rate limits apply to the whole network.
 
 **Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003,
 and their review about a cent. September: $21.82 (three towns). October
-after six days: $16.88 across ten towns (see
+after six days: $22.90 across ten towns (see
 [Where things stand](#where-things-stand-2026-10-07)).
 
 **Next.**
