@@ -100,9 +100,11 @@ thirds of commits are written by AI.
 | South Kingstown, RI | 2026-10-05 | CivicClerk | SeeClickFix, by voting precinct | First Rhode Island town; no tax bill, which the state publishes nothing to calculate |
 
 - Every town is on engine v1.42.0, in English and Spanish. The 08:40 engine
-  move of 2026-10-06 (v1.38.0) failed at its merge step, so v1.38.0 never
-  reached the towns; v1.39.0 to v1.42.0 were moved the same day, three of
-  them by hand (publick.org #63, #65, #69, #71).
+  move of 2026-10-06 (v1.38.0) was held, as it should be: Lewiston's home
+  page failed a check (a two-digit day, "Oct 12", wider than its column), so
+  nothing merged and the towns stayed on v1.37.0. #83 fixed the layout, and
+  v1.39.0 to v1.42.0 were moved the same day, mostly by hand (publick.org
+  #63, #65, #69, #71).
 - The weekly digest is live for Gloucester (engine #85 to #87, publick.org
   #67, #68, #70; Workers deployed 2026-10-06 at 18:07 UTC): the signup form
   is on, and the first email goes out Sunday 2026-10-11 at 5:30 PM. The other
@@ -155,11 +157,16 @@ Burlington caught up (#79).
 3. **A switch to hold back one summary.** When a reader reports a wrong
    summary, the only way to take it down today is rolling the whole town
    back, and the next daily run publishes it again (`RUNBOOK.md`, "A reader
-   reports an error"). With more readers this is the gap that matters most:
-   a list in the town's config of documents whose summary isn't shown, with
-   the reason, and the page saying it was withdrawn. ([Summary checks](#summary-checks))
-4. **Why the engine move of 2026-10-06 failed at its merge**, so the next
-   ones merge by themselves; v1.39.0 to v1.42.0 were moved by hand.
+   reports an error"). With more readers this is the gap that matters most.
+   Built in #90: a `[[summaries.withheld]]` entry in the town's config takes
+   one meeting's agenda or minutes summary down everywhere, and its page says
+   so. ([Summary checks](#summary-checks))
+4. **A date test before each release.** The engine move of 2026-10-06 was
+   held because a two-digit day overflowed the home page's column in
+   Lewiston (fixed in #83): the network's check caught it, as designed, but
+   only once a town had a meeting on the 12th. The engine's own tests should
+   render meetings on the widest dates (two-digit days, the longest month
+   and weekday names, in Spanish too) so the release never carries one.
    ([Releases](#releases))
 5. **Beverly's summaries caught up** (issue #66), and the 66 summaries not
    yet fact checked. ([Monitoring](#monitoring))
@@ -1602,7 +1609,7 @@ quiet days.
 | v1.35.0 (2026-10-04, by hand) | Decisions anchored to quotes from the minutes, each with its outcome (#66); every page says why something is missing (#73); "Calculated by Publick" notes in Spanish (#74); sitemaps, structured data, and search engine tags for the town sites (#75). The same day: Wallingford's tax bill and budget (publick.org #51) and Burlington (publick.org #54) |
 | v1.36.0 (2026-10-05) | A budget floor per town (#67); 311 addresses in sensitive categories cut to the block (#68); HSTS from the Worker, actions pinned by commit, Dependabot (#69); year-named Archive Center collections, Maine budgets without a tax bill, and 311 by voting precinct (#76) |
 | v1.37.0 (2026-10-05) | Vermont's graduation and attendance expected a year after the school year (#79); Dependabot's updates (#77, #78) |
-| v1.38.0 (2026-10-06) | Spanish summaries by Claude Sonnet 5.5, translated before the backlog and corrected on a second try (#82); docs (#81). Never moved to the towns: the morning's engine move failed at its merge |
+| v1.38.0 (2026-10-06) | Spanish summaries by Claude Sonnet 5.5, translated before the backlog and corrected on a second try (#82); docs (#81). Never moved to the towns: the network's check held it (Lewiston's home page, fixed in v1.39.0) |
 | v1.39.0 (2026-10-06, moved by hand) | The home page's day column (#83) |
 | v1.40.0 (2026-10-06, moved by hand) | At-large wording, Lewiston's School Committee from Google Drive, 311 without areas (#84) |
 | v1.41.0 (2026-10-06, moved by hand) | The weekly digest: its pages and feed (#85), and the email's signup through the sites Worker and the Sunday send (#86) |
