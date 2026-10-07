@@ -192,6 +192,20 @@ def test_every_dash_is_explained(site_dir, page_files):
             assert "dash-legend" in html, f"{path.relative_to(site_dir)}: a – in a table with nothing saying what it means"
 
 
+# A column chart (its bars are drawn; its numbers are only in the label read aloud), and
+# what follows it up to the next heading.
+COLUMN_CHART = re.compile(r'<div class="columns" role="img".*?(?=<h[23]|</main>)', re.S)
+
+
+def test_every_column_chart_has_a_table(site_dir, page_files):
+    """The Accessibility page says every chart has a table with the same numbers: each
+    column chart has one before the next heading. (Bar charts print each bar's label and
+    number as text.)"""
+    for path in page_files:
+        for chart in COLUMN_CHART.findall(path.read_text(encoding="utf-8")):
+            assert "<table" in chart, f"{path.relative_to(site_dir)}: a column chart without its table"
+
+
 def test_meeting_pages_say_why_something_is_missing(site_dir):
     """No meeting page has an empty Agenda or minutes section, and a meeting that wasn't held
     never says its minutes are still to come."""
