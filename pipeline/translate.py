@@ -50,12 +50,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-VERSION = 4
+VERSION = 5
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -71,22 +72,24 @@ LANGUAGE_NAMES = {"es": "Spanish"}
 # (site/strings/es-guide.md has the full glossary).
 READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
-Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
+Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; continue a hearing, application, or item to a later meeting = pasarlo a la reunión del (date), or dejarlo para otra reunión (never "posponer", which is for tabling); off-street parking = estacionamiento fuera de la calle, on-street parking = estacionamiento en la calle; FY27 = año fiscal 2027; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
 Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17, which a Spanish reader takes as 10 July. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
 
 SYSTEM = """You translate short summaries of a city government's public meeting agendas and minutes from English into {language}, for residents.
 
 Rules:
-- Translate only what the English says. Add nothing, leave nothing out, and don't explain.
+{rules}
 - Keep the neutral tone. No words that judge.
 - Short sentences, about an 8th-grade reading level.
-- Keep every name of a person, business, street, address, and place exactly as written, and keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, and order numbers.
-- Board and committee names: use the translations given below when there are any; otherwise keep the English name.
-- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."); when it gives none, put the name first and the role after it ("Scott Houseman, presidente del comité"), or use the role without an article, rather than "el presidente" or "la presidenta".
-- Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
 
 {readers}"""
+
+# The rules the translator follows and the review holds it to, written once for both.
+RULES = """- Translate only what the English says. Add nothing, leave nothing out, and don't explain. When the English says "the committee", "the board", or "the commission" without its name, write "el comité", "la junta", or "la comisión": don't add the name, even when you know it, because the page already names it.
+- Keep exactly as written, in English, the names of people, businesses, streets and addresses, places and buildings, and named programs, projects, grants, and funds ("Cabot Street", "Green Communities", "FairShare Earmark Grant"). Keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, ordinance, and order numbers.
+- Translate everything else into Spanish, including the names of boards, committees, departments, and offices ("Planning Department" = "Departamento de Planificación"), job titles, and kinds of licenses and permits. For the meeting's own board, use the Spanish name given with the summary, when there is one. No other English words in a Spanish sentence.
+- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."). When it gives none, put the name first and the role after it, with no article ("Scott Houseman, presidente del comité"); never "el presidente", "la presidenta", "el superintendente", or "la superintendente" for someone the English doesn't give a gender. A role without the person's name ("the Superintendent recommended") is the office: "la Superintendencia recomendó", "la Presidencia del Concejo"."""
 
 PROMPT = """Translate this summary of the {kind} of a meeting ({title}, {date}) into {language}.
 {boards}
@@ -234,52 +237,83 @@ def english_words() -> frozenset:
 # Forms of verbs the dictionary lacks, which a decision often starts with ("Withdrew DOC #348/19").
 IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", "oversaw", "withdrawn", "withdrew",
              "withheld"}
+# Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
+# ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
+NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise", "pickleball",
+               "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness", "workforce"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
                    "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
 
+def summary_dirs(data_dir: Path) -> list[Path]:
+    """The folders of English summaries whose words count: the town's, and in a network
+    (towns/<town>/data), every town's, so a word one town writes in lowercase ("wastewater",
+    "coordinator") is ordinary in all of them."""
+    towns = data_dir.parent.parent
+    if towns.name == "towns":
+        return sorted(t / "data" / "summaries" for t in towns.iterdir() if (t / "data" / "summaries").is_dir())
+    return [data_dir / "summaries"]
+
+
 @lru_cache(maxsize=32)
 def town_words(data_dir: Path | None) -> frozenset:
-    """The words a town's English summaries use in lowercase, which are no one's name: newer words
-    the dictionary lacks ("input", "tourism")."""
+    """The words English summaries use in lowercase, which are no one's name: newer words the
+    dictionary lacks ("input", "tourism"). Whole words only: "Bryan" doesn't make "ryan" a word."""
     words: set[str] = set()
-    for file in sorted((data_dir / "summaries").glob("*.json")) if data_dir else []:
-        record = json.loads(file.read_text(encoding="utf-8"))
-        for field in ("headline", "summary", "items", "decisions"):
-            value = record.get(field) or ""
-            for text in value if isinstance(value, list) else [value]:
-                words.update(w for w in re.findall(r"[a-z]+", text) if w.islower())
+    for folder in summary_dirs(data_dir) if data_dir else []:
+        for file in sorted(folder.glob("*.json")):
+            record = json.loads(file.read_text(encoding="utf-8"))
+            for field in ("headline", "summary", "items", "decisions"):
+                value = record.get(field) or ""
+                for text in value if isinstance(value, list) else [value]:
+                    words.update(re.findall(r"\b[a-z]+\b", text))
     return frozenset(words)
 
 
 def is_word(word: str, also: frozenset = frozenset()) -> bool:
     w = word.lower()
     known = english_words()
-    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in known or w in also:
+    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in NEWER_WORDS or w in known or w in also:
         return True
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
                                                   ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
              if w.endswith(end)]
     # Doubled before an ending: "planning", "referred".
     stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
-    return any(stem in known or stem in also for stem in stems)
+    return any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems)
+
+
+# Abbreviations, with their period, that a translation may write out ("Ch." as "Cap." or "capítulo"):
+# words, not names. Business suffixes (Inc., Corp.) aren't here: a business's name is kept.
+ABBREVIATIONS = {"Art", "Ave", "Blvd", "Ch", "Chap", "Dir", "Est", "Ext", "No", "Rd", "Sec", "Secs", "St", "Vol"}
+# Those that are never anyone's name, with or without a period ("Asst City Clerk").
+ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt"}
 
 
 def names(text: str, also: frozenset = frozenset()) -> set[str]:
     """The names in an English text: capitalized words that aren't ordinary English words
     ("Houseman" is one, "Collector" isn't), which a translation keeps as written. also: more
-    ordinary words (town_words())."""
-    return {w for w in re.findall(r"\b[A-Z][a-z]+\b", text or "") if not is_word(w, also)}
+    ordinary words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in
+    ALWAYS_ABBREVIATIONS, isn't one."""
+    return {m.group(1) for m in re.finditer(r"\b([A-Z][a-z]+)\b(\.?)", text or "")
+            if not (m.group(2) and m.group(1) in ABBREVIATIONS) and m.group(1) not in ALWAYS_ABBREVIATIONS
+            and not is_word(m.group(1), also)}
+
+
+def plain(text: str) -> str:
+    """Text without its accents, so "América" keeps "America"."""
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c))
 
 
 # What a decision says happened, in each language, to catch a translation that turns it round.
 NOT = {"en": re.compile(r"\b(?:not|never)\b|n't\b", re.I), "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
 SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
-                            r"disapprov\w*|against|oppos\w*)\b|n't\b", re.I)}
+                            r"disapprov\w*|declin\w*|against|oppos\w*)\b|n't\b", re.I)}
 APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant\w*|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
            "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
-DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*)\b", re.I),
-        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*)", re.I)}
+DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*|declin(?:e|ed|es|ing))\b",
+                        re.I),
+        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*|fracas\w*)", re.I)}
 TABLED = {"en": re.compile(r"\b(?:tabled|tabling|postpon\w*)\b", re.I),
           "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|archiv\w*|tabl\w*|suspend\w*|sobre la mesa|difiri\w*)",
                            re.I)}
@@ -336,6 +370,28 @@ def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
     return en, tr
 
 
+# The English's ways of writing what a translation writes out, made the same before comparing:
+# "FY27" is "fiscal year 2027" ("año fiscal 2027"); "not to exceed" is a cap, not a "not";
+# "9:00-11:00 A.M." is two morning times; "1.28.26" is a date in figures.
+FISCAL_YEAR = re.compile(r"\bFY\s?'?(\d{2})\b")
+NOT_TO_EXCEED = re.compile(r"\bnot\s+to\s+exceed\b", re.I)
+TIME_RANGE = re.compile(r"\b(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s?m\b\.?", re.I)
+DOTTED_DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b")
+
+
+def comparable(en: str, tr: str) -> tuple[str, str]:
+    """The English and its translation, each written as the other would write it (above)."""
+    en = FISCAL_YEAR.sub(r"FY 20\1", en)
+    en = NOT_TO_EXCEED.sub("up to", en)
+    en = TIME_RANGE.sub(lambda m: f"{m.group(1)} {m.group(3)}.m.-{m.group(2)} {m.group(3)}.m.", en)
+    en = DOTTED_DATE.sub(r"\1/\2/\3", en)
+    # A translation that writes the fiscal year out and keeps the English after it: "año fiscal 2027 (FY27)".
+    tr = re.sub(r"\s*\(FY\s?'?\d{2,4}\)", "", tr)
+    tr = FISCAL_YEAR.sub(r"FY 20\1", tr)
+    tr = re.sub(r"\b(año fiscal)\s+(\d{2})\b", r"\1 20\2", tr, flags=re.I)
+    return en, tr
+
+
 def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset()) -> str:
     """ "ok", or what's wrong, entry by entry, so a list put in another order fails too: a field
     missing or empty, a list of another length, a number lost or added (however the language
@@ -354,11 +410,12 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             pairs = [(en, tr)]
         for i, (a, b) in enumerate(pairs):
             where = f"{field} {i + 1}" if isinstance(en, list) else field
+            a, b = comparable(a, b)
             if scaled(a, "en") != scaled(b, lang):
                 return f"{where}: amounts' scale differs (million, billion)"
             if times(a) != times(b):
                 return f"{where}: a.m. or p.m. differs"
-            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", b))
+            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", plain(b)))
             if lost_names:
                 return f"{where}: {', '.join(lost_names)} not in the translation"
             wrong = outcome(a, b, lang)
@@ -399,9 +456,22 @@ def languages(config: dict) -> list[str]:
     return [lang for lang in config["site"].get("languages", ["en"]) if lang != "en" and lang in LANGUAGE_NAMES]
 
 
-def board_names(config: dict, lang: str, board: str) -> str:
-    """The board's name in the language, from the town's [strings.<language>], for the prompt."""
+def board_name(config: dict, lang: str, board: str, data_dir: Path | None = None) -> str | None:
+    """The board's name in the language, from the first of what the site shows it as
+    (build_site.TownStrings): the town's [strings.<language>], the engine's own for a board many
+    towns have (common_strings.TEXTS, translated in site/strings/), or a draft that passed its check."""
+    from pipeline import common_strings, i18n
     name = config.get("strings", {}).get(lang, {}).get(board)
+    if not name and board in common_strings.TEXTS:
+        name = i18n.strings(lang).get((None, board))
+    if not name and data_dir:
+        name = drafts(data_dir, lang).get(board)
+    return name or None
+
+
+def board_names(config: dict, lang: str, board: str, data_dir: Path | None = None) -> str:
+    """The board's name in the language, for the prompt."""
+    name = board_name(config, lang, board, data_dir)
     return f'The board is "{board}"; in {LANGUAGE_NAMES[lang]}, "{name}".\n' if name else ""
 
 
@@ -412,12 +482,12 @@ def schema(kind: str) -> dict:
 
 
 def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
-              previous: dict | None = None, problems: str = "") -> tuple[dict, dict]:
+              previous: dict | None = None, problems: str = "", data_dir: Path | None = None) -> tuple[dict, dict]:
     """The model's translation of one English summary, and the tokens it used. previous: an
     earlier translation that failed a check, to correct, and problems: what was wrong with it."""
     source = english(record, kind)
     prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
-                           boards=board_names(config, lang, meeting["body"]),
+                           boards=board_names(config, lang, meeting["body"], data_dir),
                            summary=json.dumps(source, ensure_ascii=False, indent=1))
     if previous:
         prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in FIELDS[kind]}, ensure_ascii=False, indent=1),
@@ -425,7 +495,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
-        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], rules=RULES, readers=READERS[lang]),
         messages=[{"role": "user", "content": prompt}],
         output_config=output_config(config, schema(kind)),
     )
@@ -451,7 +521,8 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     wrong = what_failed(data_dir, before, record, kind, lang) if again else None
-    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
+    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
+                              data_dir=data_dir)
     paid = cost(usage, settings(config))
     checked = check(source, result, kind, lang, town_words(data_dir))
     reviewed, review_cost = "not reviewed: the check failed", 0.0
@@ -490,11 +561,12 @@ For each English text and its translation, report every error that changes the m
 - a person's gender stated where the English doesn't give it ("la presidenta" for "Chair Houseman");
 - a name, place, street, business, amount, date, time, or number changed, or anything added or left out;
 - a mistranslation ("Conservation Commission" as "Comisión de Conversación", "Mayor" as "Gobernador", a business sign as a traffic sign);
-- English words left in a {language} sentence (names of people, places, businesses, and programs excepted), or words that don't exist.
+- English words left in a {language} sentence that the translator's rules say to translate, or words that don't exist.
 
 Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation: if, once you've looked, a translation is right, leave it out, or mark it is_error false.
 
-The translator was given these words and rules, so a translation that follows them isn't wrong for it:
+The translator was given these rules, words, and, for the meeting's own board, its name in {language}, so a translation that follows them isn't wrong for it:
+{rules}
 {readers}"""
 
 REVIEW_PROMPT = """Check these translations. Each has an id, the English, and the {language}:
@@ -537,7 +609,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], rules=RULES, readers=READERS[lang]),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
