@@ -50,6 +50,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from datetime import datetime
 from functools import lru_cache
@@ -234,52 +235,83 @@ def english_words() -> frozenset:
 # Forms of verbs the dictionary lacks, which a decision often starts with ("Withdrew DOC #348/19").
 IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", "oversaw", "withdrawn", "withdrew",
              "withheld"}
+# Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
+# ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
+NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise", "pickleball",
+               "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness", "workforce"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
                    "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
 
+def summary_dirs(data_dir: Path) -> list[Path]:
+    """The folders of English summaries whose words count: the town's, and in a network
+    (towns/<town>/data), every town's, so a word one town writes in lowercase ("wastewater",
+    "coordinator") is ordinary in all of them."""
+    towns = data_dir.parent.parent
+    if towns.name == "towns":
+        return sorted(t / "data" / "summaries" for t in towns.iterdir() if (t / "data" / "summaries").is_dir())
+    return [data_dir / "summaries"]
+
+
 @lru_cache(maxsize=32)
 def town_words(data_dir: Path | None) -> frozenset:
-    """The words a town's English summaries use in lowercase, which are no one's name: newer words
-    the dictionary lacks ("input", "tourism")."""
+    """The words English summaries use in lowercase, which are no one's name: newer words the
+    dictionary lacks ("input", "tourism"). Whole words only: "Bryan" doesn't make "ryan" a word."""
     words: set[str] = set()
-    for file in sorted((data_dir / "summaries").glob("*.json")) if data_dir else []:
-        record = json.loads(file.read_text(encoding="utf-8"))
-        for field in ("headline", "summary", "items", "decisions"):
-            value = record.get(field) or ""
-            for text in value if isinstance(value, list) else [value]:
-                words.update(w for w in re.findall(r"[a-z]+", text) if w.islower())
+    for folder in summary_dirs(data_dir) if data_dir else []:
+        for file in sorted(folder.glob("*.json")):
+            record = json.loads(file.read_text(encoding="utf-8"))
+            for field in ("headline", "summary", "items", "decisions"):
+                value = record.get(field) or ""
+                for text in value if isinstance(value, list) else [value]:
+                    words.update(re.findall(r"\b[a-z]+\b", text))
     return frozenset(words)
 
 
 def is_word(word: str, also: frozenset = frozenset()) -> bool:
     w = word.lower()
     known = english_words()
-    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in known or w in also:
+    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in NEWER_WORDS or w in known or w in also:
         return True
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
                                                   ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
              if w.endswith(end)]
     # Doubled before an ending: "planning", "referred".
     stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
-    return any(stem in known or stem in also for stem in stems)
+    return any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems)
+
+
+# Abbreviations, with their period, that a translation may write out ("Ch." as "Cap." or "capítulo"):
+# words, not names. Business suffixes (Inc., Corp.) aren't here: a business's name is kept.
+ABBREVIATIONS = {"Art", "Ave", "Blvd", "Ch", "Chap", "Dir", "Est", "Ext", "No", "Rd", "Sec", "Secs", "St", "Vol"}
+# Those that are never anyone's name, with or without a period ("Asst City Clerk").
+ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt"}
 
 
 def names(text: str, also: frozenset = frozenset()) -> set[str]:
     """The names in an English text: capitalized words that aren't ordinary English words
     ("Houseman" is one, "Collector" isn't), which a translation keeps as written. also: more
-    ordinary words (town_words())."""
-    return {w for w in re.findall(r"\b[A-Z][a-z]+\b", text or "") if not is_word(w, also)}
+    ordinary words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in
+    ALWAYS_ABBREVIATIONS, isn't one."""
+    return {m.group(1) for m in re.finditer(r"\b([A-Z][a-z]+)\b(\.?)", text or "")
+            if not (m.group(2) and m.group(1) in ABBREVIATIONS) and m.group(1) not in ALWAYS_ABBREVIATIONS
+            and not is_word(m.group(1), also)}
+
+
+def plain(text: str) -> str:
+    """Text without its accents, so "América" keeps "America"."""
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c))
 
 
 # What a decision says happened, in each language, to catch a translation that turns it round.
 NOT = {"en": re.compile(r"\b(?:not|never)\b|n't\b", re.I), "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
 SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
-                            r"disapprov\w*|against|oppos\w*)\b|n't\b", re.I)}
+                            r"disapprov\w*|declin\w*|against|oppos\w*)\b|n't\b", re.I)}
 APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant\w*|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
            "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
-DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*)\b", re.I),
-        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*)", re.I)}
+DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*|declin(?:e|ed|es|ing))\b",
+                        re.I),
+        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*|fracas\w*)", re.I)}
 TABLED = {"en": re.compile(r"\b(?:tabled|tabling|postpon\w*)\b", re.I),
           "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|archiv\w*|tabl\w*|suspend\w*|sobre la mesa|difiri\w*)",
                            re.I)}
@@ -336,6 +368,28 @@ def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
     return en, tr
 
 
+# The English's ways of writing what a translation writes out, made the same before comparing:
+# "FY27" is "fiscal year 2027" ("año fiscal 2027"); "not to exceed" is a cap, not a "not";
+# "9:00-11:00 A.M." is two morning times; "1.28.26" is a date in figures.
+FISCAL_YEAR = re.compile(r"\bFY\s?'?(\d{2})\b")
+NOT_TO_EXCEED = re.compile(r"\bnot\s+to\s+exceed\b", re.I)
+TIME_RANGE = re.compile(r"\b(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s?m\b\.?", re.I)
+DOTTED_DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b")
+
+
+def comparable(en: str, tr: str) -> tuple[str, str]:
+    """The English and its translation, each written as the other would write it (above)."""
+    en = FISCAL_YEAR.sub(r"FY 20\1", en)
+    en = NOT_TO_EXCEED.sub("up to", en)
+    en = TIME_RANGE.sub(lambda m: f"{m.group(1)} {m.group(3)}.m.-{m.group(2)} {m.group(3)}.m.", en)
+    en = DOTTED_DATE.sub(r"\1/\2/\3", en)
+    # A translation that writes the fiscal year out and keeps the English after it: "año fiscal 2027 (FY27)".
+    tr = re.sub(r"\s*\(FY\s?'?\d{2,4}\)", "", tr)
+    tr = FISCAL_YEAR.sub(r"FY 20\1", tr)
+    tr = re.sub(r"\b(año fiscal)\s+(\d{2})\b", r"\1 20\2", tr, flags=re.I)
+    return en, tr
+
+
 def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset()) -> str:
     """ "ok", or what's wrong, entry by entry, so a list put in another order fails too: a field
     missing or empty, a list of another length, a number lost or added (however the language
@@ -354,11 +408,12 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             pairs = [(en, tr)]
         for i, (a, b) in enumerate(pairs):
             where = f"{field} {i + 1}" if isinstance(en, list) else field
+            a, b = comparable(a, b)
             if scaled(a, "en") != scaled(b, lang):
                 return f"{where}: amounts' scale differs (million, billion)"
             if times(a) != times(b):
                 return f"{where}: a.m. or p.m. differs"
-            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", b))
+            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", plain(b)))
             if lost_names:
                 return f"{where}: {', '.join(lost_names)} not in the translation"
             wrong = outcome(a, b, lang)
