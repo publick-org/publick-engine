@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 
 import worker from "./index.js";
-import { MANIFEST_TTL_MS, clearManifests, loadManifest, resolve } from "./sites.js";
+import { MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, resolve } from "./sites.js";
 
 function entry(blob, type = "text/html; charset=utf-8") {
   return { blob, type, size: `content ${blob}`.length };
@@ -209,6 +209,82 @@ test("a manifest in another format is refused", async () => {
   await assert.rejects(loadManifest(env({ ...MANIFEST, format: 2 }), "t.publick.org"), /format 2/);
 });
 
+test("no other site may frame the pages", async () => {
+  const e = env();
+  for (const path of ["/", "/no-such-page/"]) {
+    const response = await worker.fetch(get(path), e);
+    assert.equal(response.headers.get("Content-Security-Policy"), "frame-ancestors 'self'", path);
+    assert.equal(response.headers.get("X-Frame-Options"), "SAMEORIGIN", path);
+  }
+});
+
+test("a bucket that fails is a plain 503, and a site read before keeps being served", async () => {
+  const e = env();
+  const failing = { get: async () => { throw new Error("R2 is down"); } };
+  const logged = [];
+  const realError = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    // Never read: a 503 with Retry-After, not an exception (Cloudflare's error page).
+    const down = await worker.fetch(get("/"), { SITES: failing });
+    assert.equal(down.status, 503);
+    assert.equal(down.headers.get("Retry-After"), "60");
+    assert.equal(down.headers.get("Cache-Control"), "no-store");
+    // Read once, then the bucket fails when the manifest is due again: the last one read is used.
+    await loadManifest(e, "t.publick.org", 0);
+    const stale = await loadManifest({ SITES: failing }, "t.publick.org", MANIFEST_TTL_MS + 1);
+    assert.equal(stale.build, MANIFEST.build);
+  } finally {
+    console.error = realError;
+  }
+  assert.equal(logged.length, 2);
+});
+
+test("made-up hostnames can't grow the manifests kept without limit", async () => {
+  const e = env();
+  for (let i = 0; i <= MAX_HOSTS + 5; i++) await loadManifest(e, `x${i}.publick.org`, 0);
+  const before = e.SITES.reads.length;
+  // The cache was emptied when it was full, so an early hostname is read again.
+  await loadManifest(e, "x0.publick.org", 0);
+  assert.equal(e.SITES.reads.length, before + 1);
+});
+
+test("a file's content is kept in the data center's cache after its first read", async () => {
+  const stored = new Map();
+  const realCaches = globalThis.caches;
+  globalThis.caches = { default: {
+    async match(key) { return stored.has(key) ? new Response(stored.get(key)) : undefined; },
+    async put(key, response) {
+      assert.match(response.headers.get("Cache-Control"), /immutable/);
+      stored.set(key, await response.text());
+    },
+  } };
+  const waits = [];
+  const ctx = { waitUntil: (promise) => waits.push(promise) };
+  try {
+    const e = env();
+    const objects = { "sites/t.publick.org/current.json": MANIFEST };
+    for (const f of Object.values(MANIFEST.files)) objects[`blobs/${f.blob}`] = `content ${f.blob}`;
+    // A bucket whose objects have a stream body, as R2's do.
+    e.SITES = { reads: [], async get(key) {
+      this.reads.push(key);
+      if (!(key in objects)) return null;
+      const value = objects[key];
+      return { body: new Response(typeof value === "string" ? value : JSON.stringify(value)).body, json: async () => value };
+    } };
+    const first = await worker.fetch(get("/about/"), e, ctx);
+    assert.equal(await first.text(), "content about");
+    await Promise.all(waits);
+    assert.equal(stored.get("https://t.publick.org/.blobs/about"), "content about");
+    const second = await worker.fetch(get("/about/"), e, ctx);
+    assert.equal(await second.text(), "content about");
+    assert.deepEqual(e.SITES.reads.filter((k) => k.startsWith("blobs/")), ["blobs/about"]);
+  } finally {
+    if (realCaches === undefined) delete globalThis.caches;
+    else globalThis.caches = realCaches;
+  }
+});
+
 test("resolve", () => {
   const files = MANIFEST.files;
   assert.deepEqual(resolve(files, "/"), { key: "index.html" });
@@ -334,6 +410,35 @@ test("only the town's own pages can sign someone up", async () => {
     const { response, calls } = await signUp({}, undefined, { Origin: origin });
     assert.equal(response.status, 403, origin);
     assert.equal(calls.length, 0);
+  }
+});
+
+test("signups over the rate limit, by IP or by address, aren't passed on", async () => {
+  const fake = fakeButtondown({ [LOOKUP]: [404, {}], "POST /subscribers": [201, {}] });
+  const counted = [];
+  const limiter = (over) => ({ async limit({ key }) { counted.push(key); return { success: !key.startsWith(over) }; } });
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    for (const over of ["ip:", "email:"]) {
+      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER: limiter(over) };
+      const response = await worker.fetch(signup({ email: "Reader@example.org" }), e);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/problem/", over);
+    }
+    assert.equal(fake.calls.length, 0);
+    // The address is counted by its hash, never as written; the IP as Cloudflare gives it.
+    assert.ok(counted.includes("ip:203.0.113.9"));
+    assert.ok(counted.some((k) => /^email:[0-9a-f]{64}$/.test(k)));
+    assert.ok(!counted.some((k) => k.includes("example.org")));
+    // Within the limits, or a limiter that fails: signed up as before.
+    for (const SIGNUP_LIMITER of [limiter("none:"), { limit: async () => { throw new Error("down"); } }]) {
+      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER };
+      const response = await worker.fetch(signup({ email: "reader@example.org" }), e);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+    }
+  } finally {
+    console.error = realError;
+    fake.restore();
   }
 });
 
