@@ -19,20 +19,26 @@
 // that has stopped altogether still reaches someone; it closes the issue when
 // runs finish again.
 //
+// On DIGEST_CRON it sends the towns' weekly digests (digest.js), and if any
+// fails, opens an issue (or comments on the one open) saying which.
+//
 // Environment (the network repository's wrangler.scheduler.toml): GITHUB_TOKEN,
 // a secret (a fine-grained token for the network repository with Actions and
 // Issues read and write, and for the engine repository with Actions read and
 // write); REPOSITORY, WORKFLOW, BRANCH, STATUS_URL, and ALERT_ASSIGNEE;
 // ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
 // service binding to the Worker that serves the sites, which the status page
-// is read through.
+// is read through; and for the digest, BUTTONDOWN_SEND_KEY and DIGEST_TOWNS (digest.js).
+
+import { DIGEST_CRON, sendDigests } from "./digest.js";
 
 export const STALE_HOURS = 30;
 // The Cron Triggers (as wrangler.scheduler.toml writes them) that start the release and the engine
-// pull request; every other one starts a daily run.
+// pull request; DIGEST_CRON (digest.js) sends the weekly digest; every other one starts a daily run.
 export const RELEASE_CRON = "20 8 * * *";
 export const ENGINE_CRON = "40 8 * * *";
 export const ALERT_LABEL = "network stopped";
+export const DIGEST_LABEL = "digest not sent";
 const API = "https://api.github.com";
 
 function github(env, path, init = {}) {
@@ -125,7 +131,36 @@ export async function watch(env, now = new Date()) {
   return { stopped, last };
 }
 
-// Each Cron Trigger: the release, the engine pull request, or a daily run and a check on the runs.
+// Opens the "digest not sent" issue for a digest run that failed, or comments on the one already open.
+export async function reportDigestFailure(env, error, now = new Date()) {
+  const label = encodeURIComponent(DIGEST_LABEL);
+  const open = await (await ok(await github(env, `/repos/${env.REPOSITORY}/issues?state=open&labels=${label}`),
+    "listing issues")).json();
+  const towns = (error.errors || [error]).map((e) => `- ${e.message}`).join("\n");
+  const body = `The weekly digest's run at ${now.toISOString().slice(0, 16).replace("T", " ")} UTC failed:\n\n${towns}\n\n` +
+    "Each failed town's issue is tried again every hour until it's 6 hours past due; after that it isn't sent. " +
+    "See the publick-scheduler Worker's logs on Cloudflare, and Buttondown's API log. Close this issue once it's fixed.";
+  if (open.length) {
+    await ok(await github(env, `/repos/${env.REPOSITORY}/issues/${open[0].number}/comments`, {
+      method: "POST", body: JSON.stringify({ body }),
+    }), "commenting");
+    return;
+  }
+  const made = await github(env, `/repos/${env.REPOSITORY}/labels`, {
+    method: "POST",
+    body: JSON.stringify({ name: DIGEST_LABEL, color: "D93F0B", description: "A weekly digest email didn't send" }),
+  });
+  if (!made.ok && made.status !== 422) await ok(made, "making the label");
+  await ok(await github(env, `/repos/${env.REPOSITORY}/issues`, {
+    method: "POST",
+    body: JSON.stringify({
+      title: "The weekly digest didn't send", body, labels: [DIGEST_LABEL],
+      ...(env.ALERT_ASSIGNEE ? { assignees: [env.ALERT_ASSIGNEE] } : {}),
+    }),
+  }), "opening the issue");
+}
+
+// Each Cron Trigger: the release, the engine pull request, the weekly digest, or a daily run and a check on the runs.
 // For a daily run, one failing doesn't stop the other; either failing fails the invocation, so it
 // shows in the Worker's logs.
 export async function onSchedule(controller, env) {
@@ -134,6 +169,15 @@ export async function onSchedule(controller, env) {
   }
   if (controller.cron === ENGINE_CRON) {
     return startWorkflow(env, env.REPOSITORY, env.ENGINE_WORKFLOW || "engine.yml");
+  }
+  if (controller.cron === DIGEST_CRON) {
+    const now = new Date(controller.scheduledTime);
+    try {
+      return await sendDigests(env, now);
+    } catch (error) {
+      await reportDigestFailure(env, error, now);
+      throw error;
+    }
   }
   const results = await Promise.allSettled([startRun(env), watch(env, new Date(controller.scheduledTime))]);
   const failed = results.filter((r) => r.status === "rejected").map((r) => r.reason);

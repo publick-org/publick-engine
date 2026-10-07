@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import pytest
 
+from pipeline import build_site
 from site_checks.conftest import BROWSER_PATHS, PREFIXES
 
 WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
@@ -106,7 +107,8 @@ def test_internal_links_resolve(site_dir, page_files):
 
 def test_every_page_links_its_other_languages(site_dir, page_files, config):
     """On a site in more than one language, every page names each language's version
-    (hreflang), and that page exists."""
+    (hreflang), and that page exists. A page in English only for now (build_site.ENGLISH_ONLY_FOLDERS)
+    names none, and has no other version."""
     if len(PREFIXES) < 2:
         pytest.skip("The site is in one language.")
     base = f"https://{config['site']['domain']}"
@@ -114,6 +116,9 @@ def test_every_page_links_its_other_languages(site_dir, page_files, config):
         if path.name == "404.html":
             continue
         alternates = {a["hreflang"]: a["href"] for t, a in parse(path).attrs if t == "link" and a.get("hreflang")}
+        if path.relative_to(site_dir).parts[0] in build_site.ENGLISH_ONLY_FOLDERS:
+            assert not alternates, f"{path}: hreflang links on a page in English only"
+            continue
         assert set(alternates) == set(PREFIXES) | {"x-default"}, f"{path}: hreflang links {sorted(alternates)}"
         for lang, url in alternates.items():
             assert url.startswith(base + "/"), f"{path}: {url}"
@@ -200,8 +205,12 @@ def test_meeting_pages_say_why_something_is_missing(site_dir):
 
 
 def test_officials_page_says_why_there_is_no_ward_map(site_dir, config):
+    """A ward map missing from a town with wards is explained; a town with none says nothing."""
+    from pipeline import officials
     if not any(s["slug"] == "officials" for s in config["sections"]):
         pytest.skip("No Officials page.")
+    if officials.at_large(config):
+        pytest.skip("Every seat is at-large: no wards to map.")
     for prefix in PREFIXES.values():
         html = (site_dir / prefix.lstrip("/") / "officials" / "index.html").read_text(encoding="utf-8")
         assert 'id="wards"' in html or "data-gap=" in html, f"{prefix}/officials/: no ward map, and nothing says why"

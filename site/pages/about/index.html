@@ -19,6 +19,10 @@
   {% if config.meetings is defined and meeting_links.documents %}
   <li>{% trans url="/feed.xml" %}New agendas and minutes are in an <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>
   {% endif %}
+  {# The weekly digest is in English for now (pipeline/digest.py). #}
+  {% if config.meetings is defined and lang == "en" %}
+  <li>{% trans url="/digest/" %}Each Sunday, a <a href="{{ url }}">weekly digest</a> lists the week's meetings and what was decided at those whose minutes were posted.{% endtrans %}</li>
+  {% endif %}
   {% if config.summaries is defined %}
   <li>{{ _("Summaries written by AI are labeled on each meeting page.") }}</li>
   {% endif %}
@@ -92,7 +96,7 @@
   {% endif %}
   {% if config.seeclickfix is defined or wards_url %}
   {# Translators: %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year. #}
-  <li>{% if precincts and not wards_url %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>
+  {% if has_areas or wards_url %}<li>{% if precincts and not wards_url %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>{% endif %}
   <li>{% trans osm="https://www.openstreetmap.org/copyright", leaflet="https://leafletjs.com" %}<strong>Street maps:</strong> <a href="{{ osm }}">OpenStreetMap</a>, drawn with <a href="{{ leaflet }}">Leaflet</a>. Map images load from OpenStreetMap's servers.{% endtrans %}</li>
   {% endif %}
 </ul>
@@ -136,7 +140,7 @@
 <p>{% trans model=config.summaries.model | model_name %}Meeting summaries are written by AI ({{ model }}, by Anthropic). They aren't checked by a person before posting. The city's document is the official record, and every summary links to it.{% endtrans %}</p>
 {% if config.site.get("languages", ["en"]) | length > 1 %}
 {# Translators: %(model)s is an AI model's name, such as "Claude Haiku 4.5". #}
-<p>{% trans model=translation_model | model_name %}On the pages in other languages, each summary is translated automatically by AI ({{ model }}, by Anthropic) from the English summary, and may have errors. Translations aren't checked by a person either. Two checks stand in: one without AI compares each translation's names, numbers, amounts, times, and decisions with the English, and a second AI model reviews its meaning. A translation that fails either is replaced by the English summary. Every translated summary links to the English.{% endtrans %}</p>
+<p>{% trans model=translation_model | model_name %}On the pages in other languages, each summary is translated automatically by AI ({{ model }}, by Anthropic) from the English summary, and may have errors. Translations aren't checked by a person either. Two checks stand in: one without AI compares each translation's names, numbers, amounts, times, and decisions with the English, and a second pass by AI reviews its meaning. A translation that fails either is replaced by the English summary. Every translated summary links to the English.{% endtrans %}</p>
 {% endif %}
 <p>{% trans %}Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.{% endtrans %}</p>
 {% endif %}
@@ -162,9 +166,10 @@
 <p>{% trans url=site.repo_url ~ "/blob/main/LICENSE" %}The full terms are in the <a href="{{ url }}">network's license</a>.{% endtrans %}</p>
 {% endif %}
 
-{% if config.get("analytics", {}).get("goatcounter") %}
+{% set counting = config.get("analytics", {}).get("goatcounter") %}
+{% if counting or digest_signup %}
 <h2 id="privacy">{{ _("Privacy") }}</h2>
-<p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>
+{% if counting %}<p>{{ _("We count visits so we know which pages are useful. That's all.") }}</p>{% endif %}
 <ul>
   {% if config.site.get("languages", ["en"]) | length > 1 %}
   <li>{{ _("No ads, and no tracking across other sites.") }}</li>
@@ -175,10 +180,15 @@
   <li>{{ _("What you search for, and which street you look up, is never recorded.") }}</li>
   {% if wards_url %}<li>{# Translators: "Find my ward" is the label of the button that finds the reader's ward. #}{% trans %}If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}</li>{% endif %}
   <li>{{ _("Nothing that identifies you is kept, not even your IP address.") }}</li>
+  {# The weekly digest's email ([digest] signup; worker/digest.js). #}
+  {# Translators: %(provider)s is the email service that sends the digest, such as "Buttondown". #}
+  {% if digest_signup %}<li>{% trans provider=digest_signup.provider, url=digest_signup.privacy_url %}The one exception is the weekly digest by email, if you sign up: your email address, the town and language you chose, and the IP address you signed up from go to {{ provider }}, the service that sends it, which keeps them until you unsubscribe (<a href="{{ url }}">its privacy policy</a>). The emails don't record whether you open them or which links you click, and this site keeps none of it.{% endtrans %}</li>{% endif %}
 </ul>
+{% if counting %}
 <p class="small">{% trans url="https://www.goatcounter.com" %}Counting is done by <a href="{{ url }}">GoatCounter</a>, a privacy-friendly service. It notes the page, the site that linked here, and your screen size, along with the browser type and rough location (such as the country or state) that every website can see. We only look at the totals.{% endtrans %}
 {#- Translators: "They" are the visit totals of the sentence before. #}
 {% if config.analytics.public_stats %} {% trans url=config.analytics.public_stats %}They're <a href="{{ url }}">public</a>.{% endtrans %}{% endif %}</p>
+{% endif %}
 {% endif %}
 
 <h2 id="corrections">{{ _("Corrections and contact") }}</h2>
