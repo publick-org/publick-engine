@@ -9,7 +9,7 @@ from fakes import FakeDrive, FakeResponse
 
 from pipeline import fetch_drive_meetings
 from pipeline.config import load_config
-from pipeline.fetch_drive_meetings import list_folder, parse_name
+from pipeline.fetch_drive_meetings import find_date, list_folder, parse_name, start_time
 from pipeline.fetch_meetings import save_json
 
 NOW = datetime(2026, 9, 27, 7, 0, tzinfo=ZoneInfo("America/New_York"))
@@ -226,3 +226,104 @@ def test_site_lists_upcoming_school_committee_meetings(site_dir):
     page = (site_dir / "meetings" / "2026-10-14-school-committee" / "index.html").read_text()
     assert "No agenda posted yet." in page
     assert "known from the <a" in page
+
+
+# Lewiston's School Committee: a folder a school year, and in it a folder a meeting.
+LEWISTON = {
+    "source_name": "Lewiston Public Schools",
+    "posted_on": "the School Committee's Google Drive",
+    "page_url": "https://www.lewistonpublicschools.org/en-US/school-committee-bc9f3846",
+    "meetings_folder": "0ByV5LOTYl0ObfnowOTlLRDZpankyc1hZcnF0TUV4U3hnTEljNGdvNDE3Z2p0b0VSS2lfekE",
+    "resource_key": "0-kGE8IAFzu2Zp_mSIJG0OQg",
+    "body": "School Committee",
+    "since": "2026-08-01",
+}
+NOW_OCTOBER = datetime(2026, 10, 6, 7, 0, tzinfo=ZoneInfo("America/New_York"))
+
+
+@pytest.mark.parametrize("name, day", [
+    ("04 10-5-26", "2026-10-05"),
+    ("01 8-24-2026", "2026-08-24"),
+    ("01 September 8, 2025", "2025-09-08"),
+    ("02 September 22, 2025 (Dingley Bldg)", "2025-09-22"),
+    ("21 CANCELED MEETING 3/23/26", "2026-03-23"),
+    ("03b 7-29-26 Minutes SD.pdf", "2026-07-29"),
+    ("06 LHS School Committee Report 9.21.26.pdf", None),
+    ("10a BDA.pdf", None),
+])
+def test_dates_in_folder_and_file_names(name, day):
+    assert find_date(name) == day
+
+
+def test_time_from_the_agenda():
+    assert start_time("1. Call meeting to order on or about 5:30 pm until approximately 8:30.") == "17:30"
+    assert start_time("The meeting was called to order at 6 p.m. by the chair.") == "18:00"
+    assert start_time("in order to approve 3 items") is None
+
+
+def test_a_folder_for_each_meeting(tmp_path):
+    config = load_config("gloucester")
+    config["drive_meetings"] = LEWISTON
+    drive = FakeDrive()
+    status = fetch_drive_meetings.run(config, drive, tmp_path, now=NOW_OCTOBER)
+    assert any("resourcekey=0-kGE8IAFzu2Zp_mSIJG0OQg" in url for url in drive.urls)
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    school = {m["date"]: m for m in store.values() if m["body"] == "School Committee"}
+    # A meeting folder each from August 24 on; August 3 and 17 are known from their minutes alone.
+    assert sorted(school) == ["2026-08-03", "2026-08-17", "2026-08-24", "2026-09-14", "2026-09-21", "2026-10-05"]
+    assert "agendas" not in school["2026-08-03"]
+    # Each meeting's agenda, never a personnel item's cover; the amended agenda where that's all there is.
+    assert [d["original_filename"] for d in school["2026-08-24"]["agendas"]] == ["00 8-24-26 Agenda.pdf"]
+    assert [d["original_filename"] for d in school["2026-10-05"]["agendas"]] == ["00 10-5-26 Amended Agenda.pdf"]
+    # Minutes by their own date, from a later meeting's packet; earlier ones (before since) left out.
+    assert [d["original_filename"] for d in school["2026-08-24"]["minutes"]] == ["03b 8-24-26 Minutes.pdf"]
+    assert [d["original_filename"] for d in school["2026-09-21"]["minutes"]] == ["03a 9-21-26 Minutes.pdf"]
+    assert "minutes" not in school["2026-10-05"]
+    assert all(m["source"] == "drive" and m["status"] == "scheduled" for m in school.values())
+    assert status["errors"] == [] and status["unreadable_names"] == []
+    # Minutes of meetings before since (in the 9-14 packet) are not meetings of their own.
+    assert not any(m["date"] < "2026-08-01" for m in school.values())
+    again = fetch_drive_meetings.run(config, FakeDrive(), tmp_path, now=NOW_OCTOBER)
+    assert again["documents_added"] == 0 and again["meetings_created"] == 0
+
+
+def test_cancelled_meetings_notices_and_copies(tmp_path):
+    """A CANCELED folder cancels the day's meeting; a NOTICE folder isn't a meeting; the same minutes
+    in two packets are attached once, and not again on the next run."""
+    def entry(fid, name, folder=False):
+        kind = "drive/folders" if folder else "file/d"
+        return (f'<div class="flip-entry" id="entry-{fid}"><div class="flip-entry-info">'
+                f'<a href="https://drive.google.com/{kind}/{fid}"><div class="flip-entry-title">{name}</div></a></div></div>')
+    pages = {
+        "root": [entry("year", "2025-2026 School Committee", True), entry("old", "2014-15 School Committee Meetings", True)],
+        "year": [entry("m1", "20 March 23, 2026", True), entry("m2", "21 CANCELED MEETING 3/23/26", True),
+                 entry("m3", "30 May 4, 2026 NOTICE", True), entry("m4", "31 May 11, 2026", True),
+                 entry("m5", "32 May 18, 2026", True)],
+        "m1": [entry("a1", "00 3-23-26 Agenda.pdf")],
+        "m2": [entry("n1", "00 3-23-26 CANCELED MEETING NOTICE.pdf")],
+        "m3": [entry("n2", "00 5-4-26 Notice Retreat.pdf")],
+        "m4": [entry("a4", "00 5-11-26 Agenda.pdf"), entry("x4", "03a 3-23-26 Minutes.pdf"),
+               entry("e4", "03c 5-11-26 ES Minutes.pdf")],
+        "m5": [entry("a5", "00 5-18-26 Agenda.pdf"), entry("y5", "03a 5-11-26 Minutes.pdf"),
+               entry("z5", "03b 3-23-26 Minutes.pdf")],
+    }
+
+    class Folders(FakeDrive):
+        def get(self, url):
+            if "embeddedfolderview?id=" in url:
+                fid = url.split("id=", 1)[1].split("&", 1)[0]
+                return FakeResponse(("<html><body>" + "".join(pages.get(fid, [])) + "</body></html>").encode())
+            return super().get(url)
+
+    config = load_config("gloucester")
+    config["drive_meetings"] = {**LEWISTON, "meetings_folder": "root", "resource_key": None, "since": "2026-03-01"}
+    status = fetch_drive_meetings.run(config, Folders(), tmp_path, now=NOW_OCTOBER)
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    school = {m["date"]: m for m in store.values() if m["body"] == "School Committee"}
+    assert sorted(school) == ["2026-03-23", "2026-05-11", "2026-05-18"]
+    assert school["2026-03-23"]["status"] == "cancelled"
+    assert [d["original_filename"] for d in school["2026-03-23"]["minutes"]] == ["03b 3-23-26 Minutes.pdf"]
+    assert [d["original_filename"] for d in school["2026-05-11"]["minutes"]] == ["03a 5-11-26 Minutes.pdf"]
+    assert status["left_out"] == ["03c 5-11-26 ES Minutes.pdf", "30 May 4, 2026 NOTICE"]
+    again = fetch_drive_meetings.run(config, Folders(), tmp_path, now=NOW_OCTOBER)
+    assert again["documents_added"] == 0

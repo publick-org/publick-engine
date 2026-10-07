@@ -13,7 +13,9 @@ A fix made here reaches every town when it moves to the new version.
 
 The code is MIT-licensed, so anyone can run a site like this for their own town, on their own domain and accounts: see [Starting a site for another town](#starting-a-site-for-another-town). The Publick name and "P" icon identify the Publick network's sites, so a site outside the network should use its own. [How Publick runs it](#how-publick-runs-it) lists the network's own setup.
 
-## How a town uses the engine
+## A town in its own repository
+
+This is the stand-alone way to run a town. A town in a network repository has the same files in its folder, `towns/<town>-<state>/`, and the network's own workflow runs it instead of `town.yml`: see the [network's README](https://github.com/publick-org/publick.org#readme).
 
 A town's repository holds:
 
@@ -69,6 +71,8 @@ The engine's workflow checks out the engine at the same version as the workflow 
 
 Releases are tagged `v1.0.0`, `v1.1.0` and so on, with a `v1` tag that moves to the newest `v1.x` release. A town pinned to `@v1` takes each compatible release on its next run; one pinned to an exact tag moves when its pin is bumped, which Dependabot can do with a `github-actions` entry in the town's `.github/dependabot.yml`. A change that needs every town's config edited gets a new major version.
 
+A network repository pins every town at once, with an exact tag in one `engine-version` file; publick.org's moves to each new release once every town passes on it (see its [README](https://github.com/publick-org/publick.org#how-it-runs)).
+
 Releasing is automatic, once a day. Each morning at 08:20 UTC, before the network's daily runs, `.github/workflows/release.yml` releases the newest commit on `main` whose engine tests passed, with everything merged since the last release, as the next minor version (`v1.4.0` → `v1.5.0`), and moves `v1` to it. Label a pull request `patch` for a patch version (the release is a patch when every pull request in it is), `major` for a change that needs every town's config edited (`v2.0.0`; towns on `@v1` stay there until they move), or `no release` to leave it out; a pull request that changes only Markdown files is left out without a label. An urgent fix needn't wait: **Actions → Release → Run workflow** releases now. A release published by hand (**Releases → Draft a new release**) also moves its major tag.
 
 ## Layout
@@ -77,7 +81,7 @@ Releasing is automatic, once a day. Each morning at 08:20 UTC, before the networ
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
-  fetch_meetings.py         Daily: city calendars (CivicPlus, CivicClerk, DotNetNuke, a calendar with a documents page),
+  fetch_meetings.py         Daily: city calendars (CivicPlus, a CivicPlus Agenda Center, CivicClerk, DotNetNuke, a calendar with a documents page),
                             a school district's calendar feed or page of dates -> data/meetings/
   listings.py               One meeting listed in more than one place (a calendar and an Agenda Center, a repost) shown as one;
                             `python -m pipeline.listings` lists the meetings put together, and why
@@ -87,7 +91,7 @@ pipeline/                   Python package
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             new documents first, with each month's cost in data/summary-costs.json
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
-                            reviewed by a second model -> data/summaries/<language>/, and drafts of the town's own text and names
+                            reviewed by AI -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
   factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts,
                             and each decision's quote from the minutes and its outcome (approved, denied, ...), so a dropped "not"
@@ -117,19 +121,22 @@ pipeline/                   Python package
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   absences.py               Why something isn't shown, for the pages to say: a meeting's minutes, agenda or summary, a calendar
                             or a section's sources behind, a section the town doesn't have
+  officials.py              Who represents you: the Officials page from [officials], with the ward map
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, dnn.py, filelist.py, finalsite.py, ical.py, schedule.py, seeclickfix.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
   build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
+  digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
+                            before (no AI), built into /digest/ with a feed for email
   structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
                             breadcrumbs, and the downloads as datasets
   i18n.py                   The sites' wording in other languages: the language being built, and
                             `python -m pipeline.i18n update` to keep site/strings/ current
   common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
-  network.py                Runs many towns from one repository (towns/<town>/): plan (the towns that are due),
+  network.py                Runs many towns from one repository (towns/<town>-<state>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
                             states (statewide sources); a fetching run writes each town's result to its data/run.json,
                             with a few counts for the network homepage (boards followed, meetings in the next 14 days)
@@ -145,17 +152,18 @@ site_checks/                Checks for one town's built site, run by the town wo
 evals/minutes.json          Minutes checked by hand, decision by decision, for pipeline/evaluate.py
 worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by hostname
                             (the logic in sites.js); scheduler-index.js starts a network's daily runs, the engine's
-                            release, and the network's engine pull request on time, and watches the runs finish
-                            (the logic in scheduler.js)
+                            release, and the network's engine pull request on time, watches the runs finish, and
+                            sends the weekly digest (the logic in scheduler.js); digest.js signs readers up for the
+                            weekly digest's email, and sends it, through Buttondown; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
-.github/workflows/ci.yml    The engine's tests, on every push and pull request
+.github/workflows/ci.yml    The engine's tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see Versions)
 .github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes
 ```
 
 ## Build and test locally
 
-Requires Python 3.11 or newer. Clone this repository next to a town's repository, then run commands from the town's repository with the engine on `PYTHONPATH`:
+Requires Python 3.12 or newer (what the workflows use; the tests need it). Clone this repository next to a town's repository, then run commands from the town's repository with the engine on `PYTHONPATH`:
 
 ```sh
 python -m venv .venv && . .venv/bin/activate
@@ -174,28 +182,38 @@ python -m pytest ../publick-engine/site_checks       # the checks the workflow r
 
 Commands use the town repository's one config file, or `--town <town>` or `TOWN` when there are several. To run from elsewhere, set `PUBLICK_TOWN_DIR` to the town's repository.
 
+In a network repository, clone the engine next to it and run the same commands from the network repository's root, with `PUBLICK_TOWN_DIR` set to the town's folder:
+
+```sh
+export PYTHONPATH=../publick-engine PUBLICK_TOWN_DIR=towns/<town>-<state>
+python -m pipeline.build_site             # writes towns/<town>-<state>/_site/
+```
+
 A town with a `[storage]` table keeps agenda and minutes PDFs in a bucket (see [Document storage](#document-storage)). A local fetch then needs the bucket's keys (`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`), or set `DOCUMENTS_LOCAL=1` to keep PDFs under `data/meetings/` instead. Building the site needs no keys.
 
-The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`:
+The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`, with whole sites for Manchester, Malden and Wallingford built from their meeting systems' saved pages (`tests/test_sample_towns.py`):
 
 ```sh
 python -m pytest
+node --test worker/sites.test.js worker/scheduler.test.js   # the Workers' tests (Node 22)
 ```
 
 ## Starting a site for another town
 
-Each town gets its own repository, with its own `config/<town>.toml`, its own `data/`, and its own site address. The code stays here.
+Each town gets its own `config/<town>.toml`, its own `data/`, and its own site address, in its own repository or in a folder of a network repository (publick.org's checklist is [ADDING-A-TOWN.md](https://github.com/publick-org/publick.org/blob/main/ADDING-A-TOWN.md)). The code stays here.
 
-1. **Create the town's repository** with the layout under [How a town uses the engine](#how-a-town-uses-the-engine): an empty `data/`, and the workflow file with `town` set.
+1. **Create the town's repository** with the layout under [A town in its own repository](#a-town-in-its-own-repository): an empty `data/`, and the workflow file with `town` set. In a network, add its folder instead.
 2. **Write `config/<town>.toml`**, starting from a copy of [`tests/fixtures/town/config/gloucester.toml`](tests/fixtures/town/config/gloucester.toml). `[site]`, `[town]` and `[[sections]]` are required. Every other table is one data source. Leave out a table the town doesn't have and the command that fetches it does nothing:
 
    | Table | Source | Works for |
    |---|---|---|
-   | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. Without them the site has no meetings section or RSS feed |
+   | `[meetings]`, `[archive]` | CivicPlus calendar and Archive Center | Towns whose website runs on CivicPlus. A town with none of this table's meetings sources has no meetings section or RSS feed |
+   | `[meetings.civicplus]`, `[meetings.agenda_center]` | A CivicPlus calendar read month by month, and a CivicPlus Agenda Center | CivicPlus towns, like Malden and Beverly (both). See [Meetings from other calendars](#meetings-from-other-calendars) |
    | `[meetings.civicclerk]`, `[meetings.dnn]`, `[meetings.file_list]` | A CivicClerk meeting portal, a DotNetNuke (DNN Events) city calendar, and a meetings calendar with one documents page for every board | Towns whose meetings are on these, like Manchester (the first two) and Wallingford, Connecticut (the third). See [Meetings from other calendars](#meetings-from-other-calendars) |
-   | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's School Committee) | Any board whose folders are laid out one per committee, with dates in file names |
-   | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date. See [Meetings from other calendars](#meetings-from-other-calendars) |
-   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Needs a ward boundary file in `data/static/` whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages. A town without wards, its seats all elected townwide, places requests in its voting precincts instead: `areas = "precincts"` names them so on the pages ("Precinct 3201"), and keeps the file off the Officials page. Requests in categories that point at a person or a household (an encampment, a health or police complaint, noise, a smoke detector or lost pet request: `seeclickfix.SENSITIVE_CATEGORIES`) are shown with their address to the block ("200–299 Main St") and their map point to about 100 meters; `sensitive_categories` adds a town's own category names |
+   | `[drive_meetings]` | Agendas and minutes in public Google Drive folders (Gloucester's and Lewiston's School Committees) | Either of two layouts. One folder per committee, with dates in file names (Gloucester: `agendas_folder`, `minutes_folder`, `bodies`). Or one folder per school year holding one folder per meeting, named by its date, with each meeting's minutes posted later in another meeting's folder (Lewiston: `meetings_folder`, the one `body`, and `resource_key` for an older shared folder whose link carries one); a folder named "CANCELED" cancels that day's meeting, the time comes from the agenda's "call to order", and a later copy of the same minutes isn't attached twice. `schedule_url` (optional) names a page of the board's meeting dates, listed to `schedule_days_ahead` (default 45) days out until their folders appear |
+   | `[ical_meetings]`, `[schedule_meetings]` | A school district's calendar feed (iCalendar), and a page listing a board's meeting dates | Beverly's School Committee (the first) and Malden's (the second). See [Meetings from other calendars](#meetings-from-other-calendars) |
+   | `[finalsite_meetings]` | A school board's meetings posted on its district's Finalsite website, with agendas and minutes as Google Docs (Wallingford's Board of Education) | Any board whose page lists one post a meeting, titled with its date; up to `max_posts_per_run` (default 40) posts are read a run. See [Meetings from other calendars](#meetings-from-other-calendars) |
+   | `[seeclickfix]` | SeeClickFix 311 requests | Towns on SeeClickFix. `organization_id` is the town's SeeClickFix organization (its Open311 address, `seeclickfix.com/open311/v2/<id>/services.json`, lists its request types). `departments` (optional) keeps only the request types of the listed departments, by the `organization` names in that list; `scope_note` then says so on the 311 pages. Takes a ward boundary file in `data/static/` (`precincts_file`) whose features carry `ward`, `district` (the precinct, e.g. `1-1`) and `population_2020`; `wards_publisher`, `wards_year` and `wards_url` credit its source on the 311 and About pages. A town without wards, its seats all elected townwide, places requests in its voting precincts instead: `areas = "precincts"` names them so on the pages ("Precinct 3201"), and keeps the file off the Officials page. A town with neither wards nor voting precincts (Bangor) leaves `precincts_file` out: its requests aren't placed in any area, and the 311 pages have no area sections, area pages or area downloads. Requests in categories that point at a person or a household (an encampment, a health or police complaint, noise, a smoke detector or lost pet request: `seeclickfix.SENSITIVE_CATEGORIES`) are shown with their address to the block ("200–299 Main St") and their map point to about 100 meters; `sensitive_categories` adds a town's own category names |
    | `[finance]` | Tax bill and budget, from the state | Every New England state, each with a package in `pipeline/states/`; Rhode Island has budget figures but no tax bill, since the state publishes nothing to calculate one from. Its keys are the state's own; see [States](#states) |
    | `[schools]` | School district figures, from the state | Every New England state. Its keys are the state's own (Connecticut's `edsight_district` is the district's name in EdSight); see [States](#states) |
    | `[housing]` | Census, plus the state's own housing figures | Anywhere for the Census parts. Building permits find the town by its Census place (`bps_place`), or, for a New England town that isn't a Census place (Wallingford), by its town code (`bps_mcd`). In Massachusetts, `shi_url` and `shi_name` add the Subsidized Housing Inventory, and `[finance]` adds parcel counts |
@@ -204,8 +222,9 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    | `[summaries]` | AI summaries of agendas and minutes | Anywhere, with `ANTHROPIC_API_KEY`. `model`, `input_price` and `output_price` (dollars per million tokens) are required; nothing is sent without prices. `max_per_run` (documents) and `max_cost_per_run` (dollars) default to 50 and $5. `since` (a date) summarizes only meetings on or after it, so a new town's history doesn't take the month's budget; older meetings keep their records and documents. New documents (upcoming agendas, and those posted in the last two weeks for a recent meeting) go first. In a network, the run also gives each town its share of a monthly budget, keeping back every other town's floor for the rest of the month, so no one town's launch or busy week can spend what the others need (`pipeline/network.py`, `summary_budget`; `pipeline/summarize.py`). Each summary is then checked against its document's own text, without AI (`pipeline/factcheck.py`): a decision, item, headline, or sentence with a number, amount, date, or name the document doesn't have isn't shown, the page says how many weren't, and a vote count the document doesn't give is left out |
    | `[analytics]` | Page view counts, with GoatCounter (no cookies, never what was searched) | Anywhere. `goatcounter` is the account's code; `prefix` (optional) goes in front of every counted path, so towns sharing one GoatCounter site can be told apart; `public_stats` links its public dashboard from the About page |
    | `[freshness]` | Stale-data alerts | List the sources that change daily (meetings, 311, a city's permits); figure sources (tax bill, budget, schools, unemployment, housing) are judged by their rhythms in the engine (`pipeline/rhythms.py`). `grace_months` (default 2) is how long after a new period's usual date before it counts as behind |
-   | `[officials]` | Who represents you: the Officials page (`/officials/`), with the section `officials` | Anywhere; kept by hand from the city's website. `checked` is the date the list was last checked against official city and school websites (shown on the page). Each `[[officials.bodies]]` (the mayor, the City Council, the School Committee) has a `name`, `members`, and optionally `url` (its official page, on the city's or the school district's website), `note`, and `board` (the meeting board whose page it links, if not named the same). A body's members are also who its minutes' roll call votes are checked against (`pipeline/votes.py`; collected, not yet shown). Each member has a `name` and `seat` ("Ward 1", "At-large"), and optionally `ward` (the ward the seat is elected by, a ward in the ward file) or `wards` (a district of several wards, like `[1, 2, 3]`; leave both out for a citywide seat), `role`, `term_ends` (`"2028-01"`), `email`, `phone` and `url`. The ward map uses the ward file (`wards_file`, in `data/static/`; defaults to `[seeclickfix]`'s, unless its `areas` are precincts), credited on the About page by `wards_publisher`, `wards_year` and `wards_url` here for a town without `[seeclickfix]`; its "Find my ward" checks a visitor's location in their browser, and never sends or saves it. With no member's seat elected by a ward, the page says every seat is elected by the whole town instead of showing a map |
+   | `[officials]` | Who represents you: the Officials page (`/officials/`), with the section `officials` | Anywhere; kept by hand from the city's website. `checked` is the date the list was last checked against official city and school websites (shown on the page). Each `[[officials.bodies]]` (the mayor, the City Council, the School Committee) has a `name`, `members`, and optionally `url` (its official page, on the city's or the school district's website), `note`, and `board` (the meeting board whose page it links, if not named the same). A body's members are also who its minutes' roll call votes are checked against (`pipeline/votes.py`; collected, not yet shown). Each member has a `name` and `seat` ("Ward 1", "At-large"), and optionally `ward` (the ward the seat is elected by, a ward in the ward file) or `wards` (a district of several wards, like `[1, 2, 3]`; leave both out for a citywide seat), `role`, `term_ends` (`"2028-01"`), `email`, `phone` and `url`. The ward map uses the ward file (`wards_file`, in `data/static/`; defaults to `[seeclickfix]`'s, unless its `areas` are precincts), credited on the About page by `wards_publisher`, `wards_year` and `wards_url` here for a town without `[seeclickfix]`; its "Find my ward" checks a visitor's location in their browser, and never sends or saves it. With no member's seat elected by a ward, the page shows no map and says nothing about wards (readers know their town has none); a body whose members all have the same seat ("At-large") has no Seat column, so its `note` is where to say how it's elected |
    | `[absences]` | Optional: the town's own sentence for a section it doesn't have, on the About page's "What this site doesn't cover" (`pipeline/absences.py`) | Keys are sections (`311`, `budget`, `schools`, `housing`, `officials`, `meetings`), each a sentence such as `311 = "The city takes requests through its own MyBeverly app, which has no public data."`. Without one, the page gives the engine's reason: 311 isn't in a public system the site reads, the state's figures aren't collected yet, or the section isn't on the site yet. Translated as the town's other text |
+   | `[digest]` | Optional: the weekly digest's email signup on `/digest/` (`signup = true`, with `provider` and `privacy_url`, which the form and the About page name) | A site served by the network's Worker, which answers the form; see [Weekly digest](#weekly-digest). Without it, `/digest/` has the issues and their feed, and no form |
    | `[storage]` | Keeps agenda and minutes PDFs in a bucket instead of git | Recommended for every town; see [Document storage](#document-storage) |
 
    Rewrite the hand-written content for the new town from its own sources: `[meetings.aliases]`, `[archive.aliases]`, `[participation.*]`, `[[glossary]]` and `[[seeclickfix.annotations]]`.
@@ -223,8 +242,9 @@ Each town gets its own repository, with its own `config/<town>.toml`, its own `d
    - `name`, plus `name_prefix` (shown in dark ink) and `name_suffix` (in the accent color). Include a trailing space in `name_prefix` for two words, e.g. `name_prefix = "Gloucester "`.
    - `domain`: the site's address.
    - `network` (optional): the family of sites it belongs to, named in every footer. Leave it out for a stand-alone site.
+   - `network_url` (optional): the network's homepage, which the network's name in the footer links to.
    - `contact_email`: shown on the About and Accessibility pages and used by the "Report an error" buttons.
-   - `[site.colors]` (optional): the town's own colors, as `"#rrggbb"`. `primary` (links, buttons, map markers), `primary_dark` (headings, rules, the masthead), `primary_soft` (light backgrounds), and `accent` (the current page in the menu, flags, notices). Take them from the city's own website and check each against white for WCAG AA contrast (4.5:1). `network` is the network's name in the masthead and share image; Publick's is slate `#2c4a63`, the same for every town. Unset colors keep the defaults (Gloucester's navy and maroon).
+   - `[site.colors]` (optional): the town's own colors, as `"#rrggbb"`. `primary` (links, buttons, map markers), `primary_dark` (headings, rules, the masthead), `primary_soft` (light backgrounds), and `accent` (the current page in the menu, flags, notices). Take them from the city's own website and check each against white for WCAG AA contrast (4.5:1). `network` is the color of the network's name in the masthead and share image; Publick's is slate `#2c4a63`, the same for every town. Unset colors keep the defaults (Gloucester's navy and maroon).
 
    The engine's icon is the Publick "P". A site outside the network draws its own in the town's `site/static/favicon.svg`. Then run `python -m pipeline.make_share_image` for the share image (and PNG icons, for a town with its own icon).
 6. **Deploy** as under [Deploying](#deploying), and set up [Document storage](#document-storage) and the [secrets](#secrets).
@@ -375,7 +395,6 @@ archive_url = "https://www.manchesternh.gov/Departments/City-Clerk/Meeting-Minut
 archive_name = "city's Meeting Minutes and Agendas page"   # where earlier agendas and minutes are
 governing_body = "Board of Mayor and Aldermen"             # "City Council" if left out
 # notify_url = "..."                                       # the city's meeting alerts, if it has them
-documents = false   # agendas and minutes aren't collected yet: see below
 boards = ["Board of Mayor and Aldermen", "Planning Board", ...]
 
 [meetings.aliases]
@@ -466,16 +485,34 @@ languages = ["en", "es"]
 ```
 
 - English pages are at the site's root, as before; Spanish pages are the same pages under `/es/` (`/es/meetings/`). Every page links its other version (`hreflang`), and a link at the top of each page goes to the same page in the other language. The homepage opens in the language the visitor's browser asks for first: the network's Worker redirects `/` to `/es/` for a browser set to Spanish (`worker/sites.js`). Choosing a language with the link (`?lang=es`) is remembered in a cookie and wins over the browser's there. Every other address opens as asked, so a shared link opens in the language it was shared in. A site on GitHub Pages, without the Worker, opens in English.
-- **The engine's own wording** (about 1,300 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
+- **The engine's own wording** (about 1,350 strings in the templates, the phrases built in Python, and the scripts' messages) is translated in `site/strings/es.po`, one file for every town. Write English as usual and mark it: `{{ _("...") }}` or `{% trans %}...{% endtrans %}` in a template, `_("...")` or `ngettext(...)` in Python. Then `python -m pipeline.i18n update` adds the new strings to `es.po`, and `python -m pipeline.i18n missing` lists what has no Spanish yet. A string without a translation is shown in English. The tests fail if `es.po` is out of date, or if a translation drops a value its English has (`%(name)s`, `{name}`).
 - **The town's own text** (tagline, masthead, section summaries, glossary, participation notes, officials' seats, and the names in its data: boards and 311 categories) needs no one's translation to start. Each comes from the first of:
   1. the town's `[strings.es]`;
   2. the engine's Spanish for what many towns share: section names, common boards ("Planning Board"), roles, seats, and the section summaries town configs copy (`pipeline/common_strings.py`, translated in `es.po`), and numbered seats ("Ward 3" is "Distrito 3");
   3. a machine draft: each run, before summarizing, drafts whatever is still missing (a new town's config, a board or 311 category the city just added) with the translation model, checked the same way (numbers and placeholders kept) and reviewed by a second model, into `data/strings/es.json`. It costs a fraction of a summary, and may spend up to $0.05 a run past the town's budget share. A draft that fails twice stays in English.
 
   A text with none of these is shown in English with a warning, never stopping the build: a gap in Spanish doesn't stop either language publishing. No person reviews the drafts; `python -m pipeline.translate drafts` prints them as `[strings.es]` lines for anyone who wants to correct them in the config, which then wins. Board names are shown with their official English name after them ("Concejo Municipal (City Council)"), so readers can match them to the city's notices; 311 categories are shown in Spanish only.
-- **Summaries** are translated from the English summary (never from the PDF) by Claude Haiku 4.5 (`pipeline/translate.py`; `translation_model` in `[summaries]` to change it, with its `translation_input_price` and `translation_output_price`). No person checks them, so two checks do. One without AI, entry by entry: numbers kept and none added (whatever the Spanish number format), amounts' million or billion, a.m. and p.m., names kept as written, and what happened not turned round (a "not" lost or added, approved as denied, tabled as approved, unanimous changed); a date in figures may be written out. Then a second model (Claude Sonnet 5.5; `translation_review_model`, with its prices) reviews the meaning of each translation that passes, about a cent each. A translation that fails either is made again once, then kept, so it isn't paid for again, and the page shows the English with a note that the translation didn't pass. The check runs again each build. Every translated summary says it was translated automatically by AI and links the English, as does every Spanish page's footer. Each translation is its own record, `data/summaries/es/<document hash>.json`, made again only when its English summary changes, so turning Spanish on never regenerates an English summary. Translations come out of the same budget as summaries, new documents first (`translation_cost` in the month's ledger). A summary not translated yet is shown in English, marked `lang="en"`, with a note saying so. Decisions are sorted, and public hearings and glossary terms found, in the English.
+- **Summaries** are translated from the English summary (never from the PDF) by Claude Sonnet 5.5 at low effort (`pipeline/translate.py`; `translation_model` in `[summaries]` to change it, with its `translation_input_price`, `translation_output_price`, and `translation_effort`, which Claude Haiku 4.5 takes none of). Until October 2026 Claude Haiku 4.5 translated them, and more of its translations failed the checks than passed, so it cost more per translation shown. No person checks them, so two checks do. One without AI, entry by entry: numbers kept and none added (whatever the Spanish number format), amounts' million or billion, a.m. and p.m., names kept as written, and what happened not turned round (a "not" lost or added, approved as denied, tabled as approved, unanimous changed); a date in figures may be written out. Then a second request (Claude Sonnet 5.5; `translation_review_model`, with its prices) reviews the meaning of each translation that passes, given the translator's rules and words so it doesn't fail a translation for following them; the whole, translation and review, is about a cent. A translation that fails either is made again once, as a correction (the model gets its first translation and what was wrong with it), then kept, so it isn't paid for again, and the page shows the English with a note that the translation didn't pass. The check runs again each build. Every translated summary says it was translated automatically by AI and links the English, as does every Spanish page's footer. Each translation is its own record, `data/summaries/es/<document hash>.json`, made again only when its English summary changes, so turning Spanish on never regenerates an English summary. Translations come out of the same budget as summaries, new documents first, and older summaries' translations before the older documents still waiting for an English summary, which cost about ten times as much (`translation_cost` in the month's ledger). A summary not translated yet is shown in English, marked `lang="en"`, with a note saying so. Decisions are sorted, and public hearings and glossary terms found, in the English.
 - Agendas, minutes, and transcripts stay in English, as the official record. Downloads, saved PDFs, and the feed are shared by both languages. Search on the Spanish pages also finds the translated summaries.
 - The site checks run on every page in both languages. A missing page under `/es/` gets the Spanish 404 page from the network's Worker (`worker/sites.js`), which must be deployed before the first town with Spanish goes live.
+
+## Weekly digest
+
+Each town with meetings has a weekly digest at `/digest/` (`pipeline/digest.py`), in English for now. An issue is dated a Sunday and lists:
+
+- the meetings of the week ahead, Monday to Sunday, by day, each with its agenda summary's line once an agenda is posted;
+- the minutes this site first collected in the week before, Monday to Sunday, with what each meeting decided, as the decisions page shows them (after the fact check).
+
+It's made from what the site already has, with no AI calls. A week with no meetings and no new minutes has no issue. Minutes collected on the day a town's meetings were first read are its history, not news, and are left out, as are minutes of a meeting more than 90 days before the issue (a source's history read for the first time). An issue's page shows what the site knows about its week as of the latest build, so a meeting cancelled after the Sunday is shown cancelled. When the meetings calendar is behind (`absences.calendar_behind`), an issue whose week isn't over says meetings may be missing.
+
+Each issue is at `/digest/<its Monday>/`, and `/digest/feed.xml` has the last 12, each whole as plain HTML with every link in full, for an email provider to send. An item's date is when its email is due: the Sunday at 5:30 PM, the town's own time (`digest.SEND_TIME`; decided 2026-10-06, because it gives a day's notice of Monday evening meetings, and leaves the morning's daily run hours to finish). An issue first appears in the build on its Sunday, so a town whose Sunday run doesn't happen has no new issue to send until its next build. Each email link ends `?ref=digest-email`, so the page counts (`site/static/js/count.js`) show visits from the email, where mail apps send no referrer.
+
+### The email
+
+The network's Workers send it through [Buttondown](https://buttondown.com) (`worker/digest.js`), on one newsletter for every town, each reader tagged with the town and language they signed up for (`gloucester-ma-en`). Tags are a paid Buttondown feature.
+
+- **Signing up.** With `[digest] signup = true` (and `provider` and `privacy_url`, which the form and the About page name), `/digest/` has a form that posts to the site's own `/digest/subscribe`: the pages' Content-Security-Policy allows a form nowhere else. The sites Worker answers it, with `BUTTONDOWN_SUBSCRIBE_KEY` (subscribers read and write, sending disabled): a new address is added unconfirmed, and Buttondown asks it to confirm; an address already confirmed gets the town's tag; one that unsubscribed or never confirmed is asked to confirm again; one Buttondown won't send to is left alone. Every one goes on to `/digest/thanks/` (or `/digest/problem/`), so the form never says whether an address is subscribed. A hidden field catches bots, and Buttondown is given the reader's IP address for its firewall, since the form has no CAPTCHA; the About page says so. Only a site whose Worker answers `/digest/subscribe` can turn the form on.
+- **Sending.** Every hour of Sunday and Monday (UTC), the scheduler Worker reads the newest issue in the feed of each town in its `DIGEST_TOWNS`, and sends it with `BUTTONDOWN_SEND_KEY` (emails read and write, sending enabled) once its date has passed, to that town's tag alone. It isn't sent more than 6 hours late, nor twice (an email with its subject already made). A town no one has signed up for sends nothing. A run that fails for any town opens one issue, **The weekly digest didn't send** (label `digest not sent`), or comments on the one open. Each run makes a request for each town and a few for each one sending; Workers on the free plan may make 50, so about 20 towns.
 
 ## Data collection
 
@@ -539,14 +576,15 @@ If nobody relies on the old domain, deleting its GitHub records is enough; don't
 GitHub Pages serves one custom domain per repository. A network that runs many towns from one repository publishes each built site to a Cloudflare R2 bucket instead, and one Cloudflare Worker (`worker/index.js`) serves them all, choosing the site by hostname:
 
 ```sh
-python -m pipeline.deploy publish [--town <town>] [--site _site]   # the site goes live at its config's domain
-python -m pipeline.deploy rollback [--town <town>] [--build <build>] # back to the previous build, or a named one
+python -m pipeline.deploy publish [--town <town>] [--site _site] [--domain <domain>]   # the site goes live at its config's domain
+python -m pipeline.deploy rollback [--town <town>] [--build <build>] [--domain <domain>] # back to the previous build, or a named one
 python -m pipeline.deploy prune [--keep 10] [--dry-run]              # delete old builds and unused files
+python -m pipeline.deploy check [--town <town>] [--site _site] [--domain <domain>]  # wait until the live homepage is the build just published
 ```
 
-Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
+`--domain` names the site by its address instead of by its town's config, as the network's rollback does. Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
-GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
+GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning (so the token also needs Actions read and write on the engine's repository), and `DIGEST_CRON` sends the weekly digest (see [The email](#the-email)). It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
 
 Setup, once for the network:
 
@@ -557,7 +595,7 @@ Setup, once for the network:
 
 ## Document storage
 
-Agenda and minutes PDFs average well over a megabyte, git keeps every version forever, and a GitHub Pages site may be at most 1 GB. Without a `[storage]` table they're committed under `data/meetings/` and copied into the site, which works for a small or short-lived town. With one, they go to an S3-compatible bucket and pages link to the bucket's public address. Git keeps each document's text, summary and SHA-256 hash, so the site is still rebuilt entirely from the repository.
+Agenda and minutes PDFs average well over a megabyte, and git keeps every version forever, so a repository that holds them only grows: one holding every town's, as a network's does, would soon be too large to clone quickly (and a GitHub Pages site may be at most 1 GB). Without a `[storage]` table they're committed under `data/meetings/` and copied into the site, which works for a small or short-lived town. With one, they go to an S3-compatible bucket and pages link to the bucket's public address. Git keeps each document's text, summary and SHA-256 hash, so the site is still rebuilt entirely from the repository.
 
 One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 is the suggested host: no charge for downloads, and the first 10 GB are free. Steps 1–3 are done once per bucket; each town then needs step 4, and step 5 if it already has PDFs in git.
 
@@ -573,6 +611,8 @@ One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 i
    public_url = "https://files.example.org"
    prefix = "<town>"   # optional; defaults to the config file's name
    ```
+
+   The default is the config file's name (`gloucester`), so a town in a network sets its folder's name, `<town>-<state>`, to keep two towns' files apart.
 
 5. **Run the workflow.** New PDFs go straight to the bucket. The **Move saved documents to storage** step uploads the ones already in `data/meetings/`, checks each copy, and commits their removal. Until a file is moved, the site keeps linking to its copy in the repository.
 
@@ -595,6 +635,8 @@ Set these under the repository's **Settings → Secrets and variables → Action
 - `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY` (needed to publish to the sites bucket): see [Serving many sites from one bucket](#serving-many-sites-from-one-bucket).
 - `BLS_API_KEY` (optional): free key from bls.gov/developers for the unemployment rate. Without it the job uses BLS's keyless limit, then falls back to the bulk data file.
 
+A network served by the Workers also sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (to deploy them), and for the weekly digest `BUTTONDOWN_SUBSCRIBE_KEY` and `BUTTONDOWN_SEND_KEY` (see [The email](#the-email)); publick.org's README lists the network's own.
+
 ## How Publick runs it
 
 The Publick network's own setup, for reference. Everything here belongs to Publick; another operator uses their own.
@@ -610,7 +652,8 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
 | Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share an $80 monthly budget, with a floor per town. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
 | Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker; the network pins the exact release in its `engine-version` |
-| Alerts | One GitHub issue, "Towns need attention", kept up to date by each daily run and assigned to the maintainer; the scheduler opens "The network's daily runs have stopped" after 30 hours without one |
-| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, `ENGINE_PR_TOKEN`, set once on the network repository; its `RUNBOOK.md` says when each expires |
+| Weekly digest | Emailed through Buttondown, one newsletter with a tag per town and language; sent by the scheduler Worker on Sunday evenings to the towns in its `DIGEST_TOWNS` |
+| Alerts | GitHub issues assigned to the maintainer: "Towns need attention", kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; and "The weekly digest didn't send" |
+| Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, `ENGINE_PR_TOKEN`, `BUTTONDOWN_SUBSCRIBE_KEY`, `BUTTONDOWN_SEND_KEY`, set once on the network repository; its `RUNBOOK.md` says when each expires |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.

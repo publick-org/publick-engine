@@ -3,7 +3,9 @@
 Last cleaned up 2026-10-05, at seven towns on engine v1.36.0. The work
 finished from 2026-10-02 to 2026-10-05 is now in the theme sections and
 under [Done, by release](#done-by-release). The priority list starts again
-from what's left.
+from what's left. Brought up to date 2026-10-07: ten towns on v1.42.0, the
+weekly digest live for Gloucester, and getting the sites ready for more
+readers.
 
 This file has four parts:
 
@@ -82,7 +84,7 @@ matrix is at most 256 jobs. AI summaries and translations share a network
 budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
-## Where things stand (2026-10-05)
+## Where things stand (2026-10-07)
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
@@ -93,148 +95,197 @@ thirds of commits are written by AI.
 | Wallingford, CT | 2026-10-01 | The town's own website; Board of Education on Finalsite, with its schedule | none | Connecticut's tax bill and budget since 2026-10-04 (publick.org #51); no wards |
 | Lawrence, MA | 2026-10-02 | CivicPlus calendar and Agenda Center | none | Launched in English and Spanish |
 | Burlington, VT | 2026-10-04 | CivicClerk | SeeClickFix | First Vermont town, from config alone (publick.org #54); the School Board is on Diligent Community, not read yet |
+| Bangor, ME | 2026-10-05 | CivicPlus calendar and Agenda Center, with the School Committee's | SeeClickFix, no areas (from 2026-10-06, publick.org #64) | First Maine town; Maine's figures saved once a year |
+| Lewiston, ME | 2026-10-05 | CivicPlus calendar and Archive Center; School Committee in Google Drive (#84) | none | |
+| South Kingstown, RI | 2026-10-05 | CivicClerk | SeeClickFix, by voting precinct | First Rhode Island town; no tax bill, which the state publishes nothing to calculate |
 
-In a pull request: **Lewiston and Bangor, Maine, and South Kingstown, Rhode
-Island** (publick.org #58), from config alone on v1.36.0, which reads
-year-named Archive Center collections, a Maine budget without a tax bill, and
-311 grouped by voting precinct (#76).
-
-- Every town is on engine v1.36.0, in English and Spanish. Merged since, for
-  the release of 2026-10-06: Vermont's graduation and attendance expected a
-  year after the school year (#79), and Dependabot's action and requirement
-  updates (#77, #78).
-- The scheduler Worker started the release and the engine pull request on
-  time on 2026-10-04 and 2026-10-05; both engine moves merged by themselves
-  at about 08:52 UTC. v1.35.0 was released and moved by hand on 2026-10-04.
-- 585 summaries, 351 of them with a Spanish translation saved. October's
-  summaries and translations: $13.34 after five days (Beverly $3.27,
-  Manchester $2.45, Malden $2.18, Burlington $2.08, Gloucester $1.71,
-  Wallingford $1.21, Lawrence $0.43).
-- Fact checks (the 2026-10-05 run records): 4 summaries of 80 held back in
-  Burlington, 3 of 79 in Gloucester, 1 each in Malden and Wallingford; 199
-  summaries not yet checked at 60 documents a run, most in Malden (96) and
-  Beverly (61).
-- "Towns need attention" (publick.org #56) lists Burlington, for school
-  figures behind: the state posts them a year later than the engine expected,
-  fixed in #79.
-- 311 history in git: about 29 MB across four towns.
+- Every town is on engine v1.42.0, in English and Spanish. The 08:40 engine
+  move of 2026-10-06 (v1.38.0) failed at its merge step, so v1.38.0 never
+  reached the towns; v1.39.0 to v1.42.0 were moved the same day, three of
+  them by hand (publick.org #63, #65, #69, #71).
+- The weekly digest is live for Gloucester (engine #85 to #87, publick.org
+  #67, #68, #70; Workers deployed 2026-10-06 at 18:07 UTC): the signup form
+  is on, and the first email goes out Sunday 2026-10-11 at 5:30 PM. The other
+  nine towns are in publick.org #72, after that send works.
+- HSTS is live from the sites Worker (deployed 2026-10-05).
+- 661 summaries, 402 with a Spanish translation saved. Spanish summaries by
+  Claude Sonnet 5.5 since #82 (v1.38.0). October's summaries and translations
+  after six days: $16.88 (Beverly $3.28, Manchester $2.65, Malden $2.40,
+  Burlington $2.29, Gloucester $1.71, Bangor $1.40, Wallingford $1.23,
+  Lewiston $0.77, South Kingstown $0.71, Lawrence $0.44).
+- Fact checks (the 2026-10-06 run records): 19 of 654 summaries held back
+  (Bangor 5, Burlington 5, Gloucester 3, Lewiston 3, Malden, South Kingstown
+  and Wallingford 1 each); 66 not yet checked, most in Beverly (23), Malden
+  (20) and Gloucester (19).
+- "Towns need attention" (publick.org #66) is open for Beverly, whose
+  summaries are behind.
+- 311 history in git: about 30 MB across five towns (Malden 13, Manchester
+  9.3, Gloucester 6.2, Burlington 1.8, South Kingstown 0.2), plus Bangor's
+  from 2026-10-06.
 - Network status: [publick.org/status/](https://publick.org/status/).
 
 ## Priorities
 
 Each line points to its section under [The work, by theme](#the-work-by-theme).
 Order within a group is the order to do them in. The list was renumbered on
-2026-10-05; [Where the old numbered items went](#where-the-old-numbered-items-went)
+2026-10-07; [Where the old numbered items went](#where-the-old-numbered-items-went)
 maps the October list's numbers.
 
 ### Now: this week
 
-1. **Lewiston, Bangor, and South Kingstown live**: merge publick.org #58, then
-   **Actions → Network → Run workflow** with fetching for the three, again
-   until no meetings are waiting; an email routing rule for each. All three
-   elect on 2026-11-03: check their officials right after.
-   ([Next towns](#next-towns))
-2. **HSTS live**: run **Actions → Worker** once. #69 put the header in the
-   sites Worker, but it isn't deployed: checked on gloucester-ma.publick.org
-   on 2026-10-05, no `Strict-Transport-Security`. Then check a site's
-   headers, and the budget floor in a daily run's plan job.
-   ([Security and privacy](#security-and-privacy))
-3. **Burlington caught up**: the release of 2026-10-06 takes #79; the next
-   daily run should take Burlington off issue #56. If it doesn't, read its
-   `schools` step. ([Monitoring](#monitoring))
-4. **Read what the fact check holds back** in Burlington (4 summaries, 13
-   entries), the network's first new town since the quotes check: each one
-   wrong in the summary, or the check's mistake? Fix the check if it's the
-   check's. ([Summary checks](#summary-checks))
-5. **Why most translations fail their review**: the 2026-10-04 audit found
-   about 70% failing and 408 of 481 summaries shown in English on the Spanish
-   pages. Read a sample of what the review flags: a real error is the prompt's
-   to fix, a false flag the review's; never loosen the review to pass more.
+Done since 2026-10-05: Lewiston, Bangor, and South Kingstown live
+(publick.org #58), HSTS live (**Actions → Worker**, 2026-10-05), and
+Burlington caught up (#79).
+
+1. **Ready for more readers.** Every request to every site runs the sites
+   Worker, and Workers' free plan refuses requests past 100,000 a day, for
+   the rest of the day, on every site at once: a few thousand readers from
+   one news story would take the network down until midnight UTC. Move the
+   Cloudflare account to Workers' paid plan ($5 a month, 10 million requests;
+   it also lifts the digest send's 50-request limit). Then deploy the sites
+   Worker's hardening (engine `claude/worker-hardening`, with publick.org's
+   `SIGNUP_LIMITER`): files kept in Cloudflare's cache, a plain 503 when the
+   bucket fails, no framing by other sites, and a rate limit on the digest
+   signup. ([Security and privacy](#security-and-privacy))
+2. **The first digest email**, Gloucester's, Sunday 2026-10-11 at 5:30 PM
+   (the scheduler's 21:35 UTC run). Before then: Buttondown's tags add-on
+   and the footer's mailing address; a test address signed up, confirmed,
+   and tagged `gloucester-ma-en`. After: check the email and its links, then
+   publick.org #72 for the other nine towns. ([Decided, not scheduled](#decided-not-scheduled))
+3. **A switch to hold back one summary.** When a reader reports a wrong
+   summary, the only way to take it down today is rolling the whole town
+   back, and the next daily run publishes it again (`RUNBOOK.md`, "A reader
+   reports an error"). With more readers this is the gap that matters most:
+   a list in the town's config of documents whose summary isn't shown, with
+   the reason, and the page saying it was withdrawn. ([Summary checks](#summary-checks))
+4. **Why the engine move of 2026-10-06 failed at its merge**, so the next
+   ones merge by themselves; v1.39.0 to v1.42.0 were moved by hand.
+   ([Releases](#releases))
+5. **Beverly's summaries caught up** (issue #66), and the 66 summaries not
+   yet fact checked. ([Monitoring](#monitoring))
+6. **Read what the fact check holds back**: 19 summaries across seven towns,
+   most in Bangor and Burlington (5 each). Each one wrong in the summary, or
+   the check's mistake? Fix the check if it's the check's.
+   ([Summary checks](#summary-checks))
+7. **Spanish translations, measured again** now that Sonnet 5.5 translates
+   (#82): the 2026-10-04 audit found about 70% failing their review. Read a
+   sample of what the review flags: a real error is the prompt's to fix, a
+   false flag the review's; never loosen the review to pass more.
    ([Spanish quality](#spanish-quality))
-6. **The meetings audit, by hand**: every town's upcoming meetings against its
-   city's own sites; the last was 2026-10-02, and Burlington has never had
-   one. ([Meetings, complete and correct](#meetings-complete-and-correct))
+8. **The meetings audit, by hand**: every town's upcoming meetings against its
+   city's own sites; the last was 2026-10-02, and Burlington, Bangor,
+   Lewiston, and South Kingstown have never had one.
+   ([Meetings, complete and correct](#meetings-complete-and-correct))
 
 ### Then: to about 20 towns
 
-7. **311's raw requests in R2, and one SeeClickFix job paced across towns.**
+9. **311's raw requests in R2, and one SeeClickFix job paced across towns.**
    Planned for before the next 311 town; Burlington went live with 311
    without it, and South Kingstown (#58) will too. Before any further 311
    town. ([Data out of git](#data-out-of-git),
    [Shared sources](#shared-sources-once-per-state))
-8. **Lowell**: config only. ([Next towns](#next-towns))
-9. **Saying why something is missing, the rest**: `[absences]` sentences
+10. **Lowell**: config only. ([Next towns](#next-towns))
+11. **Saying why something is missing, the rest**: `[absences]` sentences
    for the towns without 311, lists that say what they leave out, held-back
    decisions counted on the Decisions page.
    ([Saying why something is missing](#saying-why-something-is-missing))
-10. **Springfield**, after Medford: CivicClerk with meetings sorted into
+12. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
-11. **The open data export**: each town's `/data/meetings.json` and a Data
+13. **The open data export**: each town's `/data/meetings.json` and a Data
     page. ([Open data](#open-data))
-12. **The next readers**: Foxit full text (Manchester's minutes, the most
+14. **The next readers**: Foxit full text (Manchester's minutes, the most
     common style not read free); school boards on Diligent Community
     (Burlington) and BoardDocs; nested Google Drive folders (Lewiston's
     School Committee); then the next platform a chosen town needs.
     ([Readers](#readers-for-more-platforms))
-13. **Officials kept current**: each town's next election date in its config,
+15. **Officials kept current**: each town's next election date in its config,
     with the status page flagging a list not checked since.
     ([Who represents you](#who-represents-you))
-14. **Vote records shown**, for Malden's council first, after a few weeks of
+16. **Vote records shown**, for Malden's council first, after a few weeks of
     a person checking every new vote. ([Vote records](#vote-records))
-15. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
+17. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
     once for Massachusetts. ([Shared sources](#shared-sources-once-per-state))
-16. **The helper for adding a town**, which also runs the first fetches and
+18. **The helper for adding a town**, which also runs the first fetches and
     sets up email routing. ([Adding a town](#adding-a-town))
-17. **Statewide sources, phase 3**: BLS and the Census, once for the country.
+19. **Statewide sources, phase 3**: BLS and the Census, once for the country.
     ([Shared sources](#shared-sources-once-per-state))
-18. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
+20. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
     labels matched by content rather than position, and Ward and District
     kept apart in Spanish. ([Spanish quality](#spanish-quality))
-19. **Wallingford's Affordable Housing Appeals List**, from Connecticut's
+21. **Wallingford's Affordable Housing Appeals List**, from Connecticut's
     package. ([State packages](#state-packages))
-20. **Accessibility**: a table for every chart. ([Accessibility](#accessibility))
-21. **Upkeep**: config keys only one town uses folded into their readers; a
+22. **Accessibility**: a table for every chart. ([Accessibility](#accessibility))
+23. **Upkeep**: config keys only one town uses folded into their readers; a
     monthly page-view report. ([Upkeep](#upkeep))
 
 ### Stage 2: about 20 to 50 towns
 
-22. Town data moved to R2, with git keeping config and code, when the run
+24. Town data moved to R2, with git keeping config and code, when the run
     records' sizes say so. ([Data out of git](#data-out-of-git))
-23. Canary towns (Manchester and Malden) on the newest release, and sampled
+25. Canary towns (Manchester and Malden) on the newest release, and sampled
     checks when `engine-version` moves. ([Releases](#releases))
-24. `CODEOWNERS` and required reviews, before the first editor from outside
+26. `CODEOWNERS` and required reviews, before the first editor from outside
     Publick. ([Who can change what](#who-can-change-what))
-25. The scheduler Worker deployed when it changes, and reminders for the
+27. The scheduler Worker deployed when it changes, and reminders for the
     steps that stay by hand. ([Steps done by hand](#steps-done-by-hand))
-26. Officials compared with each city's own pages, with differences opened
+28. Officials compared with each city's own pages, with differences opened
     as one issue for a person. ([Who represents you](#who-represents-you))
-27. Summaries through the Batches API, at least for the backlog.
+29. Summaries through the Batches API, at least for the backlog.
     ([AI costs](#ai-summary-and-translation-costs))
 
 ### Stage 3: about 100 to 1,000 towns
 
-28. The work queue: sources due, per scope, with per-vendor rate limits, and
+30. The work queue: sources due, per scope, with per-vendor rate limits, and
     a new town's history fetched on its own. ([Runner capacity](#runner-capacity-and-the-work-queue))
-29. A paid GitHub plan or other workers, as the queue's length shows the need.
-30. A summary budget sized to the network, with one priority order across
+31. A paid GitHub plan or other workers, as the queue's length shows the need.
+32. A summary budget sized to the network, with one priority order across
     towns. ([AI costs](#ai-summary-and-translation-costs))
-31. A status page with search and filters, and a daily digest instead of an
+33. A status page with search and filters, and a daily digest instead of an
     alert. ([Monitoring](#monitoring))
-32. Self-hosted page counts, if GoatCounter's free use runs out.
+34. Self-hosted page counts, if GoatCounter's free use runs out.
 
 ### Decided, not scheduled
 
 Kept so they aren't lost. Each comes into a stage when it's chosen.
 
-- **A weekly digest for readers.** In this order, stopping when a step is
-  enough: an `.ics` meetings calendar; a static `/digest/<week>/` page with
-  its own feed (upcoming meetings, and decisions from minutes posted that
-  week; no AI calls); then email sent from that feed by a provider such as
-  Buttondown. Waits until the daily runs are stable and there's evidence
-  people want email. Sections whose data is stale are skipped or flagged.
+- **A weekly digest for readers.** The pages and their feed are built
+  (2026-10-06, `pipeline/digest.py`): each Sunday's issue at
+  `/digest/<Monday>/`, with the week's meetings and the minutes posted the
+  week before, no AI calls, and `/digest/feed.xml` dated for the email.
+  Decided 2026-10-06: sent weekly, Sunday at 5:30 PM in the town's own time
+  (a day's notice of Monday evening meetings, which are about a fifth of all
+  meetings, and hours after the morning's run); one email account with a tag
+  for each town and language rather than a list per town; open and click
+  tracking off, with GoatCounter `?ref=` on the email's links to measure
+  use; English first, Spanish later (Lawrence first). The email says what
+  it holds first, and that its lines are written by AI once per section,
+  above them. Decided 2026-10-06: Buttondown, pending its answers on API
+  access and turning tracking off (half price for a registered 501(c)(3));
+  the scheduler Worker sends each town's issue at its date through the
+  provider's API; the signup form posts to the sites Worker, which adds the
+  town and language tag and passes it on, so the pages' `form-action 'self'`
+  stays. Done the same day: the account, sending from
+  `hello@digest.publick.org` (its DNS records on the `digest.` subdomain),
+  tracking off, and two keys, one for each Worker
+  (`BUTTONDOWN_SUBSCRIBE_KEY`, which can't send, and `BUTTONDOWN_SEND_KEY`).
+  Built: the signup (`[digest] signup`, `worker/digest.js`), the send
+  (`DIGEST_TOWNS` in the scheduler, off while empty), and the About page's
+  privacy text (#85, #86, #87; v1.41.0 and v1.42.0). Live for Gloucester
+  since 2026-10-06 (publick.org #67, #68, #70; Workers deployed at 18:07
+  UTC): its signup is on and `DIGEST_TOWNS` names it, so its first email
+  goes out Sunday 2026-10-11 at 5:30 PM. Left, in order: Buttondown's tags
+  add-on (+$9 a month; tags and metadata are both paid, and sending by town
+  needs one) and the footer's mailing address (Buttondown's own, if they
+  confirm it's allowed), before that Sunday; a test address signed up,
+  confirmed, and sent the issue; then every town (publick.org #72). Past
+  about 20 towns the send needs Workers' paid plan (50 requests a run on the
+  free one), or a list of what's due built with the homepage. An `.ics`
+  meetings calendar is still worth doing on its own.
 - **Links to meeting recordings** on each meeting's page, where the town
   posts one (YouTube for Beverly and Wallingford, 1623 Studios for
   Gloucester). Simple, and useful without any summary of the video.
+  Each board's page already links the channel that broadcasts its meetings
+  (`video_url` in `[participation]`); a link per meeting is what's left.
   Wallingford's and its Board of Education's YouTube links are already
   collected (`video_id`), not shown.
 - **Towns queued separately**, so runs for different towns don't block or
@@ -273,9 +324,11 @@ Proposals, not decisions. Each says what it would take.
   that lists every meeting where it appears, from the documents' own text
   (addresses can be matched without AI). It's what readers who aren't at
   every meeting most lack.
-- **How to take part, per board.** When and where it meets, how public
-  comment works, how to get on the agenda, and the clerk's contact: a few
-  lines of config per board, shown on its page.
+- **How to take part, per board, the rest.** Each board's page and its
+  meetings' pages already say how public comment works and where meetings
+  are broadcast, from `[participation."<board>"]` in every town's config
+  (publick.org #64). Still to decide: how to get on the agenda, and the
+  clerk's contact.
 - **An elections page.** Each town's next municipal election (needed anyway
   to keep officials current), the offices on the ballot, and links to the
   town clerk. No candidate content.
@@ -483,6 +536,28 @@ it came from and checked again at display; English fallback is marked
 `lang="en"`; only `/` negotiates language, with `Vary` and a no-store 302;
 `hreflang` and `x-default` set; a 404 per language; board names keep the
 official English; Spanish search covers the translations.
+
+*Done 2026-10-06 (translation prompt version 4):* most summaries had no
+Spanish shown: 126 of 630, across ten towns. Of the translations made, about
+190 failed the meaning review and 70 the check; about 245 had never been
+made.
+- Older summaries were translated only when the run hadn't stopped, and the
+  backlog's English summaries spent the backlog budget first (Malden: "older
+  documents wait: this run's $0.26 for them is spent", 131 of 157 never
+  translated). Translations now come before the older English summaries.
+- Haiku 4.5's translations failed the review more often than they passed:
+  guessed genders (53), "Pospon", "posponemos", "redevelación". The
+  network spent $2.77 on 390 tries for 126 shown, about 2.2 cents each.
+  Claude Sonnet 5.5 translates now, at low effort, for about a cent with
+  the review.
+- The second try is a correction: the model gets its first translation and
+  what the check or the review found wrong, rather than trying again blind.
+- The review is given the translator's words and rules (it failed
+  "audiencia pública", which the prompt asks for), and an entry it marks as
+  no error ("This is faithful. No error.", 11 times) no longer fails a
+  translation.
+- Every translation is made again on version 4 (about 630, about $6),
+  newest meetings first; until then a summary is shown in English.
 
 **Still to do.**
 - *Most translations fail their review* (the 2026-10-04 audit: about 70%,
@@ -726,6 +801,7 @@ and the 311 data has people's house numbers.
   (scripts from the site only, no inline scripts). The sites Worker sends
   `Strict-Transport-Security: max-age=31536000` on every page and redirect
   (#69), without `includeSubDomains` or `preload`, so it can be taken back.
+  Live since the Worker's deploy of 2026-10-05.
 - *311 addresses* (#68): a sensitive category's address is shown to its
   block ("200–299 Main St") on every page, map, CSV, and in the street
   lookup, and its map point to about 100 meters: encampments, health and
@@ -741,9 +817,23 @@ and the 311 data has people's house numbers.
   second person with owner access (decided 2026-10-03).
 
 **Next.**
-- *HSTS live:* the header goes out once the sites Worker is deployed by hand
-  (**Actions → Worker**); on 2026-10-05 it wasn't yet.
-- `frame-ancestors`, which a `<meta>` policy can't set, from the Worker.
+- *Ready for more readers* (2026-10-07). Every request to every site, its
+  pages and their CSS, scripts, and images, runs the sites Worker. On
+  Workers' free plan, past 100,000 requests a day every site is refused
+  until midnight UTC; Workers' paid plan ($5 a month) includes 10 million a
+  month. Built on engine `claude/worker-hardening`, deployed with
+  **Actions → Worker** once its release reaches `engine-version`:
+  - each file kept in Cloudflare's cache in each data center after its
+    first read, so a busy page is read from the bucket once per data
+    center, not once per visit (files are named by their content's hash, so
+    a cached copy is never out of date);
+  - a bucket that fails: the manifest last read keeps the site up, and
+    otherwise a plain 503 with `Retry-After`, never Cloudflare's error page;
+  - `frame-ancestors 'self'` and `X-Frame-Options`, which a `<meta>` policy
+    can't set;
+  - a rate limit on the digest signup, per IP address and per email address
+    (`SIGNUP_LIMITER` in the network's `wrangler.toml`), so the form can't
+    be used to send someone confirmation after confirmation.
 - *311 requests made private:* a request SeeClickFix stops showing is marked
   removed and left off the pages, but `requests.json` keeps its full
   address, public in git. Drop a removed record's address (from the October
@@ -788,8 +878,8 @@ one Anthropic key whose rate limits apply to the whole network.
 
 **Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003,
 and their review about a cent. September: $21.82 (three towns). October
-after five days: $13.34 across seven towns (see
-[Where things stand](#where-things-stand-2026-10-05)).
+after six days: $16.88 across ten towns (see
+[Where things stand](#where-things-stand-2026-10-07)).
 
 **Next.**
 - More free full-text styles, each added once for every town on the same
@@ -1220,8 +1310,9 @@ for all, v1.29.0 for any number of towns):
 - About 10,000 words of the sites' wording in one string file per language,
   English pages unchanged; the Spanish written once, with a style guide
   (`site/strings/es-guide.md`).
-- Summaries translated from the English summary, never the PDF, by Haiku 4.5;
-  each translation keyed by the English it came from, so turning Spanish on
+- Summaries translated from the English summary, never the PDF, by Haiku 4.5
+  (Sonnet 5.5 since version 4); each translation keyed by the English it
+  came from, so turning Spanish on
   regenerates nothing and a translation is made again only when its English
   changes. Translations count in the budget in the same priority order.
 - Agendas, minutes, and transcripts stay in English, the official record.
@@ -1403,7 +1494,7 @@ releases.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs (v1.36.0 on 2026-10-05)
+  engine-version              the engine release every town runs, an exact tag (v1.42.0 on 2026-10-06)
   ADDING-A-TOWN.md            the checklist for a new town
   RUNBOOK.md                  what to do when something needs a person
   LICENSE                     CC BY 4.0 for what Publick makes; the code is MIT
@@ -1427,7 +1518,7 @@ The engine reads a town's config, data, and static files from
 town's folder, each town in its own process (`pipeline/network.py`).
 
 **The daily run.** The `publick-scheduler` Worker starts `network.yml` every
-hour from 09:05 to 14:05 UTC; one GitHub schedule (12:17 UTC) is a
+hour from 09:05 to 14:05 UTC; one GitHub schedule, at 12:17 UTC, is a
 backup.
 1. A plan job takes the towns that are due (last fetching run over 18 hours
    ago), oldest first, splits them into jobs (four towns a job on a daily
@@ -1460,9 +1551,12 @@ bucket, `publick-documents`, served at files.publick.org.
 
 **Secrets.** One set, nothing per town: the Anthropic key, the storage keys,
 the sites bucket keys, the BLS key, the Cloudflare deploy token,
-`ENGINE_PR_TOKEN` (for `engine.yml`'s pull request), and
-`SCHEDULER_GITHUB_TOKEN` (fine-grained: the network repository's Actions and
-Issues, and the engine's Actions; made 2026-09-30 for 366 days). `RUNBOOK.md`
+`ENGINE_PR_TOKEN` (fine-grained, the network repository's Contents and Pull
+requests, for the daily engine move), `SCHEDULER_GITHUB_TOKEN`
+(fine-grained, the network repository's Actions and Issues and the engine's
+Actions, made 2026-09-30 for 366 days, widened 2026-10-03), and the weekly
+digest's two Buttondown keys, `BUTTONDOWN_SUBSCRIBE_KEY` (the sites Worker's,
+which can't send) and `BUTTONDOWN_SEND_KEY` (the scheduler's). `RUNBOOK.md`
 lists when each expires.
 
 **Page views.** One GoatCounter site, `publick` (no cookies, never what was
@@ -1507,7 +1601,12 @@ quiet days.
 | v1.34.0 (2026-10-04) | A state package for every New England state: Connecticut's tax bill and budget, Vermont, Maine, and Rhode Island (#71); meeting pages say why minutes or an agenda aren't there, instead of something untrue (#72); five small items: amounts with a scale, keyboard tables, fact check counts in the run record, prompt versions pinned by a test, keys per step (#65). The first release and engine move started by the scheduler |
 | v1.35.0 (2026-10-04, by hand) | Decisions anchored to quotes from the minutes, each with its outcome (#66); every page says why something is missing (#73); "Calculated by Publick" notes in Spanish (#74); sitemaps, structured data, and search engine tags for the town sites (#75). The same day: Wallingford's tax bill and budget (publick.org #51) and Burlington (publick.org #54) |
 | v1.36.0 (2026-10-05) | A budget floor per town (#67); 311 addresses in sensitive categories cut to the block (#68); HSTS from the Worker, actions pinned by commit, Dependabot (#69); year-named Archive Center collections, Maine budgets without a tax bill, and 311 by voting precinct (#76) |
-| next (2026-10-06) | Vermont's graduation and attendance expected a year after the school year (#79); Dependabot's updates (#77, #78) |
+| v1.37.0 (2026-10-05) | Vermont's graduation and attendance expected a year after the school year (#79); Dependabot's updates (#77, #78) |
+| v1.38.0 (2026-10-06) | Spanish summaries by Claude Sonnet 5.5, translated before the backlog and corrected on a second try (#82); docs (#81). Never moved to the towns: the morning's engine move failed at its merge |
+| v1.39.0 (2026-10-06, moved by hand) | The home page's day column (#83) |
+| v1.40.0 (2026-10-06, moved by hand) | At-large wording, Lewiston's School Committee from Google Drive, 311 without areas (#84) |
+| v1.41.0 (2026-10-06, moved by hand) | The weekly digest: its pages and feed (#85), and the email's signup through the sites Worker and the Sunday send (#86) |
+| v1.42.0 (2026-10-06) | The digest's Cron Trigger with days by name, as Cloudflare takes them (#87) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites. Its plan, `REVIEW-PLAN.md`, was never merged; every item in it
@@ -1524,18 +1623,18 @@ Commits and pull requests refer to earlier numbers.
 | Old item | Now |
 |---|---|
 | 1, 2, 3, 4 (the first scheduled release, the first daily runs, two summaries read by hand) | Done |
-| 5. The next meetings audit | Item 6 |
+| 5. The next meetings audit | Item 8 |
 | 6, 8. Decisions anchored to quotes; the test set | Done (#66, v1.35.0) |
 | 7, 9, 12, 13, 15, 16 | Done; see their theme sections |
-| 10. Security hardening | Done but for HSTS going live: item 2 |
+| 10. Security hardening | Done; HSTS live since 2026-10-05 |
 | 11. 311 addresses cut to the block | Done (#68, v1.36.0) |
 | 14. Push runs that don't publish | Dropped: [Not planned](#not-planned) |
-| 17 (first). Every page says why something is missing | Mostly done (#72, #73); the rest is item 9 |
-| 17 (second). Lowell | Item 8 |
-| 18. Wallingford's figures | Done (publick.org #51); the Appeals List is item 19 |
-| 19. A town each in Maine, Vermont, Rhode Island | Burlington live; the rest are item 1 |
-| 20 to 31 | Items 7, 10 to 18, 20, 21 |
-| 32 to 42 | Items 22 to 32 |
+| 17 (first). Every page says why something is missing | Mostly done (#72, #73); the rest is item 11 |
+| 17 (second). Lowell | Item 10 |
+| 18. Wallingford's figures | Done (publick.org #51); the Appeals List is item 21 |
+| 19. A town each in Maine, Vermont, Rhode Island | Done: Burlington (2026-10-04), Bangor, Lewiston, South Kingstown (2026-10-05) |
+| 20 to 31 | Items 9, 12 to 20, 22, 23 |
+| 32 to 42 | Items 24 to 34 |
 
 **The first list** (to 2026-10-01, items 1 to 18):
 

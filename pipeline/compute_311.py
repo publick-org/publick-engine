@@ -136,8 +136,9 @@ def last_update(record: dict) -> datetime:
     return max(t for t in (parse(record["created_at"]), parse(record.get("updated_at")), parse(detail.get("updated_at"))) if t)
 
 
-def no_update(open_records: list[dict], now: datetime) -> dict:
-    """Open requests with no update in NO_UPDATE_DAYS, in all and by category and ward."""
+def no_update(open_records: list[dict], now: datetime, areas: bool = True) -> dict:
+    """Open requests with no update in NO_UPDATE_DAYS, in all and by category and ward (none
+    by ward for a town without areas)."""
     quiet = [r for r in open_records if days_between(last_update(r), now) >= NO_UPDATE_DAYS]
     def counts(key) -> list[dict]:
         tally = defaultdict(int)
@@ -145,10 +146,11 @@ def no_update(open_records: list[dict], now: datetime) -> dict:
             tally[key(r)] += 1
         return [{"name": k, "count": n} for k, n in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0]))]
     return {"days": NO_UPDATE_DAYS, "count": len(quiet),
-            "by_category": counts(lambda r: r["category"]), "by_ward": counts(lambda r: r.get("ward") or "outside")}
+            "by_category": counts(lambda r: r["category"]),
+            "by_ward": counts(lambda r: r.get("ward") or "outside") if areas else []}
 
 
-def backlog(open_records: list[dict], now: datetime, link_base: str, town: str) -> dict:
+def backlog(open_records: list[dict], now: datetime, link_base: str, town: str, areas: bool = True) -> dict:
     buckets = [{"label": label, "max_days": limit, "count": 0} for limit, label in BACKLOG_BUCKETS]
     for r in open_records:
         age = days_between(parse(r["created_at"]), now)
@@ -160,7 +162,7 @@ def backlog(open_records: list[dict], now: datetime, link_base: str, town: str) 
         "open": len(open_records),
         "median_age_days": round(median([days_between(parse(r["created_at"]), now) for r in open_records]), 1) if open_records else None,
         "buckets": buckets,
-        "no_update": no_update(open_records, now),
+        "no_update": no_update(open_records, now, areas),
         "oldest": oldest_open(open_records, now, link_base, town),
     }
 
@@ -261,15 +263,17 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     now = now or datetime.now(tz)
     store = load_store(data_dir)
     records = [r for r in store.values() if not r.get("removed") and r.get("created_at")]
-    tag_wards(store, PrecinctLookup(data_dir / "static" / config["seeclickfix"]["precincts_file"]))
+    # A town with no wards or precincts (no precincts_file) has no areas: its pages leave them out.
+    areas_file = config["seeclickfix"].get("precincts_file")
+    if areas_file:
+        tag_wards(store, PrecinctLookup(data_dir / "static" / areas_file))
     # After the wards, which are found from the exact map point. Not saved: requests.json keeps what
     # SeeClickFix lists, and only what's shown is cut to the block.
     extra = config["seeclickfix"].get("sensitive_categories", [])
     for r in records:
         r["sensitive"] = sensitive(r["category"], extra)
-    precincts = json.loads((data_dir / "static" / config["seeclickfix"]["precincts_file"]).read_text())
     population = defaultdict(int)
-    for f in precincts["features"]:
+    for f in json.loads((data_dir / "static" / areas_file).read_text())["features"] if areas_file else []:
         population[f["properties"]["ward"]] += f["properties"]["population_2020"]
 
     window_start = now - timedelta(days=365)
@@ -281,7 +285,8 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     by_ward = defaultdict(list)
     for r in in_window:
         by_category[r["category"]].append(r)
-        by_ward[r.get("ward") or "outside"].append(r)
+        if areas_file:
+            by_ward[r.get("ward") or "outside"].append(r)
 
     monthly = defaultdict(list)
     first_month = (now.replace(day=1) - timedelta(days=700)).replace(day=1)
@@ -293,7 +298,7 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     open_records = [r for r in records if r["status"] == "open"]
     earliest = min((r["created_at"] for r in records), default=None)
     rep = config["seeclickfix"]["repeats"]
-    backlog_now = backlog(open_records, now, link_base, town)
+    backlog_now = backlog(open_records, now, link_base, town, areas=bool(areas_file))
     backlog_now["open_week_ago"] = sum(open_at(r, now - timedelta(days=7)) for r in records)
 
     # Detail for the per-category and per-ward pages: past 12 months.
@@ -301,7 +306,7 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     categories = []
     for c, rs in sorted(by_category.items(), key=lambda x: (-len(x[1]), x[0])):
         wards = defaultdict(list)
-        for r in rs:
+        for r in rs if areas_file else []:
             wards[r.get("ward") or "outside"].append(r)
         categories.append({
             "category": c, "slug": slugify(c), **summarize(rs),

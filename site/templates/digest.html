@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "macros.html" import day_group, calendar_behind_note, report_button %}
+{# One issue of the weekly digest (pipeline/digest.py): the week's meetings, and the minutes posted the week before. #}
+{# Translators: the title of one week's digest; %(when)s is its Monday, such as "October 12, 2026". #}
+{% block title %}{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}{% endblock %}
+{# Translators: %(town)s is the town's name and %(when)s a Monday, such as "October 12, 2026". #}
+{% block description %}{% trans town=town.name, when=issue.monday | date("plain") %}{{ town }}'s public meetings the week of {{ when }}, and what was decided at the meetings whose minutes were posted the week before.{% endtrans %}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/digest/">{{ _("Weekly digest") }}</a></li></ol>
+</nav>
+<div class="page-head">
+  <h1>{{ self.title() }}</h1>
+  {# Translators: %(start)s and %(end)s are dates, such as "Monday, October 12, 2026". #}
+  <p class="lede">{% trans start=issue.monday | date, end=issue.end | date %}Meetings from {{ start }}, to {{ end }}.{% endtrans %}</p>
+</div>
+{% if meetings.calendar_behind and issue.end >= today %}{{ calendar_behind_note(meetings.calendar_behind, meeting_links) }}{% endif %}
+
+<h2 id="meetings">{{ _("Meetings") }}</h2>
+{% if issue.meetings %}
+<p class="small">{{ _("Most agendas are posted two to four days before the meeting, so the week's later meetings may not have one yet. Each meeting's page has its agenda once it's posted.") }}</p>
+{% for day, items in issue.days %}{{ day_group(day, items) }}{% endfor %}
+{% else %}
+<p>{{ _("No meetings are listed for this week.") }}</p>
+{% endif %}
+
+{% if issue.minutes %}
+<h2 id="minutes">{{ _("Minutes posted") }}</h2>
+{# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
+<p>{% trans start=issue.minutes_from | date("plain"), end=issue.sunday | date("plain") %}Minutes this site collected from {{ start }}, to {{ end }}, and what each meeting decided.{% endtrans %}</p>
+<div class="credit">
+  <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+</div>
+<ul class="decision-list">
+  {% for m in issue.minutes %}
+  <li class="decision-meeting">
+    <p><a href="{{ m.url }}">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time></p>
+    {% if m.decisions.decided %}
+    <ul>
+      {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}</li>{% endfor %}
+    </ul>
+    {# Translators: %(count)s is how many of a meeting's decisions aren't listed here, 1 or more. #}
+    {% if m.decisions.decided | length > 5 %}<p class="small"><a href="{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
+    {% elif m.preview_line %}
+    <p>{{ m.preview_line }} <span class="small">({{ _("AI summary") }})</span></p>
+    {% else %}
+    <p class="small">{{ _("No decisions recorded in these minutes.") }}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if digest_signup %}<p><a href="/digest/#signup">{{ _("Get the weekly digest by email") }}</a></p>{% endif %}
+{{ report_button(report_link(page_url, "Weekly digest"), _("Report an error in this digest")) }}
+{% endblock %}

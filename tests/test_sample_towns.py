@@ -2,7 +2,7 @@
 engine reads: Manchester's (a CivicClerk portal and a DotNetNuke city
 calendar, with New Hampshire's figures), Malden's (a CivicPlus Agenda
 Center) and Wallingford's (a calendar and a documents page, in Connecticut,
-which has no state figures yet, and its Board of Education's Finalsite page). Their meetings, agendas, and minutes are collected from saved pages
+built here without its state's figures, which tests/test_ct.py covers, and its Board of Education's Finalsite page). Their meetings, agendas, and minutes are collected from saved pages
 by the real fetchers; the other sections are the Gloucester fixture data. Each
 site gets the checks Gloucester's does (tests/test_site.py, and a sample of its
 own pages in tests/test_accessibility.py), so a release that breaks one of
@@ -86,7 +86,7 @@ def malden() -> dict:
 def wallingford() -> dict:
     """Every board's meetings, agendas, minutes, and summaries from the town website's
     calendar and documents page, and the Board of Education's from the school district's
-    Finalsite page. Connecticut has no state figures yet, so no budget or schools sections."""
+    Finalsite page. Connecticut's figures are tested in test_ct.py, so no budget or schools sections here."""
     town = copy.deepcopy(load_config("gloucester"))
     town["town"].update(name="Wallingford", state="Connecticut", state_abbr="CT", official_site=WALLINGFORD)
     for table in ("archive", "drive_meetings", "permits", "finance", "schools"):

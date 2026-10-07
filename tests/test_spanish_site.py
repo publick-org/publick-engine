@@ -44,12 +44,16 @@ def page(site: Path, url: str) -> str:
 
 
 def test_every_page_in_both_languages(built, site_dir):
+    """Every page but the weekly digest's, which is in English for now (pipeline/digest.py)."""
     out, urls, _ = built
     english = sorted(p.relative_to(site_dir) for p in site_dir.rglob("*.html"))
     assert english
     for rel in english:
         assert (out / rel).exists(), rel
-        assert (out / "es" / rel).exists(), f"es/{rel}"
+        assert (out / "es" / rel).exists() != (rel.parts[0] == "digest"), f"es/{rel}"
+    digest = page(out, "/digest/")
+    assert "hreflang" not in digest and "language-switch" not in digest
+    assert 'href="/digest/"' in page(out, "/") and 'href="/digest/"' not in page(out, "/es/")
     assert "/es/" in urls and "/es/meetings/" in urls
     assert "https://gloucester-ma.publick.org/es/meetings/" in (out / "sitemap.xml").read_text()
 
@@ -63,7 +67,7 @@ def test_english_pages_are_unchanged(built, site_dir):
                        r'|\s*<p>On the pages in other languages, each summary is translated[^<]*</p>')
     cookie = re.compile(r'<li>No ads, and no tracking across other sites.</li>\s*<li>One cookie, only if you use the language switch[^<]*</li>')
     about = (out / "about" / "index.html").read_text(encoding="utf-8")
-    assert "translated automatically by AI (Claude Haiku 4.5, by Anthropic)" in about and cookie.search(about)
+    assert "translated automatically by AI (Claude Sonnet 5.5, by Anthropic)" in about and cookie.search(about)
     for path in sorted(site_dir.rglob("*.html")):
         rel = path.relative_to(site_dir)
         bilingual = cookie.sub("<li>No cookies, no ads, and no tracking across other sites.</li>",
