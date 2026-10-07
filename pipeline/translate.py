@@ -56,7 +56,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-VERSION = 6
+VERSION = 4
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -72,25 +72,22 @@ LANGUAGE_NAMES = {"es": "Spanish"}
 # (site/strings/es-guide.md has the full glossary).
 READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
-Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; continue a hearing, application, or item to a later meeting = pasarlo a la reunión del (date), or dejarlo para otra reunión (never "posponer", which is for tabling); off-street parking = estacionamiento fuera de la calle, on-street parking = estacionamiento en la calle; FY27 = año fiscal 2027; Map 12, Lot 3 (a parcel) = Mapa 12, Lote 3; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
+Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
 Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17, which a Spanish reader takes as 10 July. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
 
 SYSTEM = """You translate short summaries of a city government's public meeting agendas and minutes from English into {language}, for residents.
 
 Rules:
-{rules}
+- Translate only what the English says. Add nothing, leave nothing out, and don't explain.
 - Keep the neutral tone. No words that judge.
 - Short sentences, about an 8th-grade reading level.
+- Keep every name of a person, business, street, address, and place exactly as written, and keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, and order numbers.
+- Board and committee names: use the translations given below when there are any; otherwise keep the English name.
+- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."); when it gives none, put the name first and the role after it ("Scott Houseman, presidente del comité"), or use the role without an article, rather than "el presidente" or "la presidenta".
+- Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
 
 {readers}"""
-
-# The rules the translator follows and the review holds it to, written once for both.
-RULES = """- Translate only what the English says. Add nothing, leave nothing out, and don't explain. When the English says "the committee", "the board", or "the commission" without its name, write "el comité", "la junta", or "la comisión": don't add the name, even when you know it, because the page already names it.
-- Keep exactly as written, in English, the names of people, businesses, streets and addresses, places and buildings, and named programs, projects, grants, and funds ("Cabot Street", "Green Communities", "FairShare Earmark Grant"). Keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, ordinance, and order numbers.
-- Translate everything else into Spanish, including the names of boards, committees, departments, and offices ("Planning Department" = "Departamento de Planificación"), job titles, and kinds of licenses and permits. For the meeting's own board, use the Spanish name given with the summary, when there is one. No other English words in a Spanish sentence.
-- Keep acronyms as written ("DPW", "NOI", "HDC"): don't write out what one stands for.
-- Never guess a named person's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."). For a named person whose gender the English doesn't give, put the name first and the role after it, with no article ("Scott Houseman, presidente del comité"), never "el presidente Houseman" or "la presidenta Houseman". A role with no person named ("the Director's report", "the Treasurer recommended") takes its usual form in Spanish: "el informe del director", "el tesorero recomendó"."""
 
 PROMPT = """Translate this summary of the {kind} of a meeting ({title}, {date}) into {language}.
 {boards}
@@ -457,22 +454,9 @@ def languages(config: dict) -> list[str]:
     return [lang for lang in config["site"].get("languages", ["en"]) if lang != "en" and lang in LANGUAGE_NAMES]
 
 
-def board_name(config: dict, lang: str, board: str, data_dir: Path | None = None) -> str | None:
-    """The board's name in the language, from the first of what the site shows it as
-    (build_site.TownStrings): the town's [strings.<language>], the engine's own for a board many
-    towns have (common_strings.TEXTS, translated in site/strings/), or a draft that passed its check."""
-    from pipeline import common_strings, i18n
+def board_names(config: dict, lang: str, board: str) -> str:
+    """The board's name in the language, from the town's [strings.<language>], for the prompt."""
     name = config.get("strings", {}).get(lang, {}).get(board)
-    if not name and board in common_strings.TEXTS:
-        name = i18n.strings(lang).get((None, board))
-    if not name and data_dir:
-        name = drafts(data_dir, lang).get(board)
-    return name or None
-
-
-def board_names(config: dict, lang: str, board: str, data_dir: Path | None = None) -> str:
-    """The board's name in the language, for the prompt."""
-    name = board_name(config, lang, board, data_dir)
     return f'The board is "{board}"; in {LANGUAGE_NAMES[lang]}, "{name}".\n' if name else ""
 
 
@@ -483,12 +467,12 @@ def schema(kind: str) -> dict:
 
 
 def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
-              previous: dict | None = None, problems: str = "", data_dir: Path | None = None) -> tuple[dict, dict]:
+              previous: dict | None = None, problems: str = "") -> tuple[dict, dict]:
     """The model's translation of one English summary, and the tokens it used. previous: an
     earlier translation that failed a check, to correct, and problems: what was wrong with it."""
     source = english(record, kind)
     prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
-                           boards=board_names(config, lang, meeting["body"], data_dir),
+                           boards=board_names(config, lang, meeting["body"]),
                            summary=json.dumps(source, ensure_ascii=False, indent=1))
     if previous:
         prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in FIELDS[kind]}, ensure_ascii=False, indent=1),
@@ -496,7 +480,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
-        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], rules=RULES, readers=READERS[lang]),
+        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
         messages=[{"role": "user", "content": prompt}],
         output_config=output_config(config, schema(kind)),
     )
@@ -522,8 +506,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     wrong = what_failed(data_dir, before, record, kind, lang) if again else None
-    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
-                              data_dir=data_dir)
+    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
     paid = cost(usage, settings(config))
     checked = check(source, result, kind, lang, town_words(data_dir))
     reviewed, review_cost = "not reviewed: the check failed", 0.0
@@ -562,12 +545,11 @@ For each English text and its translation, report every error that changes the m
 - a person's gender stated where the English doesn't give it ("la presidenta" for "Chair Houseman");
 - a name, place, street, business, amount, date, time, or number changed, or anything added or left out;
 - a mistranslation ("Conservation Commission" as "Comisión de Conversación", "Mayor" as "Gobernador", a business sign as a traffic sign);
-- English words left in a {language} sentence that the translator's rules say to translate, or words that don't exist.
+- English words left in a {language} sentence (names of people, places, businesses, and programs excepted), or words that don't exist.
 
 Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation: if, once you've looked, a translation is right, leave it out, or mark it is_error false.
 
-The translator was given these rules, words, and, for the meeting's own board, its name in {language}, so a translation that follows them isn't wrong for it:
-{rules}
+The translator was given these words and rules, so a translation that follows them isn't wrong for it:
 {readers}"""
 
 REVIEW_PROMPT = """Check these translations. Each has an id, the English, and the {language}:
@@ -610,7 +592,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], rules=RULES, readers=READERS[lang]),
+            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
