@@ -56,7 +56,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-VERSION = 5
+VERSION = 6
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -72,7 +72,7 @@ LANGUAGE_NAMES = {"es": "Spanish"}
 # (site/strings/es-guide.md has the full glossary).
 READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
-Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; continue a hearing, application, or item to a later meeting = pasarlo a la reunión del (date), or dejarlo para otra reunión (never "posponer", which is for tabling); off-street parking = estacionamiento fuera de la calle, on-street parking = estacionamiento en la calle; FY27 = año fiscal 2027; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
+Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; continue a hearing, application, or item to a later meeting = pasarlo a la reunión del (date), or dejarlo para otra reunión (never "posponer", which is for tabling); off-street parking = estacionamiento fuera de la calle, on-street parking = estacionamiento en la calle; FY27 = año fiscal 2027; Map 12, Lot 3 (a parcel) = Mapa 12, Lote 3; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
 Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17, which a Spanish reader takes as 10 July. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
 
 SYSTEM = """You translate short summaries of a city government's public meeting agendas and minutes from English into {language}, for residents.
@@ -89,7 +89,8 @@ Rules:
 RULES = """- Translate only what the English says. Add nothing, leave nothing out, and don't explain. When the English says "the committee", "the board", or "the commission" without its name, write "el comité", "la junta", or "la comisión": don't add the name, even when you know it, because the page already names it.
 - Keep exactly as written, in English, the names of people, businesses, streets and addresses, places and buildings, and named programs, projects, grants, and funds ("Cabot Street", "Green Communities", "FairShare Earmark Grant"). Keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, ordinance, and order numbers.
 - Translate everything else into Spanish, including the names of boards, committees, departments, and offices ("Planning Department" = "Departamento de Planificación"), job titles, and kinds of licenses and permits. For the meeting's own board, use the Spanish name given with the summary, when there is one. No other English words in a Spanish sentence.
-- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."). When it gives none, put the name first and the role after it, with no article ("Scott Houseman, presidente del comité"); never "el presidente", "la presidenta", "el superintendente", or "la superintendente" for someone the English doesn't give a gender. A role without the person's name ("the Superintendent recommended") is the office: "la Superintendencia recomendó", "la Presidencia del Concejo"."""
+- Keep acronyms as written ("DPW", "NOI", "HDC"): don't write out what one stands for.
+- Never guess a named person's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."). For a named person whose gender the English doesn't give, put the name first and the role after it, with no article ("Scott Houseman, presidente del comité"), never "el presidente Houseman" or "la presidenta Houseman". A role with no person named ("the Director's report", "the Treasurer recommended") takes its usual form in Spanish: "el informe del director", "el tesorero recomendó"."""
 
 PROMPT = """Translate this summary of the {kind} of a meeting ({title}, {date}) into {language}.
 {boards}
