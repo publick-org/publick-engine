@@ -148,6 +148,9 @@
 {%- elif ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none) }}
 {{ full_text("minutes", ms) }}
+{% elif m.get("withheld", {}).get("minutes") %}
+{# Taken down by hand after a reader reported an error ([[summaries.withheld]]), until it's fixed. #}
+<p>{{ _("Minutes are posted and linked below. Their summary was taken down while a reported error is checked.") }}</p>
 {% elif m.minutes_too_large %}
 <p>{{ _("Minutes are posted. The file is too large to summarize automatically; the minutes are linked below.") }}</p>
 {% elif m.summary_gap and m.summary_gap.reason == "before" %}
@@ -212,7 +215,8 @@
 {% endif %}
 {% if m.agenda and not m.preview %}
 {# Why a saved agenda has no summary (pipeline/absences.py summary_gap); a town without summaries says nothing. #}
-{% if m.agenda_too_large %}<p>{{ _("The file is too large to summarize automatically; the agenda is linked below.") }}</p>
+{% if m.get("withheld", {}).get("agenda") %}<p>{{ _("The agenda's summary was taken down while a reported error is checked; the agenda is linked below.") }}</p>
+{% elif m.agenda_too_large %}<p>{{ _("The file is too large to summarize automatically; the agenda is linked below.") }}</p>
 {% elif m.summary_gap and m.summary_gap.reason == "before" %}<p>{% trans when=m.summary_gap.since | date("plain") %}Meetings before {{ when }} aren't summarized; the agenda is linked below.{% endtrans %}</p>
 {% elif not m.summary_gap %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
 {% endif %}
