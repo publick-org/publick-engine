@@ -3806,6 +3806,14 @@ msgstr "Las actas están publicadas y enlazadas abajo. Las reuniones anteriores 
 
 #: site/templates/meeting.html
 msgid ""
+"Minutes are posted and linked below. Their summary was taken down while a reported error is "
+"checked."
+msgstr ""
+"Las actas están publicadas y enlazadas abajo. Su resumen se retiró mientras se revisa un error "
+"que se nos informó."
+
+#: site/templates/meeting.html
+msgid ""
 "Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and "
 "older ones a few each day."
 msgstr ""
@@ -6221,6 +6229,12 @@ msgstr ""
 #, python-format
 msgid "The agenda is on the <a href=\"%(url)s\">city's meeting portal</a>."
 msgstr "La agenda está en el <a href=\"%(url)s\">portal de reuniones de la ciudad</a>."
+
+#: site/templates/meeting.html
+msgid "The agenda's summary was taken down while a reported error is checked; the agenda is linked below."
+msgstr ""
+"El resumen de la agenda se retiró mientras se revisa un error que se nos informó; la agenda está "
+"enlazada abajo."
 
 #: site/states/ct/budget.html
 #, python-format

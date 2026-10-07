@@ -19,6 +19,7 @@ are for; and so does a summary cut off at the prompt's max_tokens, which the sit
 (the report shows what it had written). Everything else is for a person to weigh.
 
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate [--only NAME] [--model MODEL] [--json FILE]
+    ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set translations [--only NAME] [--json FILE]   # the translation prompt's set
 
 It costs about $1 to $2 for the whole set (a few cents a document, more for the scan).
 """
@@ -196,6 +197,16 @@ def report(results: list[dict]) -> tuple[str, bool]:
 
 
 def main() -> int:
+    # The translation prompt's set has its own runner (pipeline/evaluate_translations.py).
+    if "--set" in sys.argv:
+        at = sys.argv.index("--set")
+        chosen, rest = sys.argv[at + 1], sys.argv[1:at] + sys.argv[at + 2:]
+        if chosen == "translations":
+            from pipeline import evaluate_translations
+            return evaluate_translations.main(rest)
+        if chosen != "minutes":
+            raise SystemExit(f"--set is minutes or translations, not {chosen}")
+        sys.argv[1:] = rest
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="the one document of the set to run (its name)")
     parser.add_argument("--model", default=DEFAULT_MODEL)

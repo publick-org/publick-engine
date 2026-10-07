@@ -7,7 +7,9 @@ repository is (config/, data/, site/static/):
   towns/gloucester-ma/data/...
 
 plan picks the towns for one run and splits them into batches, printed as a
-GitHub Actions matrix. run takes one batch and, for each town in turn, fetches
+GitHub Actions matrix. The batches are balanced by how long each town's last
+fetching run took, so the slow towns (a long 311 history) don't all land in
+one job. run takes one batch and, for each town in turn, fetches
 new data (pipeline.update), checks its freshness, builds the site, checks it
 (site_checks/; with --sample-checks, the browser checks run on a sample of
 pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
@@ -90,6 +92,8 @@ BEHIND_HOURS = 30
 # Hours after a town's last fetching run before a daily run takes it again. Under a day, so each
 # morning's runs take every town once, even one that finished late the day before.
 DUE_HOURS = 18
+# A town's expected time in a batch when it has no run record to go by, in seconds.
+UNKNOWN_RUN_SECONDS = 30 * 60
 # The part of the monthly summary budget older documents can't use, kept for new ones.
 NEW_DOCUMENTS_RESERVE = 0.2
 # Each town's floor: the part of its even share of each day's budget (the monthly budget over the
@@ -148,6 +152,34 @@ def due(root: Path, towns: list[str], hours: float, at: datetime | None = None) 
     return sorted(waiting, key=lambda t: (last[t] is not None, last[t] or ""))
 
 
+def last_run_seconds(root: Path, name: str) -> float:
+    """How long the town's last fetching run took (its run record), or UNKNOWN_RUN_SECONDS."""
+    path = root / TOWNS / name / "data" / RUN_RECORD
+    try:
+        record = json.loads(path.read_text())
+        took = datetime.fromisoformat(record["finished_at"]) - datetime.fromisoformat(record["started_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return UNKNOWN_RUN_SECONDS
+    return max(took.total_seconds(), 0.0)
+
+
+def balance(towns: list[str], batch_size: int, seconds: dict[str, float]) -> list[list[str]]:
+    """Split towns into as few batches of at most batch_size as they need, the longest town first into
+    the batch with the least time so far. One job with every slow town took over two hours on
+    2026-10-07, and its runner was lost with all four towns' work. Each batch keeps the towns' order,
+    and the batches are in the order of their first town."""
+    count = math.ceil(len(towns) / batch_size)
+    batches: list[list[str]] = [[] for _ in range(count)]
+    totals = [0.0] * count
+    for town in sorted(towns, key=lambda t: -seconds[t]):
+        i = min((i for i in range(count) if len(batches[i]) < batch_size), key=totals.__getitem__)
+        batches[i].append(town)
+        totals[i] += seconds[town]
+    order = {t: i for i, t in enumerate(towns)}
+    batches = [sorted(b, key=order.__getitem__) for b in batches]
+    return sorted(batches, key=lambda b: order[b[0]])
+
+
 def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str] | None = None,
          changed: list[str] | None = None, batch_size: int = 4, due_hours: float | None = None,
          at: datetime | None = None) -> dict:
@@ -163,7 +195,7 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
         towns = [t for t in towns if slot(t, slots) == run_slot]
     if due_hours is not None:
         towns = due(root, towns, due_hours, at)
-    batches = [towns[i:i + batch_size] for i in range(0, len(towns), batch_size)]
+    batches = balance(towns, batch_size, {t: last_run_seconds(root, t) for t in towns})
     return {"include": [{"towns": " ".join(b), "name": b[0] + (f" +{len(b) - 1}" if len(b) > 1 else "")}
                         for b in batches]}
 
