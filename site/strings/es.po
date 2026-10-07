@@ -3894,7 +3894,7 @@ msgctxt "weekday"
 msgid "Monday"
 msgstr "lunes"
 
-#: site/pages/311/index.html
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
 msgid "Month"
 msgstr "Mes"
 
@@ -5094,7 +5094,7 @@ msgstr "Vea el <a href=\"%(url)s\">Estado de los datos</a> de cada fuente."
 msgid "See as a list"
 msgstr "Ver como lista"
 
-#: site/pages/311/index.html
+#: site/pages/311/index.html site/templates/category.html site/templates/ward.html
 msgid "See as a table"
 msgstr "Ver como tabla"
 
