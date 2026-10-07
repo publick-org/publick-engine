@@ -18,12 +18,22 @@
 //
 // The one address that takes a POST is the weekly digest's signup form's
 // (digest.js), on a site whose digest has a signup (its digest/thanks/ page).
+//
+// Under load: each file's content (a blob, named by its hash, so it never
+// changes) is kept in the data center's cache (the Cache API) after its first
+// read, so a busy page is read from the bucket once per data center rather than
+// once per visit. If the bucket can't be read, a site keeps being served from
+// the manifest this Worker instance last read; with none, the visitor gets a
+// plain "try again shortly" (503), never Cloudflare's error page.
 
 import { SIGNUP_PATH, subscribe } from "./digest.js";
 
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
 export const MANIFEST_TTL_MS = 60_000;
+// Hostnames whose manifest (or lack of one) an instance remembers: every site, with room to spare.
+// Requests for made-up hostnames (*.publick.org reaches this Worker) can't grow it without limit.
+export const MAX_HOSTS = 1000;
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const SHORT = "public, max-age=300";
 
@@ -35,11 +45,22 @@ const YEAR = 365 * 24 * 60 * 60;
 export async function loadManifest(env, host, now = Date.now()) {
   const cached = manifests.get(host);
   if (cached && now - cached.fetchedAt < MANIFEST_TTL_MS) return cached.manifest;
-  const object = await env.SITES.get(`sites/${host}/current.json`);
-  const manifest = object ? await object.json() : null;
+  let manifest;
+  try {
+    const object = await env.SITES.get(`sites/${host}/current.json`);
+    manifest = object ? await object.json() : null;
+  } catch (error) {
+    // The bucket didn't answer: keep serving the site as last read, and try again on the next request.
+    if (cached?.manifest) {
+      console.error(`${host}: reading the manifest failed, serving the one read before: ${error.message}`);
+      return cached.manifest;
+    }
+    throw error;
+  }
   if (manifest && manifest.format !== FORMAT) {
     throw new Error(`${host}: manifest format ${manifest.format}, this Worker reads ${FORMAT}`);
   }
+  if (!cached && manifests.size >= MAX_HOSTS) manifests.clear();
   manifests.set(host, { manifest, fetchedAt: now });
   return manifest;
 }
@@ -89,6 +110,41 @@ export function chosenLanguage(request, languages) {
 // subdomain (files.publick.org and any other hostname on the zone are served elsewhere) and not
 // preloaded, so it can be taken back by sending max-age=0.
 const HSTS = "max-age=31536000";
+// No other site may show these pages in a frame (the pages' own CSP is a <meta> tag, which can't
+// say so). X-Frame-Options for browsers that don't read frame-ancestors.
+const FRAMING = { "Content-Security-Policy": "frame-ancestors 'self'", "X-Frame-Options": "SAMEORIGIN" };
+
+// A plain answer for when the site can't be served right now, with a hint to try again.
+export function unavailable() {
+  return new Response("This page is temporarily unavailable. Please try again in a minute.", {
+    status: 503,
+    headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Retry-After": "60" },
+  });
+}
+
+// A blob's content: from the data center's cache, or else the bucket (then cached, without delaying
+// the response). Blobs are named by their content's hash, so a cached copy is never out of date.
+// Without the Cache API (tests, local runs) or if it fails, straight from the bucket.
+async function blobBody(env, ctx, host, hash) {
+  const cache = globalThis.caches?.default;
+  const cacheKey = `https://${host}/.blobs/${hash}`;
+  if (cache) {
+    try {
+      const hit = await cache.match(cacheKey);
+      if (hit) return hit.body;
+    } catch (error) {
+      console.error(`Cache read for ${hash} failed: ${error.message}`);
+    }
+  }
+  const object = await env.SITES.get(`blobs/${hash}`);
+  if (!object) return null;
+  if (!cache) return object.body;
+  const [body, copy] = object.body.tee();
+  const put = cache.put(cacheKey, new Response(copy, { headers: { "Cache-Control": IMMUTABLE } }))
+    .catch((error) => console.error(`Cache write for ${hash} failed: ${error.message}`));
+  if (ctx?.waitUntil) ctx.waitUntil(put);
+  return body;
+}
 
 function redirect(location, headers = {}) {
   return new Response(null, {
@@ -103,7 +159,7 @@ function cacheControl(key, url) {
   return SHORT;
 }
 
-async function serve(request, env, url, key, entry, status, vary = null) {
+async function serve(request, env, ctx, url, key, entry, status, vary = null) {
   const headers = new Headers({
     "Content-Type": entry.type,
     "Cache-Control": status === 200 ? cacheControl(key, url) : "no-store",
@@ -111,6 +167,7 @@ async function serve(request, env, url, key, entry, status, vary = null) {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Strict-Transport-Security": HSTS,
+    ...FRAMING,
   });
   // A page another language's visitors are redirected from depends on who asks.
   if (vary) headers.set("Vary", vary);
@@ -119,12 +176,22 @@ async function serve(request, env, url, key, entry, status, vary = null) {
   }
   headers.set("Content-Length", String(entry.size));
   if (request.method === "HEAD") return new Response(null, { status, headers });
-  const object = await env.SITES.get(`blobs/${entry.blob}`);
-  if (!object) return new Response("This page is temporarily unavailable.", { status: 503 });
-  return new Response(object.body, { status, headers });
+  const body = await blobBody(env, ctx, url.hostname.toLowerCase(), entry.blob);
+  if (!body) return unavailable();
+  return new Response(body, { status, headers });
 }
 
-export async function handle(request, env) {
+export async function handle(request, env, ctx) {
+  try {
+    return await route(request, env, ctx);
+  } catch (error) {
+    // The bucket failing, or a manifest this Worker can't read: a plain 503, not Cloudflare's error page.
+    console.error(`${request.url}: ${error.stack || error.message}`);
+    return unavailable();
+  }
+}
+
+async function route(request, env, ctx) {
   const url = new URL(request.url);
   if (request.method === "POST" && url.pathname === SIGNUP_PATH) {
     const manifest = await loadManifest(env, url.hostname.toLowerCase());
@@ -160,10 +227,10 @@ export async function handle(request, env) {
       if (lang !== "en" && manifest.files[`${lang}/index.html`]) return redirect(`/${lang}/${url.search}`, { Vary: vary });
     }
   }
-  if (key && manifest.files[key]) return serve(request, env, url, key, manifest.files[key], 200, vary);
+  if (key && manifest.files[key]) return serve(request, env, ctx, url, key, manifest.files[key], 200, vary);
   const folder = url.pathname.split("/")[1];
   const notFound = /^[a-z]{2}$/.test(folder) && manifest.files[`${folder}/404.html`] ? `${folder}/404.html` : "404.html";
   const missing = manifest.files[notFound];
-  if (missing) return serve(request, env, url, notFound, missing, 404);
+  if (missing) return serve(request, env, ctx, url, notFound, missing, 404);
   return new Response("Not found", { status: 404 });
 }
