@@ -769,6 +769,11 @@ msgstr ""
 msgid "<a href=\"%(url)s\">Version saved <time datetime=\"%(iso)s\">%(when)s</time></a>"
 msgstr "<a href=\"%(url)s\">Versión guardada el <time datetime=\"%(iso)s\">%(when)s</time></a>"
 
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Watch the recording</a> of this meeting on YouTube."
+msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
+
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
@@ -7246,6 +7251,12 @@ msgid ""
 msgstr ""
 "Los distritos usan los límites de %(year)s de %(publisher)s. Las diferencias entre distritos "
 "reflejan con qué frecuencia los residentes informan problemas y también cómo responde la ciudad."
+
+#. %(title)s is a local TV station or video channel.
+#: site/templates/meeting.html
+#, python-format
+msgid "Watch it on <a href=\"%(url)s\">YouTube</a>."
+msgstr "Véala en <a href=\"%(url)s\">YouTube</a>."
 
 #: site/templates/meeting.html
 #, python-format
