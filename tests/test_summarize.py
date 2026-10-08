@@ -446,19 +446,27 @@ def blank_pdf(pages):
     return out.getvalue()
 
 
-def test_long_minutes_are_summarized_up_to_100_pages(tmp_path):
+def test_long_minutes_are_summarized_up_to_200_pages(tmp_path):
     config = load_config("gloucester")
-    minutes_town(tmp_path, blank_pdf(79))
+    minutes_town(tmp_path, blank_pdf(135))
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
     assert result["summarized"] == 1 and result["errors"] == []
 
 
-def test_minutes_over_100_pages_are_not_sent(tmp_path):
+def test_minutes_over_200_pages_are_not_sent_and_said_once(tmp_path, monkeypatch):
     config = load_config("gloucester")
-    minutes_town(tmp_path, blank_pdf(101))
+    sha = minutes_town(tmp_path, blank_pdf(201))
     client = FakeAnthropic()
     result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
-    assert client.calls == [] and result["errors"] == ["minutes m: 101 pages, over the 100-page limit"]
+    assert client.calls == [] and result["errors"] == ["minutes m: 201 pages, over the 200-page limit"]
+    # Noted: the next run leaves it out, and it no longer waits for a summary.
+    assert summarize.too_long(tmp_path, {"sha256": sha})
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["errors"] == []
+    assert summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), config["summaries"]["model"]) == []
+    # A higher limit lets it through.
+    monkeypatch.setattr(summarize, "MAX_PAGES", 300)
+    assert not summarize.too_long(tmp_path, {"sha256": sha})
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
 
 
 def test_minutes_are_saved_with_each_decisions_outcome_and_quote():
