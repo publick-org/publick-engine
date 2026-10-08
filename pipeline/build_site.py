@@ -43,6 +43,7 @@ from pipeline import listings
 from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import officials as officials_mod
+from pipeline import share_cards as share_cards_mod
 from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import structured
@@ -1006,7 +1007,7 @@ def languages(config: dict) -> list[str]:
 
 
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
-          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None) -> dict[str, str | None]:
+          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None, share_cards: bool = False) -> dict[str, str | None]:
     """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built,
     each with the day it last changed (for the sitemap) or None.
 
@@ -1014,7 +1015,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     (/es/meetings/), with the same data. Files that aren't pages (static files, downloads,
     saved PDFs, the feed) are written once, with the English. missing, if given, gets each
     other language's town texts that have no translation in the config's [strings.<language>]:
-    {"config": the config's own text, "data": names from the city's data}."""
+    {"config": the config's own text, "data": names from the city's data}. share_cards draws each recent
+    meeting's card for social media (pipeline/share_cards.py), which needs Playwright."""
     config = load_config(town)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
@@ -1022,7 +1024,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
-            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr))
+            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls)
@@ -1030,7 +1032,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
 
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
-                   town_static: Path, tr: TownStrings) -> dict[str, str | None]:
+                   town_static: Path, tr: TownStrings, share_cards: bool = False) -> dict[str, str | None]:
     """One language's pages, and with English the files every language shares."""
     town = config["slug"]
     site = config["site"]
@@ -1249,9 +1251,22 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         url = url_for(rel)
         render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
 
+    # Each recent and upcoming meeting's card for social media, with the English pages: another
+    # language's keep the town's share image.
+    if english and share_cards and "meetings" in config:
+        cards = {}
+        for m in meetings["all"]:
+            when = format_date(m["date"]) + (f" · {format_time(m['start_time'])}" if m.get("start_time") else "")
+            card = share_cards_mod.card(m, today, site["domain"], when)
+            if card:
+                slug = m["url"].strip("/").split("/")[-1]
+                cards[slug] = card
+                m["share_card"] = {"url": f"{base_url}/static/{share_cards_mod.FOLDER}/{slug}.png?v={share_cards_mod.version(card)}",
+                                   "alt": share_cards_mod.alt(card)}
+        share_cards_mod.write(cards, out_static, config, town_static)
     if "meetings" in config:
         for m in meetings["all"]:
-            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m)
+            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m, share_card=m.get("share_card"))
             # The address of a listing shown as part of another meeting sends readers there.
             for n, also in enumerate(m["also_urls"], 1):
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
@@ -1549,9 +1564,10 @@ def main() -> None:
     parser.add_argument("--town", default=DEFAULT_TOWN, help="config/<town>.toml to build")
     parser.add_argument("--out", type=Path, default=TOWN_DIR / "_site", help="output directory")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="data directory")
+    parser.add_argument("--no-share-cards", action="store_true", help="give meetings the town's share image, without Playwright")
     args = parser.parse_args()
     missing: dict = {}
-    urls = build(args.town, args.out, args.data, missing=missing)
+    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards)
     print(f"Built {len(urls)} pages into {args.out}")
     for lang, texts in missing.items():
         if texts.get("drafted"):

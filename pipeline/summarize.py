@@ -95,7 +95,11 @@ RECENT_MEETING_DAYS = 60
 # meetings' documents are made again (kept()).
 KINDS = {
     "agenda": {
-        "version": 4,
+        # Version 5: the headline leads with what residents look for (projects and their addresses,
+        # new rules, money), for search results and the cards shared on social media. Agendas of
+        # meetings before remake_since keep version 4's: only those a share card shows are made again.
+        "version": 5,
+        "remake_since": "2026-09-08",
         "folder": "agendas",
         "max_tokens": 4000,
         "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
@@ -103,7 +107,7 @@ KINDS = {
         "prompt": """This is the posted agenda for: {title}, {date}.
 
 Return:
-- headline: one sentence of at most 25 words saying what the meeting will take up, naming the main business. Start with the business itself, not with who is meeting (write "Public hearing on the 2026 Housing Compass Plan.", not "Board will hold a public hearing on ..."). Do not mention the board, the date, the time, or the place; readers already see those.
+- headline: one sentence of at most 25 words saying what the meeting will take up. Lead with the business residents are most likely to look for, named as they would search for it: public hearings; projects and developments, with their street addresses or names; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Put routine business (such as accepting a road, approving minutes, or hearing reports) after these, or leave it out. Start with the business itself, not with who is meeting (write "Public hearing on the 2026 Housing Compass Plan.", not "Board will hold a public hearing on ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 or 2 short sentences on what the meeting will cover. Name the main business items. Do not repeat the board's name, the date, the time, or the place.
 - items: each agenda item, in order, as short plain-English phrases. Skip routine items such as call to order, roll call, approval of minutes, and adjournment.
 - start_time: when the meeting starts, as the agenda gives it, in 24-hour HH:MM form (for example 19:00 for 7:00 PM). An empty string if the agenda gives no time.
@@ -123,10 +127,12 @@ Return:
     },
     "minutes": {
         # Version 3: each decision with its outcome and the minutes' own words for it, checked
-        # without AI (pipeline/factcheck.py). Minutes of meetings before remake_since keep version 2's
-        # summary, about 60 days back when it shipped: they're made again only if wanted, by moving it.
-        "version": 3,
-        "remake_since": "2026-08-04",
+        # without AI (pipeline/factcheck.py). Version 4: the headline leads with what residents look
+        # for, as the agenda's (version 5) does. Minutes of meetings before remake_since keep the
+        # version they have (3, or 2 before 2026-08-04), about 30 days back when version 4 shipped:
+        # they're made again only if wanted, by moving it.
+        "version": 4,
+        "remake_since": "2026-09-08",
         "folder": "minutes",
         # Long scanned minutes take the model most of 16,000 tokens before it writes (Beverly's City
         # Council, 2026-03-16, 26 decisions): what isn't used isn't paid for.
@@ -139,7 +145,7 @@ Return:
         "prompt": """These are the posted minutes for: {title}, {date}.
 
 Return:
-- headline: one sentence of at most 25 words on what the meeting decided, or what it discussed if it decided nothing. Start with the outcome itself, not with who met (write "Approved seven board appointments ...", not "Committee approved seven board appointments ..."). Do not mention the board, the date, the time, or the place; readers already see those.
+- headline: one sentence of at most 25 words on what the meeting decided, or what it discussed if it decided nothing. Lead with the decisions residents are most likely to look for, named as they would search for them: projects and developments, with their street addresses or names; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Put routine decisions (such as accepting a road, approving minutes, or accepting reports) after these, or leave them out. Start with the outcome itself, not with who met (write "Approved seven board appointments ...", not "Committee approved seven board appointments ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 to 3 short sentences on what the meeting covered and what was decided. Do not repeat the board's name, the date, the time, or the place.
 - is_minutes: true if this document is minutes of a meeting that took place; false if it is something else, such as an agenda or notice filed under minutes.
 - decisions: each motion, vote, or other decision the minutes record, in order. Skip procedural motions such as adjourning or accepting the agenda. For each:
