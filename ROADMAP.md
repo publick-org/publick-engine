@@ -219,6 +219,11 @@ and publick.org #73.
    only once a town had a meeting on the 12th. The engine's own tests should
    render meetings on the widest dates (two-digit days, the longest month
    and weekday names, in Spanish too) so the release never carries one.
+   *Built 2026-10-08* (`tests/test_wide_dates.py`): every weekday, month,
+   and day of the calendar's 28-year cycle, in each list with a date column
+   (home page, board pages, the digest's issues), in English and Spanish, in
+   a browser with the site's fonts. Without #83's fix it fails on 694 dates;
+   with it the widest ("MON, MAR 11") has 9 pixels to spare.
    ([Releases](#releases))
 6. **The meetings audit, by hand**: every town's upcoming meetings against its
    city's own sites; the last was 2026-10-02, and Burlington, Bangor,
