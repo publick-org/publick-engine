@@ -138,18 +138,38 @@ def test_new_documents_go_before_the_backlog(tmp_path):
     assert not any("July 23" in t or "2026-07-23" in t for t in titles)
 
 
-def test_backlog_gets_its_own_allowance(tmp_path):
+def test_backlog_gets_its_own_allowance(tmp_path, monkeypatch):
+    monkeypatch.setattr(summarize, "estimated_cost", lambda kind, pages, settings: REQUEST)
     config = with_minutes(tmp_path)
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, backlog_allowance=REQUEST * 1.5)
-    # Every new document, then older ones until their allowance is spent: two, since the check comes before each.
-    assert result["summarized"] == 14 and result["remaining"] == 2
+    # Every new document, then older ones while one more fits their allowance: one.
+    assert result["summarized"] == 13 and result["remaining"] == 3
 
 
-def test_stops_at_the_networks_allowance(tmp_path):
+def test_stops_at_the_networks_allowance(tmp_path, monkeypatch):
+    monkeypatch.setattr(summarize, "estimated_cost", lambda kind, pages, settings: REQUEST)
     config = with_minutes(tmp_path)
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=REQUEST * 2.5)
-    assert result["summarized"] == 3
-    assert "share of the network's monthly summary budget" in result["stopped"]
+    # Two fit; a third would go over.
+    assert result["summarized"] == 2 and result["estimated_cost"] <= REQUEST * 2.5
+    assert "waiting for a run with room for them" in result["stopped"]
+    # Spent to the last cent, it stops outright.
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=0)
+    assert result["summarized"] == 0 and "share of the network's monthly summary budget" in result["stopped"]
+
+
+def test_a_document_too_costly_for_the_run_waits_for_one_with_room(tmp_path):
+    config = load_config("gloucester")
+    prices = summarize.summary_settings(config)
+    # 120 pages of minutes: about $0.72 to read and, at their max_tokens, $0.32 to write.
+    assert 1.0 < summarize.estimated_cost("minutes", 120, prices) < 1.1
+    assert summarize.estimated_cost("agenda", 1, prices) < 0.04
+    minutes_town(tmp_path, blank_pdf(120))
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT, allowance=0.50)
+    assert result["summarized"] == 0 and client.calls == []
+    assert result["stopped"].startswith("1 waiting for a run with room for them: minutes m (about $1.0")
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=2.0)["summarized"] == 1
 
 
 def test_ledger_counts_this_months_summaries(tmp_path):

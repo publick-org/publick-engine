@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
 import worker from "./scheduler-index.js";
-import { ALERT_LABEL, DIGEST_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, lastDailyRun, onSchedule, startRun, watch } from "./scheduler.js";
+import {
+  ALERT_LABEL, DIGEST_LABEL, DOWN_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, UPTIME_CRON, downSites, lastDailyRun,
+  onSchedule, siteHosts, startRun, watch, watchSites,
+} from "./scheduler.js";
 import { DIGEST_CRON, newestIssue, sendDigests } from "./digest.js";
 
 const NOW = new Date("2026-10-02T13:05:00Z");
@@ -262,4 +265,91 @@ test("the digest's Cron Trigger names its days, as Cloudflare takes them", () =>
   const days = DIGEST_CRON.split(" ")[4];
   assert.match(days, /^(SUN|MON|TUE|WED|THU|FRI|SAT)(,(SUN|MON|TUE|WED|THU|FRI|SAT))*$/);
   assert.equal(DIGEST_CRON.split(" ").length, 5);
+});
+
+// ---- The hourly uptime check ----
+
+const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://publick.org/sitemap-home.xml</loc></sitemap>
+  <sitemap><loc>https://gloucester-ma.publick.org/sitemap.xml</loc></sitemap>
+  <sitemap><loc>https://malden-ma.publick.org/sitemap.xml</loc></sitemap>
+</sitemapindex>`;
+const PAGE = "<!doctype html><html><body>Publick</body></html>";
+
+// The sites Worker: the sitemap, and each homepage as `pages` says (host -> [status, body], or a list of them in turn).
+function sitesEnv(pages = {}, sitemapStatus = 200) {
+  const seen = {};
+  return {
+    ...env(),
+    SITES: {
+      fetch: async (url) => {
+        if (url === "https://publick.org/sitemap.xml") return new Response(SITEMAP, { status: sitemapStatus });
+        const host = new URL(url).host;
+        const answers = pages[host] || [[200, PAGE]];
+        const list = Array.isArray(answers[0]) ? answers : [answers];
+        const [status, body] = list[Math.min(seen[host] = (seen[host] ?? -1) + 1, list.length - 1)];
+        if (status === "throw") throw new Error(body);
+        return new Response(body, { status });
+      },
+    },
+  };
+}
+const noWait = async () => {};
+
+test("the sites to check: the homepage and each town in the sitemap", async () => {
+  assert.deepEqual(await siteHosts(sitesEnv()), ["publick.org", "gloucester-ma.publick.org", "malden-ma.publick.org"]);
+});
+
+test("a site down is one that fails twice; once is a blip", async () => {
+  const blip = sitesEnv({ "malden-ma.publick.org": [[503, "temporarily unavailable"], [200, PAGE]] });
+  assert.deepEqual(await downSites(blip, noWait), []);
+  const down = sitesEnv({
+    "malden-ma.publick.org": [503, "This page is temporarily unavailable."],
+    "gloucester-ma.publick.org": ["throw", "manifest format 2, this Worker reads 1"],
+  });
+  assert.deepEqual(await downSites(down, noWait), [
+    { host: "gloucester-ma.publick.org", problem: "manifest format 2, this Worker reads 1" },
+    { host: "malden-ma.publick.org", problem: "HTTP 503" },
+  ]);
+  assert.deepEqual(await downSites(sitesEnv({ "publick.org": [200, "<html>"] }), noWait),
+    [{ host: "publick.org", problem: "an empty or partial page" }]);
+  assert.deepEqual(await downSites(sitesEnv({}, 500), noWait),
+    [{ host: "publick.org", problem: "its sitemap didn't load (https://publick.org/sitemap.xml: HTTP 500)" }]);
+});
+
+test("a site down opens one issue, assigned, naming it", async () => {
+  routes["POST /repos/publick-org/publick.org/labels"] = [201, {}];
+  routes["POST /repos/publick-org/publick.org/issues"] = [201, { number: 9 }];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""] }), NOW, noWait);
+  const issue = calls.find((c) => c.method === "POST" && c.path === "/repos/publick-org/publick.org/issues");
+  assert.equal(issue.body.title, "malden-ma.publick.org isn't loading");
+  assert.deepEqual(issue.body.labels, [DOWN_LABEL]);
+  assert.deepEqual(issue.body.assignees, ["maintainer"]);
+  assert.match(issue.body.body, /^- malden-ma\.publick\.org: HTTP 503$/m);
+});
+
+test("while sites are down, the issue changes only when the list does", async () => {
+  const body = "These Publick sites aren't loading:\n\n- malden-ma.publick.org: HTTP 503\n";
+  routes["GET /repos/publick-org/publick.org/issues"] = [200, [{ number: 9, body }]];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""] }), NOW, noWait);
+  assert.deepEqual(calls.map((c) => c.method), ["GET"]);
+  routes["PATCH /repos/publick-org/publick.org/issues/9"] = [200, {}];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""], "publick.org": [503, ""] }), NOW, noWait);
+  const update = calls.find((c) => c.method === "PATCH");
+  assert.match(update.body.body, /- publick\.org: HTTP 503\n- malden-ma\.publick\.org: HTTP 503/);
+});
+
+test("every site loading again closes the issue", async () => {
+  routes["GET /repos/publick-org/publick.org/issues"] = [200, [{ number: 9, body: "- malden-ma.publick.org: HTTP 503" }]];
+  routes["POST /repos/publick-org/publick.org/issues/9/comments"] = [201, {}];
+  routes["PATCH /repos/publick-org/publick.org/issues/9"] = [200, {}];
+  await watchSites(sitesEnv(), NOW, noWait);
+  assert.deepEqual(calls.find((c) => c.method === "PATCH").body, { state: "closed", state_reason: "completed" });
+});
+
+test("the uptime check's Cron Trigger checks the sites and starts no run", async () => {
+  await onSchedule({ scheduledTime: NOW.getTime(), cron: UPTIME_CRON }, sitesEnv());
+  assert.ok(!calls.some((c) => c.path.endsWith("/dispatches")));
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path.split("?")[0]}`), ["GET /repos/publick-org/publick.org/issues"]);
 });
