@@ -206,6 +206,14 @@ MAX_PAGES = 200
 # Documents found over MAX_PAGES, by hash, with their page count, in the town's data/: not
 # downloaded again each run, and not counted as waiting for a summary (pipeline/freshness.py).
 TOO_LONG = "summary-too-long.json"
+# What a summary is likely to cost, before it's sent, so a run's allowance isn't overshot by one large
+# document: input tokens per page and fixed, and output tokens, fixed and per page (minutes write more
+# the longer they are; an agenda's summary stays short). From 60 documents across the ten towns in
+# October 2026: input a median 2,600 tokens a page (to 3,700); output for agendas under 2,500, and for
+# minutes up to about 1,200 a page (30 pages, 36,849). Erring high: a document that waits goes on a
+# run with more room, while one that overshoots is paid for anyway.
+ESTIMATE = {"input_fixed": 1500, "input_per_page": 3000,
+            "output": {"agenda": (2500, 0), "minutes": (2000, 1200)}}
 # The API takes requests up to 32 MB, and base64 makes a PDF a third larger.
 MAX_BYTES = 22_000_000
 
@@ -566,6 +574,15 @@ def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
     return sorted(out, key=lambda t: t[1]["date"], reverse=True)
 
 
+def estimated_cost(kind: str, pages: int, settings: dict) -> float:
+    """What summarizing a document of this kind and length is likely to cost (ESTIMATE), at most what
+    its max_tokens allow."""
+    fixed, per_page = ESTIMATE["output"][kind]
+    output = min(fixed + per_page * pages, KINDS[kind]["max_tokens"])
+    return cost({"input_tokens": ESTIMATE["input_fixed"] + ESTIMATE["input_per_page"] * pages,
+                 "output_tokens": output}, settings)
+
+
 def cost(usage: dict, settings: dict) -> float:
     return (usage["input_tokens"] * settings["input_price"] + usage["output_tokens"] * settings["output_price"]) / 1e6
 
@@ -588,7 +605,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
-    month, replaced_cost = now.strftime("%Y-%m"), 0.0
+    month, replaced_cost, too_costly = now.strftime("%Y-%m"), 0.0, []
     batch = (new + backlog)[:limit]
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
@@ -696,6 +713,17 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             record_too_long(data_dir, doc["sha256"], pages)
             errors.append(f"{kind} {doc['id']}: {pages} pages, over the {MAX_PAGES}-page limit")
             continue
+        # Sent only if what it's likely to cost fits what's left of this run's limits; otherwise it waits
+        # for a run with more room, and smaller documents after it may still go.
+        room = [settings["max_cost_per_run"] - spent]
+        if allowance is not None:
+            room.append(allowance - spent)
+        if backlog_allowance is not None and doc["sha256"] in older:
+            room.append(backlog_allowance - spent_backlog)
+        estimate = estimated_cost(kind, pages or 1, settings)
+        if estimate > min(room):
+            too_costly.append(f"{kind} {doc['id']} (about ${estimate:.2f})")
+            continue
         try:
             result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
         except StoppedEarly as e:
@@ -746,6 +774,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         if doc["sha256"] in older:
             spent_backlog += paid
         done += 1
+    if too_costly:
+        stopped = stopped or (f"{len(too_costly)} waiting for a run with room for them: " + ", ".join(too_costly[:5])
+                               + (", ..." if len(too_costly) > 5 else ""))
     # Readable text. First the documents' own text, which costs nothing: summaries saved
     # before it was used, or before the layout rules last changed. Roll call votes, also
     # free, are read with it, and again when the rules or the body's members change; and the
