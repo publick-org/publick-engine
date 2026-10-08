@@ -552,3 +552,21 @@ def test_run_record_counts_what_the_fact_check_holds_back(tmp_path):
         "summaries": 4, "ok": 1, "failed": 1, "weak": 1, "unchecked": 0, "not_yet": 1,
         "held_back": 1, "entries_not_shown": 2, "vote_counts_left_out": 1}
     assert network.fact_checks(tmp_path / "nothing")["summaries"] == 0
+
+
+def test_canaries_cover_every_kind_of_town_with_the_fewest(tmp_path):
+    root = make_root(tmp_path, ("gloucester-ma", "salem-ma", "beverly-ma", "manchester-nh", "keene-nh"))
+    configs = {
+        "gloucester": '[town]\nstate = "Massachusetts"\n[meetings.civicplus]\nurl = "x"\n[permits]\nfile = "x"\n',
+        "salem": '[town]\nstate = "Massachusetts"\n[meetings.civicplus]\nurl = "x"\n',
+        "beverly": '[town]\nstate = "Massachusetts"\n[meetings.agenda_center]\nurl = "x"\n[meetings.aliases]\nA = "B"\n',
+        "manchester": '[town]\nstate = "New Hampshire"\n[meetings.civicclerk]\nurl = "x"\n[seeclickfix]\nplace = 1\n',
+        "keene": '[town]\nstate = "New Hampshire"\n[meetings.civicclerk]\nurl = "x"\n',
+    }
+    for name, text in configs.items():
+        next((root / "towns").glob(f"{name}-*/config")).joinpath(f"{name}.toml").write_text(text)
+    assert network.town_features(network.town_config(root, "beverly-ma")) == {
+        "state:Massachusetts", "table:meetings", "meetings:agenda_center"}
+    # Salem and Keene have nothing the others don't (aliases aren't a source).
+    assert network.canaries(root) == ["beverly-ma", "gloucester-ma", "manchester-nh"]
+    assert network.canaries(root, ["salem-ma", "keene-nh"]) == ["keene-nh", "salem-ma"]
