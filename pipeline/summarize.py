@@ -198,15 +198,33 @@ Return:
 TEXT_PER_RUN = 60
 
 # Documents longer or larger than this are not sent; the page links to the original.
-# The model reads PDFs of up to 600 pages; 100 keeps one request's input (each page is
-# read as text and as an image) to a few hundred thousand tokens, under a dollar.
-MAX_PAGES = 100
+# The model reads PDFs of up to 600 pages; 200 keeps one request's input (each page is
+# read as text and as an image) to about 400,000 tokens, under two dollars. Agendas with
+# their packets run past 100 pages (Bangor's and Beverly's in October 2026: 135 and 121).
+MAX_PAGES = 200
+# Documents found over MAX_PAGES, by hash, with their page count, in the town's data/: not
+# downloaded again each run, and not counted as waiting for a summary (pipeline/freshness.py).
+TOO_LONG = "summary-too-long.json"
 # The API takes requests up to 32 MB, and base64 makes a PDF a third larger.
 MAX_BYTES = 22_000_000
 
 
 def too_large(doc: dict) -> bool:
     return (doc.get("bytes") or 0) > MAX_BYTES
+
+
+def too_long(data_dir: Path, doc: dict) -> bool:
+    """Whether the document was found longer than MAX_PAGES (as it is now: raising it lets them through)."""
+    path = data_dir / TOO_LONG
+    pages = json.loads(path.read_text(encoding="utf-8")).get(doc["sha256"]) if path.exists() else None
+    return bool(pages and pages > MAX_PAGES)
+
+
+def record_too_long(data_dir: Path, sha256: str, pages: int) -> None:
+    path = data_dir / TOO_LONG
+    found = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    found[sha256] = pages
+    path.write_text(json.dumps(found, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def summaries_dir(data_dir: Path) -> Path:
@@ -277,7 +295,7 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
-            if doc["sha256"] in seen or too_large(doc):
+            if doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc):
                 continue
             record = cached(data_dir, doc["sha256"], model, kind)
             if record and not needs_time(kind, meeting, record, today):
@@ -615,6 +633,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             continue
         pages = page_count(pdf)
         if pages and pages > MAX_PAGES:
+            # Said once: from the next run it's left out of what's waiting, and its page says why.
+            record_too_long(data_dir, doc["sha256"], pages)
             errors.append(f"{kind} {doc['id']}: {pages} pages, over the {MAX_PAGES}-page limit")
             continue
         try:

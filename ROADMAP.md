@@ -929,7 +929,8 @@ one Anthropic key whose rate limits apply to the whole network.
   the engine supports (`pipeline/pdftext.py`, Legistar's to start); a scan
   is transcribed by the model after every summary waiting, from what's
   left; any other PDF has a text layer and the page links it.
-- Documents of up to 100 pages are summarized.
+- Documents of up to 200 pages are summarized (100 until 2026-10-08); a longer one
+  is noted once and its page says it is too long, so it never reads as waiting.
 - Costs are the maintainer's: never on public pages, left out of exports.
 
 **Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003,
