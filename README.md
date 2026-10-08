@@ -119,6 +119,7 @@ pipeline/                   Python package
   fetch_housing.py          Housing (Census, plus the state's own figures: Massachusetts's SHI and parcels) -> data/housing/
   documents.py              Where agenda and minutes PDFs live: the town's bucket, or data/meetings/
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
+  share_cards.py            Each recent and upcoming meeting's share card, drawn by build_site.py (Playwright)
   streets.py                Street-name matching for the street lookup
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   absences.py               Why something isn't shown, for the pages to say: a meeting's minutes, agenda or summary, a calendar
@@ -546,6 +547,8 @@ The picture shown when a page is shared is the town's `site/static/share/<town>.
 ```
 python -m pipeline.make_share_image
 ```
+
+A meeting from the last 30 days, or an upcoming one, has its own card instead: the board, the date, and its agenda's or minutes' AI headline, drawn by each build (`pipeline/share_cards.py`, with Playwright; `python -m pipeline.build_site --no-share-cards` builds without it). Other languages' pages keep the town's picture.
 
 ## Deploying
 

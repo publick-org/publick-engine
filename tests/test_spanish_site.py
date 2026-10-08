@@ -137,7 +137,7 @@ def test_section_names_are_the_engines_to_translate(config):
 def test_text_without_spanish_is_shown_in_english_and_never_stops_the_build(monkeypatch, capsys):
     """A text with no Spanish, the config's own or a name from the city's data, is shown in
     English with a warning: a gap in one language never stops either language publishing."""
-    def build(town, out, data, missing):
+    def build(town, out, data, missing, share_cards):
         missing["es"] = {"config": ["Public data on how Gloucester decides."], "data": ["Board of Health"]}
         return ["/"]
     monkeypatch.setattr(build_site, "build", build)
