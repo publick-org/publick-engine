@@ -100,6 +100,8 @@ pipeline/                   Python package
                             checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
   evaluate_translations.py  The translation prompt run the same way on one town's summaries (evals/translations.json):
                             `python -m pipeline.evaluate --set translations` (about a cent a summary)
+  evaluate_batch.py         The minutes set sent through the Message Batches API at each effort, to measure how long a
+                            batch takes and what a lower effort does: `python -m pipeline.evaluate --set batch` (about $1 an effort)
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   votes.py                  Roll call votes from a supported style's minutes, checked against the body's [officials] members (no AI);
                             read with the minutes' text, kept in data/summaries/, not yet shown. `python -m pipeline.votes` lists them for review
@@ -130,6 +132,7 @@ pipeline/                   Python package
   meeting_names.py          Which board a calendar entry is for, from its name
   geo.py                    Ward/precinct point-in-polygon lookup
   http.py                   Rate-limited HTTP client with retries
+  files.py                  Writes the data files a run commits whole or not at all (a temporary file, then moved into place)
   build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
   digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
                             before (no AI), built into /digest/ with a feed for email
@@ -141,7 +144,8 @@ pipeline/                   Python package
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
   network.py                Runs many towns from one repository (towns/<town>-<state>/): plan (the towns that are due),
                             run a batch, report, behind (the daily alert), budget (the summary budget's shares),
-                            states (statewide sources); a fetching run writes each town's result to its data/run.json,
+                            states (statewide sources), canaries (the towns an engine move checks on every page);
+                            a fetching run writes each town's result to its data/run.json,
                             with a few counts for the network homepage (boards followed, meetings in the next 14 days)
 site/templates/             Shared layout and per-record templates (meeting, board)
 site/pages/                 One folder per section; each index.html becomes /<section>/
@@ -155,11 +159,12 @@ site_checks/                Checks for one town's built site, run by the town wo
 evals/minutes.json          Minutes checked by hand, decision by decision, for pipeline/evaluate.py
 worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by hostname
                             (the logic in sites.js); scheduler-index.js starts a network's daily runs, the engine's
-                            release, and the network's engine pull request on time, watches the runs finish, and
-                            sends the weekly digest (the logic in scheduler.js); digest.js signs readers up for the
+                            release, and the network's engine pull request on time, watches the runs finish,
+                            checks every site loads each hour, and sends the weekly digest (the logic in
+                            scheduler.js); digest.js signs readers up for the
                             weekly digest's email, and sends it, through Buttondown; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
-.github/workflows/ci.yml    The engine's tests, on pushes to main and every pull request
+.github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see Versions)
 .github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes
 ```
@@ -197,6 +202,7 @@ A town with a `[storage]` table keeps agenda and minutes PDFs in a bucket (see [
 The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`, with whole sites for Manchester, Malden and Wallingford built from their meeting systems' saved pages (`tests/test_sample_towns.py`):
 
 ```sh
+ruff check .                                                # the lint CI runs first (ruff.toml)
 python -m pytest
 node --test worker/sites.test.js worker/scheduler.test.js   # the Workers' tests (Node 22)
 ```
@@ -589,7 +595,7 @@ python -m pipeline.deploy check [--town <town>] [--site _site] [--domain <domain
 
 `--domain` names the site by its address instead of by its town's config, as the network's rollback does. Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
 
-GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning (so the token also needs Actions read and write on the engine's repository), and `DIGEST_CRON` sends the weekly digest (see [The email](#the-email)). It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
+GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning (so the token also needs Actions read and write on the engine's repository), `DIGEST_CRON` sends the weekly digest (see [The email](#the-email)), and `UPTIME_CRON` (`50 * * * *`) loads every site's homepage, publick.org's and each town's in its sitemap, through the sites Worker, and opens a "site down" issue for any that fails twice, closing it when all load again. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
 
 Setup, once for the network:
 
@@ -656,9 +662,9 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
 | Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
 | Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share an $80 monthly budget, with a floor per town. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
-| Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker; the network pins the exact release in its `engine-version` |
+| Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker, after checking every page of the canaries (`network.py canaries`) and a sample of the rest; a failure runs once more, and a few towns that still fail are held back rather than every town. The network pins the exact release in its `engine-version`, and deploys the Workers when their code changes |
 | Weekly digest | Emailed through Buttondown, one newsletter with a tag per town and language; sent by the scheduler Worker on Sunday evenings to the towns in its `DIGEST_TOWNS` |
-| Alerts | GitHub issues assigned to the maintainer: "Towns need attention", kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; and "The weekly digest didn't send" |
+| Alerts | GitHub issues assigned to the maintainer: "Towns need attention", kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; "The weekly digest didn't send"; a site that doesn't load, opened by the scheduler's hourly check; and "Towns held back by engine vX", opened by an engine move |
 | Secrets | `ANTHROPIC_API_KEY`, `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`, `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY`, `BLS_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `SCHEDULER_GITHUB_TOKEN`, `ENGINE_PR_TOKEN`, `BUTTONDOWN_SUBSCRIBE_KEY`, `BUTTONDOWN_SEND_KEY`, set once on the network repository; its `RUNBOOK.md` says when each expires |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README), plus a `<town>-<state>@publick.org` routing rule. No DNS change is needed.
