@@ -435,14 +435,15 @@ def page_count(pdf: bytes) -> int | None:
         return None
 
 
-def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[dict, dict]:
+def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None) -> dict:
+    """The request for a document's summary: as a run sends it, or as one request of a batch
+    (pipeline/evaluate_batch.py). Without an effort, the model's default."""
     spec = KINDS[kind]
-    # Streaming avoids HTTP timeouts on long transcripts.
-    with client.messages.stream(
-        model=model,
-        max_tokens=spec["max_tokens"],
-        system=spec["system"],
-        messages=[{
+    return {
+        "model": model,
+        "max_tokens": spec["max_tokens"],
+        "system": spec["system"],
+        "messages": [{
             "role": "user",
             "content": [
                 {"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
@@ -450,14 +451,25 @@ def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: s
                 {"type": "text", "text": spec["prompt"].format(title=title, date=date)},
             ],
         }],
-        output_config={"format": {"type": "json_schema", "schema": spec["schema"]}},
-    ) as stream:
-        response = stream.get_final_message()
+        "output_config": {**({"effort": effort} if effort else {}),
+                          "format": {"type": "json_schema", "schema": spec["schema"]}},
+    }
+
+
+def summary_result(response) -> tuple[dict, dict]:
+    """A summary response's result and its usage; StoppedEarly if it didn't finish."""
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
     text = next((b.text for b in response.content if b.type == "text"), "")
     if response.stop_reason != "end_turn":
         raise StoppedEarly(response.stop_reason, usage, text)
     return json.loads(text), usage
+
+
+def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[dict, dict]:
+    # Streaming avoids HTTP timeouts on long transcripts.
+    with client.messages.stream(**summary_request(model, kind, pdf, title, date)) as stream:
+        response = stream.get_final_message()
+    return summary_result(response)
 
 
 def page_range(pdf: bytes, first: int, last: int) -> bytes:
