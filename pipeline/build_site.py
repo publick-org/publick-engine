@@ -516,8 +516,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m["preview"] = None
         if m["withheld"]["minutes"]:
             m["minutes_summary"] = None
-        m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
-        m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
+        m["minutes_too_large"] = bool(m["minutes_doc"]) and (summarize.too_large(m["minutes_doc"])
+                                                             or summarize.too_long(data_dir, m["minutes_doc"]))
+        m["agenda_too_large"] = bool(m["agenda"]) and (summarize.too_large(m["agenda"])
+                                                       or summarize.too_long(data_dir, m["agenda"]))
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
