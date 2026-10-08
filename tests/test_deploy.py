@@ -241,6 +241,7 @@ def test_content_types():
     assert deploy.content_type("static/share/gloucester.png") == "image/png"
     assert deploy.content_type("meetings/agendas/a.pdf") == "application/pdf"
     assert deploy.content_type("static/favicon.svg") == "image/svg+xml; charset=utf-8"
+    assert deploy.content_type("favicon.ico") == "image/x-icon"
     assert deploy.content_type("unknown.zzz") == "application/octet-stream"
 
 
