@@ -6,7 +6,11 @@ under [Done, by release](#done-by-release). The priority list starts again
 from what's left. Brought up to date 2026-10-07: ten towns on v1.42.0, the
 weekly digest live for Gloucester, and getting the sites ready for more
 readers; and that evening, the priorities sorted into what's started and not
-finished, then this week, then the stages.
+finished, then this week, then the stages. Brought up to date 2026-10-08,
+after a review of how the network scales: data files written whole, fact
+checks when a summary is saved and on headlines, engine updates that check
+the canaries in full and hold back a failing town instead of every town, an
+hourly check that every site loads, and the Batches API measured.
 
 This file has four parts:
 
@@ -85,7 +89,7 @@ matrix is at most 256 jobs. AI summaries and translations share a network
 budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
 
-## Where things stand (2026-10-07)
+## Where things stand (2026-10-08)
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
@@ -100,7 +104,15 @@ thirds of commits are written by AI.
 | Lewiston, ME | 2026-10-05 | CivicPlus calendar and Archive Center; School Committee in Google Drive (#84) | none | |
 | South Kingstown, RI | 2026-10-05 | CivicClerk | SeeClickFix, by voting precinct | First Rhode Island town; no tax bill, which the state publishes nothing to calculate |
 
-- Every town is on engine v1.43.0 (moved 2026-10-07), in English and
+- 2026-10-08: every town on engine v1.45.0 (moved by hand at 15:50 UTC). The
+  review's fixes (#100 to #102, publick.org #80 to #82) are merged and go out
+  in the release of 2026-10-09; that morning's engine move is the first with
+  canaries, a retry, and holding back a failing town, and the first that
+  deploys the Workers by itself.
+- October's summaries, transcriptions, and translations after eight days:
+  $28.99 of $80 (summaries $18.16, translations $7.21, transcriptions $3.56,
+  cut-off requests $0.06).
+- Every town was on engine v1.43.0 (moved 2026-10-07), in English and
   Spanish. The 08:40 engine
   move of 2026-10-06 (v1.38.0) was held, as it should be: Lewiston's home
   page failed a check (a two-digit day, "Oct 12", wider than its column), so
@@ -167,6 +179,8 @@ Reviewed 2026-10-07.
 | Officials kept current | Each list's `checked` date is shown and compared with nothing | Item 13 |
 | When documents were posted | Agenda Center's posting time is kept only inside `agenda_id` | Its own field, if [How fast the town posts its records](#ideas-to-decide) is chosen |
 | School boards not read yet | Burlington (Diligent Community), Lewiston (nested Google Drive folders), South Kingstown (Rhode Island's Open Meetings portal); Manchester's site blocks automated reading | Item 12 |
+| Summaries through the Batches API | Measured 2026-10-08 (`python -m pipeline.evaluate --set batch`, publick.org's Evaluate): a batch of the 15 test minutes took about 17 minutes at each effort, at half the price; `high` got all 51 decisions right, and lower effort saved only about 10% | Two more timing runs at the daily-run hour (2026-10-09 and 10, scheduled); then build it, with a deadline and one network-wide batch, if batches end well within 30 minutes. Item 26 |
+| The hourly uptime check | Built (#101): each site's homepage loaded every hour through the sites Worker, a "site down" issue opened and closed by the scheduler | Its Cron Trigger (`50 * * * *`) added to `wrangler.scheduler.toml` once #101 is in `engine-version` (2026-10-09); an older scheduler would take it for a daily run |
 
 ### Now: this week
 
@@ -192,7 +206,9 @@ and publick.org #73.
    flag the review's; never loosen the review to pass more.
    ([Spanish quality](#spanish-quality))
 3. **Beverly's summaries caught up** (issue #66), and the 66 summaries not
-   yet fact checked. ([Monitoring](#monitoring))
+   yet fact checked: from the release of 2026-10-09 every new summary is
+   checked as it's saved, and fact check version 4 checks every saved one
+   again over the next few runs (no AI). ([Monitoring](#monitoring))
 4. **Read what the fact check holds back**: 19 summaries across seven towns,
    most in Bangor and Burlington (5 each). Each one wrong in the summary, or
    the check's mistake? Fix the check if it's the check's.
@@ -254,16 +270,20 @@ and publick.org #73.
 
 21. Town data moved to R2, with git keeping config and code, when the run
     records' sizes say so. ([Data out of git](#data-out-of-git))
-22. Canary towns (Manchester and Malden) on the newest release, and sampled
-    checks when `engine-version` moves. ([Releases](#releases))
+22. *Done 2026-10-08* (#102, publick.org #82): an engine move checks every
+    page of the canaries and a sample of the rest, runs a failure once more,
+    and holds back up to one town in 20 instead of every town.
+    ([Releases](#releases))
 23. `CODEOWNERS` and required reviews, before the first editor from outside
     Publick. ([Who can change what](#who-can-change-what))
-24. The scheduler Worker deployed when it changes, and reminders for the
-    steps that stay by hand. ([Steps done by hand](#steps-done-by-hand))
+24. *Done 2026-10-08* (publick.org #81): both Workers deploy when
+    `engine-version` moves to an engine whose `worker/` changed, or when
+    `wrangler.scheduler.toml` changes. Reminders for the steps that stay by
+    hand are left. ([Steps done by hand](#steps-done-by-hand))
 25. Officials compared with each city's own pages, with differences opened
     as one issue for a person. ([Who represents you](#who-represents-you))
-26. Summaries through the Batches API, at least for the backlog.
-    ([AI costs](#ai-summary-and-translation-costs))
+26. Summaries through the Batches API: measured 2026-10-08; built if the
+    timing runs of 2026-10-09 and 10 hold up. ([AI costs](#ai-summary-and-translation-costs))
 
 ### Stage 3: about 100 to 1,000 towns
 
@@ -508,6 +528,18 @@ reuses it. Of everything shown, it's what can mislead a reader most.
   "Resumen hecho con IA".
 - Two summaries read by hand on 2026-10-03, both right (a typo copied from
   Beverly's minutes; "$8K" in a scan).
+- *Checked when saved* (#100, fact check version 4): a summary is checked as
+  it's saved, not only in the later pass that checks at most 60 a run, so
+  none is shown unchecked (66 had waited on 2026-10-06). A decision given the
+  outcome "other" that reads as passing, where the minutes say the motion
+  failed, fails. Each clause of a minutes headline is matched to the
+  decision sharing the most words with it, and one that says yes where that
+  decision was denied (or no where it was approved) isn't shown; on the 198
+  minutes summaries then published it flagged none.
+- *Effort* (2026-10-08, the batch evaluation): at `low` and `medium` the
+  model labeled three failed motions "other" instead of denied (the
+  decisions' words were right); at `high`, the default, all 51 were right.
+  Lower effort saved only about 10%, so summaries stay at `high`.
 
 **Next.**
 - Read what's held back in a new town's first runs (Burlington's 4 of 80, on
@@ -728,6 +760,14 @@ are behind and why, without flooding the inbox, and to say so truthfully.
   edit sends no email and a comment does.
 - The scheduler Worker (`worker/scheduler.js`) opens, and later closes, a
   "network stopped" issue when no daily run has finished for 30 hours.
+- *Every site loads* (#101): every hour the scheduler loads publick.org and
+  each town's homepage (from the network's sitemap, so a new town is in it
+  from its first build) through the sites Worker; one that fails twice
+  opens a "site down" issue, kept up to date and closed when all load. Live
+  once its Cron Trigger is added (2026-10-09). It doesn't see DNS or the
+  Worker's routes.
+- *A calendar that can't be parsed* (#100) counts as failed, like one that
+  can't be fetched, and the town's other calendars are still saved.
 - Failures that looked like success (2026-10-03): three SeeClickFix 403s in
   a row (`REFUSED_IN_A_ROW`) are a block, which stops the 311 step without
   marking any request removed (none had been wrongly marked: 0 of 41,718);
@@ -814,23 +854,35 @@ person merged their own pull requests into unprotected branches.
 - Accessibility tests in light only, until the sites have dark styles; one
   GitHub backup schedule; the statewide status written only when a source
   was fetched or something changed.
+- *Canaries, a retry, and holding back* (#102, publick.org #82, 2026-10-08):
+  `python -m pipeline.network canaries` picks the fewest towns that between
+  them have every state, config table, and kind of meeting source (8 of 10
+  today; most new towns add nothing new). An engine move checks every page
+  of those and a sample of the rest, so its run grows with the kinds of
+  town. A failed run's failed jobs run once more. If a few towns still fail
+  (at most one in 20, at least one) and nothing else did, it merges anyway:
+  those towns keep their site (a build that fails its checks isn't
+  published) and an issue labeled `engine held back` names them.
+- *Lint* (#100): `ruff` (pyflakes and syntax errors, `ruff.toml`) runs in CI
+  before the tests.
 
 **Next.**
 - Sample towns still to add: one with SeeClickFix departments, one on the
   town-website reader (Wallingford), one on Finalsite, one on CivicClerk
   alone (Burlington).
-- At 20 to 50 towns: canary towns, Manchester and Malden (chosen
-  2026-10-02), take each release a day ahead; `engine-version` moves for the
-  rest after a day with the canaries green, by a one-line pull request a bot
-  can open, which checks every page of the canaries and a sample of the
-  rest. Rolling back is moving `engine-version` back; no town is kept a
-  release behind.
+- The canaries chosen by what towns have, not by name (Manchester and
+  Malden were chosen 2026-10-02), and checked on the same morning as the
+  rest, not a day ahead. If a day ahead is still wanted at about 50 towns, it
+  needs each town to say which engine it runs.
+- Past 100 towns, a job holds several towns, so a failed job doesn't name
+  one town and blocks the move; holding back then needs each town's result
+  from the run's reports.
 - If a push's wait behind a daily run becomes a problem, towns queued
   separately lets a push wait only for its own towns.
 - Whether the moving `v1` tag is still needed: the network pins
   `engine-version`, so only a town repository calling `town.yml@v1` uses it.
 
-**Matters at:** now; canaries and sampled checks at about 50 towns.
+**Matters at:** now.
 
 #### Security and privacy
 
@@ -848,7 +900,9 @@ and the 311 data has people's house numbers.
   from the bucket.
 - *Supply chain* (#69, publick.org #46): every action in both repositories
   pinned by commit, with its version in a comment; `persist-credentials:
-  false` on every checkout but those whose jobs push; boto3 pinned; tag
+  false` on every checkout but those whose jobs push; boto3 pinned (and, in
+  the network's workflows that hold deploy keys, boto3 and wrangler, from
+  2026-10-08, publick.org #80); tag
   protection; Dependabot once a month, grouped, for actions in both and the
   engine's requirements (its first updates merged 2026-10-04 and 10-05).
 - *Headers:* every page sets a Content Security Policy in a `<meta>` tag
@@ -866,6 +920,9 @@ and the 311 data has people's house numbers.
   rewritten (decided 2026-10-03).
 - *The privacy line:* the About page says the language switch sets one
   cookie and nothing else.
+- *The sites Worker's paths* (#100): `/constructor`, `/__proto__` and the
+  like were read as files (every object has them) and answered 503; now 404.
+  Links in AI-written text are marked `rel="nofollow ugc"`.
 - *Continuity:* `RUNBOOK.md` in the network repository (publick.org #45):
   each morning's checks, the alerts, rollback, secrets and their expiry. No
   second person with owner access (decided 2026-10-03).
@@ -932,17 +989,36 @@ one Anthropic key whose rate limits apply to the whole network.
 - Documents of up to 200 pages are summarized (100 until 2026-10-08); a longer one
   is noted once and its page says it is too long, so it never reads as waiting.
 - Costs are the maintainer's: never on public pages, left out of exports.
+- *Leaks closed* (#100, #101, #102, 2026-10-08):
+  - A summary or transcription cut off twice (by `max_tokens` or a refusal)
+    isn't sent again until the model or prompt changes
+    (`summary-stopped-early.json`); before, it was paid for every run.
+  - A summary or translation made again in the month the first was made is
+    still counted (`replaced_cost`), in the ledger and the network's budget.
+  - A summary's cost is estimated from its page count before it's sent
+    (`summarize.ESTIMATE`, from 60 of the network's documents: about 2,600
+    input tokens a page), and it's sent only if that fits what's left of the
+    run's limits; a large one waits for a run with room. Before, a run could
+    always send one more request, so a 200-page packet could overshoot a
+    town's share by about a dollar. On October's budget, new documents get
+    $5 to $20 a run; older ones $0.14, so a large one waits for later in the
+    month.
 
 **Spend.** Summaries cost about 2 to 12 cents each; translations about $0.003,
 and their review about a cent. September: $21.82 (three towns). October
-after six days: $22.90 across ten towns (see
-[Where things stand](#where-things-stand-2026-10-07)).
+after eight days: $28.99 across ten towns (see
+[Where things stand](#where-things-stand-2026-10-08)).
 
 **Next.**
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
-- The Batches API, at least for backlog summaries: cheaper, and out of the
-  daily run's way.
+- The Batches API, at half the price. Measured 2026-10-08: a batch of 15
+  minutes ended in about 17 minutes. Since readers shouldn't wait a day, the
+  plan is a batch sent early in the daily run and waited for, with a
+  deadline (about 30 minutes) after which what's left is sent as today, and
+  upcoming agendas sent as today. Built if the timing runs at the daily-run
+  hour (2026-10-09 and 10) hold up; about 40 to 50% more summaries for the
+  budget.
 - At a hundred towns: one priority order across the network (upcoming
   agendas everywhere first), and a budget sized to the network.
 
@@ -951,7 +1027,7 @@ after six days: $22.90 across ten towns (see
 #### Steps done by hand
 
 **Why.** Fine at a handful of towns, not at fifty:
-- Deploying the Workers (`worker.yml`, by hand).
+- Deploying the Workers (`worker.yml`, by hand until 2026-10-08).
 - New Hampshire's yearly figures, downloaded in a browser because the
   state's websites refuse automated requests.
 - Officials, edited after every election.
@@ -959,10 +1035,13 @@ after six days: $22.90 across ten towns (see
 - An email routing rule for each town, in Cloudflare's dashboard.
 
 **Next.**
-- The scheduler Worker deploys itself when `engine-version` or
-  `wrangler.scheduler.toml` changes on `main`. The sites Worker stays by
-  hand: its routes decide which hostnames it answers, so a mistake takes
-  sites down.
+- *Done 2026-10-08* (publick.org #81): `worker.yml` deploys both Workers
+  when `engine-version` moves to an engine whose `worker/` changed (most
+  releases don't, and deploy nothing), or when `wrangler.scheduler.toml`
+  changes; a change to `wrangler.toml` alone still deploys by hand. The
+  sites Worker now deploys by itself too, so a release it can't read can't
+  take every site down; the routes it deploys are `wrangler.toml` as it is
+  on `main`, so change that only when it's ready.
 - The helper for adding a town runs the first fetches and sets up email
   routing through Cloudflare's API.
 - Officials and New Hampshire's figures stay by hand, with a reminder after
@@ -980,6 +1059,10 @@ after six days: $22.90 across ten towns (see
 - A monthly page-view report from GoatCounter (the one `publick` site, each
   town under its folder name as a prefix).
 - Renew `SCHEDULER_GITHUB_TOKEN` before about 2027-10-01.
+- Type checking: `mypy` finds 179 errors (2026-10-08), most of them an
+  Optional not handled, about nine of them a regular expression's match used
+  without checking it found one (a crash when a city's page changes). Fix
+  those first, then run `mypy` in CI on the modules that pass.
 
 ### Growth
 
@@ -1450,7 +1533,10 @@ towns that's about 10 GB of working data changing by gigabytes a week, and a
 thousand jobs a day pushing to `main` means constant conflicts.
 
 **Done.** Each fetching run records the size of the town's data and what
-the run added (`data/run.json`).
+the run added (`data/run.json`). Data files are written whole (#100,
+`pipeline/files.py`): to a temporary file, then moved into place, so a step
+stopped at its timeout leaves the last good file instead of truncated JSON
+that the run would commit.
 
 **Next.** Keep data files line-stable (sorted keys, one field per line).
 311's raw requests to R2 first: planned for before the next 311 town, but
@@ -1519,7 +1605,8 @@ of its 300 minutes.
 on every core (Manchester's full check from 481 to 168 seconds).
 
 **Next.**
-- The matrix's 256-job limit checked in `plan()` (`pipeline/network.py`).
+- *Done 2026-10-08* (publick.org #80): the matrix's 256-job limit. Past
+  `MAX_JOBS` (100) jobs, the plan step puts more towns in each job.
 - At about 100 towns: a work queue. The scheduler adds whatever is due
   ("Malden meetings", "Massachusetts tax bills", "Manchester 311"), and
   workers take items under per-vendor rate limits. A late run only means a
@@ -1553,7 +1640,7 @@ releases.
 
 ```
 publick-org/publick.org
-  engine-version              the engine release every town runs, an exact tag (v1.42.0 on 2026-10-06)
+  engine-version              the engine release every town runs, an exact tag (v1.45.0 on 2026-10-08)
   ADDING-A-TOWN.md            the checklist for a new town
   RUNBOOK.md                  what to do when something needs a person
   LICENSE                     CC BY 4.0 for what Publick makes; the code is MIT
@@ -1568,8 +1655,9 @@ publick-org/publick.org
   wrangler.toml               the Worker that serves every site
   wrangler.scheduler.toml     the Worker that starts the daily runs
   .github/workflows/          network.yml (the daily runs, pushes, pull requests), engine.yml
-                              (moves engine-version each morning), evaluate.yml (the minutes
-                              test set, by hand), worker.yml (deploys both Workers, by hand)
+                              (moves engine-version each morning), evaluate.yml (the test sets,
+                              and the batch measurement, by hand), worker.yml (deploys both
+                              Workers when their code or the scheduler's config changes)
 ```
 
 The engine reads a town's config, data, and static files from
@@ -1581,13 +1669,15 @@ hour from 09:05 to 14:05 UTC; one GitHub schedule, at 12:17 UTC, is a
 backup.
 1. A plan job takes the towns that are due (last fetching run over 18 hours
    ago), oldest first, splits them into jobs (four towns a job on a daily
-   run, one otherwise), and shares out what's left of the month's budget.
+   run, one otherwise, more past 100 jobs), and shares out what's left of
+   the month's budget.
 2. A statewide job fetches what every town in a state shares, once, into
    `states/` (only what isn't saved or is over a week old).
 3. Town jobs run in a matrix, each checking out only its towns' folders and
    `states/`, with Python packages and Playwright installed once per job.
 4. Each town fetches, is built and checked (a sample of pages on a daily
-   run, every page on a pull request), and is published on its own if its
+   run, every page on a pull request, and on an engine move every page of
+   the canaries and a sample of the rest), and is published on its own if its
    checks pass; a town that fails keeps its last good site. Each job commits
    its towns' data, retrying against the others' pushes.
 5. A report job writes one table of every town. A daily run doesn't fail for
@@ -1666,6 +1756,10 @@ quiet days.
 | v1.40.0 (2026-10-06, moved by hand) | At-large wording, Lewiston's School Committee from Google Drive, 311 without areas (#84) |
 | v1.41.0 (2026-10-06, moved by hand) | The weekly digest: its pages and feed (#85), and the email's signup through the sites Worker and the Sunday send (#86) |
 | v1.42.0 (2026-10-06) | The digest's Cron Trigger with days by name, as Cloudflare takes them (#87) |
+| v1.43.0 (2026-10-07) | The slow towns spread over the daily run's jobs (#92) |
+| v1.44.0 (2026-10-07) | Taking down one summary by hand (#90); `town.yml` commits all of a town's data (#91); translations back to prompt 4, with a check without false alarms (#93); a table for every month chart (#94); each meeting's recording linked (#95); search titles and icons (#96, #97) |
+| v1.45.0 (2026-10-08, moved by hand) | Summaries of up to 200 pages, and one too long no longer reads as waiting (#99); share cards for recent and upcoming meetings, headlines led by what residents look for (#98) |
+| next (merged 2026-10-08) | The scalability review's fixes: data files written whole, a cut-off summary not paid for daily, `/constructor` a 404, the batch evaluation (#100); fact checks when saved, on "other" outcomes and on headlines; a calendar that can't be parsed doesn't stop the others; `Retry-After` dates; `ruff` in CI (#100); the hourly uptime check, and a summary sent only if its estimate fits the budget (#101); the canaries, and translations made again counted (#102) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites. Its plan, `REVIEW-PLAN.md`, was never merged; every item in it
