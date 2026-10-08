@@ -40,10 +40,10 @@ PROMPTS = {
         translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT)),
 }
 
-# (version, hash of the prompt), as of 2026-10-03.
+# (version, hash of the prompt), as of 2026-10-08.
 PINNED = {
-    "summary of an agenda (summarize.KINDS)": (4, "5c47543097a4a51c"),
-    "summary of minutes (summarize.KINDS)": (3, "595a7b4a9a916b72"),
+    "summary of an agenda (summarize.KINDS)": (5, "22ed04a0cc5534fe"),
+    "summary of minutes (summarize.KINDS)": (4, "1cbeee13a57af57b"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
     "translation (translate.VERSION)": (4, "67e42f3d54351063"),
     "drafted text (translate.NAMES_VERSION)": (2, "1ac57feb64f0ccfd"),
