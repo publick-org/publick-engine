@@ -3,7 +3,16 @@
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {# Translators: a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
-{% block title %}{% if m.day_part %}{% trans body=m.body, when=m.date | date, part=m.day_part %}{{ body }}, {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ m.body }}, {{ m.date | date }}, {{ m.start_time | time }}{% else %}{{ m.body }}, {{ m.date | date }}{% endif %}{% endblock %}
+{% macro meeting_name(body) %}{% if m.day_part %}{% trans body=body, when=m.date | date, part=m.day_part %}{{ body }}, {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ body }}, {{ m.date | date }}, {{ m.start_time | time }}{% else %}{{ body }}, {{ m.date | date }}{% endif %}{% endmacro %}
+{% block title %}{{ meeting_name(m.body) }}{% endblock %}
+{# In a search result, the town and state come first, and the minutes or the agenda are named when the page has them, as people search for them. #}
+{% block head_title -%}
+{#- Translators: %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose minutes are posted. -#}
+{% if m.minutes_doc %}{% set body = _("%(board)s minutes", board=m.body) -%}
+{#- Translators: %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose agenda is posted. -#}
+{% elif m.agenda %}{% set body = _("%(board)s agenda", board=m.body) %}{% else %}{% set body = m.body %}{% endif -%}
+{#- Translators: a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(name)s the meeting, such as "Planning Board agenda, Tuesday, October 6, 2026". -#}
+{% trans town=town.name, state=town.state_abbr, name=meeting_name(body) %}{{ town }}, {{ state }} {{ name }}{% endtrans %}{% endblock %}
 {% block description %}
 {# A search result shows the description on its own, so a summary's headline says it was written by AI, as the feed's does.
    One shown in English on another language's page isn't used: the description is in the page's language. #}

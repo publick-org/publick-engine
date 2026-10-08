@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %} | {{ site.name }}</title>
+  {# A page may give search results a fuller name than its own (head_title): the title block stays the page's name
+     everywhere else (social cards, breadcrumbs, the page view counter). #}
+  <title>{% block head_title %}{% block title %}{% endblock %}{% endblock %} | {{ site.name }}</title>
   <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
   {% for v in versions %}
@@ -31,6 +33,7 @@
   <link rel="preload" href="/static/fonts/public-sans-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/source-serif-4-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon-96.png" type="image/png" sizes="96x96">
   <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   {% if config.meetings is defined and meeting_links.documents %}

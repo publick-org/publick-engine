@@ -1101,6 +1101,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         shutil.copytree(STATIC_DIR, out_static)
         if town_static.is_dir():
             shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+        # Crawlers and old browsers ask for /favicon.ico whatever the page links.
+        shutil.copy(out_static / "favicon.ico", out_dir / "favicon.ico")
         if config["site"].get("colors"):
             palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
             with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:

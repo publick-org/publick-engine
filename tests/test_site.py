@@ -67,6 +67,11 @@ def test_support_files(site_dir, config):
     assert f"https://{config['site']['domain']}/311/" in sitemap
     assert "404" not in sitemap
     assert "sitemap.xml" in (site_dir / "robots.txt").read_text()
+    # The icon at the root, where crawlers ask for it, and one sized for search results.
+    assert (site_dir / "favicon.ico").read_bytes() == (site_dir / "static" / "favicon.ico").read_bytes()
+    assert (site_dir / "favicon.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert '<link rel="icon" href="/static/favicon-96.png" type="image/png" sizes="96x96">' in (site_dir / "index.html").read_text()
+    assert (site_dir / "static" / "favicon-96.png").exists()
 
 
 def test_footer_names_the_network(page_files, config):
@@ -688,6 +693,16 @@ def test_structured_data_cannot_end_its_script():
 def test_home_and_downloads_for_search_engines(site_dir):
     home = (site_dir / "index.html").read_text()
     assert "<title>Gloucester, MA: city meetings, agendas, and data | Gloucester Publick</title>" in home
+    # A meeting's title in search results starts with the town and names the minutes or agenda
+    # it has; its own name, on social cards and in breadcrumbs, doesn't.
+    meetings = site_dir / "meetings"
+    minutes = (meetings / "2026-07-14-city-council" / "index.html").read_text()
+    assert "<title>Gloucester, MA City Council minutes, Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
+    assert '<meta property="og:title" content="City Council, Tuesday, July 14, 2026">' in minutes
+    agenda = (meetings / "2026-09-28-historical-commission" / "index.html").read_text()
+    assert "<title>Gloucester, MA Historical Commission agenda, Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
+    neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
+    assert "<title>Gloucester, MA School Committee, Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"
