@@ -241,7 +241,9 @@ and publick.org #73.
    Bangor went live with 311 without it. Before any further 311 town.
    ([Data out of git](#data-out-of-git),
    [Shared sources](#shared-sources-once-per-state))
-9. **Lowell**: config only. ([Next towns](#next-towns))
+9. **Lowell**: config only, now that the Agenda Center reader reads agendas
+   made in its builder (`?html=true` links, 2026-10-08; before, Lowell showed 1
+   council meeting of 31 for 2026). ([Next towns](#next-towns))
 10. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
 11. **The open data export**: each town's `/data/meetings.json` and a Data
@@ -1161,7 +1163,8 @@ v1.36.0:
 
 **Massachusetts next** (from a survey of about 65 city and town websites,
 2026-10-01; Salem and Medford were already in the works).
-1. **Lowell** (115,000, the fourth-largest city). Config only: the City
+1. **Lowell** (115,000, the fourth-largest city). Config only (most of its
+   agendas are made in the Agenda Center's builder, read since 2026-10-08): the City
    Council (30 agendas and 28 minutes in 2026) and School Committee (23 and
    20) in one Agenda Center, minutes with a text layer. Councillors elected
    by district, which the Officials page's wards fit. A large Cambodian

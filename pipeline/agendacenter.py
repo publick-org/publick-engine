@@ -27,8 +27,11 @@ from pipeline.meeting_names import find_board, parse_name
 
 ROW = re.compile(r'<tr id="row[^"]*" class="catAgendaRow">(.*?)</tr>', re.S)
 CATEGORY = re.compile(r'<h2 tabindex="0" role="button"[^>]*aria-controls="category-panel-(\d+)"[^>]*>(.*?)</h2>', re.S)
-AGENDA_LINK = re.compile(r'<a id="(\d{8})-(\d+)"[^>]*href="(/AgendaCenter/ViewFile/Agenda/_\d{8}-\d+)"[^>]*>(.*?)</a>', re.S)
-MINUTES_LINK = re.compile(r'href="(/AgendaCenter/ViewFile/Minutes/_\d{8}-\d+)"')
+# An agenda written in the Agenda Center's own builder is linked as its web page ("?html=true"), with
+# the PDF and the packet in the row's Download menu; the same address without the query is the PDF.
+AGENDA_LINK = re.compile(r'<a id="(\d{8})-(\d+)"[^>]*href="(/AgendaCenter/ViewFile/Agenda/_\d{8}-\d+)(?:\?html=true)?"[^>]*>(.*?)</a>',
+                         re.S)
+MINUTES_LINK = re.compile(r'href="(/AgendaCenter/ViewFile/Minutes/_\d{8}-\d+)(?:\?html=true)?"')
 POSTED = re.compile(r"Posted\s+(.*?\d{4}\s+\d{1,2}:\d{2}\s*[AP]M)", re.S)
 
 
