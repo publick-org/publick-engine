@@ -54,6 +54,7 @@ from pypdf import PdfReader
 from pipeline import factcheck, listings, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
+from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
 TRANSCRIPT_RULES = """Transcript rules:
@@ -224,7 +225,44 @@ def record_too_long(data_dir: Path, sha256: str, pages: int) -> None:
     path = data_dir / TOO_LONG
     found = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     found[sha256] = pages
-    path.write_text(json.dumps(found, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
+
+
+# Documents whose request stopped early (cut off at max_tokens, or refused), by hash, in the town's
+# data/: for each thing asked of the model ("summary" or "transcript"), the model and prompt version
+# asked and how many tries stopped early. Each try is paid for though nothing is saved, so after
+# MAX_TRIES the document is left out of what's waiting, and its page links the original, until the
+# model or the prompt changes.
+STOPPED_EARLY = "summary-stopped-early.json"
+MAX_TRIES = 2
+
+
+def stopped_early_tries(data_dir: Path, sha256: str, what: str, model: str, version: int) -> int:
+    """How many requests for this document stopped early, with this model and prompt version."""
+    path = data_dir / STOPPED_EARLY
+    entry = (json.loads(path.read_text(encoding="utf-8")).get(sha256, {}).get(what) if path.exists() else None)
+    if not entry or entry["model"] != model or entry["version"] != version:
+        return 0
+    return entry["tries"]
+
+
+def gave_up(data_dir: Path, sha256: str, what: str, model: str, version: int) -> bool:
+    return stopped_early_tries(data_dir, sha256, what, model, version) >= MAX_TRIES
+
+
+def summary_gave_up(data_dir: Path, doc: dict, kind: str, model: str) -> bool:
+    """Whether the document's summary, with this model and the kind's current prompt, was given up on."""
+    return gave_up(data_dir, doc["sha256"], "summary", model, KINDS[kind]["version"])
+
+
+def record_stopped_early(data_dir: Path, sha256: str, what: str, model: str, version: int) -> int:
+    """Count a request that stopped early; returns how many have, with this model and prompt version."""
+    path = data_dir / STOPPED_EARLY
+    found = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    tries = stopped_early_tries(data_dir, sha256, what, model, version) + 1
+    found.setdefault(sha256, {})[what] = {"model": model, "version": version, "tries": tries}
+    write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
+    return tries
 
 
 def summaries_dir(data_dir: Path) -> Path:
@@ -295,7 +333,8 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
-            if doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc):
+            if (doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc)
+                    or summary_gave_up(data_dir, doc, kind, model)):
                 continue
             record = cached(data_dir, doc["sha256"], model, kind)
             if record and not needs_time(kind, meeting, record, today):
@@ -360,8 +399,7 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
             row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
             row[key] = round(row.get(key, 0.0) + paid, 4)
     ledger = dict(sorted(ledger.items()))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(ledger, indent=2) + "\n")
     return ledger
 
 
@@ -485,8 +523,7 @@ def own_text(record: dict, pdf: bytes) -> dict:
 
 def save_record(data_dir: Path, sha256: str, record: dict) -> None:
     path = summaries_dir(data_dir) / f"{sha256}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
 
 
 def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
@@ -646,7 +683,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             failed_cost += paid
             if doc["sha256"] in older:
                 spent_backlog += paid
-            errors.append(f"{kind} {doc['id']}: {e}")
+            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
+            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:  # one bad document must not stop the rest
             if "credit balance" in str(e).lower():
@@ -709,6 +747,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
         if not record.get("needs_transcript") or record.get("transcript"):
             continue
+        if gave_up(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"]):
+            continue
         if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
                 or (backlog_allowance is not None and spent_backlog >= backlog_allowance)):
             stopped = stopped or "transcriptions wait: this run's budget for them is spent"
@@ -728,7 +768,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             spent += paid
             spent_backlog += paid
             failed_cost += paid
-            errors.append(f"transcript of {kind} {doc['id']}: {e}")
+            tries = record_stopped_early(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"])
+            errors.append(f"transcript of {kind} {doc['id']}: {e}"
+                          + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:
             if "credit balance" in str(e).lower():

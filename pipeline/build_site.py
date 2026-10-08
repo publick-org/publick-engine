@@ -520,10 +520,20 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
                                                              or summarize.too_long(data_dir, m["minutes_doc"]))
         m["agenda_too_large"] = bool(m["agenda"]) and (summarize.too_large(m["agenda"])
                                                        or summarize.too_long(data_dir, m["agenda"]))
+        # A document whose summary stopped early too many times waits for none (summarize.MAX_TRIES).
+        m["minutes_gave_up"] = bool(m["minutes_doc"] and summary_model) and summarize.summary_gave_up(
+            data_dir, m["minutes_doc"], "minutes", summary_model)
+        m["agenda_gave_up"] = bool(m["agenda"] and summary_model) and summarize.summary_gave_up(
+            data_dir, m["agenda"], "agenda", summary_model)
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
         # it doesn't give.
+        # A scan whose transcription stopped early too many times waits for none either.
+        for record, doc in ((m["preview"], m["agenda"]), (m["minutes_summary"], m["minutes_doc"])):
+            if record and record.get("needs_transcript") and summarize.gave_up(
+                    data_dir, doc["sha256"], "transcript", summary_model, summarize.TRANSCRIBE["version"]):
+                record["transcript_gave_up"] = True
         pv_raw, ms_raw = m["preview"], m["minutes_summary"]
         english = {"preview": factcheck.shown(pv_raw, pv_raw, "agenda"),
                    "minutes_summary": factcheck.shown(ms_raw, ms_raw, "minutes"), "body": m["body"]}
