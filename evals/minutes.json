@@ -42,7 +42,7 @@
       "sha256": "88215315001e1e97d0fedeb4f1534d039cf0a2ed711175d416986b614225db52",
       "title": "Board of Mayor and Aldermen", "date": "2026-05-05",
       "decisions": [
-        {"match": "234,981,749|enroll|Sapienza", "unless": "tabl", "outcome": "denied", "minutes": "Alderman Sapienza's motion on the school budget: \"Aldermen Barry, ... and Burkush voted nay. Aldermen Kantor and Sapienza voted yea. The motion failed.\""},
+        {"match": "234,981,749|enroll|Sapienza", "unless": "tabl|\\bbond", "outcome": "denied", "minutes": "Alderman Sapienza's motion on the school budget: \"Aldermen Barry, ... and Burkush voted nay. Aldermen Kantor and Sapienza voted yea. The motion failed.\""},
         {"match": "Public Safety|Hanover", "outcome": "denied", "minutes": "Motion to refer to the Committee on Public Safety, Health and Traffic: \"... voted nay. Aldermen Kantor, Terrio, Sapienza, Vincent, and Thomas voted yea. Alderman O'Neil abstained. The motion failed.\""},
         {"match": "budget resolution", "unless": "Sapienza|enroll|withdr", "outcome": "tabled", "minutes": "\"it was voted to table the Budget Resolutions\""},
         {"match": "RAISE|tax increment|TIF", "outcome": "tabled", "minutes": "\"Alderman Barry moved to table the item ... The motion carried unanimously.\""}
