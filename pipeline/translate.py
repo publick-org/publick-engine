@@ -262,12 +262,18 @@ def town_words(data_dir: Path | None) -> frozenset:
     words: set[str] = set()
     for folder in summary_dirs(data_dir) if data_dir else []:
         for file in sorted(folder.glob("*.json")):
-            record = json.loads(file.read_text(encoding="utf-8"))
-            for field in ("headline", "summary", "items", "decisions"):
-                value = record.get(field) or ""
-                for text in value if isinstance(value, list) else [value]:
-                    words.update(re.findall(r"\b[a-z]+\b", text))
+            words |= summary_words(json.loads(file.read_text(encoding="utf-8")))
     return frozenset(words)
+
+
+def summary_words(record: dict) -> set[str]:
+    """One summary's words in lowercase, as town_words() counts them."""
+    words: set[str] = set()
+    for field in ("headline", "summary", "items", "decisions"):
+        value = record.get(field) or ""
+        for text in value if isinstance(value, list) else [value]:
+            words.update(re.findall(r"\b[a-z]+\b", text))
+    return words
 
 
 def is_word(word: str, also: frozenset = frozenset()) -> bool:
