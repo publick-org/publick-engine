@@ -67,6 +67,11 @@ def test_support_files(site_dir, config):
     assert f"https://{config['site']['domain']}/311/" in sitemap
     assert "404" not in sitemap
     assert "sitemap.xml" in (site_dir / "robots.txt").read_text()
+    # The icon at the root, where crawlers ask for it, and one sized for search results.
+    assert (site_dir / "favicon.ico").read_bytes() == (site_dir / "static" / "favicon.ico").read_bytes()
+    assert (site_dir / "favicon.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert '<link rel="icon" href="/static/favicon-96.png" type="image/png" sizes="96x96">' in (site_dir / "index.html").read_text()
+    assert (site_dir / "static" / "favicon-96.png").exists()
 
 
 def test_footer_names_the_network(page_files, config):

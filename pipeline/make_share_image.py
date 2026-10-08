@@ -1,7 +1,7 @@
 """Draw the image shown when a page is shared on social media or in a message.
 
 A 1200 x 630 PNG of the site's masthead (its icon, name, and tagline), in the
-site's own fonts and colors. Also writes PNG copies of the favicon for phones. Run it once per town, from the town's repository, or again after changing the
+site's own fonts and colors. Also writes PNG copies of the favicon for phones and search results, and favicon.ico. Run it once per town, from the town's repository, or again after changing the
 name or tagline. It writes the town's site/static/share/<town>.png, which the
 build links when it exists, and PNG icons only for a town with its own
 site/static/favicon.svg (other towns use the engine's).
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import struct
 from html import escape
 from pathlib import Path
 
@@ -62,13 +63,23 @@ body {{ font-family: "Public Sans", sans-serif; background: #fff; color: {ink}; 
 </body></html>"""
 
 
-def write_icons(page) -> None:
-    """PNG copies of the SVG icon, for phones' home screens and older browsers."""
-    for size, name in ((180, "apple-touch-icon.png"), (32, "favicon-32.png")):
+def ico(png: bytes, size: int) -> bytes:
+    """A favicon.ico holding one PNG, as every browser and search engine since 2007 reads it."""
+    header = struct.pack("<HHH", 0, 1, 1)
+    entry = struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(png), 6 + 16)
+    return header + entry + png
+
+
+def write_icons(page, out: Path = TOWN_STATIC_DIR) -> None:
+    """PNG copies of the SVG icon, for phones' home screens, older browsers, and search results
+    (Google shows a site's icon beside it, and asks for one a multiple of 48 pixels across);
+    and favicon.ico, which the build also puts at the site's root, where crawlers look first."""
+    for size, name in ((180, "apple-touch-icon.png"), (96, "favicon-96.png"), (48, "favicon.ico"), (32, "favicon-32.png")):
         page.set_viewport_size({"width": size, "height": size})
         page.set_content(f'<html><body style="margin:0"><img src="{svg_url("favicon.svg")}" '
                          f'style="display:block;width:{size}px;height:{size}px"></body></html>')
-        page.screenshot(path=str(TOWN_STATIC_DIR / name))
+        png = page.screenshot()
+        (out / name).write_bytes(ico(png, size) if name.endswith(".ico") else png)
 
 
 def main() -> None:
