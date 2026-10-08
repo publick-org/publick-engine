@@ -659,6 +659,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 if not only_new:
                     spent_backlog += paid
 
+    # The words the fact check takes as no one's name, as the town's summaries use them.
+    words = translate.town_words(data_dir)
     for item in batch:
         if item is TRANSLATE:
             translations(only_new=True)
@@ -717,8 +719,12 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             "usage": usage,
             "cost": round(paid, 6),
         }
-        save_record(data_dir, doc["sha256"], votes.read(own_text(record, pdf), pdf,
-                                                        votes.members_for(config, meeting["body"])))
+        record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
+        if record.get("is_minutes") is not False:
+            # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
+            words |= translate.summary_words(record)
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+        save_record(data_dir, doc["sha256"], record)
         for k in tokens:
             tokens[k] += usage[k]
         spent += paid
@@ -731,7 +737,6 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # summary is checked against the same text (pipeline/factcheck.py).
     laid_out = 0
     later = summarized_documents(data_dir)
-    words = translate.town_words(data_dir)
     for kind, meeting, doc, record in later:
         if laid_out >= TEXT_PER_RUN:
             break

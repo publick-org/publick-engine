@@ -469,6 +469,17 @@ def test_minutes_over_200_pages_are_not_sent_and_said_once(tmp_path, monkeypatch
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
 
 
+def test_minutes_are_fact_checked_when_saved(tmp_path, monkeypatch):
+    from pipeline import factcheck
+    # With no room for the later pass that lays out and checks older summaries, a new one is still checked.
+    monkeypatch.setattr(summarize, "TEXT_PER_RUN", 0)
+    config = load_config("gloucester")
+    sha = minutes_town(tmp_path)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
+    record = saved(tmp_path, sha)
+    assert factcheck.current(record) and record["fact_check"]["source"] == "pdf"
+
+
 def test_a_summary_that_stops_early_is_tried_twice_then_left_until_the_prompt_changes(tmp_path, monkeypatch):
     config = load_config("gloucester")
     model = config["summaries"]["model"]
