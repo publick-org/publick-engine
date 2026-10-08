@@ -369,12 +369,14 @@ def record_cost(record: dict, settings: dict) -> float:
 
 
 def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float = 0.0,
-                  transcript_cost: float = 0.0) -> dict:
+                  transcript_cost: float = 0.0, replaced_cost: float = 0.0) -> dict:
     """Recount the summaries saved this month (and any month the ledger doesn't have yet) and save the ledger.
 
     Earlier months are kept as they were: a summary made again replaces its file,
     so counting them again would lose what the first one cost. failed_cost is
-    what this run paid for requests that were cut off, which leave no file, and
+    what this run paid for requests that were cut off, which leave no file;
+    replaced_cost what summaries made earlier this month cost, which this run
+    made again (their files replaced, so the recount no longer finds them); and
     transcript_cost what it paid for transcriptions, counted in the month they're made."""
     path = data_dir / LEDGER
     ledger = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -394,7 +396,7 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
         if at == month or "translations" not in ledger.get(at, {}):
             ledger[at] = {"cost": 0.0, "documents": 0, **ledger.get(at, {}),
                           "translation_cost": round(row["cost"], 4), "translations": row["translations"]}
-    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost)):
+    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost), ("replaced_cost", replaced_cost)):
         if paid:
             row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
             row[key] = round(row.get(key, 0.0) + paid, 4)
@@ -403,10 +405,15 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
     return ledger
 
 
+# What a month's row of the ledger counts as paid for.
+LEDGER_COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced_cost")
+
+
 def month_cost(ledger: dict, month: str) -> float:
-    """Everything paid for in a month: summaries, cut-off requests, transcriptions, and translations."""
+    """Everything paid for in a month: summaries (and those made again since), cut-off requests,
+    transcriptions, and translations."""
     row = ledger.get(month, {})
-    return sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
+    return sum(row.get(key, 0.0) for key in LEDGER_COSTS)
 
 
 # Where, among the documents a run summarizes, translations are made: after the new documents'
@@ -581,6 +588,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
+    month, replaced_cost = now.strftime("%Y-%m"), 0.0
     batch = (new + backlog)[:limit]
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
@@ -720,6 +728,13 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             "cost": round(paid, 6),
         }
         record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
+        # A summary made earlier this month and made again (an agenda that now gives its time, a new
+        # prompt): its file is replaced, so what it cost is counted here.
+        earlier = summaries_dir(data_dir) / f"{doc['sha256']}.json"
+        if earlier.exists():
+            replaced = json.loads(earlier.read_text(encoding="utf-8"))
+            if replaced.get("generated_at", "")[:7] == month:
+                replaced_cost += record_cost(replaced, settings)
         if record.get("is_minutes") is not False:
             # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
             words |= translate.summary_words(record)
@@ -809,8 +824,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         spent_backlog += paid
         transcript_cost += paid
         transcribed += 1
-    month = now.strftime("%Y-%m")
-    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost)
+    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost, replaced_cost)
     return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed, "translated": translated,
             "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,

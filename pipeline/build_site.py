@@ -227,15 +227,23 @@ SAFE_HREF = re.compile(r"(https?://|mailto:)", re.I)
 
 def render_markdown(text: str) -> Markup:
     """Render model-written Markdown safely: escape any HTML first, keep only
-    web and mail links (no javascript: and the like), drop images (they would
-    load from other sites), and demote headings below the page's own h2."""
+    web and mail links (no javascript: and the like), marked as links the site
+    doesn't vouch for (rel="nofollow ugc": a document's text can be anyone's),
+    drop images (they would load from other sites), and demote headings below
+    the page's own h2."""
     html = markdown.markdown(escape(text), extensions=["sane_lists"])
     html = re.sub(r'<a href="([^"]*)"[^>]*>(.*?)</a>',
-                  lambda m: m.group(0) if SAFE_HREF.match(m.group(1)) else m.group(2), html, flags=re.S)
+                  lambda m: f'<a href="{m.group(1)}" rel="nofollow ugc">{m.group(2)}</a>'
+                  if SAFE_HREF.match(m.group(1)) else m.group(2), html, flags=re.S)
     html = re.sub(r'<img [^>]*?alt="([^"]*)"[^>]*>|<img [^>]*>', lambda m: m.group(1) or "", html)
     for level in (3, 2, 1):
         html = html.replace(f"<h{level}>", f"<h{level + 2}>").replace(f"</h{level}>", f"</h{level + 2}>")
     return Markup(html)
+
+
+def capitalize_first(text) -> Markup:
+    """The text with its first letter capitalized, escaped unless it's already safe HTML (a macro's)."""
+    return escape(text[:1].upper() + text[1:])
 
 
 def in_english(value):
@@ -1139,7 +1147,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
                        markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell,
                        street=lambda a: short_address(a, config["town"]["name"]),
-                       model_name=model_name, capitalize_first=lambda t: Markup(t[:1].upper() + t[1:]),
+                       model_name=model_name, capitalize_first=capitalize_first,
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr

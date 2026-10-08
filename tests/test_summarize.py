@@ -174,6 +174,26 @@ def test_ledger_is_filled_in_from_summaries_saved_before_costs_were(tmp_path):
     assert ledger["2026-09"] == {"cost": round(3 * REQUEST, 4), "documents": 3}
 
 
+def test_a_summary_made_again_the_same_month_is_still_counted(tmp_path, monkeypatch):
+    from pipeline import network
+    config = with_minutes(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    first = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]["cost"]
+    # A new minutes prompt: the ones it remakes are made again, their files replaced, both paid for.
+    monkeypatch.setitem(summarize.KINDS["minutes"], "version", summarize.KINDS["minutes"]["version"] + 1)
+    remade = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"]
+    row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert remade and row["replaced_cost"] == round(remade * REQUEST, 4) and row["cost"] == first
+    assert "replaced_cost" in summarize.LEDGER_COSTS
+    # The network's budget counts it too.
+    town = tmp_path / "net" / "towns" / "a-ma"
+    (town / "config").mkdir(parents=True)
+    (town / "config" / "a.toml").write_text("")
+    (town / "data").mkdir()
+    (town / "data" / summarize.LEDGER).write_text(json.dumps({"2026-09": {"cost": 1.0, "replaced_cost": 2.0}}))
+    assert network.summary_budget(tmp_path / "net", 50.0, 1, FETCHED_AT.date())["spent"] == 3.0
+
+
 def test_ledger_keeps_earlier_months_as_they_were(tmp_path):
     config = with_minutes(tmp_path)
     (tmp_path / summarize.LEDGER).write_text(json.dumps({"2026-08": {"cost": 9.0, "documents": 99}}))

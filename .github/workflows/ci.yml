@@ -32,6 +32,10 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
           python -m playwright install --with-deps chromium
 
+      # Undefined names, unused imports, and the like (ruff.toml): before the tests, which take longer.
+      - name: Lint
+        run: ruff check .
+
       # Pipeline parsing, page structure, links, and WCAG 2.2 AA checks, offline,
       # against saved Gloucester data (tests/fixtures/).
       - name: Test
