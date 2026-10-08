@@ -56,6 +56,8 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+from pipeline.files import write_atomic
+
 VERSION = 4
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
@@ -493,8 +495,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
 
 def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
     file = path(data_dir, lang, sha256)
-    file.parent.mkdir(parents=True, exist_ok=True)
-    file.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(file, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
 
 
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
@@ -741,9 +742,8 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
             done += 1
     if done or saved["batches"]:
         file = strings_path(data_dir, lang)
-        file.parent.mkdir(parents=True, exist_ok=True)
         saved["drafts"] = dict(sorted(saved["drafts"].items()))
-        file.write_text(json.dumps(saved, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        write_atomic(file, json.dumps(saved, indent=1, ensure_ascii=False) + "\n")
     return done, spent
 
 

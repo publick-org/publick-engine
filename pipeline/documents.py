@@ -38,6 +38,7 @@ import sys
 from pathlib import Path
 
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
+from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
 FOLDERS = ("agendas", "minutes")
@@ -56,8 +57,7 @@ class LocalDocuments:
 
     def put(self, folder: str, name: str, content: bytes) -> None:
         path = self.local_path(folder, name)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+        write_atomic(path, content)
 
     def get(self, folder: str, name: str) -> bytes:
         return self.local_path(folder, name).read_bytes()

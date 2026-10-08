@@ -47,6 +47,7 @@ from pypdf import PdfReader
 from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
+from pipeline.files import write_atomic
 from pipeline.http import FetchError, PoliteClient
 from pipeline.meeting_names import words
 
@@ -66,8 +67,7 @@ def load_store(data_dir: Path) -> dict:
 
 
 def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def normalize_body(body: str, aliases: dict) -> str:

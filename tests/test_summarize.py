@@ -469,6 +469,39 @@ def test_minutes_over_200_pages_are_not_sent_and_said_once(tmp_path, monkeypatch
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
 
 
+def test_a_summary_that_stops_early_is_tried_twice_then_left_until_the_prompt_changes(tmp_path, monkeypatch):
+    config = load_config("gloucester")
+    model = config["summaries"]["model"]
+    sha = minutes_town(tmp_path)
+    for _ in range(summarize.MAX_TRIES):
+        result = summarize.run(config, FakeAnthropic(stop_reason="max_tokens"), tmp_path, limit=50, now=FETCHED_AT)
+        assert result["summarized"] == 0 and result["estimated_cost"] > 0
+    assert any(e.endswith(f"not tried again after {summarize.MAX_TRIES} tries") for e in result["errors"])
+    # Each try was paid for. From now on nothing is sent for it, it isn't waiting for a summary,
+    # and its page no longer says one will be added.
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 0 and client.calls == []
+    assert summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), model) == []
+    assert summarize.summary_gave_up(tmp_path, {"sha256": sha}, "minutes", model)
+    # A new prompt is tried again.
+    monkeypatch.setitem(summarize.KINDS["minutes"], "version", summarize.KINDS["minutes"]["version"] + 1)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
+    assert saved(tmp_path, sha)["decisions"]
+
+
+def test_a_transcription_that_stops_early_is_tried_twice_then_left(tmp_path):
+    config = setup(tmp_path)  # the fixture agenda is a scan
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, backlog_allowance=0.0)
+    for _ in range(summarize.MAX_TRIES):
+        result = summarize.run(config, FakeAnthropic(stop_reason="max_tokens"), tmp_path, limit=50, now=FETCHED_AT)
+        assert result["transcribed"] == 0
+    assert any(e.startswith("transcript of") and e.endswith(f"after {summarize.MAX_TRIES} tries")
+               for e in result["errors"])
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["transcribed"] == 0
+    assert transcription_requests(client) == []
+
+
 def test_minutes_are_saved_with_each_decisions_outcome_and_quote():
     result = summarize.split_decisions(FakeAnthropic.MINUTES)
     assert result["decisions"] == ["Approved the site plan for 12 Main St, 5-0"]

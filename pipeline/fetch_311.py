@@ -27,6 +27,7 @@ from zoneinfo import ZoneInfo
 
 from pipeline import seeclickfix
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
+from pipeline.files import write_atomic
 from pipeline.geo import PrecinctLookup
 from pipeline.http import FetchError, PoliteClient
 
@@ -47,8 +48,7 @@ def load_store(data_dir: Path) -> dict:
 
 
 def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=1, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=1, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 class SeeClickFix:
