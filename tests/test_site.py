@@ -688,6 +688,16 @@ def test_structured_data_cannot_end_its_script():
 def test_home_and_downloads_for_search_engines(site_dir):
     home = (site_dir / "index.html").read_text()
     assert "<title>Gloucester, MA: city meetings, agendas, and data | Gloucester Publick</title>" in home
+    # A meeting's title in search results starts with the town and names the minutes or agenda
+    # it has; its own name, on social cards and in breadcrumbs, doesn't.
+    meetings = site_dir / "meetings"
+    minutes = (meetings / "2026-07-14-city-council" / "index.html").read_text()
+    assert "<title>Gloucester, MA City Council minutes, Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
+    assert '<meta property="og:title" content="City Council, Tuesday, July 14, 2026">' in minutes
+    agenda = (meetings / "2026-09-28-historical-commission" / "index.html").read_text()
+    assert "<title>Gloucester, MA Historical Commission agenda, Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
+    neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
+    assert "<title>Gloucester, MA School Committee, Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"

@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %} | {{ site.name }}</title>
+  {# A page may give search results a fuller name than its own (head_title): the title block stays the page's name
+     everywhere else (social cards, breadcrumbs, the page view counter). #}
+  <title>{% block head_title %}{% block title %}{% endblock %}{% endblock %} | {{ site.name }}</title>
   <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
   {% for v in versions %}

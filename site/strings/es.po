@@ -32,11 +32,25 @@ msgstr "${amount} millones"
 msgid "%(agency)s: <strong>%(rating)s</strong> (latest rating, fiscal year %(year)s)"
 msgstr "%(agency)s: <strong>%(rating)s</strong> (calificación más reciente, año fiscal %(year)s)"
 
+#. %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose agenda
+#. is posted.
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s agenda"
+msgstr "%(board)s: agenda"
+
 #. %(board)s is a board's name, such as "City Council".
 #: site/pages/officials/index.html site/templates/board.html
 #, python-format
 msgid "%(board)s meetings"
 msgstr "%(board)s: reuniones"
+
+#. %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose minutes
+#. are posted.
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s minutes"
+msgstr "%(board)s: actas"
 
 #. a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date,
 #. and %(part)s which meeting it is, such as "1 of 2".
@@ -498,6 +512,13 @@ msgid ""
 "%(town)s's public meetings the week of %(when)s, and what was decided at the meetings whose "
 "minutes were posted the week before."
 msgstr ""
+
+#. a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation,
+#. such as "MA", and %(name)s the meeting, such as "Planning Board agenda, Tuesday, October 6, 2026".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(town)s, %(state)s %(name)s"
+msgstr "%(town)s, %(state)s %(name)s"
 
 #. the home page's title in search results and browser tabs, for a site without meetings; %(town)s is
 #. the town and %(state)s its state's abbreviation.
