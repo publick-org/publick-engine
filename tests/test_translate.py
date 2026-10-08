@@ -161,6 +161,13 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(failed)
     assert translations(tmp_path)[sha]["attempts"] == 2 and translate.failed(tmp_path, "es", sha, english, record["kind"])
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+    # The first try, made the same month and replaced by the second, is still counted.
+    second = translations(tmp_path)[sha]
+    assert second["replaced_cost"] == record["cost"]
+    month = translate.month_counts(tmp_path)["2026-09"]
+    assert month["cost"] == pytest.approx(sum(r["cost"] + r.get("replaced_cost", 0) for r in translations(tmp_path).values())
+                                          + sum(b["cost"] for b in json.loads(next((tmp_path / "strings").glob("*.json"))
+                                                                              .read_text()).get("batches", [])))
 
 
 def test_the_check_runs_again_when_shown(tmp_path):

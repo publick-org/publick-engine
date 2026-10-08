@@ -22,6 +22,12 @@ without a good update (published, with fresh data) in the last day or so, and
 those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
 any town does.
 
+canaries picks the fewest towns that between them have every state, every
+config table, and every kind of meeting source the network's towns have: the
+towns whose every page an engine update's pull request checks, while the rest
+are checked on a sample (publick.org's network.yml), so the run's time grows
+with the kinds of town, not their number.
+
 budget splits what's left of the month's summary budget among the towns in a
 run, from each town's data/summary-costs.json (pipeline.summarize), keeping
 back every other town's floor for the rest of the month.
@@ -38,6 +44,7 @@ state's statewide checks that keep failing are listed by behind.
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
+    python -m pipeline.network canaries [--root .]
     python -m pipeline.network states [--root .]
 
 A daily run takes the towns that are due (--due-hours): those whose last run
@@ -582,6 +589,27 @@ def fetched(record: dict) -> bool:
     return record.get("fetched", record.get("update") is not None)
 
 
+def town_features(config: dict) -> set[str]:
+    """What an engine update could break in one town but not another: its state, each table of its
+    config (311, permits, Drive folders, a digest...), and each kind of source its meetings come from."""
+    meetings = config.get("meetings", {})
+    return ({f"state:{config.get('town', {}).get('state')}"}
+            | {f"table:{key}" for key in config if key not in ("slug", "site", "town")}
+            | {f"meetings:{key}" for key, value in meetings.items() if isinstance(value, dict) and key != "aliases"})
+
+
+def canaries(root: Path, towns: list[str] | None = None) -> list[str]:
+    """The fewest towns (picked greedily, the one adding the most first, by name on a tie) that between them
+    have every feature (town_features) of the towns given, or of every town."""
+    features = {name: town_features(town_config(root, name)) for name in (towns or town_dirs(root))}
+    left, picked = set().union(*features.values()) if features else set(), []
+    while left:
+        name = min(features, key=lambda n: (-len(features[n] & left), n))
+        picked.append(name)
+        left -= features[name]
+    return sorted(picked)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -617,8 +645,13 @@ def main() -> int:
     m.add_argument("--root", type=Path, default=Path.cwd())
     m.add_argument("--monthly", type=float, required=True, help="the network's monthly summary budget, in dollars")
     m.add_argument("--towns-in-run", type=int, required=True)
+    c = sub.add_parser("canaries")
+    c.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args()
 
+    if args.command == "canaries":
+        print(" ".join(canaries(args.root.resolve())))
+        return 0
     if args.command == "plan":
         if args.slot is not None and not 0 <= args.slot < args.slots:
             raise SystemExit(f"--slot must be between 0 and {args.slots - 1}")
