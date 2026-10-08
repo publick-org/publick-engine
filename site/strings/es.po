@@ -4893,9 +4893,11 @@ msgstr "Solicitudes por cada 1,000 residentes, por distrito"
 
 #: site/pages/311/index.html site/pages/311/repeat-locations/index.html
 #, python-format
-msgid "Requests submitted %(start)s to %(end)s. Updated <time datetime=\"%(iso)s\">%(when)s</time>."
+msgid ""
+"Requests submitted in the 12 months to %(end)s. Updated <time "
+"datetime=\"%(iso)s\">%(when)s</time>."
 msgstr ""
-"Solicitudes enviadas del %(start)s al %(end)s. Actualizado el <time "
+"Solicitudes enviadas en los 12 meses hasta el %(end)s. Actualizado el <time "
 "datetime=\"%(iso)s\">%(when)s</time>."
 
 #: site/pages/311/index.html
