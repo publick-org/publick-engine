@@ -7,10 +7,30 @@ project, waits between calls, and backs off on errors instead of hammering.
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
+# The longest a server's Retry-After is waited for, in seconds.
+MAX_RETRY_AFTER = 300
+
+
+def retry_after(value: str, now: datetime | None = None) -> float | None:
+    """A Retry-After header in seconds, given as seconds ("120") or as a date
+    ("Wed, 21 Oct 2026 07:28:00 GMT"), at most MAX_RETRY_AFTER; None if it has neither."""
+    value = (value or "").strip()
+    if value.isdigit():
+        return min(int(value), MAX_RETRY_AFTER)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    seconds = (when - (now or datetime.now(timezone.utc))).total_seconds()
+    return min(max(seconds, 0.0), MAX_RETRY_AFTER)
 
 
 class FetchError(Exception):
@@ -30,25 +50,24 @@ class PoliteClient:
         self.request_count = 0
 
     def get(self, url: str) -> requests.Response:
-        last_error = None
+        last_error, asked = None, None
         for attempt in range(self.retries + 1):
             wait = self.delay - (time.monotonic() - self._last)
             if wait > 0:
                 time.sleep(wait)
             if attempt:
-                time.sleep(10 * 3 ** (attempt - 1))  # 10s, 30s, 90s
+                # 10s, 30s, 90s, or longer if the server asked for longer.
+                time.sleep(max(10 * 3 ** (attempt - 1), asked or 0))
             self._last = time.monotonic()
             self.request_count += 1
             try:
                 response = self.session.get(url, timeout=self.timeout)
             except requests.RequestException as e:
-                last_error = e
+                last_error, asked = e, None
                 continue
             if response.status_code in RETRY_STATUS:
                 last_error = FetchError(f"HTTP {response.status_code}", response.status_code)
-                retry_after = response.headers.get("Retry-After", "")
-                if retry_after.isdigit():
-                    time.sleep(min(int(retry_after), 300))
+                asked = retry_after(response.headers.get("Retry-After", ""))
                 continue
             if response.status_code >= 400:
                 raise FetchError(f"{url}: HTTP {response.status_code}", response.status_code)

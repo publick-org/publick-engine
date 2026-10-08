@@ -341,7 +341,14 @@ def test_model_markdown_keeps_only_safe_links():
     html = build_site.render_markdown(
         "[a](javascript:alert(1)) [b](https://example.org) ![c](https://tracker.example/p.png) <script>x</script>")
     assert "javascript:" not in html and "<img" not in html and "<script" not in html
-    assert '<a href="https://example.org">b</a>' in html and "c" in html
+    assert '<a href="https://example.org" rel="nofollow ugc">b</a>' in html and "c" in html
+
+
+def test_capitalize_first_escapes_plain_text_but_not_safe_html():
+    from markupsafe import Markup
+    assert build_site.capitalize_first("agenda items & <b>permits</b>") == "Agenda items &amp; &lt;b&gt;permits&lt;/b&gt;"
+    assert build_site.capitalize_first(Markup('<a href="mailto:x@y.org">write</a>')) == '<a href="mailto:x@y.org">write</a>'
+    assert build_site.capitalize_first(Markup("write to <a>us</a>")) == "Write to <a>us</a>"
 
 
 def test_pages_set_a_content_security_policy(page_files):
