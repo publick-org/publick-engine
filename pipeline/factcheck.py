@@ -43,7 +43,16 @@ withdrawn, or other) and a quote: the minutes' own words for it
   ("outcome"): a decision that says approved, where the minutes say the
   motion failed, or a "not" dropped, fails. A count with fewer for than
   against can't be approved; one with more for can still have failed (a
-  two-thirds vote), so that isn't held against a denial.
+  two-thirds vote), so that isn't held against a denial. An outcome of
+  "other" has no words of its own, but a decision given it that doesn't say
+  no, where the minutes say the motion failed, fails too.
+- The headline agrees with the decision it's about ("outcome", on the
+  headline): one that says yes (approved, adopted, passed) where that
+  decision was denied, or no where it was approved, fails. Each clause of
+  the headline ("Declined nine applicants and reappointed Robert Soohoo") is
+  matched to the decision sharing the most words and numbers with it; a
+  clause that says both yes and no, or neither, or matches decisions that
+  went both ways, isn't checked.
 
 The evidence is the PDF's own text layer, never the model's. A document whose
 every page has text is checked in full ("pdf"). One with pages that have no
@@ -69,7 +78,8 @@ from pathlib import Path
 
 from pipeline import translate
 
-VERSION = 3
+# 4: an "other" outcome where the motion failed, and the headline's outcome.
+VERSION = 4
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
 
@@ -340,6 +350,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
             whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
             for p in anchored(text, evidence or {}, located, words, whole):
                 problems.append({"field": "decisions", "entry": i + 1, **p})
+        problems += [{"field": "headline", **p} for p in headline_outcome(record)]
     # A vote count the minutes don't give, and a number or name far from its decision's quote, are noted.
     hard = [p for p in problems if p["kind"] not in ("tally", "away")]
     result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
@@ -529,6 +540,56 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
         counted = votes_for_against(quote)
         if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1])):
             problems.append({"kind": "outcome", "what": "denied, but the decision or the minutes don't say no"})
+    elif outcome == "other":
+        # A failed motion given "other" (the evaluation's Lyceum minutes: "Motion fails.") is fine while the
+        # decision says it failed; one that reads as passing is turned round.
+        counted = votes_for_against(quote)
+        if (FAILED.search(quote) or (counted and counted[0] < counted[1])) and not DECISION_NO.search(text):
+            problems.append({"kind": "outcome", "what": "other, but the minutes say the motion didn't carry, "
+                                                        "and the decision doesn't say no"})
+    return problems
+
+
+# A headline that says yes: what a decision that passed was. A headline's no is DECISION_NO.
+SAYS_YES = re.compile(r"\b(?:approv\w*|adopt\w*|pass(?:es|ed)?|grant\w*|award\w*|accept\w*|authoriz\w*|ok(?:ay)?(?:s|ed)?|"
+                      r"(?:re)?appoint\w*|elect(?:s|ed)?|hire[sd]?|confirm\w*|ratif\w*|endors\w*|renew\w*)\b", re.I)
+# Where a headline about more than one decision splits: "Declined nine applicants and reappointed Robert
+# Soohoo", "Approved the budget; tabled the tax override". Not a comma in a number ("$2,500").
+CLAUSES = re.compile(r";|,\s|\s+and\s+|\s+but\s+|\s[-–—]\s")
+# Words a headline and a decision share whatever they're about.
+COMMON = frozenset(
+    "about after also approve approved approves approving adopted adopts board city committee council councillors "
+    "denied denies decided discussed failed from into meeting members minutes motion motions order orders plan "
+    "proposal request that their them these this town vote voted votes were with".split())
+
+
+def subject_words(text: str) -> set[str]:
+    """What a text is about, to match a headline to its decision: its longer words and its numbers."""
+    return ({w for w in re.findall(r"[a-z]{4,}", text.lower()) if w not in COMMON}
+            | {v for v, _, _ in numbers(text) if len(v) > 1})
+
+
+def headline_outcome(record: dict) -> list[dict]:
+    """Each clause of a minutes headline that says yes where the decision it's about was denied, or no
+    where it was approved: that decision being the one sharing the most of its words and numbers (at
+    least two). A clause that says both, or neither, isn't checked."""
+    scored_decisions = [(subject_words(text), (evidence or {}).get("outcome"))
+                        for text, evidence in zip(record.get("decisions") or [], record.get("decision_evidence") or [])]
+    problems = []
+    for clause in CLAUSES.split(record.get("headline") or ""):
+        says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(clause))
+        if says_no == says_yes:
+            continue
+        about = subject_words(clause)
+        scored = [(len(about & words), outcome) for words, outcome in scored_decisions]
+        best = max((n for n, _ in scored), default=0)
+        if best < 2:
+            continue
+        outcomes = {outcome for n, outcome in scored if n == best}
+        if outcomes == {"denied"} and says_yes:
+            problems.append({"kind": "outcome", "what": f"{clause.strip()}: says yes, but the decision was denied"})
+        elif outcomes == {"approved"} and says_no:
+            problems.append({"kind": "outcome", "what": f"{clause.strip()}: says no, but the decision was approved"})
     return problems
 
 

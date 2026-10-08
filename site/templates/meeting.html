@@ -170,7 +170,7 @@
 {% elif m.summary_gap and m.summary_gap.reason == "before" %}
 {# Translators: %(when)s is the date summaries start from, such as "July 1, 2026". #}
 <p>{% trans when=m.summary_gap.since | date("plain") %}Minutes are posted and linked below. Meetings before {{ when }} aren't summarized.{% endtrans %}</p>
-{% elif m.summary_gap %}
+{% elif m.summary_gap or m.minutes_gave_up %}
 <p>{{ _("Minutes are posted and linked below.") }}</p>
 {% else %}
 <p>{{ _("Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and older ones a few each day.") }}</p>
@@ -232,7 +232,7 @@
 {% if m.get("withheld", {}).get("agenda") %}<p>{{ _("The agenda's summary was taken down while a reported error is checked; the agenda is linked below.") }}</p>
 {% elif m.agenda_too_large %}<p>{{ _("The file is too large to summarize automatically; the agenda is linked below.") }}</p>
 {% elif m.summary_gap and m.summary_gap.reason == "before" %}<p>{% trans when=m.summary_gap.since | date("plain") %}Meetings before {{ when }} aren't summarized; the agenda is linked below.{% endtrans %}</p>
-{% elif not m.summary_gap %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
+{% elif not m.summary_gap and not m.agenda_gave_up %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
 {% endif %}
 {% if m.agenda %}
 <ul>

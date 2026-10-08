@@ -54,6 +54,7 @@ from pypdf import PdfReader
 from pipeline import factcheck, listings, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
+from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
 TRANSCRIPT_RULES = """Transcript rules:
@@ -224,7 +225,44 @@ def record_too_long(data_dir: Path, sha256: str, pages: int) -> None:
     path = data_dir / TOO_LONG
     found = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     found[sha256] = pages
-    path.write_text(json.dumps(found, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
+
+
+# Documents whose request stopped early (cut off at max_tokens, or refused), by hash, in the town's
+# data/: for each thing asked of the model ("summary" or "transcript"), the model and prompt version
+# asked and how many tries stopped early. Each try is paid for though nothing is saved, so after
+# MAX_TRIES the document is left out of what's waiting, and its page links the original, until the
+# model or the prompt changes.
+STOPPED_EARLY = "summary-stopped-early.json"
+MAX_TRIES = 2
+
+
+def stopped_early_tries(data_dir: Path, sha256: str, what: str, model: str, version: int) -> int:
+    """How many requests for this document stopped early, with this model and prompt version."""
+    path = data_dir / STOPPED_EARLY
+    entry = (json.loads(path.read_text(encoding="utf-8")).get(sha256, {}).get(what) if path.exists() else None)
+    if not entry or entry["model"] != model or entry["version"] != version:
+        return 0
+    return entry["tries"]
+
+
+def gave_up(data_dir: Path, sha256: str, what: str, model: str, version: int) -> bool:
+    return stopped_early_tries(data_dir, sha256, what, model, version) >= MAX_TRIES
+
+
+def summary_gave_up(data_dir: Path, doc: dict, kind: str, model: str) -> bool:
+    """Whether the document's summary, with this model and the kind's current prompt, was given up on."""
+    return gave_up(data_dir, doc["sha256"], "summary", model, KINDS[kind]["version"])
+
+
+def record_stopped_early(data_dir: Path, sha256: str, what: str, model: str, version: int) -> int:
+    """Count a request that stopped early; returns how many have, with this model and prompt version."""
+    path = data_dir / STOPPED_EARLY
+    found = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    tries = stopped_early_tries(data_dir, sha256, what, model, version) + 1
+    found.setdefault(sha256, {})[what] = {"model": model, "version": version, "tries": tries}
+    write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
+    return tries
 
 
 def summaries_dir(data_dir: Path) -> Path:
@@ -295,7 +333,8 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
-            if doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc):
+            if (doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc)
+                    or summary_gave_up(data_dir, doc, kind, model)):
                 continue
             record = cached(data_dir, doc["sha256"], model, kind)
             if record and not needs_time(kind, meeting, record, today):
@@ -330,12 +369,14 @@ def record_cost(record: dict, settings: dict) -> float:
 
 
 def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float = 0.0,
-                  transcript_cost: float = 0.0) -> dict:
+                  transcript_cost: float = 0.0, replaced_cost: float = 0.0) -> dict:
     """Recount the summaries saved this month (and any month the ledger doesn't have yet) and save the ledger.
 
     Earlier months are kept as they were: a summary made again replaces its file,
     so counting them again would lose what the first one cost. failed_cost is
-    what this run paid for requests that were cut off, which leave no file, and
+    what this run paid for requests that were cut off, which leave no file;
+    replaced_cost what summaries made earlier this month cost, which this run
+    made again (their files replaced, so the recount no longer finds them); and
     transcript_cost what it paid for transcriptions, counted in the month they're made."""
     path = data_dir / LEDGER
     ledger = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
@@ -355,20 +396,24 @@ def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float
         if at == month or "translations" not in ledger.get(at, {}):
             ledger[at] = {"cost": 0.0, "documents": 0, **ledger.get(at, {}),
                           "translation_cost": round(row["cost"], 4), "translations": row["translations"]}
-    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost)):
+    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost), ("replaced_cost", replaced_cost)):
         if paid:
             row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
             row[key] = round(row.get(key, 0.0) + paid, 4)
     ledger = dict(sorted(ledger.items()))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(ledger, indent=2) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(ledger, indent=2) + "\n")
     return ledger
 
 
+# What a month's row of the ledger counts as paid for.
+LEDGER_COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced_cost")
+
+
 def month_cost(ledger: dict, month: str) -> float:
-    """Everything paid for in a month: summaries, cut-off requests, transcriptions, and translations."""
+    """Everything paid for in a month: summaries (and those made again since), cut-off requests,
+    transcriptions, and translations."""
     row = ledger.get(month, {})
-    return sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
+    return sum(row.get(key, 0.0) for key in LEDGER_COSTS)
 
 
 # Where, among the documents a run summarizes, translations are made: after the new documents'
@@ -397,14 +442,15 @@ def page_count(pdf: bytes) -> int | None:
         return None
 
 
-def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[dict, dict]:
+def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None) -> dict:
+    """The request for a document's summary: as a run sends it, or as one request of a batch
+    (pipeline/evaluate_batch.py). Without an effort, the model's default."""
     spec = KINDS[kind]
-    # Streaming avoids HTTP timeouts on long transcripts.
-    with client.messages.stream(
-        model=model,
-        max_tokens=spec["max_tokens"],
-        system=spec["system"],
-        messages=[{
+    return {
+        "model": model,
+        "max_tokens": spec["max_tokens"],
+        "system": spec["system"],
+        "messages": [{
             "role": "user",
             "content": [
                 {"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
@@ -412,14 +458,25 @@ def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: s
                 {"type": "text", "text": spec["prompt"].format(title=title, date=date)},
             ],
         }],
-        output_config={"format": {"type": "json_schema", "schema": spec["schema"]}},
-    ) as stream:
-        response = stream.get_final_message()
+        "output_config": {**({"effort": effort} if effort else {}),
+                          "format": {"type": "json_schema", "schema": spec["schema"]}},
+    }
+
+
+def summary_result(response) -> tuple[dict, dict]:
+    """A summary response's result and its usage; StoppedEarly if it didn't finish."""
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
     text = next((b.text for b in response.content if b.type == "text"), "")
     if response.stop_reason != "end_turn":
         raise StoppedEarly(response.stop_reason, usage, text)
     return json.loads(text), usage
+
+
+def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[dict, dict]:
+    # Streaming avoids HTTP timeouts on long transcripts.
+    with client.messages.stream(**summary_request(model, kind, pdf, title, date)) as stream:
+        response = stream.get_final_message()
+    return summary_result(response)
 
 
 def page_range(pdf: bytes, first: int, last: int) -> bytes:
@@ -485,8 +542,7 @@ def own_text(record: dict, pdf: bytes) -> dict:
 
 def save_record(data_dir: Path, sha256: str, record: dict) -> None:
     path = summaries_dir(data_dir) / f"{sha256}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
 
 
 def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
@@ -532,6 +588,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
+    month, replaced_cost = now.strftime("%Y-%m"), 0.0
     batch = (new + backlog)[:limit]
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
@@ -610,6 +667,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 if not only_new:
                     spent_backlog += paid
 
+    # The words the fact check takes as no one's name, as the town's summaries use them.
+    words = translate.town_words(data_dir)
     for item in batch:
         if item is TRANSLATE:
             translations(only_new=True)
@@ -646,7 +705,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             failed_cost += paid
             if doc["sha256"] in older:
                 spent_backlog += paid
-            errors.append(f"{kind} {doc['id']}: {e}")
+            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
+            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:  # one bad document must not stop the rest
             if "credit balance" in str(e).lower():
@@ -667,8 +727,19 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             "usage": usage,
             "cost": round(paid, 6),
         }
-        save_record(data_dir, doc["sha256"], votes.read(own_text(record, pdf), pdf,
-                                                        votes.members_for(config, meeting["body"])))
+        record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
+        # A summary made earlier this month and made again (an agenda that now gives its time, a new
+        # prompt): its file is replaced, so what it cost is counted here.
+        earlier = summaries_dir(data_dir) / f"{doc['sha256']}.json"
+        if earlier.exists():
+            replaced = json.loads(earlier.read_text(encoding="utf-8"))
+            if replaced.get("generated_at", "")[:7] == month:
+                replaced_cost += record_cost(replaced, settings)
+        if record.get("is_minutes") is not False:
+            # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
+            words |= translate.summary_words(record)
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+        save_record(data_dir, doc["sha256"], record)
         for k in tokens:
             tokens[k] += usage[k]
         spent += paid
@@ -681,7 +752,6 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # summary is checked against the same text (pipeline/factcheck.py).
     laid_out = 0
     later = summarized_documents(data_dir)
-    words = translate.town_words(data_dir)
     for kind, meeting, doc, record in later:
         if laid_out >= TEXT_PER_RUN:
             break
@@ -709,6 +779,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
         if not record.get("needs_transcript") or record.get("transcript"):
             continue
+        if gave_up(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"]):
+            continue
         if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
                 or (backlog_allowance is not None and spent_backlog >= backlog_allowance)):
             stopped = stopped or "transcriptions wait: this run's budget for them is spent"
@@ -728,7 +800,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             spent += paid
             spent_backlog += paid
             failed_cost += paid
-            errors.append(f"transcript of {kind} {doc['id']}: {e}")
+            tries = record_stopped_early(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"])
+            errors.append(f"transcript of {kind} {doc['id']}: {e}"
+                          + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:
             if "credit balance" in str(e).lower():
@@ -750,8 +824,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         spent_backlog += paid
         transcript_cost += paid
         transcribed += 1
-    month = now.strftime("%Y-%m")
-    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost)
+    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost, replaced_cost)
     return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed, "translated": translated,
             "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,

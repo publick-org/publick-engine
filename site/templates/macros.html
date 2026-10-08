@@ -65,7 +65,7 @@
   {% endif %}
   <div class="transcript-body">{{ rec.transcript | markdown }}</div>
 </details>
-{% elif rec.get("needs_transcript") %}
+{% elif rec.get("needs_transcript") and not rec.get("transcript_gave_up") %}
 {% if doc_label == "minutes" %}
 <p class="small">{% trans %}The minutes are a scanned document. A readable version of the full text will be added here; until then, the city's PDF is linked below.{% endtrans %}</p>
 {% else %}
