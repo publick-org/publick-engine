@@ -513,6 +513,10 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     wrong = what_failed(data_dir, before, record, kind, lang) if again else None
+    # A translation made again in the month the one before it was (a correction, a changed summary) replaces
+    # its file, so what that one cost is carried in this one, for month_counts to still count it.
+    earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
+               if before and before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
     result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
     paid = cost(usage, settings(config))
     checked = check(source, result, kind, lang, town_words(data_dir))
@@ -534,6 +538,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "generated_at": now.isoformat(timespec="seconds"),
         "usage": usage,
         "cost": round(paid + review_cost, 6),
+        **({"replaced_cost": round(earlier, 6)} if earlier else {}),
     }
     save(data_dir, lang, doc["sha256"], out)
     return out, paid + review_cost
@@ -626,8 +631,8 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
 
 
 def month_counts(data_dir: Path) -> dict[str, dict]:
-    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}}.
-    A batch of drafted texts counts as one translation."""
+    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}},
+    with what the ones they replaced that month cost (make()). A batch of drafted texts counts as one."""
     counted: dict[str, dict] = {}
     records = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((data_dir / "summaries").glob("*/*.json"))]
     for file in sorted((data_dir / "strings").glob("*.json")):
@@ -636,7 +641,7 @@ def month_counts(data_dir: Path) -> dict[str, dict]:
         at = record.get("generated_at", "")[:7]
         if at:
             row = counted.setdefault(at, {"cost": 0.0, "translations": 0})
-            row["cost"] += record.get("cost", 0.0)
+            row["cost"] += record.get("cost", 0.0) + record.get("replaced_cost", 0.0)
             row["translations"] += 1
     return counted
 
