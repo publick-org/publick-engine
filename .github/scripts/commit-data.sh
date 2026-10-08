@@ -5,7 +5,9 @@ set -euo pipefail
 message="$1"; shift
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git add -- "$@"
+# Leaves out the temporary file a step stopped mid-write leaves next to a data
+# file (pipeline/files.py): the file it was replacing is still whole.
+git add -- "$@" ':(exclude,glob)**/*.partial'
 if git diff --cached --quiet; then
   echo "No changes in $*."
   exit 0

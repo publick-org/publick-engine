@@ -33,6 +33,7 @@ from urllib.parse import urlencode
 
 import openpyxl
 
+from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
 REPORT_URL = "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx"
@@ -150,7 +151,7 @@ def save_rows(store: Path, key: str, found: list[dict]) -> None:
     """One row per line, in DLS's order, so a refresh that changes nothing changes no lines."""
     store.mkdir(parents=True, exist_ok=True)
     lines = [json.dumps(r, ensure_ascii=False, default=str) for r in found]
-    (store / key).write_text("[\n" + ",\n".join(lines) + "\n]\n", encoding="utf-8")
+    write_atomic(store / key, "[\n" + ",\n".join(lines) + "\n]\n")
 
 
 def table(client, report: str, table_id: str, town: tuple[str, str] | None, **params) -> list[dict]:
@@ -221,6 +222,5 @@ def refresh(state_dir: Path, configs: list[dict], client, now: datetime | None =
                         path.unlink()
                 index = {k: v for k, v in index.items() if k in used}
             store.mkdir(parents=True, exist_ok=True)
-            (store / "index.json").write_text(json.dumps(dict(sorted(index.items())), indent=2) + "\n",
-                                              encoding="utf-8")
+            write_atomic(store / "index.json", json.dumps(dict(sorted(index.items())), indent=2) + "\n")
     return {"exports": len(used), "fetched": state["fetched"]}

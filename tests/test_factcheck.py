@@ -323,3 +323,50 @@ def test_what_the_real_model_wrote_on_the_test_set():
                       "Aldermen Kantor and Sapienza voted yea. The motion failed."),
                      ("Motion to approve the June 4, 2026 minutes failed.", "denied",
                       "June 4th Doug motions, Leora seconds. Motion fails."), doc=doc)["result"] == "ok"
+
+
+def test_an_other_outcome_that_reads_as_passing_where_the_motion_failed_fails():
+    # Said failed in the decision's own words, "other" is only a label: shown as it is.
+    assert anchor_problems(("Motion to table Order 200-26 failed, 3-8.", "other",
+                            "that the Order be tabled. The motion failed by a vote of 3-8.")) == []
+    # Read as passing, where the minutes say it failed.
+    assert anchor_problems(("Tabled Order 200-26 on an executive session.", "other",
+                            "that the Order be tabled. The motion failed by a vote of 3-8.")) == [(1, "outcome")]
+    # "Other" where the motion carried isn't checked: it has no words of its own.
+    assert anchor_problems(("Took up Order 201-26 on $175,000 for Public Works Salaries.", "other",
+                            "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")) == []
+
+
+def headline_problems(headline, *entries):
+    record = {"kind": "minutes", "headline": headline, "summary": "",
+              "decisions": [text for text, _, _ in entries],
+              "decision_evidence": [{"outcome": outcome, "quote": quote} for _, outcome, quote in entries]}
+    return [p["what"] for p in factcheck.check(record, "minutes", [COUNCIL])["problems"]
+            if p["field"] == "headline" and p["kind"] == "outcome"]
+
+
+def test_a_headline_that_turns_its_decision_round_fails():
+    roof, transfer = RIGHT[3], RIGHT[1]
+    assert headline_problems("Approved $8,000 for the Senior Center roof", roof, transfer) \
+        == ["Approved $8,000 for the Senior Center roof: says yes, but the decision was denied"]
+    assert headline_problems("Rejected the $175,000 Public Works Salaries transfer", roof, transfer) \
+        == ["Rejected the $175,000 Public Works Salaries transfer: says no, but the decision was approved"]
+    # Right either way, and each clause of a headline about two decisions on its own.
+    assert headline_problems("Turned down $8,000 for the Senior Center roof", roof, transfer) == []
+    assert headline_problems("Rejected $8,000 for the Senior Center roof and approved $175,000 for Public Works "
+                             "Salaries", roof, transfer) == []
+    assert headline_problems("Approved $8,000 for the Senior Center roof; approved the $175,000 transfer for Public "
+                             "Works Salaries", roof, transfer) \
+        == ["Approved $8,000 for the Senior Center roof: says yes, but the decision was denied"]
+    # Not about any one decision, or saying neither: not checked.
+    assert headline_problems("Approved the consent agenda", roof, transfer) == []
+    assert headline_problems("Council met on the Senior Center roof", roof, transfer) == []
+
+
+def test_a_headline_turned_round_isnt_shown():
+    record = {"kind": "minutes", "headline": "Approved $8,000 for the Senior Center roof", "summary": "",
+              "decisions": [RIGHT[3][0]], "decision_evidence": [{"outcome": RIGHT[3][1], "quote": RIGHT[3][2]}]}
+    record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
+    assert record["fact_check"]["result"] == "failed"
+    shown = factcheck.shown(record, record, "minutes")
+    assert shown["headline"] == "" and shown["decisions"] == [RIGHT[3][0]]

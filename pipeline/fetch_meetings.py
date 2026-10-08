@@ -47,6 +47,7 @@ from pypdf import PdfReader
 from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
+from pipeline.files import write_atomic
 from pipeline.http import FetchError, PoliteClient
 from pipeline.meeting_names import words
 
@@ -66,8 +67,7 @@ def load_store(data_dir: Path) -> dict:
 
 
 def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def normalize_body(body: str, aliases: dict) -> str:
@@ -453,9 +453,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     for calendar in calendars(config):
         try:
             events = calendar.events(client, today, store)
-        except FetchError as e:
+        except Exception as e:  # a page it can't read, or can't parse: the other calendars still count
             # Keep what is recorded; the site shows when meetings were last checked.
-            errors.append(f"{calendar.name}: {e}")
+            errors.append(f"{calendar.name}: {e}" if isinstance(e, FetchError) else f"{calendar.name}: {e!r}")
             failed.append(calendar.name)
             continue
         # A calendar that listed meetings and now lists none has most likely broken (a moved page, a
@@ -504,8 +504,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             pages += 1
             calendar.details(client, meeting, storage, stamp)
             meeting["checked_at"] = stamp
-        except FetchError as e:
-            errors.append(str(e))
+        except Exception as e:  # one meeting's page doesn't stop the rest, or the save
+            errors.append(str(e) if isinstance(e, FetchError) else f"{meeting['id']}: {e!r}")
 
     save_json(meetings_dir(data_dir) / "meetings.json", store)
     names = [c.name for c in calendars(config)]

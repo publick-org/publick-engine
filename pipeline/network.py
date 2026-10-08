@@ -64,6 +64,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from pipeline.config import ENGINE_DIR
+from pipeline.files import write_atomic
 
 TOWNS = "towns"
 # Statewide sources, fetched once per state for every town (states/<state>/), and the environment
@@ -317,7 +318,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
         result["fact_checks"] = fact_checks(town_dir / "data")
-        record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
     if reports:
@@ -345,7 +346,7 @@ def republished(path: Path, result: dict) -> None:
     record["published_engine"] = result["engine"]
     if good(record):
         record["last_good_at"] = result["finished_at"]
-    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(record, indent=2) + "\n")
 
 
 # Days of upcoming meetings counted for the network homepage.
@@ -469,8 +470,7 @@ def refresh_states(root: Path, now: datetime | None = None) -> dict:
         # Nothing fetched and nothing wrong, as before: the file stays as it is, so the run commits nothing.
         if status["ok"] and status.get("fetched") == 0 and previous.get("ok") and previous.get("exports") == status.get("exports"):
             continue
-        status_path.parent.mkdir(parents=True, exist_ok=True)
-        status_path.write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+        write_atomic(status_path, json.dumps(status, indent=2) + "\n")
     return results
 
 
@@ -532,8 +532,10 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
         path = root / TOWNS / name / "data" / SUMMARY_LEDGER
         if path.exists():
             row = json.loads(path.read_text()).get(month, {})
-            # A summary, a cut-off request, a transcription, or a translation: all paid for this month.
-            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
+            # A summary (and one made again since), a cut-off request, a transcription, or a translation:
+            # all paid for this month (summarize.LEDGER_COSTS).
+            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost",
+                                                          "replaced_cost"))
     left = max(monthly - spent, 0.0)
     days_in_month = calendar.monthrange(today.year, today.month)[1]
     days_left = days_in_month - today.day + 1

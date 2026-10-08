@@ -20,6 +20,7 @@ are for; and so does a summary cut off at the prompt's max_tokens, which the sit
 
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate [--only NAME] [--model MODEL] [--json FILE]
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set translations [--only NAME] [--json FILE]   # the translation prompt's set
+    ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set batch [--efforts low,medium,high] [--json FILE]   # as a batch, by effort
 
 It costs about $1 to $2 for the whole set (a few cents a document, more for the scan).
 """
@@ -102,25 +103,43 @@ def planted(record: dict, pages: list[str] | None, passed: list[int]) -> tuple[i
     return count, caught
 
 
-def evaluate(document: dict, client, model: str, prices: dict, get=None) -> dict:
-    """One document of the set, summarized and checked."""
+def document_pdf(document: dict, get=None) -> bytes:
+    """The document of the set, as it was checked by hand."""
     pdf = get(document["url"]) if get else fetch(document["url"])
     if hashlib.sha256(pdf).hexdigest() != document["sha256"]:
         raise SystemExit(f"{document['name']}: the document at {document['url']} isn't the one checked by hand")
+    return pdf
+
+
+def stopped(document: dict, e: summarize.StoppedEarly, prices: dict) -> dict:
+    """A summary cut off: paid for, with nothing to check, reported with what it had written."""
+    return {"name": document["name"], "stopped": str(e), "cost": round(summarize.cost(e.usage, prices), 4),
+            "usage": e.usage, "partial": e.text}
+
+
+def evaluate(document: dict, client, model: str, prices: dict, get=None) -> dict:
+    """One document of the set, summarized and checked."""
+    pdf = document_pdf(document, get)
     try:
         result, usage = summarize.summarize_pdf(client, model, "minutes", pdf, document["title"], document["date"])
     except summarize.StoppedEarly as e:
-        # Paid for, with nothing to check: reported, with what it had written, and the set goes on.
-        return {"name": document["name"], "stopped": str(e), "cost": round(summarize.cost(e.usage, prices), 4),
-                "usage": e.usage, "partial": e.text}
-    record = summarize.split_decisions(result)
+        # The set goes on.
+        return stopped(document, e, prices)
+    transcript = None
     paid = summarize.cost(usage, prices)
-    pages = factcheck.pages(pdf)
     if document.get("scan"):
-        record["transcript"], used = summarize.transcribe_pdf(client, model, "minutes", pdf, document["title"],
-                                                              document["date"])
-        record["transcript_source"] = "ai"
+        transcript, used = summarize.transcribe_pdf(client, model, "minutes", pdf, document["title"], document["date"])
         paid += summarize.cost(used, prices)
+    return judge(document, pdf, result, paid, transcript)
+
+
+def judge(document: dict, pdf: bytes, result: dict, paid: float, transcript: str | None = None) -> dict:
+    """The model's summary of a document of the set, checked as the site checks it and against the
+    decisions written down by hand. A scan is checked against its transcript, when there is one."""
+    record = summarize.split_decisions(result)
+    pages = factcheck.pages(pdf)
+    if transcript is not None:
+        record["transcript"], record["transcript_source"] = transcript, "ai"
     record["fact_check"] = factcheck.check(record, "minutes", pages)
     held_back = held(record["fact_check"])
     rows = [compare(e, record["decisions"], record.get("decision_evidence", [])) for e in document["decisions"]]
@@ -204,8 +223,11 @@ def main() -> int:
         if chosen == "translations":
             from pipeline import evaluate_translations
             return evaluate_translations.main(rest)
+        if chosen == "batch":
+            from pipeline import evaluate_batch
+            return evaluate_batch.main(rest)
         if chosen != "minutes":
-            raise SystemExit(f"--set is minutes or translations, not {chosen}")
+            raise SystemExit(f"--set is minutes, translations, or batch, not {chosen}")
         sys.argv[1:] = rest
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="the one document of the set to run (its name)")

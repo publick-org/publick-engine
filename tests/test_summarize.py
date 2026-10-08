@@ -174,6 +174,26 @@ def test_ledger_is_filled_in_from_summaries_saved_before_costs_were(tmp_path):
     assert ledger["2026-09"] == {"cost": round(3 * REQUEST, 4), "documents": 3}
 
 
+def test_a_summary_made_again_the_same_month_is_still_counted(tmp_path, monkeypatch):
+    from pipeline import network
+    config = with_minutes(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    first = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]["cost"]
+    # A new minutes prompt: the ones it remakes are made again, their files replaced, both paid for.
+    monkeypatch.setitem(summarize.KINDS["minutes"], "version", summarize.KINDS["minutes"]["version"] + 1)
+    remade = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"]
+    row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert remade and row["replaced_cost"] == round(remade * REQUEST, 4) and row["cost"] == first
+    assert "replaced_cost" in summarize.LEDGER_COSTS
+    # The network's budget counts it too.
+    town = tmp_path / "net" / "towns" / "a-ma"
+    (town / "config").mkdir(parents=True)
+    (town / "config" / "a.toml").write_text("")
+    (town / "data").mkdir()
+    (town / "data" / summarize.LEDGER).write_text(json.dumps({"2026-09": {"cost": 1.0, "replaced_cost": 2.0}}))
+    assert network.summary_budget(tmp_path / "net", 50.0, 1, FETCHED_AT.date())["spent"] == 3.0
+
+
 def test_ledger_keeps_earlier_months_as_they_were(tmp_path):
     config = with_minutes(tmp_path)
     (tmp_path / summarize.LEDGER).write_text(json.dumps({"2026-08": {"cost": 9.0, "documents": 99}}))
@@ -467,6 +487,50 @@ def test_minutes_over_200_pages_are_not_sent_and_said_once(tmp_path, monkeypatch
     monkeypatch.setattr(summarize, "MAX_PAGES", 300)
     assert not summarize.too_long(tmp_path, {"sha256": sha})
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
+
+
+def test_minutes_are_fact_checked_when_saved(tmp_path, monkeypatch):
+    from pipeline import factcheck
+    # With no room for the later pass that lays out and checks older summaries, a new one is still checked.
+    monkeypatch.setattr(summarize, "TEXT_PER_RUN", 0)
+    config = load_config("gloucester")
+    sha = minutes_town(tmp_path)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
+    record = saved(tmp_path, sha)
+    assert factcheck.current(record) and record["fact_check"]["source"] == "pdf"
+
+
+def test_a_summary_that_stops_early_is_tried_twice_then_left_until_the_prompt_changes(tmp_path, monkeypatch):
+    config = load_config("gloucester")
+    model = config["summaries"]["model"]
+    sha = minutes_town(tmp_path)
+    for _ in range(summarize.MAX_TRIES):
+        result = summarize.run(config, FakeAnthropic(stop_reason="max_tokens"), tmp_path, limit=50, now=FETCHED_AT)
+        assert result["summarized"] == 0 and result["estimated_cost"] > 0
+    assert any(e.endswith(f"not tried again after {summarize.MAX_TRIES} tries") for e in result["errors"])
+    # Each try was paid for. From now on nothing is sent for it, it isn't waiting for a summary,
+    # and its page no longer says one will be added.
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 0 and client.calls == []
+    assert summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), model) == []
+    assert summarize.summary_gave_up(tmp_path, {"sha256": sha}, "minutes", model)
+    # A new prompt is tried again.
+    monkeypatch.setitem(summarize.KINDS["minutes"], "version", summarize.KINDS["minutes"]["version"] + 1)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"] == 1
+    assert saved(tmp_path, sha)["decisions"]
+
+
+def test_a_transcription_that_stops_early_is_tried_twice_then_left(tmp_path):
+    config = setup(tmp_path)  # the fixture agenda is a scan
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, backlog_allowance=0.0)
+    for _ in range(summarize.MAX_TRIES):
+        result = summarize.run(config, FakeAnthropic(stop_reason="max_tokens"), tmp_path, limit=50, now=FETCHED_AT)
+        assert result["transcribed"] == 0
+    assert any(e.startswith("transcript of") and e.endswith(f"after {summarize.MAX_TRIES} tries")
+               for e in result["errors"])
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["transcribed"] == 0
+    assert transcription_requests(client) == []
 
 
 def test_minutes_are_saved_with_each_decisions_outcome_and_quote():

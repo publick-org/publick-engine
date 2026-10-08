@@ -160,6 +160,20 @@ def test_a_calendar_that_goes_empty_counts_as_failed(malden, tmp_path, monkeypat
     assert all(m.get("listed", True) == before[k].get("listed", True) for k, m in load_store(tmp_path).items())
 
 
+def test_a_calendar_that_cant_be_parsed_doesnt_stop_the_others(malden, tmp_path, monkeypatch):
+    """A layout change that breaks one calendar's parser (an error, not a failed request) counts that
+    calendar as failed; the others' meetings are still saved."""
+    real = fetch_meetings.calendars
+
+    def broken(*args):
+        raise ValueError("time data '7:00 PM EST' does not match format")
+    monkeypatch.setattr(fetch_meetings, "calendars", lambda config: [
+        fetch_meetings.Calendar("Broken", broken, lambda m: False), *real(config)])
+    status = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
+    assert status["failed_calendars"] == ["Broken"] and "ValueError" in status["errors"][0]
+    assert "agendacenter-4453" in load_store(tmp_path)
+
+
 def test_excluded_categories_are_skipped(malden, tmp_path):
     malden["meetings"]["agenda_center"]["exclude_categories"] = ["Board of Appeal"]
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)

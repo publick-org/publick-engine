@@ -48,6 +48,10 @@ export function clearManifests() {
   manifests.clear();
 }
 
+// Whether the manifest lists a file: its own keys only, so a path like /constructor isn't
+// taken for one of every object's built-in properties.
+const listed = (files, key) => Object.hasOwn(files, key);
+
 // The manifest entry for a URL path, or a redirect to its canonical form.
 export function resolve(files, pathname) {
   let path;
@@ -59,9 +63,9 @@ export function resolve(files, pathname) {
   if (path.includes("\0")) return {};
   const rel = path.replace(/^\/+/, "");
   if (rel === "" || rel.endsWith("/")) return { key: `${rel}index.html` };
-  if (files[rel]) return { key: rel };
-  if (files[`${rel}/index.html`]) return { redirect: `${pathname}/` };
-  if (files[`${rel}.html`]) return { key: `${rel}.html` };
+  if (listed(files, rel)) return { key: rel };
+  if (listed(files, `${rel}/index.html`)) return { redirect: `${pathname}/` };
+  if (listed(files, `${rel}.html`)) return { key: `${rel}.html` };
   return {};
 }
 
@@ -160,7 +164,7 @@ export async function handle(request, env) {
       if (lang !== "en" && manifest.files[`${lang}/index.html`]) return redirect(`/${lang}/${url.search}`, { Vary: vary });
     }
   }
-  if (key && manifest.files[key]) return serve(request, env, url, key, manifest.files[key], 200, vary);
+  if (key && listed(manifest.files, key)) return serve(request, env, url, key, manifest.files[key], 200, vary);
   const folder = url.pathname.split("/")[1];
   const notFound = /^[a-z]{2}$/.test(folder) && manifest.files[`${folder}/404.html`] ? `${folder}/404.html` : "404.html";
   const missing = manifest.files[notFound];
