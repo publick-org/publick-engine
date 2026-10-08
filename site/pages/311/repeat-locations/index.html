@@ -11,7 +11,7 @@
   <h1>{{ _("Repeat locations") }}</h1>
   <p class="lede">{{ _("Places where a problem was reported again after an earlier request there was closed.") }}</p>
   {% if rep %}
-  <p class="source-note">{% trans start=scorecard.window.start | date("plain"), end=scorecard.window.end | date("plain"), iso=scorecard.get("fetched_at") or scorecard.generated_at, when=(scorecard.get("fetched_at") or scorecard.generated_at) | timestamp %}Requests submitted {{ start }} to {{ end }}. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+  <p class="source-note">{% trans iso=scorecard.get("fetched_at") or scorecard.generated_at, when=(scorecard.get("fetched_at") or scorecard.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
   {% endif %}
 </div>
 
