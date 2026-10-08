@@ -104,6 +104,19 @@ def test_an_alias_comes_before_turning_a_name_round():
     assert agendacenter.body_for(row, {"Health, Board of": "Beverly Board of Health"}, {}) == "Beverly Board of Health"
 
 
+def test_an_agenda_made_in_the_builder_is_read_as_its_pdf():
+    """An agenda written in the Agenda Center's builder (Lowell's council, Beverly's Council on
+    Aging) is linked as a web page, "?html=true"; the same address without it is the PDF."""
+    builder = PAGE.replace('href="/AgendaCenter/ViewFile/Agenda/_09292026-4453" target',
+                           'href="/AgendaCenter/ViewFile/Agenda/_09292026-4453?html=true" target', 1)
+    assert builder != PAGE
+    found = agendacenter.parse_listing(builder, BASE)
+    assert len(found) == 15
+    finance = next(r for r in found if r["number"] == "4453")
+    assert finance["agenda_url"] == f"{BASE}/AgendaCenter/ViewFile/Agenda/_09292026-4453"
+    assert finance["title"] == "Finance Committee Agenda"
+
+
 def test_cancelled_meeting():
     cancelled = agendacenter.to_event(next(r for r in rows() if r["number"] == "4392"))
     assert cancelled["status"] == "cancelled" and cancelled["body"] == "Commission on Climate Action and Sustainability"
