@@ -19,7 +19,7 @@
   <p>{{ config.seeclickfix.scope_note }}</p>
   {% endif %}
   {% if sc %}
-  <p class="source-note">{% trans end=sc.window.end | date("plain"), iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the 12 months to {{ end }}. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+  <p class="source-note">{% trans iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
   {% endif %}
   {{ city_report_button(config) }}
   <ul class="link-row">
