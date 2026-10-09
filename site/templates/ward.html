@@ -4,6 +4,8 @@
 {% from "macros.html" import area with context %}
 {% set w = ward %}
 {% block title %}{% if precincts %}{% trans ward=w.ward %}Precinct {{ ward }}: 311 requests{% endtrans %}{% else %}{% trans ward=w.ward %}Ward {{ ward }}: 311 requests{% endtrans %}{% endif %}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(ward)s a ward's or precinct's number. #}
+{% block head_title %}{% if precincts %}{% trans town=town.name, state=town.state_abbr, ward=w.ward %}{{ town }}, {{ state }} 311 requests in Precinct {{ ward }}{% endtrans %}{% else %}{% trans town=town.name, state=town.state_abbr, ward=w.ward %}{{ town }}, {{ state }} 311 requests in Ward {{ ward }}{% endtrans %}{% endif %}{% endblock %}
 {% block description %}{% if precincts %}{% trans ward=w.ward, town=town.name %}311 requests in Precinct {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% else %}{% trans ward=w.ward, town=town.name %}311 requests in Ward {{ ward }}, {{ town }}: how many, how quickly the city responds, and what kinds.{% endtrans %}{% endif %}{% endblock %}
 {% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (area(w.ward) | string, canonical_url)])) }}{% endblock %}
 {% block content %}

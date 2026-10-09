@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ _("Boards and committees") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} boards, commissions, and committees{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Every {{ town }} board, commission, and committee with a meeting listed, and when each meets next.{% endtrans %}{% endblock %}
 {% block content %}

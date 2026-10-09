@@ -3,6 +3,8 @@
 {% set b = board %}
 {# Translators: %(board)s is a board's name, such as "City Council". #}
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr, board=b.name %}{{ town }}, {{ state }} {{ board }} meetings and agendas{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town and %(board)s a board's name, such as "City Council". #}
 {% block description %}{% trans town=town.name, board=b.name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
 {% block structured_data %}{{ structured(breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"),

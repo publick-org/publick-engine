@@ -2,6 +2,8 @@
 {% from "macros.html" import figures_dash, on_this_page, calculated %}
 {% from "charts.html" import chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and property tax rate{% endtrans %}{% endblock %}
 {% block description %}{% trans town=town.name %}{{ town }}'s property tax rates, what the property tax raises, and the value of the property it taxes.{% endtrans %}{% endblock %}
 {% block content %}
 <div class="page-head">

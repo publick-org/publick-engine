@@ -2,6 +2,8 @@
 {% from "macros.html" import on_this_page %}
 {% set o = officials %}
 {% block title %}{{ _("Who represents you") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} elected officials and how to reach them{% endtrans %}{% endblock %}
 {% block description %}{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
 {% block head %}
 {% if wards_url %}
