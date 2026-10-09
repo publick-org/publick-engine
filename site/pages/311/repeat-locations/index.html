@@ -2,6 +2,8 @@
 {% from "charts.html" import map_figure, map_assets, chart_links %}
 {% from "macros.html" import area with context %}
 {% block title %}{{ _("Repeat 311 locations") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} places with repeat 311 requests{% endtrans %}{% endblock %}
 {% block description %}{% trans town=town.name %}Places in {{ town }} where a problem was reported to 311 again after an earlier request there was closed.{% endtrans %}{% endblock %}
 {% set rep = scorecard.get("repeats") if scorecard else none %}
 {% block head %}{% if rep %}{{ map_assets() }}{% endif %}{% endblock %}

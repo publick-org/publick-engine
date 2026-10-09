@@ -83,8 +83,8 @@ def test_language_attributes_and_switch(built):
         assert '<link rel="alternate" hreflang="en" href="https://gloucester-ma.publick.org/meetings/">' in html
         assert '<link rel="alternate" hreflang="es" href="https://gloucester-ma.publick.org/es/meetings/">' in html
         assert '<link rel="alternate" hreflang="x-default" href="https://gloucester-ma.publick.org/meetings/">' in html
-    assert '<a class="language-switch" href="/es/meetings/?lang=es" hreflang="es" lang="es">Español</a>' in en
-    assert '<a class="language-switch" href="/meetings/?lang=en" hreflang="en" lang="en">English</a>' in es
+    assert '<a class="language-switch" href="/es/meetings/?lang=es" hreflang="es" lang="es" rel="nofollow">Español</a>' in en
+    assert '<a class="language-switch" href="/meetings/?lang=en" hreflang="en" lang="en" rel="nofollow">English</a>' in es
     assert '<link rel="canonical" href="https://gloucester-ma.publick.org/es/meetings/">' in es
 
 
