@@ -2,6 +2,8 @@
 {% from "macros.html" import on_this_page %}
 {% from "charts.html" import year_columns, bars, chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget: revenue and spending{% endtrans %}{% endblock %}
 {% block description %}{% trans town=town.name %}Where {{ town }}'s general fund money comes from and how it is spent, from the city's filings with the state.{% endtrans %}{% endblock %}
 {% block content %}
 <div class="page-head">

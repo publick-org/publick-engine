@@ -3,6 +3,8 @@
 {% from "macros.html" import area with context %}
 {% from "charts.html" import month_columns, bars, chart_links, map_figure, map_assets %}
 {% block title %}{{ _("311 Requests") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} 311 requests and response times{% endtrans %}{% endblock %}
 {% block description %}{% if not has_areas %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category.{% endtrans %}{% elif precincts %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and voting precinct.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endif %}{% endblock %}
 {% set sc = scorecard %}
 {# The downloads as a dataset for dataset search, once, on the English page. #}

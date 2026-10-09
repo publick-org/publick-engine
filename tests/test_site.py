@@ -710,6 +710,13 @@ def test_home_and_downloads_for_search_engines(site_dir):
     assert "<title>Gloucester, MA Historical Commission agenda, Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
     neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
     assert "<title>Gloucester, MA School Committee, Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
+    # So does every other section's; its heading and social card keep the short name.
+    board = (meetings / "boards" / "school-committee" / "index.html").read_text()
+    assert "<title>Gloucester, MA School Committee meetings and agendas | Gloucester Publick</title>" in board
+    assert '<meta property="og:title" content="School Committee meetings">' in board
+    decided = (meetings / "decisions" / "index.html").read_text()
+    assert "<title>Gloucester, MA votes and decisions from meeting minutes | Gloucester Publick</title>" in decided
+    assert "<title>Gloucester, MA 311 requests and response times | Gloucester Publick</title>" in (site_dir / "311" / "index.html").read_text()
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"
