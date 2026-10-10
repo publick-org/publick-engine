@@ -117,14 +117,22 @@ class FakeAnthropic:
     }
 
     def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False,
-                 review_problems: list[dict] | None = None):
+                 review_problems: list[dict] | None = None, batch_polls: int | None = 1,
+                 batch_results: dict | None = None):
+        """batch_polls: how many times a batch is looked at before it has ended (None: never, until
+        cancelled). batch_results: a request's result type by its place in the batch ("errored",
+        "canceled"), where it isn't "succeeded"; a cancelled batch's requests are all "canceled"."""
         from types import SimpleNamespace
         self.calls = []
+        # Each batch's requests' params, in the order sent.
+        self.batches_sent = []
+        self.cancelled = []
         outer = self
 
-        def respond(kwargs):
+        def respond(kwargs, record=True):
             import json
-            outer.calls.append(kwargs)
+            if record:
+                outer.calls.append(kwargs)
             properties = kwargs["output_config"]["format"]["schema"]["properties"]
             if set(properties) == {"transcript"}:
                 payload = FakeAnthropic.TRANSCRIPT
@@ -184,7 +192,38 @@ class FakeAnthropic:
                 usage=SimpleNamespace(input_tokens=600, output_tokens=300),
             )
 
+        class Batches:
+            def __init__(self):
+                self.looked = {}
+
+            def create(self, requests):
+                outer.batches_sent.append([r["params"] for r in requests])
+                return SimpleNamespace(id=f"batch-{len(outer.batches_sent)}")
+
+            def retrieve(self, batch_id):
+                self.looked[batch_id] = self.looked.get(batch_id, 0) + 1
+                ended = batch_id in outer.cancelled or (batch_polls is not None and self.looked[batch_id] >= batch_polls)
+                return SimpleNamespace(id=batch_id, processing_status="ended" if ended else "in_progress")
+
+            def cancel(self, batch_id):
+                outer.cancelled.append(batch_id)
+
+            def results(self, batch_id):
+                requests = outer.batches_sent[int(batch_id.removeprefix("batch-")) - 1]
+                out = []
+                for i, params in enumerate(requests):
+                    kind = "canceled" if batch_id in outer.cancelled else (batch_results or {}).get(i, "succeeded")
+                    result = (SimpleNamespace(type="succeeded", message=respond(params, record=False))
+                              if kind == "succeeded" else
+                              SimpleNamespace(type=kind, error=SimpleNamespace(error=SimpleNamespace(message="overloaded"))))
+                    out.append(SimpleNamespace(custom_id=f"doc-{i}", result=result))
+                # In any order, as the API gives them.
+                return reversed(out)
+
         class Messages:
+            def __init__(self):
+                self.batches = Batches()
+
             def stream(self, **kwargs):
                 return Stream(kwargs)
 

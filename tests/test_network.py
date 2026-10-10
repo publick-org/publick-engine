@@ -570,3 +570,29 @@ def test_canaries_cover_every_kind_of_town_with_the_fewest(tmp_path):
     # Salem and Keene have nothing the others don't (aliases aren't a source).
     assert network.canaries(root) == ["beverly-ma", "gloucester-ma", "manchester-nh"]
     assert network.canaries(root, ["salem-ma", "keene-nh"]) == ["keene-nh", "salem-ma"]
+
+
+def test_collecting_a_towns_batch_of_summaries_publishes_it_again(tmp_path, steps, monkeypatch):
+    calls, _ = steps
+    for k in network.FETCH_KEYS + network.PUBLISH_KEYS:
+        monkeypatch.setenv(k, "x")
+    root = make_root(tmp_path)
+    data = root / "towns" / "gloucester-ma" / "data"
+    data.mkdir()
+    # No batch waiting: nothing to do.
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True)
+    assert calls == [] and result["ok"] and not result["collected"]
+    (data / network.SUMMARY_BATCH).write_text("{}")
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True)
+    assert [c["name"] for c in calls] == ["Collect summaries", "Build site", "Check site", "Publish site",
+                                          "Check live site"]
+    collect = calls[0]
+    assert collect["cmd"][2:] == ["pipeline.summarize", "--town", "gloucester"]
+    assert collect["env"]["PUBLICK_SUMMARY_COLLECT"] == "1"
+    assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in collect["env"]} == set(network.COLLECT_KEYS)
+    assert result["collected"] and result["deployed"]
+
+
+def test_the_batch_file_is_the_one_summarize_keeps():
+    from pipeline import summarize
+    assert network.SUMMARY_BATCH == summarize.BATCH_FILE
