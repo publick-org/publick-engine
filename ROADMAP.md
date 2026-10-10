@@ -1780,7 +1780,7 @@ quiet days.
 | v1.44.0 (2026-10-07) | Taking down one summary by hand (#90); `town.yml` commits all of a town's data (#91); translations back to prompt 4, with a check without false alarms (#93); a table for every month chart (#94); each meeting's recording linked (#95); search titles and icons (#96, #97) |
 | v1.45.0 (2026-10-08, moved by hand) | Summaries of up to 200 pages, and one too long no longer reads as waiting (#99); share cards for recent and upcoming meetings, headlines led by what residents look for (#98) |
 | next (merged 2026-10-08) | The scalability review's fixes: data files written whole, a cut-off summary not paid for daily, `/constructor` a 404, the batch evaluation (#100); fact checks when saved, on "other" outcomes and on headlines; a calendar that can't be parsed doesn't stop the others; `Retry-After` dates; `ruff` in CI (#100); the hourly uptime check, and a summary sent only if its estimate fits the budget (#101); the canaries, and translations made again counted (#102) |
-| next (2026-10-10) | The daily runs' summaries through the Batches API, at half the price, collected at the end of each job (#PR) |
+| next (2026-10-10) | The daily runs' summaries through the Batches API, at half the price, collected at the end of each job (#107) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites. Its plan, `REVIEW-PLAN.md`, was never merged; every item in it
