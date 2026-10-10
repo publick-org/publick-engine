@@ -10,7 +10,9 @@ finished, then this week, then the stages. Brought up to date 2026-10-08,
 after a review of how the network scales: data files written whole, fact
 checks when a summary is saved and on headlines, engine updates that check
 the canaries in full and hold back a failing town instead of every town, an
-hourly check that every site loads, and the Batches API measured.
+hourly check that every site loads, and the Batches API measured. Brought up
+to date 2026-10-10: the hourly check live, the sites Worker deployed by hand
+again, and the daily runs' summaries sent through the Batches API.
 
 This file has four parts:
 
@@ -179,8 +181,7 @@ Reviewed 2026-10-07.
 | Officials kept current | Each list's `checked` date is shown and compared with nothing | Item 13 |
 | When documents were posted | Agenda Center's posting time is kept only inside `agenda_id` | Its own field, if [How fast the town posts its records](#ideas-to-decide) is chosen |
 | School boards not read yet | Burlington (Diligent Community), Lewiston (nested Google Drive folders), South Kingstown (Rhode Island's Open Meetings portal); Manchester's site blocks automated reading | Item 12 |
-| Summaries through the Batches API | Measured 2026-10-08 (`python -m pipeline.evaluate --set batch`, publick.org's Evaluate): a batch of the 15 test minutes took about 17 minutes at each effort, at half the price; `high` got all 51 decisions right, and lower effort saved only about 10% | Two more timing runs at the daily-run hour (2026-10-09 and 10, scheduled); then build it, with a deadline and one network-wide batch, if batches end well within 30 minutes. Item 26 |
-| The hourly uptime check | Built (#101): each site's homepage loaded every hour through the sites Worker, a "site down" issue opened and closed by the scheduler | Its Cron Trigger (`50 * * * *`) added to `wrangler.scheduler.toml` once #101 is in `engine-version` (2026-10-09); an older scheduler would take it for a daily run |
+| Summaries through the Batches API | Built 2026-10-10: a daily run sends each town's summaries as one batch, collected at the end of its job, with a 30-minute deadline (item 26) | Its first daily runs: how long the batches take, and what the ledgers show for the month |
 
 ### Now: this week
 
@@ -283,14 +284,16 @@ and publick.org #73.
     ([Releases](#releases))
 23. `CODEOWNERS` and required reviews, before the first editor from outside
     Publick. ([Who can change what](#who-can-change-what))
-24. *Done 2026-10-08* (publick.org #81): both Workers deploy when
-    `engine-version` moves to an engine whose `worker/` changed, or when
-    `wrangler.scheduler.toml` changes. Reminders for the steps that stay by
-    hand are left. ([Steps done by hand](#steps-done-by-hand))
+24. *Done 2026-10-08* (publick.org #81), and narrowed 2026-10-10 (#87): the
+    scheduler deploys when `engine-version` moves to an engine whose
+    scheduler changed, or when `wrangler.scheduler.toml` changes; the sites
+    Worker only by hand, with an issue asking for it. Reminders for the steps
+    that stay by hand are left. ([Steps done by hand](#steps-done-by-hand))
 25. Officials compared with each city's own pages, with differences opened
     as one issue for a person. ([Who represents you](#who-represents-you))
-26. Summaries through the Batches API: measured 2026-10-08; built if the
-    timing runs of 2026-10-09 and 10 hold up. ([AI costs](#ai-summary-and-translation-costs))
+26. *Done 2026-10-10*: summaries through the Batches API, at half the
+    price. Three timing runs (2026-10-08 to 10) took 17, 15, and 4 minutes.
+    ([AI costs](#ai-summary-and-translation-costs))
 
 ### Stage 3: about 100 to 1,000 towns
 
@@ -1019,13 +1022,19 @@ after eight days: $28.99 across ten towns (see
 **Next.**
 - More free full-text styles, each added once for every town on the same
   software: Foxit (Manchester's) next by count.
-- The Batches API, at half the price. Measured 2026-10-08: a batch of 15
-  minutes ended in about 17 minutes. Since readers shouldn't wait a day, the
-  plan is a batch sent early in the daily run and waited for, with a
-  deadline (about 30 minutes) after which what's left is sent as today, and
-  upcoming agendas sent as today. Built if the timing runs at the daily-run
-  hour (2026-10-09 and 10) hold up; about 40 to 50% more summaries for the
-  budget.
+- *Done 2026-10-10*: the Batches API, at half the price. Three timing runs
+  of the 15 test minutes at the daily-run hour (2026-10-08 to 10) took 17,
+  15, and 4 minutes, with `high` effort as right as one at a time. A daily
+  run's fetch sends each town's summaries as one batch (budgeted at half
+  their estimate) and publishes the town; once the job's towns are done, it
+  collects each batch, sends one at a time whatever a batch didn't make or
+  didn't finish within 30 minutes of being sent, and publishes the town
+  again (`pipeline.network run --collect`). So a new summary is on the site
+  about half an hour after its town's run at most, and costs half as much;
+  a batch a job couldn't collect is collected by the town's next run. Not a
+  network-wide batch sent early: the documents are fetched in each town's
+  job. Pull requests, rebuilds, and a town's own `town.yml` still send them
+  one at a time. Translations and transcriptions aren't batched yet.
 - At a hundred towns: one priority order across the network (upcoming
   agendas everywhere first), and a budget sized to the network.
 
@@ -1034,7 +1043,7 @@ after eight days: $28.99 across ten towns (see
 #### Steps done by hand
 
 **Why.** Fine at a handful of towns, not at fifty:
-- Deploying the Workers (`worker.yml`, by hand until 2026-10-08).
+- Deploying the sites Worker (`worker.yml`, by hand; the scheduler deploys by itself).
 - New Hampshire's yearly figures, downloaded in a browser because the
   state's websites refuse automated requests.
 - Officials, edited after every election.
@@ -1042,13 +1051,16 @@ after eight days: $28.99 across ten towns (see
 - An email routing rule for each town, in Cloudflare's dashboard.
 
 **Next.**
-- *Done 2026-10-08* (publick.org #81): `worker.yml` deploys both Workers
-  when `engine-version` moves to an engine whose `worker/` changed (most
-  releases don't, and deploy nothing), or when `wrangler.scheduler.toml`
-  changes; a change to `wrangler.toml` alone still deploys by hand. The
-  sites Worker now deploys by itself too, so a release it can't read can't
-  take every site down; the routes it deploys are `wrangler.toml` as it is
-  on `main`, so change that only when it's ready.
+- *Done 2026-10-08* (publick.org #81), narrowed 2026-10-10 (#87):
+  `worker.yml` deploys the scheduler when `engine-version` moves to an engine
+  whose scheduler changed (most releases don't), or when
+  `wrangler.scheduler.toml` changes. The sites Worker serves every site, so a
+  mistake in it takes them all down at once: it's deployed only by hand
+  (**Run workflow**, which deploys both). When `engine-version` moves to an
+  engine whose sites Worker changed, the push opens an issue asking for it,
+  and the hourly check opens "site down" if a site stops loading meanwhile.
+  Any deploy uses `wrangler.toml` as it is on `main`, so change that only
+  when it's ready.
 - The helper for adding a town runs the first fetches and sets up email
   routing through Cloudflare's API.
 - Officials and New Hampshire's figures stay by hand, with a reminder after
@@ -1664,8 +1676,8 @@ publick-org/publick.org
   wrangler.scheduler.toml     the Worker that starts the daily runs
   .github/workflows/          network.yml (the daily runs, pushes, pull requests), engine.yml
                               (moves engine-version each morning), evaluate.yml (the test sets,
-                              and the batch measurement, by hand), worker.yml (deploys both
-                              Workers when their code or the scheduler's config changes)
+                              and the batch measurement, by hand), worker.yml (deploys the
+                              scheduler when its code or config changes; the sites Worker by hand)
 ```
 
 The engine reads a town's config, data, and static files from
@@ -1768,6 +1780,7 @@ quiet days.
 | v1.44.0 (2026-10-07) | Taking down one summary by hand (#90); `town.yml` commits all of a town's data (#91); translations back to prompt 4, with a check without false alarms (#93); a table for every month chart (#94); each meeting's recording linked (#95); search titles and icons (#96, #97) |
 | v1.45.0 (2026-10-08, moved by hand) | Summaries of up to 200 pages, and one too long no longer reads as waiting (#99); share cards for recent and upcoming meetings, headlines led by what residents look for (#98) |
 | next (merged 2026-10-08) | The scalability review's fixes: data files written whole, a cut-off summary not paid for daily, `/constructor` a 404, the batch evaluation (#100); fact checks when saved, on "other" outcomes and on headlines; a calendar that can't be parsed doesn't stop the others; `Retry-After` dates; `ruff` in CI (#100); the hourly uptime check, and a summary sent only if its estimate fits the budget (#101); the canaries, and translations made again counted (#102) |
+| next (2026-10-10) | The daily runs' summaries through the Batches API, at half the price, collected at the end of each job (#PR) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
 live sites. Its plan, `REVIEW-PLAN.md`, was never merged; every item in it
