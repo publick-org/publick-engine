@@ -319,7 +319,7 @@ Kept so they aren't lost. Each comes into a stage when it's chosen.
   use; English first, Spanish later (Lawrence first). The email says what
   it holds first, and that its lines are written by AI once per section,
   above them. Decided 2026-10-06: Buttondown, pending its answers on API
-  access and turning tracking off (half price for a registered 501(c)(3));
+  access and turning tracking off;
   the scheduler Worker sends each town's issue at its date through the
   provider's API; the signup form posts to the sites Worker, which adds the
   town and language tag and passes it on, so the pages' `form-action 'self'`
