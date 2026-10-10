@@ -22,6 +22,16 @@ translations of older summaries already made, which cost about a tenth of a
 summary, before the older documents still waiting for one. An older document
 summarized in the run is translated after, if the budget allows.
 
+A daily run of the network sends a town's summaries as one batch (the Message
+Batches API), at half the price, instead of one at a time (PUBLICK_SUMMARY_BATCH=1).
+The batch's id and documents are kept in data/summary-batch.json, and the job
+collects its results once its other towns are done (PUBLICK_SUMMARY_COLLECT=1,
+from pipeline.network run --collect), up to BATCH_WAIT after it was sent. One
+not done by then is cancelled, and what it didn't finish is sent one at a time,
+as without a batch, from the same run's budget: it never costs more than
+sending them one at a time, and comes at most about BATCH_WAIT later. A batch a
+job didn't collect (it was stopped) is collected by the town's next run.
+
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
 
 What each month's summaries cost is kept in data/summary-costs.json, which
@@ -45,7 +55,8 @@ import io
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -271,6 +282,21 @@ def record_stopped_early(data_dir: Path, sha256: str, what: str, model: str, ver
     found.setdefault(sha256, {})[what] = {"model": model, "version": version, "tries": tries}
     write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
     return tries
+
+
+# A town's summaries sent as one batch, at BATCH_PRICE of a request's own price (see the module docstring).
+BATCH_ENV = "PUBLICK_SUMMARY_BATCH"
+COLLECT_ENV = "PUBLICK_SUMMARY_COLLECT"
+BATCH_FILE = "summary-batch.json"
+BATCH_PRICE = 0.5
+# How long after it's sent a batch is waited for before it's cancelled. Measured on the minutes set at
+# the daily runs' hour (pipeline/evaluate_batch.py, 2026-10-08 to 10): 4 to 17 minutes.
+BATCH_WAIT = timedelta(minutes=30)
+# How long a cancelled batch is waited for, to end and give what it finished.
+CANCEL_WAIT = timedelta(minutes=10)
+POLL_SECONDS = 15
+# The PDFs in one batch, well under the API's 256 MB once base64 adds a third; past it, one at a time.
+BATCH_MAX_BYTES = 150_000_000
 
 
 def summaries_dir(data_dir: Path) -> Path:
@@ -592,27 +618,213 @@ def summary_settings(config: dict) -> dict:
     return {"max_per_run": DEFAULT_MAX_PER_RUN, "max_cost_per_run": DEFAULT_MAX_COST_PER_RUN, **config["summaries"]}
 
 
+def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: dict, pdf: bytes, result: dict,
+                 usage: dict, paid: float, settings: dict, now: datetime, words: set[str]) -> float:
+    """Save a summary just made, with the document's own text, its roll calls, and its fact check.
+    Returns what an earlier summary of the document made this month cost: its file is replaced, so the
+    ledger's recount no longer finds it."""
+    record = {
+        **split_decisions(result),
+        "kind": kind,
+        "source_url": doc["source_url"],
+        "source_sha256": doc["sha256"],
+        "model": settings["model"],
+        "prompt_version": KINDS[kind]["version"],
+        "generated_at": now.isoformat(timespec="seconds"),
+        "usage": usage,
+        "cost": round(paid, 6),
+    }
+    record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
+    # A summary made earlier this month and made again (an agenda that now gives its time, a new
+    # prompt): its file is replaced, so what it cost is counted here.
+    replaced_cost = 0.0
+    earlier = summaries_dir(data_dir) / f"{doc['sha256']}.json"
+    if earlier.exists():
+        replaced = json.loads(earlier.read_text(encoding="utf-8"))
+        if replaced.get("generated_at", "")[:7] == now.strftime("%Y-%m"):
+            replaced_cost = record_cost(replaced, settings)
+    if record.get("is_minutes") is not False:
+        # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
+        words |= translate.summary_words(record)
+        record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+    save_record(data_dir, doc["sha256"], record)
+    return replaced_cost
+
+
+def at_batch_price(settings: dict) -> dict:
+    return {**settings, "input_price": settings["input_price"] * BATCH_PRICE,
+            "output_price": settings["output_price"] * BATCH_PRICE}
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def load_batch(data_dir: Path) -> dict | None:
+    path = data_dir / BATCH_FILE
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, dict, dict, bytes]], older: set[str],
+               sent_at: datetime, spent_before: float, backlog_before: float) -> dict:
+    """Send the documents' summaries as one batch and keep what it needs to be collected in data/: each
+    document's meeting and file, and what the run had spent before it, so the run that collects it goes
+    on from there."""
+    created = client.messages.batches.create(requests=[
+        {"custom_id": f"doc-{i}", "params": summary_request(settings["model"], kind, pdf, meeting["title"], meeting["date"])}
+        for i, (kind, meeting, doc, pdf) in enumerate(queued)])
+    pending = {
+        "id": created.id, "sent_at": sent_at.isoformat(timespec="seconds"), "model": settings["model"],
+        "spent_before": round(spent_before, 6), "backlog_before": round(backlog_before, 6),
+        "documents": [{"custom_id": f"doc-{i}", "kind": kind, "older": doc["sha256"] in older,
+                       "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
+                       "doc": {k: doc[k] for k in ("id", "sha256", "file", "source_url")}}
+                      for i, (kind, meeting, doc, _) in enumerate(queued)],
+    }
+    write_atomic(data_dir / BATCH_FILE, json.dumps(pending, indent=2) + "\n")
+    return pending
+
+
+def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict, now: datetime, words: set[str],
+                  clock=utc_now, sleep=time.sleep) -> dict:
+    """The town's batch of summaries, waited for until BATCH_WAIT after it was sent (cancelled if it isn't
+    done by then), and each summary it made saved as one sent alone would be. What it didn't make (an
+    error, cancelled) is left waiting, for the run to send one at a time. A batch that can't be collected
+    (the API can't be reached, or a cancelled one doesn't end) is kept for the next run, and its documents
+    are listed in "waiting", so they aren't sent twice."""
+    pending = load_batch(data_dir)
+    out = {"done": 0, "paid": 0.0, "paid_backlog": 0.0, "failed_cost": 0.0, "replaced_cost": 0.0,
+           "tokens": {"input_tokens": 0, "output_tokens": 0}, "errors": [], "waiting": set()}
+    if not pending:
+        return out
+    batches = client.messages.batches
+    shas = {d["doc"]["sha256"] for d in pending["documents"]}
+    try:
+        deadline = datetime.fromisoformat(pending["sent_at"]) + BATCH_WAIT
+        batch = batches.retrieve(pending["id"])
+        while batch.processing_status != "ended" and clock() < deadline:
+            sleep(POLL_SECONDS)
+            batch = batches.retrieve(pending["id"])
+        if batch.processing_status != "ended":
+            batches.cancel(pending["id"])
+            out["errors"].append(f"the batch of summaries wasn't done {BATCH_WAIT.seconds // 60} minutes after it was "
+                                 "sent, so it was cancelled; what it didn't finish is sent one at a time")
+            stop = clock() + CANCEL_WAIT
+            while batch.processing_status != "ended" and clock() < stop:
+                sleep(POLL_SECONDS)
+                batch = batches.retrieve(pending["id"])
+            if batch.processing_status != "ended":
+                out["errors"].append(f"the cancelled batch {pending['id']} hasn't ended; the next run collects it")
+                out["waiting"] = shas
+                return out
+        results = {r.custom_id: r.result for r in batches.results(pending["id"])}
+    except Exception as e:
+        out["errors"].append(f"the batch of summaries {pending['id']} couldn't be collected ({e}); the next run tries again")
+        out["waiting"] = shas
+        return out
+    prices = at_batch_price(settings)
+    for entry in pending["documents"]:
+        kind, meeting, doc = entry["kind"], entry["meeting"], entry["doc"]
+        result = results.get(entry["custom_id"])
+        if result is None or result.type != "succeeded":
+            # Not made, and not paid for: it's sent one at a time.
+            error = getattr(getattr(getattr(result, "error", None), "error", None), "message", None)
+            out["errors"].append(f"{kind} {doc['id']}: not made in the batch ({result.type if result else 'missing'}"
+                                 + (f": {error}" if error else "") + "); sent one at a time")
+            continue
+        try:
+            made, usage = summary_result(result.message)
+        except StoppedEarly as e:
+            paid = cost(e.usage, prices)
+            out["paid"] += paid
+            out["failed_cost"] += paid
+            if entry["older"]:
+                out["paid_backlog"] += paid
+            tries = record_stopped_early(data_dir, doc["sha256"], "summary", pending["model"], KINDS[kind]["version"])
+            out["errors"].append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries"
+                                                               if tries >= MAX_TRIES else ""))
+            continue
+        except Exception as e:
+            # A response that can't be read (not JSON): paid for, and sent again one at a time.
+            usage = getattr(result.message, "usage", None)
+            paid = cost({"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}, prices) if usage else 0.0
+            out["paid"] += paid
+            out["failed_cost"] += paid
+            out["errors"].append(f"{kind} {doc['id']}: the batch's summary couldn't be read ({e}); sent one at a time")
+            continue
+        paid = cost(usage, prices)
+        out["paid"] += paid
+        if entry["older"]:
+            out["paid_backlog"] += paid
+        try:
+            pdf = storage.get(KINDS[kind]["folder"], doc["file"])
+        except FetchError as e:
+            # Paid for, but it can't be saved without its document's text and check: made again later.
+            out["failed_cost"] += paid
+            out["errors"].append(f"{kind} {doc['id']}: {e}")
+            continue
+        out["replaced_cost"] += save_summary(config, data_dir, kind, meeting, doc, pdf, made, usage, paid,
+                                             {**settings, "model": pending["model"]}, now, words)
+        for k in out["tokens"]:
+            out["tokens"][k] += usage[k]
+        out["done"] += 1
+    (data_dir / BATCH_FILE).unlink()
+    return out
+
+
 def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None = None,
-        allowance: float | None = None, backlog_allowance: float | None = None) -> dict:
+        allowance: float | None = None, backlog_allowance: float | None = None, batch: bool = False,
+        collecting: bool = False, clock=utc_now, sleep=time.sleep) -> dict:
     """Summarize up to limit documents, new ones first, within the town's run limits and the
-    network's allowances for this run (None: no network limit)."""
+    network's allowances for this run (None: no network limit).
+
+    A batch of summaries the town has waiting is collected first. With batch, the documents are sent as
+    one batch, left for the job to collect. collecting is the job's run that collects the batch its first
+    run sent: it goes on from what that run had spent, and sends one at a time what the batch didn't make."""
     settings = summary_settings(config)
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
-    todo = pending_documents(data_dir, now.date().isoformat(), settings["model"], settings.get("since"))
-    new = [t for t in todo if is_new(t, now)]
-    backlog = [t for t in todo if not is_new(t, now)]
-    older = {doc["sha256"] for _, _, doc in backlog}
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
     month, replaced_cost, too_costly = now.strftime("%Y-%m"), 0.0, []
-    batch = (new + backlog)[:limit]
+    # The words the fact check takes as no one's name, as the town's summaries use them.
+    words = translate.town_words(data_dir)
+    pending = load_batch(data_dir)
+    if collecting and not pending:
+        # Nothing to collect: the run that sent nothing has already done the rest.
+        return {"summarized": 0, "collected": 0, "queued": 0, "laid_out": 0, "transcribed": 0, "translated": 0,
+                "drafted_texts": 0, "remaining": 0, "errors": [], "stopped": None, "estimated_cost": 0.0,
+                "month_cost": None, **tokens}
+    collected, waiting = 0, set()
+    if pending and "input_price" in settings and "output_price" in settings:
+        got = collect_batch(config, client, data_dir, storage, settings, now, words, clock, sleep)
+        collected, waiting = got["done"], got["waiting"]
+        errors += got["errors"]
+        failed_cost += got["failed_cost"]
+        replaced_cost += got["replaced_cost"]
+        for k in tokens:
+            tokens[k] += got["tokens"][k]
+        if collecting:
+            # The same run's budget, as its first part left it.
+            spent, spent_backlog = pending["spent_before"] + got["paid"], pending["backlog_before"] + got["paid_backlog"]
+        else:
+            # An earlier run's batch, paid for now.
+            spent, spent_backlog = got["paid"], got["paid_backlog"]
+    todo = [t for t in pending_documents(data_dir, now.date().isoformat(), settings["model"], settings.get("since"))
+            if doc_key(t) not in waiting]
+    new = [t for t in todo if is_new(t, now)]
+    backlog = [t for t in todo if not is_new(t, now)]
+    older = {doc["sha256"] for _, _, doc in backlog}
+    # With batch, the documents that fit in one; and while an earlier batch is still out, none.
+    batching = batch and not waiting and not collecting
+    queued, queued_bytes, queued_cost, queued_backlog = [], 0, {}, 0.0
+    work = (new + backlog)[:limit]
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
-    batch.insert(sum(1 for item in batch if doc_key(item) not in older), TRANSLATE)
+    work.insert(sum(1 for item in work if doc_key(item) not in older), TRANSLATE)
     if "input_price" not in settings or "output_price" not in settings:
         # Without prices the spending limit can't be enforced, so nothing is sent.
-        batch = []
+        work = []
         errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
     translated, translation_cost = 0, 0.0
     # The town's own text and names that its pages in another language would show in English
@@ -639,7 +851,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             if "credit balance" in str(e).lower():
                 errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
                 stopped = "out of credit"
-                batch = []
+                work = []
                 break
             errors.append(f"{lang} drafts of the town's text: {e}")
 
@@ -684,9 +896,39 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 if not only_new:
                     spent_backlog += paid
 
-    # The words the fact check takes as no one's name, as the town's summaries use them.
-    words = translate.town_words(data_dir)
-    for item in batch:
+    def one(kind: str, meeting: dict, doc: dict, pdf: bytes) -> bool:
+        """Summarize one document now, on its own; False when nothing more can be sent (out of credit)."""
+        nonlocal spent, spent_backlog, failed_cost, replaced_cost, done
+        try:
+            result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
+        except StoppedEarly as e:
+            # Paid for, though nothing is saved.
+            paid = cost(e.usage, settings)
+            spent += paid
+            failed_cost += paid
+            if doc["sha256"] in older:
+                spent_backlog += paid
+            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
+            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
+            return True
+        except Exception as e:  # one bad document must not stop the rest
+            if "credit balance" in str(e).lower():
+                # Out of API credit: every remaining request would fail the same way.
+                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+                return False
+            errors.append(f"{kind} {doc['id']}: {e}")
+            return True
+        paid = cost(usage, settings)
+        replaced_cost += save_summary(config, data_dir, kind, meeting, doc, pdf, result, usage, paid, settings, now, words)
+        for k in tokens:
+            tokens[k] += usage[k]
+        spent += paid
+        if doc["sha256"] in older:
+            spent_backlog += paid
+        done += 1
+        return True
+
+    for item in work:
         if item is TRANSLATE:
             translations(only_new=True)
             translations(only_new=False)
@@ -720,60 +962,40 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             room.append(allowance - spent)
         if backlog_allowance is not None and doc["sha256"] in older:
             room.append(backlog_allowance - spent_backlog)
-        estimate = estimated_cost(kind, pages or 1, settings)
+        in_batch = batching and queued_bytes + len(pdf) <= BATCH_MAX_BYTES
+        estimate = estimated_cost(kind, pages or 1, settings) * (BATCH_PRICE if in_batch else 1)
         if estimate > min(room):
             too_costly.append(f"{kind} {doc['id']} (about ${estimate:.2f})")
             continue
-        try:
-            result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
-        except StoppedEarly as e:
-            # Paid for, though nothing is saved.
-            paid = cost(e.usage, settings)
-            spent += paid
-            failed_cost += paid
+        if in_batch:
+            # Counted at its estimate until the batch is collected, so the rest of the run stays in budget.
+            queued.append((kind, meeting, doc, pdf))
+            queued_bytes += len(pdf)
+            queued_cost[doc["sha256"]] = estimate
+            spent += estimate
             if doc["sha256"] in older:
-                spent_backlog += paid
-            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
-            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
+                spent_backlog += estimate
+                queued_backlog += estimate
             continue
-        except Exception as e:  # one bad document must not stop the rest
-            if "credit balance" in str(e).lower():
-                # Out of API credit: every remaining request would fail the same way.
-                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
-                break
-            errors.append(f"{kind} {doc['id']}: {e}")
-            continue
-        paid = cost(usage, settings)
-        record = {
-            **split_decisions(result),
-            "kind": kind,
-            "source_url": doc["source_url"],
-            "source_sha256": doc["sha256"],
-            "model": settings["model"],
-            "prompt_version": KINDS[kind]["version"],
-            "generated_at": now.isoformat(timespec="seconds"),
-            "usage": usage,
-            "cost": round(paid, 6),
-        }
-        record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
-        # A summary made earlier this month and made again (an agenda that now gives its time, a new
-        # prompt): its file is replaced, so what it cost is counted here.
-        earlier = summaries_dir(data_dir) / f"{doc['sha256']}.json"
-        if earlier.exists():
-            replaced = json.loads(earlier.read_text(encoding="utf-8"))
-            if replaced.get("generated_at", "")[:7] == month:
-                replaced_cost += record_cost(replaced, settings)
-        if record.get("is_minutes") is not False:
-            # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
-            words |= translate.summary_words(record)
-            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
-        save_record(data_dir, doc["sha256"], record)
-        for k in tokens:
-            tokens[k] += usage[k]
-        spent += paid
-        if doc["sha256"] in older:
-            spent_backlog += paid
-        done += 1
+        if not one(kind, meeting, doc, pdf):
+            break
+    if queued:
+        try:
+            send_batch(client, data_dir, settings, queued, older, clock(),
+                       spent - sum(queued_cost.values()), spent_backlog - queued_backlog)
+        except Exception as e:
+            # Sent one at a time instead, within the run's limits at their own price.
+            errors.append(f"the batch of {len(queued)} summaries couldn't be sent ({e}); sent one at a time")
+            spent -= sum(queued_cost.values())
+            spent_backlog -= queued_backlog
+            for kind, meeting, doc, pdf in queued:
+                estimate = queued_cost[doc["sha256"]] / BATCH_PRICE
+                if estimate > min([settings["max_cost_per_run"] - spent] + ([allowance - spent] if allowance is not None else [])):
+                    too_costly.append(f"{kind} {doc['id']} (about ${estimate:.2f})")
+                    continue
+                if not one(kind, meeting, doc, pdf):
+                    break
+            queued = []
     if too_costly:
         stopped = stopped or (f"{len(too_costly)} waiting for a run with room for them: " + ", ".join(too_costly[:5])
                                + (", ..." if len(too_costly) > 5 else ""))
@@ -806,7 +1028,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # Then the model's transcription of scans, which screen readers can't read, only once
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
     transcribed, transcript_cost = 0, 0.0
-    summaries_left = len(todo) - done
+    # Those in this run's batch are still waiting, as are those in a batch not yet collected.
+    summaries_left = len(todo) - done + len(waiting)
     for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
         if not record.get("needs_transcript") or record.get("transcript"):
             continue
@@ -856,8 +1079,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         transcript_cost += paid
         transcribed += 1
     ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost, replaced_cost)
-    return {"summarized": done, "laid_out": laid_out, "transcribed": transcribed, "translated": translated,
-            "drafted_texts": drafted_texts,
+    return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
+            "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
 
@@ -882,8 +1105,10 @@ def main() -> int:
     if not configured(config, "summaries"):
         return 0
     client = anthropic.Anthropic(max_retries=3)
+    collecting = os.environ.get(COLLECT_ENV) == "1"
     summary = run(config, client, args.data, args.limit or summary_settings(config)["max_per_run"],
-                  allowance=dollars(ALLOWANCE_ENV), backlog_allowance=dollars(BACKLOG_ALLOWANCE_ENV))
+                  allowance=dollars(ALLOWANCE_ENV), backlog_allowance=dollars(BACKLOG_ALLOWANCE_ENV),
+                  batch=os.environ.get(BATCH_ENV) == "1" and not collecting, collecting=collecting)
     print(json.dumps(summary, indent=2))
     for error in summary["errors"]:
         print(f"::warning::{error}")

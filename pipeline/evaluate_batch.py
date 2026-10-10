@@ -35,7 +35,7 @@ from pathlib import Path
 from pipeline import evaluate, summarize
 
 # The Message Batches API's price, against a request's own.
-BATCH_PRICE = 0.5
+BATCH_PRICE = summarize.BATCH_PRICE
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 POLL_SECONDS = 15
 
