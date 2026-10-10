@@ -22,6 +22,11 @@ without a good update (published, with fresh data) in the last day or so, and
 those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
 any town does.
 
+run --collect is the end of a daily job: a town whose fetch sent its summaries as
+one batch (pipeline.summarize, PUBLICK_SUMMARY_BATCH) has them collected, and
+whatever the batch didn't make sent one at a time, then is built, checked, and
+published again with them. A town with no batch waiting is left as it is.
+
 canaries picks the fewest towns that between them have every state, every
 config table, and every kind of meeting source the network's towns have: the
 towns whose every page an engine update's pull request checks, while the rest
@@ -39,8 +44,8 @@ state's statewide checks that keep failing are listed by behind.
 
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
-                                      [--sample-checks] [--reports DIR]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] | --collect]
+                                      [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
@@ -262,8 +267,15 @@ def trim_sources(rows: list[dict]) -> list[dict]:
             for r in rows]
 
 
+# The town's summaries sent as one batch, waiting to be collected (pipeline/summarize.py's BATCH_FILE).
+SUMMARY_BATCH = "summary-batch.json"
+# The keys collecting it needs: the model's, and the document bucket's, to read each document again.
+COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+
+
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
-             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all") -> dict:
+             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all",
+             collect: bool = False) -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -274,6 +286,14 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
               "sources": None, "failing": [], "deployed": False}
     steps = result["steps"]
     data_before = folder_bytes(town_dir / "data")
+    if collect:
+        if not (town_dir / "data" / SUMMARY_BATCH).exists():
+            # No batch waiting: the town's site is as its run left it.
+            result.update(ok=True, finished_at=now(), collected=False)
+            return result
+        steps.append(step("Collect summaries", [python, "-m", "pipeline.summarize", "--town", town],
+                          {**keyed(env, COLLECT_KEYS), "PUBLICK_SUMMARY_COLLECT": "1"}, town_dir, step_timeout))
+        result["collected"] = True
 
     if fetch:
         update_report = town_dir / ".update-report.json"
@@ -625,6 +645,8 @@ def main() -> int:
     r.add_argument("--root", type=Path, default=Path.cwd())
     r.add_argument("--towns", required=True, help="town folders, comma- or space-separated")
     r.add_argument("--fetch", action="store_true", help="fetch new data first")
+    r.add_argument("--collect", action="store_true",
+                   help="collect each town's batch of summaries, if it has one, then build and publish it again")
     r.add_argument("--sources", choices=["all", "meetings", "figures", "311"], default="all",
                    help="with --fetch, which data to fetch (pipeline.update's groups)")
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
@@ -662,15 +684,18 @@ def main() -> int:
         return 0
     if args.command == "run":
         root = args.root.resolve()
+        if args.fetch and args.collect:
+            raise SystemExit("--collect is a run of its own, after the one that fetched")
         results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks,
-                            args.sources)
+                            args.sources, args.collect)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:
-                level = "warning" if args.fetch else "error"
+                level = "warning" if args.fetch or args.collect else "error"
                 print(f"::{level}::{result['folder']}: " + ", ".join(s["name"] for s in result["steps"] if not s["ok"]))
         # A fetching run keeps going when a town fails: its data is committed, and the daily alert says so.
-        return 0 if args.fetch or all(r["ok"] for r in results) else 1
+        # So does collecting: the site its fetching run published stays up.
+        return 0 if args.fetch or args.collect or all(r["ok"] for r in results) else 1
     if args.command == "behind":
         rows = behind(args.root.resolve(), args.hours)
         if args.new_since:
