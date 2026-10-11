@@ -188,9 +188,10 @@ export async function sendTown(env, host, now, cache) {
   const late = now - issue.due;
   if (late < 0 || late > SEND_WINDOW_HOURS * 3600_000) return { host, done: "not_due", subject: issue.subject };
   const key = env.BUTTONDOWN_SEND_KEY;
-  // Sent already: an email with this subject, made since shortly before the issue was due.
+  // Sent already: an email with this subject, made since shortly before the issue was due. Buttondown
+  // takes a date here, not a time (it refused one on 2026-10-11), so the day before, from its start.
   if (!cache.recent) {
-    const since = new Date(now - (SEND_WINDOW_HOURS + 24) * 3600_000).toISOString();
+    const since = new Date(now - (SEND_WINDOW_HOURS + 24) * 3600_000).toISOString().slice(0, 10);
     cache.recent = await listAll(key, `/emails?creation_date__start=${encodeURIComponent(since)}&excluded_fields=body`,
       "listing recent emails");
   }
@@ -213,7 +214,6 @@ export async function sendTown(env, host, now, cache) {
     commenting_mode: "disabled",
     canonical_url: issue.link,
     ...(monday ? { slug: `${townOf(host)}-${monday[1]}` } : {}),
-    metadata: { publick_issue: issue.link },
   };
   if (!email.filters.filters.length || !email.filters.filters[0].value) throw new Error("an email without its town's tag");
   // Buttondown asks each key once to confirm it means to send (API version 2026-04-01).
