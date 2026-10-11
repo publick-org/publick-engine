@@ -198,6 +198,9 @@ test("an issue due is sent once, to its town's readers only", async () => {
   assert.equal(sent.body.slug, "gloucester-ma-2026-10-05");
   assert.equal(sent.body.archival_mode, "disabled");
   assert.equal(sent.body.canonical_url, "https://gloucester-ma.publick.org/digest/2026-10-05/");
+  // Buttondown takes a date for when emails were made, not a time (HTTP 422 for "2026-10-03T15:35:00.000Z").
+  const listed = calls.find((c) => c.method === "GET" && c.path.startsWith("/emails"));
+  assert.equal(new URL(`https://x${listed.path}`).searchParams.get("creation_date__start"), "2026-10-03");
 });
 
 test("an issue isn't sent before it's due, nor more than 6 hours late", async () => {
