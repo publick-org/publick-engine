@@ -1034,7 +1034,17 @@ after eight days: $28.99 across ten towns (see
   a batch a job couldn't collect is collected by the town's next run. Not a
   network-wide batch sent early: the documents are fetched in each town's
   job. Pull requests, rebuilds, and a town's own `town.yml` still send them
-  one at a time. Translations and transcriptions aren't batched yet.
+  one at a time. The first daily run with it (2026-10-11) collected both
+  towns' batches, each summary at exactly half the price.
+- *Decided 2026-10-11: translations and transcriptions stay one at a time.*
+  A translation is two requests in turn (the translation, then the review
+  of its meaning), so batching it is two rounds of waiting: a new summary's
+  Spanish would follow its English by 30 to 60 minutes, for about $14 a
+  month at ten towns. A new scan's transcription can only be sent once its
+  summary is collected, so batching it means either each job running about
+  15 minutes longer or the text for screen readers a day late, for about $7
+  a month. Look again at about 50 towns, when they'd save about five times
+  as much.
 - At a hundred towns: one priority order across the network (upcoming
   agendas everywhere first), and a budget sized to the network.
 
