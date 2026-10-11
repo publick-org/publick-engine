@@ -86,12 +86,17 @@ def test_digest_feed(site_dir):
     body = text("description")
     # Every link in the email is in full; no page's markup (navigation, scripts) comes with it.
     links = re.findall(r'href="([^"]+)"', body)
-    assert links and all(link.startswith("https://gloucester-ma.publick.org/") for link in links)
-    # Each says it's from the email, for the page counts (count.js).
-    assert all(link.endswith("?ref=digest-email") for link in links)
+    # The site's own links, and the city's official site, as every page's footer has.
+    site_links = [link for link in links if link.startswith("https://gloucester-ma.publick.org/")]
+    assert site_links and set(links) - set(site_links) == {"https://gloucester-ma.gov"}
+    # Each of the site's says it's from the email, for the page counts (count.js).
+    assert all(link.endswith("?ref=digest-email") for link in site_links)
+    # Styled inline, in the town's own colors, as email apps drop a stylesheet; headed with the site's name.
+    assert "<style" not in body and 'style="' in body and "#011536" in body
+    assert "Gloucester <span" in body and "Weekly digest · Week of September 28, 2026" in body
     assert "<script" not in body and "<nav" not in body
     # It says what's inside first, and once, above the meetings, that their lines are written by AI.
-    assert body.startswith("<p>10 meetings this week.</p>")
+    assert re.search(r'<p style="[^"]*">10 meetings this week\.</p>', body)
     assert body.count("is an AI summary of its agenda") == 1 and "(AI summary)" not in body
 
 
@@ -126,11 +131,11 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     titles = [t.firstChild.data for t in feed.getElementsByTagName("title")]
     assert titles.index("Week of October 5, 2026") < titles.index("Week of September 28, 2026")
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
-    assert "Minutes from 1 meeting, with what it decided." in body.split("</p>")[0]
+    assert re.search(r'<p style="[^"]*">\d+ meetings? this week\. Minutes from 1 meeting, with what it decided\.</p>', body)
     assert body.count("written by AI from its minutes") == 1
     # The decisions not listed are a link away.
-    assert ('<a href="https://gloucester-ma.publick.org/meetings/2026-08-25-city-council/?ref=digest-email">'
-            "2 more decisions on the meeting's page</a>" in body)
+    assert re.search(r'<a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/\?ref=digest-email"'
+                     r' style="[^"]*">2 more decisions on the meeting\'s page</a>', body)
 
 
 def test_the_signup_form_posts_to_the_site_itself(site_dir):
