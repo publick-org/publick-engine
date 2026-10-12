@@ -4,6 +4,15 @@ table, and its wards, for the Officials page (/officials/).
 The members are kept by hand: they change at elections and vacancies, and no
 city publishes them as data. The ward boundaries are the town's ward file in
 data/static/ (the same file 311 uses), simplified for the page's map.
+
+A list kept by hand goes out of date at each election, so a town's config
+names its next municipal election ([officials] next_election). The list is
+due a check once the election is held, or once new terms begin, if that's
+later (the first month a member's term ends on or after the election's month,
+from the members' own term_ends). A list not checked by then, GRACE_DAYS
+after, is behind: the About page's data status, the network's status page,
+and the daily alert say so, and the Officials page says some members may
+have changed (review, pipeline/freshness.py).
 """
 
 from __future__ import annotations
@@ -11,11 +20,13 @@ from __future__ import annotations
 import json
 import re
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 MEMBER_FIELDS = {"name", "seat", "ward", "wards", "role", "term_ends", "email", "phone", "url"}
 BODY_FIELDS = {"name", "board", "url", "note", "members"}
+# Days after a list is due a check (the election, or new terms) before it counts as behind.
+GRACE_DAYS = 7
 
 
 def slugify(text: str) -> str:
@@ -49,9 +60,9 @@ def at_large(config: dict) -> bool:
                    for b in config.get("officials", {}).get("bodies", []) for m in b.get("members", []))
 
 
-def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> dict:
+def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, today: date | None = None) -> dict:
     """The page's officials: each body with its members, and who represents each ward.
-    boards maps meeting board names to their pages, to link each body's meetings."""
+    boards maps meeting board names to their pages, to link each body's meetings; today is the build's day."""
     table = config.get("officials")
     where = f"config/{config['slug']}.toml"
     if not table or not table.get("bodies"):
@@ -99,8 +110,11 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
                        # A Seat column only where seats differ: "At-large" on every row, or a mayor's one
                        # "Citywide", says nothing the body's note doesn't.
                        "show_seat": len({m["seat"] for m in members}) > 1})
+    due = review(config, today or date.today())
     return {
         "checked": checked.isoformat(),
+        # Not checked since the election, or since new terms began: the page says members may have changed.
+        "out_of_date": due if due and due["behind"] else None,
         "bodies": bodies,
         # A dash for a term or contact no official source gives, explained under the tables.
         "dashes": any(not m["term_ends"] or not (m.get("email") or m.get("phone")) for b in bodies for m in b["members"]),
@@ -110,6 +124,31 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None) -> 
         "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": sorted(by_ward.get(w, []), key=lambda m: m["order"])}
                   for w in wards],
     }
+
+
+def review(config: dict, today: date) -> dict | None:
+    """When the list is due a check, from the town's next municipal election ([officials] next_election),
+    or None for a town that doesn't give one. Due on the election's day, or on the first day of the month
+    new terms begin, if that's later: the first month a member's term ends on or after the election's
+    month. Behind when it wasn't checked on or after that day, GRACE_DAYS after it; passed when it was,
+    and the election is over, so the config's next_election should move to the one after."""
+    table = config.get("officials") or {}
+    if "next_election" not in table:
+        return None
+    where = f"config/{config['slug']}.toml"
+    try:
+        election = date.fromisoformat(str(table["next_election"]))
+    except ValueError:
+        raise SystemExit(f'[officials] next_election in {where} must be the date of the town\'s next municipal election, '
+                         f'like "2027-11-02".')
+    checked = date.fromisoformat(str(table["checked"]))
+    ends = sorted(date.fromisoformat(f"{m['term_ends']}-01") for body in table.get("bodies", [])
+                  for m in body.get("members", []) if re.fullmatch(r"\d{4}-\d{2}", str(m.get("term_ends", ""))))
+    terms = next((d for d in ends if d >= election.replace(day=1)), None)
+    due = max(election, terms) if terms else election
+    return {"election": election, "terms": terms if terms and terms > election else None, "due": due,
+            "checked": checked, "behind": checked < due and today >= due + timedelta(days=GRACE_DAYS),
+            "passed": checked >= due and today >= due}
 
 
 def ward_names(data_dir: Path, config: dict) -> set[str]:

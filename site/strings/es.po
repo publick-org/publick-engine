@@ -2584,7 +2584,7 @@ msgstr "Impuesto de educación sobre otras propiedades"
 msgid "Elected citywide for four years."
 msgstr "Elegido por toda la ciudad por cuatro años."
 
-#: site/pages/about/index.html
+#: pipeline/freshness.py site/pages/about/index.html
 msgid "Elected officials"
 msgstr "Funcionarios electos"
 
@@ -6257,6 +6257,18 @@ msgstr ""
 
 #: site/pages/officials/index.html
 #, python-format
+msgid "That was before new terms began in %(month)s, so some members may have changed."
+msgstr ""
+"Eso fue antes de que empezaran los nuevos mandatos en %(month)s, así que algunos miembros pueden "
+"haber cambiado."
+
+#: site/pages/officials/index.html
+#, python-format
+msgid "That was before the election of %(election)s, so some members may have changed."
+msgstr "Eso fue antes de las elecciones del %(election)s, así que algunos miembros pueden haber cambiado."
+
+#: site/pages/officials/index.html
+#, python-format
 msgid "The %(board)s's official page"
 msgstr "%(board)s: página oficial"
 
@@ -7722,6 +7734,20 @@ msgstr "Junta de Ajustes de Zonificación"
 msgid "Zoning Board of Appeals"
 msgstr "Junta de Apelaciones de Zonificación"
 
+#. the check the list of elected officials is due, such as "a check after the election of November 2,
+#. 2027".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "a check after the election of {date}"
+msgstr "una revisión después de las elecciones del {date}"
+
+#. the check the list of elected officials is due, such as "a check once new terms begin in January
+#. 2028".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "a check once new terms begin in {month}"
+msgstr "una revisión cuando empiecen los nuevos mandatos en {month}"
+
 #: pipeline/build_site.py
 msgid "agenda items"
 msgstr "puntos de la agenda"
@@ -7786,6 +7812,20 @@ msgstr[1] ""
 #: pipeline/rhythms.py
 msgid "no data yet"
 msgstr "aún no hay datos"
+
+#. why the list of elected officials is behind, such as "not checked since new terms began in January
+#. 2028".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "not checked since new terms began in {month}"
+msgstr "no se ha revisado desde que empezaron los nuevos mandatos en {month}"
+
+#. why the list of elected officials is behind, such as "not checked since the election of November 3,
+#. 2026".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "not checked since the election of {date}"
+msgstr "no se ha revisado desde las elecciones del {date}"
 
 #: site/templates/macros.html
 msgctxt "address"
