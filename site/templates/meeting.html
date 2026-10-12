@@ -272,6 +272,13 @@
 {% endif %}
 {% endif %}
 
+{# The weekly digest's signup, for a reader who came for one meeting; in English, as the digest is for now (pipeline/digest.py). #}
+{% if digest_signup and lang == "en" %}
+{# Translators: %(town)s is the town's name. #}
+<p class="callout">{% if meeting_links.documents %}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings and what they decided by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}
+{%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings for the week ahead by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}{% endif %}</p>
+{% endif %}
+
 {% if m.glossary %}
 <h2 id="terms">{{ _("Terms used here") }}</h2>
 <dl class="defs">

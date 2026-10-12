@@ -54,6 +54,10 @@ def test_every_page_in_both_languages(built, site_dir):
     digest = page(out, "/digest/")
     assert "hreflang" not in digest and "language-switch" not in digest
     assert 'href="/digest/"' in page(out, "/") and 'href="/digest/"' not in page(out, "/es/")
+    # Nor its signup, on the home page and each meeting's and board's.
+    assert "signup-box" in page(out, "/") and "/digest/" not in page(out, "/es/")
+    for url in ("/meetings/2026-08-25-city-council/", "/meetings/boards/city-council/"):
+        assert "/digest/#signup" in page(out, url) and "/digest/" not in page(out, f"/es{url}")
     assert "/es/" in urls and "/es/meetings/" in urls
     assert "https://gloucester-ma.publick.org/es/meetings/" in (out / "sitemap.xml").read_text()
 

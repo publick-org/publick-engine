@@ -1,0 +1,18 @@
+{# The weekly digest's email signup form ([digest] signup in the town's config), on /digest/ (digest_signup.html)
+   and the home page. form_id tells each form's fields apart. It posts to the town's own address, which the
+   network's Worker answers (worker/digest.js), never to the email provider's.
+   The field in the hidden block is for bots, which fill in every field; the Worker drops a signup with it. #}
+<form class="search-form" action="/digest/subscribe" method="post">
+  <label for="{{ form_id }}-email">{{ _("Email address") }}</label>
+  <div class="search-row">
+    <input id="{{ form_id }}-email" name="email" type="email" required maxlength="254" autocomplete="email" aria-describedby="{{ form_id }}-note">
+    <button class="button button-primary" type="submit">{{ _("Sign up") }}</button>
+  </div>
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <div hidden>
+    <label for="{{ form_id }}-website">{{ _("Leave this empty") }}</label>
+    <input id="{{ form_id }}-website" name="website" type="text" tabindex="-1" autocomplete="off">
+  </div>
+  {# Translators: %(provider)s is the email service that sends the digest, such as "Buttondown". #}
+  <p class="small" id="{{ form_id }}-note">{% trans provider=digest_signup.provider, url="/about/#privacy" %}{{ provider }}, the service that sends the digest, keeps your address until you unsubscribe. <a href="{{ url }}">What's kept</a>.{% endtrans %}</p>
+</form>
