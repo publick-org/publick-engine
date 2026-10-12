@@ -178,7 +178,7 @@ Reviewed 2026-10-07.
 | Vote records | Malden's roll calls collected daily since 2026-10-01 (128, 127 pass every check), shown nowhere | Item 14: item numbers read right, a few weeks of a person checking each new vote, a switch per town ([Vote records](#vote-records)) |
 | Saying why something is missing | Meeting pages, sections, and tables explain their gaps, and the site checks hold them to it | Item 7 |
 | 311 out of git | Planned "before the next 311 town", but Burlington, South Kingstown, and Bangor launched with 311 without it | Item 8, before any further 311 town |
-| Officials kept current | Each list's `checked` date is shown and compared with nothing | Item 13 |
+| Officials kept current | Built 2026-10-12: `[officials] next_election`, with the list due a check after the election or once new terms begin, and behind a week after (`officials.review`) | Item 13: each town's date in its config, in publick.org |
 | When documents were posted | Agenda Center's posting time is kept only inside `agenda_id` | Its own field, if [How fast the town posts its records](#ideas-to-decide) is chosen |
 | School boards not read yet | Burlington (Diligent Community), Lewiston (nested Google Drive folders), South Kingstown (Rhode Island's Open Meetings portal); Manchester's site blocks automated reading | Item 12 |
 | Summaries through the Batches API | Built 2026-10-10: a daily run sends each town's summaries as one batch, collected at the end of its job, with a 30-minute deadline (item 26) | Its first daily runs: how long the batches take, and what the ledgers show for the month |
@@ -256,8 +256,9 @@ and publick.org #73.
     Kingstown's School Committee, and every RI public body); then the next
     platform a chosen town needs. ([Readers](#readers-for-more-platforms))
 13. **Officials kept current**: each town's next election date in its config,
-    with the status page flagging a list not checked since.
-    ([Who represents you](#who-represents-you))
+    with the status page flagging a list not checked since. *Built
+    2026-10-12* in the engine; each town's date goes in its config in
+    publick.org. ([Who represents you](#who-represents-you))
 14. **Vote records shown**, for Malden's council first, after a few weeks of
     a person checking every new vote. ([Vote records](#vote-records))
 15. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
@@ -1453,10 +1454,17 @@ first Monday in April; every other town in November 2027, with new terms in
 January 2028. The network README's "Keeping officials current" keeps the
 list.
 
+**Next election, checked** (built 2026-10-12): each town's config gives
+its next municipal election (`[officials] next_election`). The list is due a
+check on that day, or once new terms begin if that's later (the first month
+a member's `term_ends` on or after the election's), and a week after, if
+`checked` is earlier, it's behind: an "Elected officials" row in the About
+page's data status, the network's status page and daily alert, and a line
+on the Officials page saying some members may have changed
+(`officials.review`, `freshness.officials_row`). Once checked, the update
+warns until `next_election` moves to the next one.
+
 **Next.**
-- Each town's next municipal election in its config, and the status page
-  flagging a list not checked since. Today the `checked` date is shown and
-  never compared with anything (`pipeline/officials.py`).
 - The street lookup says which wards a street runs through.
 - At 20 to 50 towns: a check that compares each town's list with its city's
   own council and school committee pages (most are CivicPlus, so one reader
