@@ -1198,7 +1198,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # Who represents you: the Officials page, and its ward map's shapes.
     officials = wards_json = wards_url = None
     if "officials" in built_folders:
-        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]})
+        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]},
+                                       built_at.date())
         localize_officials(officials, tr)
         ward_shapes = officials_mod.map_data(data_dir, config)
         if ward_shapes:

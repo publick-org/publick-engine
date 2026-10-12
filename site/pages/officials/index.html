@@ -17,6 +17,9 @@
   <h1>{{ _("Who represents you") }}</h1>
   <p class="lede">{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
   <p class="source-note">{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
+  {% if o.out_of_date %}{% set due = o.out_of_date %}
+  <p class="source-note"><strong class="flag">{% if due.terms %}{% trans month=due.terms | date("month") %}That was before new terms began in {{ month }}, so some members may have changed.{% endtrans %}{% else %}{% trans election=due.election | date("plain") %}That was before the election of {{ election }}, so some members may have changed.{% endtrans %}{% endif %}</strong></p>
+  {% endif %}
 </div>
 
 {% set links = [] %}

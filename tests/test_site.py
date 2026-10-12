@@ -758,3 +758,52 @@ def test_meeting_lastmod():
     # A translation that comes later changes that language's page.
     assert build_site.meeting_lastmod({**m, "preview": {"generated_at": "2026-09-04", "translated_at": "2026-09-11T01:00:00"}},
                                       date(2026, 9, 12)) == "2026-09-11"
+
+
+def test_officials_list_is_due_a_check_after_each_election(config):
+    import copy
+    from datetime import date
+    from pipeline import freshness, officials
+    town = copy.deepcopy(config)
+    assert officials.review(town, date(2026, 10, 1)) is None
+    # The fixture's terms end in January 2028, after an election in November 2027: due once they begin.
+    town["officials"]["next_election"] = "2027-11-02"
+    due = officials.review(town, date(2028, 1, 7))
+    assert due["due"] == date(2028, 1, 1) and due["terms"] == date(2028, 1, 1) and not due["behind"]
+    assert officials.review(town, date(2028, 1, 8))["behind"]
+    row = freshness.officials_row(officials.review(town, date(2026, 10, 1)))
+    assert not row["stale"] and row["next"] == "a check once new terms begin in January 2028"
+    assert row["updated_at"] == "2026-09-15"
+    row = freshness.officials_row(officials.review(town, date(2028, 2, 1)))
+    assert row["stale"] and row["behind"] == "not checked since new terms began in January 2028" and not row["next"]
+    # Checked since: up to date, and the config's next_election has passed (the maintainer is warned).
+    town["officials"]["checked"] = "2028-01-04"
+    due = officials.review(town, date(2028, 2, 1))
+    assert not due["behind"] and due["passed"]
+    # Terms that begin the month of the election (or none given): due on the election's day.
+    town["officials"]["checked"] = "2026-09-15"
+    town["officials"]["next_election"] = "2028-01-04"
+    due = officials.review(town, date(2028, 1, 11))
+    assert due["due"] == date(2028, 1, 4) and due["terms"] is None and due["behind"]
+    assert freshness.officials_row(due)["behind"] == "not checked since the election of January 4, 2028"
+    town["officials"]["next_election"] = "soon"
+    with pytest.raises(SystemExit, match="next_election"):
+        officials.review(town, date(2028, 1, 11))
+
+
+def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_path, monkeypatch):
+    import copy
+    from datetime import datetime
+    from pipeline import officials
+    from conftest import TZ
+    town = copy.deepcopy(config)
+    town["officials"]["next_election"] = "2027-11-02"
+    assert officials.load(town, data_dir, today=date(2027, 12, 1))["out_of_date"] is None
+    assert officials.load(town, data_dir, today=date(2028, 1, 8))["out_of_date"]["terms"] == date(2028, 1, 1)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data_dir, now=datetime(2028, 1, 8, 7, 0, tzinfo=TZ))
+    page = (out / "officials" / "index.html").read_text()
+    assert "That was before new terms began in January 2028, so some members may have changed." in page
+    about = (out / "about" / "index.html").read_text()
+    assert re.search(r'<th scope="row">Elected officials</th>.*?not checked since new terms began in January 2028', about, re.S)
