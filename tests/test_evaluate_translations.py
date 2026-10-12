@@ -26,7 +26,7 @@ def test_each_summary_is_translated_checked_and_reviewed_as_a_run_does():
     assert [r["passed"] for r in results] == [True, True]
     assert all(len(r["tries"]) == 1 and r["cost"] > 0 for r in results)
     # The meeting's board is given in Spanish, and the review gets the translator's rules.
-    prompts = [c["messages"][0]["content"] for c in client.calls if c["system"].startswith("You translate short summaries")]
+    prompts = [c["messages"][0]["content"] for c in client.calls if c["system"][0]["text"].startswith("You translate short summaries")]
     assert all('in Spanish, "Concejo Municipal"' in p for p in prompts)
     text = evaluate_translations.report(results)
     assert "Passed the first time: 2 of 2 (100%)" in text

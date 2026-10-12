@@ -30,7 +30,9 @@ again only when its English summary changes (or this module's prompt does:
 VERSION). summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
 summaries waiting, which cost about ten times as much; their cost is in the
-month's ledger as translation_cost.
+month's ledger as translation_cost. Their system prompts are the same for
+every request, so they're cached: within a run, each request after the first
+reads its system prompt at a tenth of the price.
 
 A town's own text (its config's tagline, section summaries, officials' seats)
 and the names in its data (boards, 311 categories) come from the town's
@@ -437,6 +439,21 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
     return "ok"
 
 
+def cached(system: str) -> list[dict]:
+    """A system prompt, cached: it's the same for every request of its kind, so the requests after the
+    first within a few minutes read it from the cache at a tenth of the input price."""
+    return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+
+
+def usage_of(response) -> dict:
+    """A response's tokens: input and output, and the cached input written and read, when there was any."""
+    usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    for key in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+        if getattr(response.usage, key, None):
+            usage[key] = getattr(response.usage, key)
+    return usage
+
+
 def settings(config: dict) -> dict:
     """The translation model, its prices, and its effort: [summaries] translation_model,
     translation_input_price, translation_output_price, and translation_effort, or Claude Sonnet
@@ -488,11 +505,11 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
-        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+        system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
         messages=[{"role": "user", "content": prompt}],
         output_config=output_config(config, schema(kind)),
     )
-    usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    usage = usage_of(response)
     if response.stop_reason != "end_turn":
         from pipeline.summarize import StoppedEarly
         raise StoppedEarly(response.stop_reason, usage)
@@ -604,7 +621,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
@@ -618,7 +635,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         if "credit balance" in str(e).lower():
             raise
         return {UNREVIEWED: str(e)}, 0.0
-    paid = cost({"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}, rsettings)
+    paid = cost(usage_of(response), rsettings)
     if response.stop_reason != "end_turn":
         return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
     problems: dict[str, str] = {}
@@ -719,7 +736,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         response = client.messages.create(
             model=tsettings["model"],
             max_tokens=MAX_TOKENS,
-            system=NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            system=cached(NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
             messages=[{"role": "user", "content": NAMES_PROMPT.format(
                 town=config["town"]["name"], state=config["town"]["state"], n=len(batch), language=LANGUAGE_NAMES[lang],
                 texts=json.dumps(batch, ensure_ascii=False, indent=1))}],
@@ -727,7 +744,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
                 "type": "object", "properties": {"translations": {"type": "array", "items": {"type": "string"}}},
                 "required": ["translations"], "additionalProperties": False}),
         )
-        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+        usage = usage_of(response)
         paid = cost(usage, tsettings)
         spent += paid
         at = now.isoformat(timespec="seconds")
