@@ -33,7 +33,9 @@ def test_sundays(since, today, expected):
 
 def test_an_issue_lists_the_week_ahead_and_the_minutes_of_the_week_before():
     meetings = [
+        meeting("2026-08-19", "2026-10-02T06:00:00-04:00"),  # 46 days before the issue: past the limit
         meeting("2026-08-20", "2026-09-01T06:00:00-04:00"),  # minutes collected the first day: history
+        meeting("2026-08-20", "2026-10-02T07:00:00-04:00", body="Planning Board"),  # 45 days: listed
         meeting("2026-09-15", "2026-09-28T06:00:00-04:00"),  # minutes collected Monday of the week before
         meeting("2026-09-22", "2026-10-04T23:30:00-04:00"),  # and late on the issue's Sunday
         meeting("2026-09-24", "2026-10-05T00:30:00-04:00"),  # the next issue's
@@ -45,7 +47,7 @@ def test_an_issue_lists_the_week_ahead_and_the_minutes_of_the_week_before():
     issue = found[0]
     assert (issue["sunday"], issue["monday"], issue["end"], issue["url"]) == ("2026-10-04", "2026-10-05", "2026-10-11", "/digest/2026-10-05/")
     assert [m["date"] for m in issue["meetings"]] == ["2026-10-05", "2026-10-11"]
-    assert [m["date"] for m in issue["minutes"]] == ["2026-09-15", "2026-09-22"]
+    assert [m["date"] for m in issue["minutes"]] == ["2026-08-20", "2026-09-15", "2026-09-22"]
     assert issue["send_at"] == datetime(2026, 10, 4, 17, 30, tzinfo=TZ)
     assert [day for day, _ in issue["days"]] == ["2026-10-05", "2026-10-11"]
     # Each earlier week with a meeting has its issue; those with nothing (September 6) have none.
@@ -133,6 +135,7 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
     assert re.search(r'<p style="[^"]*">\d+ meetings? this week\. Minutes from 1 meeting, with what it decided\.</p>', body)
     assert body.count("written by AI from its minutes") == 1
+    assert "more meeting on the site" not in body
     # The decisions not listed are a link away.
     assert re.search(r'<a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/\?ref=digest-email"'
                      r' style="[^"]*">2 more decisions on the meeting\'s page</a>', body)
@@ -151,8 +154,10 @@ def test_the_signup_form_posts_to_the_site_itself(site_dir):
     for outcome, title in (("thanks", "Check your email"), ("problem", "That didn't go through")):
         page = (site_dir / "digest" / outcome / "index.html").read_text()
         assert f"<h1>{title}</h1>" in page
-    # Pages a form leads to aren't for search engines.
+        # Pages a form leads to aren't for search engines.
+        assert '<meta name="robots" content="noindex">' in page
     assert "/digest/thanks/" not in (site_dir / "sitemap.xml").read_text()
+    assert "noindex" not in (site_dir / "digest" / "index.html").read_text()
 
 
 def test_the_about_page_says_what_the_signup_keeps(site_dir):
@@ -167,3 +172,18 @@ def test_a_signup_needs_who_keeps_the_addresses(config):
     assert digest.signup({**config, "digest": {"signup": False}}) is None
     with pytest.raises(SystemExit, match="needs provider and privacy_url"):
         digest.signup({**config, "digest": {"signup": True}})
+
+
+def test_the_email_lists_some_meetings_minutes_and_links_the_rest(with_new_minutes, data_dir, monkeypatch):
+    """A week with more meetings' minutes than digest.EMAIL_MINUTES: the email lists that many, and
+    links the issue's page, which lists them all."""
+    monkeypatch.setattr(digest, "EMAIL_MINUTES", 0)
+    out = Path(tempfile.mkdtemp(prefix="publick-digest-")) / "site"
+    build_site.build("gloucester", out, data_dir=with_new_minutes.parent / "data", now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
+    body = minidom.parse(str(out / "digest" / "feed.xml")).getElementsByTagName("item")[0] \
+        .getElementsByTagName("description")[0].firstChild.data
+    assert "Minutes from 1 meeting, with what it decided." in body
+    assert "Approved the site plan for 12 Main St" not in body
+    assert re.search(r'<a href="https://gloucester-ma\.publick\.org/digest/2026-10-05/\?ref=digest-email" style="[^"]*">'
+                     r'Minutes from 1 more meeting on the site</a>', body)
+    assert "Approved the site plan for 12 Main St" in (out / "digest" / "2026-10-05" / "index.html").read_text()

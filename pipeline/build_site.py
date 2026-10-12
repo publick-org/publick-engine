@@ -1304,7 +1304,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
             render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
             issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF,
-                                                                              palette=colors(config))
+                                                                              palette=colors(config), shown=digest.EMAIL_MINUTES)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
         if common["digest_signup"]:
             # Where the signup form leads (worker/digest.js); not for search engines.
