@@ -16,12 +16,14 @@ again, and the daily runs' summaries sent through the Batches API. Brought
 up to date 2026-10-12: eleven towns with Lowell, the weekly digest emailed
 for all ten towns that have data, the officials list checked against each
 town's next election, 311's working files moved out of git, and what adding
-ten more towns needs first.
+ten more towns needs first; and that evening, Regional Publick written
+down as what comes after the first 20 towns.
 
 This file has four parts:
 
-1. **[Where Publick is going](#where-publick-is-going)**: the vision, and the
-   rules for choosing what comes next.
+1. **[Where Publick is going](#where-publick-is-going)**: the vision, the
+   rules for choosing what comes next, and Regional Publick, what comes
+   after the first 20 towns.
 2. **[Priorities](#priorities)**: one ordered list, from this week to a
    thousand towns, with what's decided but not scheduled, ideas still to
    decide, and what isn't planned.
@@ -94,6 +96,95 @@ plan: Actions minutes are free, at most 20 jobs run at once, and a run's
 matrix is at most 256 jobs. AI summaries and translations share a network
 budget of **$80 a month**. One person runs and merges everything; about two
 thirds of commits are written by AI.
+
+### Regional Publick: after the first 20 towns
+
+Written down 2026-10-12, not scheduled. The work for about 20 towns comes
+first: the stage [Then: to about 20 towns](#then-to-about-20-towns) and the
+[Started, not finished](#started-not-finished) table cleared. Until then nothing here is built, and it stays out
+of the priority list.
+
+**What it is.** Each town's site shows that town alone. Regional Publick
+shows the towns beside each other: how a town's figures compare with towns
+near it and like it, and what other towns are doing about the same thing.
+Town halls already do this by phone; residents, reporters, and the state's
+own legislators have nothing like it. It grows more useful with each town
+added, which suits a network of a thousand towns.
+
+**Not the statehouse.** It isn't a site for state government: no bills, no
+summaries of state business, no legislators' votes. Statehouses are covered
+far better than city halls, legislatures already publish structured data
+that others collect, and a wrong bill summary beside a named legislator is
+the harm the first rule guards against. The narrow "Your state legislators"
+block under [Decided, not scheduled](#decided-not-scheduled) stays as it is.
+
+**Towns chosen in clusters.** Comparing what towns discuss works by region,
+not by state, so the towns after the first 20 are chosen to fill a cluster,
+still for the people they reach and how little local coverage they have.
+The first two:
+- *The Merrimack Valley*: Lawrence and Lowell, then Methuen and Haverhill.
+- *The North Shore*: Gloucester and Beverly, then Salem, Swampscott,
+  Saugus, Danvers, and Peabody.
+
+Methuen, Swampscott, Saugus, and Danvers are config only; Haverhill's
+platform isn't read yet, and Peabody's site may refuse automated reading
+(see [Next towns](#next-towns)).
+
+**1. Comparing figures.** Tax bill, budget per resident, spending per pupil,
+housing, and 311 where a town has it, beside other towns.
+- *Every town in the state, not only Publick's.* The state packages already
+  fetch statewide sources: DLS's reports in `states/ma/` have all 351
+  Massachusetts municipalities, and Connecticut's data.ct.gov query all 169
+  towns. So a town can be compared with every town in its state from its
+  first day, with no new source and no AI.
+- *Two groups, the reader's choice:* neighbors (the towns that border it)
+  and towns like it (size, income, tax base; Massachusetts's Kind of
+  Community classes and DESE's comparison districts, where a state has
+  them).
+- *Where a town sits, never a rank:* every comparable town on one strip
+  with this town marked, not "#212 of 351". Each comparison says in a
+  sentence why towns differ on it (a small commercial tax base, a split
+  tax rate), and shows the trend as well as the year.
+- *Within one state only.* The packages define figures differently
+  (Vermont's homestead bill, Connecticut's calculated bill, none in Rhode
+  Island), so towns in different states are never set side by side.
+- *What makes a comparison wrong:* regional school districts (spending per
+  pupil isn't the town's), charter school tuition, different fiscal years,
+  and a missing figure that reads as zero. Each is said, as the sites
+  already say why something is missing.
+
+**2. What other towns are discussing.** The part no one else has, and the
+part that needs Publick's own towns, since it comes from their meetings.
+- *Agenda items tagged by topic:* MBTA Communities zoning, accessory
+  dwelling units under the 2024 housing law, short-term rentals, PFAS in
+  drinking water, the stretch energy code, cannabis, school budget gaps,
+  shared fire or dispatch services. Keyword lists and the names of state
+  laws first, without AI; AI only where they fall short, and checked as
+  summaries are.
+- *A page per topic, per region and per state*: which towns took it up,
+  when, at which board, each linking its meeting and document. For
+  example, "MBTA Communities across Massachusetts".
+- *An issue spreading:* three North Shore towns taking up the same thing in
+  a month is news, and these pages show it first.
+
+**3. Built on those.**
+- A weekly email across a region or state, from the digest's machinery;
+  for reporters above all.
+- Alerts: "tell me when a town near me takes up short-term rentals".
+- Each comparison and topic as a CSV, under CC BY 4.0, with the
+  [open data export](#open-data).
+- How fast each town posts its records, beside the state's deadline, from
+  [Ideas to decide](#ideas-to-decide): labeled "posted online", never
+  ranked.
+
+**In order, once it starts:** figures compared for Massachusetts from DLS;
+the same for every state with a package; topic tags across the towns there
+are, and the first topic page (MBTA Communities); then the regional email
+and alerts, once a cluster has enough towns to be worth reading.
+
+**Open questions.** Who it's for first, residents or reporters and town
+officials. Which towns fill each cluster, and in what order. Whether the
+topic list is kept by hand or grows from the documents.
 
 ## Where things stand (2026-10-12)
 
@@ -435,9 +526,10 @@ Proposals, not decisions. Each says what it would take.
 - **For local newsrooms.** A weekly "what to watch" list (agendas with
   money, zoning, or contested items) for reporters in each town, and a page
   saying how to cite and reuse the data.
-- **Compare with the neighbors.** Tax bill, budget per resident, school
-  spending per pupil, and permits beside nearby towns, on each state's page.
-  The figures are already fetched once per state.
+- **Compare with the neighbors.** Moved 2026-10-12 into
+  [Regional Publick](#regional-publick-after-the-first-20-towns), with
+  topics compared across towns and towns chosen in clusters, for after the
+  first 20 towns.
 - **How fast the town posts its records.** Per board: how far ahead each
   agenda goes up, how long minutes take, and which meetings still have none,
   beside the state's own deadlines (Massachusetts: notice 48 hours ahead not
