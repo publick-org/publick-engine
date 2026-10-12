@@ -32,9 +32,14 @@ def translations(tmp_path):
     return {f.stem: json.loads(f.read_text()) for f in folder.glob("*.json")} if folder.is_dir() else {}
 
 
+def system(call) -> str:
+    """A call's system prompt: a summary's is text, a translation's is sent cached."""
+    return call["system"] if isinstance(call["system"], str) else call["system"][0]["text"]
+
+
 def translation_calls(client):
     """The calls that translate, not those that review a translation."""
-    return [c for c in client.calls if "translate" in c["system"] and not c["system"].startswith("You check")]
+    return [c for c in client.calls if "translate" in system(c) and not system(c).startswith("You check")]
 
 
 def test_numbers_are_checked_without_ai():
@@ -80,14 +85,17 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-sonnet-5-5"
     assert record["cost"] == pytest.approx(TRANSLATION + REVIEW) and record["prompt_version"] == translate.VERSION
     call = translation_calls(client)[0]
-    assert call["model"] == "claude-sonnet-5-5" and "Spanish" in call["system"]
+    assert call["model"] == "claude-sonnet-5-5" and "Spanish" in system(call)
     assert call["output_config"]["format"]["type"] == "json_schema" and call["output_config"]["effort"] == "low"
     # Each translation's meaning is reviewed by the larger model, English beside Spanish.
     reviews = [c for c in client.calls if "problems" in c["output_config"]["format"]["schema"]["properties"]]
     assert reviews and reviews[0]["model"] == "claude-sonnet-5-5" and reviews[0]["output_config"]["effort"] == "low"
     # The review knows the words the translator was told to use, so it doesn't fail them.
-    assert "public hearing = audiencia pública" in reviews[0]["system"]
-    assert "Never guess anyone's gender" in call["system"] and "levantar la sesión" in call["system"]
+    assert "public hearing = audiencia pública" in system(reviews[0])
+    assert "Never guess anyone's gender" in system(call) and "levantar la sesión" in system(call)
+    # The system prompts are the same for every request, so they're cached; nothing else is.
+    assert all(c["system"][-1]["cache_control"] == {"type": "ephemeral"} for c in [call, reviews[0]])
+    assert "cache_control" not in call
 
 
 def test_a_translation_is_made_once_for_its_english(tmp_path):
@@ -447,3 +455,11 @@ def test_a_town_s_ordinary_words_are_whole_words_from_every_town(tmp_path):
     words = translate.town_words(tmp_path / "towns" / "b-ma" / "data")
     assert "wastewater" in words and "ryan" not in words
     assert translate.names("Ryan reviewed the Wastewater Plan.", words) == {"Ryan"}
+
+
+def test_cached_input_is_counted_at_its_own_price():
+    """input_tokens leaves out cached input: written at 1.25 times the input price, read at a tenth."""
+    prices = {"input_price": 2.0, "output_price": 10.0}
+    assert summarize.cost({"input_tokens": 600, "output_tokens": 300}, prices) == pytest.approx(TRANSLATION)
+    cached = {"input_tokens": 600, "output_tokens": 300, "cache_creation_input_tokens": 800, "cache_read_input_tokens": 1000}
+    assert summarize.cost(cached, prices) == pytest.approx(TRANSLATION + (800 * 1.25 + 1000 * 0.1) * 2.0 / 1e6)
