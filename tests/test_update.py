@@ -145,13 +145,14 @@ def test_the_bucket_keys_go_only_to_the_steps_that_use_them(monkeypatch):
         monkeypatch.setenv(k, "x")
     given = {s.name: sorted(k for k in keys if k in update.step_env(s)) for s in update.SOURCES}
     storage = sorted(update.STORAGE)
-    # The steps that save or read agendas and minutes in the document bucket.
+    # The steps that save or read agendas and minutes, or the 311 requests and scorecard, in the document bucket.
     assert {n for n, k in given.items() if k and set(storage) <= set(k)} == {
         "Fetch meetings", "Fetch minutes", "Fetch School Committee documents", "Fetch school board meetings",
-        "Summarize agendas", "Move saved documents to storage"}
+        "Summarize agendas", "Move saved documents to storage", "Fetch 311 requests", "Compute 311 scorecard"}
     assert given["Summarize agendas"] == sorted(["ANTHROPIC_API_KEY", *storage])
     assert given["Fetch unemployment"] == ["BLS_API_KEY"]
-    assert given["Fetch 311 requests"] == given["Fetch tax bill"] == []
+    assert given["Fetch 311 requests"] == given["Compute 311 scorecard"] == storage
+    assert given["Fetch tax bill"] == []
     # No step publishes.
     assert not any(k in update.SITES for ks in given.values() for k in ks)
 

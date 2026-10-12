@@ -52,7 +52,8 @@ class Source:
     table: str | None = None
 
 
-# The document bucket's keys (pipeline/documents.py), for the steps that save or read agendas and minutes.
+# The document bucket's keys (pipeline/documents.py), for the steps that save or read agendas and minutes,
+# and the 311 steps, which save the requests and scorecard there (pipeline/bucket_data.py).
 STORAGE = ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
 # The sites bucket's (pipeline/deploy.py): no step here publishes, so none is given them.
 SITES = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
@@ -77,8 +78,9 @@ SOURCES = [
     Source("Fetch place", "pipeline.fetch_place", "figures", table="housing"),
     Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",), secrets=STORAGE),
-    Source("Fetch 311 requests", "pipeline.fetch_311", "311", table="seeclickfix"),
-    Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True, table="seeclickfix"),
+    Source("Fetch 311 requests", "pipeline.fetch_311", "311", secrets=STORAGE, table="seeclickfix"),
+    Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True, secrets=STORAGE,
+           table="seeclickfix"),
 ]
 
 GROUPS = {"all": ("meetings", "figures", "311"), "meetings": ("meetings", "figures"), "figures": ("figures",),
