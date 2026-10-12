@@ -95,8 +95,8 @@
   <li>{% trans checked=officials.checked | date("plain"), url="/officials/" %}<strong>Elected officials:</strong> listed by hand from official city and school websites, last checked {{ checked }}. See <a href="{{ url }}">Who represents you</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.seeclickfix is defined or wards_url %}
-  {# Translators: %(publisher)s is who publishes the ward map, such as "City of Malden"; %(year)s is a year. #}
-  {% if has_areas or wards_url %}<li>{% if precincts and not wards_url %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>{% endif %}
+  {# Translators: %(publisher)s is who publishes the ward, precinct or district map, such as "City of Malden"; %(year)s is a year. #}
+  {% if has_areas or wards_url %}<li>{% if areas == "precincts" %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Voting precinct maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% elif areas == "districts" %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>District maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% else %}{% trans url=wards.url, publisher=wards.publisher, year=wards.year %}<strong>Ward maps:</strong> <a href="{{ url }}">{{ publisher }}</a>, {{ year }} boundaries.{% endtrans %}{% endif %}</li>{% endif %}
   <li>{% trans osm="https://www.openstreetmap.org/copyright", leaflet="https://leafletjs.com" %}<strong>Street maps:</strong> <a href="{{ osm }}">OpenStreetMap</a>, drawn with <a href="{{ leaflet }}">Leaflet</a>. Map images load from OpenStreetMap's servers.{% endtrans %}</li>
   {% endif %}
 </ul>
@@ -178,7 +178,16 @@
   <li>{{ _("No cookies, no ads, and no tracking across other sites.") }}</li>
   {% endif %}
   <li>{{ _("What you search for, and which street you look up, is never recorded.") }}</li>
-  {% if wards_url %}<li>{# Translators: "Find my ward" is the label of the button that finds the reader's ward. #}{% trans %}If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}</li>{% endif %}
+  {% if wards_url %}<li>{% if areas == "precincts" -%}
+  {#- Translators: "Find my precinct" is the label of the button that finds the reader's precinct. -#}
+  {% trans %}If you use "Find my precinct," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}
+  {%- elif areas == "districts" -%}
+  {#- Translators: "Find my district" is the label of the button that finds the reader's district. -#}
+  {% trans %}If you use "Find my district," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}
+  {%- else -%}
+  {#- Translators: "Find my ward" is the label of the button that finds the reader's ward. -#}
+  {% trans %}If you use "Find my ward," your location is checked on your device. It isn't sent anywhere or saved.{% endtrans %}
+  {%- endif %}</li>{% endif %}
   <li>{{ _("Nothing that identifies you is kept, not even your IP address.") }}</li>
   {# The weekly digest's email ([digest] signup; worker/digest.js). #}
   {# Translators: %(provider)s is the email service that sends the digest, such as "Buttondown". #}

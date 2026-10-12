@@ -39,18 +39,31 @@ def ward_key(ward: str) -> tuple:
 
 
 def wards_file(config: dict) -> str | None:
-    """The town's ward file: [officials] wards_file, or the one 311 uses when its areas are wards.
-    A town that places 311 requests in voting precincts ([seeclickfix] areas) has no wards to look up."""
+    """The town's ward file: [officials] wards_file, or the one 311 uses unless its areas are voting
+    precincts. A town that places 311 requests in voting precincts has no wards to look up."""
     sc = config.get("seeclickfix", {})
-    return config.get("officials", {}).get("wards_file") or (sc.get("precincts_file") if not precincts(config) else None)
+    return config.get("officials", {}).get("wards_file") or (sc.get("precincts_file") if areas(config) != "precincts" else None)
 
 
-def precincts(config: dict) -> bool:
-    """Whether the town's 311 areas are voting precincts rather than wards ([seeclickfix] areas)."""
-    areas = config.get("seeclickfix", {}).get("areas", "wards")
-    if areas not in ("wards", "precincts"):
-        raise SystemExit(f'[seeclickfix] areas in config/{config["slug"]}.toml must be "wards" or "precincts", not {areas!r}.')
-    return areas == "precincts"
+# What a town can call its areas on its pages: "Ward 3", "Precinct 3201", "District 3".
+AREAS = ("wards", "precincts", "districts")
+
+
+def areas(config: dict) -> str:
+    """What the town calls its areas on the 311 and Officials pages ([town] areas): wards (the default),
+    voting precincts, or districts. [seeclickfix] areas = "precincts", where towns without wards
+    first said so, still names them."""
+    where = f"config/{config['slug']}.toml"
+    town = config.get("town", {}).get("areas")
+    sc = config.get("seeclickfix", {}).get("areas")
+    if town is not None and town not in AREAS:
+        raise SystemExit(f'[town] areas in {where} must be "wards", "precincts" or "districts", not {town!r}.')
+    if sc is not None and sc not in ("wards", "precincts"):
+        raise SystemExit(f'[seeclickfix] areas in {where} must be "wards" or "precincts", not {sc!r} '
+                         f'(districts are [town] areas).')
+    if town and sc and town != sc:
+        raise SystemExit(f"[town] areas and [seeclickfix] areas in {where} differ: keep [town] areas only.")
+    return town or sc or "wards"
 
 
 def at_large(config: dict) -> bool:
