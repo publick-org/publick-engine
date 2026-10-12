@@ -853,13 +853,6 @@ msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
 msgid "<a href=\"%(url)s\">Minutes on %(where)s</a>"
 msgstr "<a href=\"%(url)s\">Actas en %(where)s</a> (en inglés)"
 
-#: site/templates/digest_email.html
-#, python-format
-msgid ""
-"<a href=\"%(url)s\">Read this week's digest on the site</a>, where each meeting's page has its "
-"agenda, its minutes, and any correction."
-msgstr ""
-
 #: site/templates/meeting.html
 #, python-format
 msgid ""
@@ -1658,7 +1651,7 @@ msgstr ""
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
 
-#: site/templates/base.html
+#: site/templates/base.html site/templates/digest_email.html
 #, python-format
 msgid ""
 "An independent project. Not affiliated with or endorsed by the City of %(town)s. Official "
@@ -2214,7 +2207,7 @@ msgstr "Impuesto recaudado"
 msgid "Committee on Aging"
 msgstr "Comité de Personas Mayores"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/decisions/index.html site/templates/digest_email.html
 msgid "Committee recommendations to the City Council"
 msgstr "Recomendaciones de los comités al Concejo Municipal"
 
@@ -2434,6 +2427,10 @@ msgid "Each location links to its latest request on SeeClickFix. The CSV lists e
 msgstr ""
 "Cada lugar enlaza a su solicitud más reciente en SeeClickFix. El CSV incluye todas las "
 "solicitudes."
+
+#: site/templates/digest_email.html
+msgid "Each meeting's page has its agenda, its minutes, and any correction."
+msgstr ""
 
 #: site/states/me/budget.html
 #, python-format
@@ -4229,7 +4226,7 @@ msgstr ""
 "Todavía no hay decisiones registradas. Esta página se irá llenando a medida que se publiquen "
 "actas."
 
-#: site/templates/digest.html
+#: site/templates/digest.html site/templates/digest_email.html
 msgid "No decisions recorded in these minutes."
 msgstr ""
 
@@ -4858,6 +4855,10 @@ msgstr "Leer la agenda completa"
 #: site/templates/macros.html
 msgid "Read the full minutes"
 msgstr "Leer las actas completas"
+
+#: site/templates/digest_email.html
+msgid "Read this week's digest on the site"
+msgstr ""
 
 #: site/states/ct/budget.html
 msgid "Real estate"
@@ -7430,6 +7431,13 @@ msgstr ""
 #: pipeline/build_site.py site/pages/index.html site/templates/digest.html
 #: site/templates/digest_answer.html site/templates/digest_index.html
 msgid "Weekly digest"
+msgstr ""
+
+#. under the site's name at the top of the weekly digest's email; %(when)s is its Monday, such as
+#. "October 12, 2026".
+#: site/templates/digest_email.html
+#, python-format
+msgid "Weekly digest · Week of %(when)s"
 msgstr ""
 
 #: site/pages/about/index.html
