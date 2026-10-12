@@ -77,7 +77,11 @@
 {# The site, and whose it isn't, as every page's footer says. #}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:32px;border-top:1px solid #d6dbe1;">
   <tr><td style="padding:16px 0 0;">
-    <p style="margin:0 0 14px;"><a href="{{ issue_url }}" style="display:inline-block;padding:10px 16px;background:{{ palette.primary }};color:#ffffff;font-weight:700;text-decoration:none;border-radius:4px;">{{ _("Read this week's digest on the site") }}</a></p>
+    {# The button's color is its cell's, and its words' white is on a span: the email provider's own
+       link color overrides a link's, and left the words blue on blue (the test of 2026-10-12). #}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;margin:0 0 14px;">
+      <tr><td bgcolor="{{ palette.primary }}" style="background:{{ palette.primary }};border-radius:4px;"><a href="{{ issue_url }}" style="display:inline-block;padding:10px 16px;color:#ffffff;font-weight:700;text-decoration:none;"><span style="color:#ffffff;">{{ _("Read this week's digest on the site") }}</span></a></td></tr>
+    </table>
     <p style="margin:0;font-size:13px;line-height:1.5;color:#545c65;">{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %} {{ _("Each meeting's page has its agenda, its minutes, and any correction.") }}</p>
   </td></tr>
 </table>
