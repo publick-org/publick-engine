@@ -7699,6 +7699,13 @@ msgstr ""
 msgid "You can also <a href=\"/meetings/search/\">search agendas and minutes</a>."
 msgstr "También puede <a href=\"/meetings/search/\">buscar en agendas y actas</a>."
 
+#: site/templates/digest_email.html
+#, python-format
+msgid ""
+"You get this email because you signed up for the weekly digest. <a "
+"href=\"%(url)s\">Unsubscribe</a>."
+msgstr ""
+
 #: site/pages/officials/index.html
 #, python-brace-format
 msgid "You're in Ward {ward}."

@@ -151,14 +151,15 @@ function digestFeed(site, title, link, pubDate, body) {
 }
 
 const DUE = "Sun, 04 Oct 2026 17:30:00 -0400";  // 21:30 UTC
-const BODY = '<p>13 meetings this week.</p>\n<h2>Meetings</h2><p><a href="https://gloucester-ma.publick.org/meetings/x/?ref=digest">Board &amp; Committee</a></p>';
+const FOOTER = '<p><a href="{{ unsubscribe_url }}">Unsubscribe</a>.<br>Publick · PO Box 1, Gloucester, MA 01930</p>';
+const BODY = '<p>13 meetings this week.</p>\n<h2>Meetings</h2><p><a href="https://gloucester-ma.publick.org/meetings/x/?ref=digest">Board &amp; Committee</a></p>' + FOOTER;
 
 function digestEnv(towns = "gloucester-ma.publick.org", feeds = null) {
   feeds ??= {
     "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick", "Week of October 5, 2026",
       "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY)],
     "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
-      "https://malden-ma.publick.org/digest/2026-10-05/", DUE, "<p>Malden</p>")],
+      "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)],
   };
   return { ...env(), BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TOWNS: towns,
            SITES: { fetch: async (url) => { const [status, body] = feeds[url] || [404, ""]; return new Response(body, { status }); } } };
@@ -193,6 +194,8 @@ test("an issue due is sent once, to its town's readers only", async () => {
   assert.equal(sent.headers["X-Buttondown-Live-Dangerously"], "true");
   assert.equal(sent.body.subject, "Gloucester Publick: Week of October 5, 2026");
   assert.equal(sent.body.body, `<!-- buttondown-editor-mode: fancy -->\n${BODY}`);
+  // Without Buttondown's template: the issue's own footer has the unsubscribe link and address.
+  assert.equal(sent.body.template, "naked");
   assert.equal(sent.body.status, "about_to_send");
   assert.deepEqual(sent.body.filters, { predicate: "and", groups: [],
     filters: [{ field: "subscriber.tags", operator: "contains", value: "tag_gloucester" }] });
@@ -239,6 +242,18 @@ test("a town no one has signed up for yet sends nothing", async () => {
   assert.ok(!calls.some((c) => c.method === "POST"));
 });
 
+test("an issue without an unsubscribe link, or a mailing address, isn't sent", async () => {
+  for (const [body, error] of [[BODY.replace("{{ unsubscribe_url }}", "#"), /no unsubscribe link/],
+                               [BODY.replace("PO Box 1, Gloucester, MA 01930", "[mailing address]"), /no mailing address/]]) {
+    withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+    const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick",
+      "Week of October 5, 2026", "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, body)] };
+    await assert.rejects(sendDigests(digestEnv("gloucester-ma.publick.org", feeds), at("2026-10-04T21:35:00Z")), error);
+    assert.ok(!calls.some((c) => c.method === "POST"));
+    calls.length = 0;
+  }
+});
+
 test("no towns named, nothing is read or sent", async () => {
   withButtondown({});
   assert.deepEqual(await sendDigests(digestEnv(""), at("2026-10-04T21:35:00Z")), []);
@@ -248,7 +263,7 @@ test("no towns named, nothing is read or sent", async () => {
 test("one town failing doesn't stop the next; the run fails naming it, and opens one issue", async () => {
   const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [503, ""],
                   "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
-                    "https://malden-ma.publick.org/digest/2026-10-05/", DUE, "<p>Malden</p>")] };
+                    "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)] };
   withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
   routes["GET /repos/publick-org/publick.org/issues"] = [200, []];
   routes["POST /repos/publick-org/publick.org/labels"] = [201, {}];
@@ -283,6 +298,7 @@ test("a test is a draft, sent at once to the addresses given and no subscriber",
   assert.equal(await sendTest("send-key", issue, ["a@example.org"]), "[Test] Gloucester Publick: Week of October 5, 2026");
   const [made, sent] = calls;
   assert.equal(made.body.status, "draft");
+  assert.equal(made.body.template, "naked");
   assert.equal(made.body.subject, "[Test] Gloucester Publick: Week of October 5, 2026");
   assert.equal(made.body.body, `<!-- buttondown-editor-mode: fancy -->\n${BODY}`);
   // Not the issue's slug (Sunday's email takes it), nor its readers.
