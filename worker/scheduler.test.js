@@ -7,7 +7,8 @@ import {
   ALERT_LABEL, DIGEST_LABEL, DOWN_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, UPTIME_CRON, downSites, lastDailyRun,
   onSchedule, siteHosts, startRun, watch, watchSites,
 } from "./scheduler.js";
-import { DIGEST_CRON, newestIssue, sendDigests } from "./digest.js";
+import { DIGEST_CRON, TEST_PREFIX, deleteTests, newestIssue, sendDigests, sendTest } from "./digest.js";
+import { main as digestTest } from "./digest-test.js";
 
 const NOW = new Date("2026-10-02T13:05:00Z");
 
@@ -175,7 +176,7 @@ function withButtondown(routesFor) {
     const method = init.method || "GET";
     calls.push({ method, path, body: init.body ? JSON.parse(init.body) : null, headers: init.headers });
     const [status, body] = buttondownRoutes[`${method} ${path.split("?")[0]}`] || [500, { detail: "not expected" }];
-    return new Response(JSON.stringify(body), { status });
+    return new Response(status === 204 ? null : JSON.stringify(body), { status });
   };
 }
 
@@ -261,6 +262,70 @@ test("the newest issue in a feed, with the site's name and its body unescaped", 
   assert.equal(issue.due.toISOString(), "2026-10-04T21:30:00.000Z");
   assert.equal(issue.body, BODY);
   assert.equal(newestIssue('<rss version="2.0"><channel>\n<title>X: Weekly digest</title></channel></rss>'), null);
+});
+
+test("a test is a draft, sent at once to the addresses given and no subscriber", async () => {
+  withButtondown({ "POST /emails": [201, { id: "em_test" }], "POST /emails/em_test/send-draft": [200, {}] });
+  const issue = newestIssue(digestFeed("Gloucester Publick", "Week of October 5, 2026",
+    "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY));
+  assert.equal(await sendTest("send-key", issue, ["a@example.org"]), "[Test] Gloucester Publick: Week of October 5, 2026");
+  const [made, sent] = calls;
+  assert.equal(made.body.status, "draft");
+  assert.equal(made.body.subject, "[Test] Gloucester Publick: Week of October 5, 2026");
+  assert.equal(made.body.body, `<!-- buttondown-editor-mode: fancy -->\n${BODY}`);
+  // Not the issue's slug (Sunday's email takes it), nor its readers.
+  assert.ok(!("slug" in made.body) && !("filters" in made.body));
+  assert.equal(made.body.archival_mode, "disabled");
+  assert.equal(sent.method, "POST");
+  assert.equal(sent.path, "/emails/em_test/send-draft");
+  assert.deepEqual(sent.body, { recipients: ["a@example.org"] });
+  await assert.rejects(sendTest("send-key", issue, []), /no addresses/);
+});
+
+test("a test's subject is never taken for the issue sent", async () => {
+  // Sunday's send finds an email already sent by its subject: a test's isn't it.
+  withButtondown({ "GET /emails": [200, { results: [{ subject: `${TEST_PREFIX}Gloucester Publick: Week of October 5, 2026`, status: "draft" }], next: null }],
+                   "GET /tags": [200, TAGS], "POST /emails": [201, { id: "em_1" }] });
+  const [result] = await sendDigests(digestEnv(), at("2026-10-04T21:35:00Z"));
+  assert.equal(result.done, "sent");
+});
+
+test("earlier tests' drafts are deleted, but not one still sending, nor any other draft", async () => {
+  withButtondown({
+    "GET /emails": [200, { results: [
+      { id: "em_old", subject: "[Test] Gloucester Publick: Week of October 5, 2026", creation_date: "2026-10-04T20:00:00Z" },
+      { id: "em_new", subject: "[Test] Malden Publick: Week of October 5, 2026", creation_date: "2026-10-04T21:31:00Z" },
+      { id: "em_mine", subject: "A draft of someone's", creation_date: "2026-10-01T00:00:00Z" },
+    ], next: null }],
+    "DELETE /emails/em_old": [204, null],
+  });
+  assert.equal(await deleteTests("send-key", at("2026-10-04T21:35:00Z")), 1);
+  assert.equal(new URL(`https://x${calls[0].path}`).searchParams.get("status"), "draft");
+  assert.deepEqual(calls.filter((c) => c.method === "DELETE").map((c) => c.path), ["/emails/em_old"]);
+});
+
+test("the test command sends a built site's issue, and never prints the addresses", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const feed = join(await mkdtemp(join(tmpdir(), "digest-test-")), "feed.xml");
+  await writeFile(feed, digestFeed("Gloucester Publick", "Week of October 5, 2026",
+    "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY));
+  withButtondown({ "GET /emails": [200, NONE_SENT], "POST /emails": [201, { id: "em_test" }],
+                   "POST /emails/em_test/send-draft": [200, {}] });
+  const printed = [];
+  const log = console.log;
+  console.log = (line) => printed.push(line);
+  try {
+    await digestTest([feed], { BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TEST_RECIPIENTS: "a@example.org, b@example.org" });
+  } finally {
+    console.log = log;
+  }
+  assert.deepEqual(calls.at(-1).body, { recipients: ["a@example.org", "b@example.org"] });
+  assert.deepEqual(printed, ['Sent "[Test] Gloucester Publick: Week of October 5, 2026" to 2 addresses.']);
+  await assert.rejects(digestTest([feed], { BUTTONDOWN_SEND_KEY: "send-key" }), /DIGEST_TEST_RECIPIENTS isn't set/);
+  await assert.rejects(digestTest(["not a host!"], { BUTTONDOWN_SEND_KEY: "k", DIGEST_TEST_RECIPIENTS: "a@example.org" }),
+    /neither a feed file nor a site's hostname/);
 });
 
 test("the digest's Cron Trigger names its days, as Cloudflare takes them", () => {
