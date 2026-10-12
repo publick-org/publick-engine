@@ -1079,8 +1079,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []))
+    posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
     for m in meetings["all"]:
         m["body"] = tr.board(m["body"])
+        # When its minutes came out, for the home page's "Recently decided" (digest.minutes_posted).
+        m["minutes_posted"] = posted[id(m)].isoformat() if posted[id(m)] else None
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
