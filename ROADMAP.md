@@ -240,6 +240,11 @@ and publick.org #73.
 8. **311's raw requests in R2, and one SeeClickFix job paced across towns.**
    Planned for before the next 311 town; Burlington, South Kingstown, and
    Bangor went live with 311 without it. Before any further 311 town.
+   *Built 2026-10-12*: the requests and scorecard in the public documents
+   bucket (`pipeline/bucket_data.py`); publick.org ignores them in git once
+   a daily run has saved them there. The one SeeClickFix job waits (decided
+   2026-10-12): a job's towns already fetch one after another, and each job
+   runs on its own address, which is what SeeClickFix limits by.
    ([Data out of git](#data-out-of-git),
    [Shared sources](#shared-sources-once-per-state))
 9. **Lowell**: config only, now that the Agenda Center reader reads agendas
@@ -1576,10 +1581,17 @@ the run added (`data/run.json`). Data files are written whole (#100,
 stopped at its timeout leaves the last good file instead of truncated JSON
 that the run would commit.
 
+*311 in the bucket* (2026-10-12): from 2026-10-05 to 10-12, 311 was 17.4 MB
+of the 21.6 MB the network's repository grew by, about 2.5 MB a day from six
+towns. A town with `[storage]` keeps `data/311/requests.json` and
+`scorecard.json` in its bucket, under `<prefix>/data/`
+(`pipeline/bucket_data.py`): readers download them from the public address
+with no keys, the 311 steps save them back, and `fetch_311` won't start again
+from nothing when the town's status says it had requests. Git keeps
+`311/status.json`.
+
 **Next.** Keep data files line-stable (sorted keys, one field per line).
-311's raw requests to R2 first: planned for before the next 311 town, but
-Burlington went live with 311 in git, and South Kingstown (#58) will too, so
-before any further one. Then each town's working data, as agenda and minutes
+Then each town's working data, as agenda and minutes
 PDFs already are, with git keeping config and code and sites built from the
 bucket. Every town has a `[storage]` table. Also: commit each town's data as
 soon as it finishes, so a timeout loses nothing (the network's "Commit data"

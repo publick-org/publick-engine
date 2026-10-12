@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import officials, rhythms, summarize
+from pipeline import bucket_data, officials, rhythms, summarize
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 from pipeline.i18n import _, month_year, plain_date
 
@@ -72,6 +72,8 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
     its allowed age (max_days); a figure source's has its latest period, the next and when it usually
     appears, why it's behind if it is, and failing (its run of failed checks, from three)."""
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
+    # A source's file the town keeps in its bucket, not git (pipeline/bucket_data.py), such as the 311 scorecard.
+    bucket_data.pull(config, data_dir)
     fresh = {"sources": [], "summary_grace_days": 2, "grace_months": rhythms.GRACE_MONTHS,
              **config.get("freshness", {})}
     checks = rhythms.load_checks(data_dir)
