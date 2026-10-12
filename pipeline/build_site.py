@@ -34,6 +34,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import absences
+from pipeline import bucket_data
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import digest
@@ -929,6 +930,7 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
     """A town's texts that a build in this language would show in English, found without building:
     {"config": the config's own text, "data": names from the city's data}. The same steps as
     build_language() (a test keeps them so), for the run to draft them before the build."""
+    bucket_data.pull(config, data_dir)
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
     with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
@@ -1038,6 +1040,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     {"config": the config's own text, "data": names from the city's data}. share_cards draws each recent
     meeting's card for social media (pipeline/share_cards.py), which needs Playwright."""
     config = load_config(town)
+    # The 311 files a town keeps in its bucket, not git (pipeline/bucket_data.py), when they're not here.
+    bucket_data.pull(config, data_dir)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
     urls = {}
