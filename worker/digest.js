@@ -47,6 +47,15 @@ export const SEND_WINDOW_HOURS = 6;
 export const LANGUAGES = ["en"];
 // The start of a test's subject, so it's never mistaken for (or taken as) the issue sent.
 export const TEST_PREFIX = "[Test] ";
+// Buttondown's email template: "naked", none at all. Its others end each email with the issue's
+// number, counted across every town, and a link to subscribe on Buttondown's own page, where a
+// signup gets no town's tag and so is never sent an issue. The issue's own footer (the engine's
+// digest_email.html) has the unsubscribe link and postal address in their place.
+export const TEMPLATE = "naked";
+// Buttondown's tag for each reader's own unsubscribe link: without it an email has none.
+export const UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}";
+// The footer's postal address until it's filled in (MAILING_ADDRESS, the engine's pipeline/digest.py).
+export const ADDRESS_PLACEHOLDER = "[mailing address]";
 // A test's draft is deleted by the next test made this long after it, by when it's sent.
 const TEST_KEEP_MINUTES = 10;
 // Subscribers Buttondown won't send to, or who asked not to be added again: left as they are.
@@ -213,8 +222,10 @@ async function listAll(key, path, what) {
   return results;
 }
 
-// An issue as Buttondown takes an email's body: the HTML as it is, in its "fancy" editor's mode.
+// An issue as Buttondown takes an email's body: the HTML as it is, in its "fancy" editor's mode. One
+// without an unsubscribe link isn't sent, nor tested.
 function emailBody(issue) {
+  if (!issue.body.includes(UNSUBSCRIBE_TAG)) throw new Error(`the issue has no unsubscribe link (${UNSUBSCRIBE_TAG})`);
   return `<!-- buttondown-editor-mode: fancy -->\n${issue.body}`;
 }
 
@@ -249,10 +260,14 @@ export async function sendTown(env, host, now, cache) {
   const tag = cache.tags.find((t) => t.name === tagName(townOf(host), "en"));
   // No tag: no one has signed up for this town yet.
   if (!tag) return { host, done: "no_subscribers", subject: issue.subject };
+  if (issue.body.includes(ADDRESS_PLACEHOLDER)) {
+    throw new Error("the issue's footer has no mailing address yet (MAILING_ADDRESS in the engine's pipeline/digest.py)");
+  }
   const monday = issue.link.match(/\/digest\/(\d{4}-\d{2}-\d{2})\/?$/);
   const email = {
     subject: issue.subject,
     body: emailBody(issue),
+    template: TEMPLATE,
     status: "about_to_send",
     // Only the town's own readers: an email without this would go to every town's.
     filters: { predicate: "and", groups: [], filters: [{ field: "subscriber.tags", operator: "contains", value: tag.id }] },
@@ -314,7 +329,7 @@ export async function sendTest(key, issue, recipients) {
   const subject = `${TEST_PREFIX}${issue.subject}`;
   const draft = await (await ok(await buttondown(key, "/emails", {
     method: "POST",
-    body: JSON.stringify({ subject, body: emailBody(issue), status: "draft", archival_mode: "disabled",
+    body: JSON.stringify({ subject, body: emailBody(issue), template: TEMPLATE, status: "draft", archival_mode: "disabled",
                            commenting_mode: "disabled", canonical_url: issue.link }),
   }), "making the test's draft")).json();
   // Quietly: Buttondown's answer may quote an address.
