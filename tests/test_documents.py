@@ -7,7 +7,7 @@ import pytest
 from conftest import BUILT_AT, FETCHED_AT
 from fakes import FakeAnthropic, FakeCityClient
 
-from pipeline import build_site, documents, fetch_meetings, fetch_minutes, summarize
+from pipeline import bucket_data, build_site, documents, fetch_meetings, fetch_minutes, summarize
 from pipeline.config import load_config
 from pipeline.http import FetchError
 
@@ -146,6 +146,8 @@ def test_site_links_to_bucket_copies(tmp_path, bucket, monkeypatch):
     fetch_meetings.run(config, FakeCityClient(), data, now=FETCHED_AT)
     fetch_minutes.run(config, FakeCityClient(), data, now=FETCHED_AT)
     monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    # No 311 files in the bucket (pipeline/bucket_data.py), and no request leaves the test.
+    monkeypatch.setattr(bucket_data.requests, "get", lambda url, timeout, headers: type("R", (), {"status_code": 404})())
     out = tmp_path / "site"
     build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
     assert not list(out.rglob("*.pdf"))

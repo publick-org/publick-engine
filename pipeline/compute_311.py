@@ -18,6 +18,7 @@ from pathlib import Path
 from statistics import median, quantiles
 from zoneinfo import ZoneInfo
 
+from pipeline import bucket_data
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_311 import load_store, save_json, store_dir, tag_wards
 from pipeline.fetch_meetings import slugify
@@ -374,8 +375,11 @@ def main() -> None:
     config = load_config(args.town)
     if not configured(config, "seeclickfix"):
         return
+    # A town that keeps its 311 files in its bucket (pipeline/bucket_data.py): read, and saved back.
+    bucket_data.pull(config, args.data)
     scorecard = compute(config, args.data)
     save_json(store_dir(args.data) / "scorecard.json", scorecard)
+    bucket_data.push(config, args.data, "311/scorecard.json")
     print(f"Scorecard: {scorecard['overall']['received']} requests in the last year, {scorecard['backlog']['open']} open")
 
 
