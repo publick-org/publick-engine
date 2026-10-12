@@ -35,7 +35,7 @@
   breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
-{% set district = m.source in ("drive", "finalsite", "ical", "schedule") %}
+{% set district = m.source in ("drive", "finalsite", "page", "ical", "schedule") %}
 {% set documents_only = m.source == "archive" or district %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>
@@ -193,7 +193,7 @@
 {% set g = m.minutes_gap %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
 {% if g.reason == "not_posted" %}
-{% if g.source in ("finalsite", "drive") %}{% set where_url, where = m.source_url, _("%(name)s website", name=m.source_name) %}
+{% if g.source in ("finalsite", "drive", "page") %}{% set where_url, where = m.source_url, _("%(name)s website", name=m.source_name) %}
 {% elif g.source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
 {% elif g.source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
 {% elif g.source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}

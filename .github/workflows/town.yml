@@ -83,6 +83,15 @@ jobs:
           STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
           STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
+      # A school board's agendas and minutes, from a page of the district's website that links each one.
+      - name: Fetch school board documents
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.fetch_page_meetings --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+
       # Readable text and summaries of new agendas and minutes (skipped if no API key).
       - name: Summarize agendas
         if: inputs.sources != '311'

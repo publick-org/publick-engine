@@ -942,6 +942,17 @@ msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
 
+#. %(board)s is a board's name, such as "School Committee". %(source)s is the district, such as
+#. "Methuen Public Schools". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> %(source)s, from the documents linked "
+"on its <a href=\"%(url)s\">website</a>, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, a partir de los documentos "
+"enlazados en su <a href=\"%(url)s\">sitio web</a>, desde %(since)s."
+
 #. %(board)s is a board's name, such as "School Committee". %(source)s names where the meetings are
 #. posted, such as "the school district's website". %(since)s is a month, such as "January 2024".
 #: site/pages/about/index.html
