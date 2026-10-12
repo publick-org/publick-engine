@@ -2,6 +2,8 @@
 {% from "macros.html" import contact %}
 {# Where the weekly digest's signup form leads (worker/digest.js): "check your email", or "that didn't work". #}
 {% block title %}{% if outcome == "thanks" %}{{ _("Check your email") }}{% else %}{{ _("That didn't go through") }}{% endif %}{% endblock %}
+{# Not for search engines: they're only where the form leads. #}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol><li><a href="/digest/">{{ _("Weekly digest") }}</a></li></ol>

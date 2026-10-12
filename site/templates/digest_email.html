@@ -4,7 +4,8 @@
    The email is read as a whole, so each section says once that its lines are written by AI,
    above them, where the site's lists label each line. Each link says it's from the email (?ref=,
    digest.EMAIL_REF), for the page counts. A meeting is named by its title where the title says
-   more than its board and " Meeting" (a board's subcommittee, filed under the board). #}
+   more than its board and " Meeting" (a board's subcommittee, filed under the board). A week with
+   more than shown (digest.EMAIL_MINUTES) meetings' minutes lists that many, and links the rest. #}
 {% from "macros.html" import meeting_flags %}
 {% set q = "?ref=" ~ ref %}
 {% set issue_url = site_url ~ issue.url ~ q %}
@@ -53,7 +54,7 @@
 {% if issue.minutes %}
 <h2 style="{{ h2 }}">{{ _("Minutes posted") }}</h2>
 <p style="{{ note }}font-style:italic;">{{ _("What each meeting decided is written by AI from its minutes. Check the minutes before relying on it.") }}</p>
-{% for m in issue.minutes %}
+{% for m in issue.minutes[:shown] %}
 <p style="margin:18px 0 0;"><a href="{{ site_url }}{{ m.url }}{{ q }}" style="{{ link }}">{{ name(m) }}</a><span style="color:#545c65;"> · {{ m.date | date("mon_day_year") }}</span></p>
 {% set ds = m.decisions %}
 {% if ds.decided %}
@@ -73,6 +74,7 @@
 {% if m.preview_line %}<p style="margin:2px 0 0;">{{ m.preview_line }}</p>{% endif %}
 {% endif %}
 {% endfor %}
+{% if issue.minutes | length > shown %}<p style="margin:18px 0 0;font-size:15px;"><a href="{{ issue_url }}" style="{{ link }}">{% trans count=issue.minutes | length - shown %}Minutes from {{ count }} more meeting on the site{% pluralize %}Minutes from {{ count }} more meetings on the site{% endtrans %}</a></p>{% endif %}
 {% endif %}
 {# The site, and whose it isn't, as every page's footer says. #}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:32px;border-top:1px solid #d6dbe1;">
