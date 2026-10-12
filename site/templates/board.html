@@ -39,6 +39,9 @@
   {% if part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
   {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
   {% if meeting_links.documents %}<li>{% trans %}New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.{% endtrans %}</li>{% endif %}
+  {# The weekly digest is in English for now (pipeline/digest.py). #}
+  {% if digest_signup and lang == "en" %}<li>{% if meeting_links.documents %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead, and what the meetings whose minutes came out decided.{% endtrans %}
+  {%- else %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead.{% endtrans %}{% endif %}</li>{% endif %}
 </ul>
 
 <h2>{{ _("All recorded meetings") }}</h2>

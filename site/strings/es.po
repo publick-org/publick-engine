@@ -372,7 +372,7 @@ msgid "%(pct)s%% of the maximum"
 msgstr "%(pct)s%% del máximo"
 
 #. %(provider)s is the email service that sends the digest, such as "Buttondown".
-#: site/templates/digest_signup.html
+#: site/templates/digest_form.html
 #, python-format
 msgid ""
 "%(provider)s, the service that sends the digest, keeps your address until you unsubscribe. <a "
@@ -2405,6 +2405,20 @@ msgstr "Descargar todas las decisiones (CSV)"
 msgid "Each %(town)s figure has a margin of error (±) because it comes from a sample."
 msgstr "Cada cifra de %(town)s tiene un margen de error (±) porque viene de una muestra."
 
+#: site/templates/board.html
+#, python-format
+msgid ""
+"Each Sunday evening, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
+"meetings for the week ahead, and what the meetings whose minutes came out decided."
+msgstr ""
+
+#: site/templates/board.html
+#, python-format
+msgid ""
+"Each Sunday evening, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
+"meetings for the week ahead."
+msgstr ""
+
 #: site/templates/digest_signup.html
 msgid ""
 "Each Sunday evening. First we'll email you to confirm your address, and every email has a link to"
@@ -2602,7 +2616,7 @@ msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ell
 msgid "Election Commission"
 msgstr "Comisión Electoral"
 
-#: site/templates/digest_signup.html
+#: site/templates/digest_form.html
 msgid "Email address"
 msgstr ""
 
@@ -2658,6 +2672,23 @@ msgid "Every %(town)s board, commission, and committee with a meeting listed, an
 msgstr ""
 "Todas las juntas, comisiones y comités de %(town)s que tienen reuniones publicadas, y cuándo es "
 "su próxima reunión."
+
+#. %(town)s is the town's name.
+#: site/pages/index.html
+#, python-format
+msgid ""
+"Every Sunday evening, %(town)s's public meetings for the week ahead, and what was decided at the "
+"meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a "
+"href=\"%(url)s\">See past issues</a>."
+msgstr ""
+
+#. %(town)s is the town's name.
+#: site/pages/index.html
+#, python-format
+msgid ""
+"Every Sunday evening, %(town)s's public meetings for the week ahead. Free, and every email has a "
+"link to unsubscribe. <a href=\"%(url)s\">See past issues</a>."
+msgstr ""
 
 #: site/pages/about/accessibility/index.html
 msgid "Every chart has a table with the same numbers."
@@ -3007,8 +3038,28 @@ msgstr "Gasto del fondo general en el año fiscal %(year)s, según en qué se us
 msgid "General government"
 msgstr "Gobierno general"
 
+#. %(town)s is the town's name.
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"Get %(town)s's meetings and what they decided by email, every Sunday evening: <a "
+"href=\"%(url)s\">sign up for the weekly digest</a>."
+msgstr ""
+
+#. %(town)s is the town's name.
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"Get %(town)s's meetings for the week ahead by email, every Sunday evening: <a "
+"href=\"%(url)s\">sign up for the weekly digest</a>."
+msgstr ""
+
 #: site/templates/digest_signup.html
 msgid "Get it by email"
+msgstr ""
+
+#: site/pages/index.html
+msgid "Get the week ahead by email"
 msgstr ""
 
 #: site/templates/digest.html
@@ -3504,7 +3555,7 @@ msgstr "Últimos datos"
 msgid "Latest request on SeeClickFix"
 msgstr "Última solicitud en SeeClickFix"
 
-#: site/templates/digest_signup.html
+#: site/templates/digest_form.html
 msgid "Leave this empty"
 msgstr ""
 
@@ -4007,6 +4058,13 @@ msgstr[1] ""
 #: site/templates/digest.html site/templates/digest_email.html site/templates/macros.html
 msgid "Minutes posted"
 msgstr "Actas publicadas"
+
+#. %(date)s is a day, such as "Oct 9"; minutes are collected each morning, so they were posted that day
+#. or before.
+#: site/templates/macros.html
+#, python-format
+msgid "Minutes posted by %(date)s"
+msgstr "Actas publicadas el %(date)s o antes"
 
 #: pipeline/build_site.py
 msgid "Minutes posted."
@@ -5360,7 +5418,7 @@ msgstr ""
 "Se muestran {shown} de {total} reuniones que coinciden con {query}. Agregue una palabra para "
 "reducir la lista."
 
-#: site/templates/digest_signup.html
+#: site/templates/digest_form.html
 msgid "Sign up"
 msgstr ""
 
@@ -6064,6 +6122,10 @@ msgstr "Estado"
 #: site/pages/311/methodology/index.html
 msgid "Statuses"
 msgstr "Estados"
+
+#: site/pages/index.html
+msgid "Stay up to date"
+msgstr "Manténgase al día"
 
 #: site/pages/311/index.html
 msgid "Still being collected"
@@ -7450,6 +7512,10 @@ msgstr ""
 #: pipeline/build_site.py site/pages/index.html site/templates/digest.html
 #: site/templates/digest_answer.html site/templates/digest_index.html
 msgid "Weekly digest"
+msgstr ""
+
+#: site/pages/index.html
+msgid "Weekly digest by email"
 msgstr ""
 
 #. under the site's name at the top of the weekly digest's email; %(when)s is its Monday, such as
