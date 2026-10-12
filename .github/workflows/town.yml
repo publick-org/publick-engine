@@ -155,10 +155,16 @@ jobs:
         if: inputs.sources != 'meetings'
         continue-on-error: true
         run: python -m pipeline.fetch_311 --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       - name: Compute 311 scorecard
         if: inputs.sources != 'meetings'
         run: python -m pipeline.compute_311 --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
       - name: Commit 311
         if: inputs.sources != 'meetings'
