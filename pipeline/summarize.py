@@ -609,8 +609,15 @@ def estimated_cost(kind: str, pages: int, settings: dict) -> float:
                  "output_tokens": output}, settings)
 
 
+# What cached input costs, as a share of the input price: written to the cache (5 minutes), and read from it.
+CACHE_WRITE, CACHE_READ = 1.25, 0.1
+
+
 def cost(usage: dict, settings: dict) -> float:
-    return (usage["input_tokens"] * settings["input_price"] + usage["output_tokens"] * settings["output_price"]) / 1e6
+    """What tokens cost at the settings' prices. input_tokens doesn't count cached input, which is priced apart."""
+    paid_input = (usage["input_tokens"] + CACHE_WRITE * usage.get("cache_creation_input_tokens", 0)
+                  + CACHE_READ * usage.get("cache_read_input_tokens", 0))
+    return (paid_input * settings["input_price"] + usage["output_tokens"] * settings["output_price"]) / 1e6
 
 
 def summary_settings(config: dict) -> dict:
