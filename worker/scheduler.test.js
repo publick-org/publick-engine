@@ -213,6 +213,18 @@ test("an issue isn't sent before it's due, nor more than 6 hours late", async ()
   assert.equal(calls.length, 0);
 });
 
+test("a week whose issue never came fails its last try, once", async () => {
+  withButtondown({});
+  // The newest issue is due 2026-10-04; the next week's would be due 2026-10-11 at 21:30 UTC.
+  for (const now of ["2026-10-11T21:35:00Z", "2026-10-12T01:35:00Z", "2026-10-12T03:35:00Z", "2026-10-12T21:35:00Z"]) {
+    const [result] = await sendDigests(digestEnv(), at(now));
+    assert.equal(result.done, "not_due", now);
+  }
+  await assert.rejects(sendDigests(digestEnv(), at("2026-10-12T02:35:00Z")),
+    /gloucester-ma\.publick\.org: this week's issue isn't in its feed by its last try \(the newest is "Gloucester Publick: Week of October 5, 2026"\)/);
+  assert.equal(calls.length, 0);
+});
+
 test("an issue already sent isn't sent again", async () => {
   withButtondown({ "GET /emails": [200, { results: [{ subject: "Gloucester Publick: Week of October 5, 2026", status: "sent" }], next: null }] });
   const [result] = await sendDigests(digestEnv(), at("2026-10-05T00:35:00Z"));

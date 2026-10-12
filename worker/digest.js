@@ -23,7 +23,9 @@
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
 // (/digest/feed.xml), and sends it once its date has passed (Sunday at 5:30
 // PM, the town's time), within SEND_WINDOW_HOURS: an issue isn't sent late, nor
-// twice (an email with its subject sent since shortly before its date). Each
+// twice (an email with its subject sent since shortly before its date). A town
+// whose newest issue is still last week's at this week's last try fails the run,
+// so a week skipped (its Sunday build didn't publish) is seen. Each
 // run makes one request for each town, and a few more for each town sending;
 // Workers on the free plan may make 50 a run, so about 20 towns.
 //
@@ -223,6 +225,14 @@ export async function sendTown(env, host, now, cache) {
   const issue = newestIssue(await response.text());
   if (!issue || Number.isNaN(issue.due.getTime())) return { host, done: "no_issue" };
   const late = now - issue.due;
+  // The newest issue is last week's at this week's last try: this week's never came, and the week is
+  // skipped. Said once, so it isn't skipped unseen. (Within an hour: the week clocks change, a week
+  // isn't 168 hours, and this says so an hour early or late.)
+  const sinceNext = late - 7 * 24 * 3600_000;
+  if (sinceNext >= (SEND_WINDOW_HOURS - 1) * 3600_000 && sinceNext < SEND_WINDOW_HOURS * 3600_000) {
+    throw new Error(`this week's issue isn't in its feed by its last try (the newest is "${issue.subject}"), so this ` +
+      "week isn't sent: the town's Sunday build may not have published, or the week had no meetings and no new minutes");
+  }
   if (late < 0 || late > SEND_WINDOW_HOURS * 3600_000) return { host, done: "not_due", subject: issue.subject };
   const key = env.BUTTONDOWN_SEND_KEY;
   // Sent already: an email with this subject, made since shortly before the issue was due. Buttondown
