@@ -8,7 +8,8 @@ alongside the town's under data/meetings/, as the district's own: the board
 is [page_meetings] body, or the one [page_meetings.bodies] maps a meeting's
 name to ("Policy Subcommittee" -> "School Committee Policy Subcommittee").
 
-Each run reads the page once. Agendas and minutes are saved as PDFs (a Drive
+Each run reads the page once, and each of [page_meetings.pages], a page of one
+board's meetings (Nashua's Board of Education has one for each committee). Agendas and minutes are saved as PDFs (a Drive
 file as Google gives it for download, a Google Doc as exported), newest
 meetings first, until a run has saved max_documents_per_run (default 60; a
 meeting's agenda and minutes are saved together, so it can go one over): the
@@ -51,7 +52,7 @@ def new_meeting(store: dict, found: dict, settings: dict, stamp: str) -> dict:
     meeting = {
         "id": f"{linkpage.SOURCE}-{found['key']}",
         "source": linkpage.SOURCE,
-        "source_url": settings["page_url"],
+        "source_url": found["page_url"],
         "source_name": settings["source_name"],
         "first_seen": stamp,
         "slug": unique_slug(f"{found['date']}-{slugify(found['body'])}", store),
@@ -75,11 +76,23 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     store = load_store(data_dir)
     storage = open_documents(config, data_dir)
 
-    page = client.get(settings["page_url"]).text
-    found, unrecognized = linkpage.meetings(page, settings["page_url"], settings)
-    if not found:
-        # The page lists at least the current year's meetings: none means its layout changed.
-        raise FetchError(f"{settings['page_url']}: no meetings found")
+    errors, found, unrecognized = [], [], []
+    for url, board in [(settings["page_url"], None), *settings.get("pages", {}).items()]:
+        try:
+            page = client.get(url).text
+        except FetchError as e:
+            if board is None:
+                raise
+            errors.append(str(e))
+            continue
+        on_page, not_read = linkpage.meetings(page, url, settings, board)
+        if not on_page:
+            # A page lists at least the current year's meetings: none means its layout changed.
+            if board is None:
+                raise FetchError(f"{url}: no meetings found")
+            errors.append(f"{url}: no meetings found")
+        found += [{**m, "page_url": url} for m in on_page]
+        unrecognized += not_read
 
     created, listed = 0, set()
     for item in found:
@@ -89,7 +102,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if meeting is None:
             meeting = new_meeting(store, item, settings, stamp)
             created += 1
-        fields = {k: v for k, v in item.items() if k not in ("key", "name", "start_time")}
+        fields = {k: v for k, v in item.items() if k not in ("key", "name", "start_time", "page_url")}
+        fields["source_url"] = item["page_url"]
         if item["start_time"]:
             fields["start_time"] = item["start_time"]
         merge(meeting, {**fields, "title": title_for(item["body"], item["special"]), "posted_title": item["name"],
@@ -97,7 +111,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         meeting["last_seen"] = stamp
         listed.add(meeting["id"])
 
-    errors, counts = [], {"added": 0, "changed": 0, "checked": 0}
+    counts = {"added": 0, "changed": 0, "checked": 0}
     limit, waiting = settings.get("max_documents_per_run", 60), 0
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
         if meeting.get("source") != linkpage.SOURCE or meeting["date"] < since:

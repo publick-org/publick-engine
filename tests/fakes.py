@@ -414,15 +414,22 @@ class FakeFinalsite:
 
 class FakeLinkPage:
     """A school district's page that links each meeting's documents (Methuen Public Schools'
-    table, or Waltham Public Schools' list, saved and trimmed: tests/fixtures/linkpage_*.html),
+    table, Waltham Public Schools' list, or Nashua's dated lines and the Policy committee's page,
+    saved and trimmed: tests/fixtures/linkpage_*.html),
     and the Google Drive files it links, each downloading as a distinct PDF. `page` replaces
-    the saved page; `missing` lists Drive files that answer with a sign-in page instead."""
+    the saved page of the board itself, and `replaced` any page by its address; `missing` lists
+    Drive files that answer with a sign-in page instead."""
     METHUEN = "https://www.methuen.k12.ma.us/school-community/meetings-documents"
     WALTHAM = "https://www.walthampublicschools.org/minutes-and-documentation"
+    NASHUA = "https://www.nashua.edu/our-district/board-of-education/boe-meeting-agendas-and-minutes"
+    NASHUA_POLICY = NASHUA + "/policy"
 
-    def __init__(self, page: str | None = None, missing: tuple = ()):
-        self.pages = {self.METHUEN: FIXTURES / "linkpage_methuen.html", self.WALTHAM: FIXTURES / "linkpage_waltham.html"}
+    def __init__(self, page: str | None = None, missing: tuple = (), replaced: dict | None = None):
+        self.pages = {self.METHUEN: FIXTURES / "linkpage_methuen.html", self.WALTHAM: FIXTURES / "linkpage_waltham.html",
+                      self.NASHUA: FIXTURES / "linkpage_nashua.html",
+                      self.NASHUA_POLICY: FIXTURES / "linkpage_nashua_policy.html"}
         self.page = page
+        self.replaced = replaced or {}
         self.missing = missing
         self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
         self.urls = []
@@ -432,8 +439,11 @@ class FakeLinkPage:
         import re
         self.urls.append(url)
         self.request_count += 1
+        if url in self.replaced:
+            return FakeResponse(self.replaced[url].encode())
         if url in self.pages:
-            return FakeResponse(self.page.encode() if self.page is not None else self.pages[url].read_bytes())
+            replaced = self.page is not None and url in (self.METHUEN, self.NASHUA)
+            return FakeResponse(self.page.encode() if replaced else self.pages[url].read_bytes())
         drive = re.fullmatch(r"https://drive\.google\.com/uc\?export=download&id=([\w-]+)", url)
         if drive:
             if drive.group(1) in self.missing:
