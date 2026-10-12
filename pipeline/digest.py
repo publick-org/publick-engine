@@ -17,7 +17,8 @@ evening meetings, and the morning's daily run hours to finish first). Whatever s
 (the network's scheduler Worker, worker/digest.js, through Buttondown) sends each item once its
 date has passed.
 
-The email's signup form is shown on /digest/ when the town's config turns it on:
+The email's signup form (site/templates/digest_form.html) is shown on /digest/ and the home page, under
+the week ahead, and each meeting's and board's page links to it, when the town's config turns it on:
 
     [digest]
     signup = true
@@ -74,6 +75,19 @@ def first_collected(docs: list[dict], tz: ZoneInfo) -> date | None:
     return min(stamps).astimezone(tz).date() if stamps else None
 
 
+def minutes_posted(meetings: list[dict], tracking_since: str | None, tz: ZoneInfo) -> dict[int, date | None]:
+    """The day each meeting's minutes were first collected, by id(meeting), in the town's time; None
+    for a meeting without minutes, for minutes that turned out to be another document (an agenda
+    filed as minutes), and for minutes collected on the site's first day, the town's history read
+    all at once rather than minutes just posted. Collected each morning, so posted by that day."""
+    since = datetime.fromisoformat(tracking_since).astimezone(tz).date() if tracking_since else None
+    days = {}
+    for m in meetings:
+        day = first_collected(m.get("minutes", []), tz) if (m.get("minutes_summary") or {}).get("is_minutes", True) else None
+        days[id(m)] = day if day and since and since < day else None
+    return days
+
+
 def sundays(since: date, today: date) -> list[date]:
     """Every Sunday from the first on or after since to the last on or before today, newest first."""
     first = since + timedelta(days=(6 - since.weekday()) % 7)
@@ -88,15 +102,13 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
     if not tracking_since:
         return []
     since = datetime.fromisoformat(tracking_since).astimezone(tz).date()
-    # Minutes that turned out to be another document (an agenda filed as minutes) aren't news of a meeting.
-    minutes_day = {id(m): first_collected(m.get("minutes", []), tz) if (m.get("minutes_summary") or {}).get("is_minutes", True) else None
-                   for m in meetings}
+    minutes_day = minutes_posted(meetings, tracking_since, tz)
     found = []
     for sunday in sundays(since, today):
         monday = sunday + timedelta(days=1)
         week = [m for m in meetings if monday.isoformat() <= m["date"] <= (sunday + timedelta(days=7)).isoformat()]
         minutes = [m for m in meetings
-                   if minutes_day[id(m)] and since < minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
+                   if minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
         if not week and not minutes:
             continue
