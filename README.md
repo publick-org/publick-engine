@@ -163,7 +163,8 @@ worker/                     The Cloudflare Workers: index.js serves every site p
                             release, and the network's engine pull request on time, watches the runs finish,
                             checks every site loads each hour, and sends the weekly digest (the logic in
                             scheduler.js); digest.js signs readers up for the
-                            weekly digest's email, and sends it, through Buttondown; *.test.js are their tests
+                            weekly digest's email, and sends it, through Buttondown; digest-test.js sends
+                            an issue to test addresses alone, by hand; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see Versions)
@@ -523,6 +524,7 @@ The network's Workers send it through [Buttondown](https://buttondown.com) (`wor
 
 - **Signing up.** With `[digest] signup = true` (and `provider` and `privacy_url`, which the form and the About page name), `/digest/` has a form that posts to the site's own `/digest/subscribe`: the pages' Content-Security-Policy allows a form nowhere else. The sites Worker answers it, with `BUTTONDOWN_SUBSCRIBE_KEY` (subscribers read and write, sending disabled): a new address is added unconfirmed, and Buttondown asks it to confirm; an address already confirmed gets the town's tag; one that unsubscribed or never confirmed is asked to confirm again; one Buttondown won't send to is left alone. Every one goes on to `/digest/thanks/` (or `/digest/problem/`), so the form never says whether an address is subscribed. A hidden field catches bots, and Buttondown is given the reader's IP address for its firewall, since the form has no CAPTCHA; the About page says so. Only a site whose Worker answers `/digest/subscribe` can turn the form on.
 - **Sending.** Every hour of Sunday and Monday (UTC), the scheduler Worker reads the newest issue in the feed of each town in its `DIGEST_TOWNS`, and sends it with `BUTTONDOWN_SEND_KEY` (emails read and write, sending enabled) once its date has passed, to that town's tag alone. It isn't sent more than 6 hours late, nor twice (an email with its subject already made). A town no one has signed up for sends nothing. A run that fails for any town opens one issue, **The weekly digest didn't send** (label `digest not sent`), or comments on the one open. Each run makes a request for each town and a few for each one sending; Workers on the free plan may make 50, so about 20 towns.
+- **Testing.** `node worker/digest-test.js <host or feed file>` sends a town's newest issue at once, as it would go on Sunday, to the addresses in `DIGEST_TEST_RECIPIENTS` and no subscriber: a Buttondown draft with `[Test]` before its subject, sent to those addresses alone, with `BUTTONDOWN_SEND_KEY`. Given a site's hostname it sends the issue on the site now; given a built site's `digest/feed.xml`, the issue as an engine change would make it. Each test deletes the earlier ones' drafts. The network runs it from a workflow (publick.org's **Digest test**), which keeps the addresses a secret, as its run logs are public.
 
 ## Data collection
 

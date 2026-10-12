@@ -25,6 +25,9 @@
 // run makes one request for each town, and a few more for each town sending;
 // Workers on the free plan may make 50 a run, so about 20 towns.
 //
+// Testing: sendTest() sends an issue at once to the addresses given and no
+// subscriber, run by hand (worker/digest-test.js).
+//
 // Environment: BUTTONDOWN_SUBSCRIBE_KEY (the sites Worker's: subscribers read
 // and write, sending disabled) and BUTTONDOWN_SEND_KEY (the scheduler's:
 // emails read and write, sending enabled), secrets; DIGEST_TOWNS.
@@ -37,6 +40,10 @@ export const DIGEST_CRON = "35 * * * SUN,MON";
 export const SEND_WINDOW_HOURS = 6;
 // The digest's languages: English for now.
 export const LANGUAGES = ["en"];
+// The start of a test's subject, so it's never mistaken for (or taken as) the issue sent.
+export const TEST_PREFIX = "[Test] ";
+// A test's draft is deleted by the next test made this long after it, by when it's sent.
+const TEST_KEEP_MINUTES = 10;
 // Subscribers Buttondown won't send to, or who asked not to be added again: left as they are.
 const LEAVE_ALONE = ["blocked", "complained", "undeliverable", "removed"];
 // Subscribers asked to confirm (again) when they sign up: they unsubscribed, or never confirmed.
@@ -179,6 +186,11 @@ async function listAll(key, path, what) {
   return results;
 }
 
+// An issue as Buttondown takes an email's body: the HTML as it is, in its "fancy" editor's mode.
+function emailBody(issue) {
+  return `<!-- buttondown-editor-mode: fancy -->\n${issue.body}`;
+}
+
 // Sends one town's newest issue if it's due and not sent yet. Returns what was done.
 export async function sendTown(env, host, now, cache) {
   const response = await env.SITES.fetch(`https://${host}/digest/feed.xml`);
@@ -205,7 +217,7 @@ export async function sendTown(env, host, now, cache) {
   const monday = issue.link.match(/\/digest\/(\d{4}-\d{2}-\d{2})\/?$/);
   const email = {
     subject: issue.subject,
-    body: `<!-- buttondown-editor-mode: fancy -->\n${issue.body}`,
+    body: emailBody(issue),
     status: "about_to_send",
     // Only the town's own readers: an email without this would go to every town's.
     filters: { predicate: "and", groups: [], filters: [{ field: "subscriber.tags", operator: "contains", value: tag.id }] },
@@ -244,4 +256,35 @@ export async function sendDigests(env, now = new Date()) {
   }
   if (failed.length) throw new AggregateError(failed, failed.map((e) => e.message).join("; "));
   return results;
+}
+
+// ---- Testing ----------------------------------------------------------------
+
+// Deletes the earlier tests' drafts, but for any made in the last few minutes (by a test still sending).
+// Returns how many were deleted.
+export async function deleteTests(key, now = new Date()) {
+  const since = now - TEST_KEEP_MINUTES * 60_000;
+  const drafts = await listAll(key, "/emails?status=draft&excluded_fields=body", "listing drafts");
+  const old = drafts.filter((e) => (e.subject || "").startsWith(TEST_PREFIX) && new Date(e.creation_date) < since);
+  for (const draft of old) {
+    await ok(await buttondown(key, `/emails/${encodeURIComponent(draft.id)}`, { method: "DELETE" }), "deleting an earlier test");
+  }
+  return old.length;
+}
+
+// Sends an issue now, as it would go on Sunday, to the addresses given and no subscriber: a draft,
+// with "[Test] " before its subject, sent to those addresses alone. Returns the subject.
+export async function sendTest(key, issue, recipients) {
+  if (!recipients.length) throw new Error("no addresses to send the test to");
+  const subject = `${TEST_PREFIX}${issue.subject}`;
+  const draft = await (await ok(await buttondown(key, "/emails", {
+    method: "POST",
+    body: JSON.stringify({ subject, body: emailBody(issue), status: "draft", archival_mode: "disabled",
+                           commenting_mode: "disabled", canonical_url: issue.link }),
+  }), "making the test's draft")).json();
+  // Quietly: Buttondown's answer may quote an address.
+  await okQuietly(await buttondown(key, `/emails/${encodeURIComponent(draft.id)}/send-draft`, {
+    method: "POST", headers: { "X-Buttondown-Live-Dangerously": "true" }, body: JSON.stringify({ recipients }),
+  }), "sending the test");
+  return subject;
 }
