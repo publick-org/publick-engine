@@ -36,8 +36,12 @@ from zoneinfo import ZoneInfo
 # When an issue's email is due, on its Sunday, in the town's timezone.
 SEND_TIME = time(17, 30)
 # Minutes collected for a meeting longer ago than this are left out: a source's history read
-# for the first time, not news.
-MINUTES_MAX_AGE = timedelta(days=90)
+# for the first time, not news. Most minutes are collected 2 to 6 weeks after their meeting (they're
+# approved at the next one); 90 days let a town's first weeks list minutes from months before
+# (Burlington's "Week of October 12, 2026" had 35, from July on), so 45 since 2026-10-12.
+MINUTES_MAX_AGE = timedelta(days=45)
+# Meetings whose minutes the email lists in full; the rest are on the issue's page, a link away.
+EMAIL_MINUTES = 10
 # Issues in the feed, newest first.
 FEED_ISSUES = 12
 # Links in the email say where the reader came from, for the page counts (site/static/js/count.js).

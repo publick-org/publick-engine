@@ -2407,8 +2407,8 @@ msgstr "Cada cifra de %(town)s tiene un margen de error (±) porque viene de una
 
 #: site/templates/digest_signup.html
 msgid ""
-"Each Sunday afternoon. First we'll email you to confirm your address, and every email has a link "
-"to unsubscribe."
+"Each Sunday evening. First we'll email you to confirm your address, and every email has a link to"
+" unsubscribe."
 msgstr ""
 
 #: site/pages/about/index.html
@@ -3977,6 +3977,13 @@ msgstr ""
 #, python-format
 msgid "Minutes from %(count)s meeting, with what it decided."
 msgid_plural "Minutes from %(count)s meetings, with what they decided."
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/templates/digest_email.html
+#, python-format
+msgid "Minutes from %(count)s more meeting on the site"
+msgid_plural "Minutes from %(count)s more meetings on the site"
 msgstr[0] ""
 msgstr[1] ""
 
