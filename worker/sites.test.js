@@ -339,6 +339,35 @@ test("only the town's own pages can sign someone up", async () => {
   }
 });
 
+test("signups over the rate limit, by IP or by address, aren't passed on", async () => {
+  const fake = fakeButtondown({ [LOOKUP]: [404, {}], "POST /subscribers": [201, {}] });
+  const counted = [];
+  const limiter = (over) => ({ async limit({ key }) { counted.push(key); return { success: !key.startsWith(over) }; } });
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    for (const over of ["ip:", "email:"]) {
+      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER: limiter(over) };
+      const response = await worker.fetch(signup({ email: "Reader@example.org" }), e);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/problem/", over);
+    }
+    assert.equal(fake.calls.length, 0);
+    // The address is counted by its hash, never as written; the IP as Cloudflare gives it.
+    assert.ok(counted.includes("ip:203.0.113.9"));
+    assert.ok(counted.some((k) => /^email:[0-9a-f]{64}$/.test(k)));
+    assert.ok(!counted.some((k) => k.includes("example.org")));
+    // Within the limits, or a limiter that fails: signed up as before.
+    for (const SIGNUP_LIMITER of [limiter("none:"), { limit: async () => { throw new Error("down"); } }]) {
+      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER };
+      const response = await worker.fetch(signup({ email: "reader@example.org" }), e);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+    }
+  } finally {
+    console.error = realError;
+    fake.restore();
+  }
+});
+
 test("a site without the digest's signup takes no POST", async () => {
   const response = await worker.fetch(signup({ email: "reader@example.org" }), env());
   assert.equal(response.status, 405);

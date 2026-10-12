@@ -188,7 +188,7 @@ Reviewed 2026-10-07; the digest, officials, 311, and Batches rows 2026-10-12.
 |---|---|---|
 | The weekly digest by email | Live for every town but Lowell since 2026-10-12 (publick.org #72, #97); Gloucester's first email went out 2026-10-11 | Lowell once it has a few weeks of meetings; Spanish later, Lawrence first |
 | Spanish summaries on prompt 4 | 384 of 684 summaries have one (#93 kept prompt 4 and fixed the check's false alarms); the rest show in English, marked "not translated yet". Furthest behind: Malden (39 of 163), Beverly (34 of 125), Manchester (26 of 83) | Item 2; then `/es/feed.xml`, a Spanish share image, Ward and District kept apart, a way to report a translation error ([Spanish quality](#spanish-quality)) |
-| The sites Worker under load | Built and tested (engine #88, and `SIGNUP_LIMITER` in publick.org's `wrangler.toml`), not merged | Waits for the move to Workers' paid plan (decided 2026-10-07: not yet; see [Open decisions](#open-decisions-for-the-maintainer)); merge and deploy them together |
+| The sites Worker under load | Built and tested (engine #88), not merged. Its digest signup rate limit went ahead on its own (#117, 2026-10-12, with `SIGNUP_LIMITER` already in publick.org's `wrangler.toml`), before the digest's first send to every town | The rest waits for the move to Workers' paid plan (decided 2026-10-07: not yet; see [Open decisions](#open-decisions-for-the-maintainer)) |
 | Taking down one wrong summary | Merged (#90), 2026-10-07 | Reaches the towns with the next release and engine move; `RUNBOOK.md` says how to use it (publick.org #73) |
 | A table for every chart | The Accessibility page said so; the 311 category and ward pages' month charts had none | In #94, with a site check that fails a column chart without its table |
 | Links to meeting recordings | Each board links its channel; Wallingford's Board of Education videos were collected per meeting, not shown | In #95: each meeting links its own recording where its listing has one |
@@ -983,7 +983,8 @@ and the 311 data has people's house numbers.
     can't set;
   - a rate limit on the digest signup, per IP address and per email address
     (`SIGNUP_LIMITER` in the network's `wrangler.toml`), so the form can't
-    be used to send someone confirmation after confirmation.
+    be used to send someone confirmation after confirmation (shipped on its
+    own in #117, 2026-10-12).
 - *311 requests made private:* a request SeeClickFix stops showing is marked
   removed and left off the pages, but `requests.json` keeps its full
   address, public in git. Drop a removed record's address (from the October
