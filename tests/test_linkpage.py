@@ -1,6 +1,6 @@
 """A board's meetings from a page that links each meeting's documents: Methuen Public Schools'
-table (Finalsite) and Waltham Public Schools' list (ParentSquare SmartSites), saved and
-trimmed: tests/fixtures/linkpage_*.html."""
+table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), and Nashua's lines of
+dates with their documents under them (Finalsite), saved and trimmed: tests/fixtures/linkpage_*.html."""
 
 import copy
 import json
@@ -35,9 +35,21 @@ def waltham() -> dict:
             "agenda_pattern": r"\bagenda\b|special meeting|workshop|public hearing"}
 
 
-def parsed(settings: dict) -> tuple[dict, list]:
-    page = (FIXTURES / ("linkpage_methuen.html" if "methuen" in settings["page_url"] else "linkpage_waltham.html"))
-    found, unrecognized = linkpage.meetings(page.read_text(encoding="utf-8"), settings["page_url"], settings)
+def nashua() -> dict:
+    """[page_meetings] for Nashua's Board of Education: its own page, and its Policy committee's.
+    Only "Minutes" are the minutes: "Non-Public Minutes" are kept as a link."""
+    return {"page_url": FakeLinkPage.NASHUA, "source_name": "Nashua School District", "since": "2026-01-01",
+            "body": "Board of Education", "minutes_pattern": r"^\s*minutes\s*$",
+            "pages": {FakeLinkPage.NASHUA_POLICY: "Board of Education Policy Committee"}}
+
+
+FIXTURE = {FakeLinkPage.METHUEN: "linkpage_methuen.html", FakeLinkPage.WALTHAM: "linkpage_waltham.html",
+           FakeLinkPage.NASHUA: "linkpage_nashua.html", FakeLinkPage.NASHUA_POLICY: "linkpage_nashua_policy.html"}
+
+
+def parsed(settings: dict, url: str | None = None, board: str | None = None) -> tuple[dict, list]:
+    url = url or settings["page_url"]
+    found, unrecognized = linkpage.meetings((FIXTURES / FIXTURE[url]).read_text(encoding="utf-8"), url, settings, board)
     return {m["key"]: m for m in found}, unrecognized
 
 
@@ -149,6 +161,38 @@ def test_a_list_of_links_by_meeting():
                                  "text": "January 7, 2026 Agenda - 1"}]
 
 
+def test_lines_of_dates_with_their_documents_under_them():
+    """Nashua's page: a line with a date ("August 24, 2026 - Public Hearing"), then a list of
+    links labelled "Agenda and Attachments" and "Minutes"."""
+    found, unrecognized = parsed(nashua())
+    assert not unrecognized
+    assert list(found) == ["2026-10-13-meeting", "2026-08-24-meeting", "2026-08-24-public-hearing",
+                           "2026-08-03-special-boe", "2026-07-20-meeting", "2026-07-13-special-boe",
+                           "2026-04-27-meeting", "2016-04-13-meeting", "2026-02-17-public-hearing", "2026-02-09-meeting"]
+    regular = found["2026-08-24-meeting"]
+    assert (regular["body"], regular["name"], regular["special"]) == ("Board of Education", "", False)
+    assert regular["agenda_url"] == DRIVE.format("1WSBsHw4lXvim0EpwFSf1P9S7LN4hUviE").replace("sharing", "drive_link")
+    assert regular["minutes_url"] == DRIVE.format("1nUJde7VHDbfhGuww2l5lYyMvKfDrJIly").replace("sharing", "drive_link")
+    assert [link["text"] for link in regular["links"]] == ["Non-Public Minutes"]
+    # "(Special BOE)" and "- Special BOE" alike.
+    assert found["2026-07-13-special-boe"]["special"] and found["2026-07-13-special-boe"]["name"] == "Special BOE"
+    assert found["2026-08-24-public-hearing"]["minutes_url"]
+    # Other documents of the meeting are links; a cancelled meeting with nothing posted isn't one.
+    assert [link["text"] for link in found["2026-07-20-meeting"]["links"]] == ["F&O Committee", "HR Committee"]
+    assert not any(key.startswith("2026-02-23") for key in found)
+
+
+def test_a_page_of_one_boards_meetings():
+    found, _ = parsed(nashua(), FakeLinkPage.NASHUA_POLICY, "Board of Education Policy Committee")
+    assert len(found) == 8 and all(m["body"] == "Board of Education Policy Committee" for m in found.values())
+    # The key names the board, so the Board of Education's meeting the same day is another.
+    meeting = found["2026-09-22-board-of-education-policy-committee-meeting"]
+    assert meeting["agenda_url"] and meeting["minutes_url"]
+    # A page of one board's meetings takes no names from bodies.
+    assert parsed({**nashua(), "bodies": {"Minutes": "Somewhere else"}}, FakeLinkPage.NASHUA_POLICY,
+                  "Board of Education Policy Committee")[0] == found
+
+
 def test_the_default_kinds_need_the_words():
     """Without its agenda_pattern, Waltham's special meeting has its minutes and no agenda."""
     settings = {k: v for k, v in waltham().items() if k != "agenda_pattern"}
@@ -228,6 +272,30 @@ def test_a_page_without_meetings_fails(district, tmp_path):
     assert not (tmp_path / "meetings" / "meetings.json").exists()
 
 
+def test_nashua_and_its_committees_page(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = nashua()
+    status, store, client = run(town, tmp_path)
+    page = [m for m in store.values() if m.get("source") == "page"]
+    assert status["meetings_created"] == 9 + 7 and not status["errors"]
+    committee = store["page-2026-09-22-board-of-education-policy-committee-meeting"]
+    assert committee["source_url"] == FakeLinkPage.NASHUA_POLICY and committee["minutes"]
+    assert store["page-2026-08-24-meeting"]["source_url"] == FakeLinkPage.NASHUA
+    assert sum(len(m.get("agendas", [])) + len(m.get("minutes", [])) for m in page) == 9 + 8 + 7 + 7
+    assert client.urls[:2] == [FakeLinkPage.NASHUA, FakeLinkPage.NASHUA_POLICY]
+
+
+def test_a_committees_page_that_lists_nothing_is_reported(config, tmp_path):
+    """The board's own page listing nothing stops the run (test_a_page_without_meetings_fails);
+    a committee's page listing nothing is an error in the run's summary, and the rest is collected."""
+    town = copy.deepcopy(config)
+    town["page_meetings"] = nashua()
+    client = FakeLinkPage(replaced={FakeLinkPage.NASHUA_POLICY: "<html><body>Moved</body></html>"})
+    status, store, _ = run(town, tmp_path, client)
+    assert status["errors"] == [f"{FakeLinkPage.NASHUA_POLICY}: no meetings found"]
+    assert status["meetings_created"] == 9
+
+
 def test_waltham(config, tmp_path):
     town = copy.deepcopy(config)
     town["page_meetings"] = waltham()
@@ -245,6 +313,7 @@ def test_waltham(config, tmp_path):
     ({"bodies": ["School Committee"]}, "bodies must map"),
     ({"agenda_pattern": "(agenda"}, "agenda_pattern isn't a regular expression"),
     ({"max_documents_per_run": 0}, "max_documents_per_run must be"),
+    ({"pages": {"policy": "Board of Education Policy Committee"}}, "pages must map"),
 ])
 def test_config_is_checked(change, message):
     settings = {k: v for k, v in {**methuen(), **change}.items() if v is not None}
