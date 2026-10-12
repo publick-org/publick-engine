@@ -46,6 +46,12 @@ EMAIL_MINUTES = 10
 FEED_ISSUES = 12
 # Links in the email say where the reader came from, for the page counts (site/static/js/count.js).
 EMAIL_REF = "digest-email"
+# The email's footer, as the law on commercial email asks: a postal address, and a link to unsubscribe.
+# The email goes without Buttondown's template around it (worker/digest.js), so nothing else adds them.
+# Until the address is filled in, the scheduler refuses to send the email (tests still go).
+MAILING_ADDRESS = "[mailing address]"
+# Buttondown's tag for each reader's own unsubscribe link, filled in as it sends.
+UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}"
 
 
 def signup(config: dict) -> dict | None:

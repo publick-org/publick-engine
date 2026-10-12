@@ -90,7 +90,11 @@ def test_digest_feed(site_dir):
     links = re.findall(r'href="([^"]+)"', body)
     # The site's own links, and the city's official site, as every page's footer has.
     site_links = [link for link in links if link.startswith("https://gloucester-ma.publick.org/")]
-    assert site_links and set(links) - set(site_links) == {"https://gloucester-ma.gov"}
+    # Buttondown's tag for each reader's unsubscribe link (worker/digest.js sends it without Buttondown's
+    # template, which would add its own), as the signup form promises.
+    assert site_links and set(links) - set(site_links) == {"https://gloucester-ma.gov", digest.UNSUBSCRIBE_TAG}
+    # The postal address the law on commercial email asks for.
+    assert f"Publick · {digest.MAILING_ADDRESS}</p>" in body
     # Each of the site's says it's from the email, for the page counts (count.js).
     assert all(link.endswith("?ref=digest-email") for link in site_links)
     # Styled inline, in the town's own colors, as email apps drop a stylesheet; headed with the site's name.

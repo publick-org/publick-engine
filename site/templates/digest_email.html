@@ -1,6 +1,8 @@
 {# One issue of the weekly digest as an email's body, in the feed (/digest/feed.xml): HTML with its
    styles inline, in the town's own colors (palette, from [site.colors]), as email apps drop a
-   stylesheet; every link in full. The email provider's template adds only its unsubscribe footer.
+   stylesheet; every link in full. It's sent with none of the email provider's template around it
+   (worker/digest.js), so its footer has what the law asks for: a link to unsubscribe (unsubscribe,
+   the provider's tag for each reader's own) and a postal address (mailing_address, pipeline/digest.py).
    The email is read as a whole, so each section says once that its lines are written by AI,
    above them, where the site's lists label each line. Each link says it's from the email (?ref=,
    digest.EMAIL_REF), for the page counts. A meeting is named by its title where the title says
@@ -85,6 +87,7 @@
       <tr><td bgcolor="{{ palette.primary }}" style="background:{{ palette.primary }};border-radius:4px;"><a href="{{ issue_url }}" style="display:inline-block;padding:10px 16px;color:#ffffff;font-weight:700;text-decoration:none;"><span style="color:#ffffff;">{{ _("Read this week's digest on the site") }}</span></a></td></tr>
     </table>
     <p style="margin:0;font-size:13px;line-height:1.5;color:#545c65;">{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %} {{ _("Each meeting's page has its agenda, its minutes, and any correction.") }}</p>
+    <p style="margin:10px 0 0;font-size:13px;line-height:1.5;color:#545c65;">{% trans url=unsubscribe %}You get this email because you signed up for the weekly digest. <a href="{{ url }}">Unsubscribe</a>.{% endtrans %}<br>Publick · {{ mailing_address }}</p>
   </td></tr>
 </table>
 </div>
