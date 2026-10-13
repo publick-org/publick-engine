@@ -21,6 +21,12 @@ msgstr ""
 msgid " pts"
 msgstr " puntos"
 
+#: site/pages/data/index.html
+msgid "\"scheduled\", \"cancelled\", \"postponed\", or \"rescheduled\"."
+msgstr ""
+"“scheduled” (programada), “cancelled” (cancelada), “postponed” (aplazada) o “rescheduled” (con "
+"nueva fecha)."
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "${amount} million"
@@ -598,6 +604,13 @@ msgstr "%(town)s, %(state)s: funcionarios electos y cómo comunicarse con ellos"
 #, python-format
 msgid "%(town)s, %(state)s housing: permits, home values, and rents"
 msgstr "%(town)s, %(state)s: vivienda, permisos, valor de las viviendas y alquileres"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
+#: site/pages/data/index.html
+#, python-format
+msgid "%(town)s, %(state)s meetings, summaries, and decisions as open data"
+msgstr "%(town)s, %(state)s: reuniones, resúmenes y decisiones como datos abiertos"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -1477,7 +1490,7 @@ msgid "AI summary of the minutes: %(headline)s"
 msgstr "Resumen de las actas hecho con IA: %(headline)s"
 
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
-#: site/templates/base.html
+#: site/pages/data/index.html site/templates/base.html
 msgid "About"
 msgstr "Acerca de"
 
@@ -1696,6 +1709,10 @@ msgstr "Todas las reuniones registradas"
 msgid "All repeat locations"
 msgstr "Todos los lugares con solicitudes repetidas"
 
+#: site/pages/data/index.html
+msgid "Always \"publick-meetings\", and the format's version number."
+msgstr "Siempre “publick-meetings”, y el número de versión del formato."
+
 #: pipeline/common_strings.py
 msgid "Americans with Disabilities Act, the federal law on access for people with disabilities."
 msgstr ""
@@ -1705,6 +1722,10 @@ msgstr ""
 #: site/states/ma/budget.html site/states/me/schools.html
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
+
+#: site/pages/data/index.html
+msgid "An identifier that doesn't change, and the meeting's page on this site."
+msgstr "Un identificador que no cambia, y la página de la reunión en este sitio."
 
 #: site/templates/base.html site/templates/digest_email.html
 #, python-format
@@ -1863,6 +1884,10 @@ msgstr ""
 "Según la ubicación de la solicitud en el mapa y los <a href=\"%(url)s\">límites de distritos de "
 "%(year)s de %(publisher)s</a>."
 
+#: site/pages/data/index.html
+msgid "Before you use it"
+msgstr "Antes de usarlos"
+
 #: site/pages/about/index.html
 msgctxt "data status"
 msgid "Behind"
@@ -1929,11 +1954,11 @@ msgid "Bond ratings"
 msgstr "Calificaciones crediticias"
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
-#: site/pages/about/accessibility/index.html site/pages/meetings/boards/index.html
-#: site/pages/meetings/decisions/index.html site/pages/meetings/past/index.html
-#: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
-#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
-#: site/templates/ward.html
+#: site/pages/about/accessibility/index.html site/pages/data/index.html
+#: site/pages/meetings/boards/index.html site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
+#: site/templates/category.html site/templates/digest.html site/templates/digest_answer.html
+#: site/templates/meeting.html site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -2374,6 +2399,10 @@ msgstr "Incluye las reuniones desde el <time datetime=\"%(iso)s\">%(when)s</time
 msgid "Covers meetings."
 msgstr "Incluye las reuniones."
 
+#: site/pages/data/index.html
+msgid "Credit"
+msgstr "Crédito"
+
 #: site/states/ma/budget.html
 msgid "Credit ratings affect how much the city pays to borrow."
 msgstr "Las calificaciones crediticias influyen en cuánto paga la ciudad cuando pide dinero prestado."
@@ -2389,6 +2418,10 @@ msgstr "Cultura y recreación"
 #: site/states/ma/schools.html
 msgid "DESE updates each figure once a year."
 msgstr "El DESE actualiza cada cifra una vez al año."
+
+#: site/pages/data/index.html
+msgid "Data"
+msgstr "Datos"
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -2516,6 +2549,20 @@ msgstr "Descargar CSV"
 msgid "Download all decisions (CSV)"
 msgstr "Descargar todas las decisiones (CSV)"
 
+#. %(town)s is the town's name.
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"Download every %(town)s public meeting on this site, with its agenda, minutes, AI summaries, and "
+"decisions, free to reuse with credit."
+msgstr ""
+"%(town)s: descargue todas las reuniones públicas de este sitio, con su agenda, actas, resúmenes "
+"hechos con IA y decisiones. Se pueden reutilizar libremente, dando crédito."
+
+#: site/pages/data/index.html
+msgid "Download meetings.json"
+msgstr "Descargar meetings.json"
+
 #: site/pages/housing/index.html
 #, python-format
 msgid "Each %(town)s figure has a margin of error (±) because it comes from a sample."
@@ -2548,6 +2595,10 @@ msgid ""
 "decided at those whose minutes were posted."
 msgstr ""
 
+#: site/pages/data/index.html
+msgid "Each agenda and minutes"
+msgstr "Cada agenda y acta"
+
 #: site/states/ma/budget.html
 msgid "Each figure is certified as of July 1, the start of that year."
 msgstr "Cada cifra se certifica al 1 de julio, el inicio de ese año."
@@ -2557,6 +2608,10 @@ msgid "Each location links to its latest request on SeeClickFix. The CSV lists e
 msgstr ""
 "Cada lugar enlaza a su solicitud más reciente en SeeClickFix. El CSV incluye todas las "
 "solicitudes."
+
+#: site/pages/data/index.html
+msgid "Each meeting"
+msgstr "Cada reunión"
 
 #: site/templates/digest_email.html
 msgid "Each meeting's page has its agenda, its minutes, and any correction."
@@ -2820,6 +2875,34 @@ msgstr ""
 msgid "Every chart has a table with the same numbers."
 msgstr "Cada gráfica tiene una tabla con los mismos números."
 
+#: site/pages/data/index.html
+msgid "Every chart on this site has a table with the same numbers, and a CSV download under it."
+msgstr ""
+"Cada gráfica de este sitio tiene una tabla con los mismos números, y debajo, un enlace para "
+"descargarla en CSV."
+
+#. %(num)s is a number of meetings.
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"Every meeting this site lists (%(num)s meeting), with its board, date, time, place, and status, "
+"the city's agenda and minutes, and their AI summaries and decisions, joined together in one file."
+msgid_plural ""
+"Every meeting this site lists (%(num)s meetings), with its board, date, time, place, and status, "
+"the city's agenda and minutes, and their AI summaries and decisions, joined together in one file."
+msgstr[0] ""
+"Cada reunión que muestra este sitio (%(num)s reunión), con su junta o comité, fecha, hora, lugar "
+"y estado, la agenda y las actas de la ciudad, y sus resúmenes hechos con IA y decisiones, todo "
+"junto en un solo archivo."
+msgstr[1] ""
+"Cada reunión que muestra este sitio (%(num)s reuniones), con su junta o comité, fecha, hora, "
+"lugar y estado, la agenda y las actas de la ciudad, y sus resúmenes hechos con IA y decisiones, "
+"todo junto en un solo archivo."
+
+#: site/pages/data/index.html
+msgid "Every meeting, oldest first."
+msgstr "Todas las reuniones, de la más antigua a la más reciente."
+
 #: site/pages/about/index.html
 msgid "Every number links to where it came from."
 msgstr "Cada número enlaza a su fuente."
@@ -2871,6 +2954,10 @@ msgstr "febrero"
 #: pipeline/states/ct/budget.py
 msgid "Federal aid"
 msgstr "Ayuda federal"
+
+#: site/pages/data/index.html
+msgid "Field"
+msgstr "Campo"
 
 #: site/pages/311/index.html
 msgid "Figures will appear here after the first data collection."
@@ -3005,6 +3092,10 @@ msgid "For each one: category, location, and when it was submitted, acknowledged
 msgstr ""
 "De cada una: la categoría, la ubicación y cuándo se envió, se confirmó, se cerró o se volvió a "
 "abrir."
+
+#: site/pages/data/index.html
+msgid "For minutes, false when the city filed another document as the minutes."
+msgstr "En las actas, false cuando la ciudad publicó otro documento como acta."
 
 #: site/templates/meeting.html
 #, python-format
@@ -3659,6 +3750,18 @@ msgstr ""
 msgid "It was adopted on <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Se aprobó el <time datetime=\"%(iso)s\">%(when)s</time>."
 
+#: site/pages/data/index.html
+msgid "Its AI summary, or null when there isn't one yet:"
+msgstr "Su resumen hecho con IA, o null si todavía no hay uno:"
+
+#: site/pages/data/index.html
+msgid "Its agenda and minutes, described below."
+msgstr "Su agenda y sus actas, que se describen abajo."
+
+#: site/pages/data/index.html
+msgid "Its recording, and where the city lists it."
+msgstr "Su grabación, y dónde la publica la ciudad."
+
 #: site/templates/base.html
 #, python-format
 msgid "Its summaries and data are <a href=\"%(url)s\">free to reuse with credit</a>."
@@ -4133,6 +4236,10 @@ msgstr ""
 #, python-format
 msgid "Meetings recorded here start in %(month)s."
 msgstr "Las reuniones registradas aquí empiezan en %(month)s."
+
+#: site/pages/data/index.html
+msgid "Meetings, summaries, and decisions"
+msgstr "Reuniones, resúmenes y decisiones"
 
 #: pipeline/common_strings.py site/pages/officials/index.html
 msgid "Member"
@@ -4721,6 +4828,20 @@ msgstr ""
 msgid "On this page"
 msgstr "En esta página"
 
+#. %(version)s is the file format's version number, such as 1.
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"One JSON object, in UTF-8. Its <code>version</code> is %(version)s: a field may be added without "
+"notice, but a field renamed, removed, or changed in meaning gets a new version number. Dates are "
+"<code>YYYY-MM-DD</code>, times <code>HH:MM</code> in the town's time zone, and a field with "
+"nothing to say is <code>null</code>."
+msgstr ""
+"Un objeto JSON, en UTF-8. Su <code>version</code> es %(version)s: se puede añadir un campo sin "
+"aviso, pero si un campo cambia de nombre, se elimina o cambia de significado, el número de "
+"versión cambia. Las fechas son <code>AAAA-MM-DD</code>, las horas <code>HH:MM</code> en la zona "
+"horaria de la ciudad, y un campo sin dato es <code>null</code>."
+
 #: site/pages/about/index.html
 msgid ""
 "One cookie, only if you use the language switch: it remembers the language you chose, and nothing"
@@ -4797,6 +4918,12 @@ msgstr "Otros"
 #: pipeline/states/ma/housing.py
 msgid "Other residential"
 msgstr "Otras residenciales"
+
+#: site/pages/data/index.html
+msgid "Our correction of the city's listing, with the reason, the evidence, and the day it was checked."
+msgstr ""
+"Nuestra corrección de lo que publica la ciudad, con el motivo, la prueba y el día en que se "
+"verificó."
 
 #: site/templates/category.html
 msgid "Outside"
@@ -5722,6 +5849,15 @@ msgstr "Algunos departamentos usan SeeClickFix más que otros."
 msgid "Some of this site's data is behind: see <a href=\"%(url)s\">Data status</a>."
 msgstr "Algunos datos de este sitio están atrasados: vea el <a href=\"%(url)s\">Estado de los datos</a>."
 
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"Some of what's here keeps its own terms, such as 311 requests: <a href=\"%(url)s\">what you can "
+"reuse, and how</a>."
+msgstr ""
+"Parte de este contenido tiene sus propias condiciones, como las solicitudes al 311: <a "
+"href=\"%(url)s\">qué puede reutilizar y cómo</a>."
+
 #: site/pages/about/index.html
 msgid "Some of what's here keeps its own terms:"
 msgstr "Parte de este contenido tiene sus propias condiciones:"
@@ -6455,12 +6591,12 @@ msgstr "Resumen"
 
 #. the credit line readers are asked to copy. %(network)s is the network's name and %(domain)s its
 #. website, such as "publick.org".
-#: site/pages/about/index.html
+#: site/pages/about/index.html site/pages/data/index.html
 #, python-format
 msgid "Summary by %(network)s (%(domain)s), AI-generated from the city's agenda."
 msgstr "Resumen de %(network)s (%(domain)s), hecho con IA a partir de la agenda de la ciudad."
 
-#: site/pages/about/index.html
+#: site/pages/about/index.html site/pages/data/index.html
 #, python-format
 msgid "Summary by %(network)s, AI-generated from the city's agenda."
 msgstr "Resumen de %(network)s, hecho con IA a partir de la agenda de la ciudad."
@@ -6857,6 +6993,10 @@ msgstr ""
 "población</a> de la Oficina del Censo de EE. UU.; la <a href=\"%(budget)s\">página del "
 "presupuesto</a> explica cómo."
 
+#: site/pages/data/index.html
+msgid "The board or committee, and the meeting's name as the city lists it."
+msgstr "La junta o el comité, y el nombre de la reunión tal como lo publica la ciudad."
+
 #: site/states/me/budget.html
 msgid "The change is in the commitment. Amounts are not adjusted for inflation."
 msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustadas por inflación."
@@ -6864,6 +7004,14 @@ msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustada
 #: site/templates/meeting.html
 msgid "The city"
 msgstr "La ciudad"
+
+#: site/pages/data/index.html
+msgid ""
+"The city's agendas and minutes are the official record. Every summary in the file links the "
+"document it came from, and the copy saved here."
+msgstr ""
+"Las agendas y actas de la ciudad son el registro oficial. Cada resumen del archivo enlaza el "
+"documento del que salió y la copia guardada aquí."
 
 #: site/pages/about/index.html
 msgid "The city's agendas and minutes, and their full text on this site, are public records."
@@ -6964,6 +7112,16 @@ msgstr ""
 msgid "The data and code are in the <a href=\"%(url)s\">public repository</a>."
 msgstr "Los datos y el código están en el <a href=\"%(url)s\">repositorio público</a>."
 
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"The decisions alone are a spreadsheet, <a href=\"%(decisions)s\" download>decisions.csv</a>, and "
+"new agendas and minutes are in an <a href=\"%(feed)s\">RSS feed</a>."
+msgstr ""
+"Las decisiones solas están en una hoja de cálculo, <a href=\"%(decisions)s\" "
+"download>decisions.csv</a>, y las agendas y actas nuevas, en un <a href=\"%(feed)s\">canal "
+"RSS</a>."
+
 #: site/pages/officials/index.html
 msgid "The district map isn't available yet. Each member's seat is listed under its office below."
 msgstr ""
@@ -6991,9 +7149,26 @@ msgstr ""
 "archivos de datos de RIDE no tienen una tasa estatal para todos los estudiantes, así que no se "
 "muestra la del estado."
 
+#: site/pages/data/index.html
+msgid "The document on the city's website, and the copy saved here."
+msgstr "El documento en el sitio web de la ciudad, y la copia guardada aquí."
+
 #: site/states/ct/budget.html
 msgid "The figures are from each town's audit, so they are two to three years behind."
 msgstr "Las cifras vienen de la auditoría de cada pueblo, así que tienen dos o tres años de atraso."
+
+#: site/pages/data/index.html
+msgid "The file"
+msgstr "El archivo"
+
+#: site/pages/data/index.html
+msgid ""
+"The file has only what the site shows: a decision or agenda item our fact check couldn't find in "
+"its document is left out, and so is a summary taken down after a reader reported an error."
+msgstr ""
+"El archivo tiene solo lo que muestra el sitio: no incluye una decisión o un punto de la agenda "
+"que nuestra verificación no encontró en su documento, ni un resumen retirado después de que un "
+"lector reportó un error."
 
 #: site/templates/meeting.html
 msgid "The file is too large to summarize automatically; the agenda is linked below."
@@ -7007,6 +7182,10 @@ msgstr ""
 #, python-format
 msgid "The fiscal year %(year)s figure was certified as of July 1, %(start)s."
 msgstr "La cifra del año fiscal %(year)s se certificó al 1 de julio de %(start)s."
+
+#: site/pages/data/index.html
+msgid "The format of meetings.json"
+msgstr "El formato de meetings.json"
 
 #: site/states/ct/schools.html site/states/nh/schools.html site/states/ri/schools.html
 #: site/states/vt/schools.html
@@ -7076,6 +7255,10 @@ msgstr ""
 "los precios de venta de las propiedades (el nivel común de tasación), así que el estado calcula "
 "el valor de sus propiedades en %(equalized)s (su valor ajustado)."
 
+#: site/pages/data/index.html
+msgid "The license, and where its terms are."
+msgstr "La licencia, y dónde están sus condiciones."
+
 #: site/templates/digest_email.html
 msgid "The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it."
 msgstr ""
@@ -7091,6 +7274,15 @@ msgid "The mayor, City Council, and School Committee, by office and by ward, and
 msgstr ""
 "El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo "
 "comunicarse con ellos."
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"The meetings, summaries, and decisions can be downloaded together from the <a "
+"href=\"%(url)s\">Data page</a>."
+msgstr ""
+"Las reuniones, los resúmenes y las decisiones se pueden descargar juntos en la <a "
+"href=\"%(url)s\">página de datos</a>."
 
 #: site/states/vt/budget.html
 msgid ""
@@ -7245,8 +7437,16 @@ msgstr "No se pudo cargar la lista de calles. Inténtelo de nuevo más tarde."
 msgid "The street lookup needs JavaScript."
 msgstr "La búsqueda por calle necesita JavaScript."
 
+#: site/pages/data/index.html
+msgid ""
+"The summaries and decisions are written by AI, and they can be wrong. They aren't checked by a "
+"person before posting."
+msgstr ""
+"Los resúmenes y las decisiones los escribe la IA, y pueden tener errores. Una persona no los "
+"revisa antes de publicarlos."
+
 #. %(network)s is the network's name, such as "Publick".
-#: site/pages/about/index.html
+#: site/pages/about/index.html site/pages/data/index.html
 #, python-format
 msgid ""
 "The summaries, headlines, decision lists, and data that %(network)s compiles are free to reuse, "
@@ -7257,6 +7457,10 @@ msgstr ""
 " libremente, incluso con fines comerciales, bajo la <a href=\"%(license)s\">licencia Creative "
 "Commons Atribución 4.0</a> (CC BY 4.0). Por favor, dé crédito así, con un enlace al documento del"
 " que se tomó el resumen:"
+
+#: site/pages/data/index.html
+msgid "The town's name, state, and this site's address."
+msgstr "El nombre de la ciudad, su estado y la dirección de este sitio."
 
 #: site/pages/officials/index.html
 msgid "The ward map isn't available yet. Each member's seat is listed under its office below."
@@ -7794,6 +7998,15 @@ msgstr ""
 msgid "Weekly digest · Week of %(when)s"
 msgstr ""
 
+#: site/pages/data/index.html
+#, python-format
+msgid ""
+"What %(site)s collects, as files you can download and reuse. They're rebuilt every morning with "
+"the site."
+msgstr ""
+"Lo que recopila %(site)s, en archivos que puede descargar y reutilizar. Se actualizan cada mañana"
+" junto con el sitio."
+
 #: site/pages/about/index.html
 #, python-format
 msgid "What %(site)s is, where its data comes from, and how to report a mistake."
@@ -7804,6 +8017,10 @@ msgid ""
 "What each meeting decided is written by AI from its minutes. Check the minutes before relying on "
 "it."
 msgstr ""
+
+#: site/pages/data/index.html
+msgid "What it holds"
+msgstr "Qué contiene"
 
 #: site/states/ct/budget.html
 msgid "What it pays for"
@@ -7948,6 +8165,10 @@ msgstr ""
 msgid "When each board and committee meets next."
 msgstr "Cuándo es la próxima reunión de cada junta y comité."
 
+#: site/pages/data/index.html
+msgid "When it meets. A start time that isn't likely, such as 3:00 AM, is left out."
+msgstr "Cuándo se reúne. Una hora de inicio poco probable, como las 3:00 a. m., se omite."
+
 #: site/states/vt/budget.html
 #, python-format
 msgid ""
@@ -7956,6 +8177,14 @@ msgid ""
 msgstr ""
 "Cuando el nivel común de tasación queda muy por debajo del 100%%, los valores registrados se han "
 "quedado atrás del mercado y el estado puede ordenar una nueva tasación."
+
+#: site/pages/data/index.html
+msgid "When the copy was saved, who posted the document, and the copy's SHA-256 hash."
+msgstr "Cuándo se guardó la copia, quién publicó el documento y el hash SHA-256 de la copia."
+
+#: site/pages/data/index.html
+msgid "When the file was made."
+msgstr "Cuándo se creó el archivo."
 
 #: site/templates/meeting.html
 msgid "Where"
@@ -7983,6 +8212,12 @@ msgstr ""
 "De dónde viene el dinero del fondo general y cómo se gasta, las reservas y el límite del impuesto"
 " a la propiedad."
 
+#: site/pages/data/index.html
+msgid "Where it meets (name, address, and the city's description), and its link to join online."
+msgstr ""
+"Dónde se reúne (nombre, dirección y la descripción de la ciudad), y su enlace para unirse en "
+"línea."
+
 #: site/states/ma/budget.html
 msgid ""
 "Where the city's general fund money comes from and how it is spent, from the city's annual "
@@ -8002,6 +8237,14 @@ msgstr "Adónde va el impuesto a la propiedad"
 #: site/pages/streets/index.html
 msgid "Where this comes from"
 msgstr "De dónde vienen estos datos"
+
+#: site/pages/data/index.html
+msgid "Whether it's a special meeting, and whether the city still lists it."
+msgstr "Si es una reunión especial, y si la ciudad todavía la publica."
+
+#: site/pages/data/index.html
+msgid "Whether its summary was taken down after a reader reported an error."
+msgstr "Si su resumen se retiró después de que un lector reportó un error."
 
 #: pipeline/build_site.py site/pages/officials/index.html
 msgid "Who represents you"
@@ -8189,10 +8432,38 @@ msgctxt "year's count"
 msgid "estimated"
 msgstr "estimado"
 
+#: site/pages/data/index.html
+msgid ""
+"fact_check: what our fact check found when it compared the summary's names, numbers, and "
+"decisions with the document's text. \"ok\": everything was found. \"failed\": something wasn't, "
+"and it's left out. \"weak\": the document is scanned, so only what could be read was checked, and"
+" nothing is left out. \"unchecked\": there was no text to check against. null: not checked yet."
+msgstr ""
+"fact_check: lo que encontró nuestra verificación al comparar los nombres, números y decisiones "
+"del resumen con el texto del documento. “ok”: se encontró todo. “failed”: algo no se encontró, y "
+"se omite. “weak”: el documento está escaneado, así que solo se verificó lo que se pudo leer, y no"
+" se omite nada. “unchecked”: no había texto con qué comparar. null: todavía no se ha verificado."
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "fiscal year %(year)s"
 msgstr "año fiscal %(year)s"
+
+#: site/pages/data/index.html
+msgid "for an agenda, items: the main agenda items;"
+msgstr "en una agenda, items: los puntos principales de la agenda;"
+
+#: site/pages/data/index.html
+msgid ""
+"for minutes, decisions: each with its kind (\"decided\", \"recommended\", or \"procedural\") and "
+"its text;"
+msgstr ""
+"en las actas, decisions: cada una con su tipo (“decided”, decidida; “recommended”, recomendada; o"
+" “procedural”, de trámite) y su texto;"
+
+#: site/pages/data/index.html
+msgid "headline and summary, in English;"
+msgstr "headline y summary: el titular y el resumen, en inglés;"
 
 #: pipeline/build_site.py site/pages/311/index.html
 msgid "last week"
@@ -8209,6 +8480,10 @@ msgid "minutes of %(count)s meeting"
 msgid_plural "minutes of %(count)s meetings"
 msgstr[0] ""
 msgstr[1] ""
+
+#: site/pages/data/index.html
+msgid "model and generated_at: the AI model, and when it wrote the summary;"
+msgstr "model y generated_at: el modelo de IA, y cuándo escribió el resumen;"
 
 #: pipeline/rhythms.py
 msgid "no data yet"
@@ -8260,6 +8535,12 @@ msgid "not on this site. The city's service requests aren't in a public system t
 msgstr ""
 "este sitio no incluye esta información. Las solicitudes de servicio de la ciudad no están en un "
 "sistema público que este sitio lea."
+
+#: site/pages/data/index.html
+msgid ""
+"not_shown: how many items or decisions were left out because they couldn't be matched to the "
+"document;"
+msgstr "not_shown: cuántos puntos o decisiones se omitieron porque no se encontraron en el documento;"
 
 #. A part of the vacant homes in the row above.
 #: site/pages/housing/index.html

@@ -1,6 +1,8 @@
 """Structural checks on the built HTML: every page is well-formed for assistive
 technology and every internal link resolves."""
 
+import csv
+import html
 import json
 import re
 from datetime import date
@@ -378,6 +380,54 @@ def test_decisions_page_and_csv(site_dir):
     assert {r[2] for r in rows[1:]} <= {"decided", "recommended", "procedural"}
     home = (site_dir / "index.html").read_text()
     assert ('href="/meetings/decisions/"' in home) == (len(rows) > 1)
+
+
+def test_open_data_export(site_dir, data_dir):
+    """/data/meetings.json: every meeting the site lists, in its documented format, with what the
+    meeting pages show of each summary and decision, and no costs."""
+    from pipeline.build_site import EXPORT_VERSION
+    export = json.loads((site_dir / "data" / "meetings.json").read_text(encoding="utf-8"))
+    assert export["format"] == "publick-meetings" and export["version"] == EXPORT_VERSION
+    assert export["documentation"] == "https://gloucester-ma.publick.org/data/"
+    assert export["town"] == {"name": "Gloucester", "state": "Massachusetts", "state_abbr": "MA",
+                              "site": "https://gloucester-ma.publick.org/"}
+    assert export["license"]["url"] == "https://creativecommons.org/licenses/by/4.0/"
+    rows = export["meetings"]
+    assert [r["date"] for r in rows] == sorted(r["date"] for r in rows)
+    pages = {p.parent.name for p in (site_dir / "meetings").glob("20*/index.html")}
+    assert {urlparse(r["url"]).path.strip("/").split("/")[-1] for r in rows} <= pages
+    assert len({r["id"] for r in rows}) == len(rows)
+    assert {r["status"] for r in rows} <= {"scheduled", "cancelled", "postponed", "rescheduled"}
+    assert "cost" not in json.dumps(export)
+    docs = [(r, kind, r[kind]) for r in rows for kind in ("agenda", "minutes") if r[kind]]
+    assert any(d["summary"] for _, _, d in docs)
+    for r, kind, d in docs:
+        assert d["url"].startswith("http")
+        # The saved copy is in the site (the tests keep PDFs local), at the address the page links.
+        copy = urlparse(d["saved_copy_url"])
+        assert copy.netloc == "gloucester-ma.publick.org" and (site_dir / copy.path.lstrip("/")).exists()
+        assert copy.path in (site_dir / urlparse(r["url"]).path.lstrip("/") / "index.html").read_text()
+        if d["summary"]:
+            assert d["summary"]["ai_generated"] and d["summary"]["model"]
+            assert ("items" in d["summary"]) == (kind == "agenda") and ("decisions" in d["summary"]) == (kind == "minutes")
+    # The decisions are those decisions.csv has, with the same kinds.
+    rows_csv = list(csv.reader((site_dir / "meetings" / "data" / "decisions.csv").open()))[1:]
+    exported = {(r["date"], x["kind"], x["text"]) for r, kind, d in docs if kind == "minutes" and d["summary"]
+                for x in d["summary"]["decisions"]}
+    assert {(c[0], c[2], c[3]) for c in rows_csv} <= exported
+    assert {k for _, k, _ in exported} <= {"decided", "recommended", "procedural"}
+
+
+def test_data_page(site_dir):
+    """The Data page describes the export and links it, and the About page links the Data page."""
+    page = html.unescape((site_dir / "data" / "index.html").read_text())
+    assert "<h1>Data</h1>" in page
+    assert 'href="/data/meetings.json"' in page and 'href="/meetings/data/decisions.csv"' in page
+    assert "Summary by Publick, AI-generated from the city" in page
+    assert "can be wrong" in page
+    count = len(json.loads((site_dir / "data" / "meetings.json").read_text())["meetings"])
+    assert f"({count} meetings)" in page
+    assert 'href="/data/"' in (site_dir / "about" / "index.html").read_text()
 
 
 def test_decisions_are_sorted_for_residents():
@@ -758,8 +808,10 @@ def test_home_and_downloads_for_search_engines(site_dir):
     assert decisions["license"] == "https://creativecommons.org/licenses/by/4.0/"
     [requests] = structured_data(site_dir / "311" / "index.html")
     assert requests["license"] == "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    [data] = structured_data(site_dir / "data" / "index.html")
+    assert [d["encodingFormat"] for d in data["distribution"]] == ["application/json", "text/csv"]
     # Every file a dataset names is in the site.
-    for item in (decisions, requests):
+    for item in (decisions, requests, data):
         for d in item["distribution"]:
             assert (site_dir / urlparse(d["contentUrl"]).path.lstrip("/")).exists(), d["contentUrl"]
 

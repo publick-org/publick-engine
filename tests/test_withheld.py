@@ -74,5 +74,10 @@ def test_a_withheld_summary_is_shown_nowhere(config, data_dir, tmp_path, monkeyp
         text = (out / listing).read_text()
         chunks = [c for c in re.split(r"<item>|<li", text) if url in c]
         assert not any(g in c for c in chunks for g in gone), listing
+    # The open data export leaves both summaries out, says so, and still links the documents.
+    [row] = [r for r in json.loads((out / "data" / "meetings.json").read_text())["meetings"] if r["id"] == m["id"]]
+    assert row["minutes"]["summary"] is None and row["minutes"]["summary_withheld"]
+    assert row["agenda"]["summary"] is None and row["agenda"]["summary_withheld"]
+    assert row["minutes"]["url"] and row["agenda"]["url"]
     # The documents themselves are still linked.
     assert "Saved copy of the minutes" in page

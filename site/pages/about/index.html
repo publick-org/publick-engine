@@ -167,6 +167,7 @@
   {% endif %}
   <li>{{ _("Census Bureau and Bureau of Labor Statistics figures are in the public domain.") }}</li>
 </ul>
+{% if config.meetings is defined %}<p>{% trans url="/data/" %}The meetings, summaries, and decisions can be downloaded together from the <a href="{{ url }}">Data page</a>.{% endtrans %}</p>{% endif %}
 <p>{% trans url=site.repo_url ~ "/blob/main/LICENSE" %}The full terms are in the <a href="{{ url }}">network's license</a>.{% endtrans %}</p>
 {% endif %}
 

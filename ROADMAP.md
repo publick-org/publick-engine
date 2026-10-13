@@ -392,8 +392,9 @@ and publick.org #73.
    council meeting of 31 for 2026). ([Next towns](#next-towns))
 10. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
-11. **The open data export**: each town's `/data/meetings.json` and a Data
-    page. ([Open data](#open-data))
+11. *Built 2026-10-13.* **The open data export**: each town's `/data/meetings.json` and a Data
+    page; the list of every town's export on publick.org once a release
+    carries it. ([Open data](#open-data))
 12. **The next readers**: Foxit full text (Manchester's minutes, the most
     common style not read free); school boards on Diligent Community
     (Burlington) and BoardDocs; nested Google Drive folders (Lewiston's
@@ -1720,13 +1721,20 @@ credit rests more on custom than on law.
 
 **Next.**
 - SeeClickFix's terms, saved as read when the license was written.
-- A per-town export, `/data/meetings.json`, in a fixed, documented,
-  versioned format: each meeting with its board, date, status, links,
-  summaries, and decisions joined to it, built with the site as a static
-  file. A Data page on each site describing the files and the credit line,
-  and a list of every town's export on publick.org. Costs left out.
-- *On the page:* summaries are AI-generated and can be wrong; the town's
-  documents are the official record, and every summary links its source.
+- *Built 2026-10-13:* a per-town export, `/data/meetings.json`, format
+  `publick-meetings` version 1: each meeting with its board, date, time,
+  place, status, correction, and links, and its agenda and minutes with the
+  city's link, the saved copy, and the summary and decisions joined to it,
+  as the English pages show them (after the fact check, without a summary
+  taken down). Built with the site as a static file; costs left out (about
+  235 KB for Gloucester, 520 KB for Malden). A Data page on each site
+  (`/data/`, in English and Spanish, linked from the About page) describes
+  each field and the credit line, and says on the page that summaries are
+  AI-generated and can be wrong, that the town's documents are the official
+  record, and that every summary links its source.
+- A list of every town's export on publick.org's home page, once every town
+  is on an engine that builds it.
+- Spanish summaries in the export, as their own fields, if someone asks.
 
 **Matters at:** the license now; the export before telling anyone the data
 is there, and after the summary checks.
