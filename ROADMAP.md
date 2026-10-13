@@ -17,7 +17,10 @@ up to date 2026-10-12: eleven towns with Lowell, the weekly digest emailed
 for all ten towns that have data, the officials list checked against each
 town's next election, 311's working files moved out of git, and what adding
 ten more towns needs first; and that evening, Regional Publick written
-down as what comes after the first 20 towns.
+down as what comes after the first 20 towns. Brought up to date 2026-10-13:
+fifteen towns with Methuen, Waltham, Portland, and Nashua, launched the same
+day on engines released by hand (v1.52.0 to v1.54.0, two bugs real data
+found on the way), the summary budget raised, and 311 out of git.
 
 This file has four parts:
 
@@ -186,7 +189,7 @@ and alerts, once a cluster has enough towns to be worth reading.
 officials. Which towns fill each cluster, and in what order. Whether the
 topic list is kept by hand or grows from the documents.
 
-## Where things stand (2026-10-12)
+## Where things stand (2026-10-13)
 
 | Town | Live | Meetings from | 311 | Notes |
 |---|---|---|---|---|
@@ -201,11 +204,27 @@ topic list is kept by hand or grows from the documents.
 | Lewiston, ME | 2026-10-05 | CivicPlus calendar and Archive Center; School Committee in Google Drive (#84) | none | |
 | South Kingstown, RI | 2026-10-05 | CivicClerk | SeeClickFix, by voting precinct | First Rhode Island town; no tax bill, which the state publishes nothing to calculate |
 | Lowell, MA | 2026-10-12 | CivicPlus Agenda Center, with the School Committee's (the city calendar lists only holidays) | none (Lowell 311 is on a Tyler portal with no public data) | Config only (publick.org #96); council District 1 vacant until a special election on 2027-02-02; first fetch run by hand on 2026-10-12 |
+| Methuen, MA | 2026-10-13 | CivicPlus Agenda Center and calendar; School Committee from the district's page of Drive files (`[page_meetings]`, #122) | SeeClickFix, by voting precinct (no wards) | Council districts are groups of precincts, named in its note (publick.org #109) |
+| Waltham, MA | 2026-10-13 | CivicPlus Agenda Center and the city's calendars; School Committee from the district's page (`[page_meetings]`) | none (an iWorQ portal with no public data) | Committee nights as "City Council Committees"; a few spring committee minutes are scans |
+| Portland, ME | 2026-10-13 | CivicClerk, every public body (34) | SeeClickFix, by council district | "District" on its pages (`[town] areas`, #122); the Board of Public Education is on Diligent Community, not read yet; the city website can't be read (an incomplete certificate chain), so no councillors' emails; election 2026-11-03, check-in set for 11-04 |
+| Nashua, NH | 2026-10-13 | CivicClerk (since January 2026); Board of Education and its committees from the district's pages (`[page_meetings]`) | none (private) | Pennichuck Corporation's own meetings left out; no average tax bill (the state's parcel values cover 0.76 of the valuation) |
 
-- Every town on engine v1.49.0 (moved 2026-10-12). Merged since, for the
-  release of 2026-10-13: the translation prompts cached (#113), each town's
-  next election checked against its officials list (#114), and 311's
-  requests and scorecard kept in the documents bucket (#115).
+- Every town on engine v1.54.0 (moved by hand 2026-10-13, so the four new
+  towns could launch that day). v1.52.0 (#122) added `[town] areas`
+  ("District"), `[page_meetings]` (a school board's page of linked agendas
+  and minutes: Methuen, Waltham, Nashua), and CivicClerk listed to 90 days
+  ahead. Its engine pull request held Burlington back, then stopped: the
+  Engine workflow's token couldn't comment on the pull request (fixed in
+  publick.org #108). Real data found two bugs that day:
+  - Burlington's home page offered a cancelled meeting's public hearing,
+    linking to a "How to take part" its page didn't have (#123, v1.53.0).
+  - Waltham's build stopped on a School Committee meeting combined with the
+    city calendar's listing, whose "minutes not posted" note named the
+    district's website from the wrong record (#124, v1.54.0): its first run
+    collected 234 meetings and published none until v1.54.0.
+- 311's requests and scorecard are in the documents bucket for every 311
+  town since the daily run of 2026-10-13, and out of git (publick.org
+  `0d30eb8`); git keeps each town's `311/status.json`.
 - The weekly digest's first email went out for Gloucester on Sunday
   2026-10-11, an hour late: Buttondown refused the "already sent?" check's
   timestamp (publick.org #90), fixed in #109 (v1.48.0) and sent at 22:35
@@ -214,14 +233,14 @@ topic list is kept by hand or grows from the documents.
   Worker deploy (publick.org #97: Buttondown now requires a tag's color).
   The sites Worker was deployed by hand the same day, for v1.48.0 and
   v1.49.0 (publick.org #92, #95).
-- October's summaries, transcriptions, and translations after twelve days:
-  $51.61 of $80 (summaries $22.26, translations $19.67, transcriptions $5.22,
-  made again $4.25, cut off $0.21). By town: Beverly $9.97, Burlington $7.41,
-  Gloucester $6.86, Malden $6.27, Manchester $5.90, Wallingford $4.48, Bangor
-  $4.20, Lewiston $2.46, Lawrence $2.22, South Kingstown $1.84. The Batches
-  API halves the summaries from 2026-10-11; translations, about two fifths
-  of the month, stay one at a time.
-- 804 summaries, 799 with a Spanish translation made (one that fails the
+- October's summaries, transcriptions, and translations after thirteen
+  days: $62.19 of October's $200 (publick.org #102). By town: Beverly
+  $10.49, Burlington $7.63, Gloucester $6.86, Malden $6.81, Manchester $5.90,
+  Wallingford $4.48, Bangor $4.20, Nashua $3.88, Lewiston $2.46, Lawrence
+  $2.43, South Kingstown $1.84, Lowell $1.82, Methuen $1.38, Waltham $1.04,
+  Portland $0.96. The Batches API halves the summaries from 2026-10-11;
+  translations, about two fifths of the month, stay one at a time.
+- 1,040 summaries, 1,028 with a Spanish translation made (one that fails the
   checks shows the English).
 - Fact checks (the 2026-10-12 run records): 30 of 799 summaries held back
   (Burlington 8, Bangor 6, Gloucester 5, Lewiston and Wallingford 3 each,
@@ -230,21 +249,21 @@ topic list is kept by hand or grows from the documents.
 - "Towns need attention" (publick.org #66) closed 2026-10-09: Beverly's
   summaries caught up.
 - The network's repository grew 21.6 MB from 2026-10-05 to 10-12, 17.4 MB of
-  it 311 (about 2.5 MB a day from six towns), which #115 moves to the
-  bucket. Data folders: Malden 16 MB, Manchester 14, Gloucester 9.5,
+  it 311 (about 2.5 MB a day from six towns), which is in the bucket since
+  2026-10-13. Data folders: Malden 16 MB, Manchester 14, Gloucester 9.5,
   Burlington 4.0, the rest under 2.5.
 - Network status: [publick.org/status/](https://publick.org/status/).
 
 ### Before ten more towns
 
 Asked 2026-10-12. Done that day: the digest for every town, Lowell, the
-officials check, and 311 out of git. Left:
+officials check, and 311 out of git. Done 2026-10-13: Methuen, Waltham,
+Portland, and Nashua, and the budget (below). Left:
 
-- **The summary budget.** October's first twelve days spent $51.61, a pace
-  of about $130 that the budget's pacing holds to $80, partly the launches'
-  backlogs; each new town brings about three months of documents
-  (`[summaries] since`). Raise it, or add towns two or three at
-  a time so each launch's backlog clears before the next. An open decision.
+- **The summary budget.** *Decided 2026-10-12* (publick.org #102): $200 for
+  October, for the launches' backlogs, and $110 a month from November, for
+  15 towns (a mid-size town about $5.50 a month at batch prices, Portland
+  and Nashua about twice that). Towns still added two to four at a time.
 - **Workers' paid plan.** The free plan's 100,000 requests a day are shared
   by every site, and the digest's Sunday send fits its 50 requests a run up
   to 24 towns (two per town, and two lookups). Engine #88 waits for it. An
@@ -253,8 +272,9 @@ officials check, and 311 out of git. Left:
   as Lowell took.
 - **By hand, and growing with the towns:** the weekly meetings audit
   (Burlington, Bangor, Lewiston, and South Kingstown have never had one), a
-  Cloudflare email rule per town, and the officials after each election
-  (Bangor, Lewiston, and South Kingstown on 2026-11-03).
+  Cloudflare email rule per town (the four of 2026-10-13 not yet made), and
+  the officials after each election (Bangor, Lewiston, South Kingstown, and
+  Portland on 2026-11-03; a check-in is set for 11-04).
 - **Which towns.** The config-only candidates under [Next towns](#next-towns);
   any with 311 now starts with it in the bucket.
 
@@ -285,7 +305,7 @@ Reviewed 2026-10-07; the digest, officials, 311, and Batches rows 2026-10-12.
 | Links to meeting recordings | Each board links its channel; Wallingford's Board of Education videos were collected per meeting, not shown | In #95: each meeting links its own recording where its listing has one |
 | Vote records | Malden's roll calls collected daily since 2026-10-01 (128, 127 pass every check), shown nowhere | Item 14: item numbers read right, a few weeks of a person checking each new vote, a switch per town ([Vote records](#vote-records)) |
 | Saying why something is missing | Meeting pages, sections, and tables explain their gaps, and the site checks hold them to it | Item 7 |
-| 311 out of git | Merged 2026-10-12 (#115): the requests and scorecard in the documents bucket | Item 8: the release of 2026-10-13 and its first daily run save them there; then publick.org stops tracking them in git (`.gitignore`) |
+| 311 out of git | *Done 2026-10-13.* The requests and scorecard in the documents bucket (#115, #121), saved there by that day's daily run, and untracked in git (publick.org `0d30eb8`) | Nothing; Methuen's and Portland's own `.gitignore` for them is now redundant |
 | Officials kept current | Merged 2026-10-12 (#114), and each town's `next_election` in its config (publick.org #96) | Reaches the towns with the release of 2026-10-13; Bangor, Lewiston, and South Kingstown checked after their elections of 2026-11-03 |
 | When documents were posted | Agenda Center's posting time is kept only inside `agenda_id` | Its own field, if [How fast the town posts its records](#ideas-to-decide) is chosen |
 | School boards not read yet | Burlington (Diligent Community), Lewiston (nested Google Drive folders), South Kingstown (Rhode Island's Open Meetings portal); Manchester's site blocks automated reading | Item 12 |
@@ -583,8 +603,6 @@ Proposals, not decisions. Each says what it would take.
 
 - The order of the next towns (the lists under [Next towns](#next-towns) are
   a proposal).
-- The summary budget for about 20 towns: raise the $80 a month, or add
-  towns two or three at a time ([Before ten more towns](#before-ten-more-towns)).
 - When to move Cloudflare to Workers' paid plan ($5 a month). Decided
   2026-10-07: not yet. Until then a day past 100,000 requests takes every
   site down until midnight UTC (`RUNBOOK.md`, "Many more readers than
@@ -595,7 +613,8 @@ Decided 2026-10-03 and 2026-10-04, and kept here for reference:
 - 311 addresses already in git history stay as they are: no rewrite.
   `requests.json` keeps SeeClickFix's full addresses (the street lookup
   needs them); only what the pages show is cut to the block.
-- The budget is $80 every month (publick.org #48).
+- The budget is $80 every month (publick.org #48). Raised 2026-10-12
+  (publick.org #102): $200 for October 2026, $110 a month from November.
 - No second person with owner access; `RUNBOOK.md` says what one owner does
   (publick.org #45).
 - Push runs keep publishing.
@@ -1285,7 +1304,25 @@ its colors, its officials, and its Spanish text. Hours a town by hand.
 Chosen for the people they reach and how little local coverage they have,
 not only for ease. A proposal: the order is an open decision.
 
-**Live or in a pull request.** Lowell (115,000) went live 2026-10-12, config
+**Live since 2026-10-13** (publick.org #109), config only on v1.54.0, chosen
+2026-10-12 for active communities and readers:
+- *Methuen* (53,000) and *Waltham* (65,000): residents follow City Hall
+  themselves (Inside Methuen; the nonprofit Waltham Times).
+- *Portland, Maine* (68,000): every public body, 311, districts.
+- *Nashua, New Hampshire* (91,000): on CivicClerk since January 2026; Nashua
+  Ink Link covers the Board of Aldermen.
+
+**New Hampshire next** (checked 2026-10-13): Derry (34,000) and Salem
+(30,000), both busy Agenda Centers, config only; Concord's Archive Center
+lists nothing to a plain request, so it needs a closer look; Laconia
+(17,000) is config only; Rochester refuses automated reading, Portsmouth
+needs a Drupal reader, and Lebanon's Agenda Center has nothing from 2026.
+
+**Considered 2026-10-12 and not now:** Springfield (CivicClerk with meetings
+under "General", to be sorted into boards) and New Haven (Legistar, which
+the engine doesn't list yet; its city website refuses the crawler).
+
+**Earlier.** Lowell (115,000) went live 2026-10-12, config
 only (publick.org #96): its Agenda Center has every board, with text minutes;
 no 311 (a Tyler portal with no public data). Lawrence (89,000) went live 2026-10-02 in
 English and Spanish; its council posts minutes late (5 for 2026 by October),
@@ -1929,6 +1966,11 @@ quiet days.
 | v1.47.0 (2026-10-10) | The daily runs' summaries through the Batches API, at half the price, collected at the end of each job (#107) |
 | v1.48.0 (2026-10-11) | The digest's "already sent?" check gives Buttondown a date (#109), after Gloucester's first send was refused |
 | v1.49.0 (2026-10-11) | The digest email in the town's masthead and colors, with what committees recommended (#111); a test of an issue sent now to test addresses alone (#112) |
+| v1.50.0 (2026-10-12) | Translation prompts cached (#113); each town's next election, and an officials list not checked since marked behind (#114); 311's requests and scorecard kept in the bucket (#115) |
+| v1.51.0 (2026-10-13) | The weekly digest ready for every town: signup limit, recent minutes, missed-week alert (#117), no Buttondown template (#118), signup on the home page, meetings, and boards (#119); the 311 steps get the bucket's keys (#121) |
+| v1.52.0 (2026-10-13, by hand) | `[town] areas` (districts), `[page_meetings]`, CivicClerk to 90 days ahead (#122) |
+| v1.53.0 (2026-10-13, by hand) | The home page's public hearings leave out a cancelled meeting (#123) |
+| v1.54.0 (2026-10-13, by hand) | A school board meeting's "minutes not posted" names the district's website (#124) |
 | next (merged 2026-10-12) | The translation prompts cached (#113); each town's next election, and an officials list not checked since marked behind (#114); 311's requests and scorecard in the documents bucket, not git (#115) |
 
 The October 2026 outside review (2026-10-02) read both repositories and the
