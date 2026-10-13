@@ -52,7 +52,7 @@ def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
     for source in sources(m) - set(NO_DOCUMENTS):
         if source in LINKED and LINKED[source] in meetings:
             found.append((source, str(meetings[LINKED[source]]["since"])))
-        elif source in ("finalsite", "drive") and f"{source}_meetings" in config:
+        elif source in ("finalsite", "drive", "page") and f"{source}_meetings" in config:
             found.append((source, str(config[f"{source}_meetings"]["since"])))
         elif source in ("archive", "calendar") and "archive" in config:
             found.append(("archive", str(config["archive"]["minutes_since"])))

@@ -188,8 +188,8 @@
 </div>
 {%- endmacro %}
 
-{#- A 311 area's name: "Ward 3", or "Precinct 3201" in a town whose 311 requests are placed
-    in voting precincts ([seeclickfix] areas). Import it with context, for precincts. -#}
+{#- An area's name: "Ward 3", or what the town calls its areas ([town] areas): "Precinct 3201",
+    "District 3". Import it with context, for areas. -#}
 {% macro area(n) -%}
-{% if precincts %}{{ _("Precinct %(ward)s", ward=n) }}{% else %}{{ _("Ward %(ward)s", ward=n) }}{% endif %}
+{% if areas == "precincts" %}{{ _("Precinct %(ward)s", ward=n) }}{% elif areas == "districts" %}{{ _("District %(ward)s", ward=n) }}{% else %}{{ _("Ward %(ward)s", ward=n) }}{% endif %}
 {%- endmacro %}

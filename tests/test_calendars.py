@@ -186,6 +186,32 @@ def test_meeting_dropped_from_civicclerk_is_marked_removed(config, tmp_path):
     assert all(m.get("listed", True) for m in store.values() if m["id"].startswith("dnn-"))
 
 
+def test_civicclerk_lists_meetings_90_days_ahead(config, tmp_path):
+    pages = [json.loads((FIXTURES / f"civicclerk_events_{n}.json").read_text()) for n in (1, 2)]
+    far = next(e for e in pages[1]["value"] if e["id"] == 1971)
+    far["eventDate"] = far["startDateTime"] = "2027-01-05T19:00:00Z"
+    fetch_meetings.run(config, FakeManchester(copy.deepcopy(pages)), tmp_path, now=FETCHED_AT)
+    assert "civicclerk-1971" not in load(tmp_path)
+    # In range by a later run, it's listed then.
+    fetch_meetings.run(config, FakeManchester(copy.deepcopy(pages)), tmp_path, now=FETCHED_AT.replace(month=10, day=20))
+    assert load(tmp_path)["civicclerk-1971"]["listed"] is True
+
+
+def test_civicclerk_forgets_placeholders_recorded_beyond_90_days(config, tmp_path):
+    fetch_meetings.run(config, FakeManchester(), tmp_path, now=FETCHED_AT)
+    path = tmp_path / "meetings" / "meetings.json"
+    store = json.loads(path.read_text())
+    placeholder = {**store["civicclerk-1971"], "id": "civicclerk-9999", "slug": "2028-01-10-placeholder", "date": "2028-01-10"}
+    for f in ("agenda_id", "agenda_url", "agendas", "minutes", "minutes_id", "minutes_url"):
+        placeholder.pop(f, None)
+    store["civicclerk-9999"] = placeholder
+    path.write_text(json.dumps(store))
+    fetch_meetings.run(config, FakeManchester(), tmp_path, now=FETCHED_AT.replace(day=27))
+    after = load(tmp_path)
+    assert "civicclerk-9999" not in after
+    assert "civicclerk-1971" in after
+
+
 def test_one_calendar_failing_keeps_the_other(config, tmp_path):
     from pipeline.http import FetchError
 

@@ -294,7 +294,14 @@ def civicclerk_calendar(config: dict) -> Calendar:
             url = civicclerk.next_page(data)
             if not url:
                 break
-        return [e for e in found if matches(settings, e["title"])]
+        # Only to days_ahead (default 90) days out, as the other readers: portals list placeholders a
+        # year or more ahead (South Kingstown's to 2028), which the city often moves or renames before
+        # they come. One recorded beyond it with no documents yet is forgotten, and comes back in range.
+        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        for key in [k for k, m in store.items() if m.get("source") == "civicclerk" and m["date"] > ahead
+                    and not any(m.get(f) for f in ("agenda_id", "agendas", "minutes_id", "minutes"))]:
+            del store[key]
+        return [e for e in found if e["date"] <= ahead and matches(settings, e["title"])]
 
     def details(client, meeting, storage, stamp):
         fetch_agenda(client, meeting, meeting, storage, stamp)
