@@ -40,7 +40,8 @@
   <h2 id="coming-up">{{ _("Coming up") }}</h2>
   <a href="/meetings/">{{ _("All meetings") }}</a>
 </div>
-{% set hearings = meetings.upcoming | selectattr("public_hearing") | list %}
+{# Only a hearing that's still on: a cancelled or postponed one has no "How to take part" to link to. #}
+{% set hearings = meetings.upcoming | selectattr("public_hearing") | selectattr("status", "equalto", "scheduled") | list %}
 {% if hearings %}
 <div class="notice">
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
