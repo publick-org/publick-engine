@@ -393,8 +393,8 @@ and publick.org #73.
 10. **Springfield**, after Medford: CivicClerk with meetings sorted into
     boards. ([Next towns](#next-towns))
 11. *Built 2026-10-13.* **The open data export**: each town's `/data/meetings.json` and a Data
-    page; the list of every town's export on publick.org once a release
-    carries it. ([Open data](#open-data))
+    page; the list of every town's export at publick.org/data/ once a
+    release carries it. ([Open data](#open-data))
 12. **The next readers**: Foxit full text (Manchester's minutes, the most
     common style not read free); school boards on Diligent Community
     (Burlington) and BoardDocs; nested Google Drive folders (Lewiston's
@@ -1732,8 +1732,8 @@ credit rests more on custom than on law.
   each field and the credit line, and says on the page that summaries are
   AI-generated and can be wrong, that the town's documents are the official
   record, and that every summary links its source.
-- A list of every town's export on publick.org's home page, once every town
-  is on an engine that builds it.
+- A list of every town's export at publick.org/data/ (linked from the
+  footer, not the home page), once every town is on an engine that builds it.
 - Spanish summaries in the export, as their own fields, if someone asks.
 
 **Matters at:** the license now; the export before telling anyone the data
