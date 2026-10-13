@@ -193,7 +193,7 @@
 {% set g = m.minutes_gap %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
 {% if g.reason == "not_posted" %}
-{% if g.source in ("finalsite", "drive", "page") %}{% set where_url, where = m.source_url, _("%(name)s website", name=m.source_name) %}
+{% if g.source in ("finalsite", "drive", "page") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
 {% elif g.source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
 {% elif g.source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
 {% elif g.source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}

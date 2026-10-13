@@ -68,7 +68,9 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
     {"reason": "not_collected"}: no source this site reads carries this board's minutes;
     {"reason": "before", "since": date}: before the date this site collects minutes from;
     {"reason": "linked", "url": ...}: the city links the minutes, and no copy is saved yet;
-    {"reason": "not_posted", "days": n, "source": ...}: not posted yet, n days after the meeting."""
+    {"reason": "not_posted", "days": n, "source": ..., "url": ..., "name": ...}: not posted yet, n days
+    after the meeting; for a school district's website, its address and name, from the listing there (a
+    meeting combined with the city calendar's has the calendar's own)."""
     if m.get("minutes") or m["date"] >= today.isoformat():
         return None
     if m.get("status", "scheduled") in NOT_HELD or not m.get("listed", True):
@@ -81,7 +83,11 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
         return {"reason": "before", "since": since}
     if m.get("minutes_url"):
         return {"reason": "linked", "url": m["minutes_url"]}
-    return {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
+    gap = {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
+    if source in ("finalsite", "drive", "page"):
+        where = next(r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") == source)
+        gap.update(url=where.get("source_url"), name=where.get("source_name"))
+    return gap
 
 
 def agenda_gap(m: dict, today: date) -> dict | None:
