@@ -430,6 +430,38 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
     assert hearing.index("<time") < hearing.index("AI summary")
 
 
+def test_public_hearings_leave_out_a_cancelled_meeting(tmp_path):
+    """A hearing the city has cancelled isn't offered as one residents can speak at: its page has no
+    "How to take part" for the box to link to (Burlington, 2026-10-13)."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    for path in (data / "summaries").glob("*.json"):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "agenda":
+            rec["items"] = [*rec.get("items", []), "Public hearing on the Harbor Plan"]
+            path.write_text(json.dumps(rec))
+
+    def hearings():
+        build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+        home = (tmp_path / "site" / "index.html").read_text()
+        box = home[home.index('class="notice"'):]
+        return re.findall(r'href="([^"]+)#take-part"', box[:box.index("</div>")])
+
+    before = hearings()
+    assert before
+    store_path = data / "meetings" / "meetings.json"
+    store = json.loads(store_path.read_text())
+    cancelled = next(m for m in store.values() if before[0].rstrip("/").endswith(m["slug"]))
+    cancelled["status"] = "cancelled"
+    store_path.write_text(json.dumps(store))
+    after = hearings()
+    assert before[0] not in after
+    for url in after:
+        assert 'id="take-part"' in (tmp_path / "site" / url.lstrip("/") / "index.html").read_text()
+
+
 def test_about_page_says_how_to_reuse(site_dir, config):
     """The data license: CC BY 4.0, the credit line to copy, what keeps its own terms, and the full
     terms in the network repository; every page's footer links to it."""
