@@ -269,12 +269,24 @@ Portland, and Nashua, and the budget (below). Left:
   to 24 towns (two per town, and two lookups). Engine #88 waits for it. An
   open decision.
 - **The helper for adding a town** (item 16): an afternoon a town by hand,
-  as Lowell took.
+  as Lowell took. Three pull requests: the helper itself,
+  `python -m pipeline.new_town` (PR 1, in review), which finds what public
+  sources answer, writes the town's folder and a report, and marks the rest
+  `# To fill in:`; lookups for Connecticut, New Hampshire, Maine, Rhode
+  Island, and Vermont, Connecticut and Vermont first (PR 2); and a
+  publick.org "Add a town" workflow, run by hand, that runs the helper, opens
+  a draft pull request with the config and its report, and after the merge
+  fetches until nothing is waiting (PR 3).
+- *Done 2026-10-13:* **email to the towns' addresses.** Only `gloucester-ma@`
+  and `hello@` had routing rules, so every other town's "report a
+  correction" email bounced. A catch-all rule now forwards every
+  `@publick.org` address, so a new town needs no rule. The workflows'
+  `CLOUDFLARE_API_TOKEN` can also edit routing rules now, for a town's own
+  rule later.
 - **By hand, and growing with the towns:** the weekly meetings audit
-  (Burlington, Bangor, Lewiston, and South Kingstown have never had one), a
-  Cloudflare email rule per town (the four of 2026-10-13 not yet made), and
-  the officials after each election (Bangor, Lewiston, South Kingstown, and
-  Portland on 2026-11-03; a check-in is set for 11-04).
+  (Burlington, Bangor, Lewiston, and South Kingstown have never had one),
+  and the officials after each election (Bangor, Lewiston, South Kingstown,
+  and Portland on 2026-11-03; a check-in is set for 11-04).
 - **Which towns.** The config-only candidates under [Next towns](#next-towns);
   any with 311 now starts with it in the bucket.
 
@@ -297,7 +309,7 @@ Reviewed 2026-10-07; the digest, officials, 311, and Batches rows 2026-10-12.
 
 | Work | Where it stands | What's left |
 |---|---|---|
-| The weekly digest by email | Live for every town but Lowell since 2026-10-12 (publick.org #72, #97); Gloucester's first email went out 2026-10-11 | Lowell once it has a few weeks of meetings; Spanish later, Lawrence first |
+| The weekly digest by email | Live for every town but Lowell since 2026-10-12 (publick.org #72, #97); Gloucester's first email went out 2026-10-11 | Each new town once two full weeks have passed since its launch, not at launch: Lowell from 2026-10-26, Methuen, Waltham, Portland, and Nashua from 2026-10-27; Spanish later, Lawrence first |
 | Spanish summaries on prompt 4 | 384 of 684 summaries have one (#93 kept prompt 4 and fixed the check's false alarms); the rest show in English, marked "not translated yet". Furthest behind: Malden (39 of 163), Beverly (34 of 125), Manchester (26 of 83) | Item 2; then `/es/feed.xml`, a Spanish share image, Ward and District kept apart, a way to report a translation error ([Spanish quality](#spanish-quality)) |
 | The sites Worker under load | Built and tested (engine #88), not merged. Its digest signup rate limit went ahead on its own (#117, 2026-10-12, with `SIGNUP_LIMITER` already in publick.org's `wrangler.toml`), before the digest's first send to every town | The rest waits for the move to Workers' paid plan (decided 2026-10-07: not yet; see [Open decisions](#open-decisions-for-the-maintainer)) |
 | Taking down one wrong summary | Merged (#90), 2026-10-07 | Reaches the towns with the next release and engine move; `RUNBOOK.md` says how to use it (publick.org #73) |
@@ -396,8 +408,9 @@ and publick.org #73.
     a person checking every new vote. ([Vote records](#vote-records))
 15. **Statewide sources, phase 2**: the Subsidized Housing Inventory and DESE,
     once for Massachusetts. ([Shared sources](#shared-sources-once-per-state))
-16. **The helper for adding a town**, which also runs the first fetches and
-    sets up email routing. ([Adding a town](#adding-a-town))
+16. **The helper for adding a town**: the helper (PR 1, in review), other
+    states' lookups (PR 2), and a workflow that runs it and the first
+    fetches (PR 3). ([Adding a town](#adding-a-town))
 17. **Statewide sources, phase 3**: BLS and the Census, once for the country.
     ([Shared sources](#shared-sources-once-per-state))
 18. **Spanish, the rest**: `/es/feed.xml`, a Spanish share image, decision
@@ -1197,7 +1210,6 @@ after twelve days: $51.61 across ten towns (see
   state's websites refuse automated requests.
 - Officials, edited after every election.
 - A new town's first fetches, run by hand until nothing is waiting.
-- An email routing rule for each town, in Cloudflare's dashboard.
 
 **Next.**
 - *Done 2026-10-08* (publick.org #81), narrowed 2026-10-10 (#87):
@@ -1210,8 +1222,11 @@ after twelve days: $51.61 across ten towns (see
   and the hourly check opens "site down" if a site stops loading meanwhile.
   Any deploy uses `wrangler.toml` as it is on `main`, so change that only
   when it's ready.
-- The helper for adding a town runs the first fetches and sets up email
-  routing through Cloudflare's API.
+- *Done 2026-10-13:* no email rule for each town. A catch-all rule forwards
+  every `@publick.org` address.
+- The publick.org "Add a town" workflow (PR 3 of the helper) runs the helper,
+  and after the town's pull request is merged, its first fetches until
+  nothing is waiting.
 - Officials and New Hampshire's figures stay by hand, with a reminder after
   each town's elections and each year.
 
@@ -1263,18 +1278,32 @@ its colors, its officials, and its Spanish text. Hours a town by hand.
   without AI and reviewed in batches (`python -m pipeline.translate drafts`).
 
 **Next.**
-- The helper: finds what it can for a town and state (DLS name and code,
-  DESE district, BLS series, Census place or MCD code, whether the site is
-  CivicPlus with a calendar or an Agenda Center, the SeeClickFix
-  organization), writes a starting config with the rest marked to fill in,
-  runs the first fetches until nothing is waiting, and sets up the email
-  routing rule.
+- *PR 1, in review:* the helper, `python -m pipeline.new_town <Town> <state>
+  <city website URL>`, run from the network repository. It finds what the
+  city uses (a CivicPlus Agenda Center, Archive Center, and calendars by
+  name, or a CivicClerk portal), whether its minutes are scans, SeeClickFix's
+  places named for the town, the BLS series and Census place or town, and in
+  Massachusetts the DLS name and code, the DESE district, and the MassGIS
+  ward file. It writes the town's folder, started from the closest live
+  town's config, with colors from the city's stylesheet and everything else
+  marked `# To fill in:` (the site checks fail while any is left), and checks
+  it in a copy: a build with no data, four weeks of meetings, a second
+  build, the site checks, and `pipeline.listings`. It stops at a browser
+  check, and at a meeting platform the engine doesn't read. Officials and
+  the digest are never in what it writes.
+- PR 2: the same lookups for Connecticut, New Hampshire, Maine, Rhode
+  Island, and Vermont (`pipeline/states/<state>/lookups.py`), Connecticut
+  and Vermont first.
+- PR 3: a publick.org "Add a town" workflow, run by hand, that runs the
+  helper, opens a draft pull request with the config and its report, and
+  after the merge fetches until nothing is waiting.
 - SeeClickFix's issue listing (`/api/v2/issues`) now refuses requests
   without a login, so the helper can't measure a city's 311 activity from
-  it. The Open311 listing the engine reads still answers; each town's
-  organization ID is found by hand.
-- A town whose meeting system the engine doesn't read is found the same way,
-  and that reader becomes its own piece of work.
+  it. It lists SeeClickFix's places named for the town; the Open311 listing
+  the engine reads still answers, and each town's organization ID is
+  confirmed by hand.
+- A town whose meeting system the engine doesn't read stops the helper, and
+  that reader becomes its own piece of work.
 
 **What researching towns has shown** about what new towns need:
 - Some are config only: an Agenda Center or CivicClerk city, often with

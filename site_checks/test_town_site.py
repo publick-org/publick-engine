@@ -236,3 +236,12 @@ def test_about_page_names_the_sections_a_town_lacks(site_dir, config):
     for prefix in PREFIXES.values():
         html = (site_dir / prefix.lstrip("/") / "about" / "index.html").read_text(encoding="utf-8")
         assert ('id="not-covered"' in html) == bool(gaps), f"{prefix}/about/"
+
+
+def test_nothing_left_to_fill_in(config):
+    """A config started by the helper for adding a town (pipeline/new_town.py) marks what's left for
+    a person with "# To fill in:" comments; it isn't ready to publish while any is left."""
+    from pipeline.config import CONFIG_DIR
+    from pipeline.new_town import left_to_fill_in
+    left = left_to_fill_in((CONFIG_DIR / f"{config['slug']}.toml").read_text(encoding="utf-8"))
+    assert not left, f"config/{config['slug']}.toml has {len(left)} left to fill in:\n" + "\n".join(left)

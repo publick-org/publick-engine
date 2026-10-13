@@ -1,0 +1,9 @@
+area_type_code	area_code	area_text	display_level	selectable	sort_sequence
+A	ST2500000000000	Massachusetts	0	T	3333
+G	CS2501465000000	Andover town, MA	0	T	3369
+G	CT0606308000000	Beverly Hills city, CA	0	T	515
+G	CT2505595000000	Beverly city, MA	0	T	3391
+G	CT2537000000000	Lowell city, MA	0	T	3520
+G	CT2540675000000	Methuen city, MA	0	T	3541
+G	CT2572600000000	Waltham city, MA	0	T	3668
+H	CS2341435000000	Lowell town, ME	0	T	3021
