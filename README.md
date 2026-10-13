@@ -658,6 +658,10 @@ One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 i
 
 The files remain in the repository's git history. Shrinking the history means rewriting it, which is a separate decision.
 
+## Open data
+
+Every town with meetings publishes `/data/meetings.json`, built with the site (`meetings_export` in `pipeline/build_site.py`): every meeting the site lists, oldest first, with its board, date, time, place, status, any correction, and its agenda and minutes, each with the city's link, the saved copy, and its AI summary and decisions joined to it. It holds what the English pages show: after the fact check, without a summary taken down by hand (`summary_withheld`), and without costs. The format is `publick-meetings`, version `EXPORT_VERSION`: a field may be added in the same version, and a field renamed, removed, or changed in meaning moves the version up. The site's Data page (`/data/`, `site/pages/data/index.html`) describes each field, the credit line, and that the summaries are AI-written and can be wrong; change the two together, and its test (`tests/test_site.py`, `test_open_data_export`).
+
 ## Data and licenses
 
 The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources. On the Publick network, what Publick makes (summaries, headlines, decision lists, compiled data) is under CC BY 4.0, as the network repository's [`LICENSE`](https://github.com/publick-org/publick.org/blob/main/LICENSE) says. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/). Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
