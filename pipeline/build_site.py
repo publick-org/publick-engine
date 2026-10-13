@@ -63,7 +63,7 @@ STATIC_DIR = SITE_DIR / "static"
 # Built but kept out of the sitemap.
 UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 # Page folders built for every town, whether or not they are in the navigation.
-SHARED_FOLDERS = {"streets"}
+SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
 
@@ -1177,7 +1177,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
-    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version,
+    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, export_version=EXPORT_VERSION,
                        change=lambda diff, since: change_text(diff, "", since))
     # Structured data for search engines (pipeline/structured.py); site_url is this language's home, without its slash.
     site_url = base_url + prefix
@@ -1320,6 +1320,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
+    if english and "meetings" in config:
+        # The open data export, described on the Data page (/data/).
+        export = meetings_export(meetings["all"], config, base_url, built_at, env.globals["document_url"])
+        (out_dir / "data").mkdir(parents=True, exist_ok=True)
+        (out_dir / "data" / "meetings.json").write_text(json.dumps(export, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     if scorecard:
         populations = {w["ward"]: w for w in scorecard["by_ward"]}
         for w in scorecard.get("wards", []):
@@ -1531,6 +1536,75 @@ def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: st
         f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
         encoding="utf-8",
     )
+
+
+# The open data export's format (/data/meetings.json), described on each site's /data/ page. A
+# field added keeps the version; one renamed, removed, or changed in meaning moves it up.
+EXPORT_FORMAT = "publick-meetings"
+EXPORT_VERSION = 1
+
+
+def export_summary(record: dict | None, kind: str, withheld: bool) -> dict | None:
+    """A summary as the site shows it (after the fact check), for the export: nothing for one
+    taken down by hand, or for minutes that turned out to be another document. Costs are left out."""
+    if withheld or not record or (kind == "minutes" and record.get("is_minutes") is False):
+        return None
+    fc = record.get("fact_check")
+    out = {"headline": record.get("headline") or None, "summary": record.get("summary") or None}
+    if kind == "agenda":
+        out["items"] = list(record.get("items") or [])
+    else:
+        # Each with its kind, as decisions.csv gives it.
+        out["decisions"] = [{"kind": decision_kind(d), "text": d} for d in record.get("decisions") or []]
+    out.update({"not_shown": record.get("not_shown", 0), "ai_generated": True, "model": record.get("model"),
+                "generated_at": record.get("generated_at"), "fact_check": fc["result"] if fc else None})
+    return out
+
+
+def export_document(m: dict, kind: str, document_url) -> dict | None:
+    """A meeting's agenda or minutes for the export: the city's copy, the one saved here, and its summary."""
+    doc = m["agenda"] if kind == "agenda" else m["minutes_doc"]
+    if not doc:
+        return None
+    record = m["preview"] if kind == "agenda" else m["minutes_summary"]
+    out = {"url": doc["source_url"], "saved_copy_url": document_url("agendas" if kind == "agenda" else "minutes", doc["file"]),
+           "saved_at": doc["fetched_at"], "posted_by": doc.get("posted_by"), "sha256": doc["sha256"],
+           "summary": export_summary(record, kind, m["withheld"][kind]), "summary_withheld": m["withheld"][kind]}
+    if kind == "minutes":
+        out["is_minutes"] = not (record and record.get("is_minutes") is False)
+    return out
+
+
+def meetings_export(meetings: list[dict], config: dict, base_url: str, built_at: datetime, document_url) -> dict:
+    """Every meeting the site lists, with its documents, summaries, and decisions joined to it,
+    for /data/meetings.json: what the English pages show, in a fixed format (EXPORT_VERSION).
+    document_url gives a saved PDF's address, in the site or the town's bucket."""
+    town = config["town"]
+    # A saved PDF's address in full: one in the site itself is under its own domain.
+    saved_url = lambda folder, name: (lambda url: base_url + url if url.startswith("/") else url)(document_url(folder, name))
+    rows = []
+    for m in meetings:
+        recording = (f"https://www.youtube.com/watch?v={m['video_id']}" + (f"&t={m['video_start']}s" if m.get("video_start") else "")
+                     if m.get("video_id") else None)
+        c = m["correction"]
+        rows.append({
+            "id": m["id"], "url": base_url + m["url"], "board": m["body_en"], "title": m["title"], "date": m["date"],
+            "start_time": m["start_time"], "end_time": m["end_time"], "status": m["status"], "special": m["special"],
+            "listed": m["listed"], "location": {"name": m["location_name"] or None, "address": m["address"] or None,
+                                                "description": m["location"] or None},
+            "remote_url": m["remote_url"], "recording_url": recording, "listing_url": m["source_url"],
+            "correction": {"note": c["note"], "evidence_url": c["evidence"], "checked": c["checked"],
+                           "doubtful": c["doubtful"]} if c else None,
+            "agenda": export_document(m, "agenda", saved_url),
+            "minutes": export_document(m, "minutes", saved_url),
+        })
+    return {
+        "format": EXPORT_FORMAT, "version": EXPORT_VERSION, "documentation": f"{base_url}/data/",
+        "town": {"name": town["name"], "state": town["state"], "state_abbr": town.get("state_abbr"), "site": base_url + "/"},
+        "built_at": built_at.isoformat(timespec="seconds"),
+        "license": {"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/", "terms": f"{base_url}/about/#reuse"},
+        "meetings": rows,
+    }
 
 
 def write_csv(path: Path, header: list[str], rows: list[list]) -> None:
