@@ -1,0 +1,88 @@
+{
+ "places": [
+  {
+   "id": 9846,
+   "name": "Beverly",
+   "url_name": "beverly",
+   "county": null,
+   "state": "MA",
+   "center": {
+    "type": "Point",
+    "coordinates": [
+     -70.84284736401085,
+     42.557986981845865
+    ]
+   },
+   "place_type": "City",
+   "url": "https://seeclickfix.com/api/v2/places/9846",
+   "html_url": "https://seeclickfix.com/beverly",
+   "html_report_url": "https://seeclickfix.com/beverly/report"
+  },
+  {
+   "id": 73230,
+   "name": "US Congressional District MA6",
+   "url_name": "us-congressional-district-ma6",
+   "county": null,
+   "state": "MA",
+   "center": {
+    "type": "Point",
+    "coordinates": [
+     -70.94500692287295,
+     42.642664163984435
+    ]
+   },
+   "place_type": "Region",
+   "url": "https://seeclickfix.com/api/v2/places/73230",
+   "html_url": "https://seeclickfix.com/us-congressional-district-ma6",
+   "html_report_url": "https://seeclickfix.com/us-congressional-district-ma6/report"
+  },
+  {
+   "id": 75790,
+   "name": "Massachusetts",
+   "url_name": "us-ma",
+   "county": "",
+   "state": "MA",
+   "center": {
+    "type": "Point",
+    "coordinates": [
+     -71.8157239962022,
+     42.25845256079457
+    ]
+   },
+   "place_type": "State",
+   "url": "https://seeclickfix.com/api/v2/places/75790",
+   "html_url": "https://seeclickfix.com/us-ma",
+   "html_report_url": "https://seeclickfix.com/us-ma/report"
+  },
+  {
+   "id": 75719,
+   "name": "City of Salem",
+   "url_name": "salem_ma",
+   "county": "",
+   "state": "MA",
+   "center": {
+    "type": "Point",
+    "coordinates": [
+     -70.90707912756126,
+     42.510696676832936
+    ]
+   },
+   "place_type": "City",
+   "url": "https://seeclickfix.com/api/v2/places/75719",
+   "html_url": "https://seeclickfix.com/salem_ma",
+   "html_report_url": "https://seeclickfix.com/salem_ma/report"
+  }
+ ],
+ "metadata": {
+  "pagination": {
+   "entries": 75469,
+   "page": 1,
+   "per_page": 20,
+   "pages": 3774,
+   "next_page": 2,
+   "next_page_url": "https://seeclickfix.com/api/v2/places?address=Beverly%2C+MA&page=2",
+   "previous_page": null,
+   "previous_page_url": null
+  }
+ }
+}
