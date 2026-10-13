@@ -28,8 +28,8 @@ leaves the rest marked for a person:
    does that from the city's own pages.
 5. The config, started from the closest live town (the same meeting platform
    and state): its shared settings, the answers above, and colors from the
-   city's stylesheet. No [digest]: a town joins the weekly digest once two
-   full weeks have passed since launch.
+   city's stylesheet. No [digest]: a town joins the weekly digest once a full
+   week has passed since launch.
 6. Checks, in a copy of the folder, so the town's data/ stays empty: build
    with no data, fetch a few weeks of meetings (--full: everything from
    `since`), build again, run the site checks, and list the meetings shown as
@@ -73,6 +73,7 @@ from pipeline import agendacenter, civicclerk, civicplus, fetch_place
 from pipeline.config import ENGINE_DIR
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
+from pipeline.meeting_names import words
 
 # Names Publick, with an address to write to, as BLS asks of automated requests.
 USER_AGENT = "Publick town helper (+https://publick.org; hello@publick.org)"
@@ -98,6 +99,15 @@ OTHER_PLATFORMS = {"Govstack": r"govstack", "Granicus (Legistar)": r"legistar\.c
 BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr"}
 # A calendar event that is a public body's meeting, by its title.
 MEETING = r"\b(boards?|commissions?|committees?|subcommittees?|councils?|authority|trustees|meetings?|hearings?|ZBA|task force)\b"
+# A title that names a public body, which a calendar with other events is filtered by: its
+# meetings, not the neighborhood meetings and hearings a city holds on its projects.
+BOARD = r"\b(boards?|commissions?|committees?|subcommittees?|councils?|authority|trustees|ZBA|task force)\b"
+# The months of a city's calendars read: three back, this one, and two ahead.
+CALENDAR_MONTHS = 6
+# A calendar read lists at least this many meetings in those months: a board that meets has more than
+# one, and a calendar with a single hearing (Beverly's and Waltham's planning departments') is the
+# Agenda Center's business.
+MIN_MEETINGS = 2
 # Names a city's governing body goes by; the engine assumes "City Council" unless told otherwise.
 GOVERNING = ("City Council", "Town Council", "Board of Mayor and Aldermen", "Board of Aldermen", "Select Board",
              "Board of Selectmen", "Selectboard")
@@ -245,8 +255,10 @@ def find_platform(town: NewTown, client) -> None:
         names = calendar_names(calendar.text) if calendar is not None else {}
         if names:
             site["calendars"] = read_calendars(client, base, names, town.today)
-            listed = "; ".join(f"{c['name']} ({c['meetings']} meetings of {c['events']} events)" for c in site["calendars"])
-            town.found(1, "City calendars, the next three months", listed, f"{base}/Calendar.aspx")
+            choose_calendars(town)
+            listed = "; ".join(f"{c['name']} ({c['meetings']} meetings of {c['events']} events"
+                               + (", read" if c["chosen"] else "") + ")" for c in site["calendars"])
+            town.found(1, "City calendars, three months back and three ahead", listed, f"{base}/Calendar.aspx")
     name = civicclerk_name(page, town)
     api_url, portal_url = f"https://{name}.api.civicclerk.com/v1", f"https://{name}.portal.civicclerk.com"
     events = read_civicclerk(client, api_url, town.today)
@@ -265,23 +277,37 @@ def find_platform(town: NewTown, client) -> None:
 
 
 def read_calendars(client, base: str, names: dict[str, str], today: date) -> list[dict]:
-    """Each of the city's calendars, with how many of its events in this month and the next two are
-    meetings. A calendar chosen for the config has some, and they're most of its events."""
+    """Each of the city's calendars, with its events of the last three months, this month, and the
+    next two: how many there were, and the titles of those that are meetings. A board's calendar
+    can be empty for months ahead (Waltham's Zoning Board of Appeals in October), so the months
+    behind count too."""
     counts = {cid: Counter() for cid in names}
-    month = today.replace(day=1)
-    for _ in range(3):
+    titles = {cid: [] for cid in names}
+    month = (today.replace(day=1) - timedelta(days=80)).replace(day=1)
+    for _ in range(CALENDAR_MONTHS):
         response = try_get(client, civicplus.list_url(base, month))
         for e in civicplus.parse_list(response.text, base) if response is not None else []:
             if e["calendar_id"] in counts:
                 counts[e["calendar_id"]]["events"] += 1
-                counts[e["calendar_id"]]["meetings"] += bool(re.search(MEETING, e["raw_title"], re.I))
+                if re.search(MEETING, e["raw_title"], re.I):
+                    titles[e["calendar_id"]].append(e["raw_title"])
         month = (month + timedelta(days=32)).replace(day=1)
-    calendars = []
-    for cid, name in names.items():
-        events, meetings = counts[cid]["events"], counts[cid]["meetings"]
-        calendars.append({"id": cid, "name": name, "events": events, "meetings": meetings,
-                          "chosen": meetings > 0 and meetings * 2 >= events})
-    return calendars
+    return [{"id": cid, "name": name, "events": counts[cid]["events"], "meetings": len(titles[cid]),
+             "titles": titles[cid]} for cid, name in names.items()]
+
+
+def choose_calendars(town: NewTown) -> None:
+    """The calendars the config reads, each with at least MIN_MEETINGS meetings: those whose events are
+    mostly meetings, and those with meetings
+    of a board the city lists elsewhere (its governing body, school board, or an Agenda Center
+    category) among other events, as Waltham's Main Calendar has its School Committee's among
+    community events. Such a calendar is "mixed": the config keeps only titles naming a board."""
+    known = [words(b).strip() for b in [*GOVERNING, *SCHOOL_BOARDS, *categories(town),
+                                        *map(agendacenter.natural_name, categories(town))]]
+    for cal in town.site.get("calendars", []):
+        boards = [t for t in cal["titles"] if any(f" {k} " in words(t) for k in known)]
+        cal["mixed"] = bool(boards) and cal["meetings"] * 2 < cal["events"]
+        cal["chosen"] = cal["meetings"] >= MIN_MEETINGS and (cal["meetings"] * 2 >= cal["events"] or cal["mixed"])
 
 
 def read_civicclerk(client, api_url: str, today: date, pages: int = 20) -> list[dict]:
@@ -882,13 +908,24 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
     chosen = [cal for cal in calendars if cal["chosen"]]
     if chosen:
         others = [cal["name"] for cal in calendars if not cal["chosen"]]
+        mixed = [cal["name"] for cal in chosen if cal["mixed"]]
         c.table("meetings.civicplus", f"The {place} calendar, read month by month: the meetings the {place} lists "
                 f"before their agendas are posted, with their times and places. Read: the calendars whose events, "
-                f"over the next three months, were mostly meetings."
-                + (f" Not read: {', '.join(others)}." if others else ""), calendars=[cal["name"] for cal in chosen])
+                f"over the last three months and the next three, were mostly meetings"
+                + (f", and {', '.join(mixed)}, with meetings of the {place}'s boards among its other events" if mixed else "")
+                + "." + (f" Not read: {', '.join(others)}." if others else ""), calendars=[cal["name"] for cal in chosen])
         if any(cal["meetings"] < cal["events"] for cal in chosen):
-            c.comment("Some of their events aren't meetings: only titles naming a board or a meeting are kept.")
-            c.lines.append(f"include_pattern = '{MEETING}'")
+            c.comment("Some of their events aren't meetings: only titles naming a board are kept.")
+            c.lines.append(f"include_pattern = '{BOARD}'")
+            # A mixed calendar's other meetings (a neighborhood meeting on a street project) are left out on purpose.
+            dropped = sorted({t for cal in chosen if not cal["mixed"] for t in cal["titles"] if not re.search(BOARD, t, re.I)})
+            kept = sorted({t for cal in chosen if cal["mixed"] for t in cal["titles"] if re.search(BOARD, t, re.I)})
+            if dropped:
+                c.fill_in(5, "include_pattern leaves out these meetings, which a board's name in it can bring back: "
+                          + "; ".join(f'"{t}"' for t in dropped[:6]) + ".")
+            if kept:
+                c.fill_in(5, f"include_pattern keeps these from {', '.join(mixed)}; an exclude_pattern can leave out any "
+                          f"that aren't a board's meetings: " + "; ".join(f'"{t}"' for t in kept[:6]) + ".")
         if "agenda_center" in site:
             c.comment("A meeting on the calendar and in the Agenda Center is shown once.")
         c.fill_in(5, "check the calendars read, and any left out that list meetings.")
@@ -901,14 +938,14 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.table("meetings.agenda_center", base_url=base)
         c.comment("The first run lists meetings from here, and minutes are collected from here on.")
         c.set(since=since.isoformat())
-        main = [r for r in site["agenda_center"] if r["category"].lower() == governing.lower()
-                and re.search(r"committee", r["title"], re.I) and not re.search(r"of the whole", r["title"], re.I)]
-        if main:
-            titles = {re.sub(r"\s*\(PDF\)?$|\s*\(PDF$", "", r["title"]).strip(): None for r in main}
-            titles = "; ".join(f'"{t}"' for t in sorted(titles, key=len)[:3])
+        boards = [civicplus.parse_title(t)["body"] for cal in site.get("calendars", []) if cal["chosen"] for t in cal["titles"]]
+        others = posted_under(site["agenda_center"], boards, town.name)
+        if others:
             c.blank()
-            c.fill_in(5, f'[meetings.agenda_center.committees."{governing}"]: committees posted under the {governing}, '
-                      f"each by a phrase in its titles ({titles}).")
+            c.fill_in(5, "[meetings.agenda_center.committees.\"<category>\"]: committees and other bodies posted under "
+                      "another's category, each by a phrase in its titles: "
+                      + "; ".join(f'under "{cat}", ' + ", ".join(f'"{t}"' for t in titles) for cat, titles in others.items())
+                      + ".")
     if "civicclerk" in site:
         cc = site["civicclerk"]
         c.table("meetings.civicclerk", api_url=cc["api_url"], portal_url=cc["portal_url"])
@@ -929,6 +966,44 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
                   "[page_meetings], [finalsite_meetings], [drive_meetings]), named in the Meetings section's "
                   "summary and in [freshness] sources; a platform the engine doesn't read is left out and said so "
                   "(ADDING-A-TOWN.md, step 1).")
+
+
+# A title naming a body of its own: a committee, a trust, a joint meeting with another board.
+BODY_KINDS = r"committees?|subcommittees?|sub committees?|trust fund|trustees|task force|working group|boards?|commissions?|councils?"
+OTHER_BODY = rf"\b({BODY_KINDS})\b"
+
+
+def body_kinds(text: str) -> set[str]:
+    """The kinds of body a text names: 'Sub Committees' and 'subcommittee' are one kind."""
+    return {k.replace(" ", "").rstrip("s") for k in re.findall(OTHER_BODY, text)}
+
+
+def posted_under(rows: list[dict], boards: list[str] = (), town: str = "", most: int = 8) -> dict[str, list[str]]:
+    """Agenda Center titles naming a body other than their category's: one that names another kind of
+    body (Beverly's council committees under the City Council), or a board the city's calendars list
+    (Waltham's "Bio-Safety", whose agendas are under the Board of Health). Up to three titles for each
+    of the `most` categories with the most of them."""
+    town_words = words(town).strip()
+    # A calendar's board of two words or more: "Public" (from a "Public Meeting") names none.
+    others = {b for b in (words(re.sub(rf"^{re.escape(town)}\s+", "", b, flags=re.I)).strip() for b in boards)
+              if len(b.split()) > 1}
+    found: dict[str, dict[str, None]] = {}
+    for r in rows:
+        own = {words(r["category"]).strip(), words(agendacenter.natural_name(r["category"])).strip()}
+        title = re.sub(r"\s*\(PDF\)?$|\s*\(PDF$", "", r["title"]).strip()
+        rest = words(title)
+        for name in own:
+            # The category's own name, with the kind of body it is ("Economic & Community Development Committee").
+            rest = re.sub(rf" {re.escape(name)}(?: (?:{BODY_KINDS}))? ", " ", rest)
+        rest = re.sub(r" committee of the whole ", " ", rest)
+        if town_words:
+            rest = rest.replace(f" {town_words} ", " ")
+        named = [b for b in others if f" {b} " in rest and not any(b in name or name in b for name in own)]
+        # A category that is itself a committee ("City Council Finance Sub Committee") names its own kind.
+        if not body_kinds(rest) <= body_kinds(words(r["category"])) or named:
+            found.setdefault(r["category"], {})[title] = None
+    ranked = sorted(found.items(), key=lambda item: -len(item[1]))[:most]
+    return {cat: sorted(titles, key=len)[:3] for cat, titles in ranked}
 
 
 def config_codes(c: Config, town: NewTown) -> None:
@@ -1090,7 +1165,7 @@ def report(town: NewTown, todo: list[tuple[int, str]]) -> str:
     if left:
         lines += ["", "## Left for a person", ""]
         lines += [f"{i}. Step {step}: {text}" for i, (step, text) in enumerate(left, 1)]
-    lines += ["", "Not in the config until two full weeks after launch: the weekly digest ([digest], and the town in "
+    lines += ["", "Not in the config until a full week after launch: the weekly digest ([digest], and the town in "
               "DIGEST_TOWNS in wrangler.scheduler.toml)."]
     return "\n".join(lines) + "\n"
 

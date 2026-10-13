@@ -137,7 +137,7 @@ def test_helper_leaves_officials_and_the_digest_to_a_person(tmp_path, network):
     assert "bodies" not in config["officials"] and "next_election" not in config["officials"]
     assert "officials" not in [s["slug"] for s in config["sections"]]
     assert re.search(r"# To fill in: next_election", text)
-    # A town joins the digest two full weeks after launch.
+    # A town joins the digest a full week after launch.
     assert "digest" not in config
     # Everything left is marked, and listed in the report, with the committees the council posts.
     left = new_town.left_to_fill_in(text)
@@ -325,3 +325,79 @@ def test_a_census_place_without_figures_is_left_to_a_person():
     text = config.text()
     assert "census_geo = " not in text.replace("# census_geo = ", "") and new_town.left_to_fill_in(text)
     assert tomllib.loads(text)["housing"]["bps_place"] == "40675"
+
+
+# Waltham's calendars from three months back to two ahead, as read on 2026-10-13: each one's number of
+# events and the titles of those that are meetings.
+WALTHAM_CALENDARS = {
+    "Health Department": (2, ["Waltham Bio-Safety Meeting", "Waltham Board of Health Meeting"]),
+    "Zoning Board of Appeals": (6, ["Public Meeting"] * 4 + ["Public Meeting for ZBA"] * 2),
+    "Main Calendar": (83, ["Neighborhood Meeting to discuss Warren/Main/Gore/Barbara traffic intersection",
+                           "Public Meeting to discuss Forest Street Improvement Plans"] + ["Waltham School Committee Meeting"] * 5),
+    "Housing Department": (3, ["Affordable Housing - Lottery Informational Meeting"]),
+    "Recycling Department": (9, []),
+}
+
+
+def waltham() -> new_town.NewTown:
+    town = new_town.NewTown("Waltham", "MA", "https://www.city.waltham.ma.us", today=TODAY)
+    town.site.update(base_url="https://www.city.waltham.ma.us", platforms=["CivicPlus"], calendars=[
+        {"id": str(i), "name": name, "events": events, "meetings": len(titles), "titles": titles}
+        for i, (name, (events, titles)) in enumerate(WALTHAM_CALENDARS.items())])
+    town.site["agenda_center"] = [
+        {"category": "City Council", "title": "City Council Meeting", "date": "2026-09-28", "minutes_url": None},
+        {"category": "Board of Health", "title": "Board of Health Agenda", "date": "2026-09-10", "minutes_url": None},
+        {"category": "Board of Health", "title": "Waltham Bio-Safety Meeting Agenda", "date": "2026-09-10", "minutes_url": None},
+        {"category": "Conservation Commission", "title": "Board of Trustees of the Conservation Trust Fund - Annual Meeting (2026)",
+         "date": "2026-06-04", "minutes_url": None},
+        {"category": "Economic & Community Development", "title": "Economic & Community Development Committee",
+         "date": "2026-09-02", "minutes_url": None},
+        {"category": "City Council Finance Sub Committee", "title": "Finance Subcommittee Agenda", "date": "2026-09-01",
+         "minutes_url": None},
+    ]
+    new_town.choose_calendars(town)
+    return town
+
+
+def test_a_boards_calendar_is_read_from_the_months_behind_and_a_mixed_one_for_its_boards():
+    chosen = {cal["name"]: cal["mixed"] for cal in waltham().site["calendars"] if cal["chosen"]}
+    # The Board of Health's and the ZBA's had no events in the months ahead; the Main Calendar has the
+    # School Committee's meetings among community events; the Housing Department's one meeting is a lottery's.
+    assert chosen == {"Health Department": False, "Zoning Board of Appeals": False, "Main Calendar": True}
+
+
+def test_a_mixed_calendar_keeps_only_titles_naming_a_board(tmp_path):
+    config = new_town.Config()
+    town = waltham()
+    new_town.config_meetings(config, town, "City Council", date(2026, 1, 1), short=False)
+    text = config.text()
+    meetings = tomllib.loads(text)["meetings"]
+    assert meetings["civicplus"]["include_pattern"] == new_town.BOARD
+    assert re.search(new_town.BOARD, "Waltham School Committee Meeting", re.I)
+    assert not re.search(new_town.BOARD, "Neighborhood Meeting to discuss Warren/Main/Gore/Barbara traffic intersection", re.I)
+    todo = " ".join(t for _, t in config.todo)
+    # The boards' own meetings the pattern would drop are named, for a person to bring back; the mixed
+    # calendar's neighborhood meetings aren't, since leaving them out is the point.
+    assert '"Waltham Bio-Safety Meeting"' in todo and '"Public Meeting"' in todo and "Neighborhood" not in todo
+    assert '"Waltham School Committee Meeting"' in todo
+
+
+def test_committees_posted_under_another_category():
+    town = waltham()
+    boards = [civicplus.parse_title(t)["body"] for cal in town.site["calendars"] if cal["chosen"] for t in cal["titles"]]
+    found = new_town.posted_under(town.site["agenda_center"], boards, "Waltham")
+    # The Biosafety Committee's agendas name no committee: its own calendar entry names the board. A
+    # category's own name with "Committee" after it is the category's.
+    assert found == {"Board of Health": ["Waltham Bio-Safety Meeting Agenda"],
+                     "Conservation Commission": ["Board of Trustees of the Conservation Trust Fund - Annual Meeting (2026)"]}
+    # The council's own committees, and a joint meeting posted under each board's category.
+    rows = [{"category": "City Council", "title": "Finance and Property Committee Meeting Agenda (PDF)"},
+            {"category": "City Council", "title": "Public Services/Committee of the Whole Meeting Agenda (PDF)"},
+            {"category": "School Committee", "title": "City Council and School Committee Joint Meeting"}]
+    assert new_town.posted_under(rows) == {"City Council": ["Finance and Property Committee Meeting Agenda"],
+                                           "School Committee": ["City Council and School Committee Joint Meeting"]}
+
+
+def test_a_calendar_board_of_one_word_names_none():
+    rows = [{"category": "Community Preservation", "title": "Community Preservation Public Input Hearing and Regular Meeting Agenda"}]
+    assert new_town.posted_under(rows, ["Public", "Waltham Bio-Safety"], "Waltham") == {}
