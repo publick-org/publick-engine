@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Data") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} meetings, summaries, and decisions as open data{% endtrans %}{% endblock %}
+{# Translators: %(town)s is the town's name. #}
+{% block description %}{% trans town=town.name %}Download every {{ town }} public meeting on this site, with its agenda, minutes, AI summaries, and decisions, free to reuse with credit.{% endtrans %}{% endblock %}
+{# The export as a dataset for dataset search, once, on the English page (pipeline/build_site.py meetings_export). #}
+{% set documents = config.meetings is defined and meeting_links.documents %}
+{% block structured_data %}{% if lang == "en" and config.meetings is defined %}{{ structured(dataset(town.name ~ " public meetings, summaries, and decisions", self.description(),
+  canonical_url, ["/data/meetings.json"] + (["/meetings/data/decisions.csv"] if documents and meetings.decided else []),
+  start=meetings.all[0].date if meetings.all else none, end=meetings.all[-1].date if meetings.all else none)) }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/about/">{{ _("About") }}</a></li></ol></nav>
+<h1>{{ _("Data") }}</h1>
+<p class="lede">{% trans site=site.name %}What {{ site }} collects, as files you can download and reuse. They're rebuilt every morning with the site.{% endtrans %}</p>
+
+{% if config.meetings is defined %}
+<h2 id="meetings">{{ _("Meetings, summaries, and decisions") }}</h2>
+{# Translators: %(num)s is a number of meetings. #}
+<p>{% trans count=meetings.all | length, num=meetings.all | length | number %}Every meeting this site lists ({{ num }} meeting), with its board, date, time, place, and status, the city's agenda and minutes, and their AI summaries and decisions, joined together in one file.{% pluralize %}Every meeting this site lists ({{ num }} meetings), with its board, date, time, place, and status, the city's agenda and minutes, and their AI summaries and decisions, joined together in one file.{% endtrans %}</p>
+<ul class="link-row">
+  <li><a href="/data/meetings.json" download>{{ _("Download meetings.json") }}</a></li>
+</ul>
+{% if documents %}
+<p>{% trans decisions="/meetings/data/decisions.csv", feed="/feed.xml" %}The decisions alone are a spreadsheet, <a href="{{ decisions }}" download>decisions.csv</a>, and new agendas and minutes are in an <a href="{{ feed }}">RSS feed</a>.{% endtrans %}</p>
+{% endif %}
+{% endif %}
+<p>{{ _("Every chart on this site has a table with the same numbers, and a CSV download under it.") }}</p>
+
+{% if config.summaries is defined %}
+<h2 id="before">{{ _("Before you use it") }}</h2>
+<ul>
+  <li>{{ _("The summaries and decisions are written by AI, and they can be wrong. They aren't checked by a person before posting.") }}</li>
+  <li>{{ _("The city's agendas and minutes are the official record. Every summary in the file links the document it came from, and the copy saved here.") }}</li>
+  <li>{{ _("The file has only what the site shows: a decision or agenda item our fact check couldn't find in its document is left out, and so is a summary taken down after a reader reported an error.") }}</li>
+</ul>
+{% endif %}
+
+{% if site.get("network") %}
+<h2 id="credit">{{ _("Credit") }}</h2>
+{# Translators: %(network)s is the network's name, such as "Publick". #}
+<p>{% trans network=site.network, license="https://creativecommons.org/licenses/by/4.0/" %}The summaries, headlines, decision lists, and data that {{ network }} compiles are free to reuse, even commercially, under the <a href="{{ license }}">Creative Commons Attribution 4.0 license</a> (CC BY 4.0). Please credit them like this, with a link to the document the summary came from:{% endtrans %}</p>
+<blockquote class="credit-example"><p>{% if site.get("network_url") %}{% trans network=site.network, domain=site.network_url | replace("https://", "") %}Summary by {{ network }} ({{ domain }}), AI-generated from the city's agenda.{% endtrans %}
+  {%- else %}{% trans network=site.network %}Summary by {{ network }}, AI-generated from the city's agenda.{% endtrans %}{% endif %}</p></blockquote>
+<p>{% trans url="/about/#reuse" %}Some of what's here keeps its own terms, such as 311 requests: <a href="{{ url }}">what you can reuse, and how</a>.{% endtrans %}</p>
+{% endif %}
+
+{% if config.meetings is defined %}
+<h2 id="format">{{ _("The format of meetings.json") }}</h2>
+{# Translators: %(version)s is the file format's version number, such as 1. #}
+<p>{% trans version=export_version %}One JSON object, in UTF-8. Its <code>version</code> is {{ version }}: a field may be added without notice, but a field renamed, removed, or changed in meaning gets a new version number. Dates are <code>YYYY-MM-DD</code>, times <code>HH:MM</code> in the town's time zone, and a field with nothing to say is <code>null</code>.{% endtrans %}</p>
+
+<h3 id="format-file">{{ _("The file") }}</h3>
+<div class="table-wrap" role="region" aria-labelledby="format-file" tabindex="0">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Field") }}</th><th scope="col">{{ _("What it holds") }}</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>format</code>, <code>version</code></th><td>{{ _("Always \"publick-meetings\", and the format's version number.") }}</td></tr>
+    <tr><th scope="row"><code>town</code></th><td>{{ _("The town's name, state, and this site's address.") }}</td></tr>
+    <tr><th scope="row"><code>built_at</code></th><td>{{ _("When the file was made.") }}</td></tr>
+    <tr><th scope="row"><code>license</code></th><td>{{ _("The license, and where its terms are.") }}</td></tr>
+    <tr><th scope="row"><code>meetings</code></th><td>{{ _("Every meeting, oldest first.") }}</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="format-meeting">{{ _("Each meeting") }}</h3>
+<div class="table-wrap" role="region" aria-labelledby="format-meeting" tabindex="0">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Field") }}</th><th scope="col">{{ _("What it holds") }}</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>id</code>, <code>url</code></th><td>{{ _("An identifier that doesn't change, and the meeting's page on this site.") }}</td></tr>
+    <tr><th scope="row"><code>board</code>, <code>title</code></th><td>{{ _("The board or committee, and the meeting's name as the city lists it.") }}</td></tr>
+    <tr><th scope="row"><code>date</code>, <code>start_time</code>, <code>end_time</code></th><td>{{ _("When it meets. A start time that isn't likely, such as 3:00 AM, is left out.") }}</td></tr>
+    <tr><th scope="row"><code>status</code></th><td>{{ _("\"scheduled\", \"cancelled\", \"postponed\", or \"rescheduled\".") }}</td></tr>
+    <tr><th scope="row"><code>special</code>, <code>listed</code></th><td>{{ _("Whether it's a special meeting, and whether the city still lists it.") }}</td></tr>
+    <tr><th scope="row"><code>location</code>, <code>remote_url</code></th><td>{{ _("Where it meets (name, address, and the city's description), and its link to join online.") }}</td></tr>
+    <tr><th scope="row"><code>recording_url</code>, <code>listing_url</code></th><td>{{ _("Its recording, and where the city lists it.") }}</td></tr>
+    <tr><th scope="row"><code>correction</code></th><td>{{ _("Our correction of the city's listing, with the reason, the evidence, and the day it was checked.") }}</td></tr>
+    <tr><th scope="row"><code>agenda</code>, <code>minutes</code></th><td>{{ _("Its agenda and minutes, described below.") }}</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="format-document">{{ _("Each agenda and minutes") }}</h3>
+<div class="table-wrap" role="region" aria-labelledby="format-document" tabindex="0">
+<table class="data-table">
+  <thead><tr><th scope="col">{{ _("Field") }}</th><th scope="col">{{ _("What it holds") }}</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>url</code>, <code>saved_copy_url</code></th><td>{{ _("The document on the city's website, and the copy saved here.") }}</td></tr>
+    <tr><th scope="row"><code>saved_at</code>, <code>posted_by</code>, <code>sha256</code></th><td>{{ _("When the copy was saved, who posted the document, and the copy's SHA-256 hash.") }}</td></tr>
+    <tr><th scope="row"><code>is_minutes</code></th><td>{{ _("For minutes, false when the city filed another document as the minutes.") }}</td></tr>
+    <tr><th scope="row"><code>summary_withheld</code></th><td>{{ _("Whether its summary was taken down after a reader reported an error.") }}</td></tr>
+    <tr><th scope="row"><code>summary</code></th><td>{{ _("Its AI summary, or null when there isn't one yet:") }}
+      <ul>
+        <li>{{ _("headline and summary, in English;") }}</li>
+        <li>{{ _("for an agenda, items: the main agenda items;") }}</li>
+        <li>{{ _("for minutes, decisions: each with its kind (\"decided\", \"recommended\", or \"procedural\") and its text;") }}</li>
+        <li>{{ _("not_shown: how many items or decisions were left out because they couldn't be matched to the document;") }}</li>
+        <li>{{ _("model and generated_at: the AI model, and when it wrote the summary;") }}</li>
+        <li>{{ _("fact_check: what our fact check found when it compared the summary's names, numbers, and decisions with the document's text. \"ok\": everything was found. \"failed\": something wasn't, and it's left out. \"weak\": the document is scanned, so only what could be read was checked, and nothing is left out. \"unchecked\": there was no text to check against. null: not checked yet.") }}</li>
+      </ul>
+    </td></tr>
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}
