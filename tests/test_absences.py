@@ -70,6 +70,20 @@ def test_school_board_sources():
     assert absences.minutes_gap(drive, combined, TODAY)["source"] == "drive"
 
 
+def test_school_board_minutes_gap_names_the_district_website():
+    """A district's meeting combined with the city calendar's listing of it: the gap names the district's
+    website from the district's listing, not the calendar's record (Waltham, 2026-10-13)."""
+    page = {"page_meetings": {"since": "2026-01-01"}}
+    combined = meeting(source="calendar", source_url="https://city.example/calendar/1", listings=[
+        {"id": "a", "source": "calendar", "source_url": "https://city.example/calendar/1"},
+        {"id": "b", "source": "page", "source_url": "https://schools.example/minutes", "source_name": "Example Public Schools"}])
+    gap = absences.minutes_gap(page, combined, TODAY)
+    assert gap == {"reason": "not_posted", "days": 64, "source": "page",
+                   "url": "https://schools.example/minutes", "name": "Example Public Schools"}
+    alone = meeting(source="page", source_url="https://schools.example/minutes", source_name="Example Public Schools")
+    assert absences.minutes_gap(page, alone, TODAY)["name"] == "Example Public Schools"
+
+
 def test_agenda_gap():
     assert absences.agenda_gap(meeting(source="calendar"), TODAY) == {"reason": "none_linked"}
     assert absences.agenda_gap(meeting(status="cancelled"), TODAY) == {"reason": "not_held"}
