@@ -40,10 +40,10 @@
 {{ chart_links("monthly") }}
 
 {% if has_areas %}
-<h2 id="wards">{% if precincts %}{{ _("By precinct") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
+<h2 id="wards">{% if areas == "precincts" %}{{ _("By precinct") }}{% elif areas == "districts" %}{{ _("By district") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
 {% set rows = [] %}
 {% for w in c.by_ward %}{% set ignored = rows.append({"label": area(w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
-{{ bars(rows, _("%(category)s requests by precinct", category=c.category) if precincts else _("%(category)s requests by ward", category=c.category)) }}
+{{ bars(rows, _("%(category)s requests by precinct", category=c.category) if areas == "precincts" else _("%(category)s requests by district", category=c.category) if areas == "districts" else _("%(category)s requests by ward", category=c.category)) }}
 {{ chart_links("wards", "/311/data/category-" ~ c.slug ~ ".csv") }}
 {% endif %}
 

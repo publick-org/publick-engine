@@ -48,7 +48,7 @@
 <ul class="meeting-list">
   {% for m in b.meetings %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
 </ul>
-{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "ical", "schedule"]) | list)[:1] %}
+{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule"]) | list)[:1] %}
 {# Translators: %(month)s is a month and year, such as "January 2026". #}
 <p class="source-note">{% trans month=b.meetings[-1].date | date("month") %}Meetings recorded here start in {{ month }}.{% endtrans %} {% if drive %}
 {# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}

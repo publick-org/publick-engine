@@ -410,3 +410,44 @@ class FakeFinalsite:
             return FakeResponse(content, {"content-disposition": "attachment; filename=\"AGENDA.pdf\"; "
                                                                  "filename*=UTF-8''AGENDA%20SEPTEMBER%2030%2C%202026%20.pdf"})
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakeLinkPage:
+    """A school district's page that links each meeting's documents (Methuen Public Schools'
+    table, Waltham Public Schools' list, or Nashua's dated lines and the Policy committee's page,
+    saved and trimmed: tests/fixtures/linkpage_*.html),
+    and the Google Drive files it links, each downloading as a distinct PDF. `page` replaces
+    the saved page of the board itself, and `replaced` any page by its address; `missing` lists
+    Drive files that answer with a sign-in page instead."""
+    METHUEN = "https://www.methuen.k12.ma.us/school-community/meetings-documents"
+    WALTHAM = "https://www.walthampublicschools.org/minutes-and-documentation"
+    NASHUA = "https://www.nashua.edu/our-district/board-of-education/boe-meeting-agendas-and-minutes"
+    NASHUA_POLICY = NASHUA + "/policy"
+
+    def __init__(self, page: str | None = None, missing: tuple = (), replaced: dict | None = None):
+        self.pages = {self.METHUEN: FIXTURES / "linkpage_methuen.html", self.WALTHAM: FIXTURES / "linkpage_waltham.html",
+                      self.NASHUA: FIXTURES / "linkpage_nashua.html",
+                      self.NASHUA_POLICY: FIXTURES / "linkpage_nashua_policy.html"}
+        self.page = page
+        self.replaced = replaced or {}
+        self.missing = missing
+        self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
+        self.urls = []
+        self.request_count = 0
+
+    def get(self, url):
+        import re
+        self.urls.append(url)
+        self.request_count += 1
+        if url in self.replaced:
+            return FakeResponse(self.replaced[url].encode())
+        if url in self.pages:
+            replaced = self.page is not None and url in (self.METHUEN, self.NASHUA)
+            return FakeResponse(self.page.encode() if replaced else self.pages[url].read_bytes())
+        drive = re.fullmatch(r"https://drive\.google\.com/uc\?export=download&id=([\w-]+)", url)
+        if drive:
+            if drive.group(1) in self.missing:
+                return FakeResponse(b"<html>Sign in</html>")
+            return FakeResponse(self.pdf + f"\n% file {drive.group(1)}\n".encode(),
+                                {"content-disposition": f'attachment; filename="{drive.group(1)}.pdf"'})
+        raise AssertionError(f"unexpected URL {url}")
