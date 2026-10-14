@@ -252,11 +252,13 @@ def agenda_center_calendar(config: dict) -> Calendar:
     excluded = {c.lower() for c in settings.get("exclude_categories", [])}
 
     def events(client, today, store):
-        # The first run lists every meeting since `since`. Later runs re-read
-        # the last few weeks (for minutes and late changes) and the weeks ahead.
+        # Every run lists every meeting since `since`, still one request: a board can
+        # post its minutes months after the meeting (Lawrence's), and a meeting is
+        # only known to have minutes from this listing. A town may limit later runs
+        # to the last recheck_days days.
         start = date.fromisoformat(settings["since"])
-        if any(m.get("source") == "agendacenter" for m in store.values()):
-            start = max(start, today - timedelta(days=settings.get("recheck_days", 60)))
+        if "recheck_days" in settings and any(m.get("source") == "agendacenter" for m in store.values()):
+            start = max(start, today - timedelta(days=settings["recheck_days"]))
         end = today + timedelta(days=settings.get("days_ahead", 60))
         page = client.get(agendacenter.search_url(settings["base_url"], start, end))
         rows = agendacenter.parse_listing(page.text, settings["base_url"])
