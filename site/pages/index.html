@@ -86,14 +86,15 @@
 {% endif %}
 
 {# ---- Decided ---- #}
-{% if meetings.final %}
+{# Meetings whose minutes record a decision or a committee's recommendation, newest first. #}
+{% if meetings.decided %}
 <div class="section-head">
   <h2 id="decided">{{ _("Recently decided") }}</h2>
   <a href="/meetings/decisions/">{{ _("All decisions") }}</a>
 </div>
 <p class="small">{{ _("From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
 <ul class="meeting-list">
-  {% for m in meetings.final[:3] %}{{ meeting_item(m, show_date=true, posted=true) }}{% endfor %}
+  {% for m in meetings.decided[:3] %}{{ meeting_item(m, show_date=true, posted=true) }}{% endfor %}
 </ul>
 {% endif %}
 {% endif %}
