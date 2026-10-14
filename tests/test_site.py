@@ -891,3 +891,25 @@ def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_pat
     assert "That was before new terms began in January 2028, so some members may have changed." in page
     about = (out / "about" / "index.html").read_text()
     assert re.search(r'<th scope="row">Elected officials</th>.*?not checked since new terms began in January 2028', about, re.S)
+
+
+def test_recently_decided_marks_committee_recommendations():
+    """The home page's "Recently decided" lists meetings whose minutes record only a committee's
+    recommendations too, marked so, since they aren't final until the governing body votes."""
+    from jinja2 import Environment, FileSystemLoader
+    env = Environment(loader=FileSystemLoader(build_site.SITE_DIR / "templates"), autoescape=True,
+                      trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.i18n"])
+    env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True,
+                                  pgettext=i18n.pgettext, npgettext=i18n.npgettext)
+    env.filters.update(date=build_site.format_date, time=build_site.format_time)
+    env.globals["today"] = "2026-10-14"
+    item = env.from_string('{% from "macros.html" import meeting_item %}{{ meeting_item(m, show_date=true, posted=true) }}')
+
+    def meeting(decided, recommended):
+        return {"date": "2026-10-07", "start_time": None, "url": "/meetings/x/", "body": "Planning & Development Committee",
+                "title": "Planning & Development Committee", "preview_line": "Recommended two permits.",
+                "minutes_doc": {"file": "x.pdf"}, "minutes_posted": "2026-10-13", "agenda": None, "status": "scheduled",
+                "remote_url": None, "special": False, "listed": True,
+                "decisions": {"decided": decided, "recommended": recommended, "procedural": []}}
+    assert "Committee recommendation" in item.render(m=meeting([], ["Recommended a permit."]))
+    assert "Committee recommendation" not in item.render(m=meeting(["Approved a permit."], ["Recommended a permit."]))
