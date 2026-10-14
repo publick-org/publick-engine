@@ -144,16 +144,39 @@ def test_fetch_meetings_records_every_board_and_saves_upcoming_agendas(malden, t
     assert (tmp_path / "meetings" / "agendas" / "4453-202609241217.pdf").exists()
 
 
-def test_later_runs_reread_recent_weeks_and_record_revised_agendas(malden, tmp_path):
+def test_later_runs_reread_from_the_start_and_record_revised_agendas(malden, tmp_path):
     malden["meetings"]["agenda_center"]["since"] = "2026-06-01"
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     revised = PAGE.replace("Sep</abbr> 24, 2026 12:17 PM", "Sep</abbr> 25, 2026 9:00 AM")
     client = FakeAgendaCenter(revised)
     fetch_meetings.run(malden, client, tmp_path, now=NOW.replace(day=21))
-    assert "startDate=07/23/2026" in client.urls[0]  # 60 days back, no longer from `since`
+    assert "startDate=06/01/2026" in client.urls[0]
     finance = load_store(tmp_path)["agendacenter-4453"]
     assert [a["id"] for a in finance["agendas"]] == ["4453-202609241217", "4453-202609250900"]
     assert finance["history"][-1]["field"] == "agenda"
+
+
+def test_recheck_days_limits_later_runs(malden, tmp_path):
+    malden["meetings"]["agenda_center"].update(since="2026-06-01", recheck_days=60)
+    first = FakeAgendaCenter()
+    fetch_meetings.run(malden, first, tmp_path, now=NOW)
+    assert "startDate=06/01/2026" in first.urls[0]
+    client = FakeAgendaCenter()
+    fetch_meetings.run(malden, client, tmp_path, now=NOW.replace(day=21))
+    assert "startDate=07/23/2026" in client.urls[0]
+
+
+def test_minutes_posted_months_late_are_found(malden, tmp_path):
+    """Minutes a board posts long after its meeting are linked on a later run, and downloaded."""
+    malden["meetings"]["agenda_center"]["since"] = "2026-06-01"
+    unposted = PAGE.replace("/AgendaCenter/ViewFile/Minutes/_08192026", "/AgendaCenter/ViewFile/Nothing/_08192026")
+    fetch_meetings.run(malden, FakeAgendaCenter(unposted), tmp_path, now=NOW)
+    late = next(m for m in load_store(tmp_path).values() if m["date"] == "2026-08-19" and m.get("source") == "agendacenter")
+    assert not late.get("minutes_url")
+    later = NOW.replace(month=12)
+    fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=later)
+    fetch_minutes.run_linked(malden, FakeAgendaCenter(), tmp_path, now=later)
+    assert load_store(tmp_path)[late["id"]]["minutes"]
 
 
 def test_a_calendar_that_goes_empty_counts_as_failed(malden, tmp_path, monkeypatch):
