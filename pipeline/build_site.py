@@ -604,8 +604,6 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "this_week": [m for m in upcoming if m["date"] < week_end],
         "past": past,
         "decided": decided,
-        # For the home page: meetings that made at least one final decision.
-        "final": [m for m in decided if m["decisions"]["decided"]],
         "boards": board_list,
         "status": status,
         "tracking_since": min((m["first_seen"] for m in meetings), default=None),

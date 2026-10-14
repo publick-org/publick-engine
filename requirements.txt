@@ -3,6 +3,7 @@ requests==2.34.2
 feedparser==6.0.14
 pypdf==6.19.0
 pdfplumber==0.11.10
+fpdf2==2.8.4
 anthropic==1.11.0
 boto3==1.43.106
 markdown==3.11

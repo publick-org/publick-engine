@@ -63,7 +63,7 @@
   {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc or m.documents_url %}
   <div class="actions">
     {% if m.remote_url and upcoming %}<a class="button button-primary" href="{{ m.remote_url }}">{{ _("Join online (Zoom)") }}</a>{% endif %}
-    {% if m.minutes_doc %}<a class="button" href="{{ m.minutes_doc.source_url }}">{{ _("Minutes (PDF)") }}</a>{% endif %}
+    {% if m.minutes_doc %}<a class="button" href="{{ document_url('minutes', m.minutes_doc.file) if m.minutes_doc.get('converted_from') else m.minutes_doc.source_url }}">{{ _("Minutes (PDF)") }}</a>{% endif %}
     {% if m.agenda %}<a class="button" href="{{ m.agenda.source_url }}">{{ _("Agenda (PDF)") }}</a>
     {% elif m.documents_url %}<a class="button" href="{{ m.documents_url }}">{{ _("Agenda and minutes") if m.source == "civicclerk" and not upcoming else _("Agenda") }}</a>{% endif %}
   </div>
@@ -177,7 +177,7 @@
 {% endif %}
 <ul>
   {# Translators: %(where)s is where the minutes were posted, such as "the city website". #}
-  <li>{% trans url=m.minutes_doc.source_url, where=m.minutes_doc.get("posted_on") or _("the city website") %}<a href="{{ url }}">Minutes on {{ where }}</a>{% endtrans %} · PDF, {{ m.minutes_doc.bytes | filesize }}</li>
+  <li>{% trans url=m.minutes_doc.source_url, where=m.minutes_doc.get("posted_on") or _("the city website") %}<a href="{{ url }}">Minutes on {{ where }}</a>{% endtrans %}{% if not m.minutes_doc.get("converted_from") %} · PDF, {{ m.minutes_doc.bytes | filesize }}{% endif %}</li>
   <li>{% trans url=document_url('minutes', m.minutes_doc.file), iso=m.minutes_doc.fetched_at, when=m.minutes_doc.fetched_at | timestamp %}<a href="{{ url }}">Saved copy of the minutes</a> · saved <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</li>
 </ul>
 {% if m.minutes | length > 1 %}
