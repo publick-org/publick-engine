@@ -1025,7 +1025,8 @@ def posted_under(rows: list[dict], boards: list[str] = (), town: str = "", most:
         own = {words(r["category"]).strip(), words(agendacenter.natural_name(r["category"])).strip()}
         title = re.sub(r"\s*\(PDF\)?$|\s*\(PDF$", "", r["title"]).strip()
         rest = words(title)
-        for name in own:
+        # The longer name first: removing a shorter one inside it first would leave the rest of it behind.
+        for name in sorted(own, key=lambda n: (-len(n), n)):
             # The category's own name, with the kind of body it is ("Economic & Community Development Committee").
             rest = re.sub(rf" {re.escape(name)}(?: (?:{BODY_KINDS}))? ", " ", rest)
         rest = re.sub(r" committee of the whole ", " ", rest)
