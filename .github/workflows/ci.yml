@@ -37,9 +37,10 @@ jobs:
         run: ruff check .
 
       # Pipeline parsing, page structure, links, and WCAG 2.2 AA checks, offline,
-      # against saved Gloucester data (tests/fixtures/).
+      # against saved Gloucester data (tests/fixtures/). The browser checks take most of the
+      # time, so the tests run on every core (pytest-xdist).
       - name: Test
-        run: python -m pytest
+        run: python -m pytest -n auto
 
       - name: Test Worker
         run: node --test worker/sites.test.js worker/scheduler.test.js
