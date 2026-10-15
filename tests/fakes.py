@@ -582,3 +582,54 @@ class FakeOpenGov:
             number = re.search(r"(\d+)\.pdf$", unquote(found.group(1))).group(1)
             return FakeResponse(self.content.get(number, self.pdf + f"\n% file {number}\n".encode()))
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakePrivateBucket:
+    """The private store (pipeline/cost_log.py) through boto3's S3 client calls, as a dict of key -> body.
+    Lists a page of PAGE keys at a time, as S3 does 1,000. failing: how many puts fail before they work
+    again (None: every one)."""
+
+    PAGE = 3
+
+    class exceptions:
+        class NoSuchKey(Exception):
+            pass
+
+    def __init__(self, objects=None):
+        self.objects = dict(objects or {})
+        self.puts = []
+        self.failing = 0
+
+    def get_object(self, Bucket, Key):
+        if Key not in self.objects:
+            raise self.exceptions.NoSuchKey(Key)
+        body = self.objects[Key]
+        return {"Body": type("Body", (), {"read": lambda self: body})()}
+
+    def put_object(self, Bucket, Key, Body, ContentType=None):
+        if self.failing is None or self.failing > 0:
+            if self.failing:
+                self.failing -= 1
+            raise ConnectionError("the bucket can't be reached")
+        self.objects[Key] = Body
+        self.puts.append(Key)
+
+    def list_objects_v2(self, Bucket, Prefix, Delimiter=None, ContinuationToken=None):
+        keys = sorted(k for k in self.objects if k.startswith(Prefix))
+        if Delimiter:
+            folders = sorted({Prefix + k[len(Prefix):].split(Delimiter)[0] + Delimiter
+                              for k in keys if Delimiter in k[len(Prefix):]})
+            keys = [k for k in keys if Delimiter not in k[len(Prefix):]]
+            return {"Contents": [{"Key": k} for k in keys], "CommonPrefixes": [{"Prefix": f} for f in folders],
+                    "IsTruncated": False}
+        start = int(ContinuationToken or 0)
+        page = keys[start:start + self.PAGE]
+        more = start + self.PAGE < len(keys)
+        return {"Contents": [{"Key": k} for k in page], "IsTruncated": more,
+                **({"NextContinuationToken": str(start + self.PAGE)} if more else {})}
+
+    def lines(self, prefix: str) -> list[dict]:
+        """Every line of the objects under prefix, in the order of their keys."""
+        import json
+        return [json.loads(line) for k in sorted(self.objects) if k.startswith(prefix) and k.endswith(".jsonl")
+                for line in self.objects[k].decode().splitlines()]

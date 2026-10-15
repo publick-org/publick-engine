@@ -21,6 +21,12 @@ os.environ["PUBLICK_TOWN_DIR"] = str(Path(__file__).parent / "fixtures" / "town"
 os.environ.pop("TOWN", None)
 # Nor any network's shared settings (pipeline/config.py): the fixture town is in no network.
 os.environ.pop("PUBLICK_NETWORK_DIR", None)
+# Nor the private store, where a network keeps its costs (pipeline/cost_log.py), nor its budget: a test that
+# needs them sets them, with a stand-in bucket.
+for _key in ("PRIVATE_ENDPOINT", "PRIVATE_BUCKET", "PRIVATE_ACCESS_KEY_ID", "PRIVATE_SECRET_ACCESS_KEY",
+             "SUMMARY_BUDGET", "SUMMARY_BUDGET_MONTH", "PUBLICK_SUMMARY_ALLOWANCE_SHARE", "PUBLICK_SUMMARY_BACKLOG_SHARE",
+             "PUBLICK_SUMMARY_ALLOWANCE", "PUBLICK_SUMMARY_BACKLOG_ALLOWANCE"):
+    os.environ.pop(_key, None)
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 

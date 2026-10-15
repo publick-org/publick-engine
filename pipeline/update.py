@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline import rhythms
+from pipeline import cost_log, rhythms
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 
 
@@ -55,6 +55,9 @@ class Source:
 # The document bucket's keys (pipeline/documents.py), for the steps that save or read agendas and minutes,
 # and the 311 steps, which save the requests and scorecard there (pipeline/bucket_data.py).
 STORAGE = ("STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+# The private store's, where the summaries' costs are kept, and the network's budget for them
+# (pipeline/cost_log.py): for the summaries alone.
+COSTS = (*cost_log.PRIVATE_KEYS, *cost_log.BUDGET_KEYS)
 # The sites bucket's (pipeline/deploy.py): no step here publishes, so none is given them.
 SITES = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
 
@@ -73,7 +76,7 @@ SOURCES = [
            table="diligent_meetings"),
     Source("Fetch Open Meetings portal meetings", "pipeline.fetch_opengov_meetings", "meetings", secrets=STORAGE,
            table="opengov_meetings"),
-    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY", *STORAGE),
+    Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY", *STORAGE, *COSTS),
            table="summaries"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
     Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",), table="labor"),

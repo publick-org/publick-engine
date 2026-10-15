@@ -1,7 +1,10 @@
 # This repository is public, and so is everything attached to a pull request.
 # This check fails one whose title, description, commit messages, or added
-# Markdown lines read like internal notes (CLAUDE.md says what stays out).
-# A false positive is cleared by the `public-ok` label.
+# Markdown lines read like internal notes (CLAUDE.md says what stays out), or
+# whose added lines in any other file give a cost or budget figure, or that
+# commits a cost record (summary-costs.json, data/costs/); see
+# .github/public_check.py. A false positive is cleared by the `public-ok`
+# label, or for one line of code, a `public-ok` comment on it.
 name: Public check
 
 on:
