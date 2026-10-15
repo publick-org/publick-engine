@@ -819,6 +819,13 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             spent, spent_backlog = got["paid"], got["paid_backlog"]
     todo = [t for t in pending_documents(data_dir, now.date().isoformat(), settings["model"], settings.get("since"))
             if doc_key(t) not in waiting]
+    # Every document still waiting, for the run's count of what's left.
+    waiting_count = len(todo)
+    if collecting:
+        # Only what the batch didn't make is sent one at a time; any other document waiting goes in the next
+        # run's batch, at half the price, rather than at the full price now.
+        retry = {d["doc"]["sha256"] for d in pending["documents"]}
+        todo = [t for t in todo if doc_key(t) in retry]
     new = [t for t in todo if is_new(t, now)]
     backlog = [t for t in todo if not is_new(t, now)]
     older = {doc["sha256"] for _, _, doc in backlog}
@@ -1036,7 +1043,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
     transcribed, transcript_cost = 0, 0.0
     # Those in this run's batch are still waiting, as are those in a batch not yet collected.
-    summaries_left = len(todo) - done + len(waiting)
+    summaries_left = waiting_count - done + len(waiting)
     for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
         if not record.get("needs_transcript") or record.get("transcript"):
             continue
@@ -1088,7 +1095,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost, replaced_cost)
     return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
             "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
-            "remaining": max(len(todo) - done, 0), "errors": errors, "stopped": stopped,
+            "remaining": max(waiting_count - done, 0), "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
 
 
