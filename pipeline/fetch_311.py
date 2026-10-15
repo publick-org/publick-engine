@@ -12,7 +12,9 @@ Backfill (once): python -m pipeline.fetch_311 --backfill 2024-01
   walks month by month from that date and records every request. Exact
   times are then filled in gradually by the daily runs.
 
-Writes data/311/requests.json and data/311/status.json.
+Writes data/311/requests.json and data/311/status.json. For a town with a
+[storage] table, requests.json is kept in its bucket, not git
+(pipeline/bucket_data.py): read from there first, and saved back at the end.
 """
 
 from __future__ import annotations
@@ -25,8 +27,9 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import seeclickfix
+from pipeline import bucket_data, seeclickfix
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
+from pipeline.files import write_atomic
 from pipeline.geo import PrecinctLookup
 from pipeline.http import FetchError, PoliteClient
 
@@ -47,8 +50,7 @@ def load_store(data_dir: Path) -> dict:
 
 
 def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=1, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=1, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 class SeeClickFix:
@@ -200,7 +202,14 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     started = time.monotonic()
     deadline = started + (time_budget if time_budget is not None else source.get("time_budget_seconds", 2400))
     api = SeeClickFix(config, client)
+    # The bucket's copy, if the town keeps one there, is the latest: what the last run saved.
+    bucket_data.pull(config, data_dir, refresh=True)
     store = load_store(data_dir)
+    status_path = store_dir(data_dir) / "status.json"
+    had = json.loads(status_path.read_text(encoding="utf-8")).get("requests_total") if status_path.exists() else None
+    if not store and had and not backfill_from:
+        # Never start again from nothing, and save that over the town's history.
+        raise FetchError(f"the town's {had} saved 311 requests are missing (data/311/requests.json, or its bucket's copy)")
     summary = {"updated_at": stamp}
 
     if backfill_from:
@@ -243,6 +252,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
                       "and none was marked removed")
 
     save_json(store_dir(data_dir) / "requests.json", store)
+    bucket_data.push(config, data_dir, "311/requests.json")
     summary.update({
         "requests_total": len(store),
         "open_listed": len(open_items),
@@ -277,7 +287,7 @@ def main() -> int:
     try:
         summary = run(config, client, args.data, backfill_from=backfill, detail_limit=args.details, time_budget=args.time_budget)
     except FetchError as e:
-        print(f"::error::SeeClickFix could not be reached: {e}")
+        print(f"::error::311 requests: {e}")
         return 1
     print(json.dumps(summary, indent=2))
     for error in summary["errors"]:

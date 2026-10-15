@@ -30,7 +30,9 @@ again only when its English summary changes (or this module's prompt does:
 VERSION). summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
 summaries waiting, which cost about ten times as much; their cost is in the
-month's ledger as translation_cost.
+month's ledger as translation_cost. Their system prompts are the same for
+every request, so they're cached: within a run, each request after the first
+reads its system prompt at a tenth of the price.
 
 A town's own text (its config's tagline, section summaries, officials' seats)
 and the names in its data (boards, 311 categories) come from the town's
@@ -50,10 +52,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+
+from pipeline.files import write_atomic
 
 VERSION = 4
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -234,52 +239,89 @@ def english_words() -> frozenset:
 # Forms of verbs the dictionary lacks, which a decision often starts with ("Withdrew DOC #348/19").
 IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", "oversaw", "withdrawn", "withdrew",
              "withheld"}
+# Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
+# ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
+NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise", "pickleball",
+               "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness", "workforce"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
                    "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
 
+def summary_dirs(data_dir: Path) -> list[Path]:
+    """The folders of English summaries whose words count: the town's, and in a network
+    (towns/<town>/data), every town's, so a word one town writes in lowercase ("wastewater",
+    "coordinator") is ordinary in all of them."""
+    towns = data_dir.parent.parent
+    if towns.name == "towns":
+        return sorted(t / "data" / "summaries" for t in towns.iterdir() if (t / "data" / "summaries").is_dir())
+    return [data_dir / "summaries"]
+
+
 @lru_cache(maxsize=32)
 def town_words(data_dir: Path | None) -> frozenset:
-    """The words a town's English summaries use in lowercase, which are no one's name: newer words
-    the dictionary lacks ("input", "tourism")."""
+    """The words English summaries use in lowercase, which are no one's name: newer words the
+    dictionary lacks ("input", "tourism"). Whole words only: "Bryan" doesn't make "ryan" a word."""
     words: set[str] = set()
-    for file in sorted((data_dir / "summaries").glob("*.json")) if data_dir else []:
-        record = json.loads(file.read_text(encoding="utf-8"))
-        for field in ("headline", "summary", "items", "decisions"):
-            value = record.get(field) or ""
-            for text in value if isinstance(value, list) else [value]:
-                words.update(w for w in re.findall(r"[a-z]+", text) if w.islower())
+    for folder in summary_dirs(data_dir) if data_dir else []:
+        for file in sorted(folder.glob("*.json")):
+            words |= summary_words(json.loads(file.read_text(encoding="utf-8")))
     return frozenset(words)
+
+
+def summary_words(record: dict) -> set[str]:
+    """One summary's words in lowercase, as town_words() counts them."""
+    words: set[str] = set()
+    for field in ("headline", "summary", "items", "decisions"):
+        value = record.get(field) or ""
+        for text in value if isinstance(value, list) else [value]:
+            words.update(re.findall(r"\b[a-z]+\b", text))
+    return words
 
 
 def is_word(word: str, also: frozenset = frozenset()) -> bool:
     w = word.lower()
     known = english_words()
-    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in known or w in also:
+    if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in NEWER_WORDS or w in known or w in also:
         return True
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
                                                   ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
              if w.endswith(end)]
     # Doubled before an ending: "planning", "referred".
     stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
-    return any(stem in known or stem in also for stem in stems)
+    return any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems)
+
+
+# Abbreviations, with their period, that a translation may write out ("Ch." as "Cap." or "capítulo"):
+# words, not names. Business suffixes (Inc., Corp.) aren't here: a business's name is kept.
+ABBREVIATIONS = {"Art", "Ave", "Blvd", "Ch", "Chap", "Dir", "Est", "Ext", "No", "Rd", "Sec", "Secs", "St", "Vol"}
+# Those that are never anyone's name, with or without a period ("Asst City Clerk").
+ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt"}
 
 
 def names(text: str, also: frozenset = frozenset()) -> set[str]:
     """The names in an English text: capitalized words that aren't ordinary English words
     ("Houseman" is one, "Collector" isn't), which a translation keeps as written. also: more
-    ordinary words (town_words())."""
-    return {w for w in re.findall(r"\b[A-Z][a-z]+\b", text or "") if not is_word(w, also)}
+    ordinary words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in
+    ALWAYS_ABBREVIATIONS, isn't one."""
+    return {m.group(1) for m in re.finditer(r"\b([A-Z][a-z]+)\b(\.?)", text or "")
+            if not (m.group(2) and m.group(1) in ABBREVIATIONS) and m.group(1) not in ALWAYS_ABBREVIATIONS
+            and not is_word(m.group(1), also)}
+
+
+def plain(text: str) -> str:
+    """Text without its accents, so "América" keeps "America"."""
+    return "".join(c for c in unicodedata.normalize("NFD", text) if not unicodedata.combining(c))
 
 
 # What a decision says happened, in each language, to catch a translation that turns it round.
 NOT = {"en": re.compile(r"\b(?:not|never)\b|n't\b", re.I), "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
 SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
-                            r"disapprov\w*|against|oppos\w*)\b|n't\b", re.I)}
+                            r"disapprov\w*|declin\w*|against|oppos\w*)\b|n't\b", re.I)}
 APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant\w*|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
            "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
-DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*)\b", re.I),
-        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*)", re.I)}
+DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*|declin(?:e|ed|es|ing))\b",
+                        re.I),
+        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*|fracas\w*)", re.I)}
 TABLED = {"en": re.compile(r"\b(?:tabled|tabling|postpon\w*)\b", re.I),
           "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|archiv\w*|tabl\w*|suspend\w*|sobre la mesa|difiri\w*)",
                            re.I)}
@@ -336,6 +378,28 @@ def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
     return en, tr
 
 
+# The English's ways of writing what a translation writes out, made the same before comparing:
+# "FY27" is "fiscal year 2027" ("año fiscal 2027"); "not to exceed" is a cap, not a "not";
+# "9:00-11:00 A.M." is two morning times; "1.28.26" is a date in figures.
+FISCAL_YEAR = re.compile(r"\bFY\s?'?(\d{2})\b")
+NOT_TO_EXCEED = re.compile(r"\bnot\s+to\s+exceed\b", re.I)
+TIME_RANGE = re.compile(r"\b(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s?m\b\.?", re.I)
+DOTTED_DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b")
+
+
+def comparable(en: str, tr: str) -> tuple[str, str]:
+    """The English and its translation, each written as the other would write it (above)."""
+    en = FISCAL_YEAR.sub(r"FY 20\1", en)
+    en = NOT_TO_EXCEED.sub("up to", en)
+    en = TIME_RANGE.sub(lambda m: f"{m.group(1)} {m.group(3)}.m.-{m.group(2)} {m.group(3)}.m.", en)
+    en = DOTTED_DATE.sub(r"\1/\2/\3", en)
+    # A translation that writes the fiscal year out and keeps the English after it: "año fiscal 2027 (FY27)".
+    tr = re.sub(r"\s*\(FY\s?'?\d{2,4}\)", "", tr)
+    tr = FISCAL_YEAR.sub(r"FY 20\1", tr)
+    tr = re.sub(r"\b(año fiscal)\s+(\d{2})\b", r"\1 20\2", tr, flags=re.I)
+    return en, tr
+
+
 def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset()) -> str:
     """ "ok", or what's wrong, entry by entry, so a list put in another order fails too: a field
     missing or empty, a list of another length, a number lost or added (however the language
@@ -354,11 +418,12 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             pairs = [(en, tr)]
         for i, (a, b) in enumerate(pairs):
             where = f"{field} {i + 1}" if isinstance(en, list) else field
+            a, b = comparable(a, b)
             if scaled(a, "en") != scaled(b, lang):
                 return f"{where}: amounts' scale differs (million, billion)"
             if times(a) != times(b):
                 return f"{where}: a.m. or p.m. differs"
-            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", b))
+            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", plain(b)))
             if lost_names:
                 return f"{where}: {', '.join(lost_names)} not in the translation"
             wrong = outcome(a, b, lang)
@@ -372,6 +437,21 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             if added:
                 return f"{where}: {', '.join(sorted(added))} added in the translation"
     return "ok"
+
+
+def cached(system: str) -> list[dict]:
+    """A system prompt, cached: it's the same for every request of its kind, so the requests after the
+    first within a few minutes read it from the cache at a tenth of the input price."""
+    return [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+
+
+def usage_of(response) -> dict:
+    """A response's tokens: input and output, and the cached input written and read, when there was any."""
+    usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    for key in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+        if getattr(response.usage, key, None):
+            usage[key] = getattr(response.usage, key)
+    return usage
 
 
 def settings(config: dict) -> dict:
@@ -425,11 +505,11 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
-        system=SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+        system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
         messages=[{"role": "user", "content": prompt}],
         output_config=output_config(config, schema(kind)),
     )
-    usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+    usage = usage_of(response)
     if response.stop_reason != "end_turn":
         from pipeline.summarize import StoppedEarly
         raise StoppedEarly(response.stop_reason, usage)
@@ -438,8 +518,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
 
 def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
     file = path(data_dir, lang, sha256)
-    file.parent.mkdir(parents=True, exist_ok=True)
-    file.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(file, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
 
 
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
@@ -451,6 +530,10 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     wrong = what_failed(data_dir, before, record, kind, lang) if again else None
+    # A translation made again in the month the one before it was (a correction, a changed summary) replaces
+    # its file, so what that one cost is carried in this one, for month_counts to still count it.
+    earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
+               if before and before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
     result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
     paid = cost(usage, settings(config))
     checked = check(source, result, kind, lang, town_words(data_dir))
@@ -472,6 +555,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "generated_at": now.isoformat(timespec="seconds"),
         "usage": usage,
         "cost": round(paid + review_cost, 6),
+        **({"replaced_cost": round(earlier, 6)} if earlier else {}),
     }
     save(data_dir, lang, doc["sha256"], out)
     return out, paid + review_cost
@@ -537,7 +621,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
@@ -551,7 +635,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         if "credit balance" in str(e).lower():
             raise
         return {UNREVIEWED: str(e)}, 0.0
-    paid = cost({"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}, rsettings)
+    paid = cost(usage_of(response), rsettings)
     if response.stop_reason != "end_turn":
         return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
     problems: dict[str, str] = {}
@@ -564,8 +648,8 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
 
 
 def month_counts(data_dir: Path) -> dict[str, dict]:
-    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}}.
-    A batch of drafted texts counts as one translation."""
+    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}},
+    with what the ones they replaced that month cost (make()). A batch of drafted texts counts as one."""
     counted: dict[str, dict] = {}
     records = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((data_dir / "summaries").glob("*/*.json"))]
     for file in sorted((data_dir / "strings").glob("*.json")):
@@ -574,7 +658,7 @@ def month_counts(data_dir: Path) -> dict[str, dict]:
         at = record.get("generated_at", "")[:7]
         if at:
             row = counted.setdefault(at, {"cost": 0.0, "translations": 0})
-            row["cost"] += record.get("cost", 0.0)
+            row["cost"] += record.get("cost", 0.0) + record.get("replaced_cost", 0.0)
             row["translations"] += 1
     return counted
 
@@ -652,7 +736,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         response = client.messages.create(
             model=tsettings["model"],
             max_tokens=MAX_TOKENS,
-            system=NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang]),
+            system=cached(NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
             messages=[{"role": "user", "content": NAMES_PROMPT.format(
                 town=config["town"]["name"], state=config["town"]["state"], n=len(batch), language=LANGUAGE_NAMES[lang],
                 texts=json.dumps(batch, ensure_ascii=False, indent=1))}],
@@ -660,7 +744,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
                 "type": "object", "properties": {"translations": {"type": "array", "items": {"type": "string"}}},
                 "required": ["translations"], "additionalProperties": False}),
         )
-        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
+        usage = usage_of(response)
         paid = cost(usage, tsettings)
         spent += paid
         at = now.isoformat(timespec="seconds")
@@ -686,9 +770,8 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
             done += 1
     if done or saved["batches"]:
         file = strings_path(data_dir, lang)
-        file.parent.mkdir(parents=True, exist_ok=True)
         saved["drafts"] = dict(sorted(saved["drafts"].items()))
-        file.write_text(json.dumps(saved, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        write_atomic(file, json.dumps(saved, indent=1, ensure_ascii=False) + "\n")
     return done, spent
 
 

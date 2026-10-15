@@ -4,6 +4,8 @@
 {% from "macros.html" import area with context %}
 {% set c = category %}
 {% block title %}{% trans category=c.category %}{{ category }}: 311 requests{% endtrans %}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(category)s a kind of request, such as "Potholes". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr, category=c.category %}{{ town }}, {{ state }} 311 requests: {{ category }}{% endtrans %}{% endblock %}
 {% block description %}{% trans category=c.category, town=town.name %}{{ category }} requests in {{ town }}: how many, how quickly the city responds, and where.{% endtrans %}{% endblock %}
 {% block structured_data %}{{ structured(breadcrumbs([(_("311 Requests"), site_url ~ "/311/"), (c.category, canonical_url)])) }}{% endblock %}
 {% block content %}
@@ -22,13 +24,26 @@
 
 <h2 id="monthly">{{ _("Requests by month") }}</h2>
 {{ month_columns(c.monthly, _("%(category)s requests by month", category=c.category)) }}
+<details class="expand">
+  <summary>{{ _("See as a table") }}</summary>
+  <div class="table-wrap">
+  <table class="data-table">
+    <thead><tr><th scope="col">{{ _("Month") }}</th><th scope="col" class="num">{{ _("Requests") }}</th></tr></thead>
+    <tbody>
+    {% for m in c.monthly | reverse %}
+      <tr><th scope="row">{{ m.month | month }}</th><td class="num">{{ m.received | number }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
 {{ chart_links("monthly") }}
 
 {% if has_areas %}
-<h2 id="wards">{% if precincts %}{{ _("By precinct") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
+<h2 id="wards">{% if areas == "precincts" %}{{ _("By precinct") }}{% elif areas == "districts" %}{{ _("By district") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
 {% set rows = [] %}
 {% for w in c.by_ward %}{% set ignored = rows.append({"label": area(w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
-{{ bars(rows, _("%(category)s requests by precinct", category=c.category) if precincts else _("%(category)s requests by ward", category=c.category)) }}
+{{ bars(rows, _("%(category)s requests by precinct", category=c.category) if areas == "precincts" else _("%(category)s requests by district", category=c.category) if areas == "districts" else _("%(category)s requests by ward", category=c.category)) }}
 {{ chart_links("wards", "/311/data/category-" ~ c.slug ~ ".csv") }}
 {% endif %}
 

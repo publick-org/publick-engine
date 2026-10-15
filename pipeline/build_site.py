@@ -34,6 +34,7 @@ from markupsafe import Markup, escape
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, ENGINE_DIR, TOWN_DIR, TOWN_STATIC_DIR, colors, load_config
 from pipeline.documents import open_documents
 from pipeline import absences
+from pipeline import bucket_data
 from pipeline import freshness
 from pipeline import common_strings
 from pipeline import digest
@@ -43,6 +44,7 @@ from pipeline import listings
 from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import officials as officials_mod
+from pipeline import share_cards as share_cards_mod
 from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import structured
@@ -61,7 +63,7 @@ STATIC_DIR = SITE_DIR / "static"
 # Built but kept out of the sitemap.
 UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 # Page folders built for every town, whether or not they are in the navigation.
-SHARED_FOLDERS = {"streets"}
+SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
 
@@ -226,15 +228,23 @@ SAFE_HREF = re.compile(r"(https?://|mailto:)", re.I)
 
 def render_markdown(text: str) -> Markup:
     """Render model-written Markdown safely: escape any HTML first, keep only
-    web and mail links (no javascript: and the like), drop images (they would
-    load from other sites), and demote headings below the page's own h2."""
+    web and mail links (no javascript: and the like), marked as links the site
+    doesn't vouch for (rel="nofollow ugc": a document's text can be anyone's),
+    drop images (they would load from other sites), and demote headings below
+    the page's own h2."""
     html = markdown.markdown(escape(text), extensions=["sane_lists"])
     html = re.sub(r'<a href="([^"]*)"[^>]*>(.*?)</a>',
-                  lambda m: m.group(0) if SAFE_HREF.match(m.group(1)) else m.group(2), html, flags=re.S)
+                  lambda m: f'<a href="{m.group(1)}" rel="nofollow ugc">{m.group(2)}</a>'
+                  if SAFE_HREF.match(m.group(1)) else m.group(2), html, flags=re.S)
     html = re.sub(r'<img [^>]*?alt="([^"]*)"[^>]*>|<img [^>]*>', lambda m: m.group(1) or "", html)
     for level in (3, 2, 1):
         html = html.replace(f"<h{level}>", f"<h{level + 2}>").replace(f"</h{level}>", f"</h{level + 2}>")
     return Markup(html)
+
+
+def capitalize_first(text) -> Markup:
+    """The text with its first letter capitalized, escaped unless it's already safe HTML (a macro's)."""
+    return escape(text[:1].upper() + text[1:])
 
 
 def in_english(value):
@@ -357,6 +367,8 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
             "finalsite": N_("school district's website"), "ical": N_("school district's website"),
+            "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
+            "opengov": N_("state's Open Meetings portal"),
             "schedule": N_("published schedule")}
 CALENDAR = N_("city calendar")
 
@@ -442,8 +454,33 @@ def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str
     return problems
 
 
+WITHHELD_KINDS = ("agenda", "minutes")
+
+
+def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[str, str]]:
+    """The summaries taken down by hand ([[summaries.withheld]]): a reader reported an error, and
+    the summary stays down until it's fixed and the entry removed. Each entry names its meeting as
+    a correction does, by `board` and `date` or its record's `meeting` id, and `kind`, "agenda" or
+    "minutes". Returns (meeting id, kind) pairs. An entry that names no meeting, or more than one,
+    stops the build, so a typo can't leave a summary up that was meant to come down: a pull
+    request's run fails before it merges."""
+    found = set()
+    for w in withheld:
+        what = f"{w.get('board', w.get('meeting'))} {w.get('date', '')} {w.get('kind', '')}".strip()
+        if w.get("kind") not in WITHHELD_KINDS:
+            raise SystemExit(f"[[summaries.withheld]] {what}: kind must be \"agenda\" or \"minutes\".")
+        matches = [m for m in meetings
+                   if w.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
+                   or (m["date"] == str(w.get("date")) and words(m["body"]) == words(w.get("board", "")))]
+        if len(matches) != 1:
+            raise SystemExit(f"[[summaries.withheld]] {what}: {len(matches)} meetings match it; name one, by board "
+                             "and date or by its meeting id, so its summary is taken down.")
+        found.add((matches[0]["id"], w["kind"]))
+    return found
+
+
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
-                  corrections: list[dict] | None = None) -> dict:
+                  corrections: list[dict] | None = None, withheld: list[dict] | None = None) -> dict:
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     status_path = data_dir / "meetings" / "status.json"
@@ -452,6 +489,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     # A meeting the city lists in more than one place is shown as one (pipeline/listings.py).
     store, _moved = listings.combined(store, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)))
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
+    taken_down = withheld_summaries(meetings, withheld or [])
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
                     source="calendar", source_url=None, correction=None)
@@ -482,12 +520,31 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             summarize.cached(data_dir, m["minutes_doc"]["sha256"], summary_model, "minutes", current=False)
             if m["minutes_doc"] and summary_model else None
         )
-        m["minutes_too_large"] = bool(m["minutes_doc"]) and summarize.too_large(m["minutes_doc"])
-        m["agenda_too_large"] = bool(m["agenda"]) and summarize.too_large(m["agenda"])
+        # A summary taken down by hand isn't shown anywhere: not on its page, in lists, the feed,
+        # the digest, search, or the decisions; the page says it was taken down.
+        m["withheld"] = {kind: (m["id"], kind) in taken_down for kind in WITHHELD_KINDS}
+        if m["withheld"]["agenda"]:
+            m["preview"] = None
+        if m["withheld"]["minutes"]:
+            m["minutes_summary"] = None
+        m["minutes_too_large"] = bool(m["minutes_doc"]) and (summarize.too_large(m["minutes_doc"])
+                                                             or summarize.too_long(data_dir, m["minutes_doc"]))
+        m["agenda_too_large"] = bool(m["agenda"]) and (summarize.too_large(m["agenda"])
+                                                       or summarize.too_long(data_dir, m["agenda"]))
+        # A document whose summary stopped early too many times waits for none (summarize.MAX_TRIES).
+        m["minutes_gave_up"] = bool(m["minutes_doc"] and summary_model) and summarize.summary_gave_up(
+            data_dir, m["minutes_doc"], "minutes", summary_model)
+        m["agenda_gave_up"] = bool(m["agenda"] and summary_model) and summarize.summary_gave_up(
+            data_dir, m["agenda"], "agenda", summary_model)
         # Decisions are sorted, hearings found, and glossary terms matched in the English;
         # another language's pages show its translation where there is one. Both as the fact check
         # leaves them (pipeline/factcheck.py): without what isn't in the document, nor vote counts
         # it doesn't give.
+        # A scan whose transcription stopped early too many times waits for none either.
+        for record, doc in ((m["preview"], m["agenda"]), (m["minutes_summary"], m["minutes_doc"])):
+            if record and record.get("needs_transcript") and summarize.gave_up(
+                    data_dir, doc["sha256"], "transcript", summary_model, summarize.TRANSCRIBE["version"]):
+                record["transcript_gave_up"] = True
         pv_raw, ms_raw = m["preview"], m["minutes_summary"]
         english = {"preview": factcheck.shown(pv_raw, pv_raw, "agenda"),
                    "minutes_summary": factcheck.shown(ms_raw, ms_raw, "minutes"), "body": m["body"]}
@@ -548,8 +605,6 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "this_week": [m for m in upcoming if m["date"] < week_end],
         "past": past,
         "decided": decided,
-        # For the home page: meetings that made at least one final decision.
-        "final": [m for m in decided if m["decisions"]["decided"]],
         "boards": board_list,
         "status": status,
         "tracking_since": min((m["first_seen"] for m in meetings), default=None),
@@ -618,7 +673,9 @@ def meeting_links(config: dict) -> dict:
         "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
-                    for t in ("drive_meetings", "finalsite_meetings", "ical_meetings") if t in config]
+                    for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
+                              "ical_meetings")
+                    if t in config]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),
     }
@@ -875,11 +932,13 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
     """A town's texts that a build in this language would show in English, found without building:
     {"config": the config's own text, "data": names from the city's data}. The same steps as
     build_language() (a test keeps them so), for the run to draft them before the build."""
+    bucket_data.pull(config, data_dir)
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
     with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
         meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
-                             config.get("meetings", {}).get("corrections", []))
+                             config.get("meetings", {}).get("corrections", []),
+                             config.get("summaries", {}).get("withheld", []))
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -972,7 +1031,7 @@ def languages(config: dict) -> list[str]:
 
 
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
-          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None) -> dict[str, str | None]:
+          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None, share_cards: bool = False) -> dict[str, str | None]:
     """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built,
     each with the day it last changed (for the sitemap) or None.
 
@@ -980,15 +1039,18 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     (/es/meetings/), with the same data. Files that aren't pages (static files, downloads,
     saved PDFs, the feed) are written once, with the English. missing, if given, gets each
     other language's town texts that have no translation in the config's [strings.<language>]:
-    {"config": the config's own text, "data": names from the city's data}."""
+    {"config": the config's own text, "data": names from the city's data}. share_cards draws each recent
+    meeting's card for social media (pipeline/share_cards.py), which needs Playwright."""
     config = load_config(town)
+    # The 311 files a town keeps in its bucket, not git (pipeline/bucket_data.py), when they're not here.
+    bucket_data.pull(config, data_dir)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
     urls = {}
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
-            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr))
+            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls)
@@ -996,7 +1058,7 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
 
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
-                   town_static: Path, tr: TownStrings) -> dict[str, str | None]:
+                   town_static: Path, tr: TownStrings, share_cards: bool = False) -> dict[str, str | None]:
     """One language's pages, and with English the files every language shares."""
     town = config["slug"]
     site = config["site"]
@@ -1017,9 +1079,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
-                             config.get("meetings", {}).get("corrections", []))
+                             config.get("meetings", {}).get("corrections", []),
+                             config.get("summaries", {}).get("withheld", []))
+    posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
     for m in meetings["all"]:
         m["body"] = tr.board(m["body"])
+        # When its minutes came out, for the home page's "Recently decided" (digest.minutes_posted).
+        m["minutes_posted"] = posted[id(m)].isoformat() if posted[id(m)] else None
     for b in meetings["boards"]:
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
@@ -1066,6 +1132,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         shutil.copytree(STATIC_DIR, out_static)
         if town_static.is_dir():
             shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+        # Crawlers and old browsers ask for /favicon.ico whatever the page links.
+        shutil.copy(out_static / "favicon.ico", out_dir / "favicon.ico")
         if config["site"].get("colors"):
             palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
             with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
@@ -1088,7 +1156,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
                        markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell,
                        street=lambda a: short_address(a, config["town"]["name"]),
-                       model_name=model_name, capitalize_first=lambda t: Markup(t[:1].upper() + t[1:]),
+                       model_name=model_name, capitalize_first=capitalize_first,
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
@@ -1110,7 +1178,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
-    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version,
+    env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, export_version=EXPORT_VERSION,
                        change=lambda diff, since: change_text(diff, "", since))
     # Structured data for search engines (pipeline/structured.py); site_url is this language's home, without its slash.
     site_url = base_url + prefix
@@ -1139,7 +1207,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # Who represents you: the Officials page, and its ward map's shapes.
     officials = wards_json = wards_url = None
     if "officials" in built_folders:
-        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]})
+        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]},
+                                       built_at.date())
         localize_officials(officials, tr)
         ward_shapes = officials_mod.map_data(data_dir, config)
         if ward_shapes:
@@ -1151,14 +1220,14 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                    if share_path.exists() else None)
     # Where the ward boundaries come from, named on the 311 pages and the About page: from
     # [seeclickfix] or, for a town with only the Officials page's ward map, [officials]. A town
-    # whose 311 areas are voting precincts ([seeclickfix] areas) says so on its pages (precincts).
+    # whose areas are voting precincts or districts ([town] areas) calls them so on its pages (areas).
     # The defaults are MassGIS's, which covers every Massachusetts municipality.
     sc = config.get("seeclickfix") or config.get("officials", {})
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
     common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
-                  precincts=officials_mod.precincts(config),
-                  # 311 requests placed in wards or precincts; a town with neither has no precincts_file.
+                  areas=officials_mod.areas(config),
+                  # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
                   has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
@@ -1212,9 +1281,22 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         url = url_for(rel)
         render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
 
+    # Each recent and upcoming meeting's card for social media, with the English pages: another
+    # language's keep the town's share image.
+    if english and share_cards and "meetings" in config:
+        cards = {}
+        for m in meetings["all"]:
+            when = format_date(m["date"]) + (f" · {format_time(m['start_time'])}" if m.get("start_time") else "")
+            card = share_cards_mod.card(m, today, site["domain"], when)
+            if card:
+                slug = m["url"].strip("/").split("/")[-1]
+                cards[slug] = card
+                m["share_card"] = {"url": f"{base_url}/static/{share_cards_mod.FOLDER}/{slug}.png?v={share_cards_mod.version(card)}",
+                                   "alt": share_cards_mod.alt(card)}
+        share_cards_mod.write(cards, out_static, config, town_static)
     if "meetings" in config:
         for m in meetings["all"]:
-            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m)
+            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m, share_card=m.get("share_card"))
             # The address of a listing shown as part of another meeting sends readers there.
             for n, also in enumerate(m["also_urls"], 1):
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
@@ -1226,7 +1308,10 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for issue in issues:
             issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
             render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
-            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF)
+            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF,
+                                                                              palette=colors(config), shown=digest.EMAIL_MINUTES,
+                                                                              mailing_address=digest.MAILING_ADDRESS,
+                                                                              unsubscribe=digest.UNSUBSCRIBE_TAG)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
         if common["digest_signup"]:
             # Where the signup form leads (worker/digest.js); not for search engines.
@@ -1236,6 +1321,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
+    if english and "meetings" in config:
+        # The open data export, described on the Data page (/data/).
+        export = meetings_export(meetings["all"], config, base_url, built_at, env.globals["document_url"])
+        (out_dir / "data").mkdir(parents=True, exist_ok=True)
+        (out_dir / "data" / "meetings.json").write_text(json.dumps(export, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     if scorecard:
         populations = {w["ward"]: w for w in scorecard["by_ward"]}
         for w in scorecard.get("wards", []):
@@ -1449,6 +1539,75 @@ def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: st
     )
 
 
+# The open data export's format (/data/meetings.json), described on each site's /data/ page. A
+# field added keeps the version; one renamed, removed, or changed in meaning moves it up.
+EXPORT_FORMAT = "publick-meetings"
+EXPORT_VERSION = 1
+
+
+def export_summary(record: dict | None, kind: str, withheld: bool) -> dict | None:
+    """A summary as the site shows it (after the fact check), for the export: nothing for one
+    taken down by hand, or for minutes that turned out to be another document. Costs are left out."""
+    if withheld or not record or (kind == "minutes" and record.get("is_minutes") is False):
+        return None
+    fc = record.get("fact_check")
+    out = {"headline": record.get("headline") or None, "summary": record.get("summary") or None}
+    if kind == "agenda":
+        out["items"] = list(record.get("items") or [])
+    else:
+        # Each with its kind, as decisions.csv gives it.
+        out["decisions"] = [{"kind": decision_kind(d), "text": d} for d in record.get("decisions") or []]
+    out.update({"not_shown": record.get("not_shown", 0), "ai_generated": True, "model": record.get("model"),
+                "generated_at": record.get("generated_at"), "fact_check": fc["result"] if fc else None})
+    return out
+
+
+def export_document(m: dict, kind: str, document_url) -> dict | None:
+    """A meeting's agenda or minutes for the export: the city's copy, the one saved here, and its summary."""
+    doc = m["agenda"] if kind == "agenda" else m["minutes_doc"]
+    if not doc:
+        return None
+    record = m["preview"] if kind == "agenda" else m["minutes_summary"]
+    out = {"url": doc["source_url"], "saved_copy_url": document_url("agendas" if kind == "agenda" else "minutes", doc["file"]),
+           "saved_at": doc["fetched_at"], "posted_by": doc.get("posted_by"), "sha256": doc["sha256"],
+           "summary": export_summary(record, kind, m["withheld"][kind]), "summary_withheld": m["withheld"][kind]}
+    if kind == "minutes":
+        out["is_minutes"] = not (record and record.get("is_minutes") is False)
+    return out
+
+
+def meetings_export(meetings: list[dict], config: dict, base_url: str, built_at: datetime, document_url) -> dict:
+    """Every meeting the site lists, with its documents, summaries, and decisions joined to it,
+    for /data/meetings.json: what the English pages show, in a fixed format (EXPORT_VERSION).
+    document_url gives a saved PDF's address, in the site or the town's bucket."""
+    town = config["town"]
+    # A saved PDF's address in full: one in the site itself is under its own domain.
+    saved_url = lambda folder, name: (lambda url: base_url + url if url.startswith("/") else url)(document_url(folder, name))
+    rows = []
+    for m in meetings:
+        recording = (f"https://www.youtube.com/watch?v={m['video_id']}" + (f"&t={m['video_start']}s" if m.get("video_start") else "")
+                     if m.get("video_id") else None)
+        c = m["correction"]
+        rows.append({
+            "id": m["id"], "url": base_url + m["url"], "board": m["body_en"], "title": m["title"], "date": m["date"],
+            "start_time": m["start_time"], "end_time": m["end_time"], "status": m["status"], "special": m["special"],
+            "listed": m["listed"], "location": {"name": m["location_name"] or None, "address": m["address"] or None,
+                                                "description": m["location"] or None},
+            "remote_url": m["remote_url"], "recording_url": recording, "listing_url": m["source_url"],
+            "correction": {"note": c["note"], "evidence_url": c["evidence"], "checked": c["checked"],
+                           "doubtful": c["doubtful"]} if c else None,
+            "agenda": export_document(m, "agenda", saved_url),
+            "minutes": export_document(m, "minutes", saved_url),
+        })
+    return {
+        "format": EXPORT_FORMAT, "version": EXPORT_VERSION, "documentation": f"{base_url}/data/",
+        "town": {"name": town["name"], "state": town["state"], "state_abbr": town.get("state_abbr"), "site": base_url + "/"},
+        "built_at": built_at.isoformat(timespec="seconds"),
+        "license": {"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/", "terms": f"{base_url}/about/#reuse"},
+        "meetings": rows,
+    }
+
+
 def write_csv(path: Path, header: list[str], rows: list[list]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -1512,9 +1671,10 @@ def main() -> None:
     parser.add_argument("--town", default=DEFAULT_TOWN, help="config/<town>.toml to build")
     parser.add_argument("--out", type=Path, default=TOWN_DIR / "_site", help="output directory")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="data directory")
+    parser.add_argument("--no-share-cards", action="store_true", help="give meetings the town's share image, without Playwright")
     args = parser.parse_args()
     missing: dict = {}
-    urls = build(args.town, args.out, args.data, missing=missing)
+    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards)
     print(f"Built {len(urls)} pages into {args.out}")
     for lang, texts in missing.items():
         if texts.get("drafted"):

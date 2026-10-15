@@ -17,10 +17,10 @@
 
 <h2 id="issues">{{ _("Issues") }}</h2>
 {% if issues %}
+{# Each issue by its week alone: its Sunday beside it, a day earlier, read as a second date for the same issue. #}
 <ul class="meeting-list">
   {% for issue in issues %}
-  <li class="meeting-item">
-    <span class="meeting-when"><time datetime="{{ issue.sunday }}">{{ issue.sunday | date("mon_day") }}</time></span>
+  <li class="meeting-item single">
     <div class="meeting-main">
       <a class="meeting-link" href="{{ issue.url }}">{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}</a>
       {# Translators: %(count)s is how many meetings an issue of the digest lists. #}

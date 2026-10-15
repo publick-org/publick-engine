@@ -30,6 +30,9 @@ NOT_HELD = ("cancelled", "postponed", "rescheduled")
 # Sources that never carry a meeting's documents: a school district's calendar
 # feed, and a page of the year's dates ([schedule_meetings]).
 NO_DOCUMENTS = ("ical", "schedule")
+# Sources of a board's documents other than the city's own listings (a school district's website or
+# portal, the state's Open Meetings portal), each with a [<source>_meetings] table.
+SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "opengov")
 # How many days the meetings calendar may go unread before it's called behind,
 # when the town's [freshness] table doesn't say.
 CALENDAR_MAX_DAYS = 2
@@ -52,8 +55,10 @@ def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
     for source in sources(m) - set(NO_DOCUMENTS):
         if source in LINKED and LINKED[source] in meetings:
             found.append((source, str(meetings[LINKED[source]]["since"])))
-        elif source in ("finalsite", "drive") and f"{source}_meetings" in config:
-            found.append((source, str(config[f"{source}_meetings"]["since"])))
+        elif source in SCHOOL_SOURCES and f"{source}_meetings" in config:
+            # A source whose board posts its minutes elsewhere (minutes = false) carries none.
+            if config[f"{source}_meetings"].get("minutes", True):
+                found.append((source, str(config[f"{source}_meetings"]["since"])))
         elif source in ("archive", "calendar") and "archive" in config:
             found.append(("archive", str(config["archive"]["minutes_since"])))
         elif source == "calendar" and "agenda_center" in meetings:
@@ -65,23 +70,34 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
     """Why a meeting that has taken place has no minutes here, or None when there's nothing to
     say: it has minutes, it's upcoming, or it wasn't held (cancelled, or no longer listed, which
     its page already says). One of:
-    {"reason": "not_collected"}: no source this site reads carries this board's minutes;
+    {"reason": "not_collected"}: no source this site reads carries this board's minutes; for a meeting
+    from a school district's website or portal, with its source, address and name, where they may be;
     {"reason": "before", "since": date}: before the date this site collects minutes from;
     {"reason": "linked", "url": ...}: the city links the minutes, and no copy is saved yet;
-    {"reason": "not_posted", "days": n, "source": ...}: not posted yet, n days after the meeting."""
+    {"reason": "not_posted", "days": n, "source": ..., "url": ..., "name": ...}: not posted yet, n days
+    after the meeting; for a school district's website, its address and name, from the listing there (a
+    meeting combined with the city calendar's has the calendar's own)."""
     if m.get("minutes") or m["date"] >= today.isoformat():
         return None
     if m.get("status", "scheduled") in NOT_HELD or not m.get("listed", True):
         return None
     found = minutes_source(config, m)
     if found is None:
-        return {"reason": "not_collected"}
+        gap = {"reason": "not_collected"}
+        where = next((r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") in SCHOOL_SOURCES), None)
+        if where:
+            gap.update(source=where["source"], url=where.get("source_url"), name=where.get("source_name"))
+        return gap
     source, since = found
     if m["date"] < since:
         return {"reason": "before", "since": since}
     if m.get("minutes_url"):
         return {"reason": "linked", "url": m["minutes_url"]}
-    return {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
+    gap = {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
+    if source in SCHOOL_SOURCES:
+        where = next(r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") == source)
+        gap.update(url=where.get("source_url"), name=where.get("source_name"))
+    return gap
 
 
 def agenda_gap(m: dict, today: date) -> dict | None:

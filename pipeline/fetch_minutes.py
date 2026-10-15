@@ -30,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import civicplus
+from pipeline import civicplus, wordfile
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import (
@@ -80,9 +80,12 @@ def new_meeting_from_minutes(store: dict, item: dict, body: str, stamp: str) -> 
 
 def save_document(client, item: dict, storage, stamp: str) -> dict:
     response = client.get(item["url"])
-    content = response.content
+    content, converted = response.content, None
+    if wordfile.is_docx(content):
+        # Saved as a PDF of its text (pipeline/wordfile.py); the page links the city's own file too.
+        content, converted = wordfile.to_pdf(content), "docx"
     if not content.startswith(b"%PDF"):
-        raise FetchError(f"{item['url']}: not a PDF")
+        raise FetchError(f"{item['url']}: not a PDF or a Word (.docx) file")
     disposition = response.headers.get("content-disposition", "")
     filename = re.search(r'filename="?([^";]+)', disposition)
     storage.put("minutes", f"{item['id']}.pdf", content)
@@ -96,6 +99,7 @@ def save_document(client, item: dict, storage, stamp: str) -> dict:
         "bytes": len(content),
         "has_text": pdf_has_text(content),
         "fetched_at": stamp,
+        **({"converted_from": converted} if converted else {}),
     }
 
 

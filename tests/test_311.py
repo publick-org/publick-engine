@@ -1,8 +1,9 @@
 """Tests for the 311 pipeline, run offline against saved SeeClickFix responses."""
 
+import html
 import json
+import re
 import shutil
-from datetime import datetime
 
 import pytest
 
@@ -347,11 +348,119 @@ def test_a_town_with_no_areas(config, data, tmp_path, monkeypatch):
     assert "Find your ward" not in officials_page and "data-gap=" not in officials_page
 
 
-def test_311_areas_must_be_wards_or_precincts(config):
+def test_a_town_names_its_areas(config):
+    # [town] areas names them; [seeclickfix] areas = "precincts", where towns without wards first said so, still does.
     from pipeline import officials
+    assert officials.areas(config) == "wards"
+    config["town"]["areas"] = "districts"
+    assert officials.areas(config) == "districts"
+    config["town"]["areas"] = "neighborhoods"
+    with pytest.raises(SystemExit, match='must be "wards", "precincts" or "districts"'):
+        officials.areas(config)
+    del config["town"]["areas"]
+    config["seeclickfix"]["areas"] = "precincts"
+    assert officials.areas(config) == "precincts"
+    config["town"]["areas"] = "precincts"
+    assert officials.areas(config) == "precincts"
+    config["town"]["areas"] = "districts"
+    with pytest.raises(SystemExit, match="differ"):
+        officials.areas(config)
+    del config["town"]["areas"]
     config["seeclickfix"]["areas"] = "districts"
-    with pytest.raises(SystemExit, match='must be "wards" or "precincts"'):
-        officials.precincts(config)
+    with pytest.raises(SystemExit, match=r'must be "wards" or "precincts", not \'districts\' \(districts are \[town\] areas\)'):
+        officials.areas(config)
+
+
+def reader_text(page: str) -> str:
+    """What a reader sees or hears of a page: its text, title, description, labels and the ward map's
+    messages, without its addresses, ids and class names, which say "ward" whatever a town calls its areas."""
+    said = [page.split("<body", 1)[1], *re.findall(r'<title>(.*?)</title>', page),
+            *re.findall(r'<meta (?:name="description"|property="og:(?:title|description)") content="([^"]*)"', page),
+            *re.findall(r'aria-label="([^"]*)"', page)]
+    said += [re.sub(r"\{\w+\}", "", text) for strings in re.findall(r"data-strings='([^']*)'", page)
+             for text in json.loads(html.unescape(strings)).values()]
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", " ".join(said))))
+
+
+def test_a_town_whose_areas_are_districts(config, tmp_path, monkeypatch):
+    # Portland, Maine calls its council districts districts ([town] areas): its 311, About and Officials
+    # pages say "District 3", in English and Spanish, and the Officials page finds a reader's district from
+    # the same file. Only the words change: the data, the pages' addresses and the downloads still say ward.
+    from conftest import BUILT_AT, DATA_DIR
+    from pipeline import build_site, officials
+    config["town"]["areas"] = "districts"
+    config["site"]["languages"] = ["en", "es"]
+    # The town's own text says districts too, as Portland's does, with its Spanish ([strings.es]).
+    for section in config["sections"]:
+        section["summary"] = section["summary"].replace("ward", "district")
+    for body in config["officials"]["bodies"]:
+        body["note"] = body.get("note", "").replace("by ward", "by district")
+        for m in body["members"]:
+            m["seat"] = m["seat"].replace("Ward", "District")
+    config["strings"] = {"es": {
+        "Five councilors elected by district and four at-large.": "Cinco concejales elegidos por distrito y cuatro por toda la ciudad.",
+        "How fast the city responds to service requests, by category and district.":
+            "Qué tan rápido responde la ciudad a las solicitudes de servicio, por categoría y distrito.",
+        "The mayor, City Council, and School Committee, by office and by district, and how to reach them.":
+            "El alcalde, el Concejo Municipal y el Comité Escolar, por cargo y por distrito, y cómo comunicarse con ellos.",
+    }}
+    assert officials.wards_file(config) == config["seeclickfix"]["precincts_file"]
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=DATA_DIR, now=BUILT_AT)
+
+    def page(url):
+        return (out / url.lstrip("/") / "index.html").read_text(encoding="utf-8")
+
+    ward = page("/311/ward/1/")
+    assert "<h1>District 1</h1>" in ward and "<title>Gloucester, MA 311 requests in District 1 | " in ward
+    assert "Districts use the 2022 boundaries from MassGIS." in ward and 'href="/311/data/ward-1.csv"' in ward
+    scorecard = page("/311/")
+    assert "Requests per 1,000 residents, by district" in scorecard and '<a href="/311/ward/1/">District 1</a>' in scorecard
+    assert "for requests outside the districts" in scorecard and "by category and district." in scorecard
+    assert (out / "311" / "data" / "by-ward.csv").exists()
+    methodology = page("/311/methodology/")
+    assert "2022 MassGIS district boundaries" in methodology and "District differences reflect" in methodology
+    about = page("/about/")
+    assert "<strong>District maps:</strong>" in about and 'If you use "Find my district,"' in about
+    officials_page = page("/officials/")
+    assert "<h2 id=\"wards\">Find your district</h2>" in officials_page and "<h3>District 1</h3>" in officials_page
+    assert '"ward": "District {ward}"' in officials_page and "Find my district using my location" in officials_page
+    assert 'aria-label="Map of Gloucester\'s districts"' in officials_page
+    assert '(Districts <a href="#ward-1">1</a> and <a href="#ward-2">2</a>)' in officials_page
+    for url in ("/311/ward/1/", "/311/", "/311/methodology/", "/about/", "/officials/"):
+        said = reader_text(page(url))
+        assert "District" in said and not re.search(r"\b(?:wards?|precincts?)\b", said, re.I), url
+
+    # In Spanish, a district is a distrito: never the English, nor a ward's or a precinct's other words.
+    ward = page("/es/311/ward/1/")
+    assert "<h1>Distrito 1</h1>" in ward and "Los distritos usan los límites de 2022 de MassGIS." in ward
+    assert '<a href="/es/311/ward/1/">Distrito 1</a>' in page("/es/311/")
+    assert "límites de distritos de 2022 de MassGIS" in page("/es/311/methodology/")
+    assert "<strong>Mapas de distritos:</strong>" in page("/es/about/") and "Buscar mi distrito" in page("/es/about/")
+    officials_page = page("/es/officials/")
+    assert "Busque su distrito" in officials_page and "<h3>Distrito 1</h3>" in officials_page
+    assert '"ward": "Distrito {ward}"' in officials_page
+    assert '(Distritos <a href="#ward-1">1</a> y <a href="#ward-2">2</a>)' in officials_page
+    for url in ("/es/311/ward/1/", "/es/311/", "/es/311/methodology/", "/es/about/", "/es/officials/"):
+        said = reader_text(page(url))
+        assert "distrito" in said.lower() and not re.search(r"\b(?:wards?|districts?|precincts?|precintos?|barrios?)\b", said, re.I), url
+
+
+def test_a_town_with_wards_says_ward(site_dir, config):
+    # Without [town] areas, a town's areas are wards, as before districts could be named.
+    from pipeline import officials
+    assert officials.areas(config) == "wards"
+    ward = (site_dir / "311" / "ward" / "1" / "index.html").read_text()
+    assert "<h1>Ward 1</h1>" in ward and "Wards use the 2022 boundaries from MassGIS." in ward
+    officials_page = (site_dir / "officials" / "index.html").read_text()
+    assert "Find your ward" in officials_page and '"ward": "Ward {ward}"' in officials_page
+    assert "<h3>Ward 1</h3>" in officials_page and "(Wards <a" in officials_page
+    about = (site_dir / "about" / "index.html").read_text()
+    assert "<strong>Ward maps:</strong>" in about and 'If you use "Find my ward,"' in about
+    for path in ("311/ward/1", "311", "311/methodology", "about", "officials"):
+        said = reader_text((site_dir / path / "index.html").read_text())
+        assert not re.search(r"\b(?:Districts?|Precincts?) (?:\d|\{ward\})|Find (?:your|my) (?:district|precinct)", said), path
 
 
 def test_wards_are_in_number_order():

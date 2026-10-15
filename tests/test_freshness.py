@@ -60,3 +60,14 @@ def test_only_new_documents_wait_for_a_summary(tmp_path):
     assert any("2026-08-05" in w for w in waiting)
     # Within the grace days, nothing is waiting yet.
     assert freshness.waiting_summaries(config, tmp_path, FETCHED_AT + timedelta(days=1), 2) == []
+
+
+def test_a_document_too_long_to_summarize_isnt_waiting(tmp_path):
+    from pipeline import summarize
+    from test_summarize import blank_pdf, minutes_town
+    config = load_config("gloucester")
+    sha = minutes_town(tmp_path, blank_pdf(1), date=FETCHED_AT.date().isoformat())
+    later = FETCHED_AT + timedelta(days=5)
+    assert freshness.waiting_summaries(config, tmp_path, later, 2)
+    summarize.record_too_long(tmp_path, sha, summarize.MAX_PAGES + 1)
+    assert freshness.waiting_summaries(config, tmp_path, later, 2) == []

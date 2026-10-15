@@ -1,8 +1,46 @@
 {% extends "base.html" %}
 {% from "macros.html" import on_this_page %}
+{% from "macros.html" import area with context %}
 {% set o = officials %}
+{#- The page's words for the town's areas ([town] areas): wards, or voting precincts or districts. -#}
+{% if areas == "precincts" %}
+{% set say = {
+  "lede": _("Elected officials in %(town)s, by office and by precinct, and how to reach them.", town=town.name),
+  "find": _("Find your precinct"),
+  "map_label": _("Map of %(town)s's precincts", town=town.name),
+  "locate": _("Find my precinct using my location"),
+  "locate_note": _("Your browser will ask first. Your location is checked against the precinct map on your device. It isn't sent to Publick or anyone else, and it isn't saved."),
+  "citywide": _("Members elected citywide, such as at-large members, represent every precinct. They're listed under each office below."),
+  "no_seat": _("No seat is elected by this precinct alone."),
+  "no_map": _("The precinct map isn't available yet. Each member's seat is listed under its office below."),
+} %}
+{% elif areas == "districts" %}
+{% set say = {
+  "lede": _("Elected officials in %(town)s, by office and by district, and how to reach them.", town=town.name),
+  "find": _("Find your district"),
+  "map_label": _("Map of %(town)s's districts", town=town.name),
+  "locate": _("Find my district using my location"),
+  "locate_note": _("Your browser will ask first. Your location is checked against the district map on your device. It isn't sent to Publick or anyone else, and it isn't saved."),
+  "citywide": _("Members elected citywide, such as at-large members, represent every district. They're listed under each office below."),
+  "no_seat": _("No seat is elected by this district alone."),
+  "no_map": _("The district map isn't available yet. Each member's seat is listed under its office below."),
+} %}
+{% else %}
+{% set say = {
+  "lede": _("Elected officials in %(town)s, by office and by ward, and how to reach them.", town=town.name),
+  "find": _("Find your ward"),
+  "map_label": _("Map of %(town)s's wards", town=town.name),
+  "locate": _("Find my ward using my location"),
+  "locate_note": _("Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved."),
+  "citywide": _("Members elected citywide, such as at-large members, represent every ward. They're listed under each office below."),
+  "no_seat": _("No seat is elected by this ward alone."),
+  "no_map": _("The ward map isn't available yet. Each member's seat is listed under its office below."),
+} %}
+{% endif %}
 {% block title %}{{ _("Who represents you") }}{% endblock %}
-{% block description %}{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} elected officials and how to reach them{% endtrans %}{% endblock %}
+{% block description %}{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
 {% block head %}
 {% if wards_url %}
 <link rel="stylesheet" href="{{ "/static/vendor/leaflet/leaflet.css" | versioned }}">
@@ -13,51 +51,72 @@
 {% block content %}
 <div class="page-head">
   <h1>{{ _("Who represents you") }}</h1>
-  <p class="lede">{% if officials.wards %}{% trans town=town.name %}Elected officials in {{ town }}, by office and by ward, and how to reach them.{% endtrans %}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
+  <p class="lede">{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
   <p class="source-note">{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
+  {% if o.out_of_date %}{% set due = o.out_of_date %}
+  <p class="source-note"><strong class="flag">{% if due.terms %}{% trans month=due.terms | date("month") %}That was before new terms began in {{ month }}, so some members may have changed.{% endtrans %}{% else %}{% trans election=due.election | date("plain") %}That was before the election of {{ election }}, so some members may have changed.{% endtrans %}{% endif %}</strong></p>
+  {% endif %}
 </div>
 
 {% set links = [] %}
-{% if o.wards %}{% set __ = links.append(("wards", _("Find your ward"))) %}{% endif %}
+{% if o.wards %}{% set __ = links.append(("wards", say.find)) %}{% endif %}
 {% for b in o.bodies %}{% set __ = links.append((b.id, b.name)) %}{% endfor %}
 {{ on_this_page(links) }}
 
 {% if o.wards %}
-<h2 id="wards">{{ _("Find your ward") }}</h2>
+<h2 id="wards">{{ say.find }}</h2>
 {% if wards_url %}
+{% if areas == "precincts" %}
+{# Translators: the ward map's messages; keep each {ward} as it is. #}
+{% set strings = {
+  "ward": _("Precinct {ward}"),
+  "found": _("You're in Precinct {ward}."),
+  "unavailable": _("Your location isn't available. You can find your precinct on the map or in the list below."),
+  "outside": _("Your location isn't in any of {town}'s precincts. You can find your precinct on the map or in the list below.").replace("{town}", town.name),
+} %}
+{% elif areas == "districts" %}
+{# Translators: the ward map's messages; keep each {ward} as it is. #}
+{% set strings = {
+  "ward": _("District {ward}"),
+  "found": _("You're in District {ward}."),
+  "unavailable": _("Your location isn't available. You can find your district on the map or in the list below."),
+  "outside": _("Your location isn't in any of {town}'s districts. You can find your district on the map or in the list below.").replace("{town}", town.name),
+} %}
+{% else %}
 {# Translators: the ward map's messages; keep each {ward} as it is. #}
 {% set strings = {
   "ward": _("Ward {ward}"),
   "found": _("You're in Ward {ward}."),
   "unavailable": _("Your location isn't available. You can find your ward on the map or in the list below."),
-  "finding": _("Finding your location…"),
   "outside": _("Your location isn't in any of {town}'s wards. You can find your ward on the map or in the list below.").replace("{town}", town.name),
 } %}
-<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-strings='{{ strings | tojson }}' role="region" aria-label="{% trans town=town.name %}Map of {{ town }}'s wards{% endtrans %}" hidden></div>
+{% endif %}
+{% set __ = strings.update({"finding": _("Finding your location…")}) %}
+<div class="map ward-map" id="ward-map" data-wards="{{ wards_url }}" data-strings='{{ strings | tojson }}' role="region" aria-label="{{ say.map_label }}" hidden></div>
 <div class="locate" id="locate" hidden>
-  <button class="button" type="button" id="locate-button" aria-describedby="locate-note">{{ _("Find my ward using my location") }}</button>
-  <p class="small" id="locate-note">{{ _("Your browser will ask first. Your location is checked against the ward map on your device. It isn't sent to Publick or anyone else, and it isn't saved.") }}</p>
+  <button class="button" type="button" id="locate-button" aria-describedby="locate-note">{{ say.locate }}</button>
+  <p class="small" id="locate-note">{{ say.locate_note }}</p>
 </div>
 <div class="ward-result" id="ward-result" role="status" aria-live="polite"></div>
 {% endif %}
-<p>{{ _("Members elected citywide, such as at-large members, represent every ward. They're listed under each office below.") }}</p>
+<p>{{ say.citywide }}</p>
 <ul class="ward-list">
   {% for w in o.wards %}
   <li id="{{ w.id }}" data-ward="{{ w.ward }}">
-    <h3>{% trans ward=w.ward %}Ward {{ ward }}{% endtrans %}</h3>
+    <h3>{{ area(w.ward) }}</h3>
     {% if w.members %}
     <ul>
       {% for m in w.members %}<li>{{ m.body }}{% if m.wards | length > 1 %} ({{ m.seat }}){% endif %}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}
     </ul>
     {% else %}
-    <p class="small">{{ _("No seat is elected by this ward alone.") }}</p>
+    <p class="small">{{ say.no_seat }}</p>
     {% endif %}
   </li>
   {% endfor %}
 </ul>
 {# No seat elected by a ward (pipeline/officials.py at_large): no map, and nothing to explain. #}
 {% elif not o.at_large %}
-<p data-gap="no-ward-map">{{ _("The ward map isn't available yet. Each member's seat is listed under its office below.") }}</p>
+<p data-gap="no-ward-map">{{ say.no_map }}</p>
 {% endif %}
 
 {% for b in o.bodies %}
@@ -76,9 +135,17 @@
   {% for m in b.members %}
     <tr id="{{ m.anchor }}">
       {% if b.show_seat %}<td>{% if m.wards | length == 1 %}<a href="#{{ m.wards[0].id }}">{{ m.seat }}</a>
-        {%- else %}{{ m.seat }}{% if m.wards %}{% set ward_links = [] %}{% for w in m.wards %}{% set __ = ward_links.append(('<a href="#%s">%s</a>' | safe) % (w.id, w.ward)) %}{% endfor %}
+        {%- else %}{{ m.seat }}{% if m.wards %}{% set ward_links = [] %}{% for w in m.wards %}{% set __ = ward_links.append(('<a href="#%s">%s</a>' | safe) % (w.id, w.ward)) %}{% endfor -%}
+        <span class="cell-note"> {% if areas == "precincts" -%}
+        {#- Translators: a seat elected by several precincts, such as "(Precincts 1, 2 and 3)": %(wards)s is all but the last precinct, %(last)s the last. -#}
+        {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Precincts {{ wards }} and {{ last }}){% endtrans %}
+        {%- elif areas == "districts" -%}
+        {#- Translators: a seat elected by several districts, such as "(Districts 1, 2 and 3)": %(wards)s is all but the last district, %(last)s the last. -#}
+        {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Districts {{ wards }} and {{ last }}){% endtrans %}
+        {%- else -%}
         {#- Translators: a seat elected by several wards, such as "(Wards 1, 2 and 3)": %(wards)s is all but the last ward, %(last)s the last. -#}
-        <span class="cell-note"> {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}</span>{% endif %}{% endif %}</td>{% endif %}
+        {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}
+        {%- endif %}</span>{% endif %}{% endif %}</td>{% endif %}
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
       <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
       <td>
