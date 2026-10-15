@@ -13,6 +13,7 @@
   "citywide": _("Members elected citywide, such as at-large members, represent every precinct. They're listed under each office below."),
   "no_seat": _("No seat is elected by this precinct alone."),
   "no_map": _("The precinct map isn't available yet. Each member's seat is listed under its office below."),
+  "area": _("Precinct {ward}"),
 } %}
 {% elif areas == "districts" %}
 {% set say = {
@@ -24,6 +25,7 @@
   "citywide": _("Members elected citywide, such as at-large members, represent every district. They're listed under each office below."),
   "no_seat": _("No seat is elected by this district alone."),
   "no_map": _("The district map isn't available yet. Each member's seat is listed under its office below."),
+  "area": _("District {ward}"),
 } %}
 {% else %}
 {% set say = {
@@ -35,6 +37,7 @@
   "citywide": _("Members elected citywide, such as at-large members, represent every ward. They're listed under each office below."),
   "no_seat": _("No seat is elected by this ward alone."),
   "no_map": _("The ward map isn't available yet. Each member's seat is listed under its office below."),
+  "area": _("Ward {ward}"),
 } %}
 {% endif %}
 {% block title %}{{ _("Who represents you") }}{% endblock %}
@@ -42,6 +45,7 @@
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} elected officials and how to reach them{% endtrans %}{% endblock %}
 {% block description %}{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
 {% block head %}
+{% if addresses and o.wards %}<script src="{{ "/static/js/address.js" | versioned }}" defer></script>{% endif %}
 {% if wards_url %}
 <link rel="stylesheet" href="{{ "/static/vendor/leaflet/leaflet.css" | versioned }}">
 <script src="{{ "/static/vendor/leaflet/leaflet.js" | versioned }}" defer></script>
@@ -65,6 +69,42 @@
 
 {% if o.wards %}
 <h2 id="wards">{{ say.find }}</h2>
+{% if addresses %}
+{#- The address box (site/static/js/address.js): shown by its script, which looks the address up in the
+    Census Bureau's address ranges, each given its ward by pipeline/fetch_addresses.py. -#}
+{# Translators: the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such as "Ward 3", and {areas} several, such as "Ward 2 and Ward 3"; {address} is a street address, such as "12 Main St". #}
+{% set address_strings = {
+  "area": say.area,
+  "looking": _("Looking up {address}…"),
+  "failed": _("The address list could not be loaded. Please try again later."),
+  "empty": _("Enter a street address, such as 12 Main St."),
+  "found": _("{address} is in {area}."),
+  "near_line": _("{address} is close to the line between {areas}, so it could be in either. Check it on the map."),
+  "street_one": _("{street} is in {area}."),
+  "street_many": _("{street} runs through {areas}. Add your house number to find yours."),
+  "not_listed_one": _("The Census Bureau's address list doesn't have {address}. Where it lists addresses, {street} is in {area}: check your home on the map."),
+  "not_listed_many": _("The Census Bureau's address list doesn't have {address}. {street} runs through {areas}: find your home on the map."),
+  "choose": _("{street} isn't in the address list. Did you mean one of these?"),
+  "none": _("{street} isn't in the address list. Check the spelling, or find your home on the map."),
+  "and": _("{first} and {last}"),
+  "citywide": _("Also representing you, elected citywide:"),
+  "map": _("See it on the map"),
+} %}
+<div class="address-box" id="address" data-index="{{ addresses.url }}" data-strings='{{ address_strings | tojson }}' data-places='{{ [town.name, town.state_abbr, town.state] | tojson }}' hidden>
+  <form class="search-form" id="address-form">
+    <label for="address-q">{{ _("Your street address") }}</label>
+    <div class="search-row">
+      <input id="address-q" name="address" type="text" autocomplete="street-address" spellcheck="false" aria-describedby="address-hint">
+      <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
+    </div>
+    <p class="small" id="address-hint">{% trans %}Such as "12 Main St". It's looked up on your device, in the Census Bureau's list of addresses, and isn't sent anywhere or saved.{% endtrans %}</p>
+  </form>
+  <div class="address-result" id="address-result" role="status" aria-live="polite"></div>
+  {#- Who represents every ward, for the script to add to a ward's own members; with their seat where their body's seats differ. -#}
+  {% set seats = o.bodies | selectattr("show_seat") | map(attribute="name") | list %}
+  <template id="citywide-members"><ul>{% for m in o.citywide %}<li>{{ m.body }}{% if m.body in seats %} ({{ m.seat }}){% endif %}: <a href="#{{ m.anchor }}">{{ m.name }}</a></li>{% endfor %}</ul></template>
+</div>
+{% endif %}
 {% if wards_url %}
 {% if areas == "precincts" %}
 {# Translators: the ward map's messages; keep each {ward} as it is. #}
