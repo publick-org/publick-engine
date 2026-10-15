@@ -168,7 +168,8 @@ worker/                     The Cloudflare Workers: index.js serves every site p
                             checks every site loads each hour, and sends the weekly digest (the logic in
                             scheduler.js); digest.js signs readers up for the
                             weekly digest's email, and sends it, through Buttondown; digest-test.js sends
-                            an issue to test addresses alone, by hand; *.test.js are their tests
+                            an issue to test addresses alone, by hand; search.js submits each new town's
+                            sitemap to Google Search Console; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see Versions)
