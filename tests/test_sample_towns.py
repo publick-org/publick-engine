@@ -27,7 +27,7 @@ from test_finalsite import MINUTES_DOC, finalsite_meetings
 from test_nh import FakeCity, FakeParcels, run_extract
 from test_nh import manchester as in_new_hampshire
 
-from pipeline import (build_site, fetch_budget, fetch_finance, fetch_finalsite_meetings, fetch_meetings, fetch_minutes,
+from pipeline import (build_site, identity, fetch_budget, fetch_finance, fetch_finalsite_meetings, fetch_meetings, fetch_minutes,
                       fetch_schools, summarize)
 from pipeline.config import load_config
 from pipeline.states.nh import figures
@@ -169,8 +169,10 @@ def page(site, path: str) -> str:
 
 
 def meeting_page(site, meeting_id: str) -> str:
-    """A meeting's page, found by its id (its address is fixed when it is first recorded)."""
-    return page(site, f"/meetings/{fetch_meetings.load_store(site.data)[meeting_id]['slug']}/")
+    """A meeting's page, found by one of its listings' ids (its address is fixed when it is first
+    identified, and kept in data/meetings/identities.json)."""
+    kept = identity.load(site.data)["meetings"]
+    return page(site, f"/meetings/{next(mid for mid, e in kept.items() if meeting_id in e['listings'])}/")
 
 
 # ---- Every page -----------------------------------------------------------------
