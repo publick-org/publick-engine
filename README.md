@@ -79,7 +79,8 @@ Releasing is automatic, once a day. Each morning at 08:20 UTC, before the networ
 
 ```
 pipeline/                   Python package
-  config.py                 Finds the town's repository and loads config/<town>.toml
+  config.py                 Finds the town's repository and loads config/<town>.toml, over a network's shared
+                            settings (defaults/network.toml, defaults/states/<st>.toml); show prints the result
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
   fetch_meetings.py         Daily: city calendars (CivicPlus, a CivicPlus Agenda Center, CivicClerk, DotNetNuke, a calendar with a documents page),
                             a school district's calendar feed or page of dates -> data/meetings/
@@ -286,6 +287,33 @@ Each town gets its own `config/<town>.toml`, its own `data/`, and its own site a
 Page text says "the city" or "the town" to match the place (see `[town] kind` under [States](#states)).
 
 It also calls the town's areas what the town does: `[town] areas` is `"wards"` (the default), `"precincts"` (voting precincts, in a town without wards) or `"districts"`, for "Ward 3", "Precinct 3201" or "District 3" on the 311 pages, the Officials page and the About page's map credit, in every language. Only the words change: the data, the addresses (`/311/ward/3/`) and the downloads (`by-ward.csv`) say "ward" whatever the town calls them.
+
+### Settings shared by a network's towns
+
+In a network repository, what many towns have in common is written once, in two optional files at the network's root, and each town's config keeps only what is its own:
+
+```
+defaults/network.toml       What every town shares: [summaries] model and prices, the documents bucket ([storage]),
+                            GoatCounter ([analytics]), the footer's network name, 311 and digest settings
+defaults/states/<st>.toml   What every town in one state shares, picked by the town's [town] state_abbr ("MA" is
+                            defaults/states/ma.toml): the state's name, its Census and BLS codes, its laws' terms
+```
+
+A town's own file wins over its state's, and its state's over the network's (`pipeline/config.py`):
+
+- **Tables merge key by key**, nested ones too; any other value, an array included (`languages`), is replaced whole. Arrays of tables (`[[sections]]`, `[[officials.bodies]]`, `[[glossary]]`, `[freshness] sources`) are each town's alone: a layer can't set them.
+- **A layer fills in a table only when the town's own file has it**, since a table turns its source on: the network's `[seeclickfix]` settings complete each 311 town's own `[seeclickfix]` (its `organization_id` and `report_url`) and never give 311 to a town without one, and an empty `[digest]` takes the network's email signup. `[terms]` and `[strings]` go to every town: they're wording looked up by key.
+- **`[terms]`** holds glossary definitions by term. A town's `[[glossary]]` entry with no `definition`, only its `term` (and `bodies`, if any), takes the definition from its state's or the network's `[terms]`; the town still chooses its terms and their order, and an entry with its own `definition` keeps it. A definition's translation goes in the same layer's `[strings.es]`.
+- A town can't remove a key a layer sets; it sets its own value.
+- **Checked when loaded:** a layer may set only the keys in `LAYER_KEYS` (`pipeline/config.py`), with their types, and anything else in a layer file stops the load with the file and the key ("defaults/network.toml: [summaries] modle isn't a setting a layer can have; did you mean model?"). A town's file may have only the tables the engine reads (`TABLES`), and the keys layers carry are type-checked in a town's file too. Each module still checks its own table's keys.
+
+A town in its own repository has no layers and is read as before. A town folder outside the network's `towns/` (a copy) finds them through `PUBLICK_NETWORK_DIR`. To see a town's config as the engine does, each value with the file it came from:
+
+```sh
+PUBLICK_TOWN_DIR=towns/<town>-<state> python -m pipeline.config show
+```
+
+A change to `defaults/network.toml` rebuilds every town in the network's run, and one to `defaults/states/<st>.toml` that state's towns (`pipeline/network.py`, `changed_towns`).
 
 ## States
 
