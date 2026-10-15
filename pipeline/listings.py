@@ -46,6 +46,13 @@ from pipeline.meeting_names import words
 
 # Listings that give a meeting's time and place, before ones that give only its documents.
 DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "opengov", "archive")
+# Where a meeting's listings disagree on a link (its agenda, documents or minutes), the one listed last here
+# is linked: listings that only date a meeting (a city calendar, a district's calendar feed, a page of
+# the year's dates) first, then the city's document systems, then the board's own website or portal (a
+# school district's, which posts its own board's agendas). The meeting page lists its listings in this
+# order too. Within a source, its listings are in the order it posted them (number()).
+LISTING_ORDER = ("calendar", "ical", "schedule", "agendacenter", "civicclerk", "filelist", "archive",
+                 "drive", "finalsite", "page", "diligent", "opengov")
 STATUS_ORDER = ("cancelled", "postponed", "rescheduled")
 
 
@@ -75,6 +82,9 @@ def groups(store: dict) -> list[tuple[list[dict], str]]:
     for records in buckets.values():
         if len(records) < 2:
             continue
+        # In a fixed order, whatever order the store has them in: the first of a cluster is the one an
+        # untimed record's kind is compared with.
+        records.sort(key=first_recorded)
         by_time = defaultdict(list)
         for m in records:
             if m.get("start_time"):
@@ -90,7 +100,7 @@ def groups(store: dict) -> list[tuple[list[dict], str]]:
                 home.append(m)
         for ms in clusters:
             if len(ms) > 1:
-                ms.sort(key=lambda m: (m.get("first_seen", ""), number(m)))
+                ms.sort(key=first_recorded)
                 found.append((ms, reason(ms)))
     return found
 
@@ -118,6 +128,19 @@ def number(m: dict) -> tuple:
     return tuple(int(p) if p.isdigit() else p for p in re.split(r"(\d+)", m["id"]))
 
 
+def first_recorded(m: dict) -> tuple:
+    """The order a meeting's records were recorded in, the first being its primary, whose page address
+    the meeting keeps. Records first seen in the same run are in id order (number()), so the primary
+    never depends on the order the store lists them in."""
+    return m.get("first_seen", ""), number(m)
+
+
+def posted(m: dict) -> tuple:
+    """A listing's place in LISTING_ORDER, by its source, then in the order its source posted it."""
+    source = m.get("source", "calendar")
+    return (LISTING_ORDER.index(source) if source in LISTING_ORDER else len(LISTING_ORDER)), number(m)
+
+
 def combine(records: list[dict], why: str, listing_of=lambda m: m.get("source", "calendar")) -> dict:
     """One meeting from its records (primary first). listing_of names where a record is listed,
     for its history's sentences ("Removed from the city calendar")."""
@@ -127,8 +150,9 @@ def combine(records: list[dict], why: str, listing_of=lambda m: m.get("source", 
     # Postings in the order the city made them: a source numbers its listings as they
     # are posted (an Agenda Center's revised agenda keeps its number). The newest of
     # each source gives that source's word on the meeting: a cancellation notice, then
-    # a new agenda, is a meeting back on.
-    newest = sorted(records, key=number)
+    # a new agenda, is a meeting back on. Sources in LISTING_ORDER, so a link they
+    # disagree on is the board's own website's, then the city's document system's.
+    newest = sorted(records, key=posted)
     for field in ("start_time", "end_time"):
         out[field] = next((m[field] for m in placed if m.get("start_time") and m.get(field)), None)
     for field in ("location_name", "address", "location", "remote_url"):
