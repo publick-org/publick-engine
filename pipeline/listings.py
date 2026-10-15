@@ -45,7 +45,7 @@ from pathlib import Path
 from pipeline.meeting_names import words
 
 # Listings that give a meeting's time and place, before ones that give only its documents.
-DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "archive")
+DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "opengov", "archive")
 STATUS_ORDER = ("cancelled", "postponed", "rescheduled")
 
 
