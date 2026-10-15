@@ -95,7 +95,8 @@ class FakeSeeClickFix:
 
 
 class FakeAnthropic:
-    """Stands in for anthropic.Anthropic: returns a fixed structured result."""
+    """Stands in for anthropic.Anthropic: returns a fixed structured result. Each response has an id of
+    its own, as the API's do (the cost log's key)."""
 
     # A transcription of the fixture agenda (a scan, with no text of its own).
     TRANSCRIPT = {
@@ -123,8 +124,10 @@ class FakeAnthropic:
         cancelled). batch_results: a request's result type by its place in the batch ("errored",
         "canceled"), where it isn't "succeeded"; a cancelled batch's requests are all "canceled".
         input_tokens: each summary's and transcription's prompt, in tokens."""
+        import uuid
         from types import SimpleNamespace
         self.calls = []
+        message_id = lambda: f"msg_{uuid.uuid4().hex[:24]}"
         # Each batch's requests' params, in the order sent.
         self.batches_sent = []
         self.cancelled = []
@@ -142,6 +145,7 @@ class FakeAnthropic:
             else:
                 payload = preview or FakeAnthropic.PREVIEW
             return SimpleNamespace(
+                id=message_id(),
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload))],
                 usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=400),
@@ -175,6 +179,7 @@ class FakeAnthropic:
             if "problems" in properties:
                 # The review of a translation's meaning: what the test says it finds, or nothing.
                 return SimpleNamespace(
+                    id=message_id(),
                     stop_reason=stop_reason,
                     content=[SimpleNamespace(type="text", text=json.dumps(
                         {"problems": [{"is_error": True, **p} for p in review_problems or []]}))],
@@ -188,6 +193,7 @@ class FakeAnthropic:
                 english, _ = json.JSONDecoder().raw_decode(text, text.index("\n{") + 1)
                 payload = {k: [es(x) for x in v] if isinstance(v, list) else es(v) for k, v in english.items()}
             return SimpleNamespace(
+                id=message_id(),
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload, ensure_ascii=False))],
                 usage=SimpleNamespace(input_tokens=600, output_tokens=300),

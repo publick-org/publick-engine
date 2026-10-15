@@ -38,8 +38,10 @@ job didn't collect (it was stopped) is collected by the town's next run.
 Needs ANTHROPIC_API_KEY. Without it, the step is skipped. The step fails (exit
 status 1) only when it tried documents and every one failed (exit_status()).
 
-What each month's summaries cost is kept in data/summary-costs.json, which
-the network reads to keep every town's summaries within one monthly budget.
+Each request paid for is written to the month's cost log as it's answered,
+data/costs/<YYYY-MM>.jsonl, and each month's totals, made from it, are kept in
+data/summary-costs.json, which the network reads to keep every town's
+summaries within one monthly budget (pipeline/cost_log.py).
 A network run gives each town its share for the run in two environment
 variables: PUBLICK_SUMMARY_ALLOWANCE, for any document, and
 PUBLICK_SUMMARY_BACKLOG_ALLOWANCE, for older documents. New documents
@@ -49,6 +51,11 @@ them, only the town's own run limits apply.
 
 Usage:
     python -m pipeline.summarize [--town gloucester] [--limit 20]
+    python -m pipeline.summarize ledger [--check [--month 2026-10]]
+
+ledger makes summary-costs.json's rows again from the cost logs; with --check,
+it compares each month's log with the costs the summary and translation files
+record, lists each difference, and changes nothing (exit status 1 if any).
 """
 
 from __future__ import annotations
@@ -66,7 +73,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import factcheck, listings, pdftext, translate, votes
+from pipeline import cost_log, factcheck, listings, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -87,8 +94,8 @@ SUMMARY_RULES = """Summary rules:
 DEFAULT_MAX_PER_RUN = 50
 DEFAULT_MAX_COST_PER_RUN = 5.0
 
-# What summaries cost, by month, in the town's data/.
-LEDGER = "summary-costs.json"
+# What summaries cost, by month, in the town's data/, made from the cost logs (pipeline/cost_log.py).
+LEDGER = cost_log.LEDGER
 # The network's share for this run, in dollars (see the module docstring).
 ALLOWANCE_ENV = "PUBLICK_SUMMARY_ALLOWANCE"
 BACKLOG_ALLOWANCE_ENV = "PUBLICK_SUMMARY_BACKLOG_ALLOWANCE"
@@ -412,52 +419,121 @@ def record_cost(record: dict, settings: dict) -> float:
     return cost(record["usage"], settings) if "usage" in record else 0.0
 
 
-def update_ledger(data_dir: Path, settings: dict, month: str, failed_cost: float = 0.0,
-                  transcript_cost: float = 0.0, replaced_cost: float = 0.0) -> dict:
-    """Recount the summaries saved this month (and any month the ledger doesn't have yet) and save the ledger.
-
-    Earlier months are kept as they were: a summary made again replaces its file,
-    so counting them again would lose what the first one cost. failed_cost is
-    what this run paid for requests that were cut off, which leave no file;
-    replaced_cost what summaries made earlier this month cost, which this run
-    made again (their files replaced, so the recount no longer finds them); and
-    transcript_cost what it paid for transcriptions, counted in the month they're made."""
-    path = data_dir / LEDGER
-    ledger = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    counted: dict[str, dict] = {}
+def saved_summaries(data_dir: Path) -> dict[str, dict]:
+    """Every English summary the town has saved, by its document's hash."""
     folder = summaries_dir(data_dir)
-    for file in sorted(folder.glob("*.json")) if folder.is_dir() else []:
-        record = json.loads(file.read_text(encoding="utf-8"))
-        at = record.get("generated_at", "")[:7]
-        if at and (at == month or at not in ledger):
-            row = counted.setdefault(at, {"cost": 0.0, "documents": 0})
-            row["cost"] += record_cost(record, settings)
-            row["documents"] += 1
-    for at, row in counted.items():
-        ledger[at] = {**ledger.get(at, {}), "cost": round(row["cost"], 4), "documents": row["documents"]}
-    # Translations, counted the same way.
-    for at, row in translate.month_counts(data_dir).items():
-        if at == month or "translations" not in ledger.get(at, {}):
-            ledger[at] = {"cost": 0.0, "documents": 0, **ledger.get(at, {}),
-                          "translation_cost": round(row["cost"], 4), "translations": row["translations"]}
-    for key, paid in (("failed_cost", failed_cost), ("transcript_cost", transcript_cost), ("replaced_cost", replaced_cost)):
-        if paid:
-            row = ledger.setdefault(month, {"cost": 0.0, "documents": 0})
-            row[key] = round(row.get(key, 0.0) + paid, 4)
-    ledger = dict(sorted(ledger.items()))
-    write_atomic(path, json.dumps(ledger, indent=2) + "\n")
-    return ledger
+    return {file.stem: json.loads(file.read_text(encoding="utf-8"))
+            for file in (sorted(folder.glob("*.json")) if folder.is_dir() else [])}
+
+
+def recount(data_dir: Path, settings: dict, month: str, records: dict[str, dict] | None = None) -> dict:
+    """A month's row of the ledger as the files count it: cost and documents for the summaries saved
+    in it (as their files are now), and translation_cost and translations for the translations and
+    batches of drafts. Reads every summary: for the log's start and its check, not for each request."""
+    records = saved_summaries(data_dir) if records is None else records
+    made = [r for r in records.values() if r.get("generated_at", "")[:7] == month]
+    row = {"cost": round(sum(record_cost(r, settings) for r in made), 4), "documents": len(made)}
+    translated = translate.made_in(data_dir, month)
+    if translated:
+        row.update(translation_cost=round(sum(r.get("cost", 0.0) + r.get("replaced_cost", 0.0) for _, _, r in translated), 4),
+                   translations=len(translated))
+    return row
+
+
+def seed_lines(data_dir: Path, settings: dict, month: str, at: str) -> list[dict]:
+    """The lines a town's first cost log starts with (pipeline/cost_log.py): each summary and translation
+    saved this month and each batch of drafts made in it, at the cost its file records, and a seed line
+    with the rest of the month's row of the ledger, which no file records, at the time given."""
+    made = sorted(((sha, r) for sha, r in saved_summaries(data_dir).items() if r.get("generated_at", "")[:7] == month),
+                  key=lambda item: item[1]["generated_at"])
+    lines = [{"at": r["generated_at"], "kind": "summary", "key": f"seed:{sha}", "doc": sha, "model": r.get("model"),
+              "cost": round(record_cost(r, settings), 6)} for sha, r in made]
+    for i, (lang, sha, r) in enumerate(translate.made_in(data_dir, month)):
+        lines.append({"at": r["generated_at"], "kind": "translation" if sha else "draft",
+                      "key": f"seed:{lang}:{sha or f'drafts-{i}'}", **({"doc": sha} if sha else {}), "lang": lang,
+                      "cost": round(r.get("cost", 0.0) + r.get("replaced_cost", 0.0), 6)})
+    row = cost_log.load_ledger(data_dir).get(month, {})
+    rest = {k: row[k] for k in ("failed_cost", "transcript_cost", "replaced_cost") if row.get(k)}
+    if rest:
+        lines.append({"at": at, "kind": "seed", "key": "seed", "totals": rest,
+                      "cost": round(sum(rest.values()), 6)})
+    return [{k: v for k, v in line.items() if v is not None} for line in lines]
+
+
+def open_log(data_dir: Path, settings: dict, now: datetime) -> cost_log.Log:
+    """The cost log for now's month; a town without one yet starts it from what its files record (seed_lines)."""
+    month = now.strftime("%Y-%m")
+    return cost_log.Log(data_dir, month, now.tzinfo,
+                        seed=lambda: seed_lines(data_dir, settings, month, now.isoformat(timespec="seconds")))
+
+
+# Two costs within this, in dollars, are the same: files and lines round each cost to the millionth.
+SAME_COST = 1e-5
+
+
+def ledger_differences(data_dir: Path, settings: dict, only: list[str] | None = None) -> list[str]:
+    """Where each month's cost log (or only these months') and the costs recorded in the town's files
+    disagree, one line each; nothing is changed. Each summary saved in the month is its document's
+    latest summary line, at its cost; each transcription made in it (from its transcribed_at) costs
+    what its lines do; each translation (with the earlier ones it replaced) costs what its translation
+    and review lines do, and each language's drafts what theirs do; a line with no file saved in the
+    month is one too, unless the file was made again in a later month. And the ledger's row is the
+    one the log makes."""
+    records = saved_summaries(data_dir)
+    ledger = cost_log.load_ledger(data_dir)
+    out = []
+    for month in only or cost_log.months(data_dir):
+        entries = cost_log.read(cost_log.path(data_dir, month))
+        if entries and ledger.get(month) != cost_log.totals(entries):
+            out.append(f"{month}: {LEDGER} has {json.dumps(ledger.get(month))}, the log makes "
+                       f"{json.dumps(cost_log.totals(entries))}")
+        latest, transcribed, translated = {}, {}, {}
+        for e in entries:
+            if e["kind"] == "summary":
+                latest[e["doc"]] = e["cost"]
+            elif e["kind"] == "transcript":
+                transcribed[e["doc"]] = transcribed.get(e["doc"], 0.0) + e["cost"]
+            elif e["kind"] in cost_log.TRANSLATING:
+                key = (e.get("lang"), e.get("doc"))
+                translated[key] = translated.get(key, 0.0) + e["cost"]
+
+        def compare(what, recorded: dict, logged: dict, later) -> None:
+            for key in sorted(set(recorded) | set(logged), key=str):
+                if key not in logged:
+                    out.append(f"{month}: {what(key)} costs ${recorded[key]:.6f} and isn't in the log")
+                elif key not in recorded:
+                    if not later(key):
+                        out.append(f"{month}: {what(key)} is in the log at ${logged[key]:.6f}, with no file saved this month")
+                elif abs(recorded[key] - logged[key]) > SAME_COST:
+                    out.append(f"{month}: {what(key)} costs ${recorded[key]:.6f} in its file, ${logged[key]:.6f} in the log")
+
+        def made_later(at: str) -> bool:
+            return at[:7] > month
+
+        compare(lambda sha: f"the summary of {sha}",
+                {sha: record_cost(r, settings) for sha, r in records.items() if r.get("generated_at", "")[:7] == month},
+                latest, lambda sha: made_later(records.get(sha, {}).get("generated_at", "")))
+        compare(lambda sha: f"the transcription of {sha}",
+                {sha: r.get("transcript_cost", 0.0) for sha, r in records.items()
+                 if r.get("transcribed_at", "")[:7] == month},
+                transcribed, lambda sha: made_later(records.get(sha, {}).get("transcribed_at", "")))
+        recorded: dict[tuple, float] = {}
+        for lang, sha, r in translate.made_in(data_dir, month):
+            recorded[(lang, sha)] = recorded.get((lang, sha), 0.0) + r.get("cost", 0.0) + r.get("replaced_cost", 0.0)
+        compare(lambda key: f"the {key[0]} translation of {key[1]}" if key[1] else f"the {key[0]} drafts",
+                recorded, translated,
+                lambda key: bool(key[1]) and made_later((translate.saved(data_dir, key[0], key[1]) or {}).get("generated_at", "")))
+    return out
 
 
 # What a month's row of the ledger counts as paid for.
-LEDGER_COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced_cost")
+LEDGER_COSTS = cost_log.COSTS
 
 
 def month_cost(ledger: dict, month: str) -> float:
     """Everything paid for in a month: summaries (and those made again since), cut-off requests,
     transcriptions, and translations."""
-    row = ledger.get(month, {})
-    return sum(row.get(key, 0.0) for key in LEDGER_COSTS)
+    return cost_log.month_cost(ledger.get(month, {}))
 
 
 # Where, among the documents a run summarizes, translations are made: after the new documents'
@@ -524,13 +600,18 @@ def summary_result(response) -> tuple[dict, dict]:
     return json.loads(text), usage
 
 
+def send_summary(client, model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None):
+    """The model's response to a document's summary request. Without an effort ([summaries] effort), the
+    model's default."""
+    # Streaming avoids HTTP timeouts on long transcripts.
+    with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort)) as stream:
+        return stream.get_final_message()
+
+
 def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
                   effort: str | None = None) -> tuple[dict, dict]:
     """A document's summary and its usage. Without an effort ([summaries] effort), the model's default."""
-    # Streaming avoids HTTP timeouts on long transcripts.
-    with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort)) as stream:
-        response = stream.get_final_message()
-    return summary_result(response)
+    return summary_result(send_summary(client, model, kind, pdf, title, date, effort))
 
 
 def page_range(pdf: bytes, first: int, last: int) -> bytes:
@@ -546,10 +627,11 @@ def page_range(pdf: bytes, first: int, last: int) -> bytes:
 
 
 def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
-                   effort: str | None = None) -> tuple[str, dict]:
+                   effort: str | None = None, on_response=None) -> tuple[str, dict]:
     """The model's transcription of a whole document, a few pages a request, and its usage: the
     requests' tokens together, and each request's under "requests". Without an effort, the model's
-    default."""
+    default. on_response, if given, is called with each request's response and tokens as it's
+    answered, before anything else is done with it (so it's counted however the rest goes)."""
     pages = page_count(pdf) or 1
     step = TRANSCRIBE["pages"]
     # Each request's tokens too, under "requests", since a request is priced by its own prompt's length (cost()).
@@ -574,6 +656,9 @@ def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: 
                            "format": {"type": "json_schema", "schema": TRANSCRIBE["schema"]}},
         ) as stream:
             response = stream.get_final_message()
+        if on_response:
+            on_response(response, {"input_tokens": response.usage.input_tokens,
+                                   "output_tokens": response.usage.output_tokens})
         usage["input_tokens"] += response.usage.input_tokens
         usage["output_tokens"] += response.usage.output_tokens
         usage["requests"].append({"input_tokens": response.usage.input_tokens,
@@ -677,10 +762,11 @@ def missing_prices(settings: dict) -> str | None:
 
 
 def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: dict, pdf: bytes, result: dict,
-                 usage: dict, paid: float, settings: dict, now: datetime, words: set[str]) -> float:
-    """Save a summary just made, with the document's own text, its roll calls, and its fact check.
-    Returns what an earlier summary of the document made this month cost: its file is replaced, so the
-    ledger's recount no longer finds it."""
+                 usage: dict, paid: float, settings: dict, now: datetime, words: set[str], log: cost_log.Log,
+                 key: str) -> bool:
+    """Save a summary just made, with the document's own text, its roll calls, and its fact check, once
+    its request (key) is in the cost log as a summary. Returns whether the log didn't have it yet. If the
+    record can't be made (its PDF can't be read), it raises before anything is logged or saved."""
     record = {
         **split_decisions(result),
         "kind": kind,
@@ -693,20 +779,15 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
         "cost": round(paid, 6),
     }
     record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
-    # A summary made earlier this month and made again (an agenda that now gives its time, a new
-    # prompt): its file is replaced, so what it cost is counted here.
-    replaced_cost = 0.0
-    earlier = summaries_dir(data_dir) / f"{doc['sha256']}.json"
-    if earlier.exists():
-        replaced = json.loads(earlier.read_text(encoding="utf-8"))
-        if replaced.get("generated_at", "")[:7] == now.strftime("%Y-%m"):
-            replaced_cost = record_cost(replaced, settings)
     if record.get("is_minutes") is not False:
         # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
         words |= translate.summary_words(record)
         record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+    # Logged before its file is written: a run stopped between the two has paid for it, and the next run
+    # makes it again (the log counts the first as replaced).
+    new = log.add("summary", key, paid, doc=doc["sha256"], model=settings["model"], usage=usage)
     save_record(data_dir, doc["sha256"], record)
-    return replaced_cost
+    return new
 
 
 def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:
@@ -717,9 +798,6 @@ def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) 
     return (f"{kind} {doc['id']}: the summary couldn't be saved ({error})"
             + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
 
-
-# How often, at most, a run saves the cost ledger before its end (run()'s record_spending), in seconds.
-LEDGER_EVERY = 60
 
 # What a run says when the API account is out of credit (translate.out_of_credit).
 OUT_OF_CREDIT = "stopped: the Anthropic account is out of credit; summaries resume when credit is added"
@@ -762,15 +840,18 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
 
 
 def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict, now: datetime, words: set[str],
-                  clock=utc_now, sleep=time.sleep, wait: bool = True) -> dict:
+                  log: cost_log.Log, clock=utc_now, sleep=time.sleep, wait: bool = True) -> dict:
     """The town's batch of summaries, waited for until BATCH_WAIT after it was sent (cancelled if it isn't
     done by then), and each summary it made saved as one sent alone would be. What it didn't make (an
     error, cancelled) is left waiting, for the run to send one at a time. A batch that can't be collected
     (the API can't be reached, or a cancelled one doesn't end) is kept for the next run, and its documents
     are listed in "waiting", so they aren't sent twice. Without wait, a batch not ended yet is left as it
-    is, and "not_ready" says so."""
+    is, and "not_ready" says so.
+
+    Each request paid for is logged under the batch's id and its custom_id, so a batch collected again
+    (a run stopped before it was done with it) counts only what it hadn't yet, in the log and in "paid"."""
     pending = load_batch(data_dir)
-    out = {"done": 0, "failed": 0, "paid": 0.0, "paid_backlog": 0.0, "failed_cost": 0.0, "replaced_cost": 0.0,
+    out = {"done": 0, "failed": 0, "paid": 0.0, "paid_backlog": 0.0,
            "tokens": {"input_tokens": 0, "output_tokens": 0}, "errors": [], "waiting": set()}
     if not pending:
         return out
@@ -804,8 +885,22 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
         out["waiting"] = shas
         return out
     prices = at_batch_price(pending.get("prices") or settings)
+    model = pending["model"]
     for entry in pending["documents"]:
         kind, meeting, doc = entry["kind"], entry["meeting"], entry["doc"]
+        key = cost_log.batch_key(pending["id"], entry["custom_id"])
+
+        def paid_for(new: bool, paid: float) -> bool:
+            """Count a request this collecting logged (new); one already logged was counted before."""
+            if new:
+                out["paid"] += paid
+                if entry["older"]:
+                    out["paid_backlog"] += paid
+            return new
+
+        def failed(paid: float, usage: dict | None) -> bool:
+            return paid_for(log.add("failed", key, paid, doc=doc["sha256"], model=model, usage=usage), paid)
+
         result = results.get(entry["custom_id"])
         if result is None or result.type != "succeeded":
             # Not made, and not paid for: it's sent one at a time.
@@ -816,44 +911,37 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
         try:
             made, usage = summary_result(result.message)
         except StoppedEarly as e:
-            paid = cost(e.usage, prices)
-            out["paid"] += paid
-            out["failed_cost"] += paid
             out["failed"] += 1
-            if entry["older"]:
-                out["paid_backlog"] += paid
-            tries = record_stopped_early(data_dir, doc["sha256"], "summary", pending["model"], KINDS[kind]["version"])
+            # Counted as a try once, when it's first logged.
+            tries = (record_stopped_early(data_dir, doc["sha256"], "summary", model, KINDS[kind]["version"])
+                     if failed(cost(e.usage, prices), e.usage) else 0)
             out["errors"].append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries"
                                                                if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:
             # A response that can't be read (not JSON): paid for, and sent again one at a time.
-            usage = getattr(result.message, "usage", None)
-            paid = cost({"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}, prices) if usage else 0.0
-            out["paid"] += paid
-            out["failed_cost"] += paid
+            used = getattr(result.message, "usage", None)
+            usage = {"input_tokens": used.input_tokens, "output_tokens": used.output_tokens} if used else None
+            failed(cost(usage, prices) if usage else 0.0, usage)
             out["failed"] += 1
             out["errors"].append(f"{kind} {doc['id']}: the batch's summary couldn't be read ({e}); sent one at a time")
             continue
         paid = cost(usage, prices)
-        out["paid"] += paid
-        if entry["older"]:
-            out["paid_backlog"] += paid
         try:
             pdf = storage.get(KINDS[kind]["folder"], doc["file"])
         except FetchError as e:
             # Paid for, but it can't be saved without its document's text and check: made again later.
-            out["failed_cost"] += paid
+            failed(paid, usage)
             out["failed"] += 1
             out["errors"].append(f"{kind} {doc['id']}: {e}")
             continue
         try:
-            out["replaced_cost"] += save_summary(config, data_dir, kind, meeting, doc, pdf, made, usage, paid,
-                                                 {**settings, "model": pending["model"]}, now, words)
+            paid_for(save_summary(config, data_dir, kind, meeting, doc, pdf, made, usage, paid,
+                                  {**settings, "model": model}, now, words, log, key), paid)
         except Exception as e:  # one bad document must not stop the rest
-            out["failed_cost"] += paid
+            failed(paid, usage)
             out["failed"] += 1
-            out["errors"].append(unsaved(data_dir, kind, doc, pending["model"], e))
+            out["errors"].append(unsaved(data_dir, kind, doc, model, e))
             continue
         for k in out["tokens"]:
             out["tokens"][k] += usage[k]
@@ -875,28 +963,10 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     settings = summary_settings(config)
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     storage = open_documents(config, data_dir)
-    done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
-    stopped = None
-    month, replaced_cost, transcript_cost, too_costly = now.strftime("%Y-%m"), 0.0, 0.0, []
+    done, errors, tokens, spent, spent_backlog = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0
+    stopped, too_costly = None, []
     # Documents whose summary, transcription, or translation was tried and failed (for main()'s exit status).
     failed = 0
-    # What the ledger has been given of this run's failed_cost, transcript_cost, and replaced_cost.
-    in_ledger = {"failed_cost": 0.0, "transcript_cost": 0.0, "replaced_cost": 0.0}
-    saved_at = [None]
-
-    def record_spending(last: bool = False) -> dict | None:
-        """Save the ledger after a request paid for, so a run stopped later (a crash, the step's
-        timeout) has still counted what it spent: summaries and translations are counted from their
-        files, and what leaves none from what this run paid since the ledger was last saved. Each save
-        reads every summary the town has, so during a run it's saved at most every LEDGER_EVERY
-        seconds (a run stopped loses at most that long's spending); always at the end (last)."""
-        if not last and saved_at[0] is not None and time.monotonic() - saved_at[0] < LEDGER_EVERY:
-            return None
-        paid = {"failed_cost": failed_cost, "transcript_cost": transcript_cost, "replaced_cost": replaced_cost}
-        ledger = update_ledger(data_dir, settings, month, **{k: paid[k] - in_ledger[k] for k in paid})
-        in_ledger.update(paid)
-        saved_at[0] = time.monotonic()
-        return ledger
 
     def out_of_credit(e: Exception) -> bool:
         """Whether a request failed for want of credit; if so, the run stops sending them."""
@@ -916,20 +986,19 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     if collecting and not pending:
         # Nothing to collect: the run that sent nothing has already done the rest.
         return nothing
+    # Each request paid for is logged as it's answered, and the month's ledger made from the log
+    # (pipeline/cost_log.py), so a run stopped at any point has counted all it paid for but the request in flight.
+    log = open_log(data_dir, settings, now)
     collected, waiting = 0, set()
     unpriced = missing_prices(settings)
     if pending and not unpriced:
-        got = collect_batch(config, client, data_dir, storage, settings, now, words, clock, sleep,
+        got = collect_batch(config, client, data_dir, storage, settings, now, words, log, clock, sleep,
                             wait=not (collecting and ready_only))
         if got.get("not_ready"):
             # Still running: a later collecting run takes it.
             return {**nothing, "errors": got["errors"], "stopped": "the batch isn't done yet"}
         collected, waiting, failed = got["done"], got["waiting"], got["failed"]
         errors += got["errors"]
-        failed_cost += got["failed_cost"]
-        replaced_cost += got["replaced_cost"]
-        if got["paid"]:
-            record_spending()
         for k in tokens:
             tokens[k] += got["tokens"][k]
         if collecting:
@@ -978,11 +1047,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 # Past the budget too, up to DRAFT_FLOOR: a few texts cost a fraction of a cent, and
                 # without them a page shows English.
                 left = None if allowance is None else max(allowance - spent, DRAFT_FLOOR)
-                count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left)
+                count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left, log)
                 drafted_texts += count
                 spent += paid
-                if paid:
-                    record_spending()
         except Exception as e:
             failed += 1
             if out_of_credit(e):
@@ -992,7 +1059,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
 
     def translations(only_new: bool) -> None:
         """Translate the summaries that need it, new documents' or the rest, within this run's budget."""
-        nonlocal spent, spent_backlog, failed_cost, translated, failed, stopped
+        nonlocal spent, spent_backlog, translated, failed, stopped
         langs = translate.languages(config)
         if not langs:
             return
@@ -1012,10 +1079,10 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                     stopped = stopped or "translations wait: this run's budget for them is spent"
                     return
                 try:
-                    _, paid = translate.make(client, config, data_dir, lang, kind, meeting, doc, record, now, cost)
+                    _, paid = translate.make(client, config, data_dir, lang, kind, meeting, doc, record, now, cost, log)
                 except StoppedEarly as e:
+                    # Logged as failed by make().
                     paid = cost(e.usage, tsettings)
-                    failed_cost += paid
                     failed += 1
                     errors.append(f"{lang} translation of {kind} {doc['id']}: {e}")
                 except Exception as e:
@@ -1029,26 +1096,13 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 spent += paid
                 if not only_new:
                     spent_backlog += paid
-                record_spending()
 
     def one(kind: str, meeting: dict, doc: dict, pdf: bytes) -> bool:
         """Summarize one document now, on its own; False when nothing more can be sent (out of credit)."""
-        nonlocal spent, spent_backlog, failed_cost, replaced_cost, done, failed
+        nonlocal spent, spent_backlog, done, failed
         try:
-            result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
-                                          settings.get("effort"))
-        except StoppedEarly as e:
-            # Paid for, though nothing is saved.
-            paid = cost(e.usage, settings)
-            spent += paid
-            failed_cost += paid
-            failed += 1
-            if doc["sha256"] in older:
-                spent_backlog += paid
-            record_spending()
-            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
-            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
-            return True
+            response = send_summary(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
+                                    settings.get("effort"))
         except Exception as e:  # one bad document must not stop the rest
             failed += 1
             if out_of_credit(e):
@@ -1056,21 +1110,36 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 return False
             errors.append(f"{kind} {doc['id']}: {e}")
             return True
+        key = cost_log.request_key(response)
+        usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
         paid = cost(usage, settings)
         spent += paid
         if doc["sha256"] in older:
             spent_backlog += paid
-        try:
-            replaced_cost += save_summary(config, data_dir, kind, meeting, doc, pdf, result, usage, paid, settings,
-                                          now, words)
-        except Exception as e:  # one bad document must not stop the rest
-            # Paid for, though nothing is saved.
-            failed_cost += paid
+
+        def paid_for_nothing() -> None:
+            """Paid for, though nothing is saved."""
+            nonlocal failed
+            log.add("failed", key, paid, doc=doc["sha256"], model=settings["model"], usage=usage)
             failed += 1
-            record_spending()
+
+        try:
+            result, usage = summary_result(response)
+        except StoppedEarly as e:
+            paid_for_nothing()
+            tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
+            errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
+            return True
+        except Exception as e:  # a response that can't be read: made again by a later run
+            paid_for_nothing()
+            errors.append(f"{kind} {doc['id']}: {e}")
+            return True
+        try:
+            save_summary(config, data_dir, kind, meeting, doc, pdf, result, usage, paid, settings, now, words, log, key)
+        except Exception as e:  # one bad document must not stop the rest
+            paid_for_nothing()
             errors.append(unsaved(data_dir, kind, doc, settings["model"], e))
             return True
-        record_spending()
         for k in tokens:
             tokens[k] += usage[k]
         done += 1
@@ -1201,16 +1270,19 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         pages = page_count(pdf)
         if pages and pages > MAX_PAGES:
             continue
+
+        def log_pages(response, usage: dict) -> None:
+            """Each request logged as it's answered: some pages transcribed, or one that stopped early."""
+            log.request(response, "transcript" if response.stop_reason == "end_turn" else "failed", cost(usage, settings),
+                        doc=doc["sha256"], model=settings["model"], usage=usage)
         try:
             text, usage = transcribe_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
-                                         settings.get("effort"))
+                                         settings.get("effort"), log_pages)
         except StoppedEarly as e:
             paid = cost(e.usage, settings)
             spent += paid
             spent_backlog += paid
-            failed_cost += paid
             failed += 1
-            record_spending()
             tries = record_stopped_early(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"])
             errors.append(f"transcript of {kind} {doc['id']}: {e}"
                           + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
@@ -1224,11 +1296,9 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         paid = cost(usage, settings)
         spent += paid
         spent_backlog += paid
-        transcript_cost += paid
-        record_spending()
         record = {**record, "transcript": text, "transcript_source": "ai",
                   "transcript_usage": {k: usage[k] for k in ("input_tokens", "output_tokens")},
-                  "transcript_cost": round(paid, 6)}
+                  "transcript_cost": round(paid, 6), "transcribed_at": now.isoformat(timespec="seconds")}
         record.pop("needs_transcript", None)
         try:
             if record.get("is_minutes") is not False:
@@ -1244,11 +1314,10 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         for k in tokens:
             tokens[k] += usage[k]
         transcribed += 1
-    ledger = record_spending(last=True)
     return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
             "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
             "remaining": max(waiting_count - done, 0), "failed": failed, "errors": errors, "stopped": stopped,
-            "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
+            "estimated_cost": round(spent, 2), "month_cost": round(log.month_cost(), 2), **tokens}
 
 
 # What a run made, or sent to be made: a run that made any of these didn't fail.
@@ -1273,12 +1342,36 @@ def dollars(name: str) -> float | None:
     return float(value) if value else None
 
 
+def ledger(config: dict, data_dir: Path, check: bool, months: list[str] | None = None) -> int:
+    """`ledger`: the ledger's rows made again from the cost logs; with check, the logs compared with the files
+    instead (ledger_differences), each difference printed, and nothing changed. Exit status 1 if any."""
+    if not check:
+        rows = cost_log.rebuild(data_dir)
+        print(json.dumps({m: rows[m] for m in cost_log.months(data_dir) if m in rows}, indent=2))
+        return 0
+    settings = summary_settings(config) if configured(config, "summaries") else {}
+    differences = ledger_differences(data_dir, settings, months)
+    for line in differences:
+        print(f"::warning::{line}")
+    logged = months or cost_log.months(data_dir)
+    print(f"{len(differences)} difference(s) between the cost log and the files"
+          + (f" ({', '.join(logged)})" if logged else " (no month has a log)"))
+    return 1 if differences else 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("command", nargs="?", choices=["ledger"],
+                        help="ledger: make data/summary-costs.json again from the cost logs (data/costs/)")
     parser.add_argument("--town", default=DEFAULT_TOWN)
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     parser.add_argument("--limit", type=int, help="max documents this run")
+    parser.add_argument("--check", action="store_true",
+                        help="with ledger: compare the cost logs with the costs the files record, and list each difference")
+    parser.add_argument("--month", action="append", help="with ledger --check: only this month (YYYY-MM); repeatable")
     args = parser.parse_args()
+    if args.command == "ledger":
+        return ledger(load_config(args.town), args.data, args.check, args.month)
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("::notice::ANTHROPIC_API_KEY is not set; skipping summaries.")
         return 0

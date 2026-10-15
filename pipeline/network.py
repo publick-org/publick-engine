@@ -41,6 +41,11 @@ budget splits what's left of the month's summary budget among the towns in a
 run, from each town's data/summary-costs.json (pipeline.summarize), keeping
 back every other town's floor for the rest of the month.
 
+ledgers checks each town's cost logs (data/costs/, pipeline/cost_log.py), from
+which its summary-costs.json is made, against the costs its summary and
+translation files record (pipeline.summarize ledger --check), and lists every
+difference; it changes nothing, and fails if a town has one.
+
 states fetches the statewide sources the network's towns use, once per state
 for all of them, into states/ (for Massachusetts, the DLS exports: see
 pipeline/states/ma/dls.py); each town's steps read their rows from there. A
@@ -53,6 +58,7 @@ state's statewide checks that keep failing are listed by behind.
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
+    python -m pipeline.network ledgers [--root .] [--towns a,b]
     python -m pipeline.network canaries [--root .]
     python -m pipeline.network states [--root .]
 
@@ -120,8 +126,8 @@ NEW_DOCUMENTS_RESERVE = 0.2
 # month's days and the network's towns) that's kept for it for every day left in the month, so no
 # other town's spending, a launch's history or a big week of agendas, can take it.
 TOWN_FLOOR_SHARE = 0.5
-# Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
-# there: the network's plan and report jobs run without the engine's packages installed.
+# Each town's summary costs by month, as pipeline.summarize makes them from its cost logs. Not imported
+# from there: the network's plan and report jobs run without the engine's packages installed.
 SUMMARY_LEDGER = "summary-costs.json"
 # Towns file each summary's cost under the month in their own time zone, so the budget's month is
 # the network's (every town so far is Eastern), not UTC's, which starts a month 4 or 5 hours early.
@@ -602,6 +608,17 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
             "allowance": cents(allowance), "backlog_allowance": cents(min(backlog, allowance))}
 
 
+def check_ledgers(root: Path, towns: list[str] | None = None) -> bool:
+    """Each town's cost logs checked against its files, a step of its own (pipeline.summarize ledger
+    --check); whether every town's agree."""
+    results = []
+    for name in towns or town_dirs(root):
+        env = town_env(root, name)
+        results.append(step("Check the cost log", [sys.executable, "-m", "pipeline.summarize", "ledger", "--check",
+                                                    "--town", env["TOWN"]], keyed(env), root / TOWNS / name, None))
+    return all(r["ok"] for r in results)
+
+
 def report(reports: Path) -> tuple[str, bool]:
     """A table of every town in the run, and whether the run succeeded: a run that fetches does
     (the daily alert lists the towns behind) unless it published none of its towns; one that only
@@ -696,6 +713,9 @@ def main() -> int:
     m.add_argument("--towns-in-run", type=int, required=True)
     c = sub.add_parser("canaries")
     c.add_argument("--root", type=Path, default=Path.cwd())
+    lg = sub.add_parser("ledgers")
+    lg.add_argument("--root", type=Path, default=Path.cwd())
+    lg.add_argument("--towns", help="only these town folders, comma-separated")
     args = parser.parse_args()
 
     if args.command == "canaries":
@@ -738,6 +758,8 @@ def main() -> int:
     if args.command == "budget":
         print(json.dumps(summary_budget(args.root.resolve(), args.monthly, args.towns_in_run)))
         return 0
+    if args.command == "ledgers":
+        return 0 if check_ledgers(args.root.resolve(), args.towns.split(",") if args.towns else None) else 1
     table, ok = report(args.reports)
     print(table)
     if os.environ.get(SUMMARY_ENV):
