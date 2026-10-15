@@ -30,6 +30,8 @@ NOT_HELD = ("cancelled", "postponed", "rescheduled")
 # Sources that never carry a meeting's documents: a school district's calendar
 # feed, and a page of the year's dates ([schedule_meetings]).
 NO_DOCUMENTS = ("ical", "schedule")
+# A school district's own sources of its board's documents, each with a [<source>_meetings] table.
+SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent")
 # How many days the meetings calendar may go unread before it's called behind,
 # when the town's [freshness] table doesn't say.
 CALENDAR_MAX_DAYS = 2
@@ -52,7 +54,7 @@ def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
     for source in sources(m) - set(NO_DOCUMENTS):
         if source in LINKED and LINKED[source] in meetings:
             found.append((source, str(meetings[LINKED[source]]["since"])))
-        elif source in ("finalsite", "drive", "page") and f"{source}_meetings" in config:
+        elif source in SCHOOL_SOURCES and f"{source}_meetings" in config:
             found.append((source, str(config[f"{source}_meetings"]["since"])))
         elif source in ("archive", "calendar") and "archive" in config:
             found.append(("archive", str(config["archive"]["minutes_since"])))
@@ -84,7 +86,7 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
     if m.get("minutes_url"):
         return {"reason": "linked", "url": m["minutes_url"]}
     gap = {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
-    if source in ("finalsite", "drive", "page"):
+    if source in SCHOOL_SOURCES:
         where = next(r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") == source)
         gap.update(url=where.get("source_url"), name=where.get("source_name"))
     return gap

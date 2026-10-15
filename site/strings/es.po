@@ -922,6 +922,12 @@ msgstr ""
 "<a href=\"%(url)s\">Copia guardada de las actas</a> (en inglés) · guardadas el <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 
+#. %(name)s is a school district, such as "Burlington School District".
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting on the %(name)s meeting portal</a> (Diligent Community)."
+msgstr "<a href=\"%(url)s\">Esta reunión en el portal de reuniones de %(name)s</a> (Diligent Community)."
+
 #: site/templates/meeting.html
 #, python-format
 msgid "<a href=\"%(url)s\">This meeting on the City of %(town)s calendar</a>."
@@ -954,6 +960,17 @@ msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
+
+#. %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington
+#. School District". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> %(source)s, from its <a "
+"href=\"%(url)s\">Diligent Community portal</a>, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, de su <a "
+"href=\"%(url)s\">portal de Diligent Community</a>, desde %(since)s."
 
 #. %(board)s is a board's name, such as "School Committee". %(source)s is the district, such as
 #. "Methuen Public Schools". %(since)s is a month, such as "January 2024".
@@ -2728,6 +2745,12 @@ msgid ""
 "Each week, {town}'s public meetings coming up, and what was decided at the meetings whose minutes"
 " were posted the week before."
 msgstr ""
+
+#. %(name)s is a school district, such as "Burlington School District".
+#: site/templates/board.html
+#, python-format
+msgid "Earlier meetings are on the <a href=\"%(url)s\">%(name)s meeting portal</a>."
+msgstr "Las reuniones anteriores están en el <a href=\"%(url)s\">portal de reuniones de %(name)s</a>."
 
 #. %(name)s is a school district, such as "Beverly Public Schools".
 #: site/templates/board.html
@@ -8564,6 +8587,10 @@ msgstr "estimado en parte"
 #: pipeline/build_site.py
 msgid "published schedule"
 msgstr "calendario publicado"
+
+#: pipeline/build_site.py
+msgid "school district's meeting portal"
+msgstr "portal de reuniones del distrito escolar"
 
 #: pipeline/build_site.py
 msgid "school district's website"

@@ -451,3 +451,45 @@ class FakeLinkPage:
             return FakeResponse(self.pdf + f"\n% file {drive.group(1)}\n".encode(),
                                 {"content-disposition": f'attachment; filename="{drive.group(1)}.pdf"'})
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakeDiligent:
+    """A Diligent Community portal (Burlington School District's, saved and trimmed:
+    tests/fixtures/diligent_burlington.json), serving its list of meetings, each meeting's
+    documents (tests/fixtures/diligent_documents.json, with each document's id made the
+    meeting's own), and each document as a distinct PDF. `entries` replaces the list,
+    `documents` a meeting's documents by its id, and `content` a document's bytes by its id."""
+    BASE = "https://bsdvt.community.highbond.com"
+
+    def __init__(self, entries: list | None = None, documents: dict | None = None, content: dict | None = None):
+        import json
+        self.entries = entries if entries is not None else json.loads((FIXTURES / "diligent_burlington.json").read_text())
+        self.template = json.loads((FIXTURES / "diligent_documents.json").read_text())
+        self.documents = documents or {}
+        self.content = content or {}
+        self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
+        self.urls = []
+        self.request_count = 0
+
+    def documents_for(self, meeting_id: int) -> dict:
+        if meeting_id in self.documents:
+            return {"Documents": self.documents[meeting_id]}
+        return {"Documents": [{**d, "Id": meeting_id * 100 + d["DocumentType"], "MeetingId": meeting_id}
+                              for d in self.template["Documents"]]}
+
+    def get(self, url):
+        import json
+        import re
+        self.urls.append(url)
+        self.request_count += 1
+        if url.startswith(f"{self.BASE}/Services/MeetingsService.svc/meetings?"):
+            return FakeResponse(json.dumps(self.entries).encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/Services/MeetingsService\.svc/meetings/(\d+)/meetingDocuments", url)
+        if found:
+            return FakeResponse(json.dumps(self.documents_for(int(found.group(1)))).encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/document/(\d+)(/\?printPdf=true)?", url)
+        if found:
+            doc_id = int(found.group(1))
+            content = self.content.get(doc_id, self.pdf + f"\n% document {doc_id}\n".encode())
+            return FakeResponse(content, {"content-disposition": f'inline; filename="Document {doc_id}.pdf"'})
+        raise AssertionError(f"unexpected URL {url}")
