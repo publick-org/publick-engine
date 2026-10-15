@@ -463,3 +463,33 @@ def test_cached_input_is_counted_at_its_own_price():
     assert summarize.cost({"input_tokens": 600, "output_tokens": 300}, prices) == pytest.approx(TRANSLATION)
     cached = {"input_tokens": 600, "output_tokens": 300, "cache_creation_input_tokens": 800, "cache_read_input_tokens": 1000}
     assert summarize.cost(cached, prices) == pytest.approx(TRANSLATION + (800 * 1.25 + 1000 * 0.1) * 2.0 / 1e6)
+
+
+def test_names_with_capitals_inside_hyphens_and_titles():
+    names = translate.names
+    # Capitals inside, which a capitalized word's pattern missed, or found only the end of ("Brien").
+    assert names("McCallum, LeLacheur, DiStefano, MacDonald, O'Brien and O’Neil spoke.") \
+        == {"McCallum", "LeLacheur", "DiStefano", "MacDonald", "O'Brien", "O’Neil"}
+    assert names("Sanchez-Parkinson and Cooke-Marra spoke on the Mid-Year report.") == {"Sanchez-Parkinson", "Cooke-Marra"}
+    # After a title or "moved by", a name even if it's an ordinary word; in capitals only there.
+    assert names("Councilor Hall, Mayor Young, Dr. Wood, and Rep. Long spoke; seconded by Rose.") \
+        == {"Hall", "Young", "Wood", "Long", "Rose"}
+    assert names("MR. CARUSO: SECOND. The ZBA and the MBTA approved the HVAC plan.") == {"CARUSO"}
+    # Not another title, a heading, or the end of a sentence: "Mayor Pro Tem", "Chair Report", "the Mayor. Members".
+    assert names("Mayor Pro Tem spoke; Chair Report; seconded by Alderman Barry. He thanked the Mayor. Members left.") \
+        == {"Barry"}
+    # Ordinary words the dictionary lacks, an acronym's plural, and a month's abbreviation.
+    assert names("The Councillors heard the Sustainability and Unaudited reports on Nov 3 and Oct 5 for CDs.") == set()
+    # A name in quotes.
+    assert names("Approved naming the 'Matzeliger Way' and ('Janice and Scott Conant').") >= {"Matzeliger", "Janice", "Conant"}
+
+
+def test_a_name_is_kept_whichever_apostrophe_it_s_written_with():
+    def check(english, spanish):
+        return translate.check({"headline": "", "summary": english, "decisions": []},
+                               {"headline": "", "summary": spanish, "decisions": []}, "minutes")
+    assert check("Councilor O’Brien spoke.", "El concejal O'Brien habló.") == "ok"
+    assert check("Named the 'Matzeliger Way'.", "Nombró la 'Matzeliger Way'.") == "ok"
+    assert check("Councillor McCallum spoke.", "El concejal McCallum habló.") == "ok"
+    assert check("Councilor Hall spoke.", "El concejal Salón habló.") == "summary: Hall not in the translation"
+    assert check("McCallum spoke.", "Mccallum habló.") == "summary: McCallum not in the translation"
