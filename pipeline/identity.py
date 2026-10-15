@@ -22,15 +22,19 @@ The listings of one board on one day are put into meetings by these rules, in th
   1. Listings that give the same start time are one meeting.
   2. A listing without a time joins the meeting with a listing of its own kind, if one meeting
      of the board that day has one.
-  3. Otherwise it joins the board's only meeting that day, if that meeting has no listing from
-     the same source: a calendar's "Conservation Commission Meeting" and an Agenda Center's
-     "Conservation Commission Special Meeting Agenda" name one meeting differently, but one
-     source's two listings of different kinds are two meetings (Lowell's Agenda Center posts a
-     School Committee meeting and a special meeting for one day).
+  3. Otherwise it joins the only meeting of the board that day that it could be: one whose
+     listings' kinds differ from its own only in saying it's special or a hearing (SAME_MEETING),
+     with no listing from the same source. A calendar's "Conservation Commission Meeting" and an
+     Agenda Center's "Conservation Commission Special Meeting Agenda" name one meeting
+     differently; but one source's two listings of different kinds are two meetings (Lowell's
+     Agenda Center posts a School Committee meeting and a special meeting for one day), and a
+     site walk, a workshop, an executive session, a committee's meeting or a Drive file's own
+     variant is a meeting of its own.
   4. Otherwise, if the board has two or more meetings that day that it could be (two of its
-     kind, or several none of its kind, listed elsewhere), it's shown on its own, and its page
-     says it couldn't be told which it is (unplaced). If it could be none of them, it's a
-     meeting of its own.
+     kind, or by rule 3 several listed elsewhere), it's shown on its own, and its page says it
+     couldn't be told which it is (unplaced); a meeting already identified that way becomes so
+     when the second meeting it could be is found. If it could be none of them, it's a meeting of
+     its own.
 
 The decision is kept in data/meetings/identities.json, written with the meetings
 (save_store in pipeline/fetch_meetings.py), and never made again: a listing found the next
@@ -45,7 +49,12 @@ kept under its id, which is its page's address, fixed when it's first identified
 So a meeting's address doesn't depend on which source listed it, nor change when another
 source lists it later. The meetings already published when this file was first written kept
 their addresses (the address of their first recorded listing); every other address a
-meeting's listings had (`addresses`) sends its readers to the meeting's page (moved.html).
+meeting's listings had (`addresses`) leads to the meeting's page: a permanent redirect from the
+network's Worker, and a page that sends readers on (moved.html) on any other host
+(build_site.REDIRECTS_FILE). A new town's meetings have their own addresses from its first run.
+
+A board is shown under its name as first recorded (known_boards), whichever of its names a
+meeting's listings give, so it has one page; a page another of its names had leads there.
 
 When a listing changes after it's placed:
 
@@ -74,6 +83,9 @@ LEDGER = "identities.json"
 # Words in a listing's title that make it a different meeting of the board than one without them:
 # its Grant Committee, a subcommittee, a special meeting, a hearing.
 KIND_WORDS = {"committee", "subcommittee", "workshop", "hearing", "special", "joint", "executive", "walk"}
+# Kinds that tell nothing apart: a listing that says its meeting is special or has a hearing, where
+# another source's listing doesn't, can be the same meeting (rule 3).
+SAME_MEETING = {"special", "hearing"}
 PLURALS = {"committees": "committee", "subcommittees": "subcommittee", "hearings": "hearing", "workshops": "workshop"}
 # Words a Drive file's variant can have that say nothing of which meeting it is.
 PLAIN_VARIANT = {"meeting", "mtg", "regular", "agenda", "minutes", "and", "the", "of", "a"}
@@ -198,8 +210,9 @@ def place(x: Listing, clusters: list[Cluster]):
         return same[0]
     if len(same) > 1:
         return AMBIGUOUS
-    elsewhere = [c for c in clusters if x.source not in c.sources and not c.unplaced]
-    if len(elsewhere) == 1 and len([c for c in clusters if not c.unplaced]) == 1:
+    could = [c for c in clusters if not c.unplaced and any(x.kind ^ k <= SAME_MEETING for k in c.kinds)]
+    elsewhere = [c for c in could if x.source not in c.sources]
+    if len(elsewhere) == 1 and len(could) == 1:
         return elsewhere[0]
     return AMBIGUOUS if elsewhere else None
 
@@ -230,6 +243,10 @@ def cluster_day(existing: list[Cluster], new: list[Listing]) -> list[Cluster]:
             taken.add(id(target))
             c.listings += target.listings
             created.remove(target)
+        elif target is AMBIGUOUS:
+            # It could now be either of two meetings, as it would have been found to be had they been
+            # recorded first.
+            c.unplaced = True
     clusters += created
     # 2-4. Listings without a time: first those of a kind one meeting has, then the rest in the order
     # recorded, so a listing never goes where it would have gone only for another's being placed first.
@@ -336,6 +353,8 @@ def assign(store: dict, ledger: dict | None, town: str = "") -> dict:
         created += cluster_day(existing, new)
         for c in existing:
             meetings[c.meeting]["listings"] = [x.id for x in sorted(c.listings, key=lambda x: x.order)]
+            if c.unplaced:
+                meetings[c.meeting]["unplaced"] = True
 
     # Addresses: every page address already given, and every listing's own (published as a meeting's
     # page or a moved page before identities were kept), are never given to another meeting.

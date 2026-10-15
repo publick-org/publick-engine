@@ -92,6 +92,16 @@ def test_a_time_change_keeps_the_meeting_and_its_address():
     assert grouping(identity.assign(store, ledger)) == before
 
 
+def test_a_cancelled_meeting_keeps_its_listings_and_address():
+    """A cancellation is a listing's status, or a notice posted as a new listing: neither makes another meeting."""
+    store, ledger = arrive([CALENDAR, AGENDA])
+    store["101"]["status"] = "cancelled"
+    notice = record("agendacenter-6", source="agendacenter", title="Planning Board Agenda - CANCELLED", status="cancelled",
+                    seen="2026-10-05T07:00:00")
+    store.update(store_of(notice))
+    assert grouping(identity.assign(store, ledger)) == {"2026-10-06-planning-board": ["101", "agendacenter-5", "agendacenter-6"]}
+
+
 def test_a_rescheduled_meeting_keeps_its_address():
     store, ledger = arrive([CALENDAR, AGENDA])
     for m in store.values():
@@ -196,6 +206,28 @@ def test_an_untimed_listing_joins_the_only_meeting_listed_elsewhere():
     assert meetings_of(calendar, page, town="Waltham") == [(["1", "page-1"], False)]
     m = next(iter(listings.combined(store_of(calendar, page), ledger={}, town="Waltham")[0].values()))
     assert m["same_as"] == "only_meeting"
+
+
+@pytest.mark.parametrize("title", ["Council on Aging Grant Committee Meeting Agenda", "Council on Aging Site Walk",
+                                   "Council on Aging Workshop Agenda", "Council on Aging Executive Session"])
+def test_a_listing_of_another_kind_isnt_the_only_meeting_listed_elsewhere(title):
+    """Rule 3 joins a listing to the board's only meeting when they differ only in saying it's special or a
+    hearing: a committee's meeting, a site walk, a workshop or an executive session is a meeting of its own."""
+    calendar = record("1", "Council on Aging", time="10:00")
+    agenda = record("agendacenter-2", "Council on Aging", source="agendacenter", title=title)
+    assert meetings_of(calendar, agenda) == [(["1"], False), (["agendacenter-2"], False)]
+
+
+def test_a_meeting_that_could_now_be_either_of_two_says_so_whatever_the_order():
+    """An untimed listing identified on its own becomes unplaced when two meetings it could be are found,
+    as it is when all three are recorded at once."""
+    untimed = record("agendacenter-5", source="agendacenter", title="Planning Board Agenda")
+    timed = [record("1", time="17:00", seen="2026-10-02T07:00:00"), record("2", time="19:00", seen="2026-10-02T07:00:00")]
+    for batches in ([[untimed], timed], [[untimed, *timed]], [timed, [untimed]]):
+        _, ledger = arrive(*batches)
+        unplaced = {mid: e.get("unplaced", False) for mid, e in ledger["meetings"].items()}
+        assert [unplaced[mid] for mid, e in ledger["meetings"].items() if e["listings"] == ["agendacenter-5"]] == [True]
+        assert sum(unplaced.values()) == 1
 
 
 def test_one_sources_listings_of_different_kinds_are_different_meetings():
