@@ -1,0 +1,381 @@
+{
+ "issues": [
+  {
+   "id": 23026210,
+   "status": "Closed",
+   "lat": 42.60982923529707,
+   "lng": -70.6729044000532,
+   "address": "Mile 13.6 State Rte 127 N Gloucester, MA, 01930, USA",
+   "created_at": "2026-10-15T11:47:19-04:00",
+   "acknowledged_at": null,
+   "closed_at": "2026-10-15T11:50:11-04:00",
+   "reopened_at": null,
+   "updated_at": "2026-10-15T11:50:11-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23026210",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.6729044000532,
+     42.60982923529707
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23026210",
+   "request_type": {
+    "id": 10155,
+    "title": "Road Issues Other Than Potholes",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/10155"
+   }
+  },
+  {
+   "id": 23026017,
+   "status": "Open",
+   "lat": 42.619432071160425,
+   "lng": -70.64577917132796,
+   "address": "39 Hartz St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-15T11:33:05-04:00",
+   "acknowledged_at": null,
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-15T11:33:06-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23026017",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.64577917132796,
+     42.619432071160425
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23026017",
+   "request_type": {
+    "id": 8923,
+    "title": "Abandoned Vehicle",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8923"
+   }
+  },
+  {
+   "id": 23025612,
+   "status": "Open",
+   "lat": 42.61624851955971,
+   "lng": -70.65629548423753,
+   "address": "Friend St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-15T11:04:14-04:00",
+   "acknowledged_at": null,
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-15T11:04:15-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23025612",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.65629548423753,
+     42.61624851955971
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23025612",
+   "request_type": {
+    "id": 10155,
+    "title": "Road Issues Other Than Potholes",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/10155"
+   }
+  },
+  {
+   "id": 23024238,
+   "status": "Closed",
+   "lat": 42.63359014231412,
+   "lng": -70.71028033425743,
+   "address": "9 Cedarwood Rd Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-15T09:11:10-04:00",
+   "acknowledged_at": "2026-10-15T09:21:47-04:00",
+   "closed_at": "2026-10-15T09:23:10-04:00",
+   "reopened_at": null,
+   "updated_at": "2026-10-15T09:23:10-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23024238",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.71028033425743,
+     42.63359014231412
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23024238",
+   "request_type": {
+    "id": 9670,
+    "title": "Tree Issues",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/9670"
+   }
+  },
+  {
+   "id": 23023545,
+   "status": "Acknowledged",
+   "lat": 42.627541692300234,
+   "lng": -70.6764177873007,
+   "address": "42-44 Dr Osman Babson Rd Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-15T07:15:55-04:00",
+   "acknowledged_at": "2026-10-15T09:24:11-04:00",
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-15T09:24:16-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23023545",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.6764177873007,
+     42.627541692300234
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23023545",
+   "request_type": {
+    "id": 10155,
+    "title": "Road Issues Other Than Potholes",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/10155"
+   }
+  },
+  {
+   "id": 23022706,
+   "status": "Acknowledged",
+   "lat": 42.619834520211,
+   "lng": -70.660404586541,
+   "address": "15 Trask St Gloucester, MA, 01930, USA",
+   "created_at": "2026-10-14T21:20:58-04:00",
+   "acknowledged_at": "2026-10-15T06:34:11-04:00",
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-15T09:46:15-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23022706",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.660404586541,
+     42.619834520211
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23022706",
+   "request_type": {
+    "id": 8931,
+    "title": "Sidewalk Issue",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8931"
+   }
+  },
+  {
+   "id": 23022392,
+   "status": "Acknowledged",
+   "lat": 42.61985240265004,
+   "lng": -70.66501714785815,
+   "address": "Arthur St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-14T20:02:42-04:00",
+   "acknowledged_at": "2026-10-14T20:33:43-04:00",
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-14T20:33:43-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23022392",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.66501714785815,
+     42.61985240265004
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23022392",
+   "request_type": {
+    "id": 8933,
+    "title": "Street Light Issue",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8933"
+   }
+  },
+  {
+   "id": 23019380,
+   "status": "Closed",
+   "lat": 42.62094795598034,
+   "lng": -70.66047264106892,
+   "address": "1 Essex St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-14T14:49:41-04:00",
+   "acknowledged_at": "2026-10-15T08:12:18-04:00",
+   "closed_at": "2026-10-15T08:12:35-04:00",
+   "reopened_at": null,
+   "updated_at": "2026-10-15T08:12:35-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23019380",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.66047264106892,
+     42.62094795598034
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23019380",
+   "request_type": {
+    "id": 8924,
+    "title": "Animal Issues",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8924"
+   }
+  },
+  {
+   "id": 23017474,
+   "status": "Open",
+   "lat": 42.61826976341521,
+   "lng": -70.65370724970835,
+   "address": "23-61 Friend St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-14T12:23:26-04:00",
+   "acknowledged_at": null,
+   "closed_at": null,
+   "reopened_at": null,
+   "updated_at": "2026-10-15T06:34:47-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/23017474",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.65370724970835,
+     42.61826976341521
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/23017474",
+   "request_type": {
+    "id": 8923,
+    "title": "Abandoned Vehicle",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8923"
+   }
+  },
+  {
+   "id": 22960687,
+   "status": "Archived",
+   "lat": 42.622947624006066,
+   "lng": -70.66094496610799,
+   "address": "1101 School House Rd Gloucester, MA, 01930, USA",
+   "created_at": "2026-10-07T07:32:46-04:00",
+   "acknowledged_at": "2026-10-07T15:42:07-04:00",
+   "closed_at": "2026-10-07T15:42:16-04:00",
+   "reopened_at": null,
+   "updated_at": "2026-10-07T15:42:16-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/22960687",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.66094496610799,
+     42.622947624006066
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/22960687",
+   "request_type": {
+    "id": 52271,
+    "title": "Health Department (General Nuisance/Inquiry)",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/52271"
+   }
+  },
+  {
+   "id": 22959685,
+   "status": "Archived",
+   "lat": 42.62329278122319,
+   "lng": -70.66109480565507,
+   "address": "17 Gale Rd Gloucester, MA, 01930, USA",
+   "created_at": "2026-10-06T21:31:47-04:00",
+   "acknowledged_at": "2026-10-07T15:42:52-04:00",
+   "closed_at": "2026-10-07T15:42:59-04:00",
+   "reopened_at": null,
+   "updated_at": "2026-10-07T15:42:59-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/22959685",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.66109480565507,
+     42.62329278122319
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/22959685",
+   "request_type": {
+    "id": 52271,
+    "title": "Health Department (General Nuisance/Inquiry)",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/52271"
+   }
+  },
+  {
+   "id": 22943198,
+   "status": "Archived",
+   "lat": 42.61455426451561,
+   "lng": -70.66719929253088,
+   "address": "17 Prospect St Gloucester, Massachusetts, 01930",
+   "created_at": "2026-10-05T11:24:37-04:00",
+   "acknowledged_at": "2026-10-05T14:23:10-04:00",
+   "closed_at": "2026-10-06T05:51:09-04:00",
+   "reopened_at": "2026-10-05T18:55:40-04:00",
+   "updated_at": "2026-10-07T02:35:17-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/22943198",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.66719929253088,
+     42.61455426451561
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/22943198",
+   "request_type": {
+    "id": 8928,
+    "title": "Trash or Recycling",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8928"
+   }
+  },
+  {
+   "id": 22933218,
+   "status": "Open",
+   "lat": 42.61965439182191,
+   "lng": -70.65519548799494,
+   "address": "Green St & Perkins St Gloucester, MA, 01930, USA",
+   "created_at": "2026-10-03T12:28:19-04:00",
+   "acknowledged_at": "2026-10-04T14:10:49-04:00",
+   "closed_at": "2026-10-04T14:11:05-04:00",
+   "reopened_at": "2026-10-04T14:21:32-04:00",
+   "updated_at": "2026-10-04T14:22:32-04:00",
+   "url": "https://seeclickfix.com/api/v2/issues/22933218",
+   "point": {
+    "type": "Point",
+    "coordinates": [
+     -70.65519548799494,
+     42.61965439182191
+    ]
+   },
+   "private_visibility": false,
+   "html_url": "https://seeclickfix.com/issues/22933218",
+   "request_type": {
+    "id": 8936,
+    "title": "Other",
+    "organization": "Gloucester, MA",
+    "url": "https://seeclickfix.com/api/v2/request_types/8936"
+   }
+  }
+ ],
+ "metadata": {
+  "pagination": {
+   "entries": 13,
+   "page": 1,
+   "per_page": 100,
+   "pages": 1,
+   "next_page": null,
+   "next_page_url": null,
+   "previous_page": null,
+   "previous_page_url": null
+  }
+ },
+ "errors": {}
+}
