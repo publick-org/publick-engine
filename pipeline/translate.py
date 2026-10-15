@@ -556,8 +556,8 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     )
     usage = usage_of(response)
     if response.stop_reason != "end_turn":
-        from pipeline.summarize import StoppedEarly
-        raise StoppedEarly(response.stop_reason, usage)
+        from pipeline.summarize import StoppedEarly, stop_reason
+        raise StoppedEarly(stop_reason(response), usage)
     return json.loads(next(b.text for b in response.content if b.type == "text")), usage
 
 
@@ -611,6 +611,8 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
 DEFAULT_REVIEW_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens.
 DEFAULT_REVIEW_PRICES = {"input_price": 2.0, "output_price": 10.0}
+# Reviewing a few short texts needs little thinking.
+DEFAULT_REVIEW_EFFORT = "low"
 
 REVIEW_SYSTEM = """You check translations from English into {language} of short texts from a US city or town government's website: summaries of meeting agendas and minutes, and names of boards, roles, and services. No person checks them after you, and residents rely on them.
 
@@ -631,14 +633,16 @@ REVIEW_PROMPT = """Check these translations. Each has an id, the English, and th
 
 
 def review_settings(config: dict) -> dict:
-    """The reviewing model and its prices: [summaries] translation_review_model,
-    translation_review_input_price, and translation_review_output_price, or Claude Sonnet 5.5's."""
+    """The reviewing model, its prices, and its effort: [summaries] translation_review_model,
+    translation_review_input_price, translation_review_output_price, and translation_review_effort,
+    or Claude Sonnet 5.5's prices, and low effort for any model."""
     s = config.get("summaries", {})
     model = s.get("translation_review_model", DEFAULT_REVIEW_MODEL)
     prices = DEFAULT_REVIEW_PRICES if model == DEFAULT_REVIEW_MODEL else {}
     return {"model": model,
             "input_price": s.get("translation_review_input_price", prices.get("input_price")),
-            "output_price": s.get("translation_review_output_price", prices.get("output_price"))}
+            "output_price": s.get("translation_review_output_price", prices.get("output_price")),
+            "effort": s.get("translation_review_effort", DEFAULT_REVIEW_EFFORT)}
 
 
 # The key a review's problem is under when nothing could be reviewed.
@@ -669,7 +673,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
             system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
-            output_config={"effort": "low", "format": {"type": "json_schema", "schema": {
+            output_config={"effort": rsettings["effort"], "format": {"type": "json_schema", "schema": {
                 "type": "object", "additionalProperties": False, "required": ["problems"],
                 "properties": {"problems": {"type": "array", "items": {
                     "type": "object", "additionalProperties": False, "required": ["id", "problem", "is_error"],
