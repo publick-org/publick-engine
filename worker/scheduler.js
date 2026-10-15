@@ -19,6 +19,9 @@
 // that has stopped altogether still reaches someone; it closes the issue when
 // runs finish again.
 //
+// With each daily run's start it submits any new town's sitemap to Google
+// Search Console (search.js).
+//
 // On DIGEST_CRON it sends the towns' weekly digests (digest.js), and if any
 // fails, opens an issue (or comments on the one open) saying which.
 //
@@ -38,9 +41,11 @@
 // write); REPOSITORY, WORKFLOW, BRANCH, STATUS_URL, and ALERT_ASSIGNEE;
 // ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
 // service binding to the Worker that serves the sites, which the status page
-// is read through; and for the digest, BUTTONDOWN_SEND_KEY and DIGEST_TOWNS (digest.js).
+// is read through; for the digest, BUTTONDOWN_SEND_KEY and DIGEST_TOWNS (digest.js); and for
+// Search Console, GSC_SERVICE_ACCOUNT_JSON and SEARCH_CONSOLE_SITE (search.js).
 
 import { DIGEST_CRON, sendDigests } from "./digest.js";
+import { submitSitemaps } from "./search.js";
 
 export const STALE_HOURS = 30;
 // The Cron Triggers (as wrangler.scheduler.toml writes them) that start the release and the engine
@@ -268,9 +273,9 @@ export async function watchSites(env, now = new Date(), wait = undefined) {
   return { down };
 }
 
-// Each Cron Trigger: the release, the engine pull request, the weekly digest, the uptime check, or a daily run
-// and a check on the runs.
-// For a daily run, one failing doesn't stop the other; either failing fails the invocation, so it
+// Each Cron Trigger: the release, the engine pull request, the weekly digest, the uptime check, or a daily run,
+// a check on the runs, and new sitemaps submitted to Search Console.
+// For a daily run, one failing doesn't stop the others; any failing fails the invocation, so it
 // shows in the Worker's logs.
 export async function onSchedule(controller, env) {
   if (controller.cron === RELEASE_CRON) {
@@ -291,7 +296,8 @@ export async function onSchedule(controller, env) {
       throw error;
     }
   }
-  const results = await Promise.allSettled([startRun(env), watch(env, new Date(controller.scheduledTime))]);
+  const now = new Date(controller.scheduledTime);
+  const results = await Promise.allSettled([startRun(env), watch(env, now), submitSitemaps(env, now)]);
   const failed = results.filter((r) => r.status === "rejected").map((r) => r.reason);
   if (failed.length) throw new AggregateError(failed, failed.map((e) => e.message).join("; "));
   return results.map((r) => r.value);
