@@ -7,6 +7,7 @@
 {%- else %}
 {# Translators: the home page's title in search results and browser tabs, for a site without meetings; %(town)s is the town and %(state)s its state's abbreviation. #}
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city data{% endtrans %}{% endif %}{% endblock %}
+{% block head_title %}{{ self.title() }}{% endblock %}
 {% block structured_data %}{{ structured(website()) }}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>

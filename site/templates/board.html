@@ -3,10 +3,15 @@
 {% set b = board %}
 {# Translators: %(board)s is a board's name, such as "City Council". #}
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
-{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". #}
-{% block head_title %}{% trans town=town.name, state=town.state_abbr, board=b.name %}{{ town }}, {{ state }} {{ board }} meetings and agendas{% endtrans %}{% endblock %}
+{# The board's name alone in this language: the page's heading has its English name too. #}
+{% block head_title %}{% if meeting_links.documents %}
+{#- Translators: the page's title in search results, for a board whose agendas and minutes the site collects: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". -#}
+{% trans town=town.name, state=town.state_abbr, board=b.board_name %}{{ town }}, {{ state }} {{ board }} agendas and minutes{% endtrans %}
+{%- else %}
+{#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". -#}
+{% trans town=town.name, state=town.state_abbr, board=b.board_name %}{{ town }}, {{ state }} {{ board }} meetings and agendas{% endtrans %}{% endif %}{% endblock %}
 {# Translators: %(town)s is the town and %(board)s a board's name, such as "City Council". #}
-{% block description %}{% trans town=town.name, board=b.name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
+{% block description %}{% trans town=town.name, board=b.board_name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
 {% block structured_data %}{{ structured(breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"),
   (_("Boards and committees"), site_url ~ "/meetings/boards/"), (b.name, canonical_url)])) }}{% endblock %}
 {% block content %}

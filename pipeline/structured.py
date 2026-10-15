@@ -65,17 +65,18 @@ def website(site: dict, url: str, lang: str) -> dict:
             "description": site["tagline"], "publisher": publisher(site, url)}
 
 
-def event(m: dict, url: str, description, town: dict, timezone: str) -> dict | None:
-    """A meeting as an Event, or None when its listing doesn't say where it is, it's no longer
-    listed, or a correction says it may not take place."""
+def event(m: dict, url: str, name, description, town: dict, timezone: str) -> dict | None:
+    """A meeting as an Event, with the name its page gives it ("Planning Board, Gloucester – Oct 6, 2026"),
+    or None when its listing doesn't say where it is, it's no longer listed, or a correction says it may
+    not take place."""
     if not m["listed"] or m["status"] not in STATUS or (m.get("correction") or {}).get("doubtful"):
         return None
     place = m["address"] or m["location"]
-    name = m["location_name"] or place
+    where = m["location_name"] or place
     locations = []
-    if name:
-        locations.append({"@type": "Place", "name": name, "address": {
-            "@type": "PostalAddress", "streetAddress": place or name, "addressLocality": town["name"],
+    if where:
+        locations.append({"@type": "Place", "name": where, "address": {
+            "@type": "PostalAddress", "streetAddress": place or where, "addressLocality": town["name"],
             "addressRegion": town["state_abbr"], "addressCountry": "US"}})
     if m["remote_url"]:
         locations.append({"@type": "VirtualLocation", "url": m["remote_url"]})
@@ -83,7 +84,7 @@ def event(m: dict, url: str, description, town: dict, timezone: str) -> dict | N
         return None
     mode = "Mixed" if len(locations) == 2 else "Online" if m["remote_url"] else "Offline"
     item = {
-        "@type": "Event", "name": m["title"], "url": url, "description": plain(description),
+        "@type": "Event", "name": plain(name), "url": url, "description": plain(description),
         "startDate": when(m["date"], m["start_time"], timezone),
         "eventStatus": f"https://schema.org/{STATUS[m['status']]}",
         "eventAttendanceMode": f"https://schema.org/{mode}EventAttendanceMode",
