@@ -58,6 +58,12 @@ msgstr "%(board)s, audiencia"
 msgid "%(board)s meetings"
 msgstr "%(board)s: reuniones"
 
+#. the title of a board's page that has moved; %(board)s is a board's name, such as "City Council".
+#: site/templates/moved.html
+#, python-format
+msgid "%(board)s meetings: moved"
+msgstr "%(board)s: reuniones (página trasladada)"
+
 #. %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose minutes
 #. are posted.
 #: site/templates/meeting.html
@@ -7682,9 +7688,30 @@ msgstr ""
 msgid "They're <a href=\"%(url)s\">public</a>."
 msgstr "Son <a href=\"%(url)s\">públicos</a>."
 
+#: site/templates/moved.html
+#, python-format
+msgid ""
+"This board is listed under more than one name. Its meetings are now shown on one page: <a "
+"href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+"Esta junta aparece con más de un nombre. Ahora sus reuniones se muestran en una sola página: <a "
+"href=\"%(url)s\">%(name)s</a>."
+
+#: site/templates/moved.html
+msgid "This board's page has moved"
+msgstr "La página de esta junta cambió de lugar"
+
 #: site/pages/311/repeat-locations/index.html
 msgid "This list will appear after the next data update."
 msgstr "Esta lista aparecerá después de la próxima actualización de datos."
+
+#: site/templates/meeting.html
+msgid ""
+"This listing gives no time, and the board has more than one meeting this day, so it can't be told"
+" which one this is. It is shown here on its own."
+msgstr ""
+"Esta publicación no da una hora, y la junta tiene más de una reunión este día, así que no se "
+"puede saber a cuál corresponde. Aquí se muestra por separado."
 
 #: site/templates/meeting.html
 msgid "This meeting didn't take place as listed, so no agenda is recorded here."
@@ -7707,6 +7734,16 @@ msgid ""
 msgstr ""
 "Sabemos de esta reunión por el <a href=\"%(url)s\">sitio web de %(name)s</a>. No se encontró en "
 "el calendario de la Ciudad de %(town)s."
+
+#: site/templates/meeting.html
+msgid ""
+"This meeting is listed in more than one place, named a little differently in each (as a special "
+"meeting, or a hearing). It's the only meeting of the board this day that they could be, so the "
+"listings are shown here as one meeting."
+msgstr ""
+"Esta reunión aparece en más de un lugar, con un nombre algo distinto en cada uno (como reunión "
+"especial, o como audiencia). Es la única reunión de la junta este día a la que pueden referirse, "
+"así que aquí se muestran como una sola reunión."
 
 #: site/templates/meeting.html
 msgid ""
