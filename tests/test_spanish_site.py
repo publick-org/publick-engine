@@ -202,6 +202,7 @@ def test_street_index_links_the_language_pages():
 @pytest.mark.parametrize("script, url, root", [
     ("search.js", "/meetings/search/", "search"), ("streets.js", "/streets/", "street"),
     ("map.js", "/311/", "map-recent"), ("wards.js", "/officials/", "ward-map"),
+    ("address.js", "/officials/", "address"),
 ])
 def test_scripts_get_all_their_wording(built, script, url, root):
     """Every message a script shows comes from its page (data-strings), in the page's language."""

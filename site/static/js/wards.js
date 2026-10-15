@@ -98,14 +98,21 @@
     offerLocation();
   }
 
-  // Shows a ward's members under the map, from the ward list on the page.
-  function show(ward, found) {
+  // Marks a ward on the map and in the list.
+  function select(ward) {
     Object.keys(layers).forEach(function (k) {
       layers[k].fill.setStyle({ fillOpacity: k === ward ? 0.3 : 0.06 });
     });
     document.querySelectorAll(".ward-list > li").forEach(function (li) {
       li.classList.toggle("is-selected", li.getAttribute("data-ward") === ward);
     });
+  }
+  // The address box (address.js) found a ward: mark it, as the map's own answers do.
+  document.addEventListener("publick:ward", function (e) { select(e.detail.ward); });
+
+  // Shows a ward's members under the map, from the ward list on the page.
+  function show(ward, found) {
+    select(ward);
     var item = document.querySelector('.ward-list > li[data-ward="' + ward + '"]');
     result.textContent = "";
     var head = document.createElement("p");
