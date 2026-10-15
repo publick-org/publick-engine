@@ -28,8 +28,10 @@ leaves the rest marked for a person:
    does that from the city's own pages.
 5. The config, started from the closest live town (the same meeting platform
    and state): its shared settings, the answers above, and colors from the
-   city's stylesheet. No [digest]: a town joins the weekly digest once a full
-   week has passed since launch.
+   city's stylesheet. What the network's layers give every town, or every town
+   in the state (defaults/network.toml, defaults/states/<st>.toml: see
+   pipeline/config.py), is left out. No [digest]: a town joins the weekly
+   digest once a full week has passed since launch.
 6. Checks, in a copy of the folder, so the town's data/ stays empty: build
    with no data, fetch a few weeks of meetings (--full: everything from
    `since`), build again, run the site checks, and list the meetings shown as
@@ -58,7 +60,6 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-import tomllib
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -70,7 +71,7 @@ import requests
 from pypdf import PdfReader
 
 from pipeline import agendacenter, civicclerk, civicplus, fetch_place
-from pipeline.config import ENGINE_DIR
+from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
 from pipeline.meeting_names import words
@@ -183,6 +184,9 @@ class NewTown:
     codes: dict = field(default_factory=dict)
     wards: dict = field(default_factory=dict)
     template: dict = field(default_factory=dict)
+    # The network's layers for the town's state, merged: what its config leaves out.
+    inherited: dict = field(default_factory=dict)
+    network: Path | None = None
     checks: list[dict] = field(default_factory=list)
     # Left for a person in the config, each a "To fill in" comment there.
     todo: list[tuple[int, str]] = field(default_factory=list)
@@ -640,10 +644,15 @@ def find_wards(town: NewTown, client) -> None:
 # ---- Step 5: the config -----------------------------------------------------------------
 
 def network_configs(network: Path) -> list[tuple[str, dict]]:
-    found = []
-    for path in sorted(network.glob("towns/*/config/*.toml")):
-        with path.open("rb") as f:
-            found.append((path.parent.parent.name, tomllib.load(f)))
+    """Each live town's config, merged over the network's layers."""
+    return [(path.parent.parent.name, read_config(path, network)) for path in sorted(network.glob("towns/*/config/*.toml"))]
+
+
+def inherited(network: Path, state: str) -> dict:
+    """What the network's layers give a town in the state: its state's, then the network's."""
+    found: dict = {}
+    for path in layer_files(network, state):
+        fill(found, read_toml(path), str(path), {})
     return found
 
 
@@ -698,9 +707,12 @@ def toml(value) -> str:
 class Config:
     """A config's text, written line by line, and what it leaves to fill in."""
 
-    def __init__(self):
+    def __init__(self, inherited: dict | None = None):
         self.lines: list[str] = []
         self.todo: list[tuple[int, str]] = []
+        # What the layers give the town, which the config leaves out; and the table being written.
+        self.inherited = inherited or {}
+        self.current: tuple[str, ...] = ()
 
     def comment(self, text: str) -> None:
         self.lines += textwrap.wrap(text, 78, initial_indent="# ", subsequent_indent="# ", break_on_hyphens=False,
@@ -717,11 +729,27 @@ class Config:
             self.lines.append("")
         if comment:
             self.comment(comment)
-        self.lines.append(f"[{name}]")
+        self.header(f"[{name}]")
         self.set(**values)
 
-    def set(self, **values) -> None:
-        self.lines += [f"{k} = {toml(v)}" for k, v in values.items() if v is not None]
+    def header(self, line: str) -> None:
+        """A table's header, [name] or [[name]]; the keys set after it are that table's."""
+        self.lines.append(line)
+        self.current = tuple(line.strip("[]").split("."))
+
+    def given(self, key: str, value) -> bool:
+        """Whether the layers already give the table being written this value."""
+        table = self.inherited
+        for name in self.current:
+            table = table.get(name, {}) if isinstance(table, dict) else {}
+        return isinstance(table, dict) and key in table and table[key] == value
+
+    def set(self, comment: str = "", /, **values) -> None:
+        """The values, but those left out (None) or that the layers give; the comment above them, if any is set."""
+        lines = [f"{k} = {toml(v)}" for k, v in values.items() if v is not None and not self.given(k, v)]
+        if lines and comment:
+            self.comment(comment)
+        self.lines += lines
 
     def blank(self) -> None:
         self.lines.append("")
@@ -731,10 +759,11 @@ class Config:
 
 
 def shared(town: NewTown, table: str, *keys: str, same_state: bool = False) -> dict:
-    """Settings every town shares, from the town the config starts from."""
-    if not town.template or (same_state and not town.template["same_state"]):
-        return {}
-    values = town.template["config"].get(table, {})
+    """Settings every town shares: the network's layers' (which the config then leaves out), else those of the
+    town the config starts from."""
+    values = dict(town.inherited.get(table, {}))
+    if town.template and not (same_state and not town.template["same_state"]):
+        values = {**town.template["config"].get(table, {}), **values}
     return {k: values[k] for k in keys if k in values}
 
 
@@ -745,7 +774,7 @@ def first_of_month_back(today: date, months: int) -> date:
 
 def config_text(town: NewTown, short: bool = False) -> Config:
     """The town's config. With short, only a few weeks of meetings are fetched (step 6's copy)."""
-    c = Config()
+    c = Config(town.inherited)
     site, template = town.site, town.template
     place, where = town.kind, f"{town.name}, {town.state_name}"
     domain = f"{town.folder}.publick.org"
@@ -766,21 +795,21 @@ def config_text(town: NewTown, short: bool = False) -> Config:
     c.comment("The site is in English and Spanish ([site] languages), as every town's is. The first runs draft the "
               "Spanish for the town's own text; [strings.es], at the end, can correct it.")
     c.blank()
-    c.lines.append("[site]")
+    c.header("[site]")
     c.set(name=f"{town.name} Publick")
-    c.comment("The masthead shows name_prefix in dark ink and name_suffix in the accent color: the town, then the network.")
-    c.set(name_prefix=f"{town.name} ", name_suffix="Publick", domain=domain)
+    c.set("The masthead shows name_prefix in dark ink and name_suffix in the accent color: the town, then the network.",
+          name_prefix=f"{town.name} ", name_suffix="Publick")
+    c.set(domain=domain)
     s = shared(town, "site", "network", "network_url", "repo_url", "timezone", "languages")
-    c.comment("The network of town sites this one belongs to, named in every page footer.")
-    c.set(network=s.get("network", "Publick"), network_url=s.get("network_url", "https://publick.org"),
-          tagline=f"Public data on how {where} decides and spends. Updated daily.")
-    c.comment("One line under the name at the top of every page.")
-    c.set(masthead=f"An independent guide to {place} government in {where}", repo_url=s.get("repo_url"))
-    c.comment("Public contact address. Shown on the About and Accessibility pages when set.")
-    c.set(contact_email=f"{town.folder}@publick.org", timezone=s.get("timezone", "America/New_York"),
-          user_agent=f"{domain} (+https://{domain}/about/)")
-    c.comment("English at the site's root, Spanish under /es/.")
-    c.set(languages=s.get("languages", ["en", "es"]))
+    c.set("The network of town sites this one belongs to, named in every page footer.",
+          network=s.get("network", "Publick"), network_url=s.get("network_url", "https://publick.org"))
+    c.set(tagline=f"Public data on how {where} decides and spends. Updated daily.")
+    c.set("One line under the name at the top of every page.", masthead=f"An independent guide to {place} government in {where}")
+    c.set(repo_url=s.get("repo_url"))
+    c.set("Public contact address. Shown on the About and Accessibility pages when set.",
+          contact_email=f"{town.folder}@publick.org")
+    c.set(timezone=s.get("timezone", "America/New_York"), user_agent=f"{domain} (+https://{domain}/about/)")
+    c.set("English at the site's root, Spanish under /es/.", languages=s.get("languages", ["en", "es"]))
 
     if site.get("colors"):
         colors = site["colors"]
@@ -789,7 +818,7 @@ def config_text(town: NewTown, short: bool = False) -> Config:
         c.comment(f"From the {place} website's stylesheets ({urlsplit(site['base_url']).netloc}): "
                   + "; ".join(site["colors_how"]) + f". Each passes WCAG AA on white ({ratios} to 1).")
         c.fill_in(5, f"check the colors against the {place}'s website.")
-        c.lines.append("[site.colors]")
+        c.header("[site.colors]")
         c.set(**colors)
     else:
         c.blank()
@@ -814,7 +843,8 @@ def config_text(town: NewTown, short: bool = False) -> Config:
     if town.state in LOOKUPS:
         order += [(slug, sections[slug]) for slug in ("schools", "budget", "housing") if slug in sections]
     for slug, section in order:
-        c.lines += ["[[sections]]", f"slug = {toml(slug)}"]
+        c.header("[[sections]]")
+        c.lines.append(f"slug = {toml(slug)}")
         c.set(**{k: section[k] for k in ("title", "nav", "summary") if k in section}, status="live")
         c.blank()
     c.fill_in(4, "the Officials page's section (below, commented out), once [officials] is filled in.")
@@ -822,7 +852,8 @@ def config_text(town: NewTown, short: bool = False) -> Config:
                 f'# summary = "The mayor, {governing}, and School Committee, by office and by ward, and how to reach them."',
                 '# status = "live"', ""]
     about = sections.get("about", {"title": "About", "summary": "Data sources, update schedule, metric definitions, and corrections."})
-    c.lines += ["[[sections]]", 'slug = "about"']
+    c.header("[[sections]]")
+    c.lines.append('slug = "about"')
     c.set(title=about["title"], summary=about["summary"], status="live")
 
     a = shared(town, "analytics", "goatcounter", "public_stats")
@@ -834,24 +865,26 @@ def config_text(town: NewTown, short: bool = False) -> Config:
     st = shared(town, "storage", "endpoint", "bucket", "public_url")
     c.table("storage", "Agenda and minutes PDFs live in the network's documents bucket, not in git (see "
             "pipeline/documents.py). Keys: STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY.", **st, prefix=town.folder)
-    if not st:
+    if not st and not c.inherited.get("storage"):
         c.fill_in(5, "the bucket's endpoint, bucket and public_url, as every town's.")
     sm = shared(town, "summaries", "model", "max_per_run", "input_price", "output_price", "max_cost_per_run")
     c.table("summaries", "Plain-English agenda text and previews, and decisions from minutes, written by a language "
             "model and labeled as AI-generated on the site. Only meetings from `since` on are summarized, about three "
             "months before launch, so the town's history doesn't take the month's budget.",
             model=sm.get("model"), since=summaries_since.isoformat(), max_per_run=sm.get("max_per_run"))
-    c.comment("Prices per million tokens, for the spending limit below.")
-    c.set(input_price=sm.get("input_price"), output_price=sm.get("output_price"))
-    c.comment("A ceiling for one run. The network's monthly summary budget (SUMMARY_BUDGET in "
-              ".github/workflows/network.yml) decides what each run may spend, new documents first.")
-    c.set(max_cost_per_run=sm.get("max_cost_per_run"))
+    c.set("Prices per million tokens, for the spending limit below.",
+          input_price=sm.get("input_price"), output_price=sm.get("output_price"))
+    c.set("A ceiling for one run. The network's monthly summary budget (SUMMARY_BUDGET in "
+          ".github/workflows/network.yml) decides what each run may spend, new documents first.",
+          max_cost_per_run=sm.get("max_cost_per_run"))
 
     c.blank()
     c.fill_in(5, f'how residents can take part, per board ([participation."{governing}"], [participation."School '
               'Committee"]): comment, source_title, source_url, video_title, video_url, each from the board\'s own '
               "rules or agendas.")
-    c.fill_in(5, "[[glossary]], terms that come up in this city's agendas, each from an official page.")
+    terms = c.inherited.get("terms", {})
+    c.fill_in(5, "[[glossary]], terms that come up in this city's agendas, each from an official page."
+              + (f" A term the layers define needs only its term, for their definition: {', '.join(terms)}." if terms else ""))
 
     config_codes(c, town)
     sources = [{"label": f"Meetings ({'Agenda Center' if 'agenda_center' in meetings else 'CivicClerk' if 'civicclerk' in meetings else 'city calendar'})",
@@ -1108,7 +1141,9 @@ def run_checks(town: NewTown, folder: Path, full: bool, runner=subprocess.run) -
     shutil.copytree(folder, work, dirs_exist_ok=True)
     if not full:
         (work / "config" / f"{town.slug}.toml").write_text(config_text(town, short=True).text(), encoding="utf-8")
+    # The copy isn't in the network's towns/, so the layers are found by name.
     env = {**os.environ, "PUBLICK_TOWN_DIR": str(work), "TOWN": town.slug, "DOCUMENTS_LOCAL": "1",
+           **({NETWORK_ENV: str(town.network.resolve())} if town.network else {}),
            "PYTHONPATH": os.pathsep.join(filter(None, [str(ENGINE_DIR), os.environ.get("PYTHONPATH")]))}
     python = sys.executable
     site = str(work / "_site")
@@ -1195,6 +1230,7 @@ def run(town: NewTown, client, network: Path, out: Path, checks: bool = True, fu
     find_codes(town, client, network)
     find_wards(town, client)
     closest_town(town, network)
+    town.network, town.inherited = network, inherited(network, town.state)
     config = config_text(town)
     (out / "config").mkdir(parents=True)
     (out / "config" / f"{town.slug}.toml").write_text(config.text(), encoding="utf-8")

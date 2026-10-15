@@ -1,10 +1,12 @@
 """Run many towns from one repository: the network's daily update, build, and deploy.
 
 The network repository holds each town in its own folder, laid out as a town
-repository is (config/, data/, site/static/):
+repository is (config/, data/, site/static/), and the settings its towns share
+(pipeline/config.py):
 
   towns/gloucester-ma/config/gloucester.toml
   towns/gloucester-ma/data/...
+  defaults/network.toml, defaults/states/ma.toml
 
 plan picks the towns for one run and splits them into batches, printed as a
 GitHub Actions matrix. The batches are balanced by how long each town's last
@@ -77,7 +79,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline.config import ENGINE_DIR
+from pipeline.config import ENGINE_DIR, LAYERS, NETWORK_ENV, read_config
 from pipeline.files import write_atomic
 
 TOWNS = "towns"
@@ -88,9 +90,12 @@ STATE_DIR_ENV = "PUBLICK_STATE_DIR"
 # The states with statewide sources, and the module that fetches them (refresh(state_dir, configs, client)).
 STATEWIDE = {"MA": "pipeline.states.ma.dls"}
 # A state's statewide checks count as failing, in the daily alert, after this many in a row.
-STATE_FAILURES = 3# A change to the engine version or the workflows rebuilds every town.
-SHARED_FILES = ("engine-version",)
+STATE_FAILURES = 3
+# A change to the engine version, the workflows, or the network's layer (defaults/network.toml) rebuilds every
+# town; a change to a state's layer (defaults/states/<st>.toml), that state's towns.
+SHARED_FILES = ("engine-version", f"{LAYERS}/network.toml")
 SHARED_FOLDERS = (".github/",)
+STATE_LAYERS = f"{LAYERS}/states/"
 # Seconds before one fetch step is stopped. fetch_311 spends up to 40 minutes
 # on lookups by default (time_budget_seconds), so this leaves it room.
 STEP_TIMEOUT = 3000
@@ -140,9 +145,11 @@ def slot(name: str, slots: int) -> int:
     return int(hashlib.sha256(name.encode()).hexdigest(), 16) % slots
 
 
-def changed_towns(files: list[str], towns: list[str]) -> list[str]:
-    """Towns whose folders a change touched (all of them if shared files changed). Data commits aren't changes to
-    rebuild for: they come from the daily run, which has already built and published the town."""
+def changed_towns(files: list[str], towns: list[str], states: dict[str, str] | None = None) -> list[str]:
+    """Towns whose folders a change touched (all of them if shared files changed), and the towns of a state
+    whose layer changed (states: each town's [town] state_abbr, lowercase; without it, every town). Data
+    commits aren't changes to rebuild for: they come from the daily run, which has already built and
+    published the town."""
     if any(f in SHARED_FILES or f.startswith(SHARED_FOLDERS) for f in files):
         return towns
     touched = set()
@@ -150,7 +157,18 @@ def changed_towns(files: list[str], towns: list[str]) -> list[str]:
         parts = f.split("/")
         if len(parts) >= 3 and parts[0] == TOWNS and parts[1] in towns and parts[2] != "data":
             touched.add(parts[1])
+        elif f.startswith(STATE_LAYERS) and f.endswith(".toml"):
+            if states is None:
+                return towns
+            touched.update(t for t in towns if states.get(t) == Path(f).stem)
     return sorted(touched)
+
+
+def town_state(root: Path, name: str) -> str:
+    """The state a town's own file names ([town] state_abbr), lowercase: which state layer it takes."""
+    import tomllib
+    config = tomllib.loads(next((root / TOWNS / name / "config").glob("*.toml")).read_text(encoding="utf-8"))
+    return config.get("town", {}).get("state_abbr", "").lower()
 
 
 def last_fetched(root: Path, name: str) -> str | None:
@@ -205,7 +223,8 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
     if only:
         towns = [t for t in towns if t in only]
     if changed is not None:
-        towns = changed_towns(changed, towns)
+        states = {t: town_state(root, t) for t in towns} if any(f.startswith(STATE_LAYERS) for f in changed) else None
+        towns = changed_towns(changed, towns, states)
     if run_slot is not None:
         towns = [t for t in towns if slot(t, slots) == run_slot]
     if due_hours is not None:
@@ -218,7 +237,7 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
 def town_env(root: Path, name: str) -> dict:
     # The check step sets PUBLICK_CHECK_PAGES itself, so a full run is never sampled by accident.
     env = {k: v for k, v in os.environ.items() if k not in (SUMMARY_ENV, "PUBLICK_CHECK_PAGES")}
-    env.update(PUBLICK_TOWN_DIR=str(root / TOWNS / name), TOWN=slug(root, name),
+    env.update(PUBLICK_TOWN_DIR=str(root / TOWNS / name), TOWN=slug(root, name), **{NETWORK_ENV: str(root)},
                PYTHONPATH=os.pathsep.join(filter(None, [str(ENGINE_DIR), os.environ.get("PYTHONPATH")])))
     if (root / STATES).is_dir():
         env[STATE_DIR_ENV] = str(root / STATES)
@@ -469,9 +488,8 @@ def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) 
 
 
 def town_config(root: Path, name: str) -> dict:
-    import tomllib
-    path = next((root / TOWNS / name / "config").glob("*.toml"))
-    return {**tomllib.loads(path.read_text(encoding="utf-8")), "slug": path.stem}
+    """The town's config merged over the network's layers (pipeline/config.py), without its modules' checks."""
+    return read_config(next((root / TOWNS / name / "config").glob("*.toml")), root)
 
 
 def refresh_states(root: Path, now: datetime | None = None) -> dict:

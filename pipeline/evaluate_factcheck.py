@@ -78,10 +78,10 @@ def entries(record: dict) -> int:
 def candidates(network: Path) -> list[dict]:
     """Every summary a town's run checks (a meeting's latest agenda and minutes), from a network
     repository, in order of its document's sha256."""
-    import tomllib
+    from pipeline.config import read_config
     out = []
     for town in sorted(p for p in (network / "towns").iterdir() if (p / "data" / "summaries").is_dir()):
-        config = tomllib.loads(next((town / "config").glob("*.toml")).read_text(encoding="utf-8"))
+        config = read_config(next((town / "config").glob("*.toml")), network)
         storage = config.get("storage") or {}
         # Each document's own listing: a meeting listed in more than one place has every listing's documents.
         listed = json.loads((town / "data" / "meetings" / "meetings.json").read_text(encoding="utf-8"))
