@@ -26,7 +26,10 @@ A daily run of the network sends a town's summaries as one batch (the Message
 Batches API), at half the price, instead of one at a time (PUBLICK_SUMMARY_BATCH=1).
 The batch's id and documents are kept in data/summary-batch.json, and the job
 collects its results once its other towns are done (PUBLICK_SUMMARY_COLLECT=1,
-from pipeline.network run --collect), up to BATCH_WAIT after it was sent. One
+from pipeline.network run --collect), up to BATCH_WAIT after it was sent;
+between its towns, the job collects each batch already ended
+(PUBLICK_SUMMARY_COLLECT=ready, from run --collect --ready), so a town's summaries
+don't wait for the job's last town. One
 not done by then is cancelled, and what it didn't finish is sent one at a time,
 as without a batch, from the same run's budget: it never costs more than
 sending them one at a time, and comes at most about BATCH_WAIT later. A batch a
@@ -693,12 +696,13 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
 
 
 def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict, now: datetime, words: set[str],
-                  clock=utc_now, sleep=time.sleep) -> dict:
+                  clock=utc_now, sleep=time.sleep, wait: bool = True) -> dict:
     """The town's batch of summaries, waited for until BATCH_WAIT after it was sent (cancelled if it isn't
     done by then), and each summary it made saved as one sent alone would be. What it didn't make (an
     error, cancelled) is left waiting, for the run to send one at a time. A batch that can't be collected
     (the API can't be reached, or a cancelled one doesn't end) is kept for the next run, and its documents
-    are listed in "waiting", so they aren't sent twice."""
+    are listed in "waiting", so they aren't sent twice. Without wait, a batch not ended yet is left as it
+    is, and "not_ready" says so."""
     pending = load_batch(data_dir)
     out = {"done": 0, "paid": 0.0, "paid_backlog": 0.0, "failed_cost": 0.0, "replaced_cost": 0.0,
            "tokens": {"input_tokens": 0, "output_tokens": 0}, "errors": [], "waiting": set()}
@@ -709,6 +713,10 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
     try:
         deadline = datetime.fromisoformat(pending["sent_at"]) + BATCH_WAIT
         batch = batches.retrieve(pending["id"])
+        if not wait and batch.processing_status != "ended":
+            out["not_ready"] = True
+            out["waiting"] = shas
+            return out
         while batch.processing_status != "ended" and clock() < deadline:
             sleep(POLL_SECONDS)
             batch = batches.retrieve(pending["id"])
@@ -781,13 +789,14 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
 
 def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None = None,
         allowance: float | None = None, backlog_allowance: float | None = None, batch: bool = False,
-        collecting: bool = False, clock=utc_now, sleep=time.sleep) -> dict:
+        collecting: bool = False, ready_only: bool = False, clock=utc_now, sleep=time.sleep) -> dict:
     """Summarize up to limit documents, new ones first, within the town's run limits and the
     network's allowances for this run (None: no network limit).
 
     A batch of summaries the town has waiting is collected first. With batch, the documents are sent as
     one batch, left for the job to collect. collecting is the job's run that collects the batch its first
-    run sent: it goes on from what that run had spent, and sends one at a time what the batch didn't make."""
+    run sent: it goes on from what that run had spent, and sends one at a time what the batch didn't make.
+    With ready_only too, a batch not ended yet is left for a later collecting run, and nothing else is done."""
     settings = summary_settings(config)
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     storage = open_documents(config, data_dir)
@@ -797,14 +806,19 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # The words the fact check takes as no one's name, as the town's summaries use them.
     words = translate.town_words(data_dir)
     pending = load_batch(data_dir)
+    nothing = {"summarized": 0, "collected": 0, "queued": 0, "laid_out": 0, "transcribed": 0, "translated": 0,
+               "drafted_texts": 0, "remaining": 0, "errors": [], "stopped": None, "estimated_cost": 0.0,
+               "month_cost": None, **tokens}
     if collecting and not pending:
         # Nothing to collect: the run that sent nothing has already done the rest.
-        return {"summarized": 0, "collected": 0, "queued": 0, "laid_out": 0, "transcribed": 0, "translated": 0,
-                "drafted_texts": 0, "remaining": 0, "errors": [], "stopped": None, "estimated_cost": 0.0,
-                "month_cost": None, **tokens}
+        return nothing
     collected, waiting = 0, set()
     if pending and "input_price" in settings and "output_price" in settings:
-        got = collect_batch(config, client, data_dir, storage, settings, now, words, clock, sleep)
+        got = collect_batch(config, client, data_dir, storage, settings, now, words, clock, sleep,
+                            wait=not (collecting and ready_only))
+        if got.get("not_ready"):
+            # Still running: a later collecting run takes it.
+            return {**nothing, "errors": got["errors"], "stopped": "the batch isn't done yet"}
         collected, waiting = got["done"], got["waiting"]
         errors += got["errors"]
         failed_cost += got["failed_cost"]
@@ -1119,10 +1133,12 @@ def main() -> int:
     if not configured(config, "summaries"):
         return 0
     client = anthropic.Anthropic(max_retries=3)
-    collecting = os.environ.get(COLLECT_ENV) == "1"
+    # "1": collect the town's batch, waiting for it; "ready": only if it has ended.
+    collecting = os.environ.get(COLLECT_ENV) in ("1", "ready")
     summary = run(config, client, args.data, args.limit or summary_settings(config)["max_per_run"],
                   allowance=dollars(ALLOWANCE_ENV), backlog_allowance=dollars(BACKLOG_ALLOWANCE_ENV),
-                  batch=os.environ.get(BATCH_ENV) == "1" and not collecting, collecting=collecting)
+                  batch=os.environ.get(BATCH_ENV) == "1" and not collecting, collecting=collecting,
+                  ready_only=os.environ.get(COLLECT_ENV) == "ready")
     print(json.dumps(summary, indent=2))
     for error in summary["errors"]:
         print(f"::warning::{error}")

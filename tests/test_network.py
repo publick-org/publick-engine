@@ -596,3 +596,17 @@ def test_collecting_a_towns_batch_of_summaries_publishes_it_again(tmp_path, step
 def test_the_batch_file_is_the_one_summarize_keeps():
     from pipeline import summarize
     assert network.SUMMARY_BATCH == summarize.BATCH_FILE
+
+
+def test_collecting_only_a_ready_batch_leaves_a_running_one_and_the_site(tmp_path, steps):
+    calls, _ = steps
+    root = make_root(tmp_path)
+    data = root / "towns" / "gloucester-ma" / "data"
+    data.mkdir()
+    (data / network.SUMMARY_BATCH).write_text("{}")
+    # The stand-in step leaves the batch file: still running.
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True,
+                              ready_only=True)
+    assert [c["name"] for c in calls] == ["Collect summaries"]
+    assert calls[0]["env"]["PUBLICK_SUMMARY_COLLECT"] == "ready"
+    assert result["ok"] and not result["collected"] and not result["deployed"]

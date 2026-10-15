@@ -25,7 +25,9 @@ any town does.
 run --collect is the end of a daily job: a town whose fetch sent its summaries as
 one batch (pipeline.summarize, PUBLICK_SUMMARY_BATCH) has them collected, and
 whatever the batch didn't make sent one at a time, then is built, checked, and
-published again with them. A town with no batch waiting is left as it is.
+published again with them. A town with no batch waiting is left as it is. With
+--ready, between the job's towns, only a batch already ended is collected; one
+still running is left for later, and the town isn't built again.
 
 canaries picks the fewest towns that between them have every state, every
 config table, and every kind of meeting source the network's towns have: the
@@ -44,7 +46,7 @@ state's statewide checks that keep failing are listed by behind.
 
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] | --collect]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] | --collect [--ready]]
                                       [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
@@ -275,7 +277,7 @@ COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_AC
 
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
              step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all",
-             collect: bool = False) -> dict:
+             collect: bool = False, ready_only: bool = False) -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -292,7 +294,12 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
             result.update(ok=True, finished_at=now(), collected=False)
             return result
         steps.append(step("Collect summaries", [python, "-m", "pipeline.summarize", "--town", town],
-                          {**keyed(env, COLLECT_KEYS), "PUBLICK_SUMMARY_COLLECT": "1"}, town_dir, step_timeout))
+                          {**keyed(env, COLLECT_KEYS), "PUBLICK_SUMMARY_COLLECT": "ready" if ready_only else "1"},
+                          town_dir, step_timeout))
+        if ready_only and (town_dir / "data" / SUMMARY_BATCH).exists():
+            # Still running: collected later, and the site stays as its run published it.
+            result.update(ok=steps[-1]["ok"], finished_at=now(), collected=False)
+            return result
         result["collected"] = True
 
     if fetch:
@@ -647,6 +654,8 @@ def main() -> int:
     r.add_argument("--fetch", action="store_true", help="fetch new data first")
     r.add_argument("--collect", action="store_true",
                    help="collect each town's batch of summaries, if it has one, then build and publish it again")
+    r.add_argument("--ready", action="store_true",
+                   help="with --collect, only a batch that has already ended; one still running is left")
     r.add_argument("--sources", choices=["all", "meetings", "figures", "311"], default="all",
                    help="with --fetch, which data to fetch (pipeline.update's groups)")
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
@@ -686,8 +695,10 @@ def main() -> int:
         root = args.root.resolve()
         if args.fetch and args.collect:
             raise SystemExit("--collect is a run of its own, after the one that fetched")
+        if args.ready and not args.collect:
+            raise SystemExit("--ready goes with --collect")
         results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks,
-                            args.sources, args.collect)
+                            args.sources, args.collect, args.ready)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:
