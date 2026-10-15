@@ -14,14 +14,14 @@ spec.loader.exec_module(public_check)
 
 
 @pytest.mark.parametrize("path, line", [
-    (".github/workflows/network.yml", '  SUMMARY_BUDGET: "110"'),
-    (".github/workflows/network.yml", '  SUMMARY_BUDGET_MONTH: "2026-10=200"'),
+    (".github/workflows/network.yml", '  SUMMARY_BUDGET: "75"'),
+    (".github/workflows/network.yml", '  SUMMARY_BUDGET_MONTH: "2026-01=90"'),
     (".github/workflows/evaluate.yml", "# A run costs about $1 to $2 on the network's key."),
     ("pipeline/network.py", "# We spent $42 on summaries this month."),
     ("pipeline/network.py", "MONTHLY_BUDGET = 75"),
     ("pipeline/network.py", "    allowance = 3.5"),
     ("scripts/build_status.py", '    row = {"translation_cost": 3.0003, "documents": 82}'),
-    ("wrangler.toml", "# The network's monthly budget, $110."),
+    ("wrangler.toml", "# The network's monthly budget, $75."),
 ])
 def test_a_cost_figure_in_any_file_is_flagged(path, line):
     assert public_check.check_costs(path, 1, line)

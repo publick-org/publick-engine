@@ -52,11 +52,11 @@ SPENDING = (r"(costs?|costing|spent|spend\w*|allowance|billed|invoiced?|paid"
             r"|(?:summary|summaries|network'?s?|monthly|month'?s|ai|our)\s+budget\w*)")
 # A number that isn't zero (a setting of 0 says nothing), maybe in dollars.
 NONZERO = r"\$?(?!0+(?:\.0+)?(?![\d.]))\d"
-# A dollar amount: "$1", "$1.50", "$2,000", "$110k".
+# A dollar amount: "$1", "$1.50", "$2,000", "$40k".
 AMOUNT = r"\$\s?\d[\d,]*(?:\.\d+)?\s*[km]?\b"
 COST_PATTERNS = [
     ("a cost figure", rf"\b{SPENDING}\b[^\n]{{0,40}}{AMOUNT}|{AMOUNT}[^\n]{{0,30}}\b{SPENDING}\b"),
-    # SUMMARY_BUDGET: "110", budget = 50, max_spend: 20, SUMMARY_BUDGET_MONTH: "2026-10=200", and with the
+    # SUMMARY_BUDGET: "75", budget = 50, max_spend: 20, SUMMARY_BUDGET_MONTH: "2026-01=90", and with the
     # name in quotes ("budget": 50, QUOTED_SETTING).
     ("a budget or cost setting",
      rf"(?<![\w.])([A-Za-z_]*(?:budget|cost|spend|spent|allowance)[A-Za-z_]*)\s*[:=]\s*[\"']?{NONZERO}"),
