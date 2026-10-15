@@ -578,8 +578,15 @@ msgstr "%(town)s, %(state)s: juntas, comisiones y comités"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
-#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
-#: site/states/ri/budget.html site/states/vt/budget.html
+#: site/states/ct/budget.html
+#, python-format
+msgid "%(town)s, %(state)s city budget and mill rate"
+msgstr "%(town)s, %(state)s: presupuesto de la ciudad y tasa de impuesto (mill rate)"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
+#: site/states/me/budget.html site/states/nh/budget.html site/states/ri/budget.html
+#: site/states/vt/budget.html
 #, python-format
 msgid "%(town)s, %(state)s city budget and property tax rate"
 msgstr "%(town)s, %(state)s: presupuesto de la ciudad y tasa del impuesto a la propiedad"
