@@ -69,8 +69,9 @@ LIST_PRICE = re.compile(r"\bprices?\b|_price\b|per million|a million", re.IGNORE
 # Settings whose numbers are no secret: a town's limit on one run, the engine's default for it, and the
 # test suite's prices.
 ALLOWED_SETTINGS = {"max_cost_per_run", "default_max_cost_per_run", "same_cost"}
-# A budget of something other than money: time_budget_seconds, a token budget.
-NOT_MONEY = re.compile(r"time|seconds|minutes|hours|years?\b|_year|tokens|pages|bytes", re.IGNORECASE)
+# A budget of something other than money (time_budget_seconds, a token budget), or a switch (HIDE_COSTS: 1).
+NOT_MONEY = re.compile(r"time|seconds|minutes|hours|years?\b|_year|tokens|pages|bytes|hide|show|skip|enable|disable",
+                       re.IGNORECASE)
 # A line marked as fine.
 MARKED = re.compile(r"\bpublic-ok\b")
 
