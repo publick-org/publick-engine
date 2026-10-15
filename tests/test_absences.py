@@ -84,6 +84,42 @@ def test_school_board_minutes_gap_names_the_district_website():
     assert absences.minutes_gap(page, alone, TODAY)["name"] == "Example Public Schools"
 
 
+WALTHAM = {"meetings": {"agenda_center": {"since": "2026-01-01"}}, "page_meetings": {"since": "2026-01-01"}}
+CALENDAR_LISTING = {"id": "621", "source": "calendar", "source_url": "https://city.example/Calendar.aspx?EID=621"}
+DISTRICT_LISTING = {"id": "page-2026-08-01-meeting", "source": "page", "source_url": "https://schools.example/minutes",
+                    "source_name": "Example Public Schools"}
+
+
+@pytest.mark.parametrize("first, second", [(CALENDAR_LISTING, DISTRICT_LISTING), (DISTRICT_LISTING, CALENDAR_LISTING)],
+                         ids=["calendar first", "district first"])
+def test_a_meeting_in_two_sources_awaits_minutes_on_the_boards_own_website(first, second):
+    """Waltham's School Committee: the city calendar's listing (whose minutes would be in the Agenda Center)
+    and the district's page both collect minutes from the same date. The page names the district's website,
+    whichever listing is the meeting's own and whatever order the listings are in; it once depended on the
+    order of a set of source names, which changes from run to run with Python's hash seed."""
+    m = meeting(source=first["source"], source_url=first["source_url"], listings=[first, second])
+    assert absences.minutes_gap(WALTHAM, m, TODAY) == {"reason": "not_posted", "days": 64, "source": "page",
+                                                       "url": "https://schools.example/minutes", "name": "Example Public Schools"}
+
+
+def test_minutes_source_order_is_documented():
+    assert absences.MINUTES_ORDER == ("finalsite", "drive", "page", "diligent", "opengov",
+                                      "agendacenter", "civicclerk", "filelist", "archive")
+
+
+def test_a_source_that_doesnt_collect_minutes_from_the_meetings_date_yet_is_passed_over():
+    m = meeting(source="calendar", listings=[CALENDAR_LISTING, DISTRICT_LISTING])
+    later_district = {**WALTHAM, "page_meetings": {"since": "2026-09-01"}}
+    assert absences.minutes_gap(later_district, m, TODAY)["source"] == "agendacenter"
+    # The district's page collects from the meeting's date on: its minutes are posted there, though the
+    # city's Agenda Center started earlier.
+    later_city = {"meetings": {"agenda_center": {"since": "2025-01-01"}}, "page_meetings": {"since": "2026-07-01"}}
+    assert absences.minutes_gap(later_city, m, TODAY)["source"] == "page"
+    # Neither yet: the earliest date either collects from.
+    both_later = {"meetings": {"agenda_center": {"since": "2026-09-01"}}, "page_meetings": {"since": "2026-08-15"}}
+    assert absences.minutes_gap(both_later, m, TODAY) == {"reason": "before", "since": "2026-08-15"}
+
+
 def test_agenda_gap():
     assert absences.agenda_gap(meeting(source="calendar"), TODAY) == {"reason": "none_linked"}
     assert absences.agenda_gap(meeting(status="cancelled"), TODAY) == {"reason": "not_held"}
