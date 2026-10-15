@@ -45,6 +45,13 @@ msgstr "%(agency)s: <strong>%(rating)s</strong> (calificación más reciente, a�
 msgid "%(board)s agenda"
 msgstr "%(board)s: agenda"
 
+#. the name of a board's hearing, such as an appeal; %(board)s is the board, such as "Board of
+#. Assessors".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s hearing"
+msgstr "%(board)s, audiencia"
+
 #. %(board)s is a board's name, such as "City Council".
 #: site/pages/officials/index.html site/templates/board.html
 #, python-format
@@ -58,12 +65,29 @@ msgstr "%(board)s: reuniones"
 msgid "%(board)s minutes"
 msgstr "%(board)s: actas"
 
-#. a page title when a board meets more than once that day: %(body)s is the board, %(when)s the date,
-#. and %(part)s which meeting it is, such as "1 of 2".
+#. the name of a board's public hearing; %(board)s is the board, such as "Planning Board".
 #: site/templates/meeting.html
 #, python-format
-msgid "%(body)s, %(when)s, meeting %(part)s"
-msgstr "%(body)s, %(when)s, reunión %(part)s"
+msgid "%(board)s public hearing"
+msgstr "%(board)s, audiencia pública"
+
+#. the name of a board's special meeting; %(board)s is the board, such as "City Council".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s special meeting"
+msgstr "%(board)s, reunión especial"
+
+#. the name of a board's work session; %(board)s is the board, such as "Town Council".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s work session"
+msgstr "%(board)s, sesión de trabajo"
+
+#. the name of a board's workshop; %(board)s is the board, such as "City Council".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s workshop"
+msgstr "%(board)s, taller"
 
 #: site/templates/moved.html
 #, python-format
@@ -293,6 +317,13 @@ msgstr "portal de reuniones de %(name)s"
 #, python-format
 msgid "%(name)s website"
 msgstr "sitio web de %(name)s"
+
+#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
+#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(name)s – %(when)s, meeting %(part)s"
+msgstr "%(name)s – %(when)s, reunión %(part)s"
 
 #: site/pages/311/index.html
 #, python-format
@@ -537,7 +568,7 @@ msgid "%(town)s, %(state)s %(board)s meetings and agendas"
 msgstr "%(town)s, %(state)s: %(board)s, reuniones y agendas"
 
 #. a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation,
-#. such as "MA", and %(name)s the meeting, such as "Planning Board agenda, Tuesday, October 6, 2026".
+#. such as "MA", and %(name)s the meeting, such as "Planning Board agenda – Tuesday, October 6, 2026".
 #: site/templates/meeting.html
 #, python-format
 msgid "%(town)s, %(state)s %(name)s"
@@ -3932,6 +3963,13 @@ msgstr "Junta de Licencias"
 #: site/templates/charts.html
 msgid "Link to this"
 msgstr "Enlace a esta sección"
+
+#. %(title)s is the meeting's name as the city lists it, where it says more than the page's own:
+#. "Special Meeting of the Board of Mayor and Aldermen: Public Hearing on the FY27 Budget".
+#: site/templates/meeting.html
+#, python-format
+msgid "Listed as “%(title)s”."
+msgstr "Anunciada como “%(title)s”."
 
 #. %(listing)s is where the city lists meetings, such as "city calendar" or "city's meeting portal".
 #: site/templates/macros.html

@@ -151,6 +151,10 @@ def test_meeting_pages(site_dir):
     assert (site_dir / "meetings" / "agendas" / "20124.pdf").exists()
     arts = (site_dir / "meetings" / "2026-09-29-committee-for-the-arts" / "index.html").read_text()
     assert "Removed from the city calendar." in arts
+    # A committee's page is named for the board it's listed under ("Ordinances & Administration Meeting"
+    # on the calendar) and the day.
+    committee = (site_dir / "meetings" / "2026-10-05-city-council-ordinances-and-administration-committee" / "index.html").read_text()
+    assert "<h1>City Council Ordinances &amp; Administration Committee – Oct 5, 2026</h1>" in committee
 
 
 def test_home_lists_this_weeks_meetings(site_dir):
@@ -745,6 +749,8 @@ def test_meetings_are_events_for_search_engines(site_dir):
                 assert trail[-1]["item"] == f"https://gloucester-ma.publick.org/meetings/{path.parent.name}/"
     assert events
     event = events["2026-09-28-historical-commission"]
+    # Named for search results: the board, the town, and the day.
+    assert event["name"] == "Historical Commission, Gloucester – Sep 28, 2026"
     assert event["startDate"] == "2026-09-28T18:30:00-04:00"
     assert event["eventStatus"] == "https://schema.org/EventScheduled"
     assert event["eventAttendanceMode"] == "https://schema.org/MixedEventAttendanceMode"
@@ -761,15 +767,16 @@ def test_event_says_only_what_the_listing_does():
     m = {"title": "Planning Board Meeting", "body": "Planning Board", "date": "2026-12-03", "start_time": "19:00",
          "end_time": None, "status": "cancelled", "listed": True, "location_name": "", "address": "", "location": "",
          "remote_url": "https://zoom.us/j/1", "correction": None}
-    event = structured.event(m, "https://x/", "A &amp; B\n", town, "America/New_York")
+    event = structured.event(m, "https://x/", "Planning Board, Gloucester – Dec 3, 2026", "A &amp; B\n", town, "America/New_York")
+    assert event["name"] == "Planning Board, Gloucester – Dec 3, 2026"
     assert event["startDate"] == "2026-12-03T19:00:00-05:00"
     assert event["eventStatus"] == "https://schema.org/EventCancelled"
     assert event["eventAttendanceMode"] == "https://schema.org/OnlineEventAttendanceMode"
     assert event["description"] == "A & B"
     assert "endDate" not in event
-    assert structured.event({**m, "remote_url": None}, "https://x/", "", town, "America/New_York") is None
-    assert structured.event({**m, "listed": False}, "https://x/", "", town, "America/New_York") is None
-    assert structured.event({**m, "correction": {"doubtful": True}}, "https://x/", "", town, "America/New_York") is None
+    assert structured.event({**m, "remote_url": None}, "https://x/", "", "", town, "America/New_York") is None
+    assert structured.event({**m, "listed": False}, "https://x/", "", "", town, "America/New_York") is None
+    assert structured.event({**m, "correction": {"doubtful": True}}, "https://x/", "", "", town, "America/New_York") is None
 
 
 def test_structured_data_cannot_end_its_script():
@@ -786,12 +793,12 @@ def test_home_and_downloads_for_search_engines(site_dir):
     # it has; its own name, on social cards and in breadcrumbs, doesn't.
     meetings = site_dir / "meetings"
     minutes = (meetings / "2026-07-14-city-council" / "index.html").read_text()
-    assert "<title>Gloucester, MA City Council minutes, Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
-    assert '<meta property="og:title" content="City Council, Tuesday, July 14, 2026">' in minutes
+    assert "<title>Gloucester, MA City Council minutes – Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
+    assert '<meta property="og:title" content="City Council – Jul 14, 2026">' in minutes
     agenda = (meetings / "2026-09-28-historical-commission" / "index.html").read_text()
-    assert "<title>Gloucester, MA Historical Commission agenda, Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
+    assert "<title>Gloucester, MA Historical Commission agenda – Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
     neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
-    assert "<title>Gloucester, MA School Committee, Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
+    assert "<title>Gloucester, MA School Committee – Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
     # So does every other section's; its heading and social card keep the short name.
     board = (meetings / "boards" / "school-committee" / "index.html").read_text()
     assert "<title>Gloucester, MA School Committee meetings and agendas | Gloucester Publick</title>" in board

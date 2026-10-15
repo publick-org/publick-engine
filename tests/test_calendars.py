@@ -12,7 +12,7 @@ from fakes import FIXTURES, FakeManchester
 from test_site import parse
 from test_site import test_internal_links_resolve as check_links
 
-from pipeline import build_site, civicclerk, dnn, fetch_meetings
+from pipeline import build_site, civicclerk, dnn, fetch_meetings, meeting_names
 from pipeline.config import load_config
 from pipeline.meeting_names import parse_name
 
@@ -81,6 +81,30 @@ def test_parse_name(name, body, special, status):
 
 def test_parse_name_keeps_the_calendar_title():
     assert parse_name("CANCELED - Planning Board Business Meeting", BOARDS)["title"] == "Planning Board Business Meeting"
+
+
+@pytest.mark.parametrize("name, body, special, kind, more", [
+    ("Planning Board Meeting", "Planning Board", False, None, False),
+    ("Ordinances & Administration Meeting", "City Council Ordinances & Administration Committee", False, None, False),
+    ("Remote Rent Board Meeting (Special)", "Rent Board", True, "special", False),
+    ("Gloucester School Committee Meeting", "School Committee", False, None, False),
+    ("Technical Review Committee (TRC)", "Technical Review Committee", False, None, False),
+    ("Planning Board Public Hearings", "Planning Board", False, "public_hearing", False),
+    ("ZBA Public Hearing", "Zoning Board of Adjustment", False, "public_hearing", True),
+    ("Planning Board - Work Session", "Planning Board", False, "work_session", False),
+    ("Board of Assessor Hearings May 19, 2026", "Board of Assessors", False, "hearing", False),
+    # A board's own name isn't a kind of meeting, nor a workshop held with a regular meeting.
+    ("City Council Workshop Meeting", "City Council Workshop", False, None, False),
+    ("City Council Workshop & Meeting", "City Council", False, None, True),
+    # What the name says besides: a topic, or the board it meets with.
+    ("Special Meeting of the Board of Mayor and Aldermen: Public Hearing on the FY27 Budget", "Board of Mayor and Aldermen",
+     True, "public_hearing", True),
+    ("Joint Meeting of the Board of Mayor and Aldermen & Board of School Committee", "Board of Mayor and Aldermen",
+     False, None, True),
+])
+def test_kind_of_meeting(name, body, special, kind, more):
+    assert meeting_names.kind(name, body, special) == kind
+    assert meeting_names.says_more(name, body, "Gloucester") == more
 
 
 # ---- CivicClerk ---------------------------------------------------------------
@@ -295,6 +319,20 @@ def test_same_day_meetings_of_one_board_are_told_apart(manchester_site):
     assert any("7:00" in t for t in titles)
     past = (manchester_site / "meetings" / "past" / "index.html").read_text()
     assert "Special Meeting of the Board of Mayor and Aldermen - Public Hearing: CDBG Funds</a>" in past
+
+
+def test_a_meeting_is_named_for_its_board_and_kind(manchester_site):
+    """A meeting's page is named for its board, the kind of meeting, and the day, and says what
+    else its listing's name does."""
+    pages = [p.read_text() for p in (manchester_site / "meetings").glob("2026-08-04-board-of-mayor-and-aldermen*/index.html")]
+    hearing = next(p for p in pages if "CDBG" in p)
+    assert "<h1>Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM</h1>" in hearing
+    assert '<meta property="og:title" content="Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM">' in hearing
+    assert "<title>Manchester, NH Board of Mayor and Aldermen public hearing – Tuesday, August 4, 2026, 6:00 PM |" in hearing
+    assert "6:00 PM</time> · Special meeting</p>" in hearing
+    assert "Listed as “Special Meeting of the Board of Mayor and Aldermen - Public Hearing: CDBG Funds”." in hearing
+    regular = next(p for p in pages if "CDBG" not in p)
+    assert "<h1>Board of Mayor and Aldermen – Aug 4, 2026, 7:00 PM</h1>" in regular and "Listed as" not in regular
 
 
 def test_dnn_agenda_file_is_a_pdf_named_for_the_meeting():
