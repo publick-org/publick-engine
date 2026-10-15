@@ -630,7 +630,8 @@ class Killed(BaseException):
     """The run stopped from outside (a step's timeout), in the middle of a request."""
 
 
-def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path):
+def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path, monkeypatch):
+    monkeypatch.setattr(summarize, "LEDGER_EVERY", 0)
     config = with_minutes(tmp_path)
     client, cut_off = FakeAnthropic(), FakeAnthropic(stop_reason="max_tokens")
     stream = client.messages.stream
@@ -655,6 +656,20 @@ def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path):
     summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     assert ledger == {"cost": round(2 * REQUEST, 4), "documents": 2, "failed_cost": round(REQUEST, 4)}
+
+
+def test_during_a_run_the_ledger_is_saved_at_most_every_ledger_every_seconds(tmp_path, monkeypatch):
+    monkeypatch.setattr(summarize, "LEDGER_EVERY", 3600)
+    saves = []
+    update = summarize.update_ledger
+    monkeypatch.setattr(summarize, "update_ledger", lambda *a, **k: saves.append(1) or update(*a, **k))
+    config = with_minutes(tmp_path)
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] > 1
+    # Once after the first request paid for, and once at the end, which counts every summary.
+    assert len(saves) == 2
+    ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert ledger["documents"] == result["summarized"]
 
 
 def test_the_exit_status_fails_only_when_every_document_tried_failed(tmp_path):

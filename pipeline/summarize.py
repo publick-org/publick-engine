@@ -668,6 +668,9 @@ def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) 
             + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
 
 
+# How often, at most, a run saves the cost ledger before its end (run()'s record_spending), in seconds.
+LEDGER_EVERY = 60
+
 # What a run says when the API account is out of credit (translate.out_of_credit).
 OUT_OF_CREDIT = "stopped: the Anthropic account is out of credit; summaries resume when credit is added"
 
@@ -821,14 +824,20 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     failed = 0
     # What the ledger has been given of this run's failed_cost, transcript_cost, and replaced_cost.
     in_ledger = {"failed_cost": 0.0, "transcript_cost": 0.0, "replaced_cost": 0.0}
+    saved_at = [None]
 
-    def record_spending() -> dict:
-        """Save the ledger after each request paid for, so a run stopped later (a crash, the step's
+    def record_spending(last: bool = False) -> dict | None:
+        """Save the ledger after a request paid for, so a run stopped later (a crash, the step's
         timeout) has still counted what it spent: summaries and translations are counted from their
-        files, and what leaves none from what this run paid since the ledger was last saved."""
+        files, and what leaves none from what this run paid since the ledger was last saved. Each save
+        reads every summary the town has, so during a run it's saved at most every LEDGER_EVERY
+        seconds (a run stopped loses at most that long's spending); always at the end (last)."""
+        if not last and saved_at[0] is not None and time.monotonic() - saved_at[0] < LEDGER_EVERY:
+            return None
         paid = {"failed_cost": failed_cost, "transcript_cost": transcript_cost, "replaced_cost": replaced_cost}
         ledger = update_ledger(data_dir, settings, month, **{k: paid[k] - in_ledger[k] for k in paid})
         in_ledger.update(paid)
+        saved_at[0] = time.monotonic()
         return ledger
 
     def out_of_credit(e: Exception) -> bool:
@@ -1161,7 +1170,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         for k in tokens:
             tokens[k] += usage[k]
         transcribed += 1
-    ledger = record_spending()
+    ledger = record_spending(last=True)
     return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
             "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
             "remaining": max(len(todo) - done, 0), "failed": failed, "errors": errors, "stopped": stopped,
