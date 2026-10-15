@@ -288,7 +288,7 @@ def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
 
 def test_wallingford_calendar_meeting_has_its_place_and_agenda(wallingford_site):
     utilities = meeting_page(wallingford_site, "filelist-public-utilities-commission-58")
-    assert "Public Utilities Commission Meeting" in utilities and "6:00 PM" in utilities
+    assert "<h1>Public Utilities Commission – Oct 6, 2026</h1>" in utilities and "6:00 PM" in utilities
     assert "Robert F. Parisi Council Chambers" in utilities and "45 South Main Street" in utilities
     assert f"{DOCUMENTS_URL}DownloadFile.aspx?FileID=12194" in utilities
     assert 'href="/meetings/agendas/filelist-12194.pdf"' in utilities
@@ -297,7 +297,7 @@ def test_wallingford_calendar_meeting_has_its_place_and_agenda(wallingford_site)
 
 def test_wallingford_meeting_from_its_documents_has_its_minutes(wallingford_site):
     council = meeting_page(wallingford_site, "filelist-file-12176")
-    assert "Town Council Meeting" in council and "Not listed on the city calendar" in council
+    assert "<h1>Town Council – Sep 22, 2026</h1>" in council and "Not listed on the city calendar" in council
     assert f"{DOCUMENTS_URL}DownloadFile.aspx?FileID=12188" in council
     assert 'href="/meetings/minutes/filelist-12188.pdf"' in council
     # The stand-in summary's vote count isn't in these real minutes: the fact check
@@ -315,7 +315,7 @@ def test_wallingford_cancellations_and_sources(wallingford_site):
 
 def test_wallingford_board_of_education_from_the_district_website(wallingford_site):
     committee = meeting_page(wallingford_site, "finalsite-1698")
-    assert "Board of Education Operations Committee Meeting" in committee
+    assert "<h1>Board of Education Operations Committee – Sep 14, 2026</h1>" in committee
     assert f"https://docs.google.com/document/d/{MINUTES_DOC}/edit?usp=sharing" in committee
     assert "Minutes on Google Docs" in committee and "Agenda on Google Docs" in committee
     assert 'href="/meetings/minutes/' in committee and "What was decided" in committee
