@@ -584,3 +584,106 @@ def test_minutes_from_an_older_prompt_are_made_again_only_since_remake_since(tmp
     # Without remake_since, every one is.
     monkeypatch.delitem(summarize.KINDS["minutes"], "remake_since")
     assert len(summarize.pending_documents(tmp_path, "2026-10-03", model)) == 3
+
+
+# ---- A run that fails partway keeps what it paid for ----
+
+def test_minutes_whose_text_cant_be_read_are_still_summarized_and_paid_for(tmp_path, monkeypatch):
+    from pipeline import pdftext
+
+    def unreadable(pdf):
+        raise ValueError("bad xref table")
+    monkeypatch.setattr(pdftext, "lines", unreadable)
+    config = with_council(load_config("gloucester"))
+    sha = minutes_town(tmp_path, ROLL_CALLS, date="2026-01-05")
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 1 and result["failed"] == 0
+    assert saved(tmp_path, sha)["votes"] == []
+    ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert ledger["documents"] == 1 and ledger["cost"] > 0
+
+
+def test_a_summary_that_cant_be_saved_is_paid_for_and_the_run_goes_on(tmp_path, monkeypatch):
+    from pipeline import votes
+    config = with_minutes(tmp_path)
+    read, seen = votes.read, []
+
+    def first_fails(record, pdf, members):
+        seen.append(record["source_sha256"])
+        if len(seen) == 1:
+            raise ValueError("bad xref table")
+        return read(record, pdf, members)
+    monkeypatch.setattr(votes, "read", first_fails)
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 15 and result["failed"] == 1
+    (error,) = result["errors"]
+    assert error.endswith(": the summary couldn't be saved (bad xref table)")
+    assert not (tmp_path / "summaries" / f"{seen[0]}.json").exists()
+    ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert ledger["documents"] == 15 and ledger["failed_cost"] == round(REQUEST, 4)
+    # Counted as a try, so a document that can never be saved isn't paid for every run.
+    tries = json.loads((tmp_path / summarize.STOPPED_EARLY).read_text())[seen[0]]["summary"]["tries"]
+    assert tries == 1
+
+
+class Killed(BaseException):
+    """The run stopped from outside (a step's timeout), in the middle of a request."""
+
+
+def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path):
+    config = with_minutes(tmp_path)
+    client, cut_off = FakeAnthropic(), FakeAnthropic(stop_reason="max_tokens")
+    stream = client.messages.stream
+
+    def requests(**kwargs):
+        sent = len(cut_off.calls) + len(client.calls)
+        if sent == 0:
+            return cut_off.messages.stream(**kwargs)
+        if sent == 1:
+            return stream(**kwargs)
+        raise Killed()
+    client.messages.stream = requests
+    try:
+        summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    except Killed:
+        pass
+    else:
+        raise AssertionError("the run wasn't stopped")
+    ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert ledger == {"cost": round(REQUEST, 4), "documents": 1, "failed_cost": round(REQUEST, 4)}
+    # The next run adds to it, without counting the first run's again.
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
+    ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert ledger == {"cost": round(2 * REQUEST, 4), "documents": 2, "failed_cost": round(REQUEST, 4)}
+
+
+def test_the_exit_status_fails_only_when_every_document_tried_failed(tmp_path):
+    config = with_minutes(tmp_path)
+    # Every request fails.
+    failing = summarize.run(config, FakeAnthropic(stop_reason="max_tokens"), tmp_path, limit=3, now=FETCHED_AT)
+    assert failing["failed"] == 3 and summarize.exit_status(failing) == 1
+    # Not when collecting a batch: that would fail the network's run.
+    assert summarize.exit_status(failing, collecting=True) == 0
+    # Some made: the run did its work.
+    made = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert made["summarized"] and summarize.exit_status(made) == 0
+    # Nothing left to do.
+    idle = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert idle["failed"] == 0 and summarize.exit_status(idle) == 0
+
+
+def test_a_run_stopped_by_its_budget_before_trying_any_succeeds(tmp_path):
+    config = with_minutes(tmp_path)
+    result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=0)
+    assert result["summarized"] == 0 and result["stopped"] and summarize.exit_status(result) == 0
+
+
+def test_main_returns_the_exit_status(tmp_path, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr("sys.argv", ["summarize", "--data", str(tmp_path)])
+    result = {"summarized": 0, "queued": 0, "transcribed": 0, "translated": 0, "drafted_texts": 0,
+              "failed": 2, "errors": ["agenda a: overloaded", "agenda b: overloaded"], "stopped": None}
+    monkeypatch.setattr(summarize, "run", lambda *args, **kwargs: result)
+    assert summarize.main() == 1
+    monkeypatch.setenv(summarize.COLLECT_ENV, "1")
+    assert summarize.main() == 0
