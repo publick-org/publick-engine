@@ -155,6 +155,13 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.fetch_place --town "$TOWN"
 
+      # The Officials page's address box: the Census Bureau's address ranges, each given its ward,
+      # made again when a new year is published or the ward file changes.
+      - name: Fetch address ranges
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.fetch_addresses --town "$TOWN"
+
       # Building permits for the street lookup: weekly at most, like budget and housing.
       - name: Fetch building permits
         if: inputs.sources != '311'

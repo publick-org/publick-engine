@@ -82,6 +82,13 @@
     if (sources.indexOf("requests") >= 0) counts.push(count("requests", s.requests_total));
     status.textContent = t("counts", { street: s.name, counts: counts.join(", ") });
     results.appendChild(el("h2", s.name, { id: "street-name" }));
+    // The street's ward, on the Officials page: the street goes after "#", which isn't sent with the request.
+    var wardPage = root.getAttribute("data-ward-page");
+    if (wardPage) {
+      var p = el("p");
+      p.appendChild(el("a", t("ward_link", { street: s.name }), { href: wardPage + "#address=" + encodeURIComponent(s.name) }));
+      results.appendChild(p);
+    }
     if (sources.indexOf("meetings") >= 0) results.appendChild(section(t("meetings_head"), s.meetings_total, s.meetings.length, s.meetings.map(function (m) {
       return item(m.board, m.url, date(m.date) + " · " + m.doc, m.line);
     })));
