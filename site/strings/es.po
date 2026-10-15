@@ -7687,6 +7687,14 @@ msgid "This list will appear after the next data update."
 msgstr "Esta lista aparecerá después de la próxima actualización de datos."
 
 #: site/templates/meeting.html
+msgid ""
+"This listing gives no time, and the board has more than one meeting this day, so it can't be told"
+" which one this is. It is shown here on its own."
+msgstr ""
+"Esta publicación no da una hora, y la junta tiene más de una reunión este día, así que no se "
+"puede saber a cuál corresponde. Aquí se muestra por separado."
+
+#: site/templates/meeting.html
 msgid "This meeting didn't take place as listed, so no agenda is recorded here."
 msgstr "Esta reunión no se celebró como estaba anunciada, así que no hay una agenda registrada aquí."
 
@@ -7707,6 +7715,14 @@ msgid ""
 msgstr ""
 "Sabemos de esta reunión por el <a href=\"%(url)s\">sitio web de %(name)s</a>. No se encontró en "
 "el calendario de la Ciudad de %(town)s."
+
+#: site/templates/meeting.html
+msgid ""
+"This meeting is listed in more than one place, named differently in each: it is the board's only "
+"meeting this day. The listings are shown here as one meeting."
+msgstr ""
+"Esta reunión aparece en más de un lugar, con un nombre distinto en cada uno: es la única reunión "
+"de la junta este día. Aquí se muestran como una sola reunión."
 
 #: site/templates/meeting.html
 msgid ""

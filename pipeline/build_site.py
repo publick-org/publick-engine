@@ -493,14 +493,13 @@ def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[
 
 
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
-                  corrections: list[dict] | None = None, withheld: list[dict] | None = None) -> dict:
-    path = data_dir / "meetings" / "meetings.json"
-    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+                  corrections: list[dict] | None = None, withheld: list[dict] | None = None, town: str = "") -> dict:
     status_path = data_dir / "meetings" / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else None
 
-    # A meeting the city lists in more than one place is shown as one (pipeline/listings.py).
-    store, _moved = listings.combined(store, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)))
+    # A meeting the city lists in more than one place is shown as one (pipeline/listings.py), at its
+    # own address (pipeline/identity.py).
+    store, _moved = listings.read(data_dir, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)), town)
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
     taken_down = withheld_summaries(meetings, withheld or [])
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
@@ -513,8 +512,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
         m["listing"] = _(LISTINGS.get(m["source"], CALENDAR))
         m["url"] = f"/meetings/{m['slug']}/"
-        # The pages of its other listings, already published, show it too.
-        m["also_urls"] = [f"/meetings/{x['slug']}/" for x in m.get("listings", []) if x["id"] != m["id"]]
+        # Its other addresses, already published (its listings' own pages), send readers to it.
+        m["also_urls"] = [f"/meetings/{a}/" for a in m.get("addresses", [])]
         for x in m.get("listings", []):
             x["listing"] = _(LISTINGS.get(x["source"], CALENDAR))
         # The board's name as the city writes it; m["body"] is the one shown, translated for another language.
@@ -951,7 +950,7 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
         localize_config(config, tr)
         meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
                              config.get("meetings", {}).get("corrections", []),
-                             config.get("summaries", {}).get("withheld", []))
+                             config.get("summaries", {}).get("withheld", []), config["town"]["name"])
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -1092,7 +1091,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     base_url = f"https://{site['domain']}"
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
                              config.get("meetings", {}).get("corrections", []),
-                             config.get("summaries", {}).get("withheld", []))
+                             config.get("summaries", {}).get("withheld", []), config["town"]["name"])
     posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
     # A board's name alone in this language, for its pages' titles (the pages show its English name too),
     # unless another board's is the same: then with its English name after it, as elsewhere.

@@ -409,12 +409,10 @@ ACTIVITY_DAYS = 14
 def activity(data: Path, today: date | None = None) -> dict:
     """A few counts from the town's meetings for the network homepage, which reads only run
     records: the boards it follows, and how many meetings each coming day has."""
-    path = data / "meetings" / "meetings.json"
-    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     # A meeting listed in more than one place counts once. Imported here: the network workflow's plan
     # and home jobs run this module with the standard library only, and listings needs the readers'.
     from pipeline import listings
-    store, _ = listings.combined(store)
+    store, _ = listings.read(data)
     today = today or datetime.now(timezone.utc).date()
     last = (today + timedelta(days=ACTIVITY_DAYS - 1)).isoformat()
     upcoming: dict[str, int] = {}
