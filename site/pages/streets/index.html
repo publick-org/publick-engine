@@ -57,7 +57,12 @@
   "closed": pgettext("311 request", "Closed"),
 }) %}
 {% endif %}
-<div id="street" data-index="{{ streets_url }}" data-strings='{{ strings | tojson }}' data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
+{# A street's ward, from the Officials page's address box, for a town that has it. #}
+{% if addresses %}
+{# Translators: a link under a street's results, to the page that finds its ward or district; keep {street} as it is. #}
+{% set ignored = strings.update({"ward_link": _("Which district is {street} in?") if areas == "districts" else _("Which ward is {street} in?")}) %}
+{% endif %}
+<div id="street" data-index="{{ streets_url }}"{% if addresses %} data-ward-page="{{ addresses.page }}"{% endif %} data-strings='{{ strings | tojson }}' data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
   <p id="street-status" role="status" aria-live="polite"></p>
   <div id="street-results"></div>
 </div>

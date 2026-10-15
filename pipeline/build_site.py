@@ -43,6 +43,7 @@ from pipeline import factcheck
 from pipeline import listings
 from pipeline.meeting_names import words
 from pipeline import i18n
+from pipeline import fetch_addresses
 from pipeline import officials as officials_mod
 from pipeline import share_cards as share_cards_mod
 from pipeline import states
@@ -999,10 +1000,9 @@ def localize_officials(officials: dict, tr: TownStrings) -> None:
             body["note"] = tr(body["note"])
         for m in body["members"]:
             member(m)
-    for ward in officials["wards"]:
-        for m in ward["members"]:
-            m["body"] = tr.board(m["body"])
-            member(m)
+    for m in [m for ward in officials["wards"] for m in ward["members"]] + officials["citywide"]:
+        m["body"] = tr.board(m["body"])
+        member(m)
 
 
 def localize_categories(value, tr: TownStrings) -> None:
@@ -1205,7 +1205,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
-    officials = wards_json = wards_url = None
+    officials = wards_json = wards_url = addresses = addresses_json = addresses_url = None
     if "officials" in built_folders:
         officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]},
                                        built_at.date())
@@ -1214,6 +1214,12 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if ward_shapes:
             wards_json = json.dumps(ward_shapes, separators=(",", ":"))
             wards_url = f"/officials/wards.json?v={hashlib.sha256(wards_json.encode()).hexdigest()[:10]}"
+        # The address box's street ranges, each with its ward (pipeline/fetch_addresses.py): only for a
+        # town with ward seats, and only when they were made with the town's ward file.
+        addresses = fetch_addresses.load(data_dir, config) if officials["wards"] and not officials["at_large"] else None
+        if addresses:
+            addresses_json = json.dumps(fetch_addresses.page_data(addresses), ensure_ascii=False, separators=(",", ":"))
+            addresses_url = f"/officials/addresses.json?v={hashlib.sha256(addresses_json.encode()).hexdigest()[:10]}"
     share_path = out_static / "share" / f"{town}.png"
     # Versioned, so sites that cache link previews pick up a redrawn image.
     share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
@@ -1230,6 +1236,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
                   has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
                   meeting_links=links, officials=officials, wards_url=wards_url,
+                  # The address box's file, its ranges' year, and its page, which the street lookup links.
+                  addresses=addresses and {"year": addresses["year"], "url": addresses_url, "page": f"{prefix}/officials/"},
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
@@ -1364,6 +1372,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         write_digest_feed(out_dir / "digest" / "feed.xml", issues, config, base_url, built_at)
     if wards_json:
         (out_dir / "officials" / "wards.json").write_text(wards_json, encoding="utf-8")
+    if addresses_json:
+        (out_dir / "officials" / "addresses.json").write_text(addresses_json, encoding="utf-8")
     if "streets" in built_folders:
         (out_dir / "streets").mkdir(parents=True, exist_ok=True)
         (out_dir / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")

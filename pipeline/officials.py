@@ -86,7 +86,7 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
         raise SystemExit(f'[officials] checked in {where} must be the date the list was last checked, like "2026-10-01".')
     wards = sorted(ward_names(data_dir, config), key=ward_key)
     boards = boards or {}
-    bodies, by_ward = [], defaultdict(list)
+    bodies, by_ward, citywide = [], defaultdict(list), []
     for body in table["bodies"]:
         unknown = set(body) - BODY_FIELDS
         if unknown or not body.get("name") or not body.get("members"):
@@ -118,6 +118,8 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
             for ward in linked:
                 by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]),
                                       "order": (len(bodies), len(linked)), **member})
+            if not seat_wards:
+                citywide.append({"body": body["name"], **member})
         board = body.get("board", body["name"])
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board),
                        # A Seat column only where seats differ: "At-large" on every row, or a mayor's one
@@ -136,6 +138,9 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
         # In a ward, each body's member for that ward alone comes before its member for a district of wards.
         "wards": [{"ward": w, "id": f"ward-{slugify(w)}", "members": sorted(by_ward.get(w, []), key=lambda m: m["order"])}
                   for w in wards],
+        # Members elected by the whole town (the mayor, at-large seats), who represent every ward too: the
+        # address box names them with a ward's own.
+        "citywide": citywide,
     }
 
 

@@ -1057,6 +1057,18 @@ msgstr ""
 "<strong>Solicitudes al 311:</strong> solicitudes públicas en <a "
 "href=\"https://seeclickfix.com\">SeeClickFix</a> de los últimos 12 meses."
 
+#. %(year)s is the year of the Census Bureau's address ranges.
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Address lookup:</strong> U.S. Census Bureau <a href=\"%(url)s\">TIGER/Line address "
+"ranges</a>, %(year)s, each matched by Publick to the boundaries above, for the address box on <a "
+"href=\"%(page)s\">Who represents you</a>."
+msgstr ""
+"<strong>Búsqueda por dirección:</strong> <a href=\"%(url)s\">rangos de direcciones TIGER/Line</a>"
+" de la Oficina del Censo de EE. UU., %(year)s, que Publick ubica en los límites de arriba, para "
+"buscar su dirección en <a href=\"%(page)s\">Quién lo representa</a>."
+
 #: site/pages/streets/index.html
 msgid ""
 "<strong>Agendas and minutes:</strong> any line naming an address on the street, from the "
@@ -1758,6 +1770,10 @@ msgstr "Todas las reuniones registradas"
 #: site/pages/311/index.html
 msgid "All repeat locations"
 msgstr "Todos los lugares con solicitudes repetidas"
+
+#: site/pages/officials/index.html
+msgid "Also representing you, elected citywide:"
+msgstr "También lo representan, elegidos por toda la ciudad:"
 
 #: site/pages/data/index.html
 msgid "Always \"publick-meetings\", and the format's version number."
@@ -2882,6 +2898,10 @@ msgstr "Correo<span class=\"visually-hidden\"> de %(name)s</span>"
 msgid "English"
 msgstr "Inglés"
 
+#: site/pages/officials/index.html
+msgid "Enter a street address, such as 12 Main St."
+msgstr "Escriba una dirección, como 12 Main St."
+
 #: site/pages/meetings/search/index.html
 msgid "Enter a word to search for."
 msgstr "Escriba una palabra para buscar."
@@ -3607,6 +3627,14 @@ msgstr ""
 "Si algo es difícil de usar, %(contact)s, e incluya la dirección de la página. Si necesita la "
 "información en otro formato, pídanosla."
 
+#: site/pages/about/index.html
+msgid ""
+"If you look up your address on Who represents you, it's looked up on your device. It isn't sent "
+"anywhere or saved."
+msgstr ""
+"Si busca su dirección en Quién lo representa, se busca en su dispositivo. No se envía a ningún "
+"lugar ni se guarda."
+
 #. "Find my district" is the label of the button that finds the reader's district.
 #: site/pages/about/index.html
 msgid ""
@@ -4015,9 +4043,17 @@ msgstr "Solicitudes abiertas desde hace más tiempo en el Precinto %(ward)s"
 msgid "Longest-open requests in Ward %(ward)s"
 msgstr "Solicitudes abiertas desde hace más tiempo en el Distrito %(ward)s"
 
-#: site/pages/index.html site/pages/streets/index.html
+#: site/pages/index.html site/pages/officials/index.html site/pages/streets/index.html
 msgid "Look up"
 msgstr "Buscar"
+
+#. the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such
+#. as "Ward 3", and {areas} several, such as "Ward 2 and Ward 3"; {address} is a street address, such
+#. as "12 Main St".
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "Looking up {address}…"
+msgstr "Buscando {address}…"
 
 #: site/pages/streets/index.html
 #, python-brace-format
@@ -5753,6 +5789,10 @@ msgstr "Ver como lista"
 msgid "See as a table"
 msgstr "Ver como tabla"
 
+#: site/pages/officials/index.html
+msgid "See it on the map"
+msgstr "Véalo en el mapa"
+
 #: pipeline/common_strings.py
 msgid "Select Board"
 msgstr "Junta de Selectos"
@@ -6642,6 +6682,14 @@ msgstr "Enviada el <time datetime=\"%(iso)s\">%(when)s</time>"
 msgid "Submitted, not yet acknowledged. Counts as open."
 msgstr "Enviada, todavía sin confirmar. Cuenta como abierta."
 
+#: site/pages/officials/index.html
+msgid ""
+"Such as \"12 Main St\". It's looked up on your device, in the Census Bureau's list of addresses, "
+"and isn't sent anywhere or saved."
+msgstr ""
+"Por ejemplo, “12 Main St”. Se busca en su dispositivo, en la lista de direcciones de la Oficina "
+"del Censo, y no se envía a ningún lugar ni se guarda."
+
 #: site/pages/about/index.html
 msgid "Summaries written by AI are labeled on each meeting page."
 msgstr ""
@@ -6858,6 +6906,24 @@ msgstr ""
 msgid "The Agency of Education updates each figure once a year."
 msgstr "La Agencia de Educación actualiza cada cifra una vez al año."
 
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid ""
+"The Census Bureau's address list doesn't have {address}. Where it lists addresses, {street} is in"
+" {area}: check your home on the map."
+msgstr ""
+"{address} no está en la lista de direcciones de la Oficina del Censo. Donde la lista tiene "
+"direcciones, {street} está en el {area}: busque su casa en el mapa."
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid ""
+"The Census Bureau's address list doesn't have {address}. {street} runs through {areas}: find your"
+" home on the map."
+msgstr ""
+"{address} no está en la lista de direcciones de la Oficina del Censo. {street} pasa por {areas}: "
+"busque su casa en el mapa."
+
 #: site/states/me/schools.html
 msgid ""
 "The Department of Education adds each school year's figures to its ESSA Dashboard once a year, in"
@@ -6880,6 +6946,10 @@ msgid "The accessibility standard %(site)s follows, known issues, and how to rep
 msgstr ""
 "El estándar de accesibilidad que sigue %(site)s, los problemas conocidos y cómo informar un "
 "problema."
+
+#: site/pages/officials/index.html
+msgid "The address list could not be loaded. Please try again later."
+msgstr "No se pudo cargar la lista de direcciones. Inténtelo de nuevo más tarde."
 
 #. %(name)s names where the adopted budget is published, such as "the city's Budget Info page".
 #: site/states/nh/about_finance.html
@@ -8323,6 +8393,18 @@ msgstr "Si es una reunión especial, y si la ciudad todavía la publica."
 msgid "Whether its summary was taken down after a reader reported an error."
 msgstr "Si su resumen se retiró después de que un lector reportó un error."
 
+#. a link under a street's results, to the page that finds its ward or district; keep {street} as it
+#. is.
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Which district is {street} in?"
+msgstr "¿En qué distrito está {street}?"
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Which ward is {street} in?"
+msgstr "¿En qué distrito está {street}?"
+
 #: pipeline/build_site.py site/pages/officials/index.html
 msgid "Who represents you"
 msgstr "Quién lo representa"
@@ -8446,6 +8528,10 @@ msgstr ""
 #: site/pages/meetings/index.html site/pages/streets/index.html
 msgid "Your street"
 msgstr "Su calle"
+
+#: site/pages/officials/index.html
+msgid "Your street address"
+msgstr "Su dirección"
 
 #: pipeline/common_strings.py
 msgid "Zoning Board of Adjustment"
@@ -8654,6 +8740,18 @@ msgstr "portal de Reuniones Abiertas del estado"
 msgid "the city website"
 msgstr "el sitio web de la ciudad"
 
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{address} is close to the line between {areas}, so it could be in either. Check it on the map."
+msgstr ""
+"{address} está cerca del límite entre {areas}, así que podría estar en cualquiera de los dos. "
+"Búsquela en el mapa."
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{address} is in {area}."
+msgstr "{address} está en el {area}."
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "{address}. Submitted {date}."
@@ -8690,7 +8788,7 @@ msgid "{days} days"
 msgstr "{days} días"
 
 #. a list of two things, such as "agenda items and building permits".
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/pages/officials/index.html
 #, python-brace-format
 msgid "{first} and {last}"
 msgstr "{first} y {last}"
@@ -8810,6 +8908,26 @@ msgstr "{period}: más tarde de lo normal (normalmente para el {date})"
 #, python-brace-format
 msgid "{period} usually by {date}"
 msgstr "{period}: normalmente para el {date}"
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{street} is in {area}."
+msgstr "{street} está en el {area}."
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{street} isn't in the address list. Check the spelling, or find your home on the map."
+msgstr "{street} no está en la lista de direcciones. Revise cómo se escribe, o busque su casa en el mapa."
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{street} isn't in the address list. Did you mean one of these?"
+msgstr "{street} no está en la lista de direcciones. ¿Quiso decir una de estas?"
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{street} runs through {areas}. Add your house number to find yours."
+msgstr "{street} pasa por {areas}. Agregue el número de su casa para encontrar el suyo."
 
 #: site/pages/streets/index.html
 #, python-brace-format
