@@ -22,14 +22,16 @@ and name in them is in the document's own text.
   count with no one against, when the document says the vote was unanimous
   or all in favor. A count the model made by counting names in a roll call
   can't be checked this way, so it's noted ("tally"), not failed.
-- A name is a capitalized word that isn't an ordinary English word
-  (pipeline/translate.py's names()), looked for with the document's spacing
-  ignored, since some PDFs' text breaks words up ("T u renne").
+- A name is a capitalized word that isn't an ordinary English word, one with
+  capitals inside ("McCallum", "O'Brien"), or any capitalized word after a
+  title or "moved by" ("Councilor Hall") (pipeline/translate.py's names()),
+  looked for with the document's spacing ignored, since some PDFs' text breaks
+  words up ("T u renne").
 
 Each decision in minutes summarized since the minutes prompt's version 3 comes
 with its outcome (approved, denied, tabled, continued, referred, recommended,
 withdrawn, or other) and a quote: the minutes' own words for it
-("decision_evidence", beside "decisions", one entry each). Three more checks:
+("decision_evidence", beside "decisions", one entry each). More checks:
 - The quote is in the document, word for word, with the document's spacing,
   line breaks, and punctuation ignored, and a page header or line number
   allowed inside it ("quote").
@@ -37,22 +39,34 @@ withdrawn, or other) and a quote: the minutes' own words for it
   passage from a little before it, where the motion usually is, to a little
   after ("away"), so an amount or name can't move from one motion to another.
   Listed, not held back, like a vote count: an item's heading can be pages
-  before its vote, and how often a right decision is listed is measured
-  first (python -m pipeline.evaluate).
-- The outcome agrees with both the decision's wording and the quote
-  ("outcome"): a decision that says approved, where the minutes say the
-  motion failed, or a "not" dropped, fails. A count with fewer for than
-  against can't be approved; one with more for can still have failed (a
-  two-thirds vote), so that isn't held against a denial. An outcome of
-  "other" has no words of its own, but a decision given it that doesn't say
-  no, where the minutes say the motion failed, fails too.
-- The headline agrees with the decision it's about ("outcome", on the
-  headline): one that says yes (approved, adopted, passed) where that
-  decision was denied, or no where it was approved, fails. Each clause of
-  the headline ("Declined nine applicants and reappointed Robert Soohoo") is
-  matched to the decision sharing the most words and numbers with it; a
-  clause that says both yes and no, or neither, or matches decisions that
-  went both ways, isn't checked.
+  before its vote. Of the network's 2,863 decisions with a quote, 72 are
+  listed, and the 22 of them read were all right.
+- How the motion ended is read from the quote and the minutes after it (its
+  "passage"): up to RESULT_AFTER characters, and no further than the next
+  item's heading or the next motion. Its vote count is looked for there, not
+  anywhere in the minutes, so a count, or "unanimous", from another item isn't
+  taken for it ("tally"). Who moved or seconded it, where the decision says,
+  is who the minutes there say ("mover").
+- The outcome agrees with the decision's wording, the quote, and how the
+  motion ended ("outcome"): a decision that says approved, where the minutes
+  say the motion failed, had no second, or was denied, or a "not" dropped,
+  fails. A count with fewer for than against can't be approved; one with more
+  for can still have failed (a two-thirds vote), so that isn't held against a
+  denial. An outcome of "other" has no words of its own, but a decision given
+  it that doesn't say no, where the minutes say the motion failed, fails too.
+  An approved decision whose passage doesn't say how the motion ended is
+  listed ("unanchored"), not held back: of the network's 2,044 approved
+  decisions with a quote, 28 are, and all were right, their minutes saying it
+  in words the check doesn't read ("Vote unless doubted, no doubt"), or in a
+  roll call's table.
+- The headline, and each sentence of the summary, agree with the decisions
+  they're about ("outcome", on the headline or the summary): one that says
+  yes (approved, adopted, passed) where that decision was denied, or its
+  motion didn't carry, or no where it was approved, fails. Each clause
+  ("Declined nine applicants and reappointed Robert Soohoo") is matched to the
+  decision sharing the most words and numbers with it; a clause that says
+  both yes and no, or neither, or matches decisions that went both ways,
+  isn't checked.
 
 The evidence is the PDF's own text layer, never the model's. A document whose
 every page has text is checked in full ("pdf"). One with pages that have no
@@ -78,8 +92,13 @@ from pathlib import Path
 
 from pipeline import translate
 
-# 4: an "other" outcome where the motion failed, and the headline's outcome.
-VERSION = 4
+# 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
+# after the quote; vote counts and who moved it, near the quote; the summary's outcome; names with capitals
+# inside, or after a title (translate.names()).
+VERSION = 5
+
+# What's noted, not failed (see check() and shown()).
+NOTED = ("tally", "away", "unanchored")
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
 
@@ -212,7 +231,8 @@ TOTAL = re.compile(r"\b(?:total(?:s|ing|ling|ed)?|combined|together|in\s+all|sum
 
 
 def squashed(text: str) -> str:
-    return re.sub(r"\s+", "", text or "").lower()
+    """Text without its spaces, lowercased, with one apostrophe ("O’Brien" is "o'brien")."""
+    return re.sub(r"\s+", "", text or "").lower().replace("’", "'")
 
 
 SCALE = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "k": 1e3, "m": 1e6, "b": 1e9}
@@ -250,6 +270,25 @@ def rounds_to(x: float, doc_amounts: list[float]) -> bool:
     return any(abs(a - x) <= 0.05 * x for a in doc_amounts)
 
 
+def tally_found(m: re.Match, doc: str) -> bool:
+    """Whether a document (or a passage of one) gives a vote count (a TALLY match): as a count,
+    in words, or, with no one against, as unanimous."""
+    parts = [g for g in m.groups() if g is not None]
+    # With its abstentions or without: "5-0-1" is in "passed 5-0-1" and "passed 5-0", not "passed 5-0-2"; "5-0"
+    # is in "passed 5-0-1".
+    third = rf"(?:\s*[-–]\s*{parts[2] if len(parts) > 2 else r'\d{1,2}'})?"
+    if re.search(rf"(?<![\d-]){parts[0]}\s*(?:[-–]|to)\s*{parts[1]}{third}(?![\d-])", doc):
+        return True
+    # "voted 3 in favor, 0 opposed", "5 yeas, 2 nays", "4 ayes and 1 no".
+    if re.search(rf"(?<![\d-]){parts[0]}\s+(?:(?:votes?|members?)\s+)?(?:in\s+favou?r|yeas?|ayes?|yes)\W+(?:and\s+|with\s+)?"
+                 rf"{parts[1]}\s+(?:(?:votes?|members?)\s+)?(?:opposed|nays?|noes|no|against)", doc, re.I):
+        return True
+    if all(p == "0" for p in parts[1:]) and UNANIMOUS.search(doc):
+        return True
+    # "In Favor: 2 In Opposition: 3", "Yea: 10 ... Nay: 1", "2 yea (names) to 11 nay".
+    return (int(parts[0]), int(parts[1])) in document_votes(doc)
+
+
 def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[float], doc_squashed: str,
                words: frozenset, doc_dates: set | None = None, doc_money: set | None = None,
                doc_scaled: list[float] | None = None) -> list[dict]:
@@ -261,19 +300,8 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
     tallies = [(m.start(), m.end(), m) for m in TALLY.finditer(text)]
     spans = [(s, e) for s, e, _ in tallies]
     for s, e, m in tallies:
-        parts = [g for g in m.groups() if g is not None]
-        if re.search(rf"(?<![\d-]){parts[0]}\s*(?:[-–]|to)\s*{parts[1]}(?![\d-])", doc):
-            continue
-        # "voted 3 in favor, 0 opposed", "5 yeas, 2 nays", "4 ayes and 1 no".
-        if re.search(rf"(?<![\d-]){parts[0]}\s+(?:(?:votes?|members?)\s+)?(?:in\s+favou?r|yeas?|ayes?|yes)\W+(?:and\s+|with\s+)?"
-                     rf"{parts[1]}\s+(?:(?:votes?|members?)\s+)?(?:opposed|nays?|noes|no|against)", doc, re.I):
-            continue
-        if all(p == "0" for p in parts[1:]) and UNANIMOUS.search(doc):
-            continue
-        # "In Favor: 2 In Opposition: 3", "Yea: 10 ... Nay: 1", "2 yea (names) to 11 nay".
-        if (int(parts[0]), int(parts[1])) in document_votes(doc):
-            continue
-        problems.append({"kind": "tally", "what": m.group(0)})
+        if not tally_found(m, doc):
+            problems.append({"kind": "tally", "what": m.group(0)})
     for month, day, year, s, e in dates(text):
         spans.append((s, e))
         if not date_found(month, day, year, doc_dates):
@@ -321,6 +349,9 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
     for name in sorted(translate.names(text, words)):
         if name in STATES or squashed(name) in doc_squashed:
             continue
+        # A hyphenated name the document writes without its hyphen, or with a space ("Colon Hayes").
+        if "-" in name and squashed(name).replace("-", "") in doc_squashed.replace("-", ""):
+            continue
         problems.append({"kind": "name", "what": name})
     return problems
 
@@ -346,13 +377,20 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
     if kind == "minutes" and "decision_evidence" in record:
         located = Located(doc)
+        outcomes = []
         for i, (text, evidence) in enumerate(zip(record.get("decisions") or [], record["decision_evidence"])):
             whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
-            for p in anchored(text, evidence or {}, located, words, whole):
-                problems.append({"field": "decisions", "entry": i + 1, **p})
-        problems += [{"field": "headline", **p} for p in headline_outcome(record)]
-    # A vote count the minutes don't give, and a number or name far from its decision's quote, are noted.
-    hard = [p for p in problems if p["kind"] not in ("tally", "away")]
+            found = anchored(text, evidence or {}, located, words, whole)
+            problems += [{"field": "decisions", "entry": i + 1, **p} for p in found]
+            # The headline and the summary are held to how the motion ended, where the minutes say it didn't
+            # carry, not to the outcome the model gave it.
+            outcomes.append("denied" if any(didnt_carry(p) for p in found) else labeled(text, (evidence or {}).get("outcome")))
+        problems += [{"field": "headline", **p} for p in says_outcome(record, record.get("headline") or "", outcomes)]
+        problems += [{"field": "summary", **p} for sentence in sentences(record.get("summary") or "")
+                     for p in says_outcome(record, sentence, outcomes)]
+    # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
+    # whose result the minutes don't give near its quote, are noted.
+    hard = [p for p in problems if p["kind"] not in NOTED]
     result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems}
 
@@ -396,8 +434,8 @@ SAYS_NO = re.compile(FAILED.pattern + r"|\bden(?:y|ied|ies|ying)\b|\bdisapprov\w
                      r"\b(?:not|never)\s+(?:to\s+)?(?:approv|adopt|accept|grant|pass|carr|recommend|support|allow|issu|deem|"
                      r"endors|award|appoint|confirm|move|proceed)\w*|n't\s+(?:approv|adopt|accept|grant|pass|carr|recommend)\w*", re.I)
 # A decision that says no, in the model's own words, which are about how it ended: "Rejected a motion to
-# pass ...", "Motion to approve the June 4 minutes failed".
-DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed))\b", re.I)
+# pass ...", "Motion to approve the June 4 minutes failed", "voted down a motion to adopt".
+DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed)|voted\s+down|turned\s+down)\b", re.I)
 # What the decision and the quote each say, for an outcome that has words of its own.
 SAYS = {
     # "Held in the Finance and Property Committee": a committee keeping an item is tabling it.
@@ -418,8 +456,8 @@ COUNTS = (
 
 
 # A vote's words right before a bare count ("voted 5-0", "carried (4-1)", "failed 3-8", "by a vote of 3-8",
-# "roll call 9-5"), or right after it ("a 5-0 vote").
-BEFORE_COUNT = re.compile(r"\b(?:vot\w*|carri\w*|pass(?:ed|es)?|fail\w*|roll\s+call|tally|count)\b[^.;:\n\d]{0,15}$", re.I)
+# "roll call 9-5", "Vote: 4-0"), or right after it ("a 5-0 vote").
+BEFORE_COUNT = re.compile(r"\b(?:vot\w*|carri\w*|pass(?:ed|es)?|fail\w*|roll\s+call|tally|count)\b:?[^.;:\n\d]{0,15}$", re.I)
 AFTER_COUNT = re.compile(r"^\s*\)?\s*(?:vote|roll\s+call)\b", re.I)
 
 
@@ -505,10 +543,146 @@ class Located:
         return pos
 
 
+# ---- A decision's result, read after its quote ----------------------------------------
+
+# How far past a decision's quote its result is read. Most minutes give it in the quote itself or on the
+# next line ("Motion carried 5-0"); some after the rest of a long motion or a roll call: Waltham's School
+# Committee an executive session's motion of a thousand characters, then "All in favor."
+RESULT_AFTER = 1200
+# How far before a quote who moved it is looked for: the motion's start, where the quote is its middle.
+MOTION_BEFORE = 300
+# A motion's start: "Motion by Councilor Jones", "A motion was made by", "On motion of Alderman Barry",
+# "MOTION: Brydon", "Mr. Fitzgerald made a motion", "AS moves to approve", "Motion to accept". A passage
+# holds one: a second is the next motion's (an amendment, a reconsideration, the next item).
+MOTION = re.compile(r"\bmotion\s+(?:was\s+)?(?:made\s+)?(?:by|of|from)\b|\bmotion\s*:|\b(?:made|makes)\s+(?:a|the)\s+motion\b|"
+                    r"\bmov(?:ed|es)\s+(?:by|to|that)\b|\bmoved\s*:|\bmotion\s+to\s+\w+", re.I)
+# An item's heading at the start of a line: "15. Amending Resolution", "10.2. Misc.", "B.  Notice of
+# Intent", "VII. CERTIFICATES", "Subject 4.4.", "(CA) C. UNANIMOUSLY VOTED", Malden's "94-26 Petition",
+# Bangor's "26- 259 ORDER", Lewiston's "VOTE (266-2026)"; and a bullet, Lowell's "o MVE Abatements for
+# denial – 7 were denied" after another week's abatements "Approved by signatures".
+HEADING = re.compile(r"^[ \t]*(?:(?:\([A-Z]{1,3}\)\s*)?(?:(?:item|subject|article|vote)\s+)?"
+                     r"(?:\d{1,3}(?:\.\d{1,2})*[.)]|[A-Z][.)]|[IVX]{1,5}[.)]|\(?\d{1,4}\s?[-–]\s?\d{2,4}\)?)|[•●▪◦·o-])[ \t]", re.M | re.I)
+# A motion that didn't carry, as minutes say it after the motion: FAILED's words, kept within a sentence
+# (in a passage, "it" and "failed" can be sentences apart: "it was noted the septic system failed"), and
+# also "Action: Failed", "Did Not Pass - Vote 4-3", "the request was denied", "died for lack of a second".
+NO_SECOND = (r"\bno\s+second\b(?!\s+(?:is\s+|was\s+)?(?:needed|required|necessary))|\b(?:died|dies|failed|fails)\s+(?:for\s+)?(?:lack|want)\s+of\s+a\s+second|"
+             r"\b(?:did\s+not|didn't|failed\s+to)\s+(?:receive|get|have)\s+a\s+second|\bwithout\s+a\s+second|\bnot\s+seconded")
+RESULT_NO = re.compile(r"\b(?:motion|vote|order|amendment|petition|resolution|request|proposal|recommendation|it)\b"
+                       r"(?:[^\w.;]+\w+){0,8}?[^\w.;]+(?:fail(?:s|ed)|(?:was|were)\s+(?:defeated|rejected))\b|"
+                       r"\bfail(?:s|ed)\s+(?:by|on|to\s+(?:carry|pass|receive|get)|for\s+lack|\d|\()|"
+                       r"(?:^|[:\-–]\s*)fail(?:s|ed)\b|\b(?:defeated|rejected)\s+(?:by|on|\d|\()|"
+                       r"\b(?:did|does)\s+not\s+(?:carr|pass|prevail)\w*|\bnot\s+(?:carried|passed|adopted|approved)\b|"
+                       r"\bvoted\s+not\b|\b(?:was|is|were)\s+denied\b|" + NO_SECOND, re.I | re.M)
+# A motion that carried: "Motion carried", "passed", "passing 3-0", "adopted", "So voted", "it was voted to",
+# "UNANIMOUSLY VOTED", "All in favor", "Vote: Unanimous", "Passage: 9-0", "Approved: 12-0-0-2-1", "Ayes:
+# Chiasson, Hurley", "8 yes, 1 present", Wallingford's roll call "MR. CARUSO – YES;", "was approved",
+# "Approved by signatures", "approved as submitted", "All members present voted in favor", "There being no
+# objection", "Approved" on a line of its own,
+# "hereby approves", "has reappointed", and a count in parentheses after the motion and its mover and
+# seconder (Lewiston's "Janet Beaudoin – Luke Jensen (7-0)"). Not a motion's own words ("that the Order
+# be approved", "to pass").
+RESULT_YES = re.compile(r"\b(?:carri(?:ed|es)|(?<!be\s)(?<!to\s)pass(?:ed|es|ing)|adopted|so\s+voted|voted\s+to|it\s+was\s+voted|"
+                        r"unanimous(?:ly)?|all\s+(?:members\s+)?(?:present\s+)?(?:were\s+)?in\s+favou?r|all\s+ayes|"
+                        r"(?:was|were|is)\s+(?:approved|granted|accepted|adopted)|approved\s+(?:unanimously|by|\d)|motion\s+approved|"
+                        r"hereby\s+approve[sd]?|(?:was|were|has|have)\s+(?:been\s+)?(?:re)?appointed|(?:without|no)\s+objections?|"
+                        r"voted\s+in\s+favou?r|(?:approved|accepted)\s+as\s+(?:submitted|written|presented|amended))\b|"
+                        r"\b(?:vote[sd]?|passage|in\s+favou?r|action|result|approved|adopted|accepted|ayes|yeas)\s*:|"
+                        r"\b\d{1,2}\s+(?:yeas?|yes|ayes?)\b|(?<!be\s)(?<!to\s)\bapproved\.?[ \t]*$|"
+                        r"[-–]\s*(?:yes|aye|yea)\b|\(\s*\d{1,2}\s*[-–]\s*\d{1,2}(?:\s*[-–]\s*\d{1,2})*\s*\)", re.I | re.M)
+# Counts larger than this aren't a board's vote: a line number inside one ("carries (4-\n42 0)", in Beverly's
+# minutes, which number their lines).
+MOST_VOTES = 30
+
+
+def is_vote(m: re.Match, text: str) -> bool:
+    """Whether a count in a decision (a TALLY match) is its vote, to look for near its quote: one beside a
+    vote's words ("by a vote of 4-1", "a 5-0 vote"), or ending a clause ("Approved the plan, 5-0.",
+    "(4-0)"), and no more than MOST_VOTES. Not an address or a paper's number ("at 3-13 Putnam Street",
+    "Paper 84-26")."""
+    parts = [int(g) for g in m.groups() if g is not None]
+    if sum(parts) > MOST_VOTES:
+        return False
+    before, after = text[max(0, m.start() - 30):m.start()], text[m.end():m.end() + 15]
+    return bool(BEFORE_COUNT.search(before) or AFTER_COUNT.search(after)
+                or (re.search(r"(?:^|[,;(]|\bwith)\s*$", before) and re.match(r"\s*\)?\s*(?:[.,;)]|with\b|$)", after)))
+
+
+def passage(doc: str, end: int, quote: str) -> str:
+    """The minutes after a decision's quote (which ends at doc[end]), to RESULT_AFTER past it, up to the
+    next item's heading, or the next motion's start: the second after the quote, if the quote has none (a
+    quote that's the item's heading, "201-26 Order: That the sum of $175,000 be transferred", then its
+    motion). A motion's start that's its result, as Nashua's minutes restate it ("MOTION TO DENY CARRIED
+    4-1"), isn't another motion."""
+    text = doc[end:end + RESULT_AFTER]
+    cut = next((m.start() for m in HEADING.finditer(text)), len(text))
+    later = [m.start() for m in MOTION.finditer(text)
+             if not re.match(r"[^.;\n]{0,25}?\b(?:carri|pass|fail|adopt|approved)", text[m.end():])]
+    if later and MOTION.search(quote):
+        cut = min(cut, later[0])
+    elif len(later) > 1:
+        cut = min(cut, later[1])
+    return text[:cut]
+
+
+def result(text: str) -> tuple[bool, str] | None:
+    """How the first motion to end in a passage ended, if it says: whether it carried, and the minutes'
+    words for it, to the end of their sentence ("The motion carried, 9-2", "Did Not Pass - Vote 4-3").
+    Carried with fewer for than against didn't; with more for, failed can still be (a two-thirds vote)."""
+    found = [m.start() for pattern in (RESULT_NO, RESULT_YES, *COUNTS) for m in pattern.finditer(text)]
+    found += [m.start() for m in TALLY.finditer(text)
+              if BEFORE_COUNT.search(text[max(0, m.start() - 30):m.start()]) or AFTER_COUNT.search(text[m.end():m.end() + 15])]
+    if not found:
+        return None
+    at = min(found)
+    said = re.split(r"(?<=[.;])\s", text[at:at + 150])[0]
+    counted = votes_for_against(text[max(0, at - 30):at] + said)
+    against = counted and counted[0] < counted[1] and sum(counted) <= MOST_VOTES
+    return not (RESULT_NO.search(said) or against), " ".join(said.split())
+
+
+# Who made a motion, and who seconded it, as a decision or the minutes name them: "on a motion by
+# Councilor Smith", "Motion by Councilor Jones, seconded by Councilor Smith", "Alderman Terrio, duly seconded
+# by", "Bob made a motion, Maggie seconded", "Motion: Brydon Second: Surrette", "Made by: Dr. Rinebold",
+# "MOTION BY ALDERMAN O’BRIEN". The words are any case; the name is capitalized.
+TITLE = (r"(?i:councill?ors?|aldermen|alderman|alderwoman|alder|ald\.|mayor|(?:vice[\s-])?chair(?:man|woman|person)?|president|"
+         r"commissioner|(?:board\s+)?member|selectm[ae]n|selectwoman|trustee|dr\.?|mrs?\.?|ms\.?|rep\.?|sen\.?)")
+# Words a name doesn't run on into: "Motion: Brydon Second: Surrette".
+NOT_NAME = r"(?i:and|to|that|for|with|the|second\w*|vote\w*|motion|mov\w+|made|all|unanimous\w*|carri\w+|pass\w*)\b"
+WHO = rf"((?:{TITLE}\s+)*(?!{NOT_NAME})[A-Z][\w'’.-]*(?:\s+(?!{NOT_NAME})[A-Z][\w'’-]*){{0,2}})"
+MOVER = (re.compile(rf"(?i:\bmotion\s+(?:was\s+)?(?:made\s+)?(?:by|of|from)|\bmoved\s+by|\bmotioned\s+by|\bmade\s+by\s*:?|\bmotion\s*:)\s*{WHO}"),
+         re.compile(rf"{WHO}\s+(?i:made\s+(?:a|the)\s+motion|moved|moves|motioned)\b"))
+SECONDER = (re.compile(rf"(?i:\bseconded\s+by|\bsecond(?:ed)?\s*(?:by)?\s*:|\b2nd\s*:?)\s*{WHO}"),
+            re.compile(rf"{WHO}\s+(?i:seconded|seconds)\b"))
+DECISION_MOVER = re.compile(rf"(?i:\bon\s+(?:a\s+|the\s+)?motion\s+(?:of|by|from)|\bmotion(?:ed)?\s+(?:made\s+)?by|\bmoved\s+by)\s+{WHO}")
+DECISION_SECONDER = re.compile(rf"(?i:\bseconded\s+by)\s+{WHO}")
+
+
+def surname(who: str) -> str:
+    """A person's last name, to compare: "Councilor Colon Hayes" is "hayes", "Alderman O’Brien" "o'brien"."""
+    words = re.sub(rf"^(?:{TITLE}\s+)*", "", who).replace("’", "'").split()
+    return words[-1].strip(".").lower() if words else ""
+
+
+def who_moved(text: str, region: str) -> list[dict]:
+    """A decision that names who moved or seconded it, where the minutes near its quote name others for
+    it, and not that one. Initials ("AS moves to approve", Burlington's committees) can't be compared."""
+    problems = []
+    for role, said, patterns in (("moved", DECISION_MOVER, MOVER), ("seconded", DECISION_SECONDER, SECONDER)):
+        m = said.search(text)
+        if not m or len(surname(m.group(1))) < 2:
+            continue
+        in_minutes = [" ".join(found.group(1).split()) for p in patterns for found in p.finditer(region)]
+        in_minutes = [w for w in in_minutes if re.search(r"[A-Za-z]*[a-z][A-Za-z]*|[A-Z]{4,}", re.sub(rf"^(?:{TITLE}\s+)*", "", w))]
+        if in_minutes and squashed(surname(m.group(1))) not in squashed(" ".join(in_minutes)):
+            problems.append({"kind": "mover", "what": f"{role} by {m.group(1).rstrip('.,')}, but the minutes say {in_minutes[0]}"})
+    return problems
+
+
 def anchored(text: str, evidence: dict, located: Located, words: frozenset, whole: set) -> list[dict]:
     """What's wrong with one decision's evidence: its quote isn't in the minutes, its numbers or
-    names aren't near the quote (whole: what isn't in the minutes at all, already a problem),
-    or its outcome doesn't agree with its wording or the quote."""
+    names aren't near the quote (whole: what isn't in the minutes at all, already a problem), its
+    vote count isn't in the passage that holds its result, who moved or seconded it isn't who the
+    minutes say, or its outcome doesn't agree with its wording, the quote, or how the motion ended."""
     quote, outcome = (evidence.get("quote") or "").strip(), evidence.get("outcome") or ""
     problems = []
     places = located.find(quote) if quote else []
@@ -524,29 +698,52 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
         if not away:
             break
     problems += [{"kind": "away", "what": w} for w in sorted(away or ())]
+    # The passage after the quote, to the motion's result, at each place the quote is (the same words, so
+    # what one place's passage gives is taken); the quote's own words come first.
+    passages = [quote + "\n" + passage(doc, e, quote) for _, e in places]
+    # A vote count only in the quote and its passage: one given anywhere else in the minutes is another
+    # motion's (Item 5's "carried unanimously" isn't Item 4's 5-0). Left out of the text, as one the minutes
+    # don't give.
+    for m in TALLY.finditer(text):
+        if is_vote(m, text) and m.group(0) not in whole and not any(tally_found(m, p) for p in passages):
+            problems.append({"kind": "tally", "what": m.group(0)})
+    # Who moved and seconded it: the passage, and the motion's start just before the quote.
+    movers = [who_moved(text, doc[max(0, s - MOTION_BEFORE):s] + p) for (s, _), p in zip(places, passages)]
+    problems += min(movers, key=len)
+    ended = [result(p) for p in passages]
+    # How the motion ended, where the quote doesn't say it failed (FAILED, below): failed everywhere the
+    # quote is.
+    failed = None if FAILED.search(quote) or not all(r and not r[0] for r in ended) else ended[0][1]
     if outcome not in OUTCOMES:
         problems.append({"kind": "outcome", "what": f"{outcome or '(none)'}: not an outcome"})
     elif outcome in ("approved", *SAYS):
+        counted = votes_for_against(quote)
+        against = counted and counted[0] < counted[1]
         if FAILED.search(quote):
             problems.append({"kind": "outcome", "what": f"{outcome}, but the minutes say the motion didn't carry"})
+        elif failed and not against:
+            problems.append({"kind": "outcome", "what": f"{outcome}, but the minutes say the motion didn't carry: {failed[:120]}"})
         elif outcome == "approved" and (SAYS_NO.search(text) or re.search(r"\bden(?:y|ied|ies)\b", quote, re.I)):
             problems.append({"kind": "outcome", "what": "approved, but the decision or the minutes say no"})
-        counted = votes_for_against(quote)
-        if counted and counted[0] < counted[1] and not FAILED.search(quote):
+        if against and not FAILED.search(quote):
             problems.append({"kind": "outcome", "what": f"{outcome}, but the vote was {counted[0]} for and {counted[1]} against"})
         if outcome in SAYS and not (SAYS[outcome].search(text) and SAYS[outcome].search(quote)):
             problems.append({"kind": "outcome", "what": f"{outcome}, but the decision or the minutes don't say so"})
     elif outcome == "denied":
         counted = votes_for_against(quote)
-        if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1])):
+        if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1]) or failed):
             problems.append({"kind": "outcome", "what": "denied, but the decision or the minutes don't say no"})
     elif outcome == "other":
         # A failed motion given "other" (the evaluation's Lyceum minutes: "Motion fails.") is fine while the
         # decision says it failed; one that reads as passing is turned round.
         counted = votes_for_against(quote)
-        if (FAILED.search(quote) or (counted and counted[0] < counted[1])) and not DECISION_NO.search(text):
+        if (FAILED.search(quote) or (counted and counted[0] < counted[1]) or failed) and not DECISION_NO.search(text):
             problems.append({"kind": "outcome", "what": "other, but the minutes say the motion didn't carry, "
                                                         "and the decision doesn't say no"})
+    # Approved, where neither the quote nor its passage says how the motion ended: listed, not held back.
+    # (Another outcome is in the quote's own words, or needs none.)
+    if outcome == "approved" and not any(ended):
+        problems.append({"kind": "unanchored", "what": "the minutes don't say how the motion ended near the quote"})
     return problems
 
 
@@ -564,20 +761,54 @@ COMMON = frozenset(
 
 
 def subject_words(text: str) -> set[str]:
-    """What a text is about, to match a headline to its decision: its longer words and its numbers."""
+    """What a text is about, to match a headline to its decision: its longer words, its shorter names
+    ("Elm Street"), and its numbers."""
     return ({w for w in re.findall(r"[a-z]{4,}", text.lower()) if w not in COMMON}
+            | {w.lower() for w in re.findall(r"\b[A-Z][a-z]{2}\b", text) if w not in ("The", "And", "For", "Its", "Was", "Has", "All")}
             | {v for v, _, _ in numbers(text) if len(v) > 1})
 
 
-def headline_outcome(record: dict) -> list[dict]:
-    """Each clause of a minutes headline that says yes where the decision it's about was denied, or no
-    where it was approved: that decision being the one sharing the most of its words and numbers (at
-    least two). A clause that says both, or neither, isn't checked."""
-    scored_decisions = [(subject_words(text), (evidence or {}).get("outcome"))
-                        for text, evidence in zip(record.get("decisions") or [], record.get("decision_evidence") or [])]
+def didnt_carry(p: dict) -> bool:
+    """Whether a decision's problem is that the minutes say its motion didn't carry, where its outcome
+    says it did (anchored())."""
+    return p["kind"] == "outcome" and bool(re.match(r"\w+, but the (?:minutes say the motion didn't carry|vote was)", p["what"]))
+
+
+def labeled(text: str, outcome: str | None) -> str | None:
+    """A decision's outcome as the model gave it, for its headline and summary, unless the decision's own
+    words say otherwise ("Voted that the Commission does not object", approved; "Approved the joint
+    stipulation of denial", denied): the decision's own check says so, and the clause can't be held to
+    either."""
+    if outcome == "approved" and (DECISION_NO.search(text) or re.search(r"\bnot\b|n't\b", text, re.I)):
+        return None
+    if outcome == "denied" and not DECISION_NO.search(text) and SAYS_YES.search(text):
+        return None
+    return outcome
+
+
+# A motion named for what it would have done: "voted down a motion to adopt", "a request to approve",
+# "rejected motions to rescind the transfer and to adopt the Memorandum". Its verbs aren't the clause's yes.
+PROPOSED = re.compile(r"\b(?:motion|request|proposal|petition|bid|effort|attempt|application)s?\s+to\s+\w+"
+                      r"(?:[^.;]*?\b(?:and|or)\s+to\s+\w+)*", re.I)
+
+
+def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[dict]:
+    """Each clause of a minutes headline, or of a sentence of its summary, that says yes where the decision
+    it's about was denied (or its motion didn't carry: outcomes, one for each decision), or no where it was
+    approved: that decision being the one sharing the most of its words and numbers (at least two). A
+    clause that says both, or neither, isn't checked."""
+    scored_decisions = [(subject_words(decision), outcome) for decision, outcome in zip(record.get("decisions") or [], outcomes)]
     problems = []
-    for clause in CLAUSES.split(record.get("headline") or ""):
-        says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(clause))
+    # A clause that goes on with "to" is the one before's: "rejected motions to rescind the transfer and to
+    # adopt the Memorandum".
+    clauses = []
+    for clause in CLAUSES.split(text):
+        if clauses and re.match(r"\s*to\s", clause):
+            clauses[-1] += " and " + clause
+        else:
+            clauses.append(clause)
+    for clause in clauses:
+        says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(PROPOSED.sub(" ", clause)))
         if says_no == says_yes:
             continue
         about = subject_words(clause)
@@ -585,11 +816,11 @@ def headline_outcome(record: dict) -> list[dict]:
         best = max((n for n, _ in scored), default=0)
         if best < 2:
             continue
-        outcomes = {outcome for n, outcome in scored if n == best}
-        if outcomes == {"denied"} and says_yes:
-            problems.append({"kind": "outcome", "what": f"{clause.strip()}: says yes, but the decision was denied"})
-        elif outcomes == {"approved"} and says_no:
-            problems.append({"kind": "outcome", "what": f"{clause.strip()}: says no, but the decision was approved"})
+        found = {outcome for n, outcome in scored if n == best}
+        if found == {"denied"} and says_yes:
+            problems.append({"kind": "outcome", "what": f"{clause.strip().rstrip('.')}: says yes, but the decision was denied"})
+        elif found == {"approved"} and says_no:
+            problems.append({"kind": "outcome", "what": f"{clause.strip().rstrip('.')}: says no, but the decision was approved"})
     return problems
 
 
@@ -651,7 +882,12 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
       in the document isn't shown, nor is such a headline, or such a sentence of the summary
       (the whole summary, in another language, where its sentences can't be matched);
       "not_shown" counts the entries left out, for the page to say so;
-    - wherever it was checked, a vote count the document doesn't give is left out of the text.
+    - what's only noted (NOTED: a number or name far from its decision's quote, a decision whose
+      result the minutes don't give near its quote) is shown, unless the summary failed for
+      something else: then the check has found the model wrong in this summary, and what it
+      could only note isn't shown either;
+    - wherever it was checked, a vote count the document doesn't give (near its decision's quote,
+      for a decision with one) is left out of the text.
     Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
     on a page they can't read."""
     if not display or not record or not record.get("fact_check"):
@@ -678,7 +914,11 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
             out[field] = [t for j, t in enumerate(out[field]) if j + 1 not in entries]
             out["not_shown"] = out.get("not_shown", 0) + len(entries)
         elif field == "summary" and english:
-            whats = [p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] != "tally"]
+            # What isn't in the document, or the clause that says the opposite of its decision (without the
+            # vote counts taken out of the text above).
+            tallies = [p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] == "tally"]
+            whats = [functools.reduce(without_tally, tallies, p["what"].rsplit(": says ", 1)[0]) if p["kind"] == "outcome"
+                     else p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] != "tally"]
             out[field] = " ".join(s for s in sentences(out[field]) if not any(w in s for w in whats))
         else:
             out[field] = ""

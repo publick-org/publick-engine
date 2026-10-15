@@ -45,16 +45,17 @@ def test_the_check_is_as_accepted(name):
 
 
 def test_a_change_says_what_is_now_shown_or_hidden_and_why():
-    item = next(i for i in sample()["items"] if i["town"] == "portland-me" and i["sha256"].startswith("346a2e5be3"))
+    # Waltham's City Council: a decision whose outcome the minutes don't bear out.
+    item = next(i for i in sample()["items"] if i["town"] == "waltham-ma" and i["sha256"].startswith("04167a80ee"))
     actual = evaluate_factcheck.replay(item, frozenset(sample()["words"]))
-    hidden = actual["hidden"][0]
-    assert hidden.startswith("decisions ")
+    hidden = next(h for h in actual["hidden"] if h.startswith("decisions ")
+                  and all(" outcome " in p for p in evaluate_factcheck.why(actual, h)))
     # As if the check had shown the decision before.
     before = copy.deepcopy(actual)
     before["hidden"].remove(hidden)
     before["problems"] = [p for p in before["problems"] if not p.startswith(hidden + ":")]
     lines = evaluate_factcheck.differences(item, before, actual)
-    assert lines[0].startswith("portland-me 346a2e5be378, minutes of ")
+    assert lines[0].startswith("waltham-ma 04167a80ee8c, minutes of ")
     assert any(line.startswith(f"  {hidden}: shown -> hidden: ") for line in lines)
     because = [line for line in lines if line.startswith("    because: ")]
     assert because and all(line.startswith(f"    because: {hidden}: outcome ") for line in because)

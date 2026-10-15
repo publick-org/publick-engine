@@ -241,8 +241,9 @@ IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", 
              "withheld"}
 # Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
 # ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
-NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise", "pickleball",
-               "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness", "workforce"}
+NEWER_WORDS = {"coordinator", "councillor", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise",
+               "pickleball", "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness",
+               "workforce"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
                    "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
 
@@ -286,26 +287,64 @@ def is_word(word: str, also: frozenset = frozenset()) -> bool:
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
                                                   ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
              if w.endswith(end)]
+    # "Sustainability", "accessibility".
+    stems += [w[:-len(end)] + add for end, add in (("ability", "able"), ("ibility", "ible")) if w.endswith(end)]
     # Doubled before an ending: "planning", "referred".
     stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
-    return any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems)
+    if any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems):
+        return True
+    # "Unaudited", "unexpended": "un" before a word of five letters or more.
+    return w.startswith("un") and len(w) >= 7 and is_word(w[2:], also)
 
 
 # Abbreviations, with their period, that a translation may write out ("Ch." as "Cap." or "capítulo"):
 # words, not names. Business suffixes (Inc., Corp.) aren't here: a business's name is kept.
 ABBREVIATIONS = {"Art", "Ave", "Blvd", "Ch", "Chap", "Dir", "Est", "Ext", "No", "Rd", "Sec", "Secs", "St", "Vol"}
 # Those that are never anyone's name, with or without a period ("Asst City Clerk").
-ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt"}
+ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt", "Tem",
+                        "Apr", "Aug", "Dec", "Feb", "Jul", "Jun", "Nov", "Oct"}
+# A name as a summary writes it: a capitalized word ("Houseman"), one with capitals inside ("McCallum",
+# "LeLacheur", "DiStefano", "O'Brien"; not an acronym's plural, "CDs"), one in capitals after a title ("MR.
+# CARUSO", "ALDERMAN O’BRIEN"; on its own, a word in capitals is an acronym, which a translation may write
+# out: "ZBA", "HVAC"), or two or more of them joined by hyphens ("Sanchez-Parkinson").
+INNER_CAPITALS = r"(?:[A-Z][a-z]+[A-Z][a-z]{2,}|[A-Z]['’][A-Z][a-z]{2,})(?:[A-Z][a-z]{2,})*"
+NAME_PART = rf"(?:{INNER_CAPITALS}|[A-Z][a-z]+|[A-Z]+['’][A-Z]{{2,}}|[A-Z]{{3,}})"
+# A name in quotes ("'Lowell Garden of Peace'") is one, but not the rest of "O'Brien" or "D'Angelo".
+NAME = re.compile(rf"(?<![\w-])(?<![A-Z]['’])({NAME_PART}(?:-{NAME_PART})*)(?![\w-])(\.?)")
+# What makes the capitalized word after it a name, ordinary word or not: a title ("Councilor Hall", "Mayor
+# Young", "Dr. Wood"), or "moved by" ("seconded by Rose").
+TITLE_WORDS = r"Councill?ors?|Alderm[ae]n|Alderwom[ae]n|Mayor|Chair(?:man|woman|person)?|Commissioners?"
+TITLED = re.compile(rf"\b(?:{TITLE_WORDS}|(?:Mrs?|Ms|Dr|Rep|Sen)\.|(?:moved|seconded|motion(?:ed)?(?:\s+made)?)\s+by)\s+$", re.I)
+# Words after a title that aren't a name: another title ("seconded by Alderman Barry"), "Mayor Pro Tem",
+# "Councilor At-Large", "Mr. President", and an agenda's headings ("Chair Report", "Commissioner Items").
+NOT_TITLED = re.compile(rf"(?:{TITLE_WORDS}|Mrs?|Ms|Dr|Rep|Sen|Chief|Vice|President|Pro|Elect|Emeritus|At|Large|The|And|Of|For|Report|Reports|"
+                        r"Announcements|Items|Roles|Comments|Remarks|Update|Updates|Amendment|Amendments)", re.I)
 
 
 def names(text: str, also: frozenset = frozenset()) -> set[str]:
-    """The names in an English text: capitalized words that aren't ordinary English words
-    ("Houseman" is one, "Collector" isn't), which a translation keeps as written. also: more
-    ordinary words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in
-    ALWAYS_ABBREVIATIONS, isn't one."""
-    return {m.group(1) for m in re.finditer(r"\b([A-Z][a-z]+)\b(\.?)", text or "")
-            if not (m.group(2) and m.group(1) in ABBREVIATIONS) and m.group(1) not in ALWAYS_ABBREVIATIONS
-            and not is_word(m.group(1), also)}
+    """The names in an English text (NAME), which a translation keeps as written: capitalized words
+    that aren't ordinary English words ("Houseman" is one, "Collector" isn't), with capitals inside
+    ("McCallum", "O'Brien"), and any capitalized word after a title or "moved by" ("Councilor Hall",
+    "seconded by Wood", "MR. CARUSO"); hyphenated, when a part is one. also: more ordinary
+    words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in ALWAYS_ABBREVIATIONS,
+    isn't one."""
+    found = set()
+    for m in NAME.finditer(text or ""):
+        word, dot = m.group(1), m.group(2)
+        if (dot and word in ABBREVIATIONS) or word in ALWAYS_ABBREVIATIONS:
+            continue
+        if NOT_TITLED.fullmatch(word) is None and TITLED.search(text[max(0, m.start() - 30):m.start()]):
+            found.add(word)
+        elif word != word.upper() and any(
+                not is_word(re.sub(r"['’]", "", part), also) for part in word.split("-")):
+            found.add(word)
+    return found
+
+
+def kept(name: str, text: str) -> bool:
+    """Whether a name is in a text as written, whichever apostrophe it's written with."""
+    name, text = name.replace("’", "'"), text.replace("’", "'")
+    return bool(re.search(rf"(?<![\w-])(?<!\w'){re.escape(name)}(?![\w-])", text))
 
 
 def plain(text: str) -> str:
@@ -423,7 +462,7 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
                 return f"{where}: amounts' scale differs (million, billion)"
             if times(a) != times(b):
                 return f"{where}: a.m. or p.m. differs"
-            lost_names = sorted(n for n in names(a, words) if not re.search(rf"\b{n}\b", plain(b)))
+            lost_names = sorted(n for n in names(a, words) if not kept(n, plain(b)))
             if lost_names:
                 return f"{where}: {', '.join(lost_names)} not in the translation"
             wrong = outcome(a, b, lang)

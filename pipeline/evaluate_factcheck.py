@@ -100,7 +100,7 @@ def candidates(network: Path) -> list[dict]:
 def strata(c: dict) -> set[str]:
     """What a summary stands for in a sample."""
     fc = c["record"].get("fact_check") or {}
-    hard = {p["kind"] for p in fc.get("problems", []) if p["kind"] not in ("tally", "away")}
+    hard = {p["kind"] for p in fc.get("problems", []) if p["kind"] not in factcheck.NOTED}
     return ({f"town {c['town']} {c['kind']}", f"platform {c['town']} {c['platform']}",
              f"prompt {c['kind']} {c['record'].get('prompt_version')}", f"source {fc.get('source')}",
              f"result {fc.get('result')}"}
