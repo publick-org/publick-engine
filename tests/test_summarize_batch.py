@@ -217,3 +217,20 @@ def test_a_summary_the_batch_returns_that_cant_be_read_is_paid_for_and_sent_agai
     assert any("couldn't be read" in e for e in result["errors"])
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     assert ledger["failed_cost"] == round(REQUEST / 2, 4)
+
+
+def test_collecting_sends_alone_only_what_the_batch_didnt_make(tmp_path, monkeypatch):
+    """The documents that didn't fit in the first part's budget wait for the next run's batch, even when the
+    batch cost less than its estimate and left room: sent now, they'd cost twice as much."""
+    monkeypatch.setattr(summarize, "estimated_cost", lambda kind, pages, settings: REQUEST * 2)
+    config = with_minutes(tmp_path)
+    client = FakeAnthropic(batch_results={1: "errored"})
+    # Room for five at the (high) estimate's half price.
+    result = first(config, client, tmp_path, allowance=REQUEST * 5.5)
+    assert result["queued"] == 5
+    result = collect(config, client, tmp_path, allowance=REQUEST * 5.5)
+    # Four collected, the one it didn't make sent alone, and none of the eleven others.
+    summary_calls = [c for c in client.calls if "transcript" not in c["output_config"]["format"]["schema"]["properties"]]
+    assert result["collected"] == 4 and len(summary_calls) == 1 and result["summarized"] == 5
+    pending = summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), config["summaries"]["model"])
+    assert len(pending) == 11

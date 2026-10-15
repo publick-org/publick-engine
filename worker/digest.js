@@ -26,8 +26,7 @@
 // twice (an email with its subject sent since shortly before its date). A town
 // whose newest issue is still last week's at this week's last try fails the run,
 // so a week skipped (its Sunday build didn't publish) is seen. Each
-// run makes one request for each town, and a few more for each town sending;
-// A Worker may make a limited number of subrequests a run.
+// run makes one request for each town, and a few more for each town sending.
 //
 // Testing: sendTest() sends an issue at once to the addresses given and no
 // subscriber, run by hand (worker/digest-test.js).
