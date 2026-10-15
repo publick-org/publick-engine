@@ -22,7 +22,8 @@ for the year ([schedule_meetings]). A town can
 have several; Manchester's aldermanic meetings are on CivicClerk and its other
 boards on the city calendar, and Malden lists its meetings on its calendar and
 posts their agendas in its Agenda Center. A meeting listed in more than one
-place is kept as one record for each, and shown as one (pipeline/listings.py).
+place is kept as one record for each, and shown as one (pipeline/listings.py); which
+meeting each record is, is decided as it's saved (save_store, pipeline/identity.py).
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -44,7 +45,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -68,6 +69,14 @@ def load_store(data_dir: Path) -> dict:
 
 def save_json(path: Path, data) -> None:
     write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def save_store(data_dir: Path, store: dict, config: dict) -> None:
+    """Save the meetings, and the meeting each new listing is (pipeline/identity.py): every step that
+    records meetings saves them this way, so a listing is placed once, the day it's first recorded."""
+    previous = load_store(data_dir) if identity.load(data_dir) is None else None
+    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    identity.update(data_dir, store, config.get("town", {}).get("name", ""), previous)
 
 
 def normalize_body(body: str, aliases: dict) -> str:
@@ -516,7 +525,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         except Exception as e:  # one meeting's page doesn't stop the rest, or the save
             errors.append(str(e) if isinstance(e, FetchError) else f"{meeting['id']}: {e!r}")
 
-    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    save_store(data_dir, store, config)
     names = [c.name for c in calendars(config)]
     checked = {name: c for name, c in checked.items() if name in names}
     # Meetings are as fresh as the calendar checked longest ago, so the site's

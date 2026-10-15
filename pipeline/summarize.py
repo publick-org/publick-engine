@@ -363,10 +363,8 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
 
     Order: agendas for upcoming meetings, then minutes (newest meeting first),
     then agendas for past meetings."""
-    path = data_dir / "meetings" / "meetings.json"
-    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     # A meeting listed in more than one place is summarized once, from its current agenda.
-    store, _ = listings.combined(store)
+    store, _ = listings.read(data_dir)
     todo, seen = [], set()
     for meeting in store.values():
         # Older meetings keep their records and documents, without a summary.
@@ -609,9 +607,7 @@ def save_record(data_dir: Path, sha256: str, record: dict) -> None:
 def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
     """(kind, meeting, document, saved record) for each meeting's latest agenda and minutes
     that have a summary, newest meeting first."""
-    path = data_dir / "meetings" / "meetings.json"
-    store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    store, _ = listings.combined(store)
+    store, _ = listings.read(data_dir)
     out, seen = [], set()
     for meeting in store.values():
         for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
