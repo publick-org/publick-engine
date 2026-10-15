@@ -182,6 +182,17 @@ def format_duration_cell(days: float | None) -> str:
     return "–" if days is None else format_duration(days)
 
 
+def models_shown(configured: str | None, records: list[dict]) -> list[str]:
+    """The models whose work the site shows, for the About page: the configured one first (it makes
+    every new one), then any other that made a record still shown, since a record is made again when
+    its prompt changes, not when the model does (summarize.cached())."""
+    out = [configured] if configured else []
+    for record in records:
+        if record.get("model") and record["model"] not in out:
+            out.append(record["model"])
+    return out
+
+
 def model_name(model_id: str) -> str:
     """'claude-sonnet-5' -> 'Claude Sonnet 5'; 'claude-haiku-4-5-20251001' -> 'Claude Haiku 4.5'."""
     parts = [p for p in model_id.split("-") if not re.fullmatch(r"\d{8}", p)]
@@ -510,15 +521,15 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["body_slug"] = slugify(m["body"])
         m["body_url"] = f"/meetings/boards/{m['body_slug']}/"
         m["agenda"] = m["agendas"][-1] if m.get("agendas") else None
-        # The latest saved summary is shown, even one from an older prompt or
-        # model; the next summarize run replaces those.
-        m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], summary_model, "agenda", current=False) if m["agenda"] and summary_model else None
+        # The latest saved summary is shown, even one from an older prompt (the next
+        # summarize run replaces those) or another model.
+        m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], "agenda", current=False) if m["agenda"] and summary_model else None
         check_listing(m)
         from_agenda(m)
         m.setdefault("minutes", [])
         m["minutes_doc"] = m["minutes"][-1] if m["minutes"] else None
         m["minutes_summary"] = (
-            summarize.cached(data_dir, m["minutes_doc"]["sha256"], summary_model, "minutes", current=False)
+            summarize.cached(data_dir, m["minutes_doc"]["sha256"], "minutes", current=False)
             if m["minutes_doc"] and summary_model else None
         )
         # A summary taken down by hand isn't shown anywhere: not on its page, in lists, the feed,
@@ -1241,7 +1252,15 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     sc = config.get("seeclickfix") or config.get("officials", {})
     wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
              "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
-    common = dict(config=config, translation_model=translate.settings(config)["model"], site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+    # The summaries shown, and their translations, for the models the About page names.
+    shown = [(kind, m[doc_key], m[record_key]) for m in meetings["all"]
+             for kind, doc_key, record_key in (("agenda", "agenda", "preview"), ("minutes", "minutes_doc", "minutes_summary"))
+             if m[record_key]]
+    summary_models = models_shown(config.get("summaries", {}).get("model"), [r for _, _, r in shown])
+    translation_models = models_shown(translate.settings(config)["model"], [
+        t for other in langs if other != "en" for kind, doc, record in shown
+        for t in [translate.shown(data_dir, other, doc["sha256"], record, kind)] if t])
+    common = dict(config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   areas=officials_mod.areas(config),
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
                   has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
