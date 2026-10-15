@@ -56,7 +56,9 @@ def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
         if source in LINKED and LINKED[source] in meetings:
             found.append((source, str(meetings[LINKED[source]]["since"])))
         elif source in SCHOOL_SOURCES and f"{source}_meetings" in config:
-            found.append((source, str(config[f"{source}_meetings"]["since"])))
+            # A source whose board posts its minutes elsewhere (minutes = false) carries none.
+            if config[f"{source}_meetings"].get("minutes", True):
+                found.append((source, str(config[f"{source}_meetings"]["since"])))
         elif source in ("archive", "calendar") and "archive" in config:
             found.append(("archive", str(config["archive"]["minutes_since"])))
         elif source == "calendar" and "agenda_center" in meetings:
@@ -68,7 +70,8 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
     """Why a meeting that has taken place has no minutes here, or None when there's nothing to
     say: it has minutes, it's upcoming, or it wasn't held (cancelled, or no longer listed, which
     its page already says). One of:
-    {"reason": "not_collected"}: no source this site reads carries this board's minutes;
+    {"reason": "not_collected"}: no source this site reads carries this board's minutes; for a meeting
+    from a school district's website or portal, with its source, address and name, where they may be;
     {"reason": "before", "since": date}: before the date this site collects minutes from;
     {"reason": "linked", "url": ...}: the city links the minutes, and no copy is saved yet;
     {"reason": "not_posted", "days": n, "source": ..., "url": ..., "name": ...}: not posted yet, n days
@@ -80,7 +83,11 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
         return None
     found = minutes_source(config, m)
     if found is None:
-        return {"reason": "not_collected"}
+        gap = {"reason": "not_collected"}
+        where = next((r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") in SCHOOL_SOURCES), None)
+        if where:
+            gap.update(source=where["source"], url=where.get("source_url"), name=where.get("source_name"))
+        return gap
     source, since = found
     if m["date"] < since:
         return {"reason": "before", "since": since}

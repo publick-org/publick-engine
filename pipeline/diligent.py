@@ -180,6 +180,8 @@ def check(config: dict) -> None:
             re.compile(settings["exclude_pattern"])
         except (re.error, TypeError) as e:
             raise SystemExit(f"{where}: exclude_pattern isn't a regular expression ({e}).") from None
+    if not isinstance(settings.get("minutes", True), bool):
+        raise SystemExit(f"{where}: minutes must be true or false: whether the portal carries the board's minutes.")
     for key in ("recheck_days", "max_documents_per_run", "days_ahead"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")

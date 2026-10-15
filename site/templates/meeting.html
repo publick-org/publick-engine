@@ -192,12 +192,15 @@
 {# Why there are no minutes (pipeline/absences.py). A meeting that wasn't held has none to wait for, and says nothing. #}
 {% set g = m.minutes_gap %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
-{% if g.reason == "not_posted" %}
-{% if g.source in ("finalsite", "drive", "page") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
-{% elif g.source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
-{% elif g.source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
-{% elif g.source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
+{% set source = g.get("source") %}
+{% if source in ("finalsite", "drive", "page") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
+{% elif source == "diligent" %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
+{% elif source == "opengov" %}{% set where_url, where = g.url, _("state's Open Meetings portal") %}
+{% elif source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
+{% elif source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
+{% elif source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
 {% else %}{% set where_url, where = meeting_links.archive, meeting_links.archive_name %}{% endif %}
+{% if g.reason == "not_posted" %}
 {# Translators: %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number of days. #}
 <p data-gap="not_posted">{% trans count=g.days, num=g.days | number, url=where_url, where=where %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} day after the meeting.{% pluralize %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} days after the meeting.{% endtrans %} {{ _("Minutes usually come out after the board approves them at a later meeting.") }}</p>
 {% elif g.reason == "linked" %}
@@ -205,6 +208,9 @@
 {% elif g.reason == "before" %}
 {# Translators: %(when)s is the date this site collects minutes from, such as "July 1, 2026". #}
 <p>{% trans when=g.since | date("plain") %}This site collects minutes for meetings from {{ when }} on.{% endtrans %}</p>
+{% elif g.get("url") %}
+{# Translators: %(where)s is where the board posts its meetings, such as "Portland Public Schools meeting portal". #}
+<p>{% trans url=where_url, where=where %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">{{ where }}</a>.{% endtrans %}</p>
 {% else %}
 <p>{% trans url=town.get("official_site") or meeting_links.calendar %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
