@@ -15,7 +15,7 @@ spec.loader.exec_module(public_check)
 
 @pytest.mark.parametrize("path, line", [
     (".github/workflows/network.yml", '  SUMMARY_BUDGET: "12"'),
-    (".github/workflows/network.yml", '  SUMMARY_BUDGET_MONTH: "2026-10=200"'),
+    (".github/workflows/network.yml", '  SUMMARY_BUDGET_MONTH: "2026-01=34"'),
     (".github/workflows/evaluate.yml", "# A run costs about $9 on the key."),
     ("pipeline/network.py", "# We spent $42 on summaries this month."),
     ("pipeline/network.py", "MONTHLY_BUDGET = 12"),
