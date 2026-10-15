@@ -33,6 +33,7 @@ def test_a_cost_figure_in_any_file_is_flagged(path, line):
     ("pipeline/summarize.py", "        replaced_cost = 0"),
     ("towns/methuen-ma/config/methuen.toml", "time_budget_seconds = 2400"),
     ("pipeline/states/ct/schools.py", "FIRST_SPENDING_YEAR = 2015"),
+    (".github/workflows/evaluate.yml", '          PUBLICK_HIDE_COSTS: "1"'),
     # A town's limit for one run, and a model's list price: no secret.
     ("towns/methuen-ma/config/methuen.toml", "max_cost_per_run = 5.0"),
     ("pipeline/summarize.py", "DEFAULT_MAX_COST_PER_RUN = 5.0"),
