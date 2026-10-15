@@ -234,3 +234,17 @@ def test_collecting_sends_alone_only_what_the_batch_didnt_make(tmp_path, monkeyp
     assert result["collected"] == 4 and len(summary_calls) == 1 and result["summarized"] == 5
     pending = summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), config["summaries"]["model"])
     assert len(pending) == 11
+
+
+def test_a_batch_not_ended_yet_is_left_for_later_when_collecting_only_what_is_ready(tmp_path):
+    config = with_minutes(tmp_path)
+    # Ended the second time it's looked at.
+    client = FakeAnthropic(batch_polls=2)
+    first(config, client, tmp_path)
+    # Between the job's towns: still running, so nothing is done, nothing is cancelled or sent alone.
+    result = collect(config, client, tmp_path, ready_only=True)
+    assert result["collected"] == 0 and result["summarized"] == 0 and client.cancelled == [] and client.calls == []
+    assert (tmp_path / summarize.BATCH_FILE).exists() and result["stopped"] == "the batch isn't done yet"
+    # The next look finds it ended, and collects it as at the end of the job.
+    result = collect(config, client, tmp_path, ready_only=True)
+    assert result["collected"] == 16 and not (tmp_path / summarize.BATCH_FILE).exists()
