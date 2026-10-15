@@ -963,7 +963,7 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
     else:
         c.blank()
         c.fill_in(1, "the School Committee's meetings: where the district posts them ([ical_meetings], "
-                  "[page_meetings], [finalsite_meetings], [drive_meetings]), named in the Meetings section's "
+                  "[page_meetings], [finalsite_meetings], [drive_meetings], [diligent_meetings]), named in the Meetings section's "
                   "summary and in [freshness] sources; a platform the engine doesn't read is left out and said so "
                   "(ADDING-A-TOWN.md, step 1).")
 
