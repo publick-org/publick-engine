@@ -4358,7 +4358,7 @@ msgstr "Mediana, últimos 12 meses"
 msgid "Meeting summaries"
 msgstr "Resúmenes de reuniones"
 
-#. %(model)s is an AI model's name, such as "Claude Sonnet 5".
+#. %(model)s is an AI model's name, such as "Claude Sonnet 5", or several, separated by commas.
 #: site/pages/about/index.html
 #, python-format
 msgid ""
@@ -4980,7 +4980,7 @@ msgstr "Funcionarios"
 msgid "On agendas and minutes"
 msgstr "En agendas y actas"
 
-#. %(model)s is an AI model's name, such as "Claude Haiku 4.5".
+#. %(model)s is an AI model's name, such as "Claude Haiku 4.5", or several, separated by commas.
 #: site/pages/about/index.html
 #, python-format
 msgid ""

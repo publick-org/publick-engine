@@ -64,7 +64,7 @@ def waiting_summaries(config: dict, data_dir: Path, now: datetime, grace_days: f
                                                                       config["summaries"].get("since"))
             if datetime.fromisoformat(doc["fetched_at"]) < cutoff
             and summarize.is_new((doc_kind, meeting, doc), now)
-            and not summarize.cached(data_dir, doc["sha256"], model, doc_kind, current=False)]
+            and not summarize.cached(data_dir, doc["sha256"], doc_kind, current=False)]
 
 
 def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dict]:

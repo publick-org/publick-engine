@@ -10,8 +10,8 @@ A town in a network repository (towns/<town>-<state>/ in it, or any folder with
 PUBLICK_NETWORK_DIR naming the network) also takes the settings its towns share,
 from two optional files in the network's defaults/ folder:
 
-  defaults/network.toml       what every town in the network shares: [summaries] model and prices, the
-                              documents bucket, the footer's network name
+  defaults/network.toml       what every town in the network shares: [summaries] model, effort and
+                              prices, the documents bucket, the footer's network name
   defaults/states/<st>.toml   what every town in one state shares, picked by the town's [town] state_abbr:
                               the state's name, its Census and BLS codes, the wording of its laws
 
@@ -31,8 +31,9 @@ there, so a state's wording of its laws is written once; an entry with its own
 definition keeps it. The [[glossary]] list itself, its terms and their order,
 is the town's.
 
-What a layer may set is LAYER_KEYS, with each value's type: anything else in a
-layer file stops the load, naming the file and the key. A town's file may have
+What a layer may set is LAYER_KEYS, with each value's type (or, for an effort,
+the values it may take): anything else in a layer file stops the load, naming
+the file and the key. A town's file may have
 only the tables in TABLES, and the keys layers carry are checked for their type
 wherever they're set. Each module still checks its own table (load_config).
 
@@ -73,6 +74,8 @@ EVERY_TOWN = ("terms", "strings")
 # A number: an integer or a decimal, as TOML writes either.
 NUMBER = "number"
 ANY = "*"
+# An effort level the API takes (output_config.effort). A tuple of strings in the schema is a choice of one of them.
+EFFORT = ("low", "medium", "high", "xhigh", "max")
 # What a layer may set, and each value's type. A table nests; ANY stands for any key (a term, a language).
 LAYER_KEYS = {
     "site": {"network": str, "network_url": str, "repo_url": str, "name_suffix": str, "timezone": str,
@@ -80,10 +83,12 @@ LAYER_KEYS = {
     "town": {"state": str},
     "analytics": {"goatcounter": str, "public_stats": str},
     "storage": {"endpoint": str, "bucket": str, "public_url": str},
-    "summaries": {"model": str, "input_price": NUMBER, "output_price": NUMBER, "max_per_run": int,
-                  "max_cost_per_run": NUMBER, "translation_model": str, "translation_input_price": NUMBER,
-                  "translation_output_price": NUMBER, "translation_effort": str, "translation_review_model": str,
-                  "translation_review_input_price": NUMBER, "translation_review_output_price": NUMBER},
+    "summaries": {"model": str, "effort": EFFORT, "input_price": NUMBER, "output_price": NUMBER,
+                  "long_prompt_tokens": int, "long_input_price": NUMBER, "long_output_price": NUMBER,
+                  "max_per_run": int, "max_cost_per_run": NUMBER, "translation_model": str,
+                  "translation_input_price": NUMBER, "translation_output_price": NUMBER, "translation_effort": EFFORT,
+                  "translation_review_model": str, "translation_review_input_price": NUMBER,
+                  "translation_review_output_price": NUMBER, "translation_review_effort": EFFORT},
     "freshness": {"summary_grace_days": NUMBER, "grace_months": NUMBER},
     "digest": {"signup": bool, "provider": str, "privacy_url": str},
     "seeclickfix": {"open311_base": str, "api_base": str, "request_delay": NUMBER, "recent_days": int,
@@ -152,11 +157,15 @@ def key_name(path: tuple) -> str:
 
 
 def type_name(spec) -> str:
+    if isinstance(spec, tuple):
+        return "one of " + ", ".join(json.dumps(v) for v in spec)
     return ("a table" if isinstance(spec, dict) else "a list of strings" if isinstance(spec, list)
             else "a number" if spec == NUMBER else {str: "a string", int: "a whole number", bool: "true or false"}[spec])
 
 
 def fits(value, spec) -> bool:
+    if isinstance(spec, tuple):
+        return value in spec
     if isinstance(spec, list):
         return isinstance(value, list) and all(fits(v, spec[0]) for v in value)
     if spec == NUMBER:

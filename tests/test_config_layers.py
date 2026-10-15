@@ -178,11 +178,37 @@ def test_the_network_is_found_from_the_towns_folder_or_by_name(tmp_path, monkeyp
     ("[[sections]]\nslug = 'about'\n", r"\[sections\] isn't a setting a layer can have"),
     ("[town]\nstate_abbr = 'MA'\n", r"\[town\] state_abbr isn't a setting a layer can have"),
     ("[terms]\nADA = 1\n", r"\[terms\] ADA should be a string"),
+    ("[summaries]\neffort = 'hihg'\n", r'\[summaries\] effort should be one of "low", "medium", "high", "xhigh", "max", not \'hihg\''),
+    ("[summaries]\ntranslation_effort = 'none'\n", r"\[summaries\] translation_effort should be one of"),
+    ("[summaries]\nlong_prompt_tokens = 1e5\n", r"\[summaries\] long_prompt_tokens should be a whole number"),
 ])
 def test_a_layer_may_set_only_the_keys_it_carries(tmp_path, layer, message):
     root, path = make_network(tmp_path, network_layer=layer)
     with pytest.raises(SystemExit, match=message):
         read_config(path, root)
+
+
+def test_the_network_sets_the_summaries_effort_and_long_prompt_prices(tmp_path):
+    layer = NETWORK.replace('model = "claude-sonnet-5"\ninput_price = 2.0\noutput_price = 10.0\n', '''model = "claude-haiku-5-5"
+effort = "high"
+input_price = 0.1
+output_price = 0.5
+long_prompt_tokens = 100_000
+long_input_price = 0.5
+long_output_price = 2.5
+translation_model = "claude-haiku-5-5"
+translation_effort = "high"
+translation_input_price = 0.1
+translation_output_price = 0.5
+translation_review_effort = "low"
+''')
+    root, path = make_network(tmp_path, network_layer=layer)
+    summaries = read_config(path, root)["summaries"]
+    assert summaries == {"since": "2026-07-01", "max_per_run": 10, "model": "claude-haiku-5-5", "effort": "high",
+                         "input_price": 0.1, "output_price": 0.5, "long_prompt_tokens": 100_000,
+                         "long_input_price": 0.5, "long_output_price": 2.5, "translation_model": "claude-haiku-5-5",
+                         "translation_effort": "high", "translation_input_price": 0.1, "translation_output_price": 0.5,
+                         "translation_review_effort": "low"}
 
 
 def test_a_towns_own_file_is_checked_too(tmp_path):
