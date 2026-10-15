@@ -413,7 +413,7 @@ def test_a_town_whose_areas_are_districts(config, tmp_path, monkeypatch):
         return (out / url.lstrip("/") / "index.html").read_text(encoding="utf-8")
 
     ward = page("/311/ward/1/")
-    assert "<h1>District 1</h1>" in ward and "<title>Gloucester, MA 311 requests in District 1 | " in ward
+    assert "<h1>District 1</h1>" in ward and "<title>Gloucester, MA 311 requests in District 1</title>" in ward
     assert "Districts use the 2022 boundaries from MassGIS." in ward and 'href="/311/data/ward-1.csv"' in ward
     scorecard = page("/311/")
     assert "Requests per 1,000 residents, by district" in scorecard and '<a href="/311/ward/1/">District 1</a>' in scorecard
