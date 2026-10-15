@@ -40,7 +40,8 @@
   <h2 id="coming-up">{{ _("Coming up") }}</h2>
   <a href="/meetings/">{{ _("All meetings") }}</a>
 </div>
-{% set hearings = meetings.upcoming | selectattr("public_hearing") | list %}
+{# Only a hearing that's still on: a cancelled or postponed one has no "How to take part" to link to. #}
+{% set hearings = meetings.upcoming | selectattr("public_hearing") | selectattr("status", "equalto", "scheduled") | list %}
 {% if hearings %}
 <div class="notice">
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
@@ -73,15 +74,27 @@
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
 {% endif %}
 
+{# ---- The weekly digest's signup, under the week it sends: in English, as the digest is for now (pipeline/digest.py) ---- #}
+{% if digest_signup and lang == "en" %}
+<section class="signup-box" aria-labelledby="digest-signup">
+  <h2 id="digest-signup">{{ _("Get the week ahead by email") }}</h2>
+  {# Translators: %(town)s is the town's name. #}
+  <p>{% if meeting_links.documents %}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead, and what was decided at the meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}
+  {%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}{% endif %}</p>
+  {% with form_id="home-signup" %}{% include "digest_form.html" %}{% endwith %}
+</section>
+{% endif %}
+
 {# ---- Decided ---- #}
-{% if meetings.final %}
+{# Meetings whose minutes record a decision or a committee's recommendation, newest first. #}
+{% if meetings.decided %}
 <div class="section-head">
   <h2 id="decided">{{ _("Recently decided") }}</h2>
   <a href="/meetings/decisions/">{{ _("All decisions") }}</a>
 </div>
 <p class="small">{{ _("From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
 <ul class="meeting-list">
-  {% for m in meetings.final[:3] %}{{ meeting_item(m, show_date=true) }}{% endfor %}
+  {% for m in meetings.decided[:3] %}{{ meeting_item(m, show_date=true, posted=true) }}{% endfor %}
 </ul>
 {% endif %}
 {% endif %}
@@ -104,14 +117,23 @@
 </ul>
 {% endif %}
 
+{# ---- Ways to keep up: the weekly digest (in English for now, pipeline/digest.py), the feed, the city's own alerts ---- #}
+{% if config.meetings is defined %}
+{% set keep_up %}
+  {% if lang == "en" %}<li><a href="/digest/">{% if digest_signup %}{{ _("Weekly digest by email") }}{% else %}{{ _("Weekly digest") }}{% endif %}</a></li>{% endif %}
+  {% if meeting_links.documents %}<li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
+  {% if meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
+{% endset %}
+{% if keep_up | trim %}
+<h2 id="keep-up">{{ _("Stay up to date") }}</h2>
+<ul class="link-row">{{ keep_up }}</ul>
+{% endif %}
+{% endif %}
+
 {# ---- Sections: the menu's pages, and the city's own services, as one row of links ---- #}
 <h2 id="explore">{{ _("Explore") }}</h2>
 <ul class="link-row">
   {% for s in sections if s.slug != "about" %}<li><a href="/{{ s.slug }}/">{{ s.title }}</a></li>{% endfor %}
-  {% if config.meetings is defined and meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
-  {# The weekly digest is in English for now (pipeline/digest.py). #}
-  {% if config.meetings is defined and lang == "en" %}<li><a href="/digest/">{{ _("Weekly digest") }}</a></li>{% endif %}
-  {% if config.meetings is defined and meeting_links.documents %}<li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   <li><a href="{{ town.official_site }}">{{ _("City services and news") }}</a></li>
 </ul>
 {% endblock %}

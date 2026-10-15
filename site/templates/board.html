@@ -3,6 +3,8 @@
 {% set b = board %}
 {# Translators: %(board)s is a board's name, such as "City Council". #}
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr, board=b.name %}{{ town }}, {{ state }} {{ board }} meetings and agendas{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town and %(board)s a board's name, such as "City Council". #}
 {% block description %}{% trans town=town.name, board=b.name %}Upcoming and past meetings of the {{ town }} {{ board }}, with agendas.{% endtrans %}{% endblock %}
 {% block structured_data %}{{ structured(breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"),
@@ -37,15 +39,25 @@
   {% if part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
   {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts when this board posts a meeting, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
   {% if meeting_links.documents %}<li>{% trans %}New agendas and minutes from every board are in this site's <a href="/feed.xml">RSS feed</a>.{% endtrans %}</li>{% endif %}
+  {# The weekly digest is in English for now (pipeline/digest.py). #}
+  {% if digest_signup and lang == "en" %}<li>{% if meeting_links.documents %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead, and what the meetings whose minutes came out decided.{% endtrans %}
+  {%- else %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead.{% endtrans %}{% endif %}</li>{% endif %}
 </ul>
 
 <h2>{{ _("All recorded meetings") }}</h2>
 <ul class="meeting-list">
   {% for m in b.meetings %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
 </ul>
-{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "ical", "schedule"]) | list)[:1] %}
+{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule"]) | list)[:1] %}
+{% set portal = (b.meetings | selectattr("source", "equalto", "diligent") | list)[:1] %}
+{% set opengov = (b.meetings | selectattr("source", "equalto", "opengov") | list)[:1] %}
 {# Translators: %(month)s is a month and year, such as "January 2026". #}
-<p class="source-note">{% trans month=b.meetings[-1].date | date("month") %}Meetings recorded here start in {{ month }}.{% endtrans %} {% if drive %}
+<p class="source-note">{% trans month=b.meetings[-1].date | date("month") %}Meetings recorded here start in {{ month }}.{% endtrans %} {% if opengov %}
+{% trans url=opengov[0].source_url %}Earlier meetings are on the <a href="{{ url }}">state's Open Meetings portal</a>.{% endtrans %}
+{% elif portal %}
+{# Translators: %(name)s is a school district, such as "Burlington School District". #}
+{% trans url=config.diligent_meetings.page_url, name=portal[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} meeting portal</a>.{% endtrans %}
+{% elif drive %}
 {# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}
 {% trans url=drive[0].source_url, name=drive[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}
 {% elif meeting_links.archive %}

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% from "macros.html" import state_dash, on_this_page %}
 {% block title %}{{ _("Schools") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} public schools: graduation rate and test scores{% endtrans %}{% endblock %}
 {% block description %}{% trans district=config.schools.district_name %}{{ district }} compared with the state: graduation rate, chronic absenteeism, state test results, and spending per pupil.{% endtrans %}{% endblock %}
 {% set sch = config.schools %}
 {% block content %}

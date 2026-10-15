@@ -17,7 +17,8 @@ evening meetings, and the morning's daily run hours to finish first). Whatever s
 (the network's scheduler Worker, worker/digest.js, through Buttondown) sends each item once its
 date has passed.
 
-The email's signup form is shown on /digest/ when the town's config turns it on:
+The email's signup form (site/templates/digest_form.html) is shown on /digest/ and the home page, under
+the week ahead, and each meeting's and board's page links to it, when the town's config turns it on:
 
     [digest]
     signup = true
@@ -36,12 +37,24 @@ from zoneinfo import ZoneInfo
 # When an issue's email is due, on its Sunday, in the town's timezone.
 SEND_TIME = time(17, 30)
 # Minutes collected for a meeting longer ago than this are left out: a source's history read
-# for the first time, not news.
-MINUTES_MAX_AGE = timedelta(days=90)
+# for the first time, not news. Most minutes are collected 2 to 6 weeks after their meeting (they're
+# approved at the next one); 90 days let a town's first weeks list minutes from months before
+# (Burlington's "Week of October 12, 2026" had 35, from July on), so 45 since 2026-10-12.
+MINUTES_MAX_AGE = timedelta(days=45)
+# Meetings whose minutes the email lists in full; the rest are on the issue's page, a link away.
+EMAIL_MINUTES = 10
 # Issues in the feed, newest first.
 FEED_ISSUES = 12
 # Links in the email say where the reader came from, for the page counts (site/static/js/count.js).
 EMAIL_REF = "digest-email"
+# The email's footer, as the law on commercial email asks: a postal address, and a link to unsubscribe.
+# The email goes without Buttondown's template around it (worker/digest.js), so nothing else adds them.
+# The address is Buttondown's, which it offers its newsletters for this (decided 2026-10-12), as its
+# privacy policy gives it (https://buttondown.com/legal/privacy, updated 2026-04-01). Left as
+# "[mailing address]", the scheduler refuses to send the email (tests still go).
+MAILING_ADDRESS = "c/o Buttondown, LLC, 406 W Franklin St. #201, Richmond, VA 23221"
+# Buttondown's tag for each reader's own unsubscribe link, filled in as it sends.
+UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}"
 
 
 def signup(config: dict) -> dict | None:
@@ -62,6 +75,19 @@ def first_collected(docs: list[dict], tz: ZoneInfo) -> date | None:
     return min(stamps).astimezone(tz).date() if stamps else None
 
 
+def minutes_posted(meetings: list[dict], tracking_since: str | None, tz: ZoneInfo) -> dict[int, date | None]:
+    """The day each meeting's minutes were first collected, by id(meeting), in the town's time; None
+    for a meeting without minutes, for minutes that turned out to be another document (an agenda
+    filed as minutes), and for minutes collected on the site's first day, the town's history read
+    all at once rather than minutes just posted. Collected each morning, so posted by that day."""
+    since = datetime.fromisoformat(tracking_since).astimezone(tz).date() if tracking_since else None
+    days = {}
+    for m in meetings:
+        day = first_collected(m.get("minutes", []), tz) if (m.get("minutes_summary") or {}).get("is_minutes", True) else None
+        days[id(m)] = day if day and since and since < day else None
+    return days
+
+
 def sundays(since: date, today: date) -> list[date]:
     """Every Sunday from the first on or after since to the last on or before today, newest first."""
     first = since + timedelta(days=(6 - since.weekday()) % 7)
@@ -76,15 +102,13 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
     if not tracking_since:
         return []
     since = datetime.fromisoformat(tracking_since).astimezone(tz).date()
-    # Minutes that turned out to be another document (an agenda filed as minutes) aren't news of a meeting.
-    minutes_day = {id(m): first_collected(m.get("minutes", []), tz) if (m.get("minutes_summary") or {}).get("is_minutes", True) else None
-                   for m in meetings}
+    minutes_day = minutes_posted(meetings, tracking_since, tz)
     found = []
     for sunday in sundays(since, today):
         monday = sunday + timedelta(days=1)
         week = [m for m in meetings if monday.isoformat() <= m["date"] <= (sunday + timedelta(days=7)).isoformat()]
         minutes = [m for m in meetings
-                   if minutes_day[id(m)] and since < minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
+                   if minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
         if not week and not minutes:
             continue

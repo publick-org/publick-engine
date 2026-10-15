@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% from "macros.html" import report_button %}
 {% block title %}{{ _("Decisions") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} votes and decisions from meeting minutes{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Votes and other decisions recorded in the minutes of {{ town }}'s City Council, boards, and committees, newest meeting first.{% endtrans %}{% endblock %}
 {# The download as a dataset for dataset search, once, on the English page. #}

@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Callable
 
 from pipeline import states
+from pipeline.files import write_atomic
 from pipeline.i18n import _, plain_date
 
 GRACE_MONTHS = 2
@@ -170,8 +171,7 @@ def record_checks(data_dir: Path, steps: list[dict], at: str) -> None:
             entry.pop("error", None)
         else:
             entry.update(failures=entry.get("failures", 0) + 1, error=step.get("error"), last_failed=at)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / CHECKS_FILE).write_text(json.dumps(checks, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(data_dir / CHECKS_FILE, json.dumps(checks, indent=2, sort_keys=True) + "\n")
 
 
 def row(rhythm: Rhythm, data_dir: Path, now: datetime, grace_months: int = GRACE_MONTHS,

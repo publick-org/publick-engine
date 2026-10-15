@@ -1,6 +1,8 @@
 """Structural checks on the built HTML: every page is well-formed for assistive
 technology and every internal link resolves."""
 
+import csv
+import html
 import json
 import re
 from datetime import date
@@ -67,6 +69,11 @@ def test_support_files(site_dir, config):
     assert f"https://{config['site']['domain']}/311/" in sitemap
     assert "404" not in sitemap
     assert "sitemap.xml" in (site_dir / "robots.txt").read_text()
+    # The icon at the root, where crawlers ask for it, and one sized for search results.
+    assert (site_dir / "favicon.ico").read_bytes() == (site_dir / "static" / "favicon.ico").read_bytes()
+    assert (site_dir / "favicon.ico").read_bytes()[:4] == b"\x00\x00\x01\x00"
+    assert '<link rel="icon" href="/static/favicon-96.png" type="image/png" sizes="96x96">' in (site_dir / "index.html").read_text()
+    assert (site_dir / "static" / "favicon-96.png").exists()
 
 
 def test_footer_names_the_network(page_files, config):
@@ -237,6 +244,17 @@ def test_311_ward_and_category_pages_and_csv(site_dir):
     assert header.startswith("category,requests,closed,still_open")
 
 
+def test_311_monthly_charts_have_tables(site_dir):
+    """The Accessibility page says every chart has a table with the same numbers."""
+    for page in (site_dir / "311" / "ward" / "1" / "index.html", next((site_dir / "311" / "category").iterdir()) / "index.html"):
+        html = page.read_text()
+        chart = html.index('<div class="columns" role="img"')
+        table = html[chart:html.index('<h2', chart)]
+        assert "See as a table" in table and "<th scope=\"col\">Month</th>" in table
+        first_row = re.search(r'<tr><th scope="row">([^<]+)</th><td class="num">([\d,]+)</td></tr>', table)
+        assert first_row, page
+
+
 def test_city_report_button_on_311_and_street_pages(site_dir, config):
     # The build marks it as off-site (class "external", a new tab, hidden text saying so).
     button = re.compile(r'<a class="[^"]*\bbutton\b[^"]*" href="' + re.escape(config["seeclickfix"]["report_url"])
@@ -325,7 +343,14 @@ def test_model_markdown_keeps_only_safe_links():
     html = build_site.render_markdown(
         "[a](javascript:alert(1)) [b](https://example.org) ![c](https://tracker.example/p.png) <script>x</script>")
     assert "javascript:" not in html and "<img" not in html and "<script" not in html
-    assert '<a href="https://example.org">b</a>' in html and "c" in html
+    assert '<a href="https://example.org" rel="nofollow ugc">b</a>' in html and "c" in html
+
+
+def test_capitalize_first_escapes_plain_text_but_not_safe_html():
+    from markupsafe import Markup
+    assert build_site.capitalize_first("agenda items & <b>permits</b>") == "Agenda items &amp; &lt;b&gt;permits&lt;/b&gt;"
+    assert build_site.capitalize_first(Markup('<a href="mailto:x@y.org">write</a>')) == '<a href="mailto:x@y.org">write</a>'
+    assert build_site.capitalize_first(Markup("write to <a>us</a>")) == "Write to <a>us</a>"
 
 
 def test_pages_set_a_content_security_policy(page_files):
@@ -355,6 +380,54 @@ def test_decisions_page_and_csv(site_dir):
     assert {r[2] for r in rows[1:]} <= {"decided", "recommended", "procedural"}
     home = (site_dir / "index.html").read_text()
     assert ('href="/meetings/decisions/"' in home) == (len(rows) > 1)
+
+
+def test_open_data_export(site_dir, data_dir):
+    """/data/meetings.json: every meeting the site lists, in its documented format, with what the
+    meeting pages show of each summary and decision, and no costs."""
+    from pipeline.build_site import EXPORT_VERSION
+    export = json.loads((site_dir / "data" / "meetings.json").read_text(encoding="utf-8"))
+    assert export["format"] == "publick-meetings" and export["version"] == EXPORT_VERSION
+    assert export["documentation"] == "https://gloucester-ma.publick.org/data/"
+    assert export["town"] == {"name": "Gloucester", "state": "Massachusetts", "state_abbr": "MA",
+                              "site": "https://gloucester-ma.publick.org/"}
+    assert export["license"]["url"] == "https://creativecommons.org/licenses/by/4.0/"
+    rows = export["meetings"]
+    assert [r["date"] for r in rows] == sorted(r["date"] for r in rows)
+    pages = {p.parent.name for p in (site_dir / "meetings").glob("20*/index.html")}
+    assert {urlparse(r["url"]).path.strip("/").split("/")[-1] for r in rows} <= pages
+    assert len({r["id"] for r in rows}) == len(rows)
+    assert {r["status"] for r in rows} <= {"scheduled", "cancelled", "postponed", "rescheduled"}
+    assert "cost" not in json.dumps(export)
+    docs = [(r, kind, r[kind]) for r in rows for kind in ("agenda", "minutes") if r[kind]]
+    assert any(d["summary"] for _, _, d in docs)
+    for r, kind, d in docs:
+        assert d["url"].startswith("http")
+        # The saved copy is in the site (the tests keep PDFs local), at the address the page links.
+        copy = urlparse(d["saved_copy_url"])
+        assert copy.netloc == "gloucester-ma.publick.org" and (site_dir / copy.path.lstrip("/")).exists()
+        assert copy.path in (site_dir / urlparse(r["url"]).path.lstrip("/") / "index.html").read_text()
+        if d["summary"]:
+            assert d["summary"]["ai_generated"] and d["summary"]["model"]
+            assert ("items" in d["summary"]) == (kind == "agenda") and ("decisions" in d["summary"]) == (kind == "minutes")
+    # The decisions are those decisions.csv has, with the same kinds.
+    rows_csv = list(csv.reader((site_dir / "meetings" / "data" / "decisions.csv").open()))[1:]
+    exported = {(r["date"], x["kind"], x["text"]) for r, kind, d in docs if kind == "minutes" and d["summary"]
+                for x in d["summary"]["decisions"]}
+    assert {(c[0], c[2], c[3]) for c in rows_csv} <= exported
+    assert {k for _, k, _ in exported} <= {"decided", "recommended", "procedural"}
+
+
+def test_data_page(site_dir):
+    """The Data page describes the export and links it, and the About page links the Data page."""
+    page = html.unescape((site_dir / "data" / "index.html").read_text())
+    assert "<h1>Data</h1>" in page
+    assert 'href="/data/meetings.json"' in page and 'href="/meetings/data/decisions.csv"' in page
+    assert "Summary by Publick, AI-generated from the city" in page
+    assert "can be wrong" in page
+    count = len(json.loads((site_dir / "data" / "meetings.json").read_text())["meetings"])
+    assert f"({count} meetings)" in page
+    assert 'href="/data/"' in (site_dir / "about" / "index.html").read_text()
 
 
 def test_decisions_are_sorted_for_residents():
@@ -405,6 +478,38 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
     hearing = re.search(r"<li>.*?</li>", box, re.S).group(0)
     assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary</span></li>$', hearing)
     assert hearing.index("<time") < hearing.index("AI summary")
+
+
+def test_public_hearings_leave_out_a_cancelled_meeting(tmp_path):
+    """A hearing the city has cancelled isn't offered as one residents can speak at: its page has no
+    "How to take part" for the box to link to (Burlington, 2026-10-13)."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    for path in (data / "summaries").glob("*.json"):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "agenda":
+            rec["items"] = [*rec.get("items", []), "Public hearing on the Harbor Plan"]
+            path.write_text(json.dumps(rec))
+
+    def hearings():
+        build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+        home = (tmp_path / "site" / "index.html").read_text()
+        box = home[home.index('class="notice"'):]
+        return re.findall(r'href="([^"]+)#take-part"', box[:box.index("</div>")])
+
+    before = hearings()
+    assert before
+    store_path = data / "meetings" / "meetings.json"
+    store = json.loads(store_path.read_text())
+    cancelled = next(m for m in store.values() if before[0].rstrip("/").endswith(m["slug"]))
+    cancelled["status"] = "cancelled"
+    store_path.write_text(json.dumps(store))
+    after = hearings()
+    assert before[0] not in after
+    for url in after:
+        assert 'id="take-part"' in (tmp_path / "site" / url.lstrip("/") / "index.html").read_text()
 
 
 def test_about_page_says_how_to_reuse(site_dir, config):
@@ -677,6 +782,23 @@ def test_structured_data_cannot_end_its_script():
 def test_home_and_downloads_for_search_engines(site_dir):
     home = (site_dir / "index.html").read_text()
     assert "<title>Gloucester, MA: city meetings, agendas, and data | Gloucester Publick</title>" in home
+    # A meeting's title in search results starts with the town and names the minutes or agenda
+    # it has; its own name, on social cards and in breadcrumbs, doesn't.
+    meetings = site_dir / "meetings"
+    minutes = (meetings / "2026-07-14-city-council" / "index.html").read_text()
+    assert "<title>Gloucester, MA City Council minutes, Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
+    assert '<meta property="og:title" content="City Council, Tuesday, July 14, 2026">' in minutes
+    agenda = (meetings / "2026-09-28-historical-commission" / "index.html").read_text()
+    assert "<title>Gloucester, MA Historical Commission agenda, Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
+    neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
+    assert "<title>Gloucester, MA School Committee, Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
+    # So does every other section's; its heading and social card keep the short name.
+    board = (meetings / "boards" / "school-committee" / "index.html").read_text()
+    assert "<title>Gloucester, MA School Committee meetings and agendas | Gloucester Publick</title>" in board
+    assert '<meta property="og:title" content="School Committee meetings">' in board
+    decided = (meetings / "decisions" / "index.html").read_text()
+    assert "<title>Gloucester, MA votes and decisions from meeting minutes | Gloucester Publick</title>" in decided
+    assert "<title>Gloucester, MA 311 requests and response times | Gloucester Publick</title>" in (site_dir / "311" / "index.html").read_text()
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"
@@ -686,8 +808,10 @@ def test_home_and_downloads_for_search_engines(site_dir):
     assert decisions["license"] == "https://creativecommons.org/licenses/by/4.0/"
     [requests] = structured_data(site_dir / "311" / "index.html")
     assert requests["license"] == "https://creativecommons.org/licenses/by-nc-sa/3.0/"
+    [data] = structured_data(site_dir / "data" / "index.html")
+    assert [d["encodingFormat"] for d in data["distribution"]] == ["application/json", "text/csv"]
     # Every file a dataset names is in the site.
-    for item in (decisions, requests):
+    for item in (decisions, requests, data):
         for d in item["distribution"]:
             assert (site_dir / urlparse(d["contentUrl"]).path.lstrip("/")).exists(), d["contentUrl"]
 
@@ -718,3 +842,74 @@ def test_meeting_lastmod():
     # A translation that comes later changes that language's page.
     assert build_site.meeting_lastmod({**m, "preview": {"generated_at": "2026-09-04", "translated_at": "2026-09-11T01:00:00"}},
                                       date(2026, 9, 12)) == "2026-09-11"
+
+
+def test_officials_list_is_due_a_check_after_each_election(config):
+    import copy
+    from datetime import date
+    from pipeline import freshness, officials
+    town = copy.deepcopy(config)
+    assert officials.review(town, date(2026, 10, 1)) is None
+    # The fixture's terms end in January 2028, after an election in November 2027: due once they begin.
+    town["officials"]["next_election"] = "2027-11-02"
+    due = officials.review(town, date(2028, 1, 7))
+    assert due["due"] == date(2028, 1, 1) and due["terms"] == date(2028, 1, 1) and not due["behind"]
+    assert officials.review(town, date(2028, 1, 8))["behind"]
+    row = freshness.officials_row(officials.review(town, date(2026, 10, 1)))
+    assert not row["stale"] and row["next"] == "a check once new terms begin in January 2028"
+    assert row["updated_at"] == "2026-09-15"
+    row = freshness.officials_row(officials.review(town, date(2028, 2, 1)))
+    assert row["stale"] and row["behind"] == "not checked since new terms began in January 2028" and not row["next"]
+    # Checked since: up to date, and the config's next_election has passed (the maintainer is warned).
+    town["officials"]["checked"] = "2028-01-04"
+    due = officials.review(town, date(2028, 2, 1))
+    assert not due["behind"] and due["passed"]
+    # Terms that begin the month of the election (or none given): due on the election's day.
+    town["officials"]["checked"] = "2026-09-15"
+    town["officials"]["next_election"] = "2028-01-04"
+    due = officials.review(town, date(2028, 1, 11))
+    assert due["due"] == date(2028, 1, 4) and due["terms"] is None and due["behind"]
+    assert freshness.officials_row(due)["behind"] == "not checked since the election of January 4, 2028"
+    town["officials"]["next_election"] = "soon"
+    with pytest.raises(SystemExit, match="next_election"):
+        officials.review(town, date(2028, 1, 11))
+
+
+def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_path, monkeypatch):
+    import copy
+    from datetime import datetime
+    from pipeline import officials
+    from conftest import TZ
+    town = copy.deepcopy(config)
+    town["officials"]["next_election"] = "2027-11-02"
+    assert officials.load(town, data_dir, today=date(2027, 12, 1))["out_of_date"] is None
+    assert officials.load(town, data_dir, today=date(2028, 1, 8))["out_of_date"]["terms"] == date(2028, 1, 1)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data_dir, now=datetime(2028, 1, 8, 7, 0, tzinfo=TZ))
+    page = (out / "officials" / "index.html").read_text()
+    assert "That was before new terms began in January 2028, so some members may have changed." in page
+    about = (out / "about" / "index.html").read_text()
+    assert re.search(r'<th scope="row">Elected officials</th>.*?not checked since new terms began in January 2028', about, re.S)
+
+
+def test_recently_decided_marks_committee_recommendations():
+    """The home page's "Recently decided" lists meetings whose minutes record only a committee's
+    recommendations too, marked so, since they aren't final until the governing body votes."""
+    from jinja2 import Environment, FileSystemLoader
+    env = Environment(loader=FileSystemLoader(build_site.SITE_DIR / "templates"), autoescape=True,
+                      trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.i18n"])
+    env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True,
+                                  pgettext=i18n.pgettext, npgettext=i18n.npgettext)
+    env.filters.update(date=build_site.format_date, time=build_site.format_time)
+    env.globals["today"] = "2026-10-14"
+    item = env.from_string('{% from "macros.html" import meeting_item %}{{ meeting_item(m, show_date=true, posted=true) }}')
+
+    def meeting(decided, recommended):
+        return {"date": "2026-10-07", "start_time": None, "url": "/meetings/x/", "body": "Planning & Development Committee",
+                "title": "Planning & Development Committee", "preview_line": "Recommended two permits.",
+                "minutes_doc": {"file": "x.pdf"}, "minutes_posted": "2026-10-13", "agenda": None, "status": "scheduled",
+                "remote_url": None, "special": False, "listed": True,
+                "decisions": {"decided": decided, "recommended": recommended, "procedural": []}}
+    assert "Committee recommendation" in item.render(m=meeting([], ["Recommended a permit."]))
+    assert "Committee recommendation" not in item.render(m=meeting(["Approved a permit."], ["Recommended a permit."]))

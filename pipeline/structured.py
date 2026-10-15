@@ -104,13 +104,14 @@ def breadcrumbs(trail: list[tuple]) -> dict:
 
 def dataset(name: str, description, url: str, files: list[str], site: dict, town: dict, home: str,
             license: str = CC_BY, start: str | None = None, end: str | None = None) -> dict:
-    """A page's downloads as a Dataset: files are their absolute URLs, all CSV; start and end
+    """A page's downloads as a Dataset: files are their absolute URLs, CSV or JSON; start and end
     the period they cover ("2026-06-30", or a month, "2025-10")."""
     item = {
         "@type": "Dataset", "name": name, "description": plain(description), "url": url,
         "license": license, "isAccessibleForFree": True, "creator": publisher(site, home),
         "spatialCoverage": {"@type": "Place", "name": f"{town['name']}, {town['state']}"},
-        "distribution": [{"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": f} for f in files],
+        "distribution": [{"@type": "DataDownload", "contentUrl": f,
+                          "encodingFormat": "application/json" if f.endswith(".json") else "text/csv"} for f in files],
     }
     if start and end:
         item["temporalCoverage"] = f"{start}/{end}"

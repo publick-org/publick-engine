@@ -23,9 +23,14 @@
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
 // (/digest/feed.xml), and sends it once its date has passed (Sunday at 5:30
 // PM, the town's time), within SEND_WINDOW_HOURS: an issue isn't sent late, nor
-// twice (an email with its subject sent since shortly before its date). Each
+// twice (an email with its subject sent since shortly before its date). A town
+// whose newest issue is still last week's at this week's last try fails the run,
+// so a week skipped (its Sunday build didn't publish) is seen. Each
 // run makes one request for each town, and a few more for each town sending;
 // Workers on the free plan may make 50 a run, so about 20 towns.
+//
+// Testing: sendTest() sends an issue at once to the addresses given and no
+// subscriber, run by hand (worker/digest-test.js).
 //
 // Environment: BUTTONDOWN_SUBSCRIBE_KEY (the sites Worker's: subscribers read
 // and write, sending disabled) and BUTTONDOWN_SEND_KEY (the scheduler's:
@@ -40,6 +45,19 @@ export const DIGEST_CRON = "35 * * * SUN,MON";
 export const SEND_WINDOW_HOURS = 6;
 // The digest's languages: English for now.
 export const LANGUAGES = ["en"];
+// The start of a test's subject, so it's never mistaken for (or taken as) the issue sent.
+export const TEST_PREFIX = "[Test] ";
+// Buttondown's email template: "naked", none at all. Its others end each email with the issue's
+// number, counted across every town, and a link to subscribe on Buttondown's own page, where a
+// signup gets no town's tag and so is never sent an issue. The issue's own footer (the engine's
+// digest_email.html) has the unsubscribe link and postal address in their place.
+export const TEMPLATE = "naked";
+// Buttondown's tag for each reader's own unsubscribe link: without it an email has none.
+export const UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}";
+// The footer's postal address until it's filled in (MAILING_ADDRESS, the engine's pipeline/digest.py).
+export const ADDRESS_PLACEHOLDER = "[mailing address]";
+// A test's draft is deleted by the next test made this long after it, by when it's sent.
+const TEST_KEEP_MINUTES = 10;
 // Subscribers Buttondown won't send to, or who asked not to be added again: left as they are.
 const LEAVE_ALONE = ["blocked", "complained", "undeliverable", "removed"];
 // Subscribers asked to confirm (again) when they sign up: they unsubscribed, or never confirmed.
@@ -204,6 +222,13 @@ async function listAll(key, path, what) {
   return results;
 }
 
+// An issue as Buttondown takes an email's body: the HTML as it is, in its "fancy" editor's mode. One
+// without an unsubscribe link isn't sent, nor tested.
+function emailBody(issue) {
+  if (!issue.body.includes(UNSUBSCRIBE_TAG)) throw new Error(`the issue has no unsubscribe link (${UNSUBSCRIBE_TAG})`);
+  return `<!-- buttondown-editor-mode: fancy -->\n${issue.body}`;
+}
+
 // Sends one town's newest issue if it's due and not sent yet. Returns what was done.
 export async function sendTown(env, host, now, cache) {
   const response = await env.SITES.fetch(`https://${host}/digest/feed.xml`);
@@ -211,11 +236,20 @@ export async function sendTown(env, host, now, cache) {
   const issue = newestIssue(await response.text());
   if (!issue || Number.isNaN(issue.due.getTime())) return { host, done: "no_issue" };
   const late = now - issue.due;
+  // The newest issue is last week's at this week's last try: this week's never came, and the week is
+  // skipped. Said once, so it isn't skipped unseen. (Within an hour: the week clocks change, a week
+  // isn't 168 hours, and this says so an hour early or late.)
+  const sinceNext = late - 7 * 24 * 3600_000;
+  if (sinceNext >= (SEND_WINDOW_HOURS - 1) * 3600_000 && sinceNext < SEND_WINDOW_HOURS * 3600_000) {
+    throw new Error(`this week's issue isn't in its feed by its last try (the newest is "${issue.subject}"), so this ` +
+      "week isn't sent: the town's Sunday build may not have published, or the week had no meetings and no new minutes");
+  }
   if (late < 0 || late > SEND_WINDOW_HOURS * 3600_000) return { host, done: "not_due", subject: issue.subject };
   const key = env.BUTTONDOWN_SEND_KEY;
-  // Sent already: an email with this subject, made since shortly before the issue was due.
+  // Sent already: an email with this subject, made since shortly before the issue was due. Buttondown
+  // takes a date here, not a time (it refused one on 2026-10-11), so the day before, from its start.
   if (!cache.recent) {
-    const since = new Date(now - (SEND_WINDOW_HOURS + 24) * 3600_000).toISOString();
+    const since = new Date(now - (SEND_WINDOW_HOURS + 24) * 3600_000).toISOString().slice(0, 10);
     cache.recent = await listAll(key, `/emails?creation_date__start=${encodeURIComponent(since)}&excluded_fields=body`,
       "listing recent emails");
   }
@@ -226,10 +260,14 @@ export async function sendTown(env, host, now, cache) {
   const tag = cache.tags.find((t) => t.name === tagName(townOf(host), "en"));
   // No tag: no one has signed up for this town yet.
   if (!tag) return { host, done: "no_subscribers", subject: issue.subject };
+  if (issue.body.includes(ADDRESS_PLACEHOLDER)) {
+    throw new Error("the issue's footer has no mailing address yet (MAILING_ADDRESS in the engine's pipeline/digest.py)");
+  }
   const monday = issue.link.match(/\/digest\/(\d{4}-\d{2}-\d{2})\/?$/);
   const email = {
     subject: issue.subject,
-    body: `<!-- buttondown-editor-mode: fancy -->\n${issue.body}`,
+    body: emailBody(issue),
+    template: TEMPLATE,
     status: "about_to_send",
     // Only the town's own readers: an email without this would go to every town's.
     filters: { predicate: "and", groups: [], filters: [{ field: "subscriber.tags", operator: "contains", value: tag.id }] },
@@ -238,7 +276,6 @@ export async function sendTown(env, host, now, cache) {
     commenting_mode: "disabled",
     canonical_url: issue.link,
     ...(monday ? { slug: `${townOf(host)}-${monday[1]}` } : {}),
-    metadata: { publick_issue: issue.link },
   };
   if (!email.filters.filters.length || !email.filters.filters[0].value) throw new Error("an email without its town's tag");
   // Buttondown asks each key once to confirm it means to send (API version 2026-04-01).
@@ -269,4 +306,35 @@ export async function sendDigests(env, now = new Date()) {
   }
   if (failed.length) throw new AggregateError(failed, failed.map((e) => e.message).join("; "));
   return results;
+}
+
+// ---- Testing ----------------------------------------------------------------
+
+// Deletes the earlier tests' drafts, but for any made in the last few minutes (by a test still sending).
+// Returns how many were deleted.
+export async function deleteTests(key, now = new Date()) {
+  const since = now - TEST_KEEP_MINUTES * 60_000;
+  const drafts = await listAll(key, "/emails?status=draft&excluded_fields=body", "listing drafts");
+  const old = drafts.filter((e) => (e.subject || "").startsWith(TEST_PREFIX) && new Date(e.creation_date) < since);
+  for (const draft of old) {
+    await ok(await buttondown(key, `/emails/${encodeURIComponent(draft.id)}`, { method: "DELETE" }), "deleting an earlier test");
+  }
+  return old.length;
+}
+
+// Sends an issue now, as it would go on Sunday, to the addresses given and no subscriber: a draft,
+// with "[Test] " before its subject, sent to those addresses alone. Returns the subject.
+export async function sendTest(key, issue, recipients) {
+  if (!recipients.length) throw new Error("no addresses to send the test to");
+  const subject = `${TEST_PREFIX}${issue.subject}`;
+  const draft = await (await ok(await buttondown(key, "/emails", {
+    method: "POST",
+    body: JSON.stringify({ subject, body: emailBody(issue), template: TEMPLATE, status: "draft", archival_mode: "disabled",
+                           commenting_mode: "disabled", canonical_url: issue.link }),
+  }), "making the test's draft")).json();
+  // Quietly: Buttondown's answer may quote an address.
+  await okQuietly(await buttondown(key, `/emails/${encodeURIComponent(draft.id)}/send-draft`, {
+    method: "POST", headers: { "X-Buttondown-Live-Dangerously": "true" }, body: JSON.stringify({ recipients }),
+  }), "sending the test");
+  return subject;
 }

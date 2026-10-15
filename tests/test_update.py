@@ -104,6 +104,9 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
     skipped = {s["name"]: s["skipped"] for s in result["steps"] if s.get("skipped")}
     assert skipped == {"Fetch School Committee documents": "no [drive_meetings] in the config",
                        "Fetch school board meetings": "no [finalsite_meetings] in the config",
+                       "Fetch school board documents": "no [page_meetings] in the config",
+                       "Fetch Diligent Community meetings": "no [diligent_meetings] in the config",
+                       "Fetch Open Meetings portal meetings": "no [opengov_meetings] in the config",
                        "Fetch building permits": "no [permits] in the config",
                        "Fetch 311 requests": "no [seeclickfix] in the config",
                        "Compute 311 scorecard": "no [seeclickfix] in the config"}
@@ -145,13 +148,16 @@ def test_the_bucket_keys_go_only_to_the_steps_that_use_them(monkeypatch):
         monkeypatch.setenv(k, "x")
     given = {s.name: sorted(k for k in keys if k in update.step_env(s)) for s in update.SOURCES}
     storage = sorted(update.STORAGE)
-    # The steps that save or read agendas and minutes in the document bucket.
+    # The steps that save or read agendas and minutes, or the 311 requests and scorecard, in the document bucket.
     assert {n for n, k in given.items() if k and set(storage) <= set(k)} == {
         "Fetch meetings", "Fetch minutes", "Fetch School Committee documents", "Fetch school board meetings",
-        "Summarize agendas", "Move saved documents to storage"}
+        "Fetch school board documents", "Fetch Diligent Community meetings",
+        "Fetch Open Meetings portal meetings", "Summarize agendas", "Move saved documents to storage", "Fetch 311 requests",
+        "Compute 311 scorecard"}
     assert given["Summarize agendas"] == sorted(["ANTHROPIC_API_KEY", *storage])
     assert given["Fetch unemployment"] == ["BLS_API_KEY"]
-    assert given["Fetch 311 requests"] == given["Fetch tax bill"] == []
+    assert given["Fetch 311 requests"] == given["Compute 311 scorecard"] == storage
+    assert given["Fetch tax bill"] == []
     # No step publishes.
     assert not any(k in update.SITES for ks in given.values() for k in ks)
 

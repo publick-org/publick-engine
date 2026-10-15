@@ -56,7 +56,7 @@ SKIPPED = {"CNAME", ".nojekyll"}
 # Content types Python's table lacks or gets wrong on some systems.
 TYPES = {".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json",
          ".geojson": "application/geo+json", ".webmanifest": "application/manifest+json",
-         ".xml": "application/xml", ".csv": "text/csv", ".svg": "image/svg+xml", ".woff2": "font/woff2",
+         ".xml": "application/xml", ".csv": "text/csv", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".woff2": "font/woff2",
          ".ics": "text/calendar", ".txt": "text/plain", ".md": "text/markdown"}
 TEXT = ("text/", "application/json", "application/geo+json", "application/manifest+json", "application/xml",
         "image/svg+xml")

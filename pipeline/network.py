@@ -7,7 +7,9 @@ repository is (config/, data/, site/static/):
   towns/gloucester-ma/data/...
 
 plan picks the towns for one run and splits them into batches, printed as a
-GitHub Actions matrix. run takes one batch and, for each town in turn, fetches
+GitHub Actions matrix. The batches are balanced by how long each town's last
+fetching run took, so the slow towns (a long 311 history) don't all land in
+one job. run takes one batch and, for each town in turn, fetches
 new data (pipeline.update), checks its freshness, builds the site, checks it
 (site_checks/; with --sample-checks, the browser checks run on a sample of
 pages, as the daily runs do), and publishes it (pipeline.deploy). Every step runs in its own
@@ -20,6 +22,17 @@ without a good update (published, with fresh data) in the last day or so, and
 those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
 any town does.
 
+run --collect is the end of a daily job: a town whose fetch sent its summaries as
+one batch (pipeline.summarize, PUBLICK_SUMMARY_BATCH) has them collected, and
+whatever the batch didn't make sent one at a time, then is built, checked, and
+published again with them. A town with no batch waiting is left as it is.
+
+canaries picks the fewest towns that between them have every state, every
+config table, and every kind of meeting source the network's towns have: the
+towns whose every page an engine update's pull request checks, while the rest
+are checked on a sample (publick.org's network.yml), so the run's time grows
+with the kinds of town, not their number.
+
 budget splits what's left of the month's summary budget among the towns in a
 run, from each town's data/summary-costs.json (pipeline.summarize), keeping
 back every other town's floor for the rest of the month.
@@ -31,11 +44,12 @@ state's statewide checks that keep failing are listed by behind.
 
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311]] [--deploy]
-                                      [--sample-checks] [--reports DIR]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] | --collect]
+                                      [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
     python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
+    python -m pipeline.network canaries [--root .]
     python -m pipeline.network states [--root .]
 
 A daily run takes the towns that are due (--due-hours): those whose last run
@@ -62,6 +76,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from pipeline.config import ENGINE_DIR
+from pipeline.files import write_atomic
 
 TOWNS = "towns"
 # Statewide sources, fetched once per state for every town (states/<state>/), and the environment
@@ -90,6 +105,8 @@ BEHIND_HOURS = 30
 # Hours after a town's last fetching run before a daily run takes it again. Under a day, so each
 # morning's runs take every town once, even one that finished late the day before.
 DUE_HOURS = 18
+# A town's expected time in a batch when it has no run record to go by, in seconds.
+UNKNOWN_RUN_SECONDS = 30 * 60
 # The part of the monthly summary budget older documents can't use, kept for new ones.
 NEW_DOCUMENTS_RESERVE = 0.2
 # Each town's floor: the part of its even share of each day's budget (the monthly budget over the
@@ -148,6 +165,34 @@ def due(root: Path, towns: list[str], hours: float, at: datetime | None = None) 
     return sorted(waiting, key=lambda t: (last[t] is not None, last[t] or ""))
 
 
+def last_run_seconds(root: Path, name: str) -> float:
+    """How long the town's last fetching run took (its run record), or UNKNOWN_RUN_SECONDS."""
+    path = root / TOWNS / name / "data" / RUN_RECORD
+    try:
+        record = json.loads(path.read_text())
+        took = datetime.fromisoformat(record["finished_at"]) - datetime.fromisoformat(record["started_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return UNKNOWN_RUN_SECONDS
+    return max(took.total_seconds(), 0.0)
+
+
+def balance(towns: list[str], batch_size: int, seconds: dict[str, float]) -> list[list[str]]:
+    """Split towns into as few batches of at most batch_size as they need, the longest town first into
+    the batch with the least time so far. One job with every slow town took over two hours on
+    2026-10-07, and its runner was lost with all four towns' work. Each batch keeps the towns' order,
+    and the batches are in the order of their first town."""
+    count = math.ceil(len(towns) / batch_size)
+    batches: list[list[str]] = [[] for _ in range(count)]
+    totals = [0.0] * count
+    for town in sorted(towns, key=lambda t: -seconds[t]):
+        i = min((i for i in range(count) if len(batches[i]) < batch_size), key=totals.__getitem__)
+        batches[i].append(town)
+        totals[i] += seconds[town]
+    order = {t: i for i, t in enumerate(towns)}
+    batches = [sorted(b, key=order.__getitem__) for b in batches]
+    return sorted(batches, key=lambda b: order[b[0]])
+
+
 def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str] | None = None,
          changed: list[str] | None = None, batch_size: int = 4, due_hours: float | None = None,
          at: datetime | None = None) -> dict:
@@ -163,7 +208,7 @@ def plan(root: Path, slots: int = 1, run_slot: int | None = None, only: list[str
         towns = [t for t in towns if slot(t, slots) == run_slot]
     if due_hours is not None:
         towns = due(root, towns, due_hours, at)
-    batches = [towns[i:i + batch_size] for i in range(0, len(towns), batch_size)]
+    batches = balance(towns, batch_size, {t: last_run_seconds(root, t) for t in towns})
     return {"include": [{"towns": " ".join(b), "name": b[0] + (f" +{len(b) - 1}" if len(b) > 1 else "")}
                         for b in batches]}
 
@@ -222,8 +267,15 @@ def trim_sources(rows: list[dict]) -> list[dict]:
             for r in rows]
 
 
+# The town's summaries sent as one batch, waiting to be collected (pipeline/summarize.py's BATCH_FILE).
+SUMMARY_BATCH = "summary-batch.json"
+# The keys collecting it needs: the model's, and the document bucket's, to read each document again.
+COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+
+
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
-             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all") -> dict:
+             step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all",
+             collect: bool = False) -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -234,6 +286,14 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
               "sources": None, "failing": [], "deployed": False}
     steps = result["steps"]
     data_before = folder_bytes(town_dir / "data")
+    if collect:
+        if not (town_dir / "data" / SUMMARY_BATCH).exists():
+            # No batch waiting: the town's site is as its run left it.
+            result.update(ok=True, finished_at=now(), collected=False)
+            return result
+        steps.append(step("Collect summaries", [python, "-m", "pipeline.summarize", "--town", town],
+                          {**keyed(env, COLLECT_KEYS), "PUBLICK_SUMMARY_COLLECT": "1"}, town_dir, step_timeout))
+        result["collected"] = True
 
     if fetch:
         update_report = town_dir / ".update-report.json"
@@ -285,7 +345,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
         result["fact_checks"] = fact_checks(town_dir / "data")
-        record.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
     if reports:
@@ -313,7 +373,7 @@ def republished(path: Path, result: dict) -> None:
     record["published_engine"] = result["engine"]
     if good(record):
         record["last_good_at"] = result["finished_at"]
-    path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(record, indent=2) + "\n")
 
 
 # Days of upcoming meetings counted for the network homepage.
@@ -437,8 +497,7 @@ def refresh_states(root: Path, now: datetime | None = None) -> dict:
         # Nothing fetched and nothing wrong, as before: the file stays as it is, so the run commits nothing.
         if status["ok"] and status.get("fetched") == 0 and previous.get("ok") and previous.get("exports") == status.get("exports"):
             continue
-        status_path.parent.mkdir(parents=True, exist_ok=True)
-        status_path.write_text(json.dumps(status, indent=2) + "\n", encoding="utf-8")
+        write_atomic(status_path, json.dumps(status, indent=2) + "\n")
     return results
 
 
@@ -500,8 +559,10 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
         path = root / TOWNS / name / "data" / SUMMARY_LEDGER
         if path.exists():
             row = json.loads(path.read_text()).get(month, {})
-            # A summary, a cut-off request, a transcription, or a translation: all paid for this month.
-            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost"))
+            # A summary (and one made again since), a cut-off request, a transcription, or a translation:
+            # all paid for this month (summarize.LEDGER_COSTS).
+            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost",
+                                                          "replaced_cost"))
     left = max(monthly - spent, 0.0)
     days_in_month = calendar.monthrange(today.year, today.month)[1]
     days_left = days_in_month - today.day + 1
@@ -548,6 +609,27 @@ def fetched(record: dict) -> bool:
     return record.get("fetched", record.get("update") is not None)
 
 
+def town_features(config: dict) -> set[str]:
+    """What an engine update could break in one town but not another: its state, each table of its
+    config (311, permits, Drive folders, a digest...), and each kind of source its meetings come from."""
+    meetings = config.get("meetings", {})
+    return ({f"state:{config.get('town', {}).get('state')}"}
+            | {f"table:{key}" for key in config if key not in ("slug", "site", "town")}
+            | {f"meetings:{key}" for key, value in meetings.items() if isinstance(value, dict) and key != "aliases"})
+
+
+def canaries(root: Path, towns: list[str] | None = None) -> list[str]:
+    """The fewest towns (picked greedily, the one adding the most first, by name on a tie) that between them
+    have every feature (town_features) of the towns given, or of every town."""
+    features = {name: town_features(town_config(root, name)) for name in (towns or town_dirs(root))}
+    left, picked = set().union(*features.values()) if features else set(), []
+    while left:
+        name = min(features, key=lambda n: (-len(features[n] & left), n))
+        picked.append(name)
+        left -= features[name]
+    return sorted(picked)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -563,6 +645,8 @@ def main() -> int:
     r.add_argument("--root", type=Path, default=Path.cwd())
     r.add_argument("--towns", required=True, help="town folders, comma- or space-separated")
     r.add_argument("--fetch", action="store_true", help="fetch new data first")
+    r.add_argument("--collect", action="store_true",
+                   help="collect each town's batch of summaries, if it has one, then build and publish it again")
     r.add_argument("--sources", choices=["all", "meetings", "figures", "311"], default="all",
                    help="with --fetch, which data to fetch (pipeline.update's groups)")
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
@@ -583,8 +667,13 @@ def main() -> int:
     m.add_argument("--root", type=Path, default=Path.cwd())
     m.add_argument("--monthly", type=float, required=True, help="the network's monthly summary budget, in dollars")
     m.add_argument("--towns-in-run", type=int, required=True)
+    c = sub.add_parser("canaries")
+    c.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args()
 
+    if args.command == "canaries":
+        print(" ".join(canaries(args.root.resolve())))
+        return 0
     if args.command == "plan":
         if args.slot is not None and not 0 <= args.slot < args.slots:
             raise SystemExit(f"--slot must be between 0 and {args.slots - 1}")
@@ -595,15 +684,18 @@ def main() -> int:
         return 0
     if args.command == "run":
         root = args.root.resolve()
+        if args.fetch and args.collect:
+            raise SystemExit("--collect is a run of its own, after the one that fetched")
         results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks,
-                            args.sources)
+                            args.sources, args.collect)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:
-                level = "warning" if args.fetch else "error"
+                level = "warning" if args.fetch or args.collect else "error"
                 print(f"::{level}::{result['folder']}: " + ", ".join(s["name"] for s in result["steps"] if not s["ok"]))
         # A fetching run keeps going when a town fails: its data is committed, and the daily alert says so.
-        return 0 if args.fetch or all(r["ok"] for r in results) else 1
+        # So does collecting: the site its fetching run published stays up.
+        return 0 if args.fetch or args.collect or all(r["ok"] for r in results) else 1
     if args.command == "behind":
         rows = behind(args.root.resolve(), args.hours)
         if args.new_since:

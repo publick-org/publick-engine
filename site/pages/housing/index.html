@@ -2,6 +2,8 @@
 {% from "macros.html" import on_this_page %}
 {% from "charts.html" import year_columns, chart_links %}
 {% block title %}{{ _("Housing") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} housing: permits, home values, and rents{% endtrans %}{% endblock %}
 {% block description %}{% if "shi" in state_housing %}{% trans town=town.name %}New homes permitted, home values and rents, affordable housing, and the housing stock in {{ town }}, from federal and state data.{% endtrans %}{% elif state_housing %}{% trans town=town.name %}New homes permitted, home values and rents, and the housing stock in {{ town }}, from federal and state data.{% endtrans %}{% else %}{% trans town=town.name %}New homes permitted, home values and rents, and the housing stock in {{ town }}, from federal data.{% endtrans %}{% endif %}{% endblock %}
 {% set h = housing %}
 {% block content %}

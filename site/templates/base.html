@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{% endblock %} | {{ site.name }}</title>
+  {# A page may give search results a fuller name than its own (head_title): the title block stays the page's name
+     everywhere else (social cards, breadcrumbs, the page view counter). #}
+  <title>{% block head_title %}{% block title %}{% endblock %}{% endblock %} | {{ site.name }}</title>
   <meta name="description" content="{% block description %}{{ site.tagline }}{% endblock %}">
   <link rel="canonical" href="{{ canonical_url }}">
   {% for v in versions %}
@@ -17,11 +19,13 @@
   <meta property="og:title" content="{{ self.title() }}">
   <meta property="og:description" content="{{ self.description() }}">
   <meta property="og:url" content="{{ canonical_url }}">
-  {% if share_image %}
-  <meta property="og:image" content="{{ share_image }}">
+  {# A recent meeting's page has its own card (pipeline/share_cards.py); every other page, the town's image. #}
+  {% set card = share_card if share_card is defined and share_card else none %}
+  {% if card or share_image %}
+  <meta property="og:image" content="{{ card.url if card else share_image }}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="{{ site.name }}: {{ site.tagline }}">
+  <meta property="og:image:alt" content="{{ card.alt if card else site.name ~ ": " ~ site.tagline }}">
   <meta name="twitter:card" content="summary_large_image">
   {% endif %}
   {% set counter = "https://" ~ config.analytics.goatcounter ~ ".goatcounter.com" if config.get("analytics", {}).get("goatcounter") else "" %}
@@ -31,6 +35,7 @@
   <link rel="preload" href="/static/fonts/public-sans-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/source-serif-4-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon-96.png" type="image/png" sizes="96x96">
   <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
   {% if config.meetings is defined and meeting_links.documents %}
@@ -48,9 +53,11 @@
   <header class="site-header">
     <div class="wrap masthead">
       {# The same page in the site's other languages, each named in its own language. ?lang has the
-         network's Worker remember the choice over the browser's language (worker/sites.js). #}
+         network's Worker remember the choice over the browser's language (worker/sites.js). Search engines
+         aren't sent through it: its redirect is temporary, so they would keep the ?lang address as the page's,
+         and the hreflang links in the head already name each language's page. #}
       {% for v in versions if v.lang != lang %}
-      <a class="language-switch" href="{{ v.path }}?lang={{ v.lang }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}">{{ v.name }}</a>
+      <a class="language-switch" href="{{ v.path }}?lang={{ v.lang }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}" rel="nofollow">{{ v.name }}</a>
       {% endfor %}
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>

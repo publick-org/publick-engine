@@ -32,8 +32,14 @@ def translations(tmp_path):
     return {f.stem: json.loads(f.read_text()) for f in folder.glob("*.json")} if folder.is_dir() else {}
 
 
+def system(call) -> str:
+    """A call's system prompt: a summary's is text, a translation's is sent cached."""
+    return call["system"] if isinstance(call["system"], str) else call["system"][0]["text"]
+
+
 def translation_calls(client):
-    return [c for c in client.calls if "translate" in c["system"]]
+    """The calls that translate, not those that review a translation."""
+    return [c for c in client.calls if "translate" in system(c) and not system(c).startswith("You check")]
 
 
 def test_numbers_are_checked_without_ai():
@@ -79,14 +85,17 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-sonnet-5-5"
     assert record["cost"] == pytest.approx(TRANSLATION + REVIEW) and record["prompt_version"] == translate.VERSION
     call = translation_calls(client)[0]
-    assert call["model"] == "claude-sonnet-5-5" and "Spanish" in call["system"]
+    assert call["model"] == "claude-sonnet-5-5" and "Spanish" in system(call)
     assert call["output_config"]["format"]["type"] == "json_schema" and call["output_config"]["effort"] == "low"
     # Each translation's meaning is reviewed by the larger model, English beside Spanish.
     reviews = [c for c in client.calls if "problems" in c["output_config"]["format"]["schema"]["properties"]]
     assert reviews and reviews[0]["model"] == "claude-sonnet-5-5" and reviews[0]["output_config"]["effort"] == "low"
     # The review knows the words the translator was told to use, so it doesn't fail them.
-    assert "public hearing = audiencia pública" in reviews[0]["system"]
-    assert "Never guess anyone's gender" in call["system"] and "levantar la sesión" in call["system"]
+    assert "public hearing = audiencia pública" in system(reviews[0])
+    assert "Never guess anyone's gender" in system(call) and "levantar la sesión" in system(call)
+    # The system prompts are the same for every request, so they're cached; nothing else is.
+    assert all(c["system"][-1]["cache_control"] == {"type": "ephemeral"} for c in [call, reviews[0]])
+    assert "cache_control" not in call
 
 
 def test_a_translation_is_made_once_for_its_english(tmp_path):
@@ -160,6 +169,13 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(failed)
     assert translations(tmp_path)[sha]["attempts"] == 2 and translate.failed(tmp_path, "es", sha, english, record["kind"])
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+    # The first try, made the same month and replaced by the second, is still counted.
+    second = translations(tmp_path)[sha]
+    assert second["replaced_cost"] == record["cost"]
+    month = translate.month_counts(tmp_path)["2026-09"]
+    assert month["cost"] == pytest.approx(sum(r["cost"] + r.get("replaced_cost", 0) for r in translations(tmp_path).values())
+                                          + sum(b["cost"] for b in json.loads(next((tmp_path / "strings").glob("*.json"))
+                                                                              .read_text()).get("batches", [])))
 
 
 def test_the_check_runs_again_when_shown(tmp_path):
@@ -401,3 +417,49 @@ def test_a_decision_that_fails_its_fact_check_isnt_shown_in_either_language(tmp_
     assert "Approved the site plan for 12 Main St" not in page
     spanish = (out / "es" / english.relative_to(out)).read_text()
     assert "1 decisión no aparece: no se pudo comprobar con las actas." in spanish
+
+
+def test_what_the_english_writes_short_may_be_written_out():
+    """False alarms from the 2026-10-07 audit of prompt 4's translations: each a right translation."""
+    def headline(en, es):
+        return translate.check({"headline": en, "summary": "", "decisions": []}, {"headline": es, "summary": "", "decisions": []}, "minutes")
+    # A fiscal year, written out, with the English kept after it, or with two figures.
+    assert headline("Accepted the FY27 grant.", "Aceptó la subvención del año fiscal 2027.") == "ok"
+    assert headline("Reviewed FY26 balances.", "Revisó los saldos del año fiscal 2026 (FY26).") == "ok"
+    assert headline("Reviewed the FY 27 budget.", "Revisó el presupuesto del año fiscal 27.") == "ok"
+    assert headline("Accepted the FY27 grant.", "Aceptó la subvención del año fiscal 2028.") != "ok"
+    # An abbreviation written out; a name at the end of a sentence still counts.
+    assert headline("Amended Ch. 22 Sec. 22-270.", "Enmendó el capítulo 22, sección 22-270.") == "ok"
+    assert headline("Disclosure by Jennifer Duran, Asst City Clerk.", "Divulgación de Jennifer Duran, subsecretaria municipal.") == "ok"
+    assert "Cruz" in headline("Seconded by Councilor Cruz.", "Secundado por el concejal.")
+    # A name the Spanish writes with its accent.
+    assert headline("Celebrates America's 250th.", "Celebra los 250 años de América.") == "ok"
+    # A cap, not a "not"; a time range's a.m.; a date with dots.
+    assert headline("Awarded a contract not to exceed $15,545.", "Adjudicó un contrato por un máximo de $15,545.") == "ok"
+    assert headline("Interviews 9:00-11:00 A.M.", "Entrevistas de 9:00 a. m. a 11:00 a. m.") == "ok"
+    assert headline("Capital Plan - 1.28.26", "Plan de capital - 28 de enero de 2026") == "ok"
+    assert headline("Capital Plan - 1.28.26", "Plan de capital - 27 de enero de 2026") != "ok"
+    # Failed and declined, in either language's words.
+    assert headline("Failed motion to reconsider.", "Fracasa la moción para reconsiderar.") == "ok"
+    assert headline("Declined to sell the land.", "Rechazó vender el terreno.") == "ok"
+    assert headline("Declined to sell the land.", "Aprobó vender el terreno.") != "ok"
+
+
+def test_a_town_s_ordinary_words_are_whole_words_from_every_town(tmp_path):
+    """"Bryan" doesn't make "ryan" an ordinary word, so a Ryan is still checked; a word another town
+    of the network writes in lowercase is ordinary everywhere."""
+    for town, text in (("a-ma", "Bryan Lee spoke about wastewater."), ("b-ma", "Ryan spoke.")):
+        folder = tmp_path / "towns" / town / "data" / "summaries"
+        folder.mkdir(parents=True)
+        (folder / "x.json").write_text(json.dumps({"summary": text}))
+    words = translate.town_words(tmp_path / "towns" / "b-ma" / "data")
+    assert "wastewater" in words and "ryan" not in words
+    assert translate.names("Ryan reviewed the Wastewater Plan.", words) == {"Ryan"}
+
+
+def test_cached_input_is_counted_at_its_own_price():
+    """input_tokens leaves out cached input: written at 1.25 times the input price, read at a tenth."""
+    prices = {"input_price": 2.0, "output_price": 10.0}
+    assert summarize.cost({"input_tokens": 600, "output_tokens": 300}, prices) == pytest.approx(TRANSLATION)
+    cached = {"input_tokens": 600, "output_tokens": 300, "cache_creation_input_tokens": 800, "cache_read_input_tokens": 1000}
+    assert summarize.cost(cached, prices) == pytest.approx(TRANSLATION + (800 * 1.25 + 1000 * 0.1) * 2.0 / 1e6)

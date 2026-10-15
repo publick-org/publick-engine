@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 
 import worker from "./scheduler-index.js";
-import { ALERT_LABEL, DIGEST_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, lastDailyRun, onSchedule, startRun, watch } from "./scheduler.js";
-import { DIGEST_CRON, newestIssue, sendDigests } from "./digest.js";
+import {
+  ALERT_LABEL, DIGEST_LABEL, DOWN_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, UPTIME_CRON, downSites, lastDailyRun,
+  onSchedule, siteHosts, startRun, watch, watchSites,
+} from "./scheduler.js";
+import { DIGEST_CRON, TEST_PREFIX, deleteTests, newestIssue, sendDigests, sendTest } from "./digest.js";
+import { main as digestTest } from "./digest-test.js";
+import { SEARCH_CONSOLE, networkSitemaps, submitSitemaps } from "./search.js";
 
 const NOW = new Date("2026-10-02T13:05:00Z");
 
@@ -147,14 +152,15 @@ function digestFeed(site, title, link, pubDate, body) {
 }
 
 const DUE = "Sun, 04 Oct 2026 17:30:00 -0400";  // 21:30 UTC
-const BODY = '<p>13 meetings this week.</p>\n<h2>Meetings</h2><p><a href="https://gloucester-ma.publick.org/meetings/x/?ref=digest">Board &amp; Committee</a></p>';
+const FOOTER = '<p><a href="{{ unsubscribe_url }}">Unsubscribe</a>.<br>Publick · PO Box 1, Gloucester, MA 01930</p>';
+const BODY = '<p>13 meetings this week.</p>\n<h2>Meetings</h2><p><a href="https://gloucester-ma.publick.org/meetings/x/?ref=digest">Board &amp; Committee</a></p>' + FOOTER;
 
 function digestEnv(towns = "gloucester-ma.publick.org", feeds = null) {
   feeds ??= {
     "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick", "Week of October 5, 2026",
       "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY)],
     "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
-      "https://malden-ma.publick.org/digest/2026-10-05/", DUE, "<p>Malden</p>")],
+      "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)],
   };
   return { ...env(), BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TOWNS: towns,
            SITES: { fetch: async (url) => { const [status, body] = feeds[url] || [404, ""]; return new Response(body, { status }); } } };
@@ -172,7 +178,7 @@ function withButtondown(routesFor) {
     const method = init.method || "GET";
     calls.push({ method, path, body: init.body ? JSON.parse(init.body) : null, headers: init.headers });
     const [status, body] = buttondownRoutes[`${method} ${path.split("?")[0]}`] || [500, { detail: "not expected" }];
-    return new Response(JSON.stringify(body), { status });
+    return new Response(status === 204 ? null : JSON.stringify(body), { status });
   };
 }
 
@@ -189,12 +195,17 @@ test("an issue due is sent once, to its town's readers only", async () => {
   assert.equal(sent.headers["X-Buttondown-Live-Dangerously"], "true");
   assert.equal(sent.body.subject, "Gloucester Publick: Week of October 5, 2026");
   assert.equal(sent.body.body, `<!-- buttondown-editor-mode: fancy -->\n${BODY}`);
+  // Without Buttondown's template: the issue's own footer has the unsubscribe link and address.
+  assert.equal(sent.body.template, "naked");
   assert.equal(sent.body.status, "about_to_send");
   assert.deepEqual(sent.body.filters, { predicate: "and", groups: [],
     filters: [{ field: "subscriber.tags", operator: "contains", value: "tag_gloucester" }] });
   assert.equal(sent.body.slug, "gloucester-ma-2026-10-05");
   assert.equal(sent.body.archival_mode, "disabled");
   assert.equal(sent.body.canonical_url, "https://gloucester-ma.publick.org/digest/2026-10-05/");
+  // Buttondown takes a date for when emails were made, not a time (HTTP 422 for "2026-10-03T15:35:00.000Z").
+  const listed = calls.find((c) => c.method === "GET" && c.path.startsWith("/emails"));
+  assert.equal(new URL(`https://x${listed.path}`).searchParams.get("creation_date__start"), "2026-10-03");
 });
 
 test("an issue isn't sent before it's due, nor more than 6 hours late", async () => {
@@ -203,6 +214,18 @@ test("an issue isn't sent before it's due, nor more than 6 hours late", async ()
     const [result] = await sendDigests(digestEnv(), at(now));
     assert.equal(result.done, "not_due", now);
   }
+  assert.equal(calls.length, 0);
+});
+
+test("a week whose issue never came fails its last try, once", async () => {
+  withButtondown({});
+  // The newest issue is due 2026-10-04; the next week's would be due 2026-10-11 at 21:30 UTC.
+  for (const now of ["2026-10-11T21:35:00Z", "2026-10-12T01:35:00Z", "2026-10-12T03:35:00Z", "2026-10-12T21:35:00Z"]) {
+    const [result] = await sendDigests(digestEnv(), at(now));
+    assert.equal(result.done, "not_due", now);
+  }
+  await assert.rejects(sendDigests(digestEnv(), at("2026-10-12T02:35:00Z")),
+    /gloucester-ma\.publick\.org: this week's issue isn't in its feed by its last try \(the newest is "Gloucester Publick: Week of October 5, 2026"\)/);
   assert.equal(calls.length, 0);
 });
 
@@ -220,6 +243,18 @@ test("a town no one has signed up for yet sends nothing", async () => {
   assert.ok(!calls.some((c) => c.method === "POST"));
 });
 
+test("an issue without an unsubscribe link, or a mailing address, isn't sent", async () => {
+  for (const [body, error] of [[BODY.replace("{{ unsubscribe_url }}", "#"), /no unsubscribe link/],
+                               [BODY.replace("PO Box 1, Gloucester, MA 01930", "[mailing address]"), /no mailing address/]]) {
+    withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+    const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick",
+      "Week of October 5, 2026", "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, body)] };
+    await assert.rejects(sendDigests(digestEnv("gloucester-ma.publick.org", feeds), at("2026-10-04T21:35:00Z")), error);
+    assert.ok(!calls.some((c) => c.method === "POST"));
+    calls.length = 0;
+  }
+});
+
 test("no towns named, nothing is read or sent", async () => {
   withButtondown({});
   assert.deepEqual(await sendDigests(digestEnv(""), at("2026-10-04T21:35:00Z")), []);
@@ -229,7 +264,7 @@ test("no towns named, nothing is read or sent", async () => {
 test("one town failing doesn't stop the next; the run fails naming it, and opens one issue", async () => {
   const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [503, ""],
                   "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
-                    "https://malden-ma.publick.org/digest/2026-10-05/", DUE, "<p>Malden</p>")] };
+                    "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)] };
   withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
   routes["GET /repos/publick-org/publick.org/issues"] = [200, []];
   routes["POST /repos/publick-org/publick.org/labels"] = [201, {}];
@@ -257,9 +292,254 @@ test("the newest issue in a feed, with the site's name and its body unescaped", 
   assert.equal(newestIssue('<rss version="2.0"><channel>\n<title>X: Weekly digest</title></channel></rss>'), null);
 });
 
+test("a test is a draft, sent at once to the addresses given and no subscriber", async () => {
+  withButtondown({ "POST /emails": [201, { id: "em_test" }], "POST /emails/em_test/send-draft": [200, {}] });
+  const issue = newestIssue(digestFeed("Gloucester Publick", "Week of October 5, 2026",
+    "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY));
+  assert.equal(await sendTest("send-key", issue, ["a@example.org"]), "[Test] Gloucester Publick: Week of October 5, 2026");
+  const [made, sent] = calls;
+  assert.equal(made.body.status, "draft");
+  assert.equal(made.body.template, "naked");
+  assert.equal(made.body.subject, "[Test] Gloucester Publick: Week of October 5, 2026");
+  assert.equal(made.body.body, `<!-- buttondown-editor-mode: fancy -->\n${BODY}`);
+  // Not the issue's slug (Sunday's email takes it), nor its readers.
+  assert.ok(!("slug" in made.body) && !("filters" in made.body));
+  assert.equal(made.body.archival_mode, "disabled");
+  assert.equal(sent.method, "POST");
+  assert.equal(sent.path, "/emails/em_test/send-draft");
+  assert.deepEqual(sent.body, { recipients: ["a@example.org"] });
+  await assert.rejects(sendTest("send-key", issue, []), /no addresses/);
+});
+
+test("a test's subject is never taken for the issue sent", async () => {
+  // Sunday's send finds an email already sent by its subject: a test's isn't it.
+  withButtondown({ "GET /emails": [200, { results: [{ subject: `${TEST_PREFIX}Gloucester Publick: Week of October 5, 2026`, status: "draft" }], next: null }],
+                   "GET /tags": [200, TAGS], "POST /emails": [201, { id: "em_1" }] });
+  const [result] = await sendDigests(digestEnv(), at("2026-10-04T21:35:00Z"));
+  assert.equal(result.done, "sent");
+});
+
+test("earlier tests' drafts are deleted, but not one still sending, nor any other draft", async () => {
+  withButtondown({
+    "GET /emails": [200, { results: [
+      { id: "em_old", subject: "[Test] Gloucester Publick: Week of October 5, 2026", creation_date: "2026-10-04T20:00:00Z" },
+      { id: "em_new", subject: "[Test] Malden Publick: Week of October 5, 2026", creation_date: "2026-10-04T21:31:00Z" },
+      { id: "em_mine", subject: "A draft of someone's", creation_date: "2026-10-01T00:00:00Z" },
+    ], next: null }],
+    "DELETE /emails/em_old": [204, null],
+  });
+  assert.equal(await deleteTests("send-key", at("2026-10-04T21:35:00Z")), 1);
+  assert.equal(new URL(`https://x${calls[0].path}`).searchParams.get("status"), "draft");
+  assert.deepEqual(calls.filter((c) => c.method === "DELETE").map((c) => c.path), ["/emails/em_old"]);
+});
+
+test("the test command sends a built site's issue, and never prints the addresses", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const feed = join(await mkdtemp(join(tmpdir(), "digest-test-")), "feed.xml");
+  await writeFile(feed, digestFeed("Gloucester Publick", "Week of October 5, 2026",
+    "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY));
+  withButtondown({ "GET /emails": [200, NONE_SENT], "POST /emails": [201, { id: "em_test" }],
+                   "POST /emails/em_test/send-draft": [200, {}] });
+  const printed = [];
+  const log = console.log;
+  console.log = (line) => printed.push(line);
+  try {
+    await digestTest([feed], { BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TEST_RECIPIENTS: "a@example.org, b@example.org" });
+  } finally {
+    console.log = log;
+  }
+  assert.deepEqual(calls.at(-1).body, { recipients: ["a@example.org", "b@example.org"] });
+  assert.deepEqual(printed, ['Sent "[Test] Gloucester Publick: Week of October 5, 2026" to 2 addresses.']);
+  await assert.rejects(digestTest([feed], { BUTTONDOWN_SEND_KEY: "send-key" }), /DIGEST_TEST_RECIPIENTS isn't set/);
+  await assert.rejects(digestTest(["not a host!"], { BUTTONDOWN_SEND_KEY: "k", DIGEST_TEST_RECIPIENTS: "a@example.org" }),
+    /neither a feed file nor a site's hostname/);
+});
+
 test("the digest's Cron Trigger names its days, as Cloudflare takes them", () => {
   // Cloudflare numbers days 1 (Sunday) to 7 and refused "0,1" (2026-10-06); names mean the same everywhere.
   const days = DIGEST_CRON.split(" ")[4];
   assert.match(days, /^(SUN|MON|TUE|WED|THU|FRI|SAT)(,(SUN|MON|TUE|WED|THU|FRI|SAT))*$/);
   assert.equal(DIGEST_CRON.split(" ").length, 5);
+});
+
+// ---- The hourly uptime check ----
+
+const SITEMAP = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://publick.org/sitemap-home.xml</loc></sitemap>
+  <sitemap><loc>https://gloucester-ma.publick.org/sitemap.xml</loc></sitemap>
+  <sitemap><loc>https://malden-ma.publick.org/sitemap.xml</loc></sitemap>
+</sitemapindex>`;
+const PAGE = "<!doctype html><html><body>Publick</body></html>";
+
+// The sites Worker: the sitemap, and each homepage as `pages` says (host -> [status, body], or a list of them in turn).
+function sitesEnv(pages = {}, sitemapStatus = 200) {
+  const seen = {};
+  return {
+    ...env(),
+    SITES: {
+      fetch: async (url) => {
+        if (url === "https://publick.org/sitemap.xml") return new Response(SITEMAP, { status: sitemapStatus });
+        const host = new URL(url).host;
+        const answers = pages[host] || [[200, PAGE]];
+        const list = Array.isArray(answers[0]) ? answers : [answers];
+        const [status, body] = list[Math.min(seen[host] = (seen[host] ?? -1) + 1, list.length - 1)];
+        if (status === "throw") throw new Error(body);
+        return new Response(body, { status });
+      },
+    },
+  };
+}
+const noWait = async () => {};
+
+test("the sites to check: the homepage and each town in the sitemap", async () => {
+  assert.deepEqual(await siteHosts(sitesEnv()), ["publick.org", "gloucester-ma.publick.org", "malden-ma.publick.org"]);
+});
+
+test("a site down is one that fails twice; once is a blip", async () => {
+  const blip = sitesEnv({ "malden-ma.publick.org": [[503, "temporarily unavailable"], [200, PAGE]] });
+  assert.deepEqual(await downSites(blip, noWait), []);
+  const down = sitesEnv({
+    "malden-ma.publick.org": [503, "This page is temporarily unavailable."],
+    "gloucester-ma.publick.org": ["throw", "manifest format 2, this Worker reads 1"],
+  });
+  assert.deepEqual(await downSites(down, noWait), [
+    { host: "gloucester-ma.publick.org", problem: "manifest format 2, this Worker reads 1" },
+    { host: "malden-ma.publick.org", problem: "HTTP 503" },
+  ]);
+  assert.deepEqual(await downSites(sitesEnv({ "publick.org": [200, "<html>"] }), noWait),
+    [{ host: "publick.org", problem: "an empty or partial page" }]);
+  assert.deepEqual(await downSites(sitesEnv({}, 500), noWait),
+    [{ host: "publick.org", problem: "its sitemap didn't load (https://publick.org/sitemap.xml: HTTP 500)" }]);
+});
+
+test("a site down opens one issue, assigned, naming it", async () => {
+  routes["POST /repos/publick-org/publick.org/labels"] = [201, {}];
+  routes["POST /repos/publick-org/publick.org/issues"] = [201, { number: 9 }];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""] }), NOW, noWait);
+  const issue = calls.find((c) => c.method === "POST" && c.path === "/repos/publick-org/publick.org/issues");
+  assert.equal(issue.body.title, "malden-ma.publick.org isn't loading");
+  assert.deepEqual(issue.body.labels, [DOWN_LABEL]);
+  assert.deepEqual(issue.body.assignees, ["maintainer"]);
+  assert.match(issue.body.body, /^- malden-ma\.publick\.org: HTTP 503$/m);
+});
+
+test("while sites are down, the issue changes only when the list does", async () => {
+  const body = "These Publick sites aren't loading:\n\n- malden-ma.publick.org: HTTP 503\n";
+  routes["GET /repos/publick-org/publick.org/issues"] = [200, [{ number: 9, body }]];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""] }), NOW, noWait);
+  assert.deepEqual(calls.map((c) => c.method), ["GET"]);
+  routes["PATCH /repos/publick-org/publick.org/issues/9"] = [200, {}];
+  await watchSites(sitesEnv({ "malden-ma.publick.org": [503, ""], "publick.org": [503, ""] }), NOW, noWait);
+  const update = calls.find((c) => c.method === "PATCH");
+  assert.match(update.body.body, /- publick\.org: HTTP 503\n- malden-ma\.publick\.org: HTTP 503/);
+});
+
+test("every site loading again closes the issue", async () => {
+  routes["GET /repos/publick-org/publick.org/issues"] = [200, [{ number: 9, body: "- malden-ma.publick.org: HTTP 503" }]];
+  routes["POST /repos/publick-org/publick.org/issues/9/comments"] = [201, {}];
+  routes["PATCH /repos/publick-org/publick.org/issues/9"] = [200, {}];
+  await watchSites(sitesEnv(), NOW, noWait);
+  assert.deepEqual(calls.find((c) => c.method === "PATCH").body, { state: "closed", state_reason: "completed" });
+});
+
+test("the uptime check's Cron Trigger checks the sites and starts no run", async () => {
+  await onSchedule({ scheduledTime: NOW.getTime(), cron: UPTIME_CRON }, sitesEnv());
+  assert.ok(!calls.some((c) => c.path.endsWith("/dispatches")));
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path.split("?")[0]}`), ["GET /repos/publick-org/publick.org/issues"]);
+});
+
+// Search Console (search.js): a service account with a key made for the test, and Google's two APIs recorded.
+async function serviceAccount() {
+  const keys = await crypto.subtle.generateKey(
+    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+    true, ["sign", "verify"]);
+  const der = Buffer.from(await crypto.subtle.exportKey("pkcs8", keys.privateKey)).toString("base64");
+  const pem = `-----BEGIN PRIVATE KEY-----\n${der.match(/.{1,64}/g).join("\n")}\n-----END PRIVATE KEY-----\n`;
+  return {
+    publicKey: keys.publicKey,
+    json: JSON.stringify({ client_email: "sitemaps@example.iam.gserviceaccount.com", private_key: pem,
+      token_uri: "https://oauth2.googleapis.com/token" }),
+  };
+}
+
+// Google's answers: the token, and Search Console's sitemaps (`known`); each call recorded in `google`.
+let google;
+function googleApis(known, { listStatus = 200 } = {}) {
+  google = [];
+  const github = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (!url.startsWith("https://oauth2.googleapis.com/") && !url.startsWith(SEARCH_CONSOLE)) return github(url, init);
+    const method = init.method || "GET";
+    google.push({ method, url, body: init.body ? String(init.body) : null, headers: init.headers || {} });
+    if (url === "https://oauth2.googleapis.com/token") return Response.json({ access_token: "google-token" });
+    if (method === "GET") {
+      return listStatus === 200 ? Response.json({ sitemap: known.map((path) => ({ path })) })
+        : new Response("forbidden", { status: listStatus });
+    }
+    return new Response(null, { status: 204 });
+  };
+}
+
+const SITEMAPS = `${SEARCH_CONSOLE}/sites/sc-domain%3Apublick.org/sitemaps`;
+
+test("the network's sitemaps: the index, and each one it lists", async () => {
+  assert.deepEqual(await networkSitemaps(sitesEnv()), [
+    "https://publick.org/sitemap.xml", "https://publick.org/sitemap-home.xml",
+    "https://gloucester-ma.publick.org/sitemap.xml", "https://malden-ma.publick.org/sitemap.xml",
+  ]);
+});
+
+test("only the sitemaps Search Console doesn't have are submitted", async () => {
+  const account = await serviceAccount();
+  googleApis(["https://publick.org/sitemap.xml", "https://publick.org/sitemap-home.xml",
+    "https://gloucester-ma.publick.org/sitemap.xml"]);
+  const result = await submitSitemaps({ ...sitesEnv(), GSC_SERVICE_ACCOUNT_JSON: account.json }, NOW);
+  assert.deepEqual(result, { submitted: ["https://malden-ma.publick.org/sitemap.xml"] });
+  assert.deepEqual(google.map((c) => `${c.method} ${c.url}`), [
+    "POST https://oauth2.googleapis.com/token",
+    `GET ${SITEMAPS}`,
+    `PUT ${SITEMAPS}/https%3A%2F%2Fmalden-ma.publick.org%2Fsitemap.xml`,
+  ]);
+  assert.ok(google.slice(1).every((c) => c.headers.Authorization === "Bearer google-token"));
+});
+
+test("the token is asked for with a JWT the service account signed", async () => {
+  const account = await serviceAccount();
+  googleApis([]);
+  await submitSitemaps({ ...sitesEnv(), GSC_SERVICE_ACCOUNT_JSON: account.json }, NOW);
+  const form = new URLSearchParams(google[0].body);
+  assert.equal(form.get("grant_type"), "urn:ietf:params:oauth:grant-type:jwt-bearer");
+  const [header, claims, signature] = form.get("assertion").split(".");
+  const decode = (part) => JSON.parse(Buffer.from(part, "base64url").toString());
+  assert.deepEqual(decode(header), { alg: "RS256", typ: "JWT" });
+  const iat = NOW.getTime() / 1000;
+  assert.deepEqual(decode(claims), { iss: "sitemaps@example.iam.gserviceaccount.com",
+    scope: "https://www.googleapis.com/auth/webmasters", aud: "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
+  assert.ok(await crypto.subtle.verify("RSASSA-PKCS1-v1_5", account.publicKey, Buffer.from(signature, "base64url"),
+    new TextEncoder().encode(`${header}.${claims}`)));
+  assert.equal(google.filter((c) => c.method === "PUT").length, 4);
+});
+
+test("without the service account's key, nothing is read or submitted", async () => {
+  googleApis([]);
+  const result = await submitSitemaps(sitesEnv(), NOW);
+  assert.deepEqual(result.submitted, []);
+  assert.deepEqual(google, []);
+});
+
+test("a daily run's start submits new sitemaps; Search Console refusing fails the invocation, not the run", async () => {
+  const account = await serviceAccount();
+  routes["POST /repos/publick-org/publick.org/actions/workflows/network.yml/dispatches"] = [204, null];
+  googleApis([], { listStatus: 403 });
+  const scheduler = { ...sitesEnv(), SITES: { fetch: async (url) => (url === "https://publick.org/status/"
+    ? new Response(statusPage("2026-10-02T11:40:00+00:00")) : sitesEnv().SITES.fetch(url)) } };
+  await assert.rejects(onSchedule({ scheduledTime: NOW.getTime() }, { ...scheduler, GSC_SERVICE_ACCOUNT_JSON: account.json }),
+    /listing Search Console's sitemaps: HTTP 403/);
+  assert.ok(calls.some((c) => c.path.endsWith("/dispatches")));
+  googleApis([]);
+  const [, , search] = await onSchedule({ scheduledTime: NOW.getTime() }, { ...scheduler, GSC_SERVICE_ACCOUNT_JSON: account.json });
+  assert.equal(search.submitted.length, 4);
 });

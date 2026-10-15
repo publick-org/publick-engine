@@ -78,7 +78,9 @@ test("redirects a folder without its slash, keeping the query", async () => {
 });
 
 test("unknown paths get the site's 404 page", async () => {
-  for (const path of ["/nope", "/nope/", "/about/extra", "/%E0%A4%A", "/..%2f..%2fetc/passwd"]) {
+  // Names every object has (/constructor, /__proto__) are paths like any other.
+  for (const path of ["/nope", "/nope/", "/about/extra", "/%E0%A4%A", "/..%2f..%2fetc/passwd",
+                      "/constructor", "/__proto__", "/toString", "/hasOwnProperty", "/valueOf.html"]) {
     const response = await worker.fetch(get(path), env());
     assert.equal(response.status, 404, path);
     assert.equal(await response.text(), "content missing");

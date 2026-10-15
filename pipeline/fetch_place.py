@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
+from pipeline.files import write_atomic
 from pipeline.http import FetchError, PoliteClient
 
 TIGERWEB = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer"
@@ -59,8 +60,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     url = query_url(config["housing"]["census_geo"])
     data = {**parse(client.get(url).json()), "source_url": url, "updated_at": now.isoformat(timespec="seconds")}
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=2) + "\n")
     return data
 
 

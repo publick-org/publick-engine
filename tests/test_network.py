@@ -49,9 +49,30 @@ def test_finds_towns_and_their_config_names(tmp_path):
 
 def test_plan_batches_every_town(tmp_path):
     root = make_root(tmp_path)
-    assert batches(network.plan(root, batch_size=2)) == [["gloucester-ma", "manchester-nh"], ["salem-ma"]]
+    assert batches(network.plan(root, batch_size=2)) == [["gloucester-ma", "salem-ma"], ["manchester-nh"]]
     assert network.plan(root, batch_size=2)["include"][0]["name"] == "gloucester-ma +1"
+    assert batches(network.plan(root, batch_size=4)) == [["gloucester-ma", "manchester-nh", "salem-ma"]]
     assert network.plan(make_root(tmp_path / "empty", ()))["include"] == []
+
+
+def test_plan_spreads_the_slow_towns_over_the_jobs(tmp_path):
+    """The 2026-10-07 daily run, by the time each town's last fetching run took: in order, the three
+    slow 311 towns and Lewiston made one job of over two hours, whose runner was lost."""
+    minutes = {"malden-ma": 45, "manchester-nh": 44, "burlington-vt": 47, "lewiston-me": 5, "lawrence-ma": 3,
+               "wallingford-ct": 8, "beverly-ma": 5, "gloucester-ma": 16, "bangor-me": 28, "south-kingstown-ri": 5}
+    root = make_root(tmp_path, tuple(minutes))
+    for name, took in minutes.items():
+        write_record(root, name, started_at="2026-10-06T09:00:00+00:00",
+                     finished_at=f"2026-10-06T{9 + took // 60:02d}:{took % 60:02d}:00+00:00")
+    jobs = batches(network.plan(root, batch_size=4))
+    assert len(jobs) == 3 and all(len(job) <= 4 for job in jobs)
+    assert sorted(sum(jobs, [])) == sorted(minutes)
+    assert all(len({"malden-ma", "manchester-nh", "burlington-vt"} & set(job)) == 1 for job in jobs)
+    assert max(sum(minutes[t] for t in job) for job in jobs) <= 75
+    # A town with no record, or one that can't be read, counts as UNKNOWN_RUN_SECONDS.
+    (root / "towns" / "lewiston-me" / "data" / network.RUN_RECORD).write_text("{")
+    assert network.last_run_seconds(root, "lewiston-me") == network.UNKNOWN_RUN_SECONDS
+    assert network.last_run_seconds(make_root(tmp_path / "new", ("salem-ma",)), "salem-ma") == network.UNKNOWN_RUN_SECONDS
 
 
 def test_slots_split_towns_stably(tmp_path):
@@ -531,3 +552,47 @@ def test_run_record_counts_what_the_fact_check_holds_back(tmp_path):
         "summaries": 4, "ok": 1, "failed": 1, "weak": 1, "unchecked": 0, "not_yet": 1,
         "held_back": 1, "entries_not_shown": 2, "vote_counts_left_out": 1}
     assert network.fact_checks(tmp_path / "nothing")["summaries"] == 0
+
+
+def test_canaries_cover_every_kind_of_town_with_the_fewest(tmp_path):
+    root = make_root(tmp_path, ("gloucester-ma", "salem-ma", "beverly-ma", "manchester-nh", "keene-nh"))
+    configs = {
+        "gloucester": '[town]\nstate = "Massachusetts"\n[meetings.civicplus]\nurl = "x"\n[permits]\nfile = "x"\n',
+        "salem": '[town]\nstate = "Massachusetts"\n[meetings.civicplus]\nurl = "x"\n',
+        "beverly": '[town]\nstate = "Massachusetts"\n[meetings.agenda_center]\nurl = "x"\n[meetings.aliases]\nA = "B"\n',
+        "manchester": '[town]\nstate = "New Hampshire"\n[meetings.civicclerk]\nurl = "x"\n[seeclickfix]\nplace = 1\n',
+        "keene": '[town]\nstate = "New Hampshire"\n[meetings.civicclerk]\nurl = "x"\n',
+    }
+    for name, text in configs.items():
+        next((root / "towns").glob(f"{name}-*/config")).joinpath(f"{name}.toml").write_text(text)
+    assert network.town_features(network.town_config(root, "beverly-ma")) == {
+        "state:Massachusetts", "table:meetings", "meetings:agenda_center"}
+    # Salem and Keene have nothing the others don't (aliases aren't a source).
+    assert network.canaries(root) == ["beverly-ma", "gloucester-ma", "manchester-nh"]
+    assert network.canaries(root, ["salem-ma", "keene-nh"]) == ["keene-nh", "salem-ma"]
+
+
+def test_collecting_a_towns_batch_of_summaries_publishes_it_again(tmp_path, steps, monkeypatch):
+    calls, _ = steps
+    for k in network.FETCH_KEYS + network.PUBLISH_KEYS:
+        monkeypatch.setenv(k, "x")
+    root = make_root(tmp_path)
+    data = root / "towns" / "gloucester-ma" / "data"
+    data.mkdir()
+    # No batch waiting: nothing to do.
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True)
+    assert calls == [] and result["ok"] and not result["collected"]
+    (data / network.SUMMARY_BATCH).write_text("{}")
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True)
+    assert [c["name"] for c in calls] == ["Collect summaries", "Build site", "Check site", "Publish site",
+                                          "Check live site"]
+    collect = calls[0]
+    assert collect["cmd"][2:] == ["pipeline.summarize", "--town", "gloucester"]
+    assert collect["env"]["PUBLICK_SUMMARY_COLLECT"] == "1"
+    assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in collect["env"]} == set(network.COLLECT_KEYS)
+    assert result["collected"] and result["deployed"]
+
+
+def test_the_batch_file_is_the_one_summarize_keeps():
+    from pipeline import summarize
+    assert network.SUMMARY_BATCH == summarize.BATCH_FILE

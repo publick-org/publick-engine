@@ -54,6 +54,10 @@ def test_every_page_in_both_languages(built, site_dir):
     digest = page(out, "/digest/")
     assert "hreflang" not in digest and "language-switch" not in digest
     assert 'href="/digest/"' in page(out, "/") and 'href="/digest/"' not in page(out, "/es/")
+    # Nor its signup, on the home page and each meeting's and board's.
+    assert "signup-box" in page(out, "/") and "/digest/" not in page(out, "/es/")
+    for url in ("/meetings/2026-08-25-city-council/", "/meetings/boards/city-council/"):
+        assert "/digest/#signup" in page(out, url) and "/digest/" not in page(out, f"/es{url}")
     assert "/es/" in urls and "/es/meetings/" in urls
     assert "https://gloucester-ma.publick.org/es/meetings/" in (out / "sitemap.xml").read_text()
 
@@ -83,8 +87,8 @@ def test_language_attributes_and_switch(built):
         assert '<link rel="alternate" hreflang="en" href="https://gloucester-ma.publick.org/meetings/">' in html
         assert '<link rel="alternate" hreflang="es" href="https://gloucester-ma.publick.org/es/meetings/">' in html
         assert '<link rel="alternate" hreflang="x-default" href="https://gloucester-ma.publick.org/meetings/">' in html
-    assert '<a class="language-switch" href="/es/meetings/?lang=es" hreflang="es" lang="es">Español</a>' in en
-    assert '<a class="language-switch" href="/meetings/?lang=en" hreflang="en" lang="en">English</a>' in es
+    assert '<a class="language-switch" href="/es/meetings/?lang=es" hreflang="es" lang="es" rel="nofollow">Español</a>' in en
+    assert '<a class="language-switch" href="/meetings/?lang=en" hreflang="en" lang="en" rel="nofollow">English</a>' in es
     assert '<link rel="canonical" href="https://gloucester-ma.publick.org/es/meetings/">' in es
 
 
@@ -137,7 +141,7 @@ def test_section_names_are_the_engines_to_translate(config):
 def test_text_without_spanish_is_shown_in_english_and_never_stops_the_build(monkeypatch, capsys):
     """A text with no Spanish, the config's own or a name from the city's data, is shown in
     English with a warning: a gap in one language never stops either language publishing."""
-    def build(town, out, data, missing):
+    def build(town, out, data, missing, share_cards):
         missing["es"] = {"config": ["Public data on how Gloucester decides."], "data": ["Board of Health"]}
         return ["/"]
     monkeypatch.setattr(build_site, "build", build)

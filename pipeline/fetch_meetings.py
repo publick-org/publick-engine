@@ -47,6 +47,7 @@ from pypdf import PdfReader
 from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
+from pipeline.files import write_atomic
 from pipeline.http import FetchError, PoliteClient
 from pipeline.meeting_names import words
 
@@ -66,8 +67,7 @@ def load_store(data_dir: Path) -> dict:
 
 
 def save_json(path: Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
 
 
 def normalize_body(body: str, aliases: dict) -> str:
@@ -252,11 +252,13 @@ def agenda_center_calendar(config: dict) -> Calendar:
     excluded = {c.lower() for c in settings.get("exclude_categories", [])}
 
     def events(client, today, store):
-        # The first run lists every meeting since `since`. Later runs re-read
-        # the last few weeks (for minutes and late changes) and the weeks ahead.
+        # Every run lists every meeting since `since`, still one request: a board can
+        # post its minutes months after the meeting (Lawrence's), and a meeting is
+        # only known to have minutes from this listing. A town may limit later runs
+        # to the last recheck_days days.
         start = date.fromisoformat(settings["since"])
-        if any(m.get("source") == "agendacenter" for m in store.values()):
-            start = max(start, today - timedelta(days=settings.get("recheck_days", 60)))
+        if "recheck_days" in settings and any(m.get("source") == "agendacenter" for m in store.values()):
+            start = max(start, today - timedelta(days=settings["recheck_days"]))
         end = today + timedelta(days=settings.get("days_ahead", 60))
         page = client.get(agendacenter.search_url(settings["base_url"], start, end))
         rows = agendacenter.parse_listing(page.text, settings["base_url"])
@@ -294,7 +296,14 @@ def civicclerk_calendar(config: dict) -> Calendar:
             url = civicclerk.next_page(data)
             if not url:
                 break
-        return [e for e in found if matches(settings, e["title"])]
+        # Only to days_ahead (default 90) days out, as the other readers: portals list placeholders a
+        # year or more ahead (South Kingstown's to 2028), which the city often moves or renames before
+        # they come. One recorded beyond it with no documents yet is forgotten, and comes back in range.
+        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        for key in [k for k, m in store.items() if m.get("source") == "civicclerk" and m["date"] > ahead
+                    and not any(m.get(f) for f in ("agenda_id", "agendas", "minutes_id", "minutes"))]:
+            del store[key]
+        return [e for e in found if e["date"] <= ahead and matches(settings, e["title"])]
 
     def details(client, meeting, storage, stamp):
         fetch_agenda(client, meeting, meeting, storage, stamp)
@@ -453,9 +462,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     for calendar in calendars(config):
         try:
             events = calendar.events(client, today, store)
-        except FetchError as e:
+        except Exception as e:  # a page it can't read, or can't parse: the other calendars still count
             # Keep what is recorded; the site shows when meetings were last checked.
-            errors.append(f"{calendar.name}: {e}")
+            errors.append(f"{calendar.name}: {e}" if isinstance(e, FetchError) else f"{calendar.name}: {e!r}")
             failed.append(calendar.name)
             continue
         # A calendar that listed meetings and now lists none has most likely broken (a moved page, a
@@ -504,8 +513,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             pages += 1
             calendar.details(client, meeting, storage, stamp)
             meeting["checked_at"] = stamp
-        except FetchError as e:
-            errors.append(str(e))
+        except Exception as e:  # one meeting's page doesn't stop the rest, or the save
+            errors.append(str(e) if isinstance(e, FetchError) else f"{meeting['id']}: {e!r}")
 
     save_json(meetings_dir(data_dir) / "meetings.json", store)
     names = [c.name for c in calendars(config)]

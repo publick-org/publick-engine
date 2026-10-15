@@ -1,6 +1,5 @@
 """The sample of pages a daily run gives the browser checks (site_checks/pages.py)."""
 
-from pathlib import Path
 
 from conftest import PAGE_PATHS, SITE_DIR
 

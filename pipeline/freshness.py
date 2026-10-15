@@ -8,7 +8,9 @@ they were last updated. Figure sources (the tax bill, budget, school figures,
 unemployment, housing) are judged by the period they cover: they're behind
 only when a newer period should have been published by now (pipeline/rhythms.py).
 A figure source whose checks keep failing is marked as failing, for the
-maintainer, without being behind. This also looks for new agendas and minutes
+maintainer, without being behind. The list of elected officials, kept by hand,
+is behind when it hasn't been checked since the town's last election, or since
+new terms began (pipeline/officials.py, review). This also looks for new agendas and minutes
 still waiting for a summary (a sign the AI summary step is failing); older
 documents are summarized a little each day, within the network's budget, so
 they don't count.
@@ -31,9 +33,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import rhythms, summarize
+from pipeline import bucket_data, officials, rhythms, summarize
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
-from pipeline.i18n import _
+from pipeline.i18n import _, month_year, plain_date
 
 
 def last_update(data_dir: Path, source: dict) -> datetime | None:
@@ -70,6 +72,8 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
     its allowed age (max_days); a figure source's has its latest period, the next and when it usually
     appears, why it's behind if it is, and failing (its run of failed checks, from three)."""
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
+    # A source's file the town keeps in its bucket, not git (pipeline/bucket_data.py), such as the 311 scorecard.
+    bucket_data.pull(config, data_dir)
     fresh = {"sources": [], "summary_grace_days": 2, "grace_months": rhythms.GRACE_MONTHS,
              **config.get("freshness", {})}
     checks = rhythms.load_checks(data_dir)
@@ -83,11 +87,31 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
         rows.append({"label": source["label"], "file": source["file"], "updated_at": updated.isoformat() if updated else None,
                      "max_days": source["max_days"], "stale": age is None or age > source["max_days"]})
     rows += [rhythms.row(r, data_dir, now, fresh["grace_months"], checks) for r in figures]
+    if (review := officials.review(config, now.date())) is not None:
+        rows.append(officials_row(review))
     if "summaries" in config:
         waiting = waiting_summaries(config, data_dir, now, fresh["summary_grace_days"])
         rows.append({"label": _("Meeting summaries"), "file": "summaries", "updated_at": None, "max_days": fresh["summary_grace_days"],
                      "stale": bool(waiting), "waiting": waiting})
     return rows
+
+
+def officials_row(review: dict) -> dict:
+    """The row for the list of elected officials: when it was last checked, and the check it's due."""
+    if review["terms"]:
+        # Translators: the check the list of elected officials is due, such as "a check once new terms begin in January 2028".
+        upcoming = _("a check once new terms begin in {month}").format(month=month_year(review["terms"]))
+        # Translators: why the list of elected officials is behind, such as "not checked since new terms began in January 2028".
+        behind = _("not checked since new terms began in {month}").format(month=month_year(review["terms"]))
+    else:
+        # Translators: the check the list of elected officials is due, such as "a check after the election of November 2, 2027".
+        upcoming = _("a check after the election of {date}").format(date=plain_date(review["election"]))
+        # Translators: why the list of elected officials is behind, such as "not checked since the election of November 3, 2026".
+        behind = _("not checked since the election of {date}").format(date=plain_date(review["election"]))
+    return {"label": _("Elected officials"), "file": "config", "updated_at": review["checked"].isoformat(),
+            "max_days": None, "stale": review["behind"], "latest": None,
+            "next": None if review["passed"] or review["behind"] else upcoming,
+            "behind": behind if review["behind"] else None, "passed": review["passed"]}
 
 
 def main() -> int:
@@ -112,6 +136,8 @@ def main() -> int:
             detail = ("; ".join(r["waiting"][:5]) if r.get("waiting")
                       else r.get("behind") or f"last updated {when}")
             print(f"::error::{r['label']} is behind: {detail}")
+        if r.get("passed"):
+            print(f"::warning::{r['label']}: checked since the election; set [officials] next_election to the next one.")
         if r.get("failing"):
             print(f"::warning::{r['label']}: the last {r['failing']} checks failed; the data may be current, "
                   f"but new figures won't arrive until a check succeeds.")

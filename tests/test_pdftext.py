@@ -58,3 +58,28 @@ def test_a_scan_or_another_style_has_no_readable_text():
 def test_plain_text_is_every_word_for_search():
     assert "called the meeting to order" in pdftext.plain_text(LEGISTAR)
     assert pdftext.plain_text(SCANNED) == ""
+
+
+FOXIT = (FIXTURES / "foxit_minutes.pdf").read_bytes()   # Manchester Committee on Finance minutes, September 1, 2026
+
+
+def test_a_foxit_document_is_laid_out_from_its_own_text():
+    assert pdftext.style(FOXIT) == "foxit"
+    text, made_with = pdftext.readable(FOXIT)
+    assert made_with == "foxit"
+    assert text.startswith("## COMMITTEE ON FINANCE\n")
+    assert "Mayor Ruais called the meeting to order." in text
+
+
+def test_a_word_split_by_its_fonts_subset_is_one_word():
+    """Foxit writes "Program" as "Prog" in ArialMT and "ram" in ABCDEF+ArialMT."""
+    text, _ = pdftext.readable(FOXIT)
+    assert "Prog ram" not in text and "t he FY2027" not in text
+    assert "“Amending the FY2027 Community Improvement Program" in text
+    word = lambda text, x0, x1, font: {"text": text, "x0": x0, "x1": x1, "fontname": font, "size": 12.0}
+    assert [w["text"] for w in pdftext.joined([word("Prog", 372.1, 397.3, "ArialMT"),
+                                               word("ram,", 397.6, 421.6, "ABCDEF+ArialMT"),
+                                               word("authorizing", 425.0, 480.0, "ABCDEF+ArialMT")])] == ["Program,", "authorizing"]
+    # Words in different fonts, or apart by a space, stay apart.
+    assert len(pdftext.joined([word("Present:", 72, 120, "Arial-BoldMT"), word("Aldermen", 120.2, 170, "ArialMT")])) == 2
+    assert len(pdftext.joined([word("the", 72, 90, "ArialMT"), word("FY", 93.3, 105, "ABCDEF+ArialMT")])) == 2

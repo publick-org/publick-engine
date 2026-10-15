@@ -104,6 +104,19 @@ def test_an_alias_comes_before_turning_a_name_round():
     assert agendacenter.body_for(row, {"Health, Board of": "Beverly Board of Health"}, {}) == "Beverly Board of Health"
 
 
+def test_an_agenda_made_in_the_builder_is_read_as_its_pdf():
+    """An agenda written in the Agenda Center's builder (Lowell's council, Beverly's Council on
+    Aging) is linked as a web page, "?html=true"; the same address without it is the PDF."""
+    builder = PAGE.replace('href="/AgendaCenter/ViewFile/Agenda/_09292026-4453" target',
+                           'href="/AgendaCenter/ViewFile/Agenda/_09292026-4453?html=true" target', 1)
+    assert builder != PAGE
+    found = agendacenter.parse_listing(builder, BASE)
+    assert len(found) == 15
+    finance = next(r for r in found if r["number"] == "4453")
+    assert finance["agenda_url"] == f"{BASE}/AgendaCenter/ViewFile/Agenda/_09292026-4453"
+    assert finance["title"] == "Finance Committee Agenda"
+
+
 def test_cancelled_meeting():
     cancelled = agendacenter.to_event(next(r for r in rows() if r["number"] == "4392"))
     assert cancelled["status"] == "cancelled" and cancelled["body"] == "Commission on Climate Action and Sustainability"
@@ -131,16 +144,39 @@ def test_fetch_meetings_records_every_board_and_saves_upcoming_agendas(malden, t
     assert (tmp_path / "meetings" / "agendas" / "4453-202609241217.pdf").exists()
 
 
-def test_later_runs_reread_recent_weeks_and_record_revised_agendas(malden, tmp_path):
+def test_later_runs_reread_from_the_start_and_record_revised_agendas(malden, tmp_path):
     malden["meetings"]["agenda_center"]["since"] = "2026-06-01"
     fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
     revised = PAGE.replace("Sep</abbr> 24, 2026 12:17 PM", "Sep</abbr> 25, 2026 9:00 AM")
     client = FakeAgendaCenter(revised)
     fetch_meetings.run(malden, client, tmp_path, now=NOW.replace(day=21))
-    assert "startDate=07/23/2026" in client.urls[0]  # 60 days back, no longer from `since`
+    assert "startDate=06/01/2026" in client.urls[0]
     finance = load_store(tmp_path)["agendacenter-4453"]
     assert [a["id"] for a in finance["agendas"]] == ["4453-202609241217", "4453-202609250900"]
     assert finance["history"][-1]["field"] == "agenda"
+
+
+def test_recheck_days_limits_later_runs(malden, tmp_path):
+    malden["meetings"]["agenda_center"].update(since="2026-06-01", recheck_days=60)
+    first = FakeAgendaCenter()
+    fetch_meetings.run(malden, first, tmp_path, now=NOW)
+    assert "startDate=06/01/2026" in first.urls[0]
+    client = FakeAgendaCenter()
+    fetch_meetings.run(malden, client, tmp_path, now=NOW.replace(day=21))
+    assert "startDate=07/23/2026" in client.urls[0]
+
+
+def test_minutes_posted_months_late_are_found(malden, tmp_path):
+    """Minutes a board posts long after its meeting are linked on a later run, and downloaded."""
+    malden["meetings"]["agenda_center"]["since"] = "2026-06-01"
+    unposted = PAGE.replace("/AgendaCenter/ViewFile/Minutes/_08192026", "/AgendaCenter/ViewFile/Nothing/_08192026")
+    fetch_meetings.run(malden, FakeAgendaCenter(unposted), tmp_path, now=NOW)
+    late = next(m for m in load_store(tmp_path).values() if m["date"] == "2026-08-19" and m.get("source") == "agendacenter")
+    assert not late.get("minutes_url")
+    later = NOW.replace(month=12)
+    fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=later)
+    fetch_minutes.run_linked(malden, FakeAgendaCenter(), tmp_path, now=later)
+    assert load_store(tmp_path)[late["id"]]["minutes"]
 
 
 def test_a_calendar_that_goes_empty_counts_as_failed(malden, tmp_path, monkeypatch):
@@ -158,6 +194,20 @@ def test_a_calendar_that_goes_empty_counts_as_failed(malden, tmp_path, monkeypat
         assert status["calendars"]["Agenda Center"] == first["calendars"]["Agenda Center"]
         assert "lists no meetings, after 15 last time" in status["errors"][0]
     assert all(m.get("listed", True) == before[k].get("listed", True) for k, m in load_store(tmp_path).items())
+
+
+def test_a_calendar_that_cant_be_parsed_doesnt_stop_the_others(malden, tmp_path, monkeypatch):
+    """A layout change that breaks one calendar's parser (an error, not a failed request) counts that
+    calendar as failed; the others' meetings are still saved."""
+    real = fetch_meetings.calendars
+
+    def broken(*args):
+        raise ValueError("time data '7:00 PM EST' does not match format")
+    monkeypatch.setattr(fetch_meetings, "calendars", lambda config: [
+        fetch_meetings.Calendar("Broken", broken, lambda m: False), *real(config)])
+    status = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path, now=NOW)
+    assert status["failed_calendars"] == ["Broken"] and "ValueError" in status["errors"][0]
+    assert "agendacenter-4453" in load_store(tmp_path)
 
 
 def test_excluded_categories_are_skipped(malden, tmp_path):
