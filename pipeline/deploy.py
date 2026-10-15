@@ -6,7 +6,8 @@ The bucket (Cloudflare R2, or any S3-compatible store) holds:
                                        shared by every site (the engine's CSS,
                                        scripts and fonts are stored once in all)
   sites/<domain>/builds/<build>.json   one build's manifest: each path, its blob,
-                                       content type and size
+                                       content type and size, and the addresses
+                                       that have moved (redirects), each to its new one
   sites/<domain>/current.json          the live build's manifest; the Worker
                                        (worker/index.js) reads this
 
@@ -51,8 +52,11 @@ from pathlib import Path
 from pipeline.config import DEFAULT_TOWN, TOWN_DIR, load_config
 
 FORMAT = 1
+# The build's moved pages, each address to the one it sends readers to (build_site.REDIRECTS_FILE): put in
+# the manifest, where the Worker answers them with a permanent redirect, rather than published as a file.
+REDIRECTS = "redirects.json"
 # Files a GitHub Pages build needs that the Worker doesn't.
-SKIPPED = {"CNAME", ".nojekyll"}
+SKIPPED = {"CNAME", ".nojekyll", REDIRECTS}
 # Content types Python's table lacks or gets wrong on some systems.
 TYPES = {".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json",
          ".geojson": "application/geo+json", ".webmanifest": "application/manifest+json",
@@ -74,8 +78,19 @@ def content_type(path: str) -> str:
 
 def site_files(site_dir: Path) -> dict[str, Path]:
     """Every file to publish, by its path in the site ("meetings/index.html")."""
-    return {p.relative_to(site_dir).as_posix(): p for p in sorted(site_dir.rglob("*"))
-            if p.is_file() and p.name not in SKIPPED}
+    return {rel: p for p in sorted(site_dir.rglob("*"))
+            if p.is_file() and (rel := p.relative_to(site_dir).as_posix()) not in SKIPPED}
+
+
+def site_redirects(site_dir: Path, files: dict[str, Path]) -> dict[str, str]:
+    """The build's moved pages ("/meetings/old/" -> "/meetings/new/"), each sending readers to a page the
+    build has. A build without the file (an older engine's) has none."""
+    path = site_dir / REDIRECTS
+    redirects = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    missing = sorted(to for to in redirects.values() if to.strip("/") + "/index.html" not in files)
+    if missing:
+        raise SystemExit(f"{site_dir}/{REDIRECTS} sends readers to pages the build doesn't have: {', '.join(missing[:5])}")
+    return dict(sorted(redirects.items()))
 
 
 def sha256(path: Path) -> str:
@@ -137,6 +152,7 @@ def publish(client, bucket: str, site_dir: Path, domain: str, town: str = "",
     files = site_files(site_dir)
     if "index.html" not in files:
         raise SystemExit(f"{site_dir} has no index.html; build the site first.")
+    redirects = site_redirects(site_dir, files)
     entries = {}
     for rel, path in files.items():
         entries[rel] = {"blob": sha256(path), "type": content_type(rel), "size": path.stat().st_size}
@@ -163,7 +179,8 @@ def publish(client, bucket: str, site_dir: Path, domain: str, town: str = "",
     digest = hashlib.sha256(json.dumps(entries, sort_keys=True).encode()).hexdigest()[:10]
     build = f"{now.strftime('%Y%m%dT%H%M%SZ')}-{digest}"
     manifest = {"format": FORMAT, "domain": domain, "town": town, "build": build,
-                "created_at": now.isoformat(timespec="seconds"), "files": entries}
+                "created_at": now.isoformat(timespec="seconds"), "files": entries,
+                "redirects": redirects}
     put_json(client, bucket, site_key(domain, f"builds/{build}.json"), manifest)
     put_json(client, bucket, site_key(domain, "current.json"), manifest)
     return {"domain": domain, "build": build, "files": len(entries), "uploaded": uploaded,

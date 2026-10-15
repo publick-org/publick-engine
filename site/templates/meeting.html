@@ -339,9 +339,14 @@
 <h2 id="source">{{ _("Source") }}</h2>
 {# Translators: %(site)s is this website's name. #}
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
+{% if m.get("unplaced") %}
+{# A listing without a time for a board with more than one meeting that day (pipeline/identity.py). #}
+<p>{{ _("This listing gives no time, and the board has more than one meeting this day, so it can't be told which one this is. It is shown here on its own.") }}</p>
+{% endif %}
 {% if m.get("listings") %}
 {# A meeting the city lists in more than one place (pipeline/listings.py). #}
 <p>{% if m.same_as == "same_time" %}{{ _("This meeting is listed in more than one place: the same board, on the same day, at the same time. The listings are shown here as one meeting.") }}
+{%- elif m.same_as == "only_meeting" %}{{ _("This meeting is listed in more than one place, named a little differently in each (as a special meeting, or a hearing). It's the only meeting of the board this day that they could be, so the listings are shown here as one meeting.") }}
 {%- elif m.same_as == "one_time" %}{{ _("This meeting is listed in more than one place: the same board on the same day, and only one listing gives a time. The listings are shown here as one meeting.") }}
 {%- else %}{{ _("This meeting was posted more than once: the same board on the same day, with no time given. The postings are shown here as one meeting.") }}{% endif %}</p>
 <ul>
