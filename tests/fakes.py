@@ -180,10 +180,11 @@ class FakeAnthropic:
 
     def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False,
                  review_problems: list[dict] | None = None, batch_polls: int | None = 1,
-                 batch_results: dict | None = None):
+                 batch_results: dict | None = None, input_tokens: int = 1500):
         """batch_polls: how many times a batch is looked at before it has ended (None: never, until
         cancelled). batch_results: a request's result type by its place in the batch ("errored",
-        "canceled"), where it isn't "succeeded"; a cancelled batch's requests are all "canceled"."""
+        "canceled"), where it isn't "succeeded"; a cancelled batch's requests are all "canceled".
+        input_tokens: each summary's and transcription's prompt, in tokens."""
         from types import SimpleNamespace
         self.calls = []
         # Each batch's requests' params, in the order sent.
@@ -205,7 +206,7 @@ class FakeAnthropic:
             return SimpleNamespace(
                 stop_reason=stop_reason,
                 content=[SimpleNamespace(type="text", text=json.dumps(payload))],
-                usage=SimpleNamespace(input_tokens=1500, output_tokens=400),
+                usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=400),
             )
 
         class Stream:

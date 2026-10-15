@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from conftest import FETCHED_AT
 from fakes import FakeAnthropic, FakeCityClient
 from pipeline import fetch_meetings, summarize
@@ -62,14 +64,29 @@ def test_skips_without_api_key(monkeypatch, capsys):
     assert "skipping" in capsys.readouterr().out
 
 
-def test_new_prompt_version_or_model_regenerates(tmp_path, monkeypatch):
+def test_new_prompt_version_regenerates(tmp_path, monkeypatch):
     config = setup(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
     again = FakeAnthropic()
     assert summarize.run(config, again, tmp_path, limit=5, now=FETCHED_AT)["summarized"] == 1
-    config["summaries"]["model"] = "another-model"
-    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)["summarized"] == 1
+
+
+def test_another_model_makes_new_summaries_and_keeps_those_already_made(tmp_path, monkeypatch):
+    config = setup(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
+    sha = next((tmp_path / "summaries").glob("*.json")).stem
+    config["summaries"].update(model="another-model", effort="high")
+    again = FakeAnthropic()
+    result = summarize.run(config, again, tmp_path, limit=5, now=FETCHED_AT)
+    assert result["summarized"] == 0 and again.calls == []
+    assert summarize.pending_documents(tmp_path, FETCHED_AT.date().isoformat(), "another-model") == []
+    assert summarize.cached(tmp_path, sha, "agenda")["model"] == "claude-sonnet-5"
+    # A new prompt version is made with the model configured now, which its record names.
+    monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    assert summarize.run(config, again, tmp_path, limit=5, now=FETCHED_AT)["summarized"] == 1
+    assert again.calls[0]["model"] == "another-model"
+    assert summarize.cached(tmp_path, sha, "agenda")["model"] == "another-model"
 
 
 def test_out_of_credit_stops_after_first_failure(tmp_path):
@@ -110,10 +127,9 @@ def test_site_keeps_older_summary_until_replaced(tmp_path, monkeypatch):
     store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
     sha = next(m["agendas"][-1]["sha256"] for m in store.values() if m.get("agendas"))
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
-    model = config["summaries"]["model"]
-    assert summarize.cached(tmp_path, sha, model, "agenda") is None
-    assert summarize.cached(tmp_path, sha, model, "agenda", current=False)["summary"]
-    assert summarize.cached(tmp_path, sha, model, "minutes", current=False) is None
+    assert summarize.cached(tmp_path, sha, "agenda") is None
+    assert summarize.cached(tmp_path, sha, "agenda", current=False)["summary"]
+    assert summarize.cached(tmp_path, sha, "minutes", current=False) is None
 
 
 def with_minutes(tmp_path):
@@ -579,8 +595,8 @@ def test_minutes_from_an_older_prompt_are_made_again_only_since_remake_since(tmp
     todo = summarize.pending_documents(tmp_path, "2026-10-03", model)
     # The meeting before remake_since keeps its summary; the others are made again, newest first.
     assert [m["date"] for _, m, _ in todo] == ["2026-09-15", "2026-08-04"]
-    # A summary another model made is made again, whatever its meeting's date.
-    assert len(summarize.pending_documents(tmp_path, "2026-10-03", "another-model")) == 3
+    # The model configured now doesn't change what's made again.
+    assert summarize.pending_documents(tmp_path, "2026-10-03", "another-model") == todo
     # Without remake_since, every one is.
     monkeypatch.delitem(summarize.KINDS["minutes"], "remake_since")
     assert len(summarize.pending_documents(tmp_path, "2026-10-03", model)) == 3
@@ -702,3 +718,79 @@ def test_main_returns_the_exit_status(tmp_path, monkeypatch):
     assert summarize.main() == 1
     monkeypatch.setenv(summarize.COLLECT_ENV, "1")
     assert summarize.main() == 0
+
+
+# ---- Effort and long-prompt prices ([summaries] effort, long_prompt_tokens) ----
+
+# Claude Haiku 5.5's list prices: dearer for a prompt over 100,000 tokens.
+HAIKU = {"model": "claude-haiku-5-5", "effort": "high", "input_price": 0.1, "output_price": 0.5,
+         "long_prompt_tokens": 100_000, "long_input_price": 0.5, "long_output_price": 2.5}
+
+
+def haiku(config):
+    config["summaries"] = {**config["summaries"], **HAIKU}
+    return config
+
+
+def test_the_effort_is_sent_with_every_summary_and_transcription(tmp_path):
+    config = haiku(setup(tmp_path))
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 1 and result["transcribed"] == 1
+    for call in client.calls:
+        assert call["model"] == "claude-haiku-5-5"
+        assert call["output_config"]["effort"] == "high" and call["output_config"]["format"]["type"] == "json_schema"
+    # Without one, none is sent: the model's own default.
+    config = setup(tmp_path / "b")
+    client = FakeAnthropic()
+    summarize.run(config, client, tmp_path / "b", limit=50, now=FETCHED_AT)
+    assert client.calls and all("effort" not in call["output_config"] for call in client.calls)
+
+
+def test_a_long_prompt_is_priced_at_the_long_prompt_price_in_the_ledger(tmp_path):
+    config = haiku(load_config("gloucester"))
+    sha = minutes_town(tmp_path, LEGISTAR)
+    summarize.run(config, FakeAnthropic(input_tokens=150_000), tmp_path, limit=50, now=FETCHED_AT)
+    long_price = (150_000 * 0.5 + 400 * 2.5) / 1e6
+    assert saved(tmp_path, sha)["cost"] == round(long_price, 6)
+    assert json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]["cost"] == round(long_price, 4)
+    # At or under the threshold, the usual price.
+    config = haiku(load_config("gloucester"))
+    sha = minutes_town(tmp_path / "b", LEGISTAR)
+    summarize.run(config, FakeAnthropic(input_tokens=100_000), tmp_path / "b", limit=50, now=FETCHED_AT)
+    assert saved(tmp_path / "b", sha)["cost"] == round((100_000 * 0.1 + 400 * 0.5) / 1e6, 6)
+
+
+def test_a_transcription_is_priced_request_by_request(tmp_path):
+    # Eighteen pages, three requests of 60,000 tokens: none is a long prompt, though together they're over.
+    client = FakeAnthropic(input_tokens=60_000)
+    _, usage = summarize.transcribe_pdf(client, "claude-haiku-5-5", "minutes", blank_pdf(18), "City Council", "2026-07-28",
+                                        "high")
+    assert len(client.calls) == 3 and all(c["output_config"]["effort"] == "high" for c in client.calls)
+    assert usage["input_tokens"] == 180_000 and len(usage["requests"]) == 3
+    assert summarize.cost(usage, HAIKU) == pytest.approx(3 * (60_000 * 0.1 + 400 * 0.5) / 1e6)
+
+
+def test_the_estimate_before_sending_uses_the_long_prompt_price_for_a_long_document():
+    short = summarize.estimated_cost("minutes", 10, HAIKU)
+    assert short == pytest.approx(((1500 + 10 * 3000) * 0.1 + (2000 + 10 * 1200) * 0.5) / 1e6)
+    # Forty pages are estimated at 121,500 tokens in: over the threshold, so at its price.
+    long = summarize.estimated_cost("minutes", 40, HAIKU)
+    assert long == pytest.approx(((1500 + 40 * 3000) * 0.5 + 32000 * 2.5) / 1e6)
+
+
+def test_a_town_with_only_some_long_prompt_keys_sends_nothing(tmp_path):
+    config = setup(tmp_path)
+    config["summaries"]["long_input_price"] = 4.0
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert client.calls == [] and result["summarized"] == 0
+    assert "needs all of long_prompt_tokens, long_input_price, long_output_price" in result["errors"][0]
+
+
+def test_the_about_page_names_each_model_whose_summaries_are_shown():
+    from pipeline.build_site import model_name, models_shown
+    records = [{"model": "claude-sonnet-5"}, {"model": "claude-haiku-5-5"}, {"model": "claude-sonnet-5"}, {}]
+    assert models_shown("claude-haiku-5-5", records) == ["claude-haiku-5-5", "claude-sonnet-5"]
+    assert models_shown("claude-haiku-5-5", []) == ["claude-haiku-5-5"]
+    assert model_name("claude-haiku-5-5") == "Claude Haiku 5.5"

@@ -33,26 +33,45 @@ NO_DOCUMENTS = ("ical", "schedule")
 # Sources of a board's documents other than the city's own listings (a school district's website or
 # portal, the state's Open Meetings portal), each with a [<source>_meetings] table.
 SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "opengov")
+# Which of a meeting's sources of minutes its page names, when more than one collects them for its date:
+# the board's own website or portal (a school district's, whose [<source>_meetings] table lists only its
+# own boards' meetings) before the city's systems, and the city's posting of the meeting itself (Agenda
+# Center, CivicClerk, a file list) before its Archive Center.
+MINUTES_ORDER = (*SCHOOL_SOURCES, *LINKED, "archive")
 # How many days the meetings calendar may go unread before it's called behind,
 # when the town's [freshness] table doesn't say.
 CALENDAR_MAX_DAYS = 2
 
 
-def sources(m: dict) -> set[str]:
-    """Every source a meeting is listed in: its own, and those of the listings shown with it."""
-    return {m.get("source", "calendar"), *(x.get("source", "calendar") for x in m.get("listings", []))}
+def sources(m: dict) -> list[str]:
+    """Every source a meeting is listed in, once each: its own, then those of the listings shown with
+    it, in their order."""
+    return list(dict.fromkeys([m.get("source", "calendar"), *(x.get("source", "calendar") for x in m.get("listings", []))]))
+
+
+def listing_in(m: dict, source: str) -> dict:
+    """A meeting's listing in a source: of a meeting shown from more than one listing, the first in
+    that source (pipeline/listings.py orders them), which has its own address and name; else the meeting."""
+    return next((x for x in m.get("listings", []) if x.get("source", "calendar") == source), m)
 
 
 def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
     """Where this site collects a meeting's minutes from, as (source, since date), or None if
     no source it's listed in carries its minutes. A city calendar's meeting gets its minutes from
     the Archive Center ([archive]), or from the Agenda Center's posting of the same meeting, which
-    the build shows with it; a Manchester calendar board's are read from nowhere."""
+    the build shows with it; a Manchester calendar board's are read from nowhere.
+
+    A meeting listed in more than one source (a school committee's meeting on the district's
+    website and the city calendar) has its minutes from the first, in MINUTES_ORDER, of those
+    that collect minutes from its date on; if none do yet, from the one that starts soonest
+    before it (the earliest since date, so the page gives the date minutes begin)."""
     meetings = config.get("meetings", {})
     if not meetings.get("documents", True):
         return None
     found = []
-    for source in sources(m) - set(NO_DOCUMENTS):
+    for source in sources(m):
+        if source in NO_DOCUMENTS:
+            continue
         if source in LINKED and LINKED[source] in meetings:
             found.append((source, str(meetings[LINKED[source]]["since"])))
         elif source in SCHOOL_SOURCES and f"{source}_meetings" in config:
@@ -63,7 +82,12 @@ def minutes_source(config: dict, m: dict) -> tuple[str, str] | None:
             found.append(("archive", str(config["archive"]["minutes_since"])))
         elif source == "calendar" and "agenda_center" in meetings:
             found.append(("agendacenter", str(meetings["agenda_center"]["since"])))
-    return min(found, key=lambda f: f[1]) if found else None
+    if not found:
+        return None
+    covering = [f for f in found if f[1] <= m["date"]]
+    if covering:
+        return min(covering, key=lambda f: MINUTES_ORDER.index(f[0]))
+    return min(found, key=lambda f: (f[1], MINUTES_ORDER.index(f[0])))
 
 
 def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
@@ -84,9 +108,10 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
     found = minutes_source(config, m)
     if found is None:
         gap = {"reason": "not_collected"}
-        where = next((r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") in SCHOOL_SOURCES), None)
-        if where:
-            gap.update(source=where["source"], url=where.get("source_url"), name=where.get("source_name"))
+        school = next((s for s in SCHOOL_SOURCES if s in sources(m)), None)
+        if school:
+            where = listing_in(m, school)
+            gap.update(source=school, url=where.get("source_url"), name=where.get("source_name"))
         return gap
     source, since = found
     if m["date"] < since:
@@ -95,7 +120,7 @@ def minutes_gap(config: dict, m: dict, today: date) -> dict | None:
         return {"reason": "linked", "url": m["minutes_url"]}
     gap = {"reason": "not_posted", "days": (today - date.fromisoformat(m["date"])).days, "source": source}
     if source in SCHOOL_SOURCES:
-        where = next(r for r in (m, *m.get("listings", [])) if r.get("source", "calendar") == source)
+        where = listing_in(m, source)
         gap.update(url=where.get("source_url"), name=where.get("source_name"))
     return gap
 
