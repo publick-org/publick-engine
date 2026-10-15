@@ -454,6 +454,12 @@ def usage_of(response) -> dict:
     return usage
 
 
+def out_of_credit(error: Exception) -> bool:
+    """Whether a request failed because the API account has no credit left: every request after it
+    would fail the same way, so a run stops sending them."""
+    return "credit balance" in str(error).lower()
+
+
 def settings(config: dict) -> dict:
     """The translation model, its prices, and its effort: [summaries] translation_model,
     translation_input_price, translation_output_price, and translation_effort, or Claude Sonnet
@@ -632,7 +638,7 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
                                    "is_error": {"type": "boolean"}}}}}}}},
         )
     except Exception as e:
-        if "credit balance" in str(e).lower():
+        if out_of_credit(e):
             raise
         return {UNREVIEWED: str(e)}, 0.0
     paid = cost(usage_of(response), rsettings)

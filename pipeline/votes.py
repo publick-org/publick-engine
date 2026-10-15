@@ -97,10 +97,15 @@ def _names_x(row: dict) -> float | None:
 
 
 def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
-    """Every roll call in a supported style's minutes, each checked against the members."""
+    """Every roll call in a supported style's minutes, each checked against the members (none for
+    a PDF whose text can't be read, as pdftext.readable and page_texts treat it)."""
     if pdftext.style(pdf) != "legistar":
         return []
-    rows, _ = pdftext._drop_running(pdftext.lines(pdf))
+    try:
+        rows = pdftext.lines(pdf)
+    except Exception:
+        return []
+    rows, _ = pdftext._drop_running(rows)
     for r in rows:
         r["text"] = r["text"].strip()
 
