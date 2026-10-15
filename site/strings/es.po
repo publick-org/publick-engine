@@ -286,6 +286,11 @@ msgstr "%(graduated)s de %(cohort)s"
 
 #: site/templates/meeting.html
 #, python-format
+msgid "%(name)s meeting portal"
+msgstr "portal de reuniones de %(name)s"
+
+#: site/templates/meeting.html
+#, python-format
 msgid "%(name)s website"
 msgstr "sitio web de %(name)s"
 
@@ -929,6 +934,12 @@ msgstr ""
 "<a href=\"%(url)s\">Copia guardada de las actas</a> (en inglés) · guardadas el <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 
+#. %(name)s is a school district, such as "Burlington School District".
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting on the %(name)s meeting portal</a> (Diligent Community)."
+msgstr "<a href=\"%(url)s\">Esta reunión en el portal de reuniones de %(name)s</a> (Diligent Community)."
+
 #: site/templates/meeting.html
 #, python-format
 msgid "<a href=\"%(url)s\">This meeting on the City of %(town)s calendar</a>."
@@ -940,6 +951,15 @@ msgid "<a href=\"%(url)s\">This meeting on the City of %(town)s's meeting portal
 msgstr ""
 "<a href=\"%(url)s\">Esta reunión en el portal de reuniones de la Ciudad de %(town)s</a> "
 "(CivicClerk)."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"<a href=\"%(url)s\">This meeting on the state's Open Meetings portal</a>, where every public body"
+" in the state files its notices and minutes."
+msgstr ""
+"<a href=\"%(url)s\">Esta reunión en el portal de Reuniones Abiertas del estado</a>, donde cada "
+"organismo público del estado presenta sus avisos y actas."
 
 #: site/templates/meeting.html
 #, python-format
@@ -961,6 +981,17 @@ msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
+
+#. %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington
+#. School District". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> %(source)s, from its <a "
+"href=\"%(url)s\">Diligent Community portal</a>, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, de su <a "
+"href=\"%(url)s\">portal de Diligent Community</a>, desde %(since)s."
 
 #. %(board)s is a board's name, such as "School Committee". %(source)s is the district, such as
 #. "Methuen Public Schools". %(since)s is a month, such as "January 2024".
@@ -994,6 +1025,18 @@ msgid ""
 msgstr ""
 "<strong>%(board)s, reuniones:</strong> %(source)s, del <a href=\"%(url)s\">calendario del "
 "distrito</a>, desde %(since)s. Las agendas están en su sitio web."
+
+#. %(boards)s lists boards, such as "School Committee". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(boards)s meetings, agendas, and minutes:</strong> the Rhode Island Secretary of State's"
+" <a href=\"%(url)s\">Open Meetings portal</a>, where every public body in the state files its "
+"notices and minutes, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(boards)s):</strong> el <a href=\"%(url)s\">portal de "
+"Reuniones Abiertas</a> de la Secretaría de Estado de Rhode Island, donde cada organismo público "
+"del estado presenta sus avisos y actas, desde %(since)s."
 
 #: site/pages/about/index.html
 #, python-format
@@ -2736,6 +2779,12 @@ msgid ""
 " were posted the week before."
 msgstr ""
 
+#. %(name)s is a school district, such as "Burlington School District".
+#: site/templates/board.html
+#, python-format
+msgid "Earlier meetings are on the <a href=\"%(url)s\">%(name)s meeting portal</a>."
+msgstr "Las reuniones anteriores están en el <a href=\"%(url)s\">portal de reuniones de %(name)s</a>."
+
 #. %(name)s is a school district, such as "Beverly Public Schools".
 #: site/templates/board.html
 #, python-format
@@ -2747,6 +2796,13 @@ msgstr "Las reuniones anteriores están en el <a href=\"%(url)s\">sitio web de %
 #, python-format
 msgid "Earlier meetings are on the <a href=\"%(url)s\">%(name)s</a>."
 msgstr "Las reuniones anteriores están en el <a href=\"%(url)s\">%(name)s</a>."
+
+#: site/templates/board.html
+#, python-format
+msgid "Earlier meetings are on the <a href=\"%(url)s\">state's Open Meetings portal</a>."
+msgstr ""
+"Las reuniones anteriores están en el <a href=\"%(url)s\">portal de Reuniones Abiertas del "
+"estado</a>."
 
 #: site/templates/meeting.html
 msgid "Earlier versions of these minutes:"
@@ -7567,6 +7623,16 @@ msgstr ""
 msgid "This site collects minutes for meetings from %(when)s on."
 msgstr "Este sitio recopila las actas de las reuniones desde el %(when)s."
 
+#. %(where)s is where the board posts its meetings, such as "Portland Public Schools meeting portal".
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"This site doesn't collect this board's minutes. They may be on the <a "
+"href=\"%(url)s\">%(where)s</a>."
+msgstr ""
+"Este sitio no recopila las actas de esta junta. Puede que estén en el <a "
+"href=\"%(url)s\">%(where)s</a>."
+
 #: site/templates/meeting.html
 #, python-format
 msgid ""
@@ -8573,8 +8639,16 @@ msgid "published schedule"
 msgstr "calendario publicado"
 
 #: pipeline/build_site.py
+msgid "school district's meeting portal"
+msgstr "portal de reuniones del distrito escolar"
+
+#: pipeline/build_site.py
 msgid "school district's website"
 msgstr "sitio web del distrito escolar"
+
+#: pipeline/build_site.py site/templates/meeting.html
+msgid "state's Open Meetings portal"
+msgstr "portal de Reuniones Abiertas del estado"
 
 #: site/templates/meeting.html
 msgid "the city website"

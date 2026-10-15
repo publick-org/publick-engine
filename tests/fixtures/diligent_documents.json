@@ -1,0 +1,55 @@
+{
+ "Documents": [
+  {
+   "AgendaCover": "",
+   "DocumentType": 1,
+   "Format": "docx",
+   "Id": 16621,
+   "IsPublic": true,
+   "LastModified": 639238878541230000,
+   "MeetingId": 1195,
+   "Name": "BSD School Board Meeting - Sep 01 2026",
+   "PublicReleaseDelayDateString": "",
+   "Type": 1
+  },
+  {
+   "AgendaCover": "",
+   "DocumentType": 4,
+   "Format": "pdf",
+   "Id": 16622,
+   "IsPublic": false,
+   "LastModified": 639238878542700000,
+   "MeetingId": 1195,
+   "Name": "BSD School Board Meeting - Sep 01 2026",
+   "PublicReleaseDelayDateString": "",
+   "Type": 1
+  },
+  {
+   "AgendaCover": "",
+   "DocumentType": 9,
+   "Format": "docx",
+   "Id": 16656,
+   "IsPublic": false,
+   "LastModified": 639239625615330000,
+   "MeetingId": 1195,
+   "Name": "BSD School Board Meeting - Sep 01 2026",
+   "PublicReleaseDelayDateString": "",
+   "Type": 2
+  },
+  {
+   "AgendaCover": "",
+   "DocumentType": 10,
+   "Format": "pdf",
+   "Id": 16657,
+   "IsPublic": false,
+   "LastModified": 639239625656470000,
+   "MeetingId": 1195,
+   "Name": "BSD School Board Meeting - Sep 01 2026",
+   "PublicReleaseDelayDateString": "",
+   "Type": 2
+  }
+ ],
+ "MeetingDateFormatted": "September 1, 2026",
+ "MeetingIncludeMinutesAttachments": false,
+ "MeetingOnPublishShowDraftMinutes": true
+}
