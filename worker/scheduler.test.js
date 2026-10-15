@@ -9,6 +9,7 @@ import {
 } from "./scheduler.js";
 import { DIGEST_CRON, TEST_PREFIX, deleteTests, newestIssue, sendDigests, sendTest } from "./digest.js";
 import { main as digestTest } from "./digest-test.js";
+import { SEARCH_CONSOLE, networkSitemaps, submitSitemaps } from "./search.js";
 
 const NOW = new Date("2026-10-02T13:05:00Z");
 
@@ -448,4 +449,97 @@ test("the uptime check's Cron Trigger checks the sites and starts no run", async
   await onSchedule({ scheduledTime: NOW.getTime(), cron: UPTIME_CRON }, sitesEnv());
   assert.ok(!calls.some((c) => c.path.endsWith("/dispatches")));
   assert.deepEqual(calls.map((c) => `${c.method} ${c.path.split("?")[0]}`), ["GET /repos/publick-org/publick.org/issues"]);
+});
+
+// Search Console (search.js): a service account with a key made for the test, and Google's two APIs recorded.
+async function serviceAccount() {
+  const keys = await crypto.subtle.generateKey(
+    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+    true, ["sign", "verify"]);
+  const der = Buffer.from(await crypto.subtle.exportKey("pkcs8", keys.privateKey)).toString("base64");
+  const pem = `-----BEGIN PRIVATE KEY-----\n${der.match(/.{1,64}/g).join("\n")}\n-----END PRIVATE KEY-----\n`;
+  return {
+    publicKey: keys.publicKey,
+    json: JSON.stringify({ client_email: "sitemaps@example.iam.gserviceaccount.com", private_key: pem,
+      token_uri: "https://oauth2.googleapis.com/token" }),
+  };
+}
+
+// Google's answers: the token, and Search Console's sitemaps (`known`); each call recorded in `google`.
+let google;
+function googleApis(known, { listStatus = 200 } = {}) {
+  google = [];
+  const github = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (!url.startsWith("https://oauth2.googleapis.com/") && !url.startsWith(SEARCH_CONSOLE)) return github(url, init);
+    const method = init.method || "GET";
+    google.push({ method, url, body: init.body ? String(init.body) : null, headers: init.headers || {} });
+    if (url === "https://oauth2.googleapis.com/token") return Response.json({ access_token: "google-token" });
+    if (method === "GET") {
+      return listStatus === 200 ? Response.json({ sitemap: known.map((path) => ({ path })) })
+        : new Response("forbidden", { status: listStatus });
+    }
+    return new Response(null, { status: 204 });
+  };
+}
+
+const SITEMAPS = `${SEARCH_CONSOLE}/sites/sc-domain%3Apublick.org/sitemaps`;
+
+test("the network's sitemaps: the index, and each one it lists", async () => {
+  assert.deepEqual(await networkSitemaps(sitesEnv()), [
+    "https://publick.org/sitemap.xml", "https://publick.org/sitemap-home.xml",
+    "https://gloucester-ma.publick.org/sitemap.xml", "https://malden-ma.publick.org/sitemap.xml",
+  ]);
+});
+
+test("only the sitemaps Search Console doesn't have are submitted", async () => {
+  const account = await serviceAccount();
+  googleApis(["https://publick.org/sitemap.xml", "https://publick.org/sitemap-home.xml",
+    "https://gloucester-ma.publick.org/sitemap.xml"]);
+  const result = await submitSitemaps({ ...sitesEnv(), GSC_SERVICE_ACCOUNT_JSON: account.json }, NOW);
+  assert.deepEqual(result, { submitted: ["https://malden-ma.publick.org/sitemap.xml"] });
+  assert.deepEqual(google.map((c) => `${c.method} ${c.url}`), [
+    "POST https://oauth2.googleapis.com/token",
+    `GET ${SITEMAPS}`,
+    `PUT ${SITEMAPS}/https%3A%2F%2Fmalden-ma.publick.org%2Fsitemap.xml`,
+  ]);
+  assert.ok(google.slice(1).every((c) => c.headers.Authorization === "Bearer google-token"));
+});
+
+test("the token is asked for with a JWT the service account signed", async () => {
+  const account = await serviceAccount();
+  googleApis([]);
+  await submitSitemaps({ ...sitesEnv(), GSC_SERVICE_ACCOUNT_JSON: account.json }, NOW);
+  const form = new URLSearchParams(google[0].body);
+  assert.equal(form.get("grant_type"), "urn:ietf:params:oauth:grant-type:jwt-bearer");
+  const [header, claims, signature] = form.get("assertion").split(".");
+  const decode = (part) => JSON.parse(Buffer.from(part, "base64url").toString());
+  assert.deepEqual(decode(header), { alg: "RS256", typ: "JWT" });
+  const iat = NOW.getTime() / 1000;
+  assert.deepEqual(decode(claims), { iss: "sitemaps@example.iam.gserviceaccount.com",
+    scope: "https://www.googleapis.com/auth/webmasters", aud: "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
+  assert.ok(await crypto.subtle.verify("RSASSA-PKCS1-v1_5", account.publicKey, Buffer.from(signature, "base64url"),
+    new TextEncoder().encode(`${header}.${claims}`)));
+  assert.equal(google.filter((c) => c.method === "PUT").length, 4);
+});
+
+test("without the service account's key, nothing is read or submitted", async () => {
+  googleApis([]);
+  const result = await submitSitemaps(sitesEnv(), NOW);
+  assert.deepEqual(result.submitted, []);
+  assert.deepEqual(google, []);
+});
+
+test("a daily run's start submits new sitemaps; Search Console refusing fails the invocation, not the run", async () => {
+  const account = await serviceAccount();
+  routes["POST /repos/publick-org/publick.org/actions/workflows/network.yml/dispatches"] = [204, null];
+  googleApis([], { listStatus: 403 });
+  const scheduler = { ...sitesEnv(), SITES: { fetch: async (url) => (url === "https://publick.org/status/"
+    ? new Response(statusPage("2026-10-02T11:40:00+00:00")) : sitesEnv().SITES.fetch(url)) } };
+  await assert.rejects(onSchedule({ scheduledTime: NOW.getTime() }, { ...scheduler, GSC_SERVICE_ACCOUNT_JSON: account.json }),
+    /listing Search Console's sitemaps: HTTP 403/);
+  assert.ok(calls.some((c) => c.path.endsWith("/dispatches")));
+  googleApis([]);
+  const [, , search] = await onSchedule({ scheduledTime: NOW.getTime() }, { ...scheduler, GSC_SERVICE_ACCOUNT_JSON: account.json });
+  assert.equal(search.submitted.length, 4);
 });
