@@ -3,11 +3,11 @@
 Each run reads only what changed on SeeClickFix since the last one:
 
   1. Sync (all or nothing): list the requests submitted since the last sync on
-     the organization's Open311 list, which names any request type the town
-     hasn't had yet; then list every request of the town's request types
-     updated since the last sync (APIv2), each with its status and its exact
-     acknowledged, closed, and reopened times, and save them. Each request is
-     open or closed by its own status.
+     the organization's Open311 list, which with its list of services names
+     any request type the town hasn't had yet; then list every request of the
+     town's request types updated since the last sync (APIv2), each with its
+     status and its exact acknowledged, closed, and reopened times, and save
+     them. Each request is open or closed by its own status.
   2. Once a week, list the open requests (APIv2), and look up one at a time
      any saved as open that the list leaves out: closed, deleted, made
      private, or moved to another organization's request types.
@@ -15,7 +15,8 @@ Each run reads only what changed on SeeClickFix since the last one:
      within the time budget, and go on from there next run: a new town's
      history since [seeclickfix] history_since (and older requests still
      open), or, for requests saved before the sync, the months with requests
-     whose exact times are missing or out of date.
+     whose exact times are missing or out of date, and those where APIv2
+     counts more or fewer requests than are saved (one request a month).
   4. Look up, one at a time, the few requests the listings didn't have.
   5. Tag each request with its ward and precinct.
 
@@ -122,9 +123,16 @@ class SeeClickFix:
         self.source = config["seeclickfix"]
         self.client = client
         self._codes: set[str] | None = None
+        self._services: list[dict] | None = None
 
     def base_url(self) -> str:
         return f"{self.source['open311_base'].rstrip('/')}/{self.source['organization_id']}"
+
+    def services(self) -> list[dict]:
+        """The organization's own list of services (request types), on Open311."""
+        if self._services is None:
+            self._services = self.client.get(f"{self.base_url()}/services.json").json()
+        return self._services
 
     def service_codes(self) -> set[str] | None:
         """The request types of the departments listed in [seeclickfix] departments,
@@ -134,8 +142,7 @@ class SeeClickFix:
         if not departments:
             return None
         if self._codes is None:
-            services = self.client.get(f"{self.base_url()}/services.json").json()
-            self._codes = {str(s["service_code"]) for s in services if s.get("organization") in departments}
+            self._codes = {str(s["service_code"]) for s in self.services() if s.get("organization") in departments}
             if not self._codes:
                 raise FetchError(f"SeeClickFix lists no request types for {', '.join(departments)}")
         return self._codes
@@ -198,20 +205,29 @@ class SeeClickFix:
                                  "listing that changes each time it's read; stopped rather than read part of it")
         return list(found.values())
 
-    def _v2_window(self, codes: set[str], status: str, created, updated) -> list[dict] | None:
-        """One window's requests, or None when it lists more than V2_PAGES pages, or its count
-        changed while it was read (a request updated, closed or removed between pages, which moves
-        the ones after it to another page) in every attempt."""
-        params = {"request_types": ",".join(sorted(codes)), "status": status, "per_page": PAGE_SIZE}
+    def _v2_url(self, codes: set[str], status: str, created, updated, per_page: int, page: int) -> str:
+        params = {"request_types": ",".join(sorted(codes)), "status": status, "per_page": per_page}
         if created:
             params.update(after=zulu(created[0]), before=zulu(created[1]))
         if updated:
             params.update(updated_at_after=zulu(updated[0]), updated_at_before=zulu(updated[1]))
-        base = f"{self.source['api_base'].rstrip('/')}/issues"
+        return f"{self.source['api_base'].rstrip('/')}/issues?{urlencode({**params, 'page': page})}"
+
+    def count(self, codes: set[str], status: str, created: tuple[datetime, datetime]) -> int:
+        """How many APIv2 requests of these request types and statuses were submitted in created."""
+        if not codes:
+            return 0
+        data = self.client.get(self._v2_url(codes, status, created, None, 1, 1)).json()
+        return data["metadata"]["pagination"]["entries"]
+
+    def _v2_window(self, codes: set[str], status: str, created, updated) -> list[dict] | None:
+        """One window's requests, or None when it lists more than V2_PAGES pages, or its count
+        changed while it was read (a request updated, closed or removed between pages, which moves
+        the ones after it to another page) in every attempt."""
         for _ in range(LISTING_ATTEMPTS):
             issues, entries = [], None
             for page in range(1, V2_PAGES + 1):
-                data = self.client.get(f"{base}?{urlencode({**params, 'page': page})}").json()
+                data = self.client.get(self._v2_url(codes, status, created, updated, PAGE_SIZE, page)).json()
                 listed = data["metadata"]["pagination"]["entries"]
                 if entries is None:
                     entries = listed
@@ -283,10 +299,12 @@ def add_unlisted(store: dict, items: list[dict], stamp: str) -> int:
 
 
 def request_types(api: SeeClickFix, store: dict, *listings: list[dict]) -> set[str]:
-    """The town's request types: its departments' (from Open311's list of services), and every one
-    its saved requests and these Open311 listings have. That list of services leaves out request
-    types cities use (some public, some their staff's), so the town's own requests show them."""
-    codes = set(api.service_codes() or ())
+    """The town's request types: those on Open311's list of services (its departments', if it names
+    them), and every one its saved requests and these Open311 listings have. That list of services
+    leaves out request types cities use (some public, some their staff's), so the town's own
+    requests show them."""
+    departments = api.service_codes()
+    codes = set(departments) if departments is not None else {str(s["service_code"]) for s in api.services()}
     codes |= {str(r["service_code"]) for r in store.values() if r.get("service_code") is not None and api.takes(r["service_code"])}
     codes |= {str(i["service_code"]) for items in listings for i in items}
     return codes
@@ -368,29 +386,42 @@ def history_windows(start: datetime, end: datetime, tz: ZoneInfo) -> list[dict]:
 def first_state(store: dict, now: datetime, history_start: datetime, tz: ZoneInfo) -> dict:
     """Where a town's first run on this code starts. A new town: its whole history to read, and
     the requests from before it still open. Requests saved before the sync: from the last run that
-    saved them (when each was last listed), with only the months that have requests whose exact times
-    are missing or out of date to read again."""
+    saved them (when each was last listed), reading again the months that have requests whose exact
+    times are missing or out of date, and only checking the rest: each is read again only when
+    APIv2 counts more or fewer requests in it than are saved (a backfill never run, or cut short)."""
     older = {"start": iso(EPOCH), "end": iso(history_start), "open": True}
     if not store:
         return {"cursor": zulu(now), "history_start": iso(history_start), "reconciled_at": zulu(now),
                 "pending": [older] + history_windows(history_start, now, tz), "lookups": []}
     last = max((when(r["last_seen"]) for r in store.values() if r.get("last_seen")), default=now)
     stale = [r for r in store.values() if needs_detail(r)]
-    months = sorted({when(r["created_at"]).astimezone(tz).strftime("%Y-%m") for r in stale
-                     if r.get("created_at") and when(r["created_at"]) >= history_start}, reverse=True)
-    pending = [w for w in history_windows(history_start, now, tz) if w["start"][:7] in months]
-    if any(r.get("created_at") and when(r["created_at"]) < history_start for r in stale):
-        pending.insert(0, older)
+    months = {when(r["created_at"]).astimezone(tz).strftime("%Y-%m") for r in stale
+              if r.get("created_at") and when(r["created_at"]) >= history_start}
+    pending = [w if w["start"][:7] in months else {**w, "check": True} for w in history_windows(history_start, now, tz)]
+    older_stale = any(r.get("created_at") and when(r["created_at"]) < history_start for r in stale)
+    pending.insert(0, older if older_stale else {**older, "check": True})
     return {"cursor": zulu(last), "history_start": iso(history_start), "reconciled_at": zulu(last),
             "pending": pending, "lookups": [r["id"] for r in stale if not r.get("created_at")]}
 
 
+def saved_in(store: dict, codes: set[str], start: datetime, end: datetime, only_open: bool) -> int:
+    """How many saved requests of these request types were submitted in [start, end) (only those
+    open, with only_open), as APIv2 would count them."""
+    return sum(1 for r in store.values() if not r.get("removed") and r.get("created_at")
+               and str(r.get("service_code")) in codes and start <= when(r["created_at"]) < end
+               and (not only_open or r.get("status") == "open"))
+
+
 def read_window(api: SeeClickFix, store: dict, window: dict, codes: set[str], stamp: str,
-                history_start: datetime) -> tuple[int, list[str]]:
+                history_start: datetime) -> tuple[int, list[str]] | None:
     """Read one window of history: its requests on Open311 (for request types not seen yet), then
     on APIv2. Returns (new, ids to look up): those Open311 lists and APIv2 doesn't, and those
-    still without up-to-date times."""
+    still without up-to-date times. A window to check is read only when APIv2 counts more or
+    fewer requests in it than are saved: None when it doesn't."""
     start, end = when(window["start"]), when(window["end"])
+    if window.get("check") and api.count(codes, OPEN if window.get("open") else EVERY, (start, end)) == \
+            saved_in(store, codes, start, end, bool(window.get("open"))):
+        return None
     submitted = api.submitted(start, end, "open" if window.get("open") else None)
     codes |= {str(i["service_code"]) for i in submitted}
     issues = api.issues(codes, OPEN if window.get("open") else EVERY, created=(start, end))
@@ -473,20 +504,23 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
             print(f"{time.monotonic() - started:.0f}s: {len(open_issues)} open; {len(gone)} saved as open aren't", flush=True)
 
     # 3. History, a window at a time, each saved whole.
-    windows_read, saved_at = 0, time.monotonic()
+    windows_read = windows_checked = 0
+    saved_at = time.monotonic()
     while state["pending"] and not refused and time.monotonic() < deadline:
         window = state["pending"][0]
         try:
-            added, more = read_window(api, store, window, codes, stamp, history_start)
+            result = read_window(api, store, window, codes, stamp, history_start)
         except FetchError as e:
             errors.append(f"history from {window['start'][:10]}: {e}")
             refused = e.status == 403
             break
+        added, more = result or (0, [])
         new += added
         state = {**state, "pending": state["pending"][1:], "lookups": state["lookups"] + more}
-        windows_read += 1
-        print(f"{time.monotonic() - started:.0f}s: read {window['start'][:10]} to {window['end'][:10]}"
-              f"{' (open)' if window.get('open') else ''}, {added} new", flush=True)
+        windows_read += result is not None
+        windows_checked += result is None
+        print(f"{time.monotonic() - started:.0f}s: {'read' if result else 'checked'} {window['start'][:10]} to "
+              f"{window['end'][:10]}{' (open)' if window.get('open') else ''}, {added} new", flush=True)
         if time.monotonic() - saved_at > CHECKPOINT_SECONDS:
             save(config, data_dir, store, state)
             saved_at = time.monotonic()
@@ -515,6 +549,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         "changed": changed,
         "reconciled": reconciled,
         "history_windows_read": windows_read,
+        "history_windows_checked": windows_checked,
         "history_windows_left": len(state["pending"]),
         "details_fetched": details_done,
         "lookups_left": len(left),
