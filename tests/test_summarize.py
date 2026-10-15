@@ -184,7 +184,7 @@ def test_a_document_too_costly_for_the_run_waits_for_one_with_room(tmp_path):
     client = FakeAnthropic()
     result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT, allowance=0.50)
     assert result["summarized"] == 0 and client.calls == []
-    assert result["stopped"].startswith("1 waiting for a run with room for them: minutes m (about $1.0")
+    assert result["stopped"] == "1 waiting for a run with room for them: minutes m"
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=2.0)["summarized"] == 1
 
 

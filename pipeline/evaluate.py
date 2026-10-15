@@ -26,9 +26,8 @@ are for; and so does a summary cut off at the prompt's max_tokens, which the sit
 
 A model in PRICES needs no prices; another needs --input-price and --output-price. Without --effort,
 the model's default, as a town's run sends it. The JSON (--json) has the model, the effort, the
-prices, the totals, and each document's result, so two runs can be compared.
-
-It costs about $1 to $2 for the whole set (a few cents a document, more for the scan).
+prices, the totals, and each document's result, so two runs can be compared. With PUBLICK_HIDE_COSTS
+set (a run whose log is public), the report and the JSON leave out what the run cost.
 """
 
 from __future__ import annotations
@@ -46,6 +45,35 @@ from pipeline import factcheck, summarize
 
 SET = Path(__file__).resolve().parent.parent / "evals" / "minutes.json"
 DEFAULT_MODEL = "claude-sonnet-5"
+# Set for a run whose report goes to a public log (the network's Evaluate workflow): the reports and their
+# JSON (this module's and the other sets') leave out what the run cost. Tokens and the models' list prices,
+# which this code gives anyway, stay.
+HIDE_COSTS_ENV = "PUBLICK_HIDE_COSTS"
+
+
+def costs_hidden() -> bool:
+    return bool(os.environ.get(HIDE_COSTS_ENV))
+
+
+def money(value: float, digits: int = 2) -> str:
+    """What something cost, for a report: "–" when costs are hidden."""
+    return "–" if costs_hidden() else f"${value:.{digits}f}"
+
+
+def cost_key(key: str) -> bool:
+    return key == "cost" or key.startswith("cost_") or key.endswith("_cost")
+
+
+def without_costs(data):
+    """A report's JSON without what anything cost, when costs are hidden."""
+    if not costs_hidden():
+        return data
+    if isinstance(data, dict):
+        return {k: without_costs(v) for k, v in data.items() if not cost_key(k)}
+    if isinstance(data, list):
+        return [without_costs(v) for v in data]
+    return data
+
 # Dollars per million tokens, as the towns' [summaries] give them for the default model.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
 # The models' list prices, dollars per million tokens, for a run that doesn't give them. Claude Haiku
@@ -283,7 +311,7 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
             totals["stopped"] += 1
             totals["cost"] += r["cost"]
             shown_wrong = True
-            lines.append(f"## {r['name']}: **{r['stopped']}** after {r['usage']['output_tokens']} tokens (${r['cost']:.3f})")
+            lines.append(f"## {r['name']}: **{r['stopped']}** after {r['usage']['output_tokens']} tokens ({money(r['cost'], 3)})")
             lines.append(f"It had written: `{r['partial'][-600:]}`")
             if r.get("spent"):
                 lines.append(used_text(r))
@@ -295,7 +323,7 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
         totals["caught"] += r["caught"]
         totals["cost"] += r["cost"]
         totals["away"] += sum(p["kind"] == "away" for p in r["problems"])
-        lines.append(f"## {r['name']} ({r['source']}, ${r['cost']:.3f})")
+        lines.append(f"## {r['name']} ({r['source']}, {money(r['cost'], 3)})")
         lines.append(f"{len(r['decisions'])} decisions, {len(r['held_back'])} held back; "
                      f"planted errors caught {r['caught']} of {r['planted']}.")
         if r.get("spent"):
@@ -328,7 +356,7 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
         f"{totals['missing']} missing; right but held back: {totals['right_held']}.",
         f"- Planted errors caught: {totals['caught']} of {totals['planted']}.",
         f"- Documents whose summary was cut off: {totals['stopped']}.",
-        f"- Cost: ${totals['cost']:.2f} (${totals['cost'] / max(len(results), 1):.4f} a document).",
+        f"- Cost: {money(totals['cost'])} ({money(totals['cost'] / max(len(results), 1), 4)} a document).",
         *([tokens_text(results)] if any(r.get("spent") for r in results) else []),
         "",
     ]
@@ -352,9 +380,9 @@ def used_text(r: dict) -> str:
     """A document's pages, tokens, seconds, and cost, in a line."""
     s = r["spent"]
     text = (f"{r.get('pages') or '?'} pages; {s['requests']} requests, {s['input_tokens']:,} input and "
-            f"{s['output_tokens']:,} output tokens, {s['seconds']:.0f} s, ${s['cost']:.4f}")
+            f"{s['output_tokens']:,} output tokens, {s['seconds']:.0f} s, {money(s['cost'], 4)}")
     if r.get("transcript"):
-        text += f" (the transcription: ${r['transcript']['cost']:.4f})"
+        text += f" (the transcription: {money(r['transcript']['cost'], 4)})"
     if s["long_prompts"]:
         text += f"; {s['long_prompts']} at the long-prompt price"
     return text + "."
@@ -435,7 +463,8 @@ def main() -> int:
     text, shown_wrong = report(results, run)
     print(text)
     if args.json:
-        args.json.write_text(json.dumps({**run, "totals": totals_of(results), "documents": results}, indent=2) + "\n",
+        args.json.write_text(json.dumps(without_costs({**run, "totals": totals_of(results), "documents": results}),
+                                        indent=2) + "\n",
                              encoding="utf-8")
     return 1 if shown_wrong else 0
 
