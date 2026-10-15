@@ -271,11 +271,13 @@ def slugify(text: str) -> str:
 
 
 def display_body(records: list[dict], known: dict[str, str], town: str) -> str:
-    """The board a meeting is shown under: its first recorded listing's, or, for a joint meeting
-    posted under each of its boards, 'Joint City Council and School Committee'."""
+    """The board a meeting is shown under: the board's name as first recorded (known_boards), so
+    'Waltham Historical Commission' on the calendar and 'Historical Commission' in the Agenda Center
+    are one board, with one page; or, for a joint meeting posted under each of its boards, 'Joint
+    City Council and School Committee'."""
     first = min(records, key=first_recorded)
     if len({board_key(m["body"], town) for m in records}) == 1:
-        return first["body"]
+        return known.get(board_key(first["body"], town), first["body"])
     names = sorted({known.get(k, k) for k in joint_boards(first, known, town)} or {m["body"] for m in records})
     return "Joint " + (", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else names[0])
 
@@ -370,10 +372,11 @@ def assign(store: dict, ledger: dict | None, town: str = "") -> dict:
 def update(data_dir: Path, store: dict, town: str, previous: dict | None = None) -> dict:
     """Place the store's new listings, and keep the result (pipeline/fetch_meetings.save_store).
     previous is the store as it was before this run: a town's first identities are those of the
-    meetings it had published, before this run's new listings are placed among them."""
+    meetings it had published, before this run's new listings are placed among them; a new town's
+    (no meetings before this run) have their own addresses from the start."""
     ledger = load(data_dir)
-    if ledger is None and previous:
-        ledger = assign(previous, None, town)
+    if ledger is None:
+        ledger = assign(previous or {}, None, town)
     ledger = assign(store, ledger, town)
     save(data_dir, ledger)
     return ledger
@@ -381,7 +384,8 @@ def update(data_dir: Path, store: dict, town: str, previous: dict | None = None)
 
 def meetings(store: dict, ledger: dict | None, town: str = "") -> list[dict]:
     """Each meeting with listings: {"id" (its address), "records" (first recorded first), "addresses"
-    (its other addresses), "unplaced", "body" (the board it's shown under), "kinds_differ"}. ledger is
+    (its other addresses), "unplaced", "body" (the board it's shown under), "body_names" (the boards
+    its listings name, which may have had pages of their own), "kinds_differ"}. ledger is
     the kept identities, from which any listing not yet placed is placed as assign() would."""
     town = town or (ledger or {}).get("town", "")
     store = with_ids(store)
@@ -393,6 +397,6 @@ def meetings(store: dict, ledger: dict | None, town: str = "") -> list[dict]:
         if not records:
             continue
         out.append({"id": mid, "records": records, "addresses": e.get("addresses", []), "unplaced": e.get("unplaced", False),
-                    "body": display_body(records, known, town),
+                    "body": display_body(records, known, town), "body_names": sorted({m["body"] for m in records}),
                     "kinds_differ": len({Listing(m, known, town).kind for m in records}) > 1})
     return out

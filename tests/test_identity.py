@@ -142,6 +142,27 @@ def test_a_first_run_identifies_the_published_meetings_before_its_new_listings(t
     assert grouping(identity.load(tmp_path)) == {AGENDA["slug"]: ["101", "agendacenter-5"]}
 
 
+def test_a_new_towns_meetings_have_their_own_addresses_from_the_start(tmp_path):
+    """With no meetings published before its first run, a town's meetings are at their board-and-day
+    addresses, not their first listings' own (which no page ever had), and none says it moved."""
+    (tmp_path / "meetings").mkdir()
+    store = store_of(AGENDA, CALENDAR)
+    identity.update(tmp_path, store, "", previous={})
+    assert identity.load(tmp_path)["meetings"] == {
+        "2026-10-06-planning-board": {"date": DAY, "board": "planning board", "listings": ["101", "agendacenter-5"]}}
+
+
+def test_a_board_is_shown_under_its_name_as_first_recorded():
+    """The calendar's 'Waltham Historical Commission' is the Agenda Center's 'Historical Commission', recorded
+    first: one board, with one name, whichever listing a meeting has; the names its listings give are kept."""
+    first = record("agendacenter-1", "Historical Commission", date="2026-09-01", source="agendacenter", seen="2026-09-01T07:00:00")
+    later = record("2", "Waltham Historical Commission", time="19:00")
+    found = identity.meetings(store_of(first, later), {}, "Waltham")
+    assert [(m["id"], m["body"], m["body_names"]) for m in found] == [
+        ("2026-09-01-historical-commission", "Historical Commission", ["Historical Commission"]),
+        ("2026-10-06-historical-commission", "Historical Commission", ["Waltham Historical Commission"])]
+
+
 def test_an_address_is_never_given_to_another_meeting():
     """A meeting already published at 2026-10-06-planning-board-2 (a listing's own address) keeps it; a
     new meeting of the board that day takes the next free number."""

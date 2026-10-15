@@ -139,7 +139,8 @@ def combined(store: dict, listing_of=lambda m: m.get("source", "calendar"), ledg
                 moved[r["id"]] = records[0]["id"]
         else:
             m = dict(records[0])
-        m.update(slug=meeting["id"], addresses=meeting["addresses"], unplaced=meeting["unplaced"], body=meeting["body"])
+        m.update(slug=meeting["id"], addresses=meeting["addresses"], unplaced=meeting["unplaced"], body=meeting["body"],
+                 body_names=meeting["body_names"])
         out[records[0]["id"]] = m
     return out, moved
 

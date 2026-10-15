@@ -58,6 +58,12 @@ msgstr "%(board)s, audiencia"
 msgid "%(board)s meetings"
 msgstr "%(board)s: reuniones"
 
+#. the title of a board's page that has moved; %(board)s is a board's name, such as "City Council".
+#: site/templates/moved.html
+#, python-format
+msgid "%(board)s meetings: moved"
+msgstr "%(board)s: reuniones (página trasladada)"
+
 #. %(board)s is a board's name, such as "Planning Board", in the page title of a meeting whose minutes
 #. are posted.
 #: site/templates/meeting.html
@@ -7681,6 +7687,19 @@ msgstr ""
 #, python-format
 msgid "They're <a href=\"%(url)s\">public</a>."
 msgstr "Son <a href=\"%(url)s\">públicos</a>."
+
+#: site/templates/moved.html
+#, python-format
+msgid ""
+"This board is listed under more than one name. Its meetings are now shown on one page: <a "
+"href=\"%(url)s\">%(name)s</a>."
+msgstr ""
+"Esta junta aparece con más de un nombre. Ahora sus reuniones se muestran en una sola página: <a "
+"href=\"%(url)s\">%(name)s</a>."
+
+#: site/templates/moved.html
+msgid "This board's page has moved"
+msgstr "La página de esta junta cambió de lugar"
 
 #: site/pages/311/repeat-locations/index.html
 msgid "This list will appear after the next data update."
