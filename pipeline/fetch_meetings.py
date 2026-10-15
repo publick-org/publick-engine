@@ -22,7 +22,8 @@ for the year ([schedule_meetings]). A town can
 have several; Manchester's aldermanic meetings are on CivicClerk and its other
 boards on the city calendar, and Malden lists its meetings on its calendar and
 posts their agendas in its Agenda Center. A meeting listed in more than one
-place is kept as one record for each, and shown as one (pipeline/listings.py).
+place is kept as one record for each, and shown as one (pipeline/listings.py); which
+meeting each record is, is decided as it's saved (save_store, pipeline/identity.py).
 
 Usage:
     python -m pipeline.fetch_meetings [--town gloucester]
@@ -44,7 +45,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, schedule
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -70,6 +71,14 @@ def save_json(path: Path, data) -> None:
     write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def save_store(data_dir: Path, store: dict, config: dict) -> None:
+    """Save the meetings, and the meeting each new listing is (pipeline/identity.py): every step that
+    records meetings saves them this way, so a listing is placed once, the day it's first recorded."""
+    previous = load_store(data_dir) if identity.load(data_dir) is None else None
+    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    identity.update(data_dir, store, config.get("town", {}).get("name", ""), previous)
+
+
 def normalize_body(body: str, aliases: dict) -> str:
     for name, alias in aliases.items():
         if body.lower() == name.lower():
@@ -78,17 +87,12 @@ def normalize_body(body: str, aliases: dict) -> str:
 
 
 def known_body(body: str, known: dict, town: str) -> str:
-    """A board's name as already recorded, when this one is the same words written another
-    way ("Open Space and Recreation Committee" for "Open Space & Recreation Committee"), or
-    with the town's name before it ("Malden Cultural Council" for "Cultural Council"). known
-    maps words() of each recorded name to the name."""
-    w = words(body)
-    if w in known:
-        return known[w]
-    prefix = words(town)
-    if w.startswith(prefix) and " " + w[len(prefix):] in known:
-        return known[" " + w[len(prefix):]]
-    return body
+    """A board's name as already recorded, when this one names the same board (identity.board_key): the
+    same words written another way ("Open Space and Recreation Committee" for "Open Space & Recreation
+    Committee"), with the town's name before it ("Malden Cultural Council" for "Cultural Council"), in
+    the plural, or with "Sub Committee" for "Subcommittee". known maps each recorded board's board_key
+    to its name (identity.known_boards)."""
+    return known.get(identity.board_key(body, town), body)
 
 
 def slugify(text: str) -> str:
@@ -458,7 +462,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     seen: dict[str, Calendar] = {}
     new_count = 0
     # Each board's name as first recorded, so one listed in two places is one board.
-    known = {words(m["body"]): m["body"] for m in sorted(store.values(), key=lambda m: m.get("first_seen", ""), reverse=True)}
+    known = identity.known_boards(store, config["town"]["name"])
     for calendar in calendars(config):
         try:
             events = calendar.events(client, today, store)
@@ -478,7 +482,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         for event in events:
             seen[event["id"]] = calendar
             event["body"] = known_body(normalize_body(event["body"], aliases), known, config["town"]["name"])
-            known.setdefault(words(event["body"]), event["body"])
+            known.setdefault(identity.board_key(event["body"], config["town"]["name"]), event["body"])
             event.pop("raw_title", None)
             meeting = store.get(event["id"]) or adopt_drive_meeting(store, event)
             if meeting is None:
@@ -516,7 +520,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         except Exception as e:  # one meeting's page doesn't stop the rest, or the save
             errors.append(str(e) if isinstance(e, FetchError) else f"{meeting['id']}: {e!r}")
 
-    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    save_store(data_dir, store, config)
     names = [c.name for c in calendars(config)]
     checked = {name: c for name, c in checked.items() if name in names}
     # Meetings are as fresh as the calendar checked longest ago, so the site's

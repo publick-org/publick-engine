@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 
 import worker from "./index.js";
-import { MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, resolve } from "./sites.js";
+import { MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, movedTo, resolve } from "./sites.js";
 
 function entry(blob, type = "text/html; charset=utf-8") {
   return { blob, type, size: `content ${blob}`.length };
@@ -75,6 +75,46 @@ test("redirects a folder without its slash, keeping the query", async () => {
   const response = await worker.fetch(get("/about?x=1"), env());
   assert.equal(response.status, 301);
   assert.equal(response.headers.get("Location"), "https://t.publick.org/about/?x=1");
+});
+
+test("a moved page's address is a permanent redirect to its new one, in each language", async () => {
+  const manifest = {
+    ...MANIFEST,
+    files: { ...MANIFEST.files, "meetings/old/index.html": entry("moved"), "meetings/new/index.html": entry("new") },
+    redirects: { "/meetings/old/": "/meetings/new/", "/es/meetings/old/": "/es/meetings/new/" },
+  };
+  for (const [path, location] of [
+    ["/meetings/old/", "https://t.publick.org/meetings/new/"],
+    ["/meetings/old", "https://t.publick.org/meetings/new/"],
+    ["/meetings/old/?lang=es", "https://t.publick.org/meetings/new/?lang=es"],
+    ["/es/meetings/old/", "https://t.publick.org/es/meetings/new/"],
+  ]) {
+    const response = await worker.fetch(get(path), env(manifest));
+    assert.equal(response.status, 301, path);
+    assert.equal(response.headers.get("Location"), location, path);
+    assert.equal(response.headers.get("Cache-Control"), "public, max-age=300");
+  }
+  // The new page, and every other, is served as before.
+  assert.equal(await (await worker.fetch(get("/meetings/new/"), env(manifest))).text(), "content new");
+  assert.equal((await worker.fetch(get("/about/"), env(manifest))).status, 200);
+});
+
+test("a manifest without redirects, or one leading off the site, redirects nothing", async () => {
+  const files = { ...MANIFEST.files, "meetings/old/index.html": entry("moved") };
+  assert.equal(await (await worker.fetch(get("/meetings/old/"), env({ ...MANIFEST, files }))).text(), "content moved");
+  const away = { ...MANIFEST, files, redirects: { "/meetings/old/": "//other.site/", "/about/": "https://other.site/" } };
+  assert.equal((await worker.fetch(get("/meetings/old/"), env(away))).status, 200);
+  assert.equal((await worker.fetch(get("/about/"), env(away))).status, 200);
+});
+
+test("movedTo", () => {
+  const redirects = { "/meetings/a/": "/meetings/b/" };
+  assert.equal(movedTo(redirects, "/meetings/a/"), "/meetings/b/");
+  assert.equal(movedTo(redirects, "/meetings/a"), "/meetings/b/");
+  assert.equal(movedTo(redirects, "/meetings/a/x"), null);
+  assert.equal(movedTo(redirects, "/constructor"), null);
+  assert.equal(movedTo(redirects, "/%E0%A4%A"), null);
+  assert.equal(movedTo(undefined, "/meetings/a/"), null);
 });
 
 test("unknown paths get the site's 404 page", async () => {

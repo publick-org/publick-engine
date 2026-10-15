@@ -134,6 +134,30 @@ def test_publish_reuploads_a_file_prune_could_take(bucket, tmp_path):
     assert old in bucket.objects
 
 
+def test_moved_pages_are_the_manifests_redirects(bucket, tmp_path):
+    """The build's moved pages (build_site.REDIRECTS_FILE) go in the manifest, for the Worker to redirect;
+    the file itself isn't published."""
+    from pipeline import build_site
+    assert deploy.REDIRECTS == build_site.REDIRECTS_FILE
+    site = make_site(tmp_path, {"meetings/new/index.html": "New", "meetings/old/index.html": "Moved",
+                                deploy.REDIRECTS: json.dumps({"/meetings/old/": "/meetings/new/"})})
+    deploy.publish(bucket, "b", site, "t.publick.org", now=NOW)
+    live = bucket.json("sites/t.publick.org/current.json")
+    assert live["redirects"] == {"/meetings/old/": "/meetings/new/"}
+    assert deploy.REDIRECTS not in live["files"] and "meetings/old/index.html" in live["files"]
+    # A build from before moved pages were listed has none.
+    (site / deploy.REDIRECTS).unlink()
+    deploy.publish(bucket, "b", site, "t.publick.org", now=NOW + timedelta(days=1))
+    assert bucket.json("sites/t.publick.org/current.json")["redirects"] == {}
+
+
+def test_a_redirect_to_a_page_the_build_lacks_isnt_published(bucket, tmp_path):
+    site = make_site(tmp_path, {deploy.REDIRECTS: json.dumps({"/meetings/old/": "/meetings/gone/"})})
+    with pytest.raises(SystemExit, match="/meetings/gone/"):
+        deploy.publish(bucket, "b", site, "t.publick.org", now=NOW)
+    assert not bucket.puts
+
+
 def test_needs_a_built_site(bucket, tmp_path):
     with pytest.raises(SystemExit, match="no index.html"):
         deploy.publish(bucket, "b", tmp_path, "t.publick.org", now=NOW)
@@ -273,6 +297,7 @@ def test_worker_serves_every_published_page(bucket, site_dir, tmp_path):
     for key, obj in bucket.objects.items():
         (tmp_path / key).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / key).write_bytes(obj["body"])
+    moved = json.loads((site_dir / deploy.REDIRECTS).read_text())
     paths = [*PAGE_PATHS, "/static/css/site.css", "/feed.xml", "/meetings", "/no-such-page/"]
     script = SERVE_ALL.replace("WORKER", WORKER.as_uri())
     run = subprocess.run(["node", "--input-type=module", "-e", script, str(tmp_path), json.dumps(paths)],
@@ -280,7 +305,9 @@ def test_worker_serves_every_published_page(bucket, site_dir, tmp_path):
     served = json.loads(run.stdout)
     for path in PAGE_PATHS:
         rel = path.lstrip("/") + ("index.html" if path.endswith("/") else "")
-        assert served[path] == [200, "text/html; charset=utf-8", (site_dir / rel).stat().st_size], path
+        # A moved page's address is a redirect to the page it moved to (worker/sites.js).
+        expected = [301, None, 0] if path in moved else [200, "text/html; charset=utf-8", (site_dir / rel).stat().st_size]
+        assert served[path] == expected, path
     assert served["/static/css/site.css"][:2] == [200, "text/css; charset=utf-8"]
     assert served["/feed.xml"][0] == 200
     assert served["/meetings"][0] == 301
