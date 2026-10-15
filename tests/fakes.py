@@ -493,3 +493,62 @@ class FakeDiligent:
             content = self.content.get(doc_id, self.pdf + f"\n% document {doc_id}\n".encode())
             return FakeResponse(content, {"content-disposition": f'inline; filename="Document {doc_id}.pdf"'})
         raise AssertionError(f"unexpected URL {url}")
+
+
+class FakeOpenGov:
+    """Rhode Island's Open Meetings portal for South Kingstown's School Committee: its completed
+    meetings' feed (tests/fixtures/opengov_completed.xml: four meetings of 2026 and one of
+    2006), and meeting pages (opengov_meeting_minutes.html, with an agenda and minutes, and
+    opengov_meeting_amended.html, with an agenda and its amended version), trimmed. Meeting
+    1094488 is served the first page with its own file numbers, and 1082970 the first page
+    marked "Annual Calendar". `upcoming` and `cancelled` are feed items ((id, "2026-10-27
+    17:00") pairs) for those feeds, `pages` replaces a meeting's page by its id, and `content`
+    a file's bytes by its number."""
+    BASE = "https://opengov.sos.ri.gov"
+
+    def __init__(self, upcoming=(), cancelled=(), pages: dict | None = None, content: dict | None = None):
+        import re
+        minutes = (FIXTURES / "opengov_meeting_minutes.html").read_text()
+        self.pages = {
+            1093108: minutes,
+            1094476: (FIXTURES / "opengov_meeting_amended.html").read_text(),
+            1094488: minutes.replace("565478", "568425").replace("567158", "568999"),
+            1082970: re.sub(r'(id="trMeetingAnnualCalendar">.*?<td>\s*)No', r"\1Yes", minutes, flags=re.S),
+            **(pages or {}),
+        }
+        self.feeds = {3: (FIXTURES / "opengov_completed.xml").read_text(), 1: self.feed(upcoming), 4: self.feed(cancelled)}
+        self.content = content or {}
+        self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
+        self.urls = []
+        self.request_count = 0
+
+    @staticmethod
+    def feed(items) -> str:
+        from datetime import datetime
+        from email.utils import format_datetime
+        from zoneinfo import ZoneInfo
+        entries = "".join(
+            f"<item><link>https://opengov.sos.ri.gov/OpenMeetingsPublic/MeetingInformation?MeetingID={i}</link>"
+            f"<title> - {when}</title><description>215 Columbia Street, Wakefield, RI, 02879 &lt;br/&gt; Filed on: x"
+            f"</description><pubDate>{format_datetime(datetime.fromisoformat(when).replace(tzinfo=ZoneInfo('America/New_York')))}"
+            "</pubDate></item>" for i, when in items)
+        return f'<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel><title>Feed</title>{entries}</channel></rss>'
+
+    def get(self, url):
+        import re
+        from urllib.parse import unquote
+        self.urls.append(url)
+        self.request_count += 1
+        found = re.match(rf"{re.escape(self.BASE)}/RSSFeed/Rss\?feedType=(\d+)&.*PublicBodies=(.+)$", url)
+        if found:
+            if unquote(found.group(2)) != "South Kingstown School Committee":
+                return FakeResponse(self.feed([]).encode())
+            return FakeResponse(self.feeds[int(found.group(1))].encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/OpenMeetingsPublic/MeetingInformation\?MeetingID=(\d+)", url)
+        if found:
+            return FakeResponse(self.pages[int(found.group(1))].encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/Common/DownloadMeetingFiles\?FilePath=(.+)", url)
+        if found:
+            number = re.search(r"(\d+)\.pdf$", unquote(found.group(1))).group(1)
+            return FakeResponse(self.content.get(number, self.pdf + f"\n% file {number}\n".encode()))
+        raise AssertionError(f"unexpected URL {url}")

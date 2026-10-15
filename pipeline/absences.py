@@ -30,8 +30,9 @@ NOT_HELD = ("cancelled", "postponed", "rescheduled")
 # Sources that never carry a meeting's documents: a school district's calendar
 # feed, and a page of the year's dates ([schedule_meetings]).
 NO_DOCUMENTS = ("ical", "schedule")
-# A school district's own sources of its board's documents, each with a [<source>_meetings] table.
-SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent")
+# Sources of a board's documents other than the city's own listings (a school district's website or
+# portal, the state's Open Meetings portal), each with a [<source>_meetings] table.
+SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "opengov")
 # How many days the meetings calendar may go unread before it's called behind,
 # when the town's [freshness] table doesn't say.
 CALENDAR_MAX_DAYS = 2
