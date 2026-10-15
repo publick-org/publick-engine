@@ -602,9 +602,18 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     boards = defaultdict(list)
     for m in meetings:
         boards[m["body_slug"]].append(m)
+    # A board its listings name another way ("South Kingstown 250th Committee" and "250th Committee") is
+    # one board, under its name as first recorded (pipeline/identity.py); the page another of its names
+    # had sends readers to the board's.
+    other_names = defaultdict(set)
+    for m in meetings:
+        for name in m.get("body_names", []):
+            if slugify(name) not in boards:
+                other_names[m["body_slug"]].add(slugify(name))
     board_list = sorted(
         ({"slug": s, "name": ms[-1]["body"], "name_en": ms[-1]["body"], "url": ms[0]["body_url"], "meetings": ms[::-1],
-          "next": next((m for m in ms if m["date"] >= today_s), None)} for s, ms in boards.items()),
+          "next": next((m for m in ms if m["date"] >= today_s), None),
+          "also_urls": [f"/meetings/boards/{a}/" for a in sorted(other_names[s])]} for s, ms in boards.items()),
         key=lambda b: b["name"].lower(),
     )
     week_end = (today + timedelta(days=7)).isoformat()
@@ -1057,20 +1066,22 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     bucket_data.pull(config, data_dir)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
-    urls = {}
+    urls, redirects = {}, {}
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
-            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards))
+            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards, redirects))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
-    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls)
+    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, redirects)
     return urls
 
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
-                   town_static: Path, tr: TownStrings, share_cards: bool = False) -> dict[str, str | None]:
-    """One language's pages, and with English the files every language shares."""
+                   town_static: Path, tr: TownStrings, share_cards: bool = False,
+                   redirects: dict[str, str] | None = None) -> dict[str, str | None]:
+    """One language's pages, and with English the files every language shares. redirects, if given,
+    gets each moved page's address, to the address it sends readers to (write_support_files)."""
     town = config["slug"]
     site = config["site"]
     # Where this language's pages are: "" for English, "/es" for Spanish.
@@ -1313,6 +1324,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         dest.write_text(html, encoding="utf-8")
         if url not in UNLISTED_PAGES and not canonical:
             urls[prefix + url] = lastmod
+        if template == "moved.html" and redirects is not None:
+            redirects[prefix + url] = prefix + canonical
 
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
         rel = page_path.relative_to(PAGES_DIR)
@@ -1344,6 +1357,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
         for b in meetings["boards"]:
             render("board.html", b["url"], lastmod=max(changed[id(m)] for m in b["meetings"]), board=b)
+            for also in b["also_urls"]:
+                render("moved.html", also, canonical=b["url"], board=b)
     # The weekly digest (pipeline/digest.py), in English for now: a page for each week, a list, and a feed for email.
     issues = digest.issues(meetings["all"], meetings["tracking_since"], today, ZoneInfo(site["timezone"])) if english and "meetings" in config else []
     if english and "meetings" in config:
@@ -1686,7 +1701,14 @@ def write_311_csvs(folder: Path, sc: dict) -> None:
         write_csv(folder / f"category-{c['slug']}.csv", ["ward", *summary], [[w["ward"], *row(w)] for w in c["by_ward"]])
 
 
-def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str, str | None]) -> None:
+# Each moved page's address, to the address it sends readers to: the network's Worker answers these with a
+# permanent redirect (pipeline/deploy.py puts them in the site's manifest; worker/sites.js), where the page
+# itself, for any other host (GitHub Pages), sends readers on with a refresh and a canonical link.
+REDIRECTS_FILE = "redirects.json"
+
+
+def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str, str | None],
+                        redirects: dict[str, str] | None = None) -> None:
     # Custom domain for GitHub Pages. With Actions deploys the domain is also set
     # in the repo's Pages settings; the file keeps the build self-describing.
     (out_dir / "CNAME").write_text(site["domain"] + "\n", encoding="utf-8")
@@ -1708,6 +1730,7 @@ def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str
     (out_dir / "robots.txt").write_text(
         f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n", encoding="utf-8"
     )
+    (out_dir / REDIRECTS_FILE).write_text(json.dumps(redirects or {}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def main() -> None:

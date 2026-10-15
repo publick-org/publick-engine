@@ -309,21 +309,27 @@ def test_counted_and_summarized_once(tmp_path):
     ("Malden Cultural Council", "Cultural Council"),
     ("Malden Housing Authority", "Malden Housing Authority"),     # its own name
     ("Board of Health", "Board of Health"),                       # not recorded yet
+    ("Board of Assessor", "Board of Assessors"),
+    ("City Council Finance Sub Committee", "City Council Finance Subcommittee"),
 ])
 def test_a_board_keeps_the_name_first_recorded(name, expected):
-    from pipeline.meeting_names import words
-    known = {words(b): b for b in ("Open Space & Recreation Committee", "Cultural Council", "Malden Housing Authority")}
+    known = identity.known_boards(store_of(*(record(str(n), b) for n, b in enumerate((
+        "Open Space & Recreation Committee", "Cultural Council", "Malden Housing Authority", "Board of Assessors",
+        "City Council Finance Subcommittee")))), "Malden")
     assert fetch_meetings.known_body(name, known, "Malden") == expected
 
 
 def test_a_meeting_posted_three_times_has_two_moved_pages(malden, tmp_path):
-    """Each earlier listing's page says where the meeting is now, under a title of its own."""
+    """Each earlier listing's page, published before identities were kept, says where the meeting is now,
+    under a title of its own, and the Worker answers its address with a redirect (redirects.json)."""
     from conftest import BUILT_AT
     from test_site import parse
     malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
     page = AGENDA_PAGE.replace("09222026-4441", "10062026-4441").replace("09222026-4442", "10062026-4442")
     page = page.replace("Finance Committee Agenda - September 22, 2026", "City Council Agenda - REVISED")
     fetch_meetings.run(malden, FakeMalden(page), tmp_path, now=NOW)
+    # A town whose listings' own pages were published before identities were kept.
+    (tmp_path / "meetings" / identity.LEDGER).unlink()
     malden["sections"] = [s for s in malden["sections"] if s["slug"] in ("meetings", "about")]
     for table in ("seeclickfix", "permits", "finance", "schools", "housing", "labor", "freshness", "summaries"):
         malden.pop(table, None)
@@ -345,6 +351,9 @@ def test_a_meeting_posted_three_times_has_two_moved_pages(malden, tmp_path):
     assert not redirects((out / council["url"].strip("/") / "index.html").read_text())
     sitemap = (out / "sitemap.xml").read_text()
     assert council["url"] in sitemap and council["also_urls"][0] not in sitemap
+    moves = json.loads((out / build_site.REDIRECTS_FILE).read_text())
+    for also in council["also_urls"]:
+        assert moves[also] == council["url"]
 
 
 def test_identities_are_kept_and_every_address_a_meeting_had_still_leads_to_it(malden, tmp_path):
@@ -389,3 +398,35 @@ def test_identities_are_kept_and_every_address_a_meeting_had_still_leads_to_it(m
     alone = (out / "meetings" / "2026-10-20-planning-board-2" / "index.html").read_text()
     assert "the board has more than one meeting this day, so it can't be told which one this is" in alone
     assert "can't be told" not in (out / "meetings" / "2026-10-20-planning-board-1900" / "index.html").read_text()
+
+
+def test_a_board_listed_under_two_names_has_one_page(malden, tmp_path):
+    """A board one source names with the town's name in front is one board, under its name as first
+    recorded, with one page; the page its other name had sends readers there."""
+    from conftest import BUILT_AT
+    malden["town"]["name"] = "Malden"
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
+    fetch_meetings.run(malden, FakeMalden(AGENDA_PAGE), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    for id, body, date_, seen in (("9101", "Tree Board", "2026-10-07", "2026-10-01T07:00:00-04:00"),
+                                  ("agendacenter-9102", "Malden Tree Board", "2026-10-21", "2026-10-02T07:00:00-04:00")):
+        store[id] = {"id": id, "slug": f"{date_}-{fetch_meetings.slugify(body)}", "date": date_, "body": body, "start_time": None,
+                     "title": f"{body} Meeting", "source": "agendacenter" if "-" in id else "calendar", "status": "scheduled",
+                     "listed": True, "first_seen": seen, "last_seen": seen, "source_url": f"{BASE}/{id}"}
+    fetch_meetings.save_store(tmp_path, store, malden)
+    built = build_site.load_meetings(tmp_path, NOW.date(), town="Malden")
+    tree = [b for b in built["boards"] if "Tree Board" in b["name"]]
+    assert [(b["name"], len(b["meetings"]), b["also_urls"]) for b in tree] == [
+        ("Tree Board", 2, ["/meetings/boards/malden-tree-board/"])]
+
+    malden["sections"] = [s for s in malden["sections"] if s["slug"] in ("meetings", "about")]
+    for table in ("seeclickfix", "permits", "finance", "schools", "housing", "labor", "freshness", "summaries"):
+        malden.pop(table, None)
+    out = tmp_path / "site"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(build_site, "load_config", lambda slug: malden)
+        build_site.build("malden", out, data_dir=tmp_path, now=BUILT_AT)
+    moved = (out / "meetings" / "boards" / "malden-tree-board" / "index.html").read_text()
+    assert "url=/meetings/boards/tree-board/" in moved and "This board's page has moved" in moved
+    assert json.loads((out / build_site.REDIRECTS_FILE).read_text())["/meetings/boards/malden-tree-board/"] == "/meetings/boards/tree-board/"
+    assert "/meetings/boards/malden-tree-board/" not in (out / "sitemap.xml").read_text()

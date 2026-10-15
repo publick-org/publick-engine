@@ -87,17 +87,12 @@ def normalize_body(body: str, aliases: dict) -> str:
 
 
 def known_body(body: str, known: dict, town: str) -> str:
-    """A board's name as already recorded, when this one is the same words written another
-    way ("Open Space and Recreation Committee" for "Open Space & Recreation Committee"), or
-    with the town's name before it ("Malden Cultural Council" for "Cultural Council"). known
-    maps words() of each recorded name to the name."""
-    w = words(body)
-    if w in known:
-        return known[w]
-    prefix = words(town)
-    if w.startswith(prefix) and " " + w[len(prefix):] in known:
-        return known[" " + w[len(prefix):]]
-    return body
+    """A board's name as already recorded, when this one names the same board (identity.board_key): the
+    same words written another way ("Open Space and Recreation Committee" for "Open Space & Recreation
+    Committee"), with the town's name before it ("Malden Cultural Council" for "Cultural Council"), in
+    the plural, or with "Sub Committee" for "Subcommittee". known maps each recorded board's board_key
+    to its name (identity.known_boards)."""
+    return known.get(identity.board_key(body, town), body)
 
 
 def slugify(text: str) -> str:
@@ -467,7 +462,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     seen: dict[str, Calendar] = {}
     new_count = 0
     # Each board's name as first recorded, so one listed in two places is one board.
-    known = {words(m["body"]): m["body"] for m in sorted(store.values(), key=lambda m: m.get("first_seen", ""), reverse=True)}
+    known = identity.known_boards(store, config["town"]["name"])
     for calendar in calendars(config):
         try:
             events = calendar.events(client, today, store)
@@ -487,7 +482,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         for event in events:
             seen[event["id"]] = calendar
             event["body"] = known_body(normalize_body(event["body"], aliases), known, config["town"]["name"])
-            known.setdefault(words(event["body"]), event["body"])
+            known.setdefault(identity.board_key(event["body"], config["town"]["name"]), event["body"])
             event.pop("raw_title", None)
             meeting = store.get(event["id"]) or adopt_drive_meeting(store, event)
             if meeting is None:
