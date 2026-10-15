@@ -98,8 +98,8 @@ pipeline/                   Python package
                             reviewed by AI -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
   factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts,
-                            and each decision's quote from the minutes and its outcome (approved, denied, ...), so a dropped "not"
-                            is caught. Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+                            and each decision's quote from the minutes and its outcome (approved, denied, ...), read against how
+                            the motion ended after the quote, so a dropped "not" or a failed vote called approved is caught. Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
   evaluate.py               The minutes prompt run against the real model on minutes checked by hand (evals/minutes.json), with the
                             checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
   evaluate_translations.py  The translation prompt run the same way on one town's summaries (evals/translations.json):
