@@ -23,12 +23,15 @@ import re
 from collections import Counter, defaultdict
 
 # Bump when the layout rules change, so documents are laid out again.
-VERSION = 1
+# 2: Foxit; a word split where its font's subset prefix changes is one word again.
+VERSION = 2
 
 # Supported styles: the PDF's Producer (or Creator), as a pattern, and a name.
 STYLES = [
     # Granicus Legistar's agendas and minutes ("Meeting Minutes - Final"), made with Crystal Reports.
     (re.compile(r"Crystal", re.I), "legistar"),
+    # Foxit PDF Creator, which Manchester's clerk uses for its minutes (posted on CivicClerk).
+    (re.compile(r"Foxit", re.I), "foxit"),
 ]
 
 # A word-for-word check: the laid-out text must hold every word kept from the
@@ -87,6 +90,27 @@ def plain_text(pdf: bytes) -> str:
         return ""
 
 
+def font_name(word: dict) -> str:
+    """A word's font without its subset prefix: 'ABCDEF+ArialMT' -> 'ArialMT'."""
+    return word["fontname"].split("+")[-1]
+
+
+def joined(words: list[dict]) -> list[dict]:
+    """Words of one line, left to right, with any word split where its font changes only in name
+    made one again: Foxit embeds a font twice, as 'ArialMT' and as the subset 'ABCDEF+ArialMT', and
+    a word can start in one and end in the other ("Progra" "m"). The two pieces touch; words
+    apart by a space never do."""
+    out = []
+    for w in words:
+        prev = out[-1] if out else None
+        if (prev and font_name(prev) == font_name(w) and round(prev["size"], 1) == round(w["size"], 1)
+                and prev["fontname"] != w["fontname"] and -0.5 < w["x0"] - prev["x1"] < 0.1 * w["size"]):
+            out[-1] = {**prev, "text": prev["text"] + w["text"], "x1": w["x1"]}
+        else:
+            out.append(w)
+    return out
+
+
 def lines(pdf: bytes) -> list[dict]:
     """Each line of text, top to bottom, with its main font and size, where it starts,
     where its main text starts (after a label in another font), and where each word starts. A line with two pieces far
@@ -100,7 +124,7 @@ def lines(pdf: bytes) -> list[dict]:
                 key = next((k for k in rows if abs(k - w["top"]) < 2.0), w["top"])
                 rows[key].append(w)
             for top in sorted(rows):
-                words = sorted(rows[top], key=lambda w: w["x0"])
+                words = joined(sorted(rows[top], key=lambda w: w["x0"]))
                 pieces, piece = [], [words[0]]
                 for w in words[1:]:
                     if w["x0"] - piece[-1]["x1"] > 3 * w["size"]:
