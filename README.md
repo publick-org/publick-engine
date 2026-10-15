@@ -93,8 +93,11 @@ pipeline/                   Python package
   fetch_diligent_meetings.py   Daily: a school board's meetings, agendas and minutes (a Diligent Community portal) -> data/meetings/
   fetch_opengov_meetings.py    Daily: public bodies' meetings, agendas and minutes (Rhode Island's Open Meetings portal) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
-                            new documents first, with each month's cost in data/summary-costs.json; in a network's
+                            new documents first, with each request's cost in data/costs/ (cost_log.py); in a network's
                             daily run, sent as one batch at half the price and collected once it has ended
+  cost_log.py               Each request to the model, written as it's answered, counted once -> data/costs/<YYYY-MM>.jsonl,
+                            and each month's totals made from it -> data/summary-costs.json, which the network's budget reads.
+                            `python -m pipeline.summarize ledger --check` compares the logs with the files' recorded costs
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
                             reviewed by AI -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts

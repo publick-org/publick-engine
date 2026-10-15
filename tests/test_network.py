@@ -484,6 +484,18 @@ def test_the_floors_dont_hold_back_more_than_is_left(tmp_path):
     assert network.summary_budget(root, 50.0, towns_in_run=3, today=date(2026, 10, 30))["allowance"] == 0.03
 
 
+def test_ledgers_checks_each_towns_cost_log_without_keys(tmp_path, steps, monkeypatch):
+    calls, failing = steps
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "a key")
+    root = make_root(tmp_path)
+    assert network.check_ledgers(root)
+    assert [c["cmd"][1:] for c in calls] == [["-m", "pipeline.summarize", "ledger", "--check", "--town", town]
+                                             for town in ("gloucester", "manchester", "salem")]
+    assert calls[0]["cwd"] == root / "towns" / "gloucester-ma" and "ANTHROPIC_API_KEY" not in calls[0]["env"]
+    failing.add("Check the cost log")
+    assert not network.check_ledgers(root, ["salem-ma"])
+
+
 def test_network_reads_the_ledger_summarize_writes():
     from pipeline import summarize
     assert network.SUMMARY_LEDGER == summarize.LEDGER

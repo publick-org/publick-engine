@@ -198,16 +198,15 @@ def test_ledger_counts_this_months_summaries(tmp_path):
     assert saved["cost"] == REQUEST
 
 
-def test_ledger_is_filled_in_from_summaries_saved_before_costs_were(tmp_path):
+def test_the_recount_prices_summaries_saved_before_costs_were(tmp_path):
     config = with_minutes(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=3, now=FETCHED_AT)
     for path in (tmp_path / "summaries").glob("*.json"):
         record = json.loads(path.read_text())
         del record["cost"]
         path.write_text(json.dumps(record))
-    (tmp_path / summarize.LEDGER).unlink()
-    ledger = summarize.update_ledger(tmp_path, summarize.summary_settings(config), "2026-09")
-    assert ledger["2026-09"] == {"cost": round(3 * REQUEST, 4), "documents": 3}
+    row = summarize.recount(tmp_path, summarize.summary_settings(config), "2026-09")
+    assert row == {"cost": round(3 * REQUEST, 4), "documents": 3}
 
 
 def test_a_summary_made_again_the_same_month_is_still_counted(tmp_path, monkeypatch):
@@ -646,8 +645,7 @@ class Killed(BaseException):
     """The run stopped from outside (a step's timeout), in the middle of a request."""
 
 
-def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path, monkeypatch):
-    monkeypatch.setattr(summarize, "LEDGER_EVERY", 0)
+def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path):
     config = with_minutes(tmp_path)
     client, cut_off = FakeAnthropic(), FakeAnthropic(stop_reason="max_tokens")
     stream = client.messages.stream
@@ -674,18 +672,16 @@ def test_the_ledger_is_saved_after_each_request_paid_for(tmp_path, monkeypatch):
     assert ledger == {"cost": round(2 * REQUEST, 4), "documents": 2, "failed_cost": round(REQUEST, 4)}
 
 
-def test_during_a_run_the_ledger_is_saved_at_most_every_ledger_every_seconds(tmp_path, monkeypatch):
-    monkeypatch.setattr(summarize, "LEDGER_EVERY", 3600)
-    saves = []
-    update = summarize.update_ledger
-    monkeypatch.setattr(summarize, "update_ledger", lambda *a, **k: saves.append(1) or update(*a, **k))
+def test_a_run_with_a_cost_log_never_reads_the_summaries_for_the_ledger(tmp_path, monkeypatch):
     config = with_minutes(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=2, now=FETCHED_AT)
+    # The town has its log now: each request after is a line, and the ledger is made from the month's lines.
+    recounts = []
+    monkeypatch.setattr(summarize, "saved_summaries", lambda data_dir: recounts.append(1) or {})
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
-    assert result["summarized"] > 1
-    # Once after the first request paid for, and once at the end, which counts every summary.
-    assert len(saves) == 2
+    assert result["summarized"] == 14 and recounts == []
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
-    assert ledger["documents"] == result["summarized"]
+    assert ledger["documents"] == 16 and ledger["cost"] == round(16 * REQUEST, 4)
 
 
 def test_the_exit_status_fails_only_when_every_document_tried_failed(tmp_path):
