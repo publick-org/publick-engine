@@ -106,6 +106,8 @@ pipeline/                   Python package
                             `python -m pipeline.evaluate --set translations` (about a cent a summary)
   evaluate_batch.py         The minutes set sent through the Message Batches API at each effort, to measure how long a
                             batch takes and what a lower effort does: `python -m pipeline.evaluate --set batch` (about $1 an effort)
+  evaluate_factcheck.py     The fact check replayed, without AI, on real summaries and their PDFs' page text (evals/factcheck/),
+                            by the tests; a change that shows or hides anything fails them until accepted with `--update`
   pdftext.py                A PDF's own text: laid out as full text for a supported style (the software that made it), checked word for word; plain text for search
   votes.py                  Roll call votes from a supported style's minutes, checked against the body's [officials] members (no AI);
                             read with the minutes' text, kept in data/summaries/, not yet shown. `python -m pipeline.votes` lists them for review
@@ -164,6 +166,7 @@ tests/                      The engine's tests: pipeline, structure, link, and a
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
 evals/minutes.json          Minutes checked by hand, decision by decision, for pipeline/evaluate.py
+evals/factcheck/            Real summaries with their PDFs' page text, and what the fact check made of each, for pipeline/evaluate_factcheck.py
 worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by hostname
                             (the logic in sites.js); scheduler-index.js starts a network's daily runs, the engine's
                             release, and the network's engine pull request on time, watches the runs finish,
@@ -214,6 +217,14 @@ The engine's own tests run from this repository, offline, against saved Gloucest
 ruff check .                                                # the lint CI runs first (ruff.toml)
 python -m pytest
 node --test worker/sites.test.js worker/scheduler.test.js   # the Workers' tests (Node 22)
+```
+
+The fact check (`pipeline/factcheck.py`) is also replayed on real summaries. `evals/factcheck/sample.json.gz` holds 45 summaries from each town of the network (316 decisions and agenda items: agendas and minutes, every meeting platform, each prompt version, scans checked against their transcription, and summaries the check passed, failed, and found weak), each with its PDF's page text as `factcheck.pages()` reads it and the words a run gives the check, but not the PDF. `evals/factcheck/expected.json` is what the check made of each: its result, its problems, and what the site shows of the headline, the summary, and each decision or item. `tests/test_factcheck_replay.py` checks every summary again and fails on any whose result changed, saying which decision or item is now shown or hidden, and why. When the change is intended, accept it, and commit the new `expected.json` with it, so the diff shows what it does:
+
+```sh
+python -m pipeline.evaluate_factcheck                       # what changed, summary by summary
+python -m pipeline.evaluate_factcheck --update              # accept it: rewrite evals/factcheck/expected.json
+python -m pipeline.evaluate_factcheck build ../publick.org  # the same summaries again, as the network has them now (--resample to choose again)
 ```
 
 ## Starting a site for another town
@@ -655,6 +666,8 @@ python -m pipeline.deploy check [--town <town>] [--site _site] [--domain <domain
 ```
 
 `--domain` names the site by its address instead of by its town's config, as the network's rollback does. Files are stored once by content and shared across sites, so a daily publish uploads only what changed. A site goes live with one write, after all its files are uploaded. See `pipeline/deploy.py` for the bucket layout.
+
+Under load, the Worker keeps each file's content in Cloudflare's cache in each data center after its first read (files are named by their content's hash, so a cached copy is never out of date), so a busy page is read from the bucket once per data center, not once per visit. If the bucket can't be read, a site keeps being served from the manifest last read, and otherwise the visitor gets a plain 503 with `Retry-After`, never Cloudflare's error page. Every page is sent with HSTS, `nosniff`, and `frame-ancestors 'self'` (no other site may frame it), which the pages' own `<meta>` Content-Security-Policy can't set. Each request runs the Worker, pages and their files alike, across every site, so the account's Workers plan must allow the network's daily requests.
 
 GitHub starts scheduled workflows when it can, sometimes hours late. A network can start its daily runs on time with a second Worker, `worker/scheduler-index.js`: on each Cron Trigger it starts the network workflow through GitHub's API (a daily run, which takes only the towns that are due, so extra starts do nothing), and it opens an issue if the status page shows no daily run has finished for 30 hours. Two more triggers (`RELEASE_CRON`, `ENGINE_CRON`) start this engine's release and the network's engine pull request each morning (so the token also needs Actions read and write on the engine's repository), `DIGEST_CRON` sends the weekly digest (see [The email](#the-email)), and `UPTIME_CRON` (`50 * * * *`) loads every site's homepage, publick.org's and each town's in its sitemap, through the sites Worker, and opens a "site down" issue for any that fails twice, closing it when all load again. It needs a GitHub token that can start the workflow and open issues, and the account needs a `workers.dev` subdomain for Cron Triggers, even though the Worker has no address of its own. See `worker/scheduler.js`, and the network repository's `wrangler.scheduler.toml`.
 

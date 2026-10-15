@@ -88,6 +88,12 @@ class SeeClickFix:
             items.extend(batch)
             if len(batch) < PAGE_SIZE:
                 break
+        else:
+            # Every page full: the listing goes on past what we read. Taken as complete, a cut-off
+            # open list would mark every request after it closed.
+            listing = ", ".join(f"{k}={v}" for k, v in params.items()) or "all"
+            raise FetchError(f"SeeClickFix listing ({listing}) has more than {MAX_PAGES * PAGE_SIZE} requests, "
+                             f"the most read ({MAX_PAGES} pages of {PAGE_SIZE}); stopped rather than save a partial list")
         return [seeclickfix.parse_open311(i) for i in items if codes is None or str(i.get("service_code")) in codes]
 
     def issue(self, issue_id: str) -> dict:
