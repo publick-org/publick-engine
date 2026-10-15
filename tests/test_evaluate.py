@@ -82,3 +82,133 @@ def test_a_summary_cut_off_is_reported_and_the_set_goes_on():
     assert result["stopped"] == "stopped early: max_tokens" and result["cost"] == 0.162
     text, failed = evaluate.report([result])
     assert failed and "cut off: 1" in text and "Approved" in text
+
+
+def test_a_model_with_list_prices_needs_none_and_another_needs_them():
+    import pytest
+    assert evaluate.prices_for("claude-sonnet-5") == evaluate.DEFAULT_PRICES
+    haiku = evaluate.prices_for("claude-haiku-5-5")
+    assert haiku["input_price"] == 0.1 and haiku["long_prompt_tokens"] == 100_000 and haiku["long_input_price"] == 0.5
+    # Prices given win, and the long-prompt prices stay.
+    assert evaluate.prices_for("claude-haiku-5-5", 0.2)["input_price"] == 0.2
+    assert evaluate.prices_for("claude-haiku-5-5", 0.2)["long_output_price"] == 2.5
+    assert evaluate.prices_for("claude-test", 1.0, 5.0) == {"input_price": 1.0, "output_price": 5.0}
+    with pytest.raises(SystemExit, match="give --input-price"):
+        evaluate.prices_for("claude-test")
+
+
+def test_a_long_prompt_is_priced_at_its_own_price_request_by_request():
+    import pytest
+
+    from pipeline import summarize
+    haiku = evaluate.prices_for("claude-haiku-5-5")
+    short = {"input_tokens": 100_000, "output_tokens": 10_000}
+    long = {"input_tokens": 100_001, "output_tokens": 10_000}
+    assert summarize.cost(short, haiku) == pytest.approx((100_000 * 0.1 + 10_000 * 0.5) / 1e6)
+    assert summarize.cost(long, haiku) == pytest.approx((100_001 * 0.5 + 10_000 * 2.5) / 1e6)
+    # Cached input counts toward the prompt's length, at its share of the long price.
+    cached = {"input_tokens": 1_000, "cache_read_input_tokens": 100_000, "output_tokens": 0}
+    assert summarize.cost(cached, haiku) == pytest.approx((1_000 + 0.1 * 100_000) * 0.5 / 1e6)
+    # Without long-prompt prices (a town's [summaries]), every request is priced the same.
+    assert summarize.cost(long, evaluate.DEFAULT_PRICES) == pytest.approx((100_001 * 2 + 10_000 * 10) / 1e6)
+    # The batch price halves every price, not the length.
+    batch = summarize.at_batch_price(haiku)
+    assert batch["long_prompt_tokens"] == 100_000 and batch["long_input_price"] == 0.25 and batch["input_price"] == 0.05
+    assert summarize.at_batch_price(evaluate.DEFAULT_PRICES) == {"input_price": 1.0, "output_price": 5.0}
+    # Requests priced one by one: a transcription's short requests stay at the short price.
+    requests = [{"usage": long, "seconds": 30.0}, {"usage": short, "seconds": 3.0}]
+    used = evaluate.spent(requests, haiku)
+    assert used["long_prompts"] == 1 and used["requests"] == 2 and used["seconds"] == 33.0
+    assert used["cost"] == pytest.approx(summarize.cost(long, haiku) + summarize.cost(short, haiku), abs=1e-6)
+
+
+def test_the_recorder_keeps_each_request_and_passes_everything_on():
+    from fakes import FakeAnthropic
+    ticks = iter([0.0, 2.5, 10.0, 11.0])
+    client = FakeAnthropic()
+    recorder = evaluate.Recorder(client, clock=lambda: next(ticks), purpose=lambda kwargs: kwargs["model"][-1])
+    schema = {"type": "json_schema", "schema": {"properties": {"transcript": {}}}}
+    with recorder.messages.stream(model="claude-a", output_config={"effort": "low", "format": schema}) as stream:
+        stream.get_final_message()
+    recorder.messages.create(model="claude-b", messages=[{"role": "user", "content": "\n{}"}],
+                             output_config={"format": {"schema": {"properties": {"problems": {}}}}})
+    assert [(r["model"], r["effort"], r["seconds"], r["purpose"]) for r in recorder.requests] == [
+        ("claude-a", "low", 2.5, "a"), ("claude-b", None, 1.0, "b")]
+    assert recorder.requests[0]["usage"] == {"input_tokens": 1500, "output_tokens": 400}
+    assert recorder.requests[0]["stop_reason"] == "end_turn"
+    assert recorder.messages.batches is client.messages.batches
+
+
+def test_the_set_runs_with_another_model_at_an_effort_and_says_what_it_used(tmp_path):
+    from fakes import FakeAnthropic
+
+    from pipeline import summarize
+    pdf = (__import__("pathlib").Path(__file__).parent / "fixtures" / "civicplus_agenda_scanned.pdf").read_bytes()
+    import hashlib
+    document = {"name": "scan", "url": "https://files.publick.org/x.pdf", "sha256": hashlib.sha256(pdf).hexdigest(),
+                "title": "City Council", "date": "2026-03-16", "scan": True,
+                "decisions": [{"match": "site plan", "outcome": "approved"}]}
+    client = FakeAnthropic()
+    prices = evaluate.prices_for("claude-haiku-5-5")
+    result = evaluate.evaluate(document, client, "claude-haiku-5-5", prices, get=lambda url: pdf, effort="high")
+    # The summary and the scan's transcription, each at the effort.
+    assert [c["model"] for c in client.calls] == ["claude-haiku-5-5"] * 2
+    assert [c["output_config"]["effort"] for c in client.calls] == ["high", "high"]
+    assert result["spent"]["requests"] == 2 and result["summary"]["requests"] == 1 and result["transcript"]["requests"] == 1
+    assert result["cost"] == round(2 * summarize.cost({"input_tokens": 1500, "output_tokens": 400}, prices), 6)
+    assert result["pages"] == summarize.page_count(pdf)
+    # Without an effort, none is sent: the model's default, as a run sends it.
+    client = FakeAnthropic()
+    evaluate.evaluate(document, client, "claude-sonnet-5", evaluate.DEFAULT_PRICES, get=lambda url: pdf)
+    assert all("effort" not in c["output_config"] for c in client.calls)
+    run = {"set": "minutes", "model": "claude-haiku-5-5", "effort": "high", "prices": prices}
+    text, _ = evaluate.report([result], run)
+    assert "Model: claude-haiku-5-5, effort: high; prices per million tokens: $0.1 input, $0.5 output ($0.5 and $2.5 " \
+           "for a prompt over 100,000 tokens)." in text
+    assert "2 requests, 3,000 input and 800 output tokens" in text and "(the transcription: $" in text
+    totals = evaluate.totals_of([result])
+    assert totals["documents"] == 1 and totals["right"] == 1 and totals["input_tokens"] == 3000
+    assert totals["cost_per_document"] == round(result["cost"], 4)
+
+
+def test_a_refusal_is_reported_with_its_category_and_the_set_goes_on():
+    import hashlib
+    from types import SimpleNamespace
+
+    from fakes import FakeAnthropic
+    client = FakeAnthropic(stop_reason="refusal")
+    stream = client.messages.stream
+
+    def refused(**kwargs):
+        inner = stream(**kwargs)
+        message = inner.get_final_message
+        inner.get_final_message = lambda: SimpleNamespace(**{**vars(message()),
+                                                             "stop_details": SimpleNamespace(category="cyber")})
+        return inner
+    client.messages.stream = refused
+    pdf = b"%PDF-1.4 not really"
+    document = {"name": "refused", "url": "https://files.publick.org/x.pdf", "sha256": hashlib.sha256(pdf).hexdigest(),
+                "title": "City Council", "date": "2026-03-16", "decisions": []}
+    result = evaluate.evaluate(document, client, "claude-haiku-5-5", evaluate.prices_for("claude-haiku-5-5"),
+                               get=lambda url: pdf)
+    assert result["stopped"] == "stopped early: refusal (cyber)" and result["spent"]["requests"] == 1
+    text, failed = evaluate.report([result])
+    assert failed and "refusal (cyber)" in text
+
+
+def test_main_chooses_the_set_and_checks_its_prices_before_the_key(monkeypatch):
+    import sys
+
+    import pytest
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for argv, message in ((["--model", "claude-test"], "give --input-price"),
+                          (["--model", "claude-haiku-5-5", "--effort", "low"], "Set ANTHROPIC_API_KEY"),
+                          (["--set", "shadow", "--model", "claude-test"], "give --input-price"),
+                          (["--set", "shadow", "--model", "claude-haiku-5-5", "--effort", "medium"], "Set ANTHROPIC_API_KEY"),
+                          (["--set", "translations", "--model", "claude-haiku-5-5", "--review-model", "claude-haiku-5-5"],
+                           "Set ANTHROPIC_API_KEY"),
+                          (["--set", "translations", "--model", "claude-test"], "give --input-price"),
+                          (["--set", "nothing"], "minutes, translations, batch, or shadow")):
+        monkeypatch.setattr(sys, "argv", ["evaluate", *argv])
+        with pytest.raises(SystemExit, match=message):
+            evaluate.main()

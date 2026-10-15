@@ -34,9 +34,7 @@ from pathlib import Path
 
 from pipeline import evaluate, summarize
 
-# The Message Batches API's price, against a request's own.
-BATCH_PRICE = summarize.BATCH_PRICE
-EFFORTS = ("low", "medium", "high", "xhigh", "max")
+EFFORTS = evaluate.EFFORTS
 POLL_SECONDS = 15
 
 
@@ -92,7 +90,7 @@ def judged(document: dict, pdf: bytes, result, prices: dict) -> dict:
 
 def collect(client, documents: list[dict], pdfs: list[bytes], batches: dict[str, dict], prices: dict) -> list[dict]:
     """Each effort's batch with its documents' results (a cancelled one's unfinished documents "canceled")."""
-    at_batch_price = {k: v * BATCH_PRICE for k, v in prices.items()}
+    at_batch_price = summarize.at_batch_price(prices)
     out = []
     for effort, batch in batches.items():
         # Results come in any order: matched to their documents by id.
@@ -164,10 +162,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--wait-minutes", type=float, default=100, help="cancel a batch not ended by then")
     parser.add_argument("--only", help="the one document of the set to run (its name)")
     parser.add_argument("--model", default=evaluate.DEFAULT_MODEL)
-    parser.add_argument("--input-price", type=float, default=evaluate.DEFAULT_PRICES["input_price"])
-    parser.add_argument("--output-price", type=float, default=evaluate.DEFAULT_PRICES["output_price"])
+    parser.add_argument("--input-price", type=float, help="dollars per million tokens (default: the model's in "
+                        "pipeline/evaluate.py's PRICES)")
+    parser.add_argument("--output-price", type=float)
     parser.add_argument("--json", type=Path, help="also save every result here")
     args = parser.parse_args(argv)
+    prices = evaluate.prices_for(args.model, args.input_price, args.output_price)
     efforts = [e.strip() for e in args.efforts.split(",") if e.strip()]
     if not efforts or set(efforts) - set(EFFORTS) or len(set(efforts)) != len(efforts):
         raise SystemExit(f"--efforts takes each of {', '.join(EFFORTS)} at most once, not {args.efforts}")
@@ -181,7 +181,6 @@ def main(argv: list[str] | None = None) -> int:
         if not documents:
             raise SystemExit(f"No document named {args.only} in {evaluate.SET}")
     pdfs = [evaluate.document_pdf(d) for d in documents]
-    prices = {"input_price": args.input_price, "output_price": args.output_price}
     print(f"Sending {len(efforts)} batches of {len(documents)} documents...", file=sys.stderr, flush=True)
     batches = send_and_wait(client, documents, pdfs, args.model, efforts, args.wait_minutes * 60)
     runs = collect(client, documents, pdfs, batches, prices)
