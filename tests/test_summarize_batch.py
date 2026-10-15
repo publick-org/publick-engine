@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from conftest import FETCHED_AT
 from fakes import FakeAnthropic
-from test_summarize import REQUEST, blank_pdf, minutes_town, with_minutes
+from test_summarize import HAIKU, LEGISTAR, REQUEST, blank_pdf, haiku, minutes_town, with_minutes
 from test_translate import spanish_town, translations
 
 from pipeline import summarize
@@ -248,3 +248,29 @@ def test_a_batch_not_ended_yet_is_left_for_later_when_collecting_only_what_is_re
     # The next look finds it ended, and collects it as at the end of the job.
     result = collect(config, client, tmp_path, ready_only=True)
     assert result["collected"] == 16 and not (tmp_path / summarize.BATCH_FILE).exists()
+
+
+def test_the_batch_sends_the_effort_and_prices_a_long_prompt_at_half_the_long_prompt_price(tmp_path):
+    config = haiku(load_config("gloucester"))
+    sha = minutes_town(tmp_path, LEGISTAR)
+    client = FakeAnthropic(input_tokens=150_000)
+    assert first(config, client, tmp_path)["queued"] == 1
+    params = client.batches_sent[0][0]
+    assert params["model"] == "claude-haiku-5-5"
+    assert params["output_config"]["effort"] == "high" and params["output_config"]["format"]["type"] == "json_schema"
+    assert collect(config, client, tmp_path)["collected"] == 1
+    # Half of each price; the threshold is the same.
+    record = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+    assert record["cost"] == round((150_000 * 0.25 + 400 * 1.25) / 1e6, 6)
+
+
+def test_a_batch_is_priced_as_it_was_sent_though_the_model_has_changed_since(tmp_path):
+    config = load_config("gloucester")
+    sha = minutes_town(tmp_path, LEGISTAR)
+    client = FakeAnthropic()
+    first(config, client, tmp_path)
+    assert json.loads((tmp_path / summarize.BATCH_FILE).read_text())["prices"] == {"input_price": 2.0, "output_price": 10.0}
+    collect(haiku(config), client, tmp_path)
+    record = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+    assert record["model"] == "claude-sonnet-5" and record["cost"] == REQUEST / 2
+    assert HAIKU["model"] == config["summaries"]["model"]
