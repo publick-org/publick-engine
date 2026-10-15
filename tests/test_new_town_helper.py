@@ -202,6 +202,51 @@ def test_helper_stops_at_a_platform_the_engine_does_not_read(tmp_path, network):
     assert not out.exists()
 
 
+def test_helper_leaves_out_what_the_layers_give(tmp_path, network, monkeypatch):
+    """With the network's shared settings (pipeline/config.py), the config keeps only the town's own,
+    and loads and builds merged over them."""
+    (network / "defaults" / "states").mkdir(parents=True)
+    (network / "defaults" / "network.toml").write_text(
+        '[site]\nnetwork = "Publick"\nnetwork_url = "https://publick.org"\ntimezone = "America/New_York"\n'
+        'languages = ["en", "es"]\nname_suffix = "Publick"\n[analytics]\ngoatcounter = "publick"\npublic_stats = ""\n'
+        '[storage]\nendpoint = "https://6bbfee5a3892553c7993dbfa4b4e8453.r2.cloudflarestorage.com"\nbucket = "publick-documents"\n'
+        'public_url = "https://files.publick.org"\n[summaries]\nmodel = "claude-sonnet-5"\ninput_price = 2.0\n'
+        'output_price = 10.0\nmax_cost_per_run = 5.0\nmax_per_run = 40\n[freshness]\nsummary_grace_days = 2\n'
+        '[terms]\nADA = "Americans with Disabilities Act."\n')
+    (network / "defaults" / "states" / "ma.toml").write_text(
+        '[town]\nstate = "Massachusetts"\n[housing]\nbps_region = "Northeast Region"\nbps_prefix = "ne"\n'
+        'bps_state = "25"\nstate_geo = "04000US25"\n'
+        'shi_url = "https://www.mass.gov/doc/subsidized-housing-inventory-2/download"\n'
+        '[labor]\nstate_series = "LAUST250000000000003"\n[schools]\nportal = "https://educationtocareer.data.mass.gov"\n'
+        '[terms]\n"M.G.L." = "Massachusetts General Laws."\n')
+    town, out, code = beverly(tmp_path, network)
+    assert code == 0
+    text = (out / "config" / "beverly.toml").read_text()
+    own = tomllib.loads(text)
+    assert own["town"] == {"name": "Beverly", "state_abbr": "MA", "official_site": BASE}
+    assert set(own["site"]) == {"name", "name_prefix", "domain", "tagline", "masthead", "repo_url", "contact_email",
+                                "user_agent", "colors"}
+    # The network's settings, not those of the town the config started from (Gloucester's max_per_run is 50).
+    assert own["summaries"] == {"since": "2026-07-01"}
+    assert own["analytics"] == own["storage"] == {"prefix": "beverly-ma"}
+    assert own["housing"] == {"bps_place": "05595", "census_geo": "16000US2505595", "shi_name": "Beverly"}
+    assert own["labor"] == {"local_series": "LAUCT250559500000003"} and "portal" not in own["schools"]
+    assert "Prices per million tokens" not in text and "summary_grace_days" not in text
+    assert any("needs only its term, for their definition: M.G.L., ADA" in todo for _, todo in town.todo)
+    config = config_mod.read_config(out / "config" / "beverly.toml", network)
+    assert config["summaries"]["model"] == "claude-sonnet-5" and config["town"]["state"] == "Massachusetts"
+    assert config["housing"]["shi_url"].startswith("https://www.mass.gov") and config["site"]["timezone"]
+    site = tmp_path / "site"
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    build_site.build("beverly", site, data_dir=out / "data", now=BUILT_AT, share_cards=False)
+    assert (site / "meetings" / "index.html").exists()
+    # The checks run in a copy outside the network's towns/, which finds the layers by name.
+    commands = []
+    new_town.run_checks(town, out, full=False, runner=lambda command, cwd, env, **kw: commands.append(env) or type(
+        "Done", (), {"returncode": 0, "stdout": "", "stderr": ""})())
+    assert all(env[config_mod.NETWORK_ENV] == str(network.resolve()) for env in commands)
+
+
 def test_checks_run_in_a_copy_and_leave_data_empty(tmp_path, network):
     town, out, _ = beverly(tmp_path, network)
     commands = []

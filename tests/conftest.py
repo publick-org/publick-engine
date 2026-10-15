@@ -19,6 +19,8 @@ os.environ["DOCUMENTS_LOCAL"] = "1"
 # The tests' town: Gloucester's config, ward file, and share image, run against saved source data.
 os.environ["PUBLICK_TOWN_DIR"] = str(Path(__file__).parent / "fixtures" / "town")
 os.environ.pop("TOWN", None)
+# Nor any network's shared settings (pipeline/config.py): the fixture town is in no network.
+os.environ.pop("PUBLICK_NETWORK_DIR", None)
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 
