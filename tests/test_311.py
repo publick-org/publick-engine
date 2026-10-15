@@ -99,6 +99,37 @@ def test_refused_lookups_stop_the_step_and_remove_nothing(config, data):
     assert all(r["detail"] for r in load(data).values())
 
 
+def test_listing_past_the_page_limit_stops_the_step_and_closes_nothing(config, data, monkeypatch):
+    """An open list longer than the pages read is cut off, not complete: the step fails rather than
+    mark the requests past the cut closed, and what was saved is left as it was."""
+    first = FakeSeeClickFix()
+    fetch_311.run(config, first, data, now=FETCHED_AT, detail_limit=0)
+    saved = {name: (data / "311" / name).read_text() for name in ("requests.json", "status.json")}
+    # One more open request than a page holds, the first one listed now on the second page.
+    extra = dict(first.window_items[0], service_request_id=99999999, status="open")
+    reordered = first.open_items[1:] + [extra, first.open_items[0]]
+    monkeypatch.setattr(fetch_311, "MAX_PAGES", 1)
+    later = FakeSeeClickFix(open_items=reordered)
+    with pytest.raises(fetch_311.FetchError, match="more than 100 requests"):
+        fetch_311.run(config, later, data, now=FETCHED_AT.replace(day=27), detail_limit=0)
+    assert {name: (data / "311" / name).read_text() for name in saved} == saved
+    # The same list, read to its end, closes nothing.
+    monkeypatch.setattr(fetch_311, "MAX_PAGES", 2)
+    summary = fetch_311.run(config, FakeSeeClickFix(open_items=reordered), data, now=FETCHED_AT.replace(day=27),
+                            detail_limit=0)
+    assert summary["open_listed"] == 101
+    assert load(data)[str(first.open_items[0]["service_request_id"])]["status"] == "open"
+
+
+def test_recent_listing_past_the_page_limit_stops_the_step(config, data, monkeypatch):
+    first = FakeSeeClickFix()
+    monkeypatch.setattr(fetch_311, "MAX_PAGES", 1)
+    window = [dict(first.window_items[i % 30], service_request_id=90000000 + i) for i in range(100)]
+    with pytest.raises(fetch_311.FetchError, match=r"\(start_date=.*more than 100 requests"):
+        fetch_311.run(config, FakeSeeClickFix(open_items=[], window_items=window), data, now=FETCHED_AT, detail_limit=0)
+    assert not (data / "311" / "requests.json").exists()
+
+
 def test_scorecard_is_dated_by_the_last_fetch(config, data):
     """The 311 page says when SeeClickFix was last read, not when the numbers were worked out:
     a day the fetch failed doesn't read as updated."""
