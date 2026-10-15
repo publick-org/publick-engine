@@ -35,9 +35,9 @@ LANG = "es"
 
 def build(network: Path, town: str) -> dict:
     """The set, from a network repository's town folder (towns/<town>)."""
-    import tomllib
+    from pipeline.config import read_config
     data = network / "towns" / town / "data"
-    config = tomllib.loads(next((network / "towns" / town / "config").glob("*.toml")).read_text(encoding="utf-8"))
+    config = read_config(next((network / "towns" / town / "config").glob("*.toml")), network)
     documents = []
     for kind, meeting, doc, record in summarize.summarized_documents(data):
         documents.append({"name": f"{meeting['date']} {meeting['body']} {kind}", "kind": kind, "title": meeting["title"],
