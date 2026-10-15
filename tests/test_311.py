@@ -101,9 +101,10 @@ def test_a_sync_reads_only_what_changed_since_the_last(config, data):
     client = FakeSeeClickFix(issues=world)
     summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=1))
     assert summary["updated_listed"] == 1 and summary["changed"] == 1 and summary["new"] == 0
-    # Two listings: what was submitted (Open311), and what was updated (APIv2), since an hour before the cursor.
-    assert client.request_count == 2
-    assert "updated_at_after=2026-10-15T17%3A00%3A00Z" in client.urls[1]
+    # The organization's list of request types, and two listings: what was submitted (Open311), and what
+    # was updated (APIv2), since an hour before the cursor.
+    assert client.request_count == 3
+    assert "updated_at_after=2026-10-15T17%3A00%3A00Z" in client.urls[2]
     assert load(data)[str(target["id"])]["detail"]["acknowledged_at"]
 
 
@@ -263,7 +264,7 @@ def old_store(world: list[dict], stamp: str, without_detail: set[str]) -> dict:
 
 def test_saved_requests_go_on_from_where_the_last_fetch_left_them(config, data):
     """A town's first run on the sync takes its cursor from its saved requests, and reads again only
-    the months with requests whose exact times are missing: no full download."""
+    the months with requests whose exact times are missing, counting the rest: no full download."""
     world = real_issues()
     # Three submitted in August, saved without their exact times.
     for issue in world[-3:]:
@@ -278,8 +279,12 @@ def test_saved_requests_go_on_from_where_the_last_fetch_left_them(config, data):
     summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=1))
     assert summary["synced_since"] == "2026-10-15T11:00:00-04:00"
     assert summary["history_windows_read"] == 1 and summary["details_missing"] == 0 and summary["new"] == 0
-    # The sync's two listings, and August's: its Open311 list and its APIv2 one.
-    assert client.request_count == 4 and any("after=2026-08-01T04%3A00%3A00Z" in u for u in client.urls)
+    # The sync's list of request types and two listings; August's, its Open311 list and its APIv2 one; and
+    # a count of each of the other 33 months since January 2024 and of the older requests still open, each
+    # as many as are saved.
+    assert summary["history_windows_checked"] == 34
+    assert client.request_count == 3 + 2 + 34 and any("after=2026-08-01T04%3A00%3A00Z" in u for u in client.urls)
+    assert sum("per_page=1&" in u for u in client.urls) == 34
     after = load(data)
     synced = {k for k, r in after.items() if r["last_seen"] != stamp} - missing
     assert len(synced) == summary["updated_listed"] == 3
@@ -288,6 +293,24 @@ def test_saved_requests_go_on_from_where_the_last_fetch_left_them(config, data):
     assert all(after[k]["detail"]["checked_at"] == (NOW + timedelta(days=1)).isoformat() for k in missing)
     sync = json.loads((data / "311" / "sync.json").read_text())
     assert sync["cursor"] == "2026-10-16T18:00:00Z" and not sync["pending"] and not sync["lookups"]
+
+
+def test_a_month_the_last_fetch_never_read_is_read_on_the_first_sync(config, data):
+    """Saved requests from a history never backfilled, or a backfill cut short: a month where
+    APIv2 counts more requests than are saved is read again, and its requests added."""
+    world = real_issues()
+    store = old_store(world, "2026-10-15T12:00:00-04:00", set())
+    # Closed requests the last fetch never listed, last updated before it: one of a request type
+    # no other saved request has, which the organization's list of services names.
+    unread = ["22960687", "23019380"]
+    for k in unread:
+        del store[k]
+    (data / "311").mkdir()
+    fetch_311.save_json(data / "311" / "requests.json", store)
+    services = [{"service_code": code, "organization": "Gloucester, MA"} for code in (8924, 52271)]
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=world, services=services), data, now=NOW + timedelta(days=1))
+    assert summary["history_windows_read"] == 1 and summary["history_windows_checked"] == 34
+    assert summary["new"] == 2 and set(load(data)) == {str(i["id"]) for i in world}
 
 
 def test_requests_missing_from_the_open_list_are_looked_up_each_week(config, data):
