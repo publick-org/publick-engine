@@ -35,7 +35,8 @@ as without a batch, from the same run's budget: it never costs more than
 sending them one at a time, and comes at most about BATCH_WAIT later. A batch a
 job didn't collect (it was stopped) is collected by the town's next run.
 
-Needs ANTHROPIC_API_KEY. Without it, the step is skipped.
+Needs ANTHROPIC_API_KEY. Without it, the step is skipped. The step fails (exit
+status 1) only when it tried documents and every one failed (exit_status()).
 
 What each month's summaries cost is kept in data/summary-costs.json, which
 the network reads to keep every town's summaries within one monthly budget.
@@ -250,11 +251,11 @@ def record_too_long(data_dir: Path, sha256: str, pages: int) -> None:
     write_atomic(path, json.dumps(found, indent=2, sort_keys=True) + "\n")
 
 
-# Documents whose request stopped early (cut off at max_tokens, or refused), by hash, in the town's
-# data/: for each thing asked of the model ("summary" or "transcript"), the model and prompt version
-# asked and how many tries stopped early. Each try is paid for though nothing is saved, so after
-# MAX_TRIES the document is left out of what's waiting, and its page links the original, until the
-# model or the prompt changes.
+# Documents whose request stopped early (cut off at max_tokens, or refused), or whose result couldn't
+# be saved (its PDF couldn't be read), by hash, in the town's data/: for each thing asked of the model
+# ("summary" or "transcript"), the model and prompt version asked and how many tries stopped early.
+# Each try is paid for though nothing is saved, so after MAX_TRIES the document is left out of what's
+# waiting, and its page links the original, until the model or the prompt changes.
 STOPPED_EARLY = "summary-stopped-early.json"
 MAX_TRIES = 2
 
@@ -661,6 +662,22 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
     return replaced_cost
 
 
+def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:
+    """The error for a summary paid for that couldn't be saved (its PDF couldn't be read for its text,
+    roll calls, or check), counted as a try (STOPPED_EARLY), so a document that fails this way every
+    time isn't paid for every run."""
+    tries = record_stopped_early(data_dir, doc["sha256"], "summary", model, KINDS[kind]["version"])
+    return (f"{kind} {doc['id']}: the summary couldn't be saved ({error})"
+            + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
+
+
+# How often, at most, a run saves the cost ledger before its end (run()'s record_spending), in seconds.
+LEDGER_EVERY = 60
+
+# What a run says when the API account is out of credit (translate.out_of_credit).
+OUT_OF_CREDIT = "stopped: the Anthropic account is out of credit; summaries resume when credit is added"
+
+
 def at_batch_price(settings: dict) -> dict:
     return {**settings, "input_price": settings["input_price"] * BATCH_PRICE,
             "output_price": settings["output_price"] * BATCH_PRICE}
@@ -704,7 +721,7 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
     are listed in "waiting", so they aren't sent twice. Without wait, a batch not ended yet is left as it
     is, and "not_ready" says so."""
     pending = load_batch(data_dir)
-    out = {"done": 0, "paid": 0.0, "paid_backlog": 0.0, "failed_cost": 0.0, "replaced_cost": 0.0,
+    out = {"done": 0, "failed": 0, "paid": 0.0, "paid_backlog": 0.0, "failed_cost": 0.0, "replaced_cost": 0.0,
            "tokens": {"input_tokens": 0, "output_tokens": 0}, "errors": [], "waiting": set()}
     if not pending:
         return out
@@ -753,6 +770,7 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
             paid = cost(e.usage, prices)
             out["paid"] += paid
             out["failed_cost"] += paid
+            out["failed"] += 1
             if entry["older"]:
                 out["paid_backlog"] += paid
             tries = record_stopped_early(data_dir, doc["sha256"], "summary", pending["model"], KINDS[kind]["version"])
@@ -765,6 +783,7 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
             paid = cost({"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens}, prices) if usage else 0.0
             out["paid"] += paid
             out["failed_cost"] += paid
+            out["failed"] += 1
             out["errors"].append(f"{kind} {doc['id']}: the batch's summary couldn't be read ({e}); sent one at a time")
             continue
         paid = cost(usage, prices)
@@ -776,10 +795,17 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
         except FetchError as e:
             # Paid for, but it can't be saved without its document's text and check: made again later.
             out["failed_cost"] += paid
+            out["failed"] += 1
             out["errors"].append(f"{kind} {doc['id']}: {e}")
             continue
-        out["replaced_cost"] += save_summary(config, data_dir, kind, meeting, doc, pdf, made, usage, paid,
-                                             {**settings, "model": pending["model"]}, now, words)
+        try:
+            out["replaced_cost"] += save_summary(config, data_dir, kind, meeting, doc, pdf, made, usage, paid,
+                                                 {**settings, "model": pending["model"]}, now, words)
+        except Exception as e:  # one bad document must not stop the rest
+            out["failed_cost"] += paid
+            out["failed"] += 1
+            out["errors"].append(unsaved(data_dir, kind, doc, pending["model"], e))
+            continue
         for k in out["tokens"]:
             out["tokens"][k] += usage[k]
         out["done"] += 1
@@ -802,13 +828,42 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     storage = open_documents(config, data_dir)
     done, errors, tokens, spent, spent_backlog, failed_cost = 0, [], {"input_tokens": 0, "output_tokens": 0}, 0.0, 0.0, 0.0
     stopped = None
-    month, replaced_cost, too_costly = now.strftime("%Y-%m"), 0.0, []
+    month, replaced_cost, transcript_cost, too_costly = now.strftime("%Y-%m"), 0.0, 0.0, []
+    # Documents whose summary, transcription, or translation was tried and failed (for main()'s exit status).
+    failed = 0
+    # What the ledger has been given of this run's failed_cost, transcript_cost, and replaced_cost.
+    in_ledger = {"failed_cost": 0.0, "transcript_cost": 0.0, "replaced_cost": 0.0}
+    saved_at = [None]
+
+    def record_spending(last: bool = False) -> dict | None:
+        """Save the ledger after a request paid for, so a run stopped later (a crash, the step's
+        timeout) has still counted what it spent: summaries and translations are counted from their
+        files, and what leaves none from what this run paid since the ledger was last saved. Each save
+        reads every summary the town has, so during a run it's saved at most every LEDGER_EVERY
+        seconds (a run stopped loses at most that long's spending); always at the end (last)."""
+        if not last and saved_at[0] is not None and time.monotonic() - saved_at[0] < LEDGER_EVERY:
+            return None
+        paid = {"failed_cost": failed_cost, "transcript_cost": transcript_cost, "replaced_cost": replaced_cost}
+        ledger = update_ledger(data_dir, settings, month, **{k: paid[k] - in_ledger[k] for k in paid})
+        in_ledger.update(paid)
+        saved_at[0] = time.monotonic()
+        return ledger
+
+    def out_of_credit(e: Exception) -> bool:
+        """Whether a request failed for want of credit; if so, the run stops sending them."""
+        nonlocal stopped
+        if not translate.out_of_credit(e):
+            return False
+        errors.append(OUT_OF_CREDIT)
+        stopped = stopped or "out of credit"
+        return True
+
     # The words the fact check takes as no one's name, as the town's summaries use them.
     words = translate.town_words(data_dir)
     pending = load_batch(data_dir)
     nothing = {"summarized": 0, "collected": 0, "queued": 0, "laid_out": 0, "transcribed": 0, "translated": 0,
-               "drafted_texts": 0, "remaining": 0, "errors": [], "stopped": None, "estimated_cost": 0.0,
-               "month_cost": None, **tokens}
+               "drafted_texts": 0, "remaining": 0, "failed": 0, "errors": [], "stopped": None,
+               "estimated_cost": 0.0, "month_cost": None, **tokens}
     if collecting and not pending:
         # Nothing to collect: the run that sent nothing has already done the rest.
         return nothing
@@ -819,10 +874,12 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         if got.get("not_ready"):
             # Still running: a later collecting run takes it.
             return {**nothing, "errors": got["errors"], "stopped": "the batch isn't done yet"}
-        collected, waiting = got["done"], got["waiting"]
+        collected, waiting, failed = got["done"], got["waiting"], got["failed"]
         errors += got["errors"]
         failed_cost += got["failed_cost"]
         replaced_cost += got["replaced_cost"]
+        if got["paid"]:
+            record_spending()
         for k in tokens:
             tokens[k] += got["tokens"][k]
         if collecting:
@@ -854,7 +911,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         # Without prices the spending limit can't be enforced, so nothing is sent.
         work = []
         errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
-    translated, translation_cost = 0, 0.0
+    translated = 0
     # The town's own text and names that its pages in another language would show in English
     # (a new board, a new 311 category, a new town's config), drafted first: they cost a fraction
     # of a summary, and the build that follows shows them.
@@ -874,18 +931,18 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 count, paid = translate.draft_texts(client, config, data_dir, lang, texts, now, cost, left)
                 drafted_texts += count
                 spent += paid
-                translation_cost += paid
+                if paid:
+                    record_spending()
         except Exception as e:
-            if "credit balance" in str(e).lower():
-                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
-                stopped = "out of credit"
+            failed += 1
+            if out_of_credit(e):
                 work = []
                 break
             errors.append(f"{lang} drafts of the town's text: {e}")
 
     def translations(only_new: bool) -> None:
         """Translate the summaries that need it, new documents' or the rest, within this run's budget."""
-        nonlocal spent, spent_backlog, failed_cost, translated, translation_cost, stopped
+        nonlocal spent, spent_backlog, failed_cost, translated, failed, stopped
         langs = translate.languages(config)
         if not langs:
             return
@@ -909,24 +966,24 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 except StoppedEarly as e:
                     paid = cost(e.usage, tsettings)
                     failed_cost += paid
+                    failed += 1
                     errors.append(f"{lang} translation of {kind} {doc['id']}: {e}")
                 except Exception as e:
-                    if "credit balance" in str(e).lower():
-                        errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
-                        stopped = stopped or "out of credit"
+                    failed += 1
+                    if out_of_credit(e):
                         return
                     errors.append(f"{lang} translation of {kind} {doc['id']}: {e}")
                     continue
                 else:
                     translated += 1
-                    translation_cost += paid
                 spent += paid
                 if not only_new:
                     spent_backlog += paid
+                record_spending()
 
     def one(kind: str, meeting: dict, doc: dict, pdf: bytes) -> bool:
         """Summarize one document now, on its own; False when nothing more can be sent (out of credit)."""
-        nonlocal spent, spent_backlog, failed_cost, replaced_cost, done
+        nonlocal spent, spent_backlog, failed_cost, replaced_cost, done, failed
         try:
             result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
         except StoppedEarly as e:
@@ -934,25 +991,37 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             paid = cost(e.usage, settings)
             spent += paid
             failed_cost += paid
+            failed += 1
             if doc["sha256"] in older:
                 spent_backlog += paid
+            record_spending()
             tries = record_stopped_early(data_dir, doc["sha256"], "summary", settings["model"], KINDS[kind]["version"])
             errors.append(f"{kind} {doc['id']}: {e}" + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             return True
         except Exception as e:  # one bad document must not stop the rest
-            if "credit balance" in str(e).lower():
-                # Out of API credit: every remaining request would fail the same way.
-                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+            failed += 1
+            if out_of_credit(e):
+                # Every remaining request would fail the same way.
                 return False
             errors.append(f"{kind} {doc['id']}: {e}")
             return True
         paid = cost(usage, settings)
-        replaced_cost += save_summary(config, data_dir, kind, meeting, doc, pdf, result, usage, paid, settings, now, words)
-        for k in tokens:
-            tokens[k] += usage[k]
         spent += paid
         if doc["sha256"] in older:
             spent_backlog += paid
+        try:
+            replaced_cost += save_summary(config, data_dir, kind, meeting, doc, pdf, result, usage, paid, settings,
+                                          now, words)
+        except Exception as e:  # one bad document must not stop the rest
+            # Paid for, though nothing is saved.
+            failed_cost += paid
+            failed += 1
+            record_spending()
+            errors.append(unsaved(data_dir, kind, doc, settings["model"], e))
+            return True
+        record_spending()
+        for k in tokens:
+            tokens[k] += usage[k]
         done += 1
         return True
 
@@ -975,6 +1044,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         try:
             pdf = storage.get(KINDS[kind]["folder"], doc["file"])
         except FetchError as e:
+            failed += 1
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
         pages = page_count(pdf)
@@ -1045,17 +1115,21 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         except FetchError as e:
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
-        record = votes.read(record if text_current else own_text(record, pdf), pdf, members)
-        if record.get("is_minutes") is not False:
-            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
-        save_record(data_dir, doc["sha256"], record)
+        try:
+            record = votes.read(record if text_current else own_text(record, pdf), pdf, members)
+            if record.get("is_minutes") is not False:
+                record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+            save_record(data_dir, doc["sha256"], record)
+        except Exception as e:  # free, and tried again next run; the rest go on
+            errors.append(f"{kind} {doc['id']}: its text couldn't be read ({e})")
+            continue
         laid_out += 1
     # The translations of older documents summarized in this run, from what's left of the budget for them.
     if not stopped:
         translations(only_new=False)
     # Then the model's transcription of scans, which screen readers can't read, only once
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
-    transcribed, transcript_cost = 0, 0.0
+    transcribed = 0
     # Those in this run's batch are still waiting, as are those in a batch not yet collected.
     summaries_left = waiting_count - done + len(waiting)
     for kind, meeting, doc, record in ([] if summaries_left or stopped else summarized_documents(data_dir)):
@@ -1070,6 +1144,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         try:
             pdf = storage.get(KINDS[kind]["folder"], doc["file"])
         except FetchError as e:
+            failed += 1
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
         pages = page_count(pdf)
@@ -1082,35 +1157,62 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             spent += paid
             spent_backlog += paid
             failed_cost += paid
+            failed += 1
+            record_spending()
             tries = record_stopped_early(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"])
             errors.append(f"transcript of {kind} {doc['id']}: {e}"
                           + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
             continue
         except Exception as e:
-            if "credit balance" in str(e).lower():
-                errors.append("stopped: the Anthropic account is out of credit; summaries resume when credit is added")
+            failed += 1
+            if out_of_credit(e):
                 break
             errors.append(f"transcript of {kind} {doc['id']}: {e}")
             continue
         paid = cost(usage, settings)
-        record = {**record, "transcript": text, "transcript_source": "ai", "transcript_usage": usage,
-                  "transcript_cost": round(paid, 6)}
-        record.pop("needs_transcript", None)
-        if record.get("is_minutes") is not False:
-            # A scan's summary can now be checked, against the transcription (weaker: both are the model's).
-            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
-        save_record(data_dir, doc["sha256"], record)
-        for k in tokens:
-            tokens[k] += usage[k]
         spent += paid
         spent_backlog += paid
         transcript_cost += paid
+        record_spending()
+        record = {**record, "transcript": text, "transcript_source": "ai", "transcript_usage": usage,
+                  "transcript_cost": round(paid, 6)}
+        record.pop("needs_transcript", None)
+        try:
+            if record.get("is_minutes") is not False:
+                # A scan's summary can now be checked, against the transcription (weaker: both are the model's).
+                record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+            save_record(data_dir, doc["sha256"], record)
+        except Exception as e:  # one bad document must not stop the rest
+            failed += 1
+            tries = record_stopped_early(data_dir, doc["sha256"], "transcript", settings["model"], TRANSCRIBE["version"])
+            errors.append(f"transcript of {kind} {doc['id']}: it couldn't be saved ({e})"
+                          + (f"; not tried again after {tries} tries" if tries >= MAX_TRIES else ""))
+            continue
+        for k in tokens:
+            tokens[k] += usage[k]
         transcribed += 1
-    ledger = update_ledger(data_dir, settings, month, failed_cost, transcript_cost, replaced_cost)
+    ledger = record_spending(last=True)
     return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
             "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
-            "remaining": max(waiting_count - done, 0), "errors": errors, "stopped": stopped,
+            "remaining": max(waiting_count - done, 0), "failed": failed, "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(month_cost(ledger, month), 2), **tokens}
+
+
+# What a run made, or sent to be made: a run that made any of these didn't fail.
+MADE = ("summarized", "queued", "transcribed", "translated", "drafted_texts")
+
+
+def exit_status(summary: dict, collecting: bool = False) -> int:
+    """The step's exit status: 1 when the run tried documents and every one failed (each request
+    errored or stopped early, or its PDF couldn't be fetched or saved), else 0. A run with nothing to
+    do, or stopped by its budget before it tried any, succeeds. pipeline.update reports a step that
+    fails as a warning and goes on, so a daily run isn't stopped by it. A collecting run
+    (COLLECT_ENV) gives 0 whatever happened, its errors printed as warnings: pipeline.network's report
+    fails the whole network run when a step fails in a run that didn't fetch, which collecting is
+    meant never to do."""
+    if collecting or not summary["failed"]:
+        return 0
+    return 0 if any(summary[k] for k in MADE) else 1
 
 
 def dollars(name: str) -> float | None:
@@ -1144,7 +1246,7 @@ def main() -> int:
         print(f"::warning::{error}")
     if summary["stopped"]:
         print(f"::notice::{summary['stopped']}")
-    return 0
+    return exit_status(summary, collecting)
 
 
 if __name__ == "__main__":

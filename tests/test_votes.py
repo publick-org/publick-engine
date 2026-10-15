@@ -120,3 +120,12 @@ def test_the_review_lists_every_roll_call_with_its_minutes(tmp_path):
     assert text.startswith("1 roll calls, 0 checked")
     assert "2026-01-05 City Council  https://example.org/m.pdf" in text
     assert "NOT CHECKED: 'Crowe' isn't one of the members" in text
+
+
+def test_minutes_whose_text_cant_be_read_have_no_roll_calls(monkeypatch):
+    from pipeline import pdftext
+
+    def unreadable(pdf):
+        raise ValueError("bad xref table")
+    monkeypatch.setattr(pdftext, "lines", unreadable)
+    assert votes.roll_calls(ROLL_CALLS, COUNCIL) == []
