@@ -119,7 +119,9 @@ KINDS = {
         "version": 5,
         "remake_since": "2026-09-08",
         "folder": "agendas",
-        "max_tokens": 4000,
+        # Room for a model's thinking at a high effort as well as the summary, which has run to
+        # about 2,100 tokens at most; only what's written is paid for.
+        "max_tokens": 8000,
         "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES,
         "prompt": """This is the posted agenda for: {title}, {date}.
