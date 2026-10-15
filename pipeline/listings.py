@@ -46,7 +46,7 @@ REASONS = {
     "same_time": "same board, day and start time",
     "one_time": "same board and day; one listing gives the time, the others none",
     "no_time": "same board and day; no listing gives a time",
-    "only_meeting": "the board's only meeting that day, named differently in each place",
+    "only_meeting": "same board and day; the only meeting the listings could be, one calling it special or a hearing",
 }
 
 
