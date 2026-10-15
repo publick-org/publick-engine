@@ -370,3 +370,189 @@ def test_a_headline_turned_round_isnt_shown():
     assert record["fact_check"]["result"] == "failed"
     shown = factcheck.shown(record, record, "minutes")
     assert shown["headline"] == "" and shown["decisions"] == [RIGHT[3][0]]
+
+
+# ---- How the motion ended, read after the quote -------------------------------------
+
+REVERSED = """CITY COUNCIL MINUTES October 6, 2026
+Item 4. Motion by Councilor Jones, seconded by Councilor Smith, to approve the Elm Street site plan as presented.
+Discussion followed. The motion failed 2-3.
+Item 5. Motion to accept the minutes of September 29. The motion carried unanimously.
+""" + "Attendance: Jones, Smith, Brown, Lee, Ortiz.\n" * 3
+ELM = "Motion by Councilor Jones, seconded by Councilor Smith, to approve the Elm Street site plan as presented."
+
+
+def test_a_vote_reversed_after_its_quote_is_caught():
+    """A decision that says approved, 5-0, on Councilor Smith's motion, where the minutes, right after
+    the quoted motion, say it failed 2-3 on Councilor Jones's: once passed as right in every part."""
+    record = {"headline": "Council approves Elm Street plan", "summary": "The council approved the Elm Street site plan.",
+              "decisions": ["Approved the Elm Street site plan, 5-0, on a motion by Councilor Smith."],
+              "decision_evidence": [{"quote": ELM, "outcome": "approved"}]}
+    record["fact_check"] = factcheck.check(record, "minutes", [REVERSED])
+    assert record["fact_check"]["result"] == "failed"
+    found = {(p["field"], p["kind"]) for p in record["fact_check"]["problems"]}
+    assert found == {("decisions", "outcome"), ("decisions", "tally"), ("decisions", "mover"), ("headline", "outcome"),
+                     ("summary", "outcome")}
+    shown = factcheck.shown(record, record, "minutes")
+    assert shown["decisions"] == [] and shown["not_shown"] == 1
+    assert shown["headline"] == "" and shown["summary"] == ""
+
+
+def outcome_problems(decision, outcome, quote, doc):
+    return [p["what"] for p in decisions((decision, outcome, quote), doc=doc)["problems"] if p["kind"] == "outcome"]
+
+
+def test_how_the_motion_ended_is_read_after_the_quote():
+    assert outcome_problems("Approved the Elm Street site plan.", "approved", ELM, REVERSED) \
+        == ["approved, but the minutes say the motion didn't carry: motion failed 2-3."]
+    # Tabled, referred, and the others that say what happened: the same.
+    doc = REVERSED.replace("to approve the Elm Street", "to table the Elm Street")
+    assert outcome_problems("Tabled the Elm Street site plan.", "tabled", ELM.replace("approve", "table"), doc)
+    # A motion that died for lack of a second, or one the minutes say was denied.
+    for ended in ("The motion died for lack of a second.", "No second. Request denied.", "Action: Failed",
+                  "Vote: 2-3."):
+        doc = REVERSED.replace("Discussion followed. The motion failed 2-3.", ended)
+        assert outcome_problems("Approved the Elm Street site plan.", "approved", ELM, doc), ended
+    # Carried, it's right; and so is a denial where it failed.
+    carried = REVERSED.replace("The motion failed 2-3.", "The motion carried 3-2.")
+    assert outcome_problems("Approved the Elm Street site plan, 3-2.", "approved", ELM, carried) == []
+    assert outcome_problems("Rejected the Elm Street site plan, 2-3.", "denied", ELM, REVERSED) == []
+
+
+def test_only_this_motion_s_result_is_read():
+    # The next item's result isn't this one's: the passage stops at the next item's heading ...
+    doc = ("6. Motion to accept the Oak Street report.\nIt was discussed at length.\n"
+           "7. Motion by Councilor Lee to approve the Pine Street plan. The motion failed 1-4.\n")
+    assert outcome_problems("Accepted the Oak Street report.", "approved", "Motion to accept the Oak Street report.", doc) == []
+    # ... or at the next motion (an amendment that failed isn't the main motion) ...
+    doc = ("Motion by Councilor Lee to approve the Pine Street plan. Councilor Ortiz moved to amend it; "
+           "the amendment failed 1-4. The main motion carried 4-1.")
+    assert outcome_problems("Approved the Pine Street plan, 4-1.", "approved",
+                            "Motion by Councilor Lee to approve the Pine Street plan.", doc) == []
+    # ... and the first result is the motion's: a reconsideration that failed after it doesn't count.
+    doc = "Motion to approve the Pine Street plan. Motion carried 4-1. Reconsideration failed 1-4."
+    assert outcome_problems("Approved the Pine Street plan, 4-1.", "approved", "Motion to approve the Pine Street plan.", doc) == []
+    # Nashua restates the motion as its result: "MOTION TO DENY CARRIED" isn't another motion.
+    doc = "MOTION by Mr. Minkarah to deny the use variance. SECONDED by Mr. Boucher. MOTION TO DENY CARRIED 4-1."
+    assert outcome_problems("Denied the use variance, 4-1.", "denied", "MOTION by Mr. Minkarah to deny the use variance.",
+                            doc) == []
+    # Lowell's "no second needed" is no failure; nor is a line number inside a count (Beverly's "carries (4-\n42 0)").
+    doc = "Request of Ward 3 to refer the matter to the City Manager, no second needed, referred to City Manager."
+    assert outcome_problems("Referred the matter to the City Manager.", "referred", "Request of Ward 3 to refer the matter",
+                            doc) == []
+    doc = "Motion to accept the minutes. Bartley seconds. Motion carries (4-\n42 0)."
+    assert outcome_problems("Accepted the minutes.", "approved", "Motion to accept the minutes.", doc) == []
+
+
+def test_an_approved_decision_whose_minutes_dont_say_how_it_ended_is_listed_not_held_back():
+    doc = "Councilor Carson moved staff recommendation on the sale of 45 Allen Street. Seconded by Councilor Faloon.\n"
+    result = decisions(("Moved staff recommendation on the sale of 45 Allen Street.", "approved",
+                        "Councilor Carson moved staff recommendation on the sale of 45 Allen Street."), doc=doc)
+    assert [p["kind"] for p in result["problems"]] == ["unanchored"] and result["result"] == "ok"
+    # Said in words the check reads, it isn't listed.
+    result = decisions(("Approved the minutes.", "approved", "Motion to approve the minutes. All members present voted in favor."),
+                       doc="Motion to approve the minutes. All members present voted in favor.")
+    assert result["problems"] == []
+
+
+def tally_problems(decision, quote, doc):
+    return [p["what"] for p in decisions((decision, "approved", quote), doc=doc)["problems"] if p["kind"] == "tally"]
+
+
+def test_a_vote_count_is_looked_for_near_its_quote():
+    # 5-0 isn't in Item 4's passage, nor is "unanimously": Item 5's.
+    assert tally_problems("Approved the Elm Street site plan, 5-0.", ELM, REVERSED) == ["5-0"]
+    assert tally_problems("Accepted the September 29 minutes, 5-0.", "Motion to accept the minutes of September 29.",
+                          REVERSED) == []
+    # A count with its abstentions, or without them; not another abstention.
+    doc = "Motion to approve the plan. The motion passed 5-0-1."
+    assert tally_problems("Approved the plan, 5-0-1.", "Motion to approve the plan.", doc) == []
+    assert tally_problems("Approved the plan, 5-0.", "Motion to approve the plan.", doc) == []
+    assert tally_problems("Approved the plan, 5-0-2.", "Motion to approve the plan.", doc) == ["5-0-2"]
+    # An address or a paper's number isn't a vote count.
+    doc = "Motion to approve the waivers for 3-13 Putnam Street. MOTION CARRIED 6-0."
+    assert tally_problems("Approved waivers for 3-13 Putnam Street, 6-0.", "Motion to approve the waivers", doc) == []
+    # Left out of the text, as a count the minutes don't give: not failed.
+    record = {"kind": "minutes", "headline": "", "summary": "", "decisions": ["Approved the Elm Street site plan, 5-0."],
+              "decision_evidence": [{"quote": ELM.replace("Councilor Smith", "Councilor Lee"), "outcome": "approved"}]}
+    doc = REVERSED.replace("Councilor Smith", "Councilor Lee").replace("The motion failed 2-3.", "Motion carried.")
+    record["fact_check"] = factcheck.check(record, "minutes", [doc])
+    assert record["fact_check"]["result"] == "ok"
+    assert factcheck.shown(record, record, "minutes")["decisions"] == ["Approved the Elm Street site plan."]
+
+
+def mover_problems(decision, quote, doc):
+    return [p["what"] for p in decisions((decision, "approved", quote), doc=doc)["problems"] if p["kind"] == "mover"]
+
+
+def test_who_moved_and_seconded_is_who_the_minutes_say():
+    doc = REVERSED.replace("The motion failed 2-3.", "The motion carried 3-2.")
+    assert mover_problems("Approved the Elm Street site plan on a motion by Councilor Smith.", ELM, doc) \
+        == ["moved by Councilor Smith, but the minutes say Councilor Jones"]
+    assert mover_problems("Approved the Elm Street site plan (motion by Councilor Jones, seconded by Councilor Brown).",
+                          ELM, doc) == ["seconded by Councilor Brown, but the minutes say Councilor Smith"]
+    assert mover_problems("Approved the Elm Street site plan (motion by Councilor Jones, seconded by Councilor Smith).",
+                          ELM, doc) == []
+    # Before the quote, in capitals, or after the name ("Bob made a motion, Maggie seconded").
+    doc = "MOTION BY ALDERMAN O’BRIEN TO RECOMMEND FINAL PASSAGE. MOTION CARRIED."
+    assert mover_problems("Recommended final passage on a motion by Alderman O'Brien.", "TO RECOMMEND FINAL PASSAGE", doc) == []
+    assert mover_problems("Recommended final passage on a motion by Alderman Wood.", "TO RECOMMEND FINAL PASSAGE", doc)
+    doc = "Approved GLO.1420 as historically significant. Bob made a motion, Maggie seconded, all in favor."
+    assert mover_problems("Approved GLO.1420; motion by Bob, seconded by Maggie.", "Approved GLO.1420 as historically significant.",
+                          doc) == []
+    # Initials can't be compared: Burlington's "AS moves to approve".
+    doc = "AS moves to approve the nomination. MB seconds. All in favor."
+    assert mover_problems("Approved the nomination on a motion by Alison Smith.", "AS moves to approve the nomination.", doc) == []
+
+
+def summary_problems(summary, *entries, doc=COUNCIL):
+    record = {"kind": "minutes", "headline": "", "summary": summary,
+              "decisions": [text for text, _, _ in entries],
+              "decision_evidence": [{"outcome": outcome, "quote": quote} for _, outcome, quote in entries]}
+    return [p["what"] for p in factcheck.check(record, "minutes", [doc])["problems"] if p["field"] == "summary"]
+
+
+def test_a_summary_sentence_that_turns_its_decision_round_fails():
+    roof, transfer = RIGHT[3], RIGHT[1]
+    assert summary_problems("The council approved $8,000 for the Senior Center roof. It also moved $175,000 to Public "
+                            "Works Salaries.", roof, transfer) \
+        == ["The council approved $8,000 for the Senior Center roof: says yes, but the decision was denied"]
+    assert summary_problems("The council rejected $8,000 for the Senior Center roof and approved $175,000 for Public "
+                            "Works Salaries.", roof, transfer) == []
+    # A motion named for what it would have done isn't a yes; a decision whose own words say "not" can't be
+    # held to a clause either way.
+    assert summary_problems("Members voted down a motion to adopt $8,000 for the Senior Center roof.", roof) == []
+    no_objection = ("Voted that the Council does not object to the $175,000 transfer to Public Works Salaries.", "approved",
+                    transfer[2])
+    assert summary_problems("The council voted not to object to the $175,000 Public Works Salaries transfer.", no_objection) == []
+    # The sentence that fails isn't shown; the rest of the summary is.
+    record = {"kind": "minutes", "headline": "", "summary": "The council approved $8,000 for the Senior Center roof, 4-7. "
+              "It also moved $175,000 to Public Works Salaries.", "decisions": [roof[0]],
+              "decision_evidence": [{"outcome": roof[1], "quote": roof[2]}]}
+    record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
+    assert factcheck.shown(record, record, "minutes")["summary"] == "It also moved $175,000 to Public Works Salaries."
+
+
+def test_what_s_only_noted_is_hidden_where_the_summary_failed_for_something_else():
+    away = ("Approved $2,500 for Public Works Salaries (Order 201-26).", "approved",
+            "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")
+    record = {"kind": "minutes", "headline": "", "summary": "", "decisions": [away[0]],
+              "decision_evidence": [{"outcome": away[1], "quote": away[2]}]}
+    record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
+    assert [p["kind"] for p in record["fact_check"]["problems"]] == ["away"] and record["fact_check"]["result"] == "ok"
+    assert factcheck.shown(record, record, "minutes")["decisions"] == [away[0]]
+    # With a decision the minutes contradict, the summary fails, and neither is shown.
+    record["decisions"].append("Approved $8,000 for the Senior Center roof, 4-7.")
+    record["decision_evidence"].append({"outcome": "approved", "quote": "The motion did not carry, 4 yeas, 7 nays."})
+    record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
+    assert record["fact_check"]["result"] == "failed"
+    assert factcheck.shown(record, record, "minutes")["decisions"] == []
+
+
+def test_names_however_the_document_writes_them():
+    doc = "Motion by ALDERMAN O’BRIEN, seconded by Councillor Colon Hayes. Present: McCallum, Sanchez Parkinson."
+    for text in ("Alderman O'Brien and Councillor Colon Hayes spoke.", "McCallum and Sanchez-Parkinson spoke."):
+        assert problems(text, doc) == [], text
+    # A name that's an ordinary word, after a title, is looked for too.
+    assert problems("Councilor Hall spoke.", doc) == [("name", "Hall")]
+    assert problems("McCallister spoke.", doc) == [("name", "McCallister")]

@@ -132,15 +132,11 @@
   "kind": "minutes",
   "meeting": "Conservation Board, 2026-08-03",
   "problems": [
-   "decisions 1: date July 16, 2026",
-   "decisions 1: tally 8-0-0",
-   "decisions 2: tally 8-0-0"
+   "decisions 1: date July 16, 2026"
   ],
   "result": "failed",
   "shown": {
-   "decisions": {
-    "2": "Approved continuing the current slate of Board officers (RR Chair, RC Vice Chair, ZR on Long Range) for another year."
-   },
+   "decisions": {},
    "headline": "Approved minutes, reelected board officers, and reviewed draft vegetation ordinance",
    "summary": "The board approved prior meeting minutes and reelected its current slate of officers for another year. Members discussed plans for a Conservation Board retreat, an ecosystem services analysis funding request, and gave detailed feedback on a draft amended vegetation ordinance."
   },
@@ -377,16 +373,16 @@
   "kind": "minutes",
   "meeting": "Board of Parks, 2026-07-29",
   "problems": [
-   "decisions 1: name Alumni",
    "decisions 1: name Cawley",
+   "decisions 1: name Complex-Alumni",
    "decisions 1: name Lowell",
    "decisions 1: quote Declined as no one showed to represent the item.",
    "decisions 2: name Santana",
    "decisions 2: name Shedd",
    "decisions 2: quote Declined as no one showed to represent the item.",
    "decisions 3: date June 27th",
-   "decisions 3: name Beedoe",
    "decisions 3: name Janneh",
+   "decisions 3: name Peters-Beedoe",
    "decisions 3: number 200",
    "decisions 3: quote Motion: Tom Caunter to approve as written.     2nd: Kah Ndi   Vote: 4-0",
    "decisions 3: tally 4-0",
@@ -395,23 +391,23 @@
    "decisions 4: name Roberto",
    "decisions 4: quote Declined as no one showed to represent the item.",
    "decisions 5: name Cawley",
-   "decisions 5: name Machado",
+   "decisions 5: name Complex-Machado",
    "decisions 5: quote Declined as no one showed to represent the item.",
    "decisions 6: date October 25, 2026",
    "decisions 6: name Rizos",
    "decisions 6: quote Motion: Kah Ndi to approve as written     2nd: Tom Caunter     Vote: 4-0",
    "decisions 6: tally 4-0",
-   "decisions 7: name Keefe",
+   "decisions 7: name O'Keefe",
    "decisions 7: name Stoklosa",
    "decisions 7: number 75",
    "decisions 7: quote Motion: Tom Caunter to approve as written                           2nd: Melissa Morales           Vote: 4-0",
    "decisions 7: tally 4-0",
-   "decisions 8: name Keefe",
+   "decisions 8: name O'Keefe",
    "decisions 8: number 50",
    "decisions 8: quote Motion: Kah Ndi to accept the new times for a fee of $50.2nd: Tom Caunter Vote: 4-0",
    "decisions 8: tally 4-0",
-   "decisions 9: name Alumni",
    "decisions 9: name Cawley",
+   "decisions 9: name Complex-Alumni",
    "decisions 9: name Levi",
    "decisions 9: name Tankersley",
    "decisions 9: quote Motion: Tom Caunter as written     2nd: Kah Ndi              Vote: 4-0",
@@ -419,11 +415,14 @@
    "decisions 10: quote Motion: Tom Caunter as written.   2nd: Kah Ndi   Vote: 4-0",
    "decisions 10: tally 4-0",
    "decisions 11: name Haley",
+   "decisions 11: name McGuire",
    "decisions 11: name Shedd",
    "decisions 11: quote Motion: Tom Caunter as written     2nd: Kah Ndi           Vote: 4-0",
    "decisions 11: tally 4-0",
+   "decisions 12: name LeLacheur",
    "decisions 12: name Maguire",
    "decisions 12: name Mahoney",
+   "decisions 12: name McPherson",
    "decisions 12: name Shedd",
    "decisions 12: name Ventura",
    "decisions 12: quote Motion made by Tom Caunter to bundle all items.  2nd by Melissa Morales     Vote: 4-0",
@@ -859,15 +858,11 @@
  },
  "portland-me 346a2e5be378": {
   "document": "346a2e5be378484c6dc360801dc69ed843f9264f6ec7e83707a0f428e0620fdd",
-  "hidden": [
-   "decisions 7"
-  ],
+  "hidden": [],
   "kind": "minutes",
   "meeting": "City Council, 2026-09-09",
-  "problems": [
-   "decisions 7: outcome denied, but the decision or the minutes don't say no"
-  ],
-  "result": "failed",
+  "problems": [],
+  "result": "ok",
   "shown": {
    "decisions": {},
    "headline": "Council passed a rent control resolution 7-2, appropriated $386,037 for Hope House rehabilitation, approved several grants, and amended Fore Street traffic rules.",
