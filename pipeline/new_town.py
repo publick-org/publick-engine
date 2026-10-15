@@ -867,13 +867,18 @@ def config_text(town: NewTown, short: bool = False) -> Config:
             "pipeline/documents.py). Keys: STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY.", **st, prefix=town.folder)
     if not st and not c.inherited.get("storage"):
         c.fill_in(5, "the bucket's endpoint, bucket and public_url, as every town's.")
-    sm = shared(town, "summaries", "model", "max_per_run", "input_price", "output_price", "max_cost_per_run")
+    sm = shared(town, "summaries", "model", "effort", "max_per_run", "input_price", "output_price", "long_prompt_tokens",
+                "long_input_price", "long_output_price", "max_cost_per_run")
     c.table("summaries", "Plain-English agenda text and previews, and decisions from minutes, written by a language "
             "model and labeled as AI-generated on the site. Only meetings from `since` on are summarized, about three "
             "months before launch, so the town's history doesn't take the month's budget.",
-            model=sm.get("model"), since=summaries_since.isoformat(), max_per_run=sm.get("max_per_run"))
-    c.set("Prices per million tokens, for the spending limit below.",
-          input_price=sm.get("input_price"), output_price=sm.get("output_price"))
+            model=sm.get("model"), effort=sm.get("effort"), since=summaries_since.isoformat(),
+            max_per_run=sm.get("max_per_run"))
+    c.set("Prices per million tokens, for the spending limit below; a model priced higher for a long prompt has its "
+          "long_ prices too.",
+          input_price=sm.get("input_price"), output_price=sm.get("output_price"),
+          long_prompt_tokens=sm.get("long_prompt_tokens"), long_input_price=sm.get("long_input_price"),
+          long_output_price=sm.get("long_output_price"))
     c.set("A ceiling for one run. The network's monthly summary budget (SUMMARY_BUDGET in "
           ".github/workflows/network.yml) decides what each run may spend, new documents first.",
           max_cost_per_run=sm.get("max_cost_per_run"))
@@ -1025,7 +1030,8 @@ def posted_under(rows: list[dict], boards: list[str] = (), town: str = "", most:
         own = {words(r["category"]).strip(), words(agendacenter.natural_name(r["category"])).strip()}
         title = re.sub(r"\s*\(PDF\)?$|\s*\(PDF$", "", r["title"]).strip()
         rest = words(title)
-        for name in own:
+        # The longer name first: removing a shorter one inside it first would leave the rest of it behind.
+        for name in sorted(own, key=lambda n: (-len(n), n)):
             # The category's own name, with the kind of body it is ("Economic & Community Development Committee").
             rest = re.sub(rf" {re.escape(name)}(?: (?:{BODY_KINDS}))? ", " ", rest)
         rest = re.sub(r" committee of the whole ", " ", rest)

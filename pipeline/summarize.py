@@ -103,7 +103,9 @@ RECENT_MEETING_DAYS = 60
 
 # Each kind of document has its own instructions and output. Bump a kind's
 # version when its prompt or schema changes; cached results from an older
-# version (or another model) are regenerated on the next run. An agenda's
+# version are regenerated on the next run. Another [summaries] model (or effort)
+# doesn't regenerate any: the new documents get it, and a summary already made is
+# made again only when its kind's version changes (cached()). An agenda's
 # start_time and location were added without a bump, so older agendas aren't all
 # made again: only an upcoming meeting's agenda, when the meeting's listing has
 # no time (an Agenda Center's doesn't), is (needs_time). A kind's remake_since
@@ -117,7 +119,9 @@ KINDS = {
         "version": 5,
         "remake_since": "2026-09-08",
         "folder": "agendas",
-        "max_tokens": 4000,
+        # Room for a model's thinking at a high effort as well as the summary, which has run to
+        # about 2,100 tokens at most; only what's written is paid for.
+        "max_tokens": 8000,
         "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES,
         "prompt": """This is the posted agenda for: {title}, {date}.
@@ -307,11 +311,13 @@ def summaries_dir(data_dir: Path) -> Path:
     return data_dir / "summaries"
 
 
-def cached(data_dir: Path, sha256: str, model: str, kind: str = "agenda", current: bool = True) -> dict | None:
-    """The saved result for a document, if it was made by this model and the current prompt.
+def cached(data_dir: Path, sha256: str, kind: str = "agenda", current: bool = True) -> dict | None:
+    """The saved result for a document, if it was made with the kind's current prompt, by whichever model.
 
-    With current=False, any saved result of this kind is returned, so the site
-    keeps showing a summary while a newer prompt's version is waiting to be made.
+    A summary is made again when its prompt changes, not when the model does: a town switched to
+    another model would otherwise have every summary it has made again at once, at that run's cost.
+    With current=False, any saved result of this kind is returned, so the site keeps showing a
+    summary while a newer prompt's version is waiting to be made.
     """
     path = summaries_dir(data_dir) / f"{sha256}.json"
     if not path.exists():
@@ -320,19 +326,18 @@ def cached(data_dir: Path, sha256: str, model: str, kind: str = "agenda", curren
     version = KINDS[kind]["version"]
     if record.get("kind", "agenda") != kind:
         return None
-    if current and (record.get("model") != model or record.get("prompt_version") != version):
+    if current and record.get("prompt_version") != version:
         return None
     return record
 
 
-def kept(data_dir: Path, sha256: str, model: str, kind: str, meeting: dict) -> bool:
+def kept(data_dir: Path, sha256: str, kind: str, meeting: dict) -> bool:
     """Whether a summary made with an earlier version of the prompt stays: its meeting is before
-    the kind's remake_since, and the same model made it."""
+    the kind's remake_since."""
     since = KINDS[kind].get("remake_since")
     if not since or meeting["date"] >= since:
         return False
-    record = cached(data_dir, sha256, model, kind, current=False)
-    return bool(record and record.get("model") == model)
+    return cached(data_dir, sha256, kind, current=False) is not None
 
 
 def split_decisions(result: dict) -> dict:
@@ -353,7 +358,8 @@ def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
 
 def pending_documents(data_dir: Path, today: str, model: str, since: str | None = None) -> list[tuple[str, dict, dict]]:
     """Latest agenda and minutes of each meeting without a current summary, for meetings on or
-    after since ([summaries] since; None for all).
+    after since ([summaries] since; None for all). model is the one a run sends: a document given up
+    on (MAX_TRIES) with it isn't waiting, while one given up on with another model is tried again.
 
     Order: agendas for upcoming meetings, then minutes (newest meeting first),
     then agendas for past meetings."""
@@ -374,10 +380,10 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
             if (doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc)
                     or summary_gave_up(data_dir, doc, kind, model)):
                 continue
-            record = cached(data_dir, doc["sha256"], model, kind)
+            record = cached(data_dir, doc["sha256"], kind)
             if record and not needs_time(kind, meeting, record, today):
                 continue
-            if not record and kept(data_dir, doc["sha256"], model, kind, meeting):
+            if not record and kept(data_dir, doc["sha256"], kind, meeting):
                 continue
             seen.add(doc["sha256"])
             todo.append((kind, meeting, doc))
@@ -520,7 +526,7 @@ def summary_result(response) -> tuple[dict, dict]:
 
 def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
                   effort: str | None = None) -> tuple[dict, dict]:
-    """A document's summary and its usage. Without an effort (as a run sends it), the model's default."""
+    """A document's summary and its usage. Without an effort ([summaries] effort), the model's default."""
     # Streaming avoids HTTP timeouts on long transcripts.
     with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort)) as stream:
         response = stream.get_final_message()
@@ -541,11 +547,13 @@ def page_range(pdf: bytes, first: int, last: int) -> bytes:
 
 def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
                    effort: str | None = None) -> tuple[str, dict]:
-    """The model's transcription of a whole document, a few pages a request. Without an effort (as a
-    run sends it), the model's default."""
+    """The model's transcription of a whole document, a few pages a request, and its usage: the
+    requests' tokens together, and each request's under "requests". Without an effort, the model's
+    default."""
     pages = page_count(pdf) or 1
     step = TRANSCRIBE["pages"]
-    parts, usage = [], {"input_tokens": 0, "output_tokens": 0}
+    # Each request's tokens too, under "requests", since a request is priced by its own prompt's length (cost()).
+    parts, usage = [], {"input_tokens": 0, "output_tokens": 0, "requests": []}
     for first in range(1, pages + 1, step):
         last = min(first + step - 1, pages)
         chunk = pdf if (first, last) == (1, pages) else page_range(pdf, first, last)
@@ -568,6 +576,8 @@ def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: 
             response = stream.get_final_message()
         usage["input_tokens"] += response.usage.input_tokens
         usage["output_tokens"] += response.usage.output_tokens
+        usage["requests"].append({"input_tokens": response.usage.input_tokens,
+                                  "output_tokens": response.usage.output_tokens})
         if response.stop_reason != "end_turn":
             raise StoppedEarly(stop_reason(response), usage)
         parts.append(json.loads(next(b.text for b in response.content if b.type == "text"))["transcript"].strip())
@@ -610,7 +620,7 @@ def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
             doc = meeting[field][-1]
             if doc["sha256"] in seen:
                 continue
-            record = cached(data_dir, doc["sha256"], "", kind, current=False)
+            record = cached(data_dir, doc["sha256"], kind, current=False)
             if record:
                 seen.add(doc["sha256"])
                 out.append((kind, meeting, doc, record))
@@ -637,7 +647,10 @@ LONG_PROMPT = ("long_prompt_tokens", "long_input_price", "long_output_price")
 
 def cost(usage: dict, settings: dict) -> float:
     """What one request's tokens cost at the settings' prices (or several requests' together, at a price that
-    doesn't depend on the prompt's length). input_tokens doesn't count cached input, which is priced apart."""
+    doesn't depend on the prompt's length). input_tokens doesn't count cached input, which is priced apart.
+    A usage with "requests" (transcribe_pdf()'s) is several requests, each priced by its own prompt."""
+    if "requests" in usage:
+        return sum(cost(request, settings) for request in usage["requests"])
     written, read = usage.get("cache_creation_input_tokens", 0), usage.get("cache_read_input_tokens", 0)
     paid_input = usage["input_tokens"] + CACHE_WRITE * written + CACHE_READ * read
     input_price, output_price = settings["input_price"], settings["output_price"]
@@ -650,6 +663,17 @@ def cost(usage: dict, settings: dict) -> float:
 def summary_settings(config: dict) -> dict:
     """The town's [summaries] table, with the run limits filled in when it leaves them out."""
     return {"max_per_run": DEFAULT_MAX_PER_RUN, "max_cost_per_run": DEFAULT_MAX_COST_PER_RUN, **config["summaries"]}
+
+
+def missing_prices(settings: dict) -> str | None:
+    """What the [summaries] table lacks for its spending limit to be kept, or None: its prices, and all
+    three long-prompt keys if it has any (with only some, a long prompt would be priced too low)."""
+    if "input_price" not in settings or "output_price" not in settings:
+        return "[summaries] needs input_price and output_price for the spending limit"
+    given = [k for k in LONG_PROMPT if k in settings]
+    if given and len(given) < len(LONG_PROMPT):
+        return f"[summaries] has {', '.join(given)} but needs all of {', '.join(LONG_PROMPT)} to price a long prompt"
+    return None
 
 
 def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: dict, pdf: bytes, result: dict,
@@ -720,10 +744,13 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
     document's meeting and file, and what the run had spent before it, so the run that collects it goes
     on from there."""
     created = client.messages.batches.create(requests=[
-        {"custom_id": f"doc-{i}", "params": summary_request(settings["model"], kind, pdf, meeting["title"], meeting["date"])}
+        {"custom_id": f"doc-{i}", "params": summary_request(settings["model"], kind, pdf, meeting["title"], meeting["date"],
+                                                            settings.get("effort"))}
         for i, (kind, meeting, doc, pdf) in enumerate(queued)])
     pending = {
         "id": created.id, "sent_at": sent_at.isoformat(timespec="seconds"), "model": settings["model"],
+        # The prices the batch's model was sent at, so it's priced so when collected, whatever the settings by then.
+        "prices": {k: settings[k] for k in PRICES + ("long_prompt_tokens",) if settings.get(k) is not None},
         "spent_before": round(spent_before, 6), "backlog_before": round(backlog_before, 6),
         "documents": [{"custom_id": f"doc-{i}", "kind": kind, "older": doc["sha256"] in older,
                        "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
@@ -776,7 +803,7 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
         out["errors"].append(f"the batch of summaries {pending['id']} couldn't be collected ({e}); the next run tries again")
         out["waiting"] = shas
         return out
-    prices = at_batch_price(settings)
+    prices = at_batch_price(pending.get("prices") or settings)
     for entry in pending["documents"]:
         kind, meeting, doc = entry["kind"], entry["meeting"], entry["doc"]
         result = results.get(entry["custom_id"])
@@ -890,7 +917,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         # Nothing to collect: the run that sent nothing has already done the rest.
         return nothing
     collected, waiting = 0, set()
-    if pending and "input_price" in settings and "output_price" in settings:
+    unpriced = missing_prices(settings)
+    if pending and not unpriced:
         got = collect_batch(config, client, data_dir, storage, settings, now, words, clock, sleep,
                             wait=not (collecting and ready_only))
         if got.get("not_ready"):
@@ -929,16 +957,16 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
     work.insert(sum(1 for item in work if doc_key(item) not in older), TRANSLATE)
-    if "input_price" not in settings or "output_price" not in settings:
+    if unpriced:
         # Without prices the spending limit can't be enforced, so nothing is sent.
         work = []
-        errors.append("[summaries] needs input_price and output_price for the spending limit; nothing summarized")
+        errors.append(f"{unpriced}; nothing summarized")
     translated = 0
     # The town's own text and names that its pages in another language would show in English
     # (a new board, a new 311 category, a new town's config), drafted first: they cost a fraction
     # of a summary, and the build that follows shows them.
     drafted_texts = 0
-    for lang in translate.languages(config) if "input_price" in settings and "output_price" in settings else []:
+    for lang in translate.languages(config) if not unpriced else []:
         tsettings = translate.settings(config)
         if tsettings["input_price"] is None or tsettings["output_price"] is None:
             break
@@ -1007,7 +1035,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         """Summarize one document now, on its own; False when nothing more can be sent (out of credit)."""
         nonlocal spent, spent_backlog, failed_cost, replaced_cost, done, failed
         try:
-            result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
+            result, usage = summarize_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
+                                          settings.get("effort"))
         except StoppedEarly as e:
             # Paid for, though nothing is saved.
             paid = cost(e.usage, settings)
@@ -1173,7 +1202,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         if pages and pages > MAX_PAGES:
             continue
         try:
-            text, usage = transcribe_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"])
+            text, usage = transcribe_pdf(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
+                                         settings.get("effort"))
         except StoppedEarly as e:
             paid = cost(e.usage, settings)
             spent += paid
@@ -1196,7 +1226,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         spent_backlog += paid
         transcript_cost += paid
         record_spending()
-        record = {**record, "transcript": text, "transcript_source": "ai", "transcript_usage": usage,
+        record = {**record, "transcript": text, "transcript_source": "ai",
+                  "transcript_usage": {k: usage[k] for k in ("input_tokens", "output_tokens")},
                   "transcript_cost": round(paid, 6)}
         record.pop("needs_transcript", None)
         try:

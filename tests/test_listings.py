@@ -3,6 +3,7 @@ than one place shown as one (pipeline/listings.py). Run offline against Malden's
 saved calendar (tests/fixtures/civicplus_list_2026-10.html) and Agenda Center."""
 
 import copy
+import itertools
 import json
 from datetime import date, datetime
 
@@ -255,6 +256,32 @@ def test_documents_and_history_from_every_listing():
     assert [d["sha256"] for d in m["agendas"]] == ["a", "b"]
     assert [(h["field"], h["listing"]) for h in m["history"]] == [("start_time", "calendar")]
     assert [x["id"] for x in m["listings"]] == ["1", "agendacenter-2", "agendacenter-3"]
+
+
+def test_the_same_meeting_whatever_order_the_store_has_its_records_in():
+    """Two timed listings of one kind each, and an untimed listing of the second's kind: whether it
+    joins them is decided by the first recorded (here the calendar's, by id), not by the store's order."""
+    records = [record("1", time="19:00"), record("civicclerk-2", time="19:00", source="civicclerk", special=True),
+               record("agendacenter-5", source="agendacenter", special=True, agenda_url="https://city.example/a5")]
+    results = set()
+    for order in itertools.permutations(records):
+        store = store_of(*copy.deepcopy(order))
+        combined, moved = listings.combined(store)
+        results.add(json.dumps([sorted(combined.items()), sorted(moved.items())], sort_keys=True))
+    assert len(results) == 1
+    assert ids(store_of(*records)) == [["1", "civicclerk-2"]]
+
+
+def test_links_the_sources_disagree_on_follow_the_listing_order():
+    """A district's calendar feed (ical-3) and its Finalsite page (finalsite-1) both link documents for one
+    meeting: the board's own posting is linked, and the page lists the feed's listing first. Ids from
+    different sources aren't compared (by id, ical-3 would be the newer)."""
+    feed = record("ical-3", "Board of Education", time="19:00", source="ical", documents_url="https://schools.example/feed")
+    site = record("finalsite-1", "Board of Education", time="19:00", source="finalsite", documents_url="https://schools.example/docs")
+    for store in (store_of(feed, site), store_of(site, feed)):
+        m = next(iter(listings.combined(copy.deepcopy(store))[0].values()))
+        assert m["documents_url"] == "https://schools.example/docs"
+        assert [x["id"] for x in m["listings"]] == ["ical-3", "finalsite-1"]
 
 
 def test_removed_only_when_every_listing_is():
