@@ -41,6 +41,7 @@ from pipeline import digest
 from pipeline import dnn
 from pipeline import factcheck
 from pipeline import listings
+from pipeline import meeting_names
 from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import officials as officials_mod
@@ -1082,11 +1083,23 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []))
     posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
+    # A board's name alone in this language, for its pages' titles (the pages show its English name too),
+    # unless another board's is the same: then with its English name after it, as elsewhere.
+    alone = defaultdict(set)
     for m in meetings["all"]:
+        alone[tr.data(m["body"])].add(m["body_slug"])
+    board_name = lambda name: tr.data(name) if len(alone[tr.data(name)]) == 1 else tr.board(name)
+    for m in meetings["all"]:
+        # Its page's own name: the board's name (board_name), and the kind of meeting, where the listing's
+        # name says (pipeline/meeting_names.py).
+        m["board_name"] = board_name(m["body"])
+        m["kind"] = meeting_names.kind(m["title"], m["body"], m["special"])
+        m["title_says_more"] = meeting_names.says_more(m["title"], m["body"], config["town"]["name"])
         m["body"] = tr.board(m["body"])
         # When its minutes came out, for the home page's "Recently decided" (digest.minutes_posted).
         m["minutes_posted"] = posted[id(m)].isoformat() if posted[id(m)] else None
     for b in meetings["boards"]:
+        b["board_name"] = board_name(b["name"])
         b["name"] = tr.board(b["name"])
     meetings["home"] = home_meetings(meetings["this_week"], main)
     # Why a meeting's minutes, agenda or summary isn't here, and whether the calendar is behind.
@@ -1160,6 +1173,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
+    env.filters["english"] = in_english
+    # Text for a search result's description: one line, plain, at most limit characters (clip).
+    env.filters["fit"] = lambda text, limit: clip(structured.plain(text), limit)
     # A label saved in a state's data in English (a budget function, a type of parcel), as shown.
     env.globals["data_label"] = i18n.label
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
@@ -1185,7 +1201,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals.update(
         structured=structured.script, breadcrumbs=structured.breadcrumbs, site_url=site_url,
         website=lambda: structured.website(site, site_url + "/", lang),
-        event=lambda m, url, description: structured.event(m, url, description, config["town"], site["timezone"]),
+        event=lambda m, url, name, description: structured.event(m, url, name, description, config["town"], site["timezone"]),
         dataset=lambda name, description, url, files, **kw: structured.dataset(
             name, description, url, [base_url + f for f in files], site, config["town"], base_url + "/", **kw),
         seeclickfix_license=structured.SEECLICKFIX)
