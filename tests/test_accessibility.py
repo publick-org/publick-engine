@@ -176,6 +176,77 @@ def test_meeting_search_results(browser, axe, server_url, viewport):
     assert overflow <= 0
 
 
+# The address box (site/static/js/address.js) reads an address as pipeline/fetch_addresses.py's find()
+# does (tests/test_addresses.py): the same cases, as the page says them.
+ADDRESSES = [
+    ("12 Main Street, Gloucester, MA 01930", "12 Main St is in Ward 2."),
+    ("401 main st", "401 Main St is in Ward 1."),
+    ("5 Main St", "5 Main St is close to the line between Ward 2 and Ward 3, so it could be in either."),
+    ("3 Rowe Sq", "3 Rowe Sq is in Ward 2."),
+    ("4 Rowe Sq", "4 Rowe Sq is in Ward 1."),
+    ("12 Mt Vernon Street", "12 Mount Vernon St is in Ward 2."),
+    ("12 St. Louis Avenue", "12 Saint Louis Ave is in Ward 1."),
+    ("Pleasant Street", "Pleasant St is in Ward 2."),
+    ("Washington St", "Washington St runs through Ward 2, Ward 3 and Ward 4."),
+    ("5000 Washington St", "The Census Bureau's address list doesn't have 5000 Washington St."),
+    ("12 Kilby St North", "12 N Kilby St is in Ward 4."),
+    ("12 Elm St Rockport", "12 Elm St is in Ward 2."),
+    ("12 Elm Ave", "12 Elm Ave isn't in the address list. Did you mean one of these?"),
+    ("15 Harriet Road", "15 Harriet Road isn't in the address list. Did you mean one of these?"),
+    ("12 Nowhere Lane", "12 Nowhere Lane isn't in the address list."),
+]
+
+
+@pytest.mark.parametrize("viewport", VIEWPORTS)
+def test_address_box(browser, axe, server_url, viewport):
+    context = browser.new_context(viewport=VIEWPORTS[viewport])
+    page = context.new_page()
+    requests = []
+    page.on("request", lambda r: requests.append(r.url))
+    page.goto(server_url + "/officials/")
+    page.wait_for_selector("#address:not([hidden])")
+    assert not any("addresses.json" in u for u in requests), "loaded before the box is used"
+    page.fill("#address-q", "12 Main St")
+    page.keyboard.press("Enter")
+    wait_until(page, "document.getElementById('address-result').textContent.indexOf('is in Ward') >= 0", timeout=10)
+    result = page.text_content("#address-result")
+    # Ward 2's own members, then those elected citywide, from the page's lists.
+    assert result.startswith("12 Main St is in Ward 2.") and "Blake Example" in result and "Indy Example" in result
+    assert "Finley Example" in result and "Avery Example" not in result
+    assert page.get_attribute("#ward-2", "class") == "is-selected" or page.locator("#ward-map").is_hidden()
+    results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
+    overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    for text, said in ADDRESSES:
+        page.fill("#address-q", text)
+        page.click("#address-form button[type=submit]")
+        wait_until(page, "document.querySelector('#address-result p') && "
+                         "!document.querySelector('#address-result p').textContent.startsWith('Looking')", timeout=5)
+        assert page.text_content("#address-result p").startswith(said), text
+    # A near match is offered as a button, chosen with the keyboard.
+    page.fill("#address-q", "12 Kilby St")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#address-result .choices button")
+    assert page.locator("#address-result .choices button").all_text_contents() == ["12 N Kilby St", "12 S Kilby St"]
+    page.focus("#address-result .choices button >> nth=1")
+    page.keyboard.press("Enter")
+    wait_until(page, "document.getElementById('address-result').textContent.startsWith('12 S Kilby St is in Ward 4.')")
+    # The address goes nowhere: every request is to the site itself, or for the map's images.
+    assert all(u.startswith(server_url) or u.startswith("https://tile.openstreetmap.org/") for u in requests)
+    assert not any("Kilby" in u or "Main" in u for u in requests)
+    context.close()
+    assert results.violations_count == 0, format_violations(results)
+    assert overflow <= 0
+
+
+def test_address_from_the_street_lookup(browser, server_url):
+    """The street lookup's result links its street's ward: the street after "#", never sent."""
+    page = browser.new_page()
+    page.goto(server_url + "/officials/#address=Pleasant%20St")
+    wait_until(page, "document.getElementById('address-result').textContent.startsWith('Pleasant St is in Ward 2.')",
+               timeout=10)
+    page.close()
+
+
 # The sample towns' own pages (tests/test_sample_towns.py): the home page and meetings,
 # from meeting systems other than Gloucester's, and Manchester's New Hampshire budget and
 # schools pages. The rest are Gloucester's data, checked above. As on a daily run

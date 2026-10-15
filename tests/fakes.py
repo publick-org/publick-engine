@@ -300,6 +300,29 @@ class FakeHousing:
         raise AssertionError(url)
 
 
+class FakeCensus:
+    """Serves TIGERweb's county for any point, and a small saved extract of the Census Bureau's address
+    ranges (ADDRFEAT: a few Gloucester streets, and one of Rockport's) as Essex County's file for the
+    years given; any other year's file isn't published (404)."""
+
+    def __init__(self, years=(2026,), county="25009"):
+        self.years = set(years)
+        self.county = county
+        self.urls = []
+
+    def get(self, url):
+        from pipeline.http import FetchError
+        self.urls.append(url)
+        if "tigerweb.geo.census.gov" in url:
+            return FakeJSONResponse({"features": [{"attributes": {"GEOID": self.county}}]})
+        if "/ADDRFEAT/" in url:
+            year = int(url.split("/TIGER", 1)[1][:4])
+            if year in self.years and f"_{self.county}_" in url:
+                return FakeResponse((FIXTURES / "addrfeat_gloucester.zip").read_bytes())
+            raise FetchError(f"{url}: HTTP 404", 404)
+        raise AssertionError(url)
+
+
 def shi_pdf_text(pdf: bytes) -> str:
     return (FIXTURES / "housing" / "shi_text.txt").read_text()
 

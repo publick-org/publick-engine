@@ -26,9 +26,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import shutil  # noqa: E402
 
-from fakes import (FIXTURES, FakeAnthropic, FakeBudgetDLS, FakeCityClient, FakeDESE, FakeDrive, FakeHousing,  # noqa: E402
-                   FakePermits, FakeSeeClickFix, shi_pdf_text)
-from pipeline import (build_site, compute_311, fetch_311, fetch_budget, fetch_drive_meetings,  # noqa: E402
+from fakes import (FIXTURES, FakeAnthropic, FakeBudgetDLS, FakeCensus, FakeCityClient, FakeDESE, FakeDrive,  # noqa: E402
+                   FakeHousing, FakePermits, FakeSeeClickFix, shi_pdf_text)
+from pipeline import (build_site, compute_311, fetch_311, fetch_addresses, fetch_budget, fetch_drive_meetings,  # noqa: E402
                       fetch_housing, fetch_meetings, fetch_minutes, fetch_permits, fetch_schools, summarize)
 from pipeline.config import DATA_DIR as REAL_DATA_DIR  # noqa: E402
 from pipeline.states.ma import housing as ma_housing  # noqa: E402
@@ -64,6 +64,12 @@ def make_fixture_data(data_dir: Path) -> None:
     summarize.run(config, FakeAnthropic(), data_dir, limit=50, now=FETCHED_AT)
 
     shutil.copytree(REAL_DATA_DIR / "static", data_dir / "static")
+    # The address box's ranges, from the saved extract; its downloads kept with the test's data.
+    downloads, fetch_addresses.DOWNLOADS = fetch_addresses.DOWNLOADS, data_dir.parent / "addrfeat"
+    try:
+        fetch_addresses.run(config, FakeCensus(), data_dir, now=FETCHED_AT)
+    finally:
+        fetch_addresses.DOWNLOADS = downloads
     fetch_311.save_json(data_dir / "finance" / "tax_bill.json", {
         "source_url": "https://dls-gw.dor.state.ma.us/reports/rdPage.aspx", "years": [
             {"fiscal_year": 2025, "average_bill": 9224}, {"fiscal_year": 2026, "average_bill": 9502}]})
