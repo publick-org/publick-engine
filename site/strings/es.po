@@ -286,6 +286,11 @@ msgstr "%(graduated)s de %(cohort)s"
 
 #: site/templates/meeting.html
 #, python-format
+msgid "%(name)s meeting portal"
+msgstr "portal de reuniones de %(name)s"
+
+#: site/templates/meeting.html
+#, python-format
 msgid "%(name)s website"
 msgstr "sitio web de %(name)s"
 
@@ -7611,6 +7616,16 @@ msgstr ""
 msgid "This site collects minutes for meetings from %(when)s on."
 msgstr "Este sitio recopila las actas de las reuniones desde el %(when)s."
 
+#. %(where)s is where the board posts its meetings, such as "Portland Public Schools meeting portal".
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"This site doesn't collect this board's minutes. They may be on the <a "
+"href=\"%(url)s\">%(where)s</a>."
+msgstr ""
+"Este sitio no recopila las actas de esta junta. Puede que estén en el <a "
+"href=\"%(url)s\">%(where)s</a>."
+
 #: site/templates/meeting.html
 #, python-format
 msgid ""
@@ -8624,7 +8639,7 @@ msgstr "portal de reuniones del distrito escolar"
 msgid "school district's website"
 msgstr "sitio web del distrito escolar"
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "state's Open Meetings portal"
 msgstr "portal de Reuniones Abiertas del estado"
 

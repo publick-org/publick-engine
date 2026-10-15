@@ -175,7 +175,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         counts["checked"] += 1
         failed = False
         for kind in ("agenda", "minutes"):
-            if kind in picked:
+            # A board that posts its minutes elsewhere (minutes = false): none are read here.
+            if kind in picked and (kind == "agenda" or settings.get("minutes", True)):
                 try:
                     save_document(client, meeting, kind, picked[kind], storage, settings, stamp, counts)
                 except FetchError as e:

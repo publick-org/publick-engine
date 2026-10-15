@@ -292,3 +292,42 @@ def test_site_shows_the_districts_meetings(config, data_dir, tmp_path, monkeypat
             f'from its <a href="{BASE}/Portal/"') in about
     board = (out / "meetings" / "boards" / "school-board" / "index.html").read_text()
     assert f'Earlier meetings are on the <a href="{BASE}/Portal/"' in board and "Burlington School District meeting portal" in board
+
+
+def test_a_portal_without_the_boards_minutes(district, tmp_path):
+    """Portland's board approves its minutes in a later meeting's packet: none are on the portal."""
+    district["diligent_meetings"]["minutes"] = False
+    status, store, _ = run(district, tmp_path)
+    assert store["diligent-1218"]["agendas"] and "minutes" not in store["diligent-1218"]
+    m = {**store["diligent-1195"], "minutes": []}
+    gap = absences.minutes_gap(district, m, NOW.date())
+    assert gap == {"reason": "not_collected", "source": "diligent", "url": m["source_url"],
+                   "name": "Burlington School District"}
+    with pytest.raises(SystemExit, match="minutes must be true or false"):
+        diligent.check({"slug": "burlington", "diligent_meetings": {**burlington(), "minutes": "no"}})
+
+
+@pytest.mark.parametrize("minutes, says", [
+    (True, "Minutes haven't been posted on the <a"),
+    (False, "This site doesn't collect this board's minutes. They may be on the <a"),
+])
+def test_site_says_where_minutes_not_here_may_be(config, data_dir, tmp_path, monkeypatch, minutes, says):
+    import shutil
+
+    from conftest import BUILT_AT
+
+    from pipeline import build_site
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    town = copy.deepcopy(config)
+    town["diligent_meetings"] = {**burlington(), "minutes": minutes}
+    agenda_only = [d for d in FakeDiligent().documents_for(1195)["Documents"] if d["DocumentType"] in (1, 4)]
+    fetch_diligent_meetings.run(town, FakeDiligent(documents={1195: agenda_only}), data, now=BUILT_AT)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    page = (out / "meetings" / "2026-09-01-school-board" / "index.html").read_text()
+    assert says in page
+    # The district's portal, where the meeting is, not the city's Archive Center.
+    assert f'href="{BASE}/Portal/MeetingInformation.aspx?Id=1195"' in page.split(says)[1][:200]
+    assert "Burlington School District meeting portal" in page.split(says)[1][:400]
