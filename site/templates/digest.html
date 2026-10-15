@@ -3,6 +3,8 @@
 {# One issue of the weekly digest (pipeline/digest.py): the week's meetings, and the minutes posted the week before. #}
 {# Translators: the title of one week's digest; %(when)s is its Monday, such as "October 12, 2026". #}
 {% block title %}{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}{% endblock %}
+{# Translators: the title in search results of one week's digest: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(when)s its Monday, such as "Oct 12, 2026". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr, when=issue.monday | date("mon_day_year") %}{{ town }}, {{ state }} meetings, week of {{ when }}{% endtrans %}{% endblock %}
 {# Translators: %(town)s is the town's name and %(when)s a Monday, such as "October 12, 2026". #}
 {% block description %}{% trans town=town.name, when=issue.monday | date("plain") %}{{ town }}'s public meetings the week of {{ when }}, and what was decided at the meetings whose minutes were posted the week before.{% endtrans %}{% endblock %}
 {% block content %}

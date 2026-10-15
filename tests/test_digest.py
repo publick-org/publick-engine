@@ -77,7 +77,7 @@ def test_digest_pages(site_dir):
     index = (site_dir / "digest" / "index.html").read_text()
     assert 'href="/digest/2026-09-28/"' in index and 'href="/digest/feed.xml"' in index
     page = (site_dir / "digest" / "2026-09-28" / "index.html").read_text()
-    assert "<title>Week of September 28, 2026 | " in page
+    assert "<title>Gloucester, MA meetings, week of Sep 28, 2026</title>" in page
     assert 'href="/meetings/2026-09-28-human-rights-commission/"' in page
     # The fixture's calendar was last read September 27, so the week's list may be missing meetings.
     assert "hasn't been able to check the city's meeting listings since September 27, 2026" in page

@@ -560,6 +560,14 @@ msgid ""
 "minutes were posted the week before."
 msgstr ""
 
+#. the page's title in search results, for a board whose agendas and minutes the site collects:
+#. %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's
+#. name, such as "Planning Board".
+#: site/templates/board.html
+#, python-format
+msgid "%(town)s, %(state)s %(board)s agendas and minutes"
+msgstr "%(town)s, %(state)s: %(board)s, agendas y actas"
+
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA", and %(board)s a board's name, such as "Planning Board".
 #: site/templates/board.html
@@ -568,7 +576,7 @@ msgid "%(town)s, %(state)s %(board)s meetings and agendas"
 msgstr "%(town)s, %(state)s: %(board)s, reuniones y agendas"
 
 #. a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation,
-#. such as "MA", and %(name)s the meeting, such as "Planning Board agenda – Tuesday, October 6, 2026".
+#. such as "MA", and %(name)s the meeting, such as "Planning Board agenda – Oct 6, 2026".
 #: site/templates/meeting.html
 #, python-format
 msgid "%(town)s, %(state)s %(name)s"
@@ -607,6 +615,13 @@ msgstr "%(town)s, %(state)s: solicitudes al 311, %(category)s"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
+#: site/pages/meetings/search/index.html
+#, python-format
+msgid "%(town)s, %(state)s agendas and minutes: search"
+msgstr "%(town)s, %(state)s: buscar en agendas y actas"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
 #: site/pages/meetings/boards/index.html
 #, python-format
 msgid "%(town)s, %(state)s boards, commissions, and committees"
@@ -617,7 +632,7 @@ msgstr "%(town)s, %(state)s: juntas, comisiones y comités"
 #: site/states/ct/budget.html
 #, python-format
 msgid "%(town)s, %(state)s city budget and mill rate"
-msgstr "%(town)s, %(state)s: presupuesto de la ciudad y tasa de impuesto (mill rate)"
+msgstr "%(town)s, %(state)s: presupuesto municipal y mill rate"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -625,35 +640,42 @@ msgstr "%(town)s, %(state)s: presupuesto de la ciudad y tasa de impuesto (mill r
 #: site/states/vt/budget.html
 #, python-format
 msgid "%(town)s, %(state)s city budget and property tax rate"
-msgstr "%(town)s, %(state)s: presupuesto de la ciudad y tasa del impuesto a la propiedad"
+msgstr "%(town)s, %(state)s: presupuesto e impuesto a la propiedad"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/states/ma/budget.html
 #, python-format
 msgid "%(town)s, %(state)s city budget: revenue and spending"
-msgstr "%(town)s, %(state)s: presupuesto de la ciudad, ingresos y gastos"
+msgstr "%(town)s, %(state)s: presupuesto municipal, ingresos y gastos"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/pages/officials/index.html
 #, python-format
 msgid "%(town)s, %(state)s elected officials and how to reach them"
-msgstr "%(town)s, %(state)s: funcionarios electos y cómo comunicarse con ellos"
+msgstr "%(town)s, %(state)s: funcionarios electos y cómo contactarlos"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/pages/housing/index.html
 #, python-format
 msgid "%(town)s, %(state)s housing: permits, home values, and rents"
-msgstr "%(town)s, %(state)s: vivienda, permisos, valor de las viviendas y alquileres"
+msgstr "%(town)s, %(state)s: vivienda, permisos, precios y alquileres"
+
+#. the title in search results of one week's digest: %(town)s is the town, %(state)s its state's
+#. abbreviation, such as "MA", and %(when)s its Monday, such as "Oct 12, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid "%(town)s, %(state)s meetings, week of %(when)s"
+msgstr "%(town)s, %(state)s: reuniones de la semana del %(when)s"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/pages/data/index.html
 #, python-format
-msgid "%(town)s, %(state)s meetings, summaries, and decisions as open data"
-msgstr "%(town)s, %(state)s: reuniones, resúmenes y decisiones como datos abiertos"
+msgid "%(town)s, %(state)s open data: meetings, minutes, and decisions"
+msgstr "%(town)s, %(state)s: datos abiertos de reuniones, actas y decisiones"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -688,15 +710,22 @@ msgstr "%(town)s, %(state)s: registros públicos por calle"
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
 #: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 #, python-format
-msgid "%(town)s, %(state)s public schools: graduation rate and test scores"
-msgstr "%(town)s, %(state)s: escuelas públicas, tasa de graduación y resultados de exámenes"
+msgid "%(town)s, %(state)s public schools: test scores and graduation"
+msgstr "%(town)s, %(state)s: escuelas públicas, exámenes y graduación"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/pages/meetings/decisions/index.html
 #, python-format
 msgid "%(town)s, %(state)s votes and decisions from meeting minutes"
-msgstr "%(town)s, %(state)s: votaciones y decisiones de las actas de las reuniones"
+msgstr "%(town)s, %(state)s: votaciones y decisiones de las reuniones"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
+#: site/templates/digest_index.html
+#, python-format
+msgid "%(town)s, %(state)s weekly digest: meetings and decisions"
+msgstr "%(town)s, %(state)s: resumen semanal de reuniones y decisiones"
 
 #. the home page's title in search results and browser tabs, for a site without meetings; %(town)s is
 #. the town and %(state)s its state's abbreviation.
@@ -2641,8 +2670,8 @@ msgid ""
 "Download every %(town)s public meeting on this site, with its agenda, minutes, AI summaries, and "
 "decisions, free to reuse with credit."
 msgstr ""
-"%(town)s: descargue todas las reuniones públicas de este sitio, con su agenda, actas, resúmenes "
-"hechos con IA y decisiones. Se pueden reutilizar libremente, dando crédito."
+"%(town)s: descargue las reuniones públicas de este sitio, con agendas, actas, resúmenes hechos "
+"con IA y decisiones, libres para reutilizar con crédito."
 
 #: site/pages/data/index.html
 msgid "Download meetings.json"
@@ -3597,6 +3626,10 @@ msgstr "Cómo le va a la ciudad, según datos públicos."
 #: site/pages/311/index.html site/templates/category.html
 msgid "How these numbers are calculated"
 msgstr "Cómo se calculan estas cifras"
+
+#: site/templates/meeting.html
+msgid "How to attend, and the agenda."
+msgstr "Cómo asistir y la agenda."
 
 #: site/templates/board.html
 msgid "How to follow this board"

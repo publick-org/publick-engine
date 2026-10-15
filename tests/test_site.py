@@ -727,12 +727,21 @@ def structured_data(path) -> list[dict]:
 
 
 def test_meeting_descriptions_lead_with_the_summary_and_say_it_is_ai(site_dir):
-    """A search result shows the description on its own, so a summary's headline says it was written by AI."""
-    page = (site_dir / "meetings" / "2026-07-14-city-council" / "index.html").read_text()
-    assert '<meta name="description" content="AI summary of the minutes: Approved a site plan for 12 Main St.">' in page
-    # A meeting with no summary keeps saying what the page has.
-    plain = [p.read_text() for p in (site_dir / "meetings").glob("20*/index.html") if "AI summary of the" not in p.read_text()]
-    assert plain and all(re.search(r'<meta name="description" content="[^"]+ on \w+day, ', p) for p in plain)
+    """A search result shows the description on its own: for a past meeting, what it decided, said to be from
+    an AI summary; for one to come, when and where, then what's on its agenda. At most 155 characters."""
+    meetings = site_dir / "meetings"
+    page = (meetings / "2026-07-14-city-council" / "index.html").read_text()
+    assert '<meta name="description" content="AI summary of the minutes: Approved the site plan for 12 Main St.">' in page
+    upcoming = (meetings / "2026-10-07-city-council-planning-and-development-committee" / "index.html").read_text()
+    assert ('<meta name="description" content="Wed, Oct 7, 6:00 PM, City Council Committee Room. AI summary of the agenda: '
+            'ADA compliance with the city&#39;s operations director and a draft plan for…">') in upcoming
+    # A meeting with no summary says what the page has.
+    plain = [p.read_text() for p in meetings.glob("20*/index.html") if "AI summary of the" not in p.read_text()]
+    assert plain and all(re.search(r'<meta name="description" content="(?:[^"]+ on \w+day, |\w{3}, \w{3} \d+[^"]*How to attend)', p)
+                         for p in plain)
+    for p in meetings.glob("20*/index.html"):
+        description = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', p.read_text()).group(1))
+        assert len(description) <= 155, p
 
 
 def test_meetings_are_events_for_search_engines(site_dir):
@@ -788,24 +797,29 @@ def test_structured_data_cannot_end_its_script():
 
 def test_home_and_downloads_for_search_engines(site_dir):
     home = (site_dir / "index.html").read_text()
-    assert "<title>Gloucester, MA: city meetings, agendas, and data | Gloucester Publick</title>" in home
-    # A meeting's title in search results starts with the town and names the minutes or agenda
-    # it has; its own name, on social cards and in breadcrumbs, doesn't.
+    # Titles in search results start with the words people search, the town and state first, and leave out
+    # the site's name, which search results show from the WebSite data below.
+    assert "<title>Gloucester, MA: city meetings, agendas, and data</title>" in home
+    # A meeting's names the minutes or agenda it has, and the day; its own name, on social cards and in
+    # breadcrumbs, doesn't name the town.
     meetings = site_dir / "meetings"
     minutes = (meetings / "2026-07-14-city-council" / "index.html").read_text()
-    assert "<title>Gloucester, MA City Council minutes – Tuesday, July 14, 2026 | Gloucester Publick</title>" in minutes
+    assert "<title>Gloucester, MA City Council minutes – Jul 14, 2026</title>" in minutes
     assert '<meta property="og:title" content="City Council – Jul 14, 2026">' in minutes
     agenda = (meetings / "2026-09-28-historical-commission" / "index.html").read_text()
-    assert "<title>Gloucester, MA Historical Commission agenda – Monday, September 28, 2026 | Gloucester Publick</title>" in agenda
+    assert "<title>Gloucester, MA Historical Commission agenda – Sep 28, 2026</title>" in agenda
     neither = (meetings / "2026-09-23-school-committee" / "index.html").read_text()
-    assert "<title>Gloucester, MA School Committee – Wednesday, September 23, 2026 | Gloucester Publick</title>" in neither
+    assert "<title>Gloucester, MA School Committee meeting – Sep 23, 2026</title>" in neither
     # So does every other section's; its heading and social card keep the short name.
     board = (meetings / "boards" / "school-committee" / "index.html").read_text()
-    assert "<title>Gloucester, MA School Committee meetings and agendas | Gloucester Publick</title>" in board
+    assert "<title>Gloucester, MA School Committee agendas and minutes</title>" in board
     assert '<meta property="og:title" content="School Committee meetings">' in board
     decided = (meetings / "decisions" / "index.html").read_text()
-    assert "<title>Gloucester, MA votes and decisions from meeting minutes | Gloucester Publick</title>" in decided
-    assert "<title>Gloucester, MA 311 requests and response times | Gloucester Publick</title>" in (site_dir / "311" / "index.html").read_text()
+    assert "<title>Gloucester, MA votes and decisions from meeting minutes</title>" in decided
+    assert "<title>Gloucester, MA 311 requests and response times</title>" in (site_dir / "311" / "index.html").read_text()
+    assert "<title>Gloucester, MA agendas and minutes: search</title>" in (meetings / "search" / "index.html").read_text()
+    # A page that isn't one people search for by topic keeps the site's name after its own.
+    assert "<title>About | Gloucester Publick</title>" in (site_dir / "about" / "index.html").read_text()
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"

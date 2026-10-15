@@ -15,7 +15,7 @@ from pipeline.config import load_config
 
 TOWN_STRINGS = {"City Council": "Concejo Municipal", "Meetings": "Reuniones", "Pothole": "Bache"}
 ENGINE_STRINGS = {(None, "This week"): "Esta semana", ("month", "October"): "octubre", ("month, short", "Aug"): "ago",
-                  ("short date", "{month} {day}, {year}"): "{day} {month} {year}"}
+                  ("short date", "{month} {day}, {year}"): "{day} {month} {year}", (None, "%(board)s minutes"): "%(board)s: actas"}
 
 
 def bilingual_config(town):
@@ -128,6 +128,8 @@ def test_meeting_pages_are_named_in_spanish(built):
     assert "<h1>Concejo Municipal – 25 ago 2026</h1>" in council
     assert '<meta property="og:title" content="Concejo Municipal – 25 ago 2026">' in council
     assert '"name":"Concejo Municipal (City Council)","item":"https://gloucester-ma.publick.org/es/meetings/boards/city-council/"' in council
+    # In search results: the town and state, the board in Spanish, what the page has, and the day.
+    assert "<title>Gloucester, MA Concejo Municipal: actas – 25 ago 2026</title>" in council
     health = next(p.read_text(encoding="utf-8") for p in sorted((out / "es" / "meetings").glob("*-board-of-health/index.html")))
     assert re.search(r'<h1><span lang="en">Board of Health</span> – ', health)
 
