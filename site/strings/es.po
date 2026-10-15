@@ -7737,11 +7737,13 @@ msgstr ""
 
 #: site/templates/meeting.html
 msgid ""
-"This meeting is listed in more than one place, named differently in each: it is the board's only "
-"meeting this day. The listings are shown here as one meeting."
+"This meeting is listed in more than one place, named a little differently in each (as a special "
+"meeting, or a hearing). It's the only meeting of the board this day that they could be, so the "
+"listings are shown here as one meeting."
 msgstr ""
-"Esta reunión aparece en más de un lugar, con un nombre distinto en cada uno: es la única reunión "
-"de la junta este día. Aquí se muestran como una sola reunión."
+"Esta reunión aparece en más de un lugar, con un nombre algo distinto en cada uno (como reunión "
+"especial, o como audiencia). Es la única reunión de la junta este día a la que pueden referirse, "
+"así que aquí se muestran como una sola reunión."
 
 #: site/templates/meeting.html
 msgid ""

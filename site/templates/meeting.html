@@ -346,7 +346,7 @@
 {% if m.get("listings") %}
 {# A meeting the city lists in more than one place (pipeline/listings.py). #}
 <p>{% if m.same_as == "same_time" %}{{ _("This meeting is listed in more than one place: the same board, on the same day, at the same time. The listings are shown here as one meeting.") }}
-{%- elif m.same_as == "only_meeting" %}{{ _("This meeting is listed in more than one place, named differently in each: it is the board's only meeting this day. The listings are shown here as one meeting.") }}
+{%- elif m.same_as == "only_meeting" %}{{ _("This meeting is listed in more than one place, named a little differently in each (as a special meeting, or a hearing). It's the only meeting of the board this day that they could be, so the listings are shown here as one meeting.") }}
 {%- elif m.same_as == "one_time" %}{{ _("This meeting is listed in more than one place: the same board on the same day, and only one listing gives a time. The listings are shown here as one meeting.") }}
 {%- else %}{{ _("This meeting was posted more than once: the same board on the same day, with no time given. The postings are shown here as one meeting.") }}{% endif %}</p>
 <ul>
