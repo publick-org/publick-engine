@@ -500,18 +500,28 @@ def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, ef
     }
 
 
+def stop_reason(response) -> str:
+    """Why a response stopped, with a refusal's category when the API gives one ("refusal (cyber)")."""
+    reason = response.stop_reason
+    category = getattr(getattr(response, "stop_details", None), "category", None)
+    return f"{reason} ({category})" if reason == "refusal" and category else reason
+
+
 def summary_result(response) -> tuple[dict, dict]:
-    """A summary response's result and its usage; StoppedEarly if it didn't finish."""
+    """A summary response's result and its usage; StoppedEarly if it didn't finish (cut off at
+    max_tokens, or refused)."""
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
     text = next((b.text for b in response.content if b.type == "text"), "")
     if response.stop_reason != "end_turn":
-        raise StoppedEarly(response.stop_reason, usage, text)
+        raise StoppedEarly(stop_reason(response), usage, text)
     return json.loads(text), usage
 
 
-def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[dict, dict]:
+def summarize_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
+                  effort: str | None = None) -> tuple[dict, dict]:
+    """A document's summary and its usage. Without an effort (as a run sends it), the model's default."""
     # Streaming avoids HTTP timeouts on long transcripts.
-    with client.messages.stream(**summary_request(model, kind, pdf, title, date)) as stream:
+    with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort)) as stream:
         response = stream.get_final_message()
     return summary_result(response)
 
@@ -528,8 +538,10 @@ def page_range(pdf: bytes, first: int, last: int) -> bytes:
     return out.getvalue()
 
 
-def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str) -> tuple[str, dict]:
-    """The model's transcription of a whole document, a few pages a request."""
+def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: str,
+                   effort: str | None = None) -> tuple[str, dict]:
+    """The model's transcription of a whole document, a few pages a request. Without an effort (as a
+    run sends it), the model's default."""
     pages = page_count(pdf) or 1
     step = TRANSCRIBE["pages"]
     parts, usage = [], {"input_tokens": 0, "output_tokens": 0}
@@ -549,13 +561,14 @@ def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: 
                                                                          kind=kind, title=title, date=date)},
                 ],
             }],
-            output_config={"format": {"type": "json_schema", "schema": TRANSCRIBE["schema"]}},
+            output_config={**({"effort": effort} if effort else {}),
+                           "format": {"type": "json_schema", "schema": TRANSCRIBE["schema"]}},
         ) as stream:
             response = stream.get_final_message()
         usage["input_tokens"] += response.usage.input_tokens
         usage["output_tokens"] += response.usage.output_tokens
         if response.stop_reason != "end_turn":
-            raise StoppedEarly(response.stop_reason, usage)
+            raise StoppedEarly(stop_reason(response), usage)
         parts.append(json.loads(next(b.text for b in response.content if b.type == "text"))["transcript"].strip())
     return "\n\n".join(parts), usage
 
@@ -614,13 +627,23 @@ def estimated_cost(kind: str, pages: int, settings: dict) -> float:
 
 # What cached input costs, as a share of the input price: written to the cache (5 minutes), and read from it.
 CACHE_WRITE, CACHE_READ = 1.25, 0.1
+# The settings' prices, dollars per million tokens. A model priced higher for a long prompt has all three
+# long_ keys: a request whose prompt (its input, cached or not) is over long_prompt_tokens is priced, input
+# and output, at long_input_price and long_output_price. Without them, every request is priced the same.
+PRICES = ("input_price", "output_price", "long_input_price", "long_output_price")
+LONG_PROMPT = ("long_prompt_tokens", "long_input_price", "long_output_price")
 
 
 def cost(usage: dict, settings: dict) -> float:
-    """What tokens cost at the settings' prices. input_tokens doesn't count cached input, which is priced apart."""
-    paid_input = (usage["input_tokens"] + CACHE_WRITE * usage.get("cache_creation_input_tokens", 0)
-                  + CACHE_READ * usage.get("cache_read_input_tokens", 0))
-    return (paid_input * settings["input_price"] + usage["output_tokens"] * settings["output_price"]) / 1e6
+    """What one request's tokens cost at the settings' prices (or several requests' together, at a price that
+    doesn't depend on the prompt's length). input_tokens doesn't count cached input, which is priced apart."""
+    written, read = usage.get("cache_creation_input_tokens", 0), usage.get("cache_read_input_tokens", 0)
+    paid_input = usage["input_tokens"] + CACHE_WRITE * written + CACHE_READ * read
+    input_price, output_price = settings["input_price"], settings["output_price"]
+    if (all(settings.get(k) is not None for k in LONG_PROMPT)
+            and usage["input_tokens"] + written + read > settings["long_prompt_tokens"]):
+        input_price, output_price = settings["long_input_price"], settings["long_output_price"]
+    return (paid_input * input_price + usage["output_tokens"] * output_price) / 1e6
 
 
 def summary_settings(config: dict) -> dict:
@@ -662,8 +685,7 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
 
 
 def at_batch_price(settings: dict) -> dict:
-    return {**settings, "input_price": settings["input_price"] * BATCH_PRICE,
-            "output_price": settings["output_price"] * BATCH_PRICE}
+    return {**settings, **{k: settings[k] * BATCH_PRICE for k in PRICES if settings.get(k) is not None}}
 
 
 def utc_now() -> datetime:

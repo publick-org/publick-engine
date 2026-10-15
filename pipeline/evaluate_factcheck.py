@@ -60,8 +60,9 @@ MAX_ENTRIES, MAX_BYTES = 15, 3_000_000
 # How many summaries of each kind a new sample has at least, beyond one of each town's kinds and platforms.
 AT_LEAST = {"prompt": 2, "source ai": 5, "source partial": 3, "source none": 1, "result failed": 12,
             "result weak": 5, "problem": 2}
-# What isn't kept of a summary's record: what the check doesn't read, and its own result, kept apart.
-DROPPED = {"plain_text", "usage", "cost", "transcript_usage", "transcript_cost", "fact_check"}
+# What isn't kept of a summary's record: what the check doesn't read, and its own result, kept apart. Its
+# tokens and cost are kept, for the summaries made again with another model (pipeline/evaluate_shadow.py).
+DROPPED = {"plain_text", "transcript_usage", "transcript_cost", "fact_check"}
 
 
 def platform(meeting: dict) -> str:
@@ -91,7 +92,7 @@ def candidates(network: Path) -> list[dict]:
             file_url = (f"{storage['public_url'].rstrip('/')}/{storage.get('prefix', town.name).strip('/')}/"
                         f"{summarize.KINDS[kind]['folder']}/{doc['file']}") if storage.get("public_url") else None
             out.append({"town": town.name, "kind": kind, "platform": platform(listing.get(doc["sha256"], meeting)),
-                        "body": meeting["body"], "date": meeting["date"], "sha256": doc["sha256"],
+                        "body": meeting["body"], "title": meeting["title"], "date": meeting["date"], "sha256": doc["sha256"],
                         "bytes": doc.get("bytes") or 0, "file_url": file_url, "source_url": doc["source_url"],
                         "record": record})
     return sorted(out, key=lambda c: c["sha256"])
@@ -161,15 +162,16 @@ def document(c: dict, get=download) -> bytes:
 
 
 def sample_item(c: dict, pdf: bytes) -> dict:
-    """What the sample keeps of a summary: where it's from, its record as the check reads it, the
-    check's result as the network has it, and its PDF's pages' text."""
+    """What the sample keeps of a summary: where it's from (with its meeting's title, as its prompt gave
+    it), its record as the check reads it, the check's result as the network has it, and its PDF's pages'
+    text."""
     record = {k: v for k, v in c["record"].items() if k not in DROPPED}
     if record.get("transcript_source") != "ai":
         # The PDF's own text, which the check reads from the pages instead.
         record.pop("transcript", None)
-    return {"town": c["town"], "kind": c["kind"], "platform": c["platform"], "body": c["body"], "date": c["date"],
-            "sha256": c["sha256"], "file_url": c["file_url"], "source_url": c["source_url"], "record": record,
-            "network_fact_check": c["record"].get("fact_check"), "pages": factcheck.pages(pdf)}
+    return {"town": c["town"], "kind": c["kind"], "platform": c["platform"], "body": c["body"], "title": c["title"],
+            "date": c["date"], "sha256": c["sha256"], "file_url": c["file_url"], "source_url": c["source_url"],
+            "record": record, "network_fact_check": c["record"].get("fact_check"), "pages": factcheck.pages(pdf)}
 
 
 def build(network: Path, resample: bool, get=download) -> dict:
