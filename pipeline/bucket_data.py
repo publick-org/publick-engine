@@ -5,7 +5,8 @@ October 2026), and every daily run rewrites much of it, so git kept a new copy
 each day: 311 was four fifths of what the network's repository grew by. For a
 town with a [storage] table (pipeline/documents.py) these files live in the
 documents bucket instead, under <prefix>/data/, and git keeps only the small
-data/311/status.json.
+data/311/status.json and sync.json (where fetch_311's sync has got to, written
+after requests.json is saved here, so it's never ahead of it).
 
 - Reading needs no keys: a step that reads them (the 311 steps, the build, the
   freshness check) downloads each one missing from data/ from the bucket's

@@ -4,11 +4,12 @@ import html
 import json
 import re
 import shutil
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from conftest import FETCHED_AT, REAL_DATA_DIR
-from fakes import FakeSeeClickFix
+from fakes import FakeSeeClickFix, real_issues, saved_issues
 from pipeline import compute_311, fetch_311
 from pipeline.config import load_config
 from pipeline.geo import PrecinctLookup
@@ -23,6 +24,10 @@ def config():
 def data(tmp_path):
     shutil.copytree(REAL_DATA_DIR / "static", tmp_path / "static")
     return tmp_path
+
+
+# Just after the real APIv2 page (tests/fixtures/scf_v2_issues.json) was read.
+NOW = datetime(2026, 10, 15, 18, 0, tzinfo=timezone.utc)
 
 
 def load(data_dir):
@@ -47,30 +52,266 @@ def test_run_records_requests_without_personal_details(config, data):
     assert all(r["ward"] for r in store.values()), "every fixture request is inside the city"
 
 
-def test_run_fills_exact_times_up_to_limit(config, data):
-    summary = fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=10)
-    assert summary["details_fetched"] == 10
-    assert summary["details_missing"] == 104
-    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=500)
-    assert all(r["detail"] for r in load(data).values())
+def test_listings_carry_the_exact_times(config, data):
+    """APIv2's listings give each request's acknowledged, closed and reopened times: none is looked
+    up one at a time."""
+    client = FakeSeeClickFix()
+    summary = fetch_311.run(config, client, data, now=FETCHED_AT, detail_limit=0)
+    assert summary["details_missing"] == 0 and summary["details_fetched"] == 0
+    assert not any("/issues/" in u for u in client.urls)
+    store = load(data)
+    acknowledged = next(r for r in store.values() if r["detail"]["status"] == "acknowledged")
+    assert acknowledged["status"] == "open" and acknowledged["detail"]["acknowledged_at"]
+    archived = next(r for r in store.values() if r["detail"]["status"] == "archived")
+    assert archived["status"] == "closed" and archived["detail"]["closed_at"]
 
 
-def test_request_leaving_open_list_is_rechecked(config, data):
-    first = FakeSeeClickFix()
-    fetch_311.run(config, first, data, now=FETCHED_AT, detail_limit=500)
-    closed_id = str(first.open_items[0]["service_request_id"])
-    # The city closed it: it leaves the open list, and the lookup reports it closed.
-    now_closed = dict(first.open_items[0], status="closed")
-    later = FakeSeeClickFix(open_items=first.open_items[1:], window_items=first.window_items + [now_closed])
-    fetch_311.run(config, later, data, now=FETCHED_AT.replace(day=27), detail_limit=500)
-    assert any(u.endswith(f"/issues/{closed_id}") for u in later.urls), "closed request should be looked up again"
-    assert load(data)[closed_id]["status"] == "closed"
+def test_a_listed_request_reads_as_open311_lists_it():
+    """APIv2 and Open311 give the same request the same category, place, times and open or closed;
+    APIv2's own status says acknowledged, archived, or reopened."""
+    from pipeline import seeclickfix
+    issues = {str(i["id"]): i for i in real_issues()}
+    for issue in issues.values():
+        assert seeclickfix.parse_listed(issue) == seeclickfix.parse_open311(FakeSeeClickFix.open311(issue))
+    assert seeclickfix.parse_listed(issues["23023545"])["status"] == "open"  # Acknowledged
+    assert seeclickfix.parse_listed(issues["22960687"])["status"] == "closed"  # Archived
+    # Closed, then reopened: open, with the close it had.
+    reopened = {**seeclickfix.parse_listed(issues["22933218"]), "detail": seeclickfix.parse_issue(issues["22933218"])}
+    assert reopened["status"] == "open" and reopened["detail"]["reopened_at"] and reopened["detail"]["closed_at"]
+    assert compute_311.closed_time(reopened) is None
+
+
+def later(days=0, hours=0):
+    return FETCHED_AT + timedelta(days=days, hours=hours)
+
+
+def updated(issue, at, **change):
+    """The issue after the city changed it at a time."""
+    return {**issue, **change, "updated_at": at.isoformat(timespec="seconds")}
+
+
+def test_a_sync_reads_only_what_changed_since_the_last(config, data):
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    sync = json.loads((data / "311" / "sync.json").read_text())
+    assert sync["cursor"] == "2026-10-15T18:00:00Z" and not sync["pending"]
+    # A day later: one request acknowledged; nothing else changed.
+    target = world[1]
+    world[1] = updated(target, NOW + timedelta(hours=3), status="Acknowledged", acknowledged_at=(NOW + timedelta(hours=3)).isoformat())
+    client = FakeSeeClickFix(issues=world)
+    summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=1))
+    assert summary["updated_listed"] == 1 and summary["changed"] == 1 and summary["new"] == 0
+    # Two listings: what was submitted (Open311), and what was updated (APIv2), since an hour before the cursor.
+    assert client.request_count == 2
+    assert "updated_at_after=2026-10-15T17%3A00%3A00Z" in client.urls[1]
+    assert load(data)[str(target["id"])]["detail"]["acknowledged_at"]
+
+
+def test_a_request_closed_between_runs_is_closed_by_its_own_status(config, data):
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    i = next(n for n, issue in enumerate(world) if issue["status"] == "Open")
+    closed_at = NOW + timedelta(hours=5)
+    world[i] = updated(world[i], closed_at, status="Closed", closed_at=closed_at.isoformat())
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW + timedelta(days=1))
+    record = load(data)[str(world[i]["id"])]
+    assert record["status"] == "closed" and record["detail"]["closed_at"] == closed_at.isoformat()
+
+
+def test_a_failed_sync_leaves_the_requests_and_cursor_as_they_were(config, data):
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    saved = {name: (data / "311" / name).read_text() for name in ("requests.json", "sync.json", "status.json")}
+    world[0] = updated(world[0], NOW + timedelta(hours=2), status="Archived")
+    for failing in ("open311", "v2"):
+        with pytest.raises(fetch_311.FetchError, match="HTTP 503"):
+            fetch_311.run(config, FakeSeeClickFix(issues=world, failing=failing), data, now=NOW + timedelta(days=1))
+        assert {name: (data / "311" / name).read_text() for name in saved} == saved
+    # The next run that works picks up where the last good one ended.
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW + timedelta(days=2))
+    assert summary["synced_since"] == "2026-10-15T13:00:00-04:00" and load(data)[str(world[0]["id"])]["status"] == "closed"
+
+
+def test_a_new_towns_history_is_read_a_month_at_a_time_and_resumed(config, data, monkeypatch):
+    """A new town's history since history_since is read a month of submissions at a time, newest
+    first, within the time budget; a run that stops part way saves the months it read whole, and
+    the next run goes on from there."""
+    summary = fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, time_budget=0)
+    pending = json.loads((data / "311" / "sync.json").read_text())["pending"]
+    # Older requests still open, then each month from January 2024 through September 2026, newest first.
+    assert pending[0] == {"start": "2008-01-01T00:00:00+00:00", "end": "2024-01-01T00:00:00-05:00", "open": True}
+    assert [w["start"][:7] for w in pending[1:3]] == ["2026-09", "2026-08"] and pending[-1]["start"][:7] == "2024-01"
+    assert summary["history_windows_left"] == len(pending) == 34
+    # The second window fails: the first is kept, and the run says what stopped it.
+    calls = []
+    original = fetch_311.read_window
+
+    def read_two(*args):
+        calls.append(args[2]["start"])
+        if len(calls) == 2:
+            raise fetch_311.FetchError("HTTP 503", 503)
+        return original(*args)
+    monkeypatch.setattr(fetch_311, "read_window", read_two)
+    summary = fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT)
+    assert summary["history_windows_read"] == 1 and summary["errors"] == ["history from 2026-09-01: HTTP 503"]
+    assert json.loads((data / "311" / "sync.json").read_text())["pending"] == pending[1:]
+    monkeypatch.setattr(fetch_311, "read_window", original)
+    summary = fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT)
+    assert summary["history_windows_left"] == 0 and summary["requests_total"] == 114
+
+
+def test_backfill_adds_months_to_what_is_still_to_read(config, data):
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, time_budget=0)
+    pending = json.loads((data / "311" / "sync.json").read_text())["pending"]
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, time_budget=0, backfill_from=date(2023, 6, 1))
+    sync = json.loads((data / "311" / "sync.json").read_text())
+    assert sync["pending"][:len(pending)] == pending
+    assert [w["start"][:7] for w in sync["pending"][len(pending):]] == [f"2023-{m:02d}" for m in range(12, 5, -1)]
+    assert sync["history_start"] == "2023-06-01T00:00:00-04:00"
+
+
+def test_a_window_too_long_for_the_pages_served_is_split(config, data, monkeypatch):
+    """No listing is cut short: a window with more requests than SeeClickFix serves is read as
+    narrower ones until each fits, and every request is read."""
+    monkeypatch.setattr(fetch_311, "V2_PAGES", 1)
+    monkeypatch.setattr(fetch_311, "PAGE_SIZE", 5)
+    world = real_issues()
+    client = FakeSeeClickFix(issues=world)
+    fetch_311.run(config, client, data, now=NOW + timedelta(days=1), backfill_from=date(2026, 10, 1))
+    assert set(load(data)) == {str(i["id"]) for i in world}
+    listings = [u for u in client.urls if "/issues?" in u]
+    assert not any("page=2" in u for u in listings)
+    assert len({re.search(r"after=([^&]*)", u).group(1) for u in listings if "updated_at" not in u}) > 3
+    # Six submitted in one second: there's no narrower window to read them in. The month stays to be
+    # read, and the run says why; none of the six is saved from a part of the listing.
+    burst = [dict(world[0], id=90000000 + n) for n in range(6)]
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=burst), data, now=NOW + timedelta(days=2),
+                            backfill_from=date(2026, 10, 1))
+    assert "more than 5 requests in one second" in summary["errors"][0] and summary["history_windows_left"] == 1
+    assert not any(r.startswith("9000000") for r in load(data))
+    # In the sync, it stops the step, saving nothing.
+    burst = [dict(b, updated_at=(NOW + timedelta(days=2, hours=1)).isoformat()) for b in burst]
+    with pytest.raises(fetch_311.FetchError, match="more than 5 requests in one second"):
+        fetch_311.run(config, FakeSeeClickFix(issues=burst), data, now=NOW + timedelta(days=3))
+
+
+def test_a_window_that_changes_while_read_is_read_again(config, data, monkeypatch):
+    """A request updated between two pages moves the ones after it: a window whose count changes as
+    it's read is read again, so none is missed."""
+    monkeypatch.setattr(fetch_311, "PAGE_SIZE", 5)
+    world = real_issues()
+    client = FakeSeeClickFix(issues=world)
+    get = client.get
+
+    def changing(url):
+        response = get(url)
+        if "/issues?" in url and "page=2" in url and len(client.issues) == len(world):
+            # Closed and archived just now: it leaves this window.
+            client.issues = [updated(world[0], NOW + timedelta(days=2), status="Archived")] + world[1:]
+        return response
+    client.get = changing
+    fetch_311.run(config, client, data, now=NOW + timedelta(days=1), backfill_from=date(2026, 10, 1))
+    assert set(load(data)) == {str(i["id"]) for i in world}
+
+
+def test_the_rate_limit_is_shared_by_every_town_and_honours_retry_after(tmp_path, monkeypatch):
+    """Two towns' fetches, each its own process with its own client, keep one request delay between
+    them to the same host, and a Retry-After one is given holds the other back too."""
+    from pipeline import http
+    clock = [1000.0]
+    monkeypatch.setattr(http.time, "time", lambda: clock[0])
+    monkeypatch.setattr(http.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + s))
+    town_a, town_b = http.HostLimiter(tmp_path), http.HostLimiter(tmp_path)
+    town_a.wait("seeclickfix.com", 3.2)
+    town_b.wait("seeclickfix.com", 3.2)
+    assert clock[0] == pytest.approx(1003.2)
+    town_b.wait("example.org", 3.2)  # another host isn't held up
+    assert clock[0] == pytest.approx(1003.2)
+    town_a.hold("seeclickfix.com", 60)
+    town_b.wait("seeclickfix.com", 3.2)
+    assert clock[0] == pytest.approx(1063.2)
+
+    class Busy:
+        def __init__(self):
+            self.headers = {"User-Agent": "test"}
+            self.calls = 0
+
+        def get(self, url, timeout):
+            self.calls += 1
+            return type("R", (), {"status_code": 429 if self.calls == 1 else 200, "headers": {"Retry-After": "120"}})()
+    client = http.PoliteClient("test", delay=3.2, limiter=town_a)
+    client.session = Busy()
+    client.get("https://seeclickfix.com/api/v2/issues")
+    other = http.HostLimiter(tmp_path)
+    start = clock[0]
+    other.wait("seeclickfix.com", 3.2)
+    assert clock[0] >= start  # not before the 120 seconds asked for
+    assert json.loads((tmp_path / "seeclickfix.com.json").read_text())["until"] >= 1063.2 + 120
+
+
+def old_store(world: list[dict], stamp: str, without_detail: set[str]) -> dict:
+    """Requests as fetches before the sync saved them: Open311's fields, and APIv2's times for those looked up."""
+    from pipeline import seeclickfix
+    store = {}
+    for issue in world:
+        record = {**seeclickfix.parse_open311(FakeSeeClickFix.open311(issue)), "first_seen": stamp, "last_seen": stamp,
+                  "ward": "2", "precinct": "2-1",
+                  "detail": None if str(issue["id"]) in without_detail else {**seeclickfix.parse_issue(issue), "checked_at": stamp}}
+        store[record["id"]] = record
+    return store
+
+
+def test_saved_requests_go_on_from_where_the_last_fetch_left_them(config, data):
+    """A town's first run on the sync takes its cursor from its saved requests, and reads again only
+    the months with requests whose exact times are missing: no full download."""
+    world = real_issues()
+    # Three submitted in August, saved without their exact times.
+    for issue in world[-3:]:
+        issue["created_at"] = issue["created_at"].replace("2026-10-0", "2026-08-1")
+    missing = {str(i["id"]) for i in world[-3:]}
+    stamp = "2026-10-15T12:00:00-04:00"
+    store = old_store(world, stamp, missing)
+    (data / "311").mkdir()
+    fetch_311.save_json(data / "311" / "requests.json", store)
+    fetch_311.save_json(data / "311" / "status.json", {"updated_at": stamp, "requests_total": len(store)})
+    client = FakeSeeClickFix(issues=world)
+    summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=1))
+    assert summary["synced_since"] == "2026-10-15T11:00:00-04:00"
+    assert summary["history_windows_read"] == 1 and summary["details_missing"] == 0 and summary["new"] == 0
+    # The sync's two listings, and August's: its Open311 list and its APIv2 one.
+    assert client.request_count == 4 and any("after=2026-08-01T04%3A00%3A00Z" in u for u in client.urls)
+    after = load(data)
+    synced = {k for k, r in after.items() if r["last_seen"] != stamp} - missing
+    assert len(synced) == summary["updated_listed"] == 3
+    assert {k: after[k] for k in after.keys() - synced - missing} == {k: store[k] for k in store.keys() - synced - missing}
+    assert all(after[k]["detail"]["acknowledged_at"] == store[k]["detail"]["acknowledged_at"] for k in synced)
+    assert all(after[k]["detail"]["checked_at"] == (NOW + timedelta(days=1)).isoformat() for k in missing)
+    sync = json.loads((data / "311" / "sync.json").read_text())
+    assert sync["cursor"] == "2026-10-16T18:00:00Z" and not sync["pending"] and not sync["lookups"]
+
+
+def test_requests_missing_from_the_open_list_are_looked_up_each_week(config, data):
+    """Once a week every open request is listed. One saved as open that isn't there is looked up:
+    deleted, it's kept out; still open (moved to another organization's request type), it stays open."""
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    open_ids = [str(i["id"]) for i in world if i["status"] in ("Open", "Acknowledged")]
+    deleted, moved = open_ids[0], open_ids[1]
+    world = [i for i in world if str(i["id"]) != deleted]
+    world = [dict(i, request_type={**i["request_type"], "id": 1}) if str(i["id"]) == moved else i for i in world]
+    client = FakeSeeClickFix(issues=world, missing_ids={deleted})
+    summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=3))
+    assert not summary["reconciled"] and not any("/issues/" in u for u in client.urls)
+    summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=8))
+    assert summary["reconciled"] and summary["details_fetched"] == 1
+    store = load(data)
+    assert store[deleted]["removed"] is True and store[moved]["status"] == "open"
 
 
 def test_removed_request_is_kept_out(config, data):
-    source = FakeSeeClickFix()
-    gone = str(source.open_items[0]["service_request_id"])
-    fetch_311.run(config, FakeSeeClickFix(missing_ids={gone}), data, now=FETCHED_AT, detail_limit=500)
+    """A request Open311 lists and APIv2 doesn't is looked up: gone, it's kept out of the figures."""
+    gone = str(saved_issues()[0]["id"])
+    fetch_311.run(config, FakeSeeClickFix(unlisted_ids={gone}, missing_ids={gone}), data, now=FETCHED_AT)
     assert load(data)[gone]["removed"] is True
     scorecard = compute_311.compute(config, data, now=FETCHED_AT)
     assert scorecard["overall"]["received"] == 113
@@ -78,56 +319,28 @@ def test_removed_request_is_kept_out(config, data):
 
 def test_private_request_is_kept_out(config, data):
     """A 403 for one request, with lookups after it working, is a request made private."""
-    private = str(FakeSeeClickFix().open_items[0]["service_request_id"])
-    fetch_311.run(config, FakeSeeClickFix(refused_ids={private}), data, now=FETCHED_AT, detail_limit=500)
+    issues = saved_issues()
+    private, other = str(issues[0]["id"]), str(issues[1]["id"])
+    fetch_311.run(config, FakeSeeClickFix(unlisted_ids={private, other}, refused_ids={private}), data, now=FETCHED_AT)
     store = load(data)
-    assert store[private]["removed"] is True
+    assert store[private]["removed"] is True and store[other]["detail"]
     assert sum(1 for r in store.values() if r.get("removed")) == 1
 
 
 def test_refused_lookups_stop_the_step_and_remove_nothing(config, data):
     """SeeClickFix turning every lookup away is a block, not a city's worth of deleted
     requests: the step fails, nothing is marked removed, and what was listed is kept."""
+    unlisted = {str(i["id"]) for i in saved_issues()[:4]}
     with pytest.raises(fetch_311.FetchError, match="refused 3 lookups in a row"):
-        fetch_311.run(config, FakeSeeClickFix(refuse_all=True), data, now=FETCHED_AT, detail_limit=500)
+        fetch_311.run(config, FakeSeeClickFix(unlisted_ids=unlisted, refuse_all=True), data, now=FETCHED_AT)
     store = load(data)
     assert len(store) == 114 and not any(r.get("removed") for r in store.values())
     status = json.loads((data / "311" / "status.json").read_text())
     assert any("HTTP 403" in e for e in status["errors"])
-    # The block lifts: the next run fills in the details as usual.
-    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT, detail_limit=500)
+    assert set(json.loads((data / "311" / "sync.json").read_text())["lookups"]) == unlisted
+    # The block lifts: the next run looks them up.
+    fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT)
     assert all(r["detail"] for r in load(data).values())
-
-
-def test_listing_past_the_page_limit_stops_the_step_and_closes_nothing(config, data, monkeypatch):
-    """An open list longer than the pages read is cut off, not complete: the step fails rather than
-    mark the requests past the cut closed, and what was saved is left as it was."""
-    first = FakeSeeClickFix()
-    fetch_311.run(config, first, data, now=FETCHED_AT, detail_limit=0)
-    saved = {name: (data / "311" / name).read_text() for name in ("requests.json", "status.json")}
-    # One more open request than a page holds, the first one listed now on the second page.
-    extra = dict(first.window_items[0], service_request_id=99999999, status="open")
-    reordered = first.open_items[1:] + [extra, first.open_items[0]]
-    monkeypatch.setattr(fetch_311, "MAX_PAGES", 1)
-    later = FakeSeeClickFix(open_items=reordered)
-    with pytest.raises(fetch_311.FetchError, match="more than 100 requests"):
-        fetch_311.run(config, later, data, now=FETCHED_AT.replace(day=27), detail_limit=0)
-    assert {name: (data / "311" / name).read_text() for name in saved} == saved
-    # The same list, read to its end, closes nothing.
-    monkeypatch.setattr(fetch_311, "MAX_PAGES", 2)
-    summary = fetch_311.run(config, FakeSeeClickFix(open_items=reordered), data, now=FETCHED_AT.replace(day=27),
-                            detail_limit=0)
-    assert summary["open_listed"] == 101
-    assert load(data)[str(first.open_items[0]["service_request_id"])]["status"] == "open"
-
-
-def test_recent_listing_past_the_page_limit_stops_the_step(config, data, monkeypatch):
-    first = FakeSeeClickFix()
-    monkeypatch.setattr(fetch_311, "MAX_PAGES", 1)
-    window = [dict(first.window_items[i % 30], service_request_id=90000000 + i) for i in range(100)]
-    with pytest.raises(fetch_311.FetchError, match=r"\(start_date=.*more than 100 requests"):
-        fetch_311.run(config, FakeSeeClickFix(open_items=[], window_items=window), data, now=FETCHED_AT, detail_limit=0)
-    assert not (data / "311" / "requests.json").exists()
 
 
 def test_scorecard_is_dated_by_the_last_fetch(config, data):
