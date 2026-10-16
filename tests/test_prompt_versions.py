@@ -34,19 +34,21 @@ PROMPTS = {
         fingerprint(summarize.TRANSCRIBE["system"], summarize.TRANSCRIBE["prompt"], summarize.TRANSCRIBE["schema"])),
     "translation (translate.VERSION)": lambda: (
         translate.VERSION,
-        fingerprint(translate.SYSTEM, translate.PROMPT, translate.CORRECT, translate.READERS, translate.schema("agenda"),
-                    translate.schema("minutes"))),
+        fingerprint(translate.SYSTEM, translate.PROMPT, translate.CORRECT, translate.READERS, translate.GLOSSARY,
+                    translate.schema("agenda"), translate.schema("minutes"))),
     "drafted text (translate.NAMES_VERSION)": lambda: (
-        translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT)),
+        translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT, translate.GLOSSARY)),
 }
 
-# (version, hash of the prompt), as of 2026-10-08.
+# (version, hash of the prompt), as of 2026-10-16.
 PINNED = {
     "summary of an agenda (summarize.KINDS)": (5, "22ed04a0cc5534fe"),
     "summary of minutes (summarize.KINDS)": (4, "1cbeee13a57af57b"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
-    "translation (translate.VERSION)": (4, "67e42f3d54351063"),
-    "drafted text (translate.NAMES_VERSION)": (2, "1ac57feb64f0ccfd"),
+    "translation (translate.VERSION)": (5, "1f7a10340be019b6"),
+    # The town's glossary added to the drafting prompt (2026-10-16) without a bump: it only adds words, and
+    # drafts made before it, each checked and reviewed, stay shown rather than all made again at once.
+    "drafted text (translate.NAMES_VERSION)": (2, "3df0dba9c6397f65"),
 }
 
 
