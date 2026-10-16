@@ -888,8 +888,13 @@ def config_text(town: NewTown, short: bool = False) -> Config:
               'Committee"]): comment, source_title, source_url, video_title, video_url, each from the board\'s own '
               "rules or agendas.")
     terms = c.inherited.get("terms", {})
-    c.fill_in(5, "[[glossary]], terms that come up in this city's agendas, each from an official page."
-              + (f" A term the layers define needs only its term, for their definition: {', '.join(terms)}." if terms else ""))
+    # Terms the layers give by language are in every town's glossary already (pipeline/glossary.py).
+    given = [t for t, v in terms.items() if isinstance(v, dict)]
+    defined = [t for t, v in terms.items() if not isinstance(v, dict)]
+    c.fill_in(5, "[[glossary]], terms that come up in this city's agendas and mean something of its own here, each from "
+              "an official page."
+              + (f" The state's and the network's terms are in its glossary already: {', '.join(given)}." if given else "")
+              + (f" A term the layers define needs only its term, for their definition: {', '.join(defined)}." if defined else ""))
 
     config_codes(c, town)
     sources = [{"label": f"Meetings ({'Agenda Center' if 'agenda_center' in meetings else 'CivicClerk' if 'civicclerk' in meetings else 'city calendar'})",

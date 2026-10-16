@@ -666,6 +666,13 @@ msgstr "%(town)s, %(state)s: funcionarios electos y cómo contactarlos"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
+#: site/pages/meetings/glossary/index.html
+#, python-format
+msgid "%(town)s, %(state)s glossary of local government terms"
+msgstr "Glosario de términos del gobierno local de %(town)s, %(state)s"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
 #: site/pages/housing/index.html
 #, python-format
 msgid "%(town)s, %(state)s housing: permits, home values, and rents"
@@ -1885,6 +1892,10 @@ msgstr "Todas las reuniones registradas"
 msgid "All repeat locations"
 msgstr "Todos los lugares con solicitudes repetidas"
 
+#: site/templates/meeting.html
+msgid "All the terms in the glossary"
+msgstr "Todos los términos del glosario"
+
 #: site/pages/officials/index.html
 msgid "Also representing you, elected citywide:"
 msgstr "También lo representan, elegidos por toda la ciudad:"
@@ -1971,6 +1982,11 @@ msgid ""
 msgstr ""
 "Al %(when)s, %(units)s de las %(homes)s viviendas de uso todo el año de %(town)s estaban en la "
 "lista: <strong>%(percent)s%%</strong>."
+
+#: site/pages/meetings/glossary/index.html
+#, python-format
+msgid "As used by: %(boards)s."
+msgstr "Así lo usa: %(boards)s."
 
 #: site/states/ri/budget.html
 msgid "Assessed value"
@@ -2123,7 +2139,7 @@ msgstr "Junta de Registradores de Votantes"
 
 #: pipeline/common_strings.py
 msgid "Board of Selectmen"
-msgstr "Junta de Selectos"
+msgstr "Junta de Gobierno"
 
 #: site/pages/meetings/boards/index.html site/pages/meetings/index.html site/templates/board.html
 msgid "Boards and committees"
@@ -2136,9 +2152,10 @@ msgstr "Calificaciones crediticias"
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
 #: site/pages/meetings/boards/index.html site/pages/meetings/decisions/index.html
-#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
-#: site/templates/category.html site/templates/digest.html site/templates/digest_answer.html
-#: site/templates/meeting.html site/templates/ward.html
+#: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
+#: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
+#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
+#: site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -2864,6 +2881,14 @@ msgstr ""
 "haberse publicado cifras más nuevas; en ese caso, el encargado del sitio recibe un aviso "
 "automático."
 
+#: site/pages/meetings/glossary/index.html
+msgid ""
+"Each term is followed by its English name where the city's documents use it, so you can find it "
+"in them."
+msgstr ""
+"Cada término lleva su nombre en inglés, el que usan los documentos de la ciudad, para que pueda "
+"encontrarlo en ellos."
+
 #: site/states/ct/budget.html
 #, python-format
 msgid ""
@@ -3522,6 +3547,10 @@ msgstr "Reciba la semana que viene por correo electrónico"
 #: site/templates/digest.html
 msgid "Get the weekly digest by email"
 msgstr ""
+
+#: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
+msgid "Glossary"
+msgstr "Glosario"
 
 #: site/states/ma/schools.html
 #, python-format
@@ -4453,9 +4482,10 @@ msgstr ""
 "enlaza a él."
 
 #: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/boards/index.html
-#: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
-#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
-#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
+#: site/pages/meetings/decisions/index.html site/pages/meetings/glossary/index.html
+#: site/pages/meetings/index.html site/pages/meetings/past/index.html
+#: site/pages/meetings/search/index.html site/templates/board.html site/templates/digest.html
+#: site/templates/digest_email.html site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
 
@@ -5965,7 +5995,7 @@ msgstr "Véalo en el mapa"
 
 #: pipeline/common_strings.py
 msgid "Select Board"
-msgstr "Junta de Selectos"
+msgstr "Junta de Gobierno"
 
 #: pipeline/i18n.py
 msgctxt "month, short"
@@ -8496,6 +8526,14 @@ msgstr "Sobre qué se cobra el impuesto a la propiedad"
 msgid "What the property tax raises"
 msgstr "Lo que recauda el impuesto a la propiedad"
 
+#. %(town)s is the town's name.
+#: site/pages/meetings/glossary/index.html
+#, python-format
+msgid "What the words in %(town)s's agendas, minutes, and meeting summaries mean, in plain language."
+msgstr ""
+"Qué quieren decir, en palabras sencillas, los términos de las agendas, las actas y los resúmenes "
+"de las reuniones de %(town)s."
+
 #: site/pages/about/index.html
 msgid "What this site doesn't cover"
 msgstr "Lo que este sitio no incluye"
@@ -8653,6 +8691,10 @@ msgstr "¿En qué distrito está {street}?"
 #: pipeline/build_site.py site/pages/officials/index.html
 msgid "Who represents you"
 msgstr "Quién lo representa"
+
+#: site/pages/meetings/glossary/index.html
+msgid "Words that come up in agendas, minutes, and their summaries, and what they mean."
+msgstr "Palabras que aparecen en las agendas, las actas y sus resúmenes, y qué quieren decir."
 
 #: site/pages/about/accessibility/index.html
 #, python-format
