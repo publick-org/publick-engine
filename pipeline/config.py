@@ -25,11 +25,22 @@ wording looked up by key. A town can't remove a key a layer sets; it sets its
 own value. Without either file (a town in its own repository) a config is read
 as it always was.
 
-[terms] holds glossary definitions by term. A town's [[glossary]] entry with no
-definition, only its term (and bodies, if any), takes the definition from
-there, so a state's wording of its laws is written once; an entry with its own
-definition keeps it. The [[glossary]] list itself, its terms and their order,
-is the town's.
+[terms] holds the glossary by English term. A term's value is either its English
+definition alone, or a table with a column for each language (en, es, ...),
+each an inline table: the term's wording in that language (term; English's is
+the key), its definition, and, if it's written other ways, also (a list) or
+pattern (a regular expression) to find it by. A term given as a table is in
+every town's glossary (pipeline/glossary.py): its page, the links from meeting
+pages, and the translator's words. Another language is another column:
+
+  [terms."warrant article"]
+  en = { definition = "One item on the warrant, the list of what a town meeting will vote on." }
+  es = { term = "artículo de la convocatoria (warrant article)", definition = "Un asunto de la convocatoria..." }
+
+A town's [[glossary]] entry with no definition, only its term (and bodies, if
+any), takes the definition from [terms], so a state's wording of its laws is
+written once; an entry with its own definition keeps it, and wins over a term
+of the same name in [terms] (a word that means something else in that town).
 
 What a layer may set is LAYER_KEYS, with each value's type (or, for an effort,
 the values it may take): anything else in a layer file stops the load, naming
@@ -76,6 +87,10 @@ NUMBER = "number"
 ANY = "*"
 # An effort level the API takes (output_config.effort). A tuple of strings in the schema is a choice of one of them.
 EFFORT = ("low", "medium", "high", "xhigh", "max")
+# A glossary term ([terms]): its English definition, or a table with a column for each language (term_problem()).
+TERM = "term"
+# What a language's column of a term may have, and each value's type.
+TERM_KEYS = {"term": str, "definition": str, "also": [str], "pattern": str}
 # What a layer may set, and each value's type. A table nests; ANY stands for any key (a term, a language).
 LAYER_KEYS = {
     "site": {"network": str, "network_url": str, "repo_url": str, "name_suffix": str, "timezone": str,
@@ -97,7 +112,7 @@ LAYER_KEYS = {
     "housing": {"bps_region": str, "bps_prefix": str, "bps_state": str, "state_geo": str, "shi_url": str},
     "labor": {"state_series": str, "bulk_file": str},
     "schools": {"portal": str},
-    "terms": {ANY: str},
+    "terms": {ANY: TERM},
     "strings": {ANY: {ANY: str}},
 }
 
@@ -156,7 +171,41 @@ def key_name(path: tuple) -> str:
     return f"[{'.'.join(map(bare, path))}]" if len(path) == 1 else f"[{'.'.join(map(bare, path[:-1]))}] {bare(path[-1])}"
 
 
+def term_problem(value) -> str | None:
+    """What's wrong with a [terms] value, or None: a string (the English definition), or a table of
+    languages, each an inline table of TERM_KEYS, English's with a definition and every other's with
+    its term and definition. A pattern must compile."""
+    if isinstance(value, str):
+        return None
+    if not isinstance(value, dict) or not value:
+        return "a string (its definition) or a table of languages"
+    if "en" not in value:
+        return "a table with an en column, its English definition"
+    for lang, column in value.items():
+        if not re.fullmatch(r"[a-z]{2}", lang):
+            return f"a table of languages by their two-letter code, not {lang!r}"
+        if not isinstance(column, dict):
+            return f"a table of languages, each an inline table ({lang} is {column!r})"
+        for key, v in column.items():
+            if key not in TERM_KEYS:
+                return f"a table of languages, each with {', '.join(TERM_KEYS)} ({lang} has {key!r})"
+            if not fits(v, TERM_KEYS[key]):
+                return f"a table whose {lang}.{key} is {type_name(TERM_KEYS[key])}"
+        needs = ("definition",) if lang == "en" else ("term", "definition")
+        for key in needs:
+            if not column.get(key):
+                return f"a table whose {lang} column has its {key}"
+        if column.get("pattern"):
+            try:
+                re.compile(column["pattern"])
+            except re.error as e:
+                return f"a table whose {lang}.pattern is a regular expression ({e})"
+    return None
+
+
 def type_name(spec) -> str:
+    if spec == TERM:
+        return "a string (its definition) or a table of languages"
     if isinstance(spec, tuple):
         return "one of " + ", ".join(json.dumps(v) for v in spec)
     return ("a table" if isinstance(spec, dict) else "a list of strings" if isinstance(spec, list)
@@ -164,6 +213,8 @@ def type_name(spec) -> str:
 
 
 def fits(value, spec) -> bool:
+    if spec == TERM:
+        return term_problem(value) is None
     if isinstance(spec, tuple):
         return value in spec
     if isinstance(spec, list):
@@ -189,6 +240,8 @@ def check_layer(layer: dict, where: str, schema: dict = LAYER_KEYS, path: tuple 
                                 "else is each town's own (pipeline/config.py, LAYER_KEYS)."))
         if isinstance(spec, dict) and isinstance(value, dict):
             check_layer(value, where, spec, here)
+        elif spec == TERM and term_problem(value):
+            raise SystemExit(f"{where}: {key_name(here)} should be {term_problem(value)}.")
         elif not fits(value, spec):
             raise SystemExit(f"{where}: {key_name(here)} should be {type_name(spec)}, not {value!r}.")
 
@@ -212,6 +265,9 @@ def check_types(config: dict, origins: dict, schema: dict = LAYER_KEYS, path: tu
         if isinstance(spec, dict):
             if isinstance(value, dict):
                 check_types(value, origins, spec, here)
+        elif spec == TERM and term_problem(value):
+            raise SystemExit(f"{origins.get(here, origins.get(here + ('en',), 'config'))}: {key_name(here)} should be "
+                             f"{term_problem(value)}.")
         elif not fits(value, spec):
             raise SystemExit(f"{origins.get(here, 'config')}: {key_name(here)} should be {type_name(spec)}, not {value!r}.")
 
@@ -237,7 +293,8 @@ def fill(config: dict, layer: dict, origin: str, origins: dict, path: tuple = ()
 
 
 def define_glossary(config: dict, where: str, origins: dict) -> None:
-    """Each [[glossary]] entry without a definition takes its term's from [terms]."""
+    """Each [[glossary]] entry without a definition takes its term's from [terms]: the English definition,
+    and, for a term given as a table of languages, the table too (languages), for its other languages."""
     terms = config.get("terms", {})
     for i, entry in enumerate(config.get("glossary", [])):
         if "definition" in entry:
@@ -246,8 +303,14 @@ def define_glossary(config: dict, where: str, origins: dict) -> None:
         if term not in terms:
             raise SystemExit(f"{where}: the [[glossary]] entry {term!r} has no definition, and no [terms] in the town's "
                              "file or its layers has one for it.")
-        entry["definition"] = terms[term]
-        origins[("glossary", i, "definition")] = origins.get(("terms", term), where)
+        value = terms[term]
+        if isinstance(value, dict):
+            entry["definition"] = value["en"]["definition"]
+            entry["languages"] = copy.deepcopy(value)
+            origins[("glossary", i, "definition")] = origins.get(("terms", term, "en", "definition"), where)
+        else:
+            entry["definition"] = value
+            origins[("glossary", i, "definition")] = origins.get(("terms", term), where)
 
 
 def read_config(path: Path, network: Path | None = None, origins: dict | None = None) -> dict:

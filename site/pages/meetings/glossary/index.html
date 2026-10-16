@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{# The town's glossary (pipeline/glossary.py): its own terms and its state's, each in this page's language. #}
+{% block title %}{{ _("Glossary") }}{% endblock %}
+{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
+{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} glossary of local government terms{% endtrans %}{% endblock %}
+{# Translators: %(town)s is the town's name. #}
+{% block description %}{% trans town=town.name %}What the words in {{ town }}'s agendas, minutes, and meeting summaries mean, in plain language.{% endtrans %}{% endblock %}
+{% block content %}
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/meetings/">{{ _("Meetings") }}</a></li></ol>
+</nav>
+<h1>{{ _("Glossary") }}</h1>
+<p class="lede">{{ _("Words that come up in agendas, minutes, and their summaries, and what they mean.") }}</p>
+{% if lang != "en" %}<p class="small">{{ _("Each term is followed by its English name where the city's documents use it, so you can find it in them.") }}</p>{% endif %}
+<dl class="defs glossary">
+  {% for g in glossary %}
+  <dt id="{{ g.slug }}">{% if g.translated %}{{ g.term }}{% else %}<span lang="en">{{ g.term }}</span>{% endif %}{% if lang != "en" and g.term_en.lower() not in g.term.lower() %} <span class="meta" lang="en">({{ g.term_en }})</span>{% endif %}</dt>
+  <dd>{% if g.definition_english %}<span lang="en">{{ g.definition }}</span>{% else %}{{ g.definition }}{% endif %}{% if g.bodies %} <span class="meta">{% trans boards=g.bodies | join(", ") %}As used by: {{ boards }}.{% endtrans %}</span>{% endif %}</dd>
+  {% endfor %}
+</dl>
+{% endblock %}

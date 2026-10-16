@@ -178,13 +178,13 @@
 {% trans who=m.minutes_doc.get("posted_by") or _("The city") %}{{ who }} filed a different document here instead of minutes. Minutes may be posted later.{% endtrans %}
 {% endif %}</p>
 {% elif ms.summary %}
-<p{{ english_attr(ms) }}>{{ ms.summary }}</p>
+<p{{ english_attr(ms) }}>{{ gloss(ms.summary, ms.get("english")) }}</p>
 {% endif %}
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
 <h3>{{ _("Decisions recorded") }}</h3>
 <ul{{ english_attr(ms) }}>
-  {% for d in ms.decisions %}<li>{{ d }}</li>{% endfor %}
+  {% for d in ms.decisions %}<li>{{ gloss(d, ms.get("english")) }}</li>{% endfor %}
 </ul>
 {% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
@@ -253,11 +253,11 @@
 
 <h2 id="agenda">{% if m.date >= built_at.date().isoformat() %}{{ _("What's on the agenda") }}{% else %}{{ _("Agenda") }}{% endif %}</h2>
 {% if m.preview %}
-{% if m.preview.summary %}<p{{ english_attr(m.preview) }}>{{ m.preview.summary }}</p>{% endif %}
+{% if m.preview.summary %}<p{{ english_attr(m.preview) }}>{{ gloss(m.preview.summary, m.preview.get("english")) }}</p>{% endif %}
 {% if m.preview["items"] %}
 <h3 id="agenda-items">{{ _("Agenda items") }}</h3>
 <ul{{ english_attr(m.preview) }}>
-  {% for item in m.preview["items"] %}<li>{{ item }}</li>{% endfor %}
+  {% for item in m.preview["items"] %}<li>{{ gloss(item, m.preview.get("english")) }}</li>{% endfor %}
 </ul>
 {% endif %}
 {% if m.preview.get("not_shown") %}
@@ -323,8 +323,9 @@
 {% if m.glossary %}
 <h2 id="terms">{{ _("Terms used here") }}</h2>
 <dl class="defs">
-  {% for g in m.glossary %}<dt>{{ g.term }}</dt><dd>{{ g.definition }}</dd>{% endfor %}
+  {% for g in m.glossary %}<dt{% if not g.translated %} lang="en"{% endif %}>{{ g.term }}</dt><dd{% if g.definition_english %} lang="en"{% endif %}>{{ g.definition }}</dd>{% endfor %}
 </dl>
+<p class="small"><a href="/meetings/glossary/">{{ _("All the terms in the glossary") }}</a></p>
 {% endif %}
 
 {% if m.history %}

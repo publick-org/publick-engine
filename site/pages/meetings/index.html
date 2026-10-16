@@ -15,6 +15,7 @@
     {% if meeting_links.documents %}<li><a href="/meetings/decisions/">{{ _("Decisions") }}</a></li>{% endif %}
     {% if street_sources %}<li><a href="/streets/">{{ _("Your street") }}</a></li>{% endif %}
     <li><a href="/meetings/past/">{{ _("Past meetings") }}</a></li>
+    {% if glossary %}<li><a href="/meetings/glossary/">{{ _("Glossary") }}</a></li>{% endif %}
   </ul>
   {% if meeting_links.documents %}{{ search_form() }}{% endif %}
 </div>
