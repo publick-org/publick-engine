@@ -9,6 +9,8 @@
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city data{% endtrans %}{% endif %}{% endblock %}
 {% block head_title %}{{ self.title() }}{% endblock %}
 {% block structured_data %}{{ structured(website()) }}{% endblock %}
+{# This page has the signup near its top, so not in the footer too. #}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
 <h1>{% trans town=town.name %}This week in {{ town }}{% endtrans %}</h1>
@@ -34,6 +36,9 @@
   {%- else %}{% trans sources=street_sources | capitalize_first %}{{ sources }} on any street.{% endtrans %}{% endif %}</p>
 </form>
 {% endif %}
+
+{# ---- The weekly digest's signup, near the top: the week it sends is next (digest_box.html) ---- #}
+{% with form_id="home-signup" %}{% include "digest_box.html" %}{% endwith %}
 
 {% if config.meetings is defined %}
 {# ---- Coming up ---- #}
@@ -73,17 +78,6 @@
 {% endif %}
 {% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
-{% endif %}
-
-{# ---- The weekly digest's signup, under the week it sends: in English, as the digest is for now (pipeline/digest.py) ---- #}
-{% if digest_signup and lang == "en" %}
-<section class="signup-box" aria-labelledby="digest-signup">
-  <h2 id="digest-signup">{{ _("Get the week ahead by email") }}</h2>
-  {# Translators: %(town)s is the town's name. #}
-  <p>{% if meeting_links.documents %}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead, and what was decided at the meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}
-  {%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}{% endif %}</p>
-  {% with form_id="home-signup" %}{% include "digest_form.html" %}{% endwith %}
-</section>
 {% endif %}
 
 {# ---- Decided ---- #}
