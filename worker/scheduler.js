@@ -38,8 +38,9 @@
 // Environment (the network repository's wrangler.scheduler.toml): GITHUB_TOKEN,
 // a secret (a fine-grained token for the network repository with Actions and
 // Issues read and write, and for the engine repository with Actions read and
-// write); REPOSITORY, WORKFLOW, BRANCH, STATUS_URL, and ALERT_ASSIGNEE;
-// ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
+// write); REPOSITORY, WORKFLOW, BRANCH, and STATUS_URL; ALERT_ASSIGNEE, the
+// account the issues are assigned to (a var or a secret; none, and they're
+// assigned to no one); ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
 // service binding to the Worker that serves the sites, which the status page
 // is read through; for the digest, BUTTONDOWN_SEND_KEY and DIGEST_TOWNS (digest.js); and for
 // Search Console, GSC_SERVICE_ACCOUNT_JSON and SEARCH_CONSOLE_SITE (search.js).

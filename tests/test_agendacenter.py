@@ -249,7 +249,8 @@ def test_minutes_per_run_limit(malden, tmp_path):
 def test_an_agenda_posted_twice_is_one_meeting(malden, tmp_path):
     """A clerk posting the same meeting's agenda again, under a new number, lists it twice;
     with no times to tell them apart, the same board on the same day is one meeting, at the
-    address of the first, with both agendas."""
+    board's address for the day (pipeline/identity.py), with both agendas. Both were first recorded
+    in this run, so neither listing's own page was ever published, and none says it moved."""
     from pipeline import build_site
     page = PAGE.replace("4452", "9452")
     page = page.replace("Joint Finance Rules and Ordinance Agenda", "Finance Committee Agenda (second posting)")
@@ -262,7 +263,7 @@ def test_an_agenda_posted_twice_is_one_meeting(malden, tmp_path):
     assert [x["id"] for x in m["listings"]] == ["agendacenter-4453", "agendacenter-9452"]
     assert m["same_as"] == "no_time"
     assert len(m["agendas"]) == 2
-    assert m["also_urls"] == [f"/meetings/{load_store(tmp_path)['agendacenter-9452']['slug']}/"]
+    assert m["url"] == "/meetings/2026-09-29-city-council-finance-committee/" and m["also_urls"] == []
 
 
 def test_same_day_meetings_of_different_kinds_are_numbered(malden, tmp_path):

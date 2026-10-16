@@ -34,7 +34,7 @@ from pipeline import civicplus, wordfile
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import (
-    load_store, meetings_dir, normalize_body, pdf_has_text, record_change, save_json, slugify, unique_slug,
+    load_store, normalize_body, pdf_has_text, record_change, save_store, slugify, unique_slug,
 )
 from pipeline.http import FetchError, PoliteClient
 
@@ -141,7 +141,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             known.add(item["id"])
             added += 1
 
-    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    save_store(data_dir, store, config)
     return {"minutes_added": added, "meetings_created": created, "errors": errors}
 
 
@@ -188,7 +188,7 @@ def run_linked(config: dict, client, data_dir: Path, now: datetime | None = None
             minutes.append(doc)
             added += 1
         waiting_count += len(waiting) - len(batch)
-    save_json(meetings_dir(data_dir) / "meetings.json", store)
+    save_store(data_dir, store, config)
     return {"minutes_added": added, "minutes_waiting": waiting_count, "errors": errors}
 
 

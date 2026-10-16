@@ -7,7 +7,10 @@
 // each path to a blob. Paths resolve as GitHub Pages resolved them: /about/
 // serves about/index.html, /about redirects to /about/, and anything unknown
 // gets the site's 404.html with status 404: its language's, for a path under a
-// language's folder (/es/... gets es/404.html).
+// language's folder (/es/... gets es/404.html). An address the manifest lists
+// in its redirects (a meeting's page that moved when its listings were shown
+// as one meeting, pipeline/identity.py) is a permanent redirect to its new
+// address; the build's own page there, for other hosts, isn't served.
 //
 // A site in more than one language (English at the root, Spanish under /es/)
 // opens its homepage in the language the visitor's browser asks for first:
@@ -72,6 +75,22 @@ export function clearManifests() {
 // Whether the manifest lists a file: its own keys only, so a path like /constructor isn't
 // taken for one of every object's built-in properties.
 const listed = (files, key) => Object.hasOwn(files, key);
+
+// Where a moved page's address now leads (the manifest's redirects, by path: "/meetings/old/"), with or
+// without its trailing slash; or null.
+export function movedTo(redirects, pathname) {
+  if (!redirects) return null;
+  let path;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  for (const candidate of path.endsWith("/") ? [path] : [path, `${path}/`]) {
+    if (Object.hasOwn(redirects, candidate)) return redirects[candidate];
+  }
+  return null;
+}
 
 // The manifest entry for a URL path, or a redirect to its canonical form.
 export function resolve(files, pathname) {
@@ -150,6 +169,15 @@ async function blobBody(env, ctx, host, hash) {
   return body;
 }
 
+// A moved page's permanent redirect, kept by browsers and caches for no longer than a page is: a
+// rollback to a build where the address was still a page of its own takes effect as quickly.
+function moved(location) {
+  return new Response(null, {
+    status: 301,
+    headers: { Location: location, "Cache-Control": SHORT, "Strict-Transport-Security": HSTS },
+  });
+}
+
 function redirect(location, headers = {}) {
   return new Response(null, {
     status: 302,
@@ -210,6 +238,9 @@ async function route(request, env, ctx) {
   }
   const manifest = await loadManifest(env, host);
   if (!manifest) return new Response("No site here.", { status: 404 });
+  const target = movedTo(manifest.redirects, url.pathname);
+  // Only to another page of the site: "//other.site/" would leave it.
+  if (target && /^\/(?![/\\])/.test(target)) return moved(`${url.origin}${target}${url.search}`);
   const { key, redirect: canonical } = resolve(manifest.files, url.pathname);
   if (canonical) return Response.redirect(`${url.origin}${canonical}${url.search}`, 301);
   const languages = siteLanguages(manifest.files);
