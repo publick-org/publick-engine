@@ -468,6 +468,13 @@ def test_cached_input_is_counted_at_its_own_price():
     assert summarize.cost(cached, prices) == pytest.approx(TRANSLATION + (800 * 1.25 + 1000 * 0.1) * 2.0 / 1e6)
 
 
+# A state's glossary term, as its layer gives it (pipeline/glossary.py).
+SELECT_BOARD = [{"term": "Select Board", "definition": "The elected board that runs a town.", "bodies": [],
+                 "languages": {"en": {"definition": "The elected board that runs a town.",
+                                      "also": ["Selectboard", "Board of Selectmen"]},
+                               "es": {"term": "Junta de Gobierno (Select Board)", "definition": "La junta que gobierna."}}}]
+
+
 def test_names_with_capitals_inside_hyphens_and_titles():
     names = translate.names
     # Capitals inside, which a capitalized word's pattern missed, or found only the end of ("Brien").
@@ -481,8 +488,11 @@ def test_names_with_capitals_inside_hyphens_and_titles():
     # Not another title, a heading, or the end of a sentence: "Mayor Pro Tem", "Chair Report", "the Mayor. Members".
     assert names("Mayor Pro Tem spoke; Chair Report; seconded by Alderman Barry. He thanked the Mayor. Members left.") \
         == {"Barry"}
-    # Ordinary words the dictionary lacks, an acronym's plural, and a month's abbreviation.
+    # Ordinary words the dictionary lacks, a title, an acronym's plural, and a month's abbreviation.
     assert names("The Councillors heard the Sustainability and Unaudited reports on Nov 3 and Oct 5 for CDs.") == set()
+    # The glossary's words are no one's name either.
+    assert names("The Selectboard voted.") == {"Selectboard"}
+    assert names("The Selectboard voted.", translate.glossary_words(SELECT_BOARD)) == set()
     # A name in quotes.
     assert names("Approved naming the 'Matzeliger Way' and ('Janice and Scott Conant').") >= {"Matzeliger", "Janice", "Conant"}
 
@@ -496,3 +506,64 @@ def test_a_name_is_kept_whichever_apostrophe_it_s_written_with():
     assert check("Councillor McCallum spoke.", "El concejal McCallum habló.") == "ok"
     assert check("Councilor Hall spoke.", "El concejal Salón habló.") == "summary: Hall not in the translation"
     assert check("McCallum spoke.", "Mccallum habló.") == "summary: McCallum not in the translation"
+
+
+def test_the_glossary_is_checked_without_ai():
+    def check(english, spanish, terms=SELECT_BOARD):
+        return translate.check({"headline": "", "summary": english, "decisions": []},
+                               {"headline": "", "summary": spanish, "decisions": []}, "minutes", terms=terms)
+    assert check("The Select Board met.", "La Junta de Gobierno (Select Board) se reunió.") == "ok"
+    # The English in parentheses is for the first time only; plural and case as the sentence needs.
+    assert check("The Select Board met.", "La junta de gobierno se reunió.") == "ok"
+    assert check("Two Select Boards met.", "Dos Juntas de Gobierno se reunieron.") == "ok"
+    assert check("The Board of Selectmen met.", "La Junta de Gobierno se reunió.") == "ok"
+    assert check("The Select Board met.", "La Junta de Selectos (Select Board) se reunió.") \
+        == 'summary: "Select Board" isn\'t written "Junta de Gobierno (Select Board)"'
+    # Without the glossary, or for a term limited to some boards, nothing is asked.
+    assert check("The Select Board met.", "La Junta de Selectos se reunió.", terms=()) == "ok"
+    assert check("The Select Board met.", "La Junta de Selectos se reunió.",
+                 terms=[{**SELECT_BOARD[0], "bodies": ["Retirement Board"]}]) == "ok"
+
+
+def test_the_translator_and_its_reviewer_are_given_the_glossary(tmp_path):
+    config = spanish_town(tmp_path)
+    config["terms"] = {"Select Board": SELECT_BOARD[0]["languages"], "M.G.L.": "Massachusetts General Laws."}
+    client = FakeAnthropic()
+    summarize.run(config, client, tmp_path, limit=3, now=FETCHED_AT)
+    call = translation_calls(client)[0]
+    assert "Civic terms." in system(call) and "- Select Board = Junta de Gobierno (Select Board)" in system(call)
+    # A term given only by its English definition isn't a term for the translator.
+    assert "M.G.L." not in system(call)
+    reviews = [c for c in client.calls if "problems" in c["output_config"]["format"]["schema"]["properties"]]
+    assert "- Select Board = Junta de Gobierno (Select Board)" in system(reviews[0])
+    record = next(iter(translations(tmp_path).values()))
+    assert record["glossary"] == translate.glossary_key(translate.glossary.entries(config), "es")
+    # A town without terms gets the prompt as it was.
+    assert translate.glossary_text([], "es") == ""
+
+
+def test_a_glossary_change_makes_again_only_the_translations_it_fails(tmp_path):
+    """The stand-in's translations keep the English, so a term written the same in both passes, and one
+    given another wording fails: the translations whose English uses it are made again, with tries of
+    their own, and the rest are kept."""
+    config = spanish_town(tmp_path)
+    term = {"en": {"definition": "A drawing of a project."}, "es": {"term": "site plan", "definition": "Un plano."}}
+    config["terms"] = {"site plan": term}
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    before = translations(tmp_path)
+    uses = {sha for sha, r in before.items() if "site plan" in json.dumps(r)}
+    assert uses and all(r["check"] == "ok" for r in before.values())
+    config["terms"] = {"site plan": {**term, "es": {"term": "plano del sitio", "definition": "Un plano."}}}
+    again = FakeAnthropic()
+    summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)
+    after = translations(tmp_path)
+    for sha in uses:
+        # Made again as a correction, its tries counted from the new glossary's first.
+        assert after[sha]["generated_at"] and after[sha]["check"].endswith('"site plan" isn\'t written "plano del sitio"')
+        assert after[sha]["glossary"] != before[sha]["glossary"] and after[sha]["attempts"] in (1, 2)
+    assert all(after[sha] == before[sha] for sha in before if sha not in uses)
+    assert any("plano del sitio" in c["messages"][0]["content"] for c in translation_calls(again))
+    # Once each has had its tries with this glossary, it's left (and the English shown).
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    assert all(translations(tmp_path)[sha]["attempts"] == 2 for sha in uses)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0

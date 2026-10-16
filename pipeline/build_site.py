@@ -410,18 +410,19 @@ def from_agenda(m: dict) -> None:
         m["from_agenda"] = True
 
 
-def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None) -> dict | None:
+def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None, terms: list[dict] = ()) -> dict | None:
     """A summary as the language being built shows it: its translation, when one passed the
-    checks (pipeline/translate.py), or the English, marked "english" for the page to say so: True
-    while it waits to be translated, "failed" for a translation that didn't pass the checks."""
+    checks (pipeline/translate.py; terms: the town's glossary, whose terms it must write as given),
+    or the English, marked "english" for the page to say so: True while it waits to be translated,
+    "failed" for a translation that didn't pass the checks."""
     lang = i18n.language()
     if not record or lang == "en":
         return record
-    translated = translate.shown(data_dir, lang, doc["sha256"], record, kind)
+    translated = translate.shown(data_dir, lang, doc["sha256"], record, kind, terms)
     if translated:
         return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True,
                 "translated_at": translated.get("generated_at")}
-    return {**record, "english": "failed" if translate.failed(data_dir, lang, doc["sha256"], record, kind) else True}
+    return {**record, "english": "failed" if translate.failed(data_dir, lang, doc["sha256"], record, kind, terms) else True}
 
 
 def english_attr(record: dict | None) -> Markup:
@@ -554,8 +555,9 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         pv_raw, ms_raw = m["preview"], m["minutes_summary"]
         english = {"preview": factcheck.shown(pv_raw, pv_raw, "agenda"),
                    "minutes_summary": factcheck.shown(ms_raw, ms_raw, "minutes"), "body": m["body"]}
-        m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"]), pv_raw, "agenda")
-        m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"]), ms_raw, "minutes")
+        m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"], terms or ()), pv_raw, "agenda")
+        m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"], terms or ()),
+                                               ms_raw, "minutes")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
         if ms_en and ms_en.get("is_minutes", True):
@@ -1271,7 +1273,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     summary_models = models_shown(config.get("summaries", {}).get("model"), [r for _, _, r in shown])
     translation_models = models_shown(translate.settings(config)["model"], [
         t for other in langs if other != "en" for kind, doc, record in shown
-        for t in [translate.shown(data_dir, other, doc["sha256"], record, kind)] if t])
+        for t in [translate.shown(data_dir, other, doc["sha256"], record, kind, terms)] if t])
     common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   areas=officials_mod.areas(config),
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.

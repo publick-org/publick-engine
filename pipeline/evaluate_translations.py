@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from pipeline import evaluate as minutes_set
-from pipeline import summarize, translate
+from pipeline import glossary, summarize, translate
 
 SET = Path(__file__).resolve().parent.parent / "evals" / "translations.json"
 LANG = "es"
@@ -135,7 +135,7 @@ def evaluate(the_set: dict, client, only: str | None = None, summaries: dict | N
                     continue
                 tries.append({"check": out["check"], "review": out["review"],
                               "translation": {f: out.get(f) for f in translate.FIELDS[d["kind"]]}})
-                passed = translate.passes(data, out, record, d["kind"], LANG)
+                passed = translate.passes(data, out, record, d["kind"], LANG, glossary.entries(config))
                 if passed:
                     break
             requests = recorder.requests[start:]

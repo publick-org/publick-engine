@@ -80,7 +80,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import cost_log, factcheck, listings, pdftext, translate, votes
+from pipeline import cost_log, factcheck, glossary, listings, pdftext, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -1103,11 +1103,13 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             errors.append("[summaries] needs translation_input_price and translation_output_price for its "
                           "translation_model; nothing translated")
             return
+        # The town's glossary, whose terms each translation writes as it gives them (pipeline/glossary.py).
+        terms = glossary.entries(config)
         for kind, meeting, doc, record in summarized_documents(data_dir):
             if is_new((kind, meeting, doc), now) != only_new:
                 continue
             for lang in langs:
-                if translate.current(data_dir, lang, doc["sha256"], record, kind):
+                if translate.current(data_dir, lang, doc["sha256"], record, kind, terms):
                     continue
                 if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
                         or (not only_new and backlog_allowance is not None and spent_backlog >= backlog_allowance)):

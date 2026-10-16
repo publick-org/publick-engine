@@ -9,12 +9,18 @@ more per translation shown.) The rules are the summaries' own: only what
 the summary says, neutral, plain, with names, addresses, amounts, dates, and
 vote counts kept.
 
+The translator is given the town's glossary (pipeline/glossary.py): each civic
+term its state and the network define, as the language writes it ("warrant
+article" = "artículo de la convocatoria (warrant article)"), in its cached
+system prompt, after the words every translation uses (READERS).
+
 No person checks the translations, so two checks do. One without AI, entry by
 entry: each list (agenda items, decisions) has as many entries, every number
 is kept and none added (however Spanish writes it), amounts keep their million
-or billion, times their a.m. or p.m., names are kept as written, and what
-happened isn't turned round (a "not" lost, approved as denied, tabled as
-approved, unanimous changed). Then, for a translation that passes, a second
+or billion, times their a.m. or p.m., names are kept as written (a word of the
+glossary is no one's name), what happened isn't turned round (a "not" lost,
+approved as denied, tabled as approved, unanimous changed), and each glossary
+term the English uses is written as the glossary gives it. Then, for a translation that passes, a second
 request (Claude Sonnet 5.5 unless [summaries] translation_review_model says
 otherwise) reviews its meaning against the English, knowing the translator's
 rules and words: adjourned shown as dissolved, a guessed gender, a
@@ -27,7 +33,8 @@ Each translation is its own record, data/summaries/<language>/<document's
 SHA-256>.json, holding the hash of the English it came from. Turning a
 language on never regenerates an English summary, and a translation is made
 again only when its English summary changes (or this module's prompt does:
-VERSION). summarize.py runs the translations within the same budget as the
+VERSION), or when the glossary changes and the translation no longer writes
+its terms as given: only those, and with a try of their own. summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
 summaries waiting, which cost about ten times as much; each request is in the
 month's cost log as it's answered (pipeline/cost_log.py), and in the ledger as
@@ -59,9 +66,10 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+from pipeline import glossary
 from pipeline.files import write_atomic
 
-VERSION = 4
+VERSION = 5
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -93,7 +101,50 @@ Rules:
 - Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
 
-{readers}"""
+{readers}{glossary}"""
+
+# The town's civic terms (pipeline/glossary.py), after the words every translation uses; nothing for a town
+# whose glossary has none in the language.
+GLOSSARY = """
+
+Civic terms. Wherever the English uses one of these, in the singular or the plural, write it in {language} as given here, in the singular or the plural as the sentence needs. Where the {language} has the English after it in parentheses, there is no {language} word for it: write the English in parentheses the first time the term comes up in a text; after that, the {language} alone.
+{terms}"""
+
+
+def glossary_text(terms: list[dict], lang: str) -> str:
+    """The prompt's civic terms: each term of the town's glossary (glossary.entries()) that has a wording in the
+    language, "English = wording", alphabetically. Entries for some boards only are left out: the prompt is the
+    same for every board."""
+    lines = sorted({f"- {glossary.english(e)} = {glossary.wording(e, lang)}" for e in terms
+                    if glossary.wording(e, lang) and not e.get("bodies")}, key=str.lower)
+    return GLOSSARY.format(language=LANGUAGE_NAMES[lang], terms="\n".join(lines)) if lines else ""
+
+
+def glossary_key(terms: list[dict], lang: str) -> str:
+    """Which glossary a translation was made with: a hash of its prompt's civic terms."""
+    return hashlib.sha256(glossary_text(terms, lang).encode()).hexdigest()[:16]
+
+
+def glossary_words(terms: list[dict]) -> frozenset:
+    """The words of the glossary's English (each term, the other ways it's written, its definition), in
+    lowercase: words of local government, so no one's name ("Selectboard", "Councillor", "abatement")."""
+    words: set[str] = set()
+    for e in terms:
+        column = e.get("languages", {}).get("en", {})
+        for text in (glossary.english(e), *column.get("also", []), e.get("definition", "")):
+            words.update(w.lower() for w in re.findall(r"[A-Za-z]+", text))
+    return frozenset(words)
+
+
+def terms_kept(en: str, tr: str, lang: str, terms: list[dict]) -> str | None:
+    """A glossary term the English uses that the translation doesn't write as given, if any."""
+    for e in terms:
+        if e.get("bodies") or not glossary.wording(e, lang):
+            continue
+        if glossary.found(e, en) and not glossary.found(e, tr, lang):
+            return f'"{glossary.english(e)}" isn\'t written "{glossary.wording(e, lang)}"'
+    return None
+
 
 PROMPT = """Translate this summary of the {kind} of a meeting ({title}, {date}) into {language}.
 {boards}
@@ -133,48 +184,51 @@ def saved(data_dir: Path, lang: str, sha256: str) -> dict | None:
 ATTEMPTS = 2
 
 
-def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> dict | None:
+def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> dict | None:
     """The saved translation of this English summary, made with the current prompt, when there's
-    no need to make it again: it passed its checks, or it's had its ATTEMPTS."""
+    no need to make it again: it passed its checks, or it's had its ATTEMPTS with this glossary
+    (terms: the town's, glossary.entries()). One that fails now only because the glossary changed is
+    made again, with tries of its own."""
     found = saved(data_dir, lang, sha256)
     if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION and (
-            passes(data_dir, found, record, kind, lang) or found.get("attempts", 1) >= ATTEMPTS):
+            passes(data_dir, found, record, kind, lang, terms) or (
+                found.get("attempts", 1) >= ATTEMPTS and found.get("glossary", "") == glossary_key(terms, lang))):
         return found
     return None
 
 
-def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str) -> bool:
-    """Whether a saved translation passes both checks: the one without AI, run again here (so a
-    translation the check once wrongly failed is shown once the check is fixed, without paying for
-    it again), and the AI's review of its meaning, as saved."""
+def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> bool:
+    """Whether a saved translation passes both checks: the one without AI, run again here with the
+    town's glossary as it is now (so a translation the check once wrongly failed is shown once the
+    check is fixed, without paying for it again), and the AI's review of its meaning, as saved."""
     return (found.get("review") == "ok"
-            and check(english(record, kind), found, kind, lang, town_words(data_dir)) == "ok")
+            and check(english(record, kind), found, kind, lang, town_words(data_dir), terms) == "ok")
 
 
-def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> dict | None:
+def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> dict | None:
     """The translation to show for an English summary: one made from this English, with the
     current prompt, that passes both checks."""
     found = saved(data_dir, lang, sha256)
     if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION \
-            and passes(data_dir, found, record, kind, lang):
+            and passes(data_dir, found, record, kind, lang, terms):
         return found
     return None
 
 
-def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str) -> str | None:
+def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> str | None:
     """What was wrong with a saved translation, for the model to correct: the check's finding,
     else the review's. None when it passed, or when the review couldn't be made (nothing to correct)."""
-    checked = check(english(record, kind), found, kind, lang, town_words(data_dir))
+    checked = check(english(record, kind), found, kind, lang, town_words(data_dir), terms)
     if checked != "ok":
         return checked
     review = found.get("review", "")
     return None if review == "ok" or review.startswith(UNREVIEWED) else review
 
 
-def failed(data_dir: Path, lang: str, sha256: str, record: dict, kind: str) -> bool:
+def failed(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> bool:
     """Whether this English summary's translation was made and failed its checks for good."""
-    found = current(data_dir, lang, sha256, record, kind)
-    return bool(found) and not passes(data_dir, found, record, kind, lang)
+    found = current(data_dir, lang, sha256, record, kind, terms)
+    return bool(found) and not passes(data_dir, found, record, kind, lang, terms)
 
 
 # A number as the summaries write it: "1,500", "4.5", "7:00", "2026", the 5 and the 0 of "5-0".
@@ -243,7 +297,7 @@ IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", 
              "withheld"}
 # Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
 # ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
-NEWER_WORDS = {"coordinator", "councillor", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise",
+NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise",
                "pickleball", "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness",
                "workforce"}
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
@@ -333,7 +387,8 @@ def names(text: str, also: frozenset = frozenset()) -> set[str]:
     found = set()
     for m in NAME.finditer(text or ""):
         word, dot = m.group(1), m.group(2)
-        if (dot and word in ABBREVIATIONS) or word in ALWAYS_ABBREVIATIONS:
+        # A title ("Councillor", "Aldermen") is no one's name, wherever it is in the sentence.
+        if (dot and word in ABBREVIATIONS) or word in ALWAYS_ABBREVIATIONS or re.fullmatch(TITLE_WORDS, word, re.I):
             continue
         if NOT_TITLED.fullmatch(word) is None and TITLED.search(text[max(0, m.start() - 30):m.start()]):
             found.add(word)
@@ -441,12 +496,15 @@ def comparable(en: str, tr: str) -> tuple[str, str]:
     return en, tr
 
 
-def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset()) -> str:
+def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset(),
+          terms: list[dict] = ()) -> str:
     """ "ok", or what's wrong, entry by entry, so a list put in another order fails too: a field
     missing or empty, a list of another length, a number lost or added (however the language
     writes it, and a date in figures may be written out), an amount's million or billion, a.m. or
-    p.m., a name not kept as written (words: the town's own ordinary words, town_words()), or what
-    happened turned round (outcome())."""
+    p.m., a name not kept as written (words: the town's own ordinary words, town_words(); the
+    glossary's words are ordinary too), what happened turned round (outcome()), or a term of the
+    town's glossary (terms: glossary.entries()) not written as it gives it (terms_kept())."""
+    words = words | glossary_words(terms)
     for field in FIELDS[kind]:
         en, tr = source[field], translated.get(field)
         if isinstance(en, list):
@@ -477,6 +535,9 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             added = numbers(b) - numbers(a, ordinals=True)
             if added:
                 return f"{where}: {', '.join(sorted(added))} added in the translation"
+            unkept = terms_kept(a, b, lang, terms)
+            if unkept:
+                return f"{where}: {unkept}"
     return "ok"
 
 
@@ -553,7 +614,8 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
-        system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
+        system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
+                                    glossary=glossary_text(glossary.entries(config), lang))),
         messages=[{"role": "user", "content": prompt}],
         output_config=output_config(config, schema(kind)),
     )
@@ -579,9 +641,13 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     gets each request as it's answered: the translation (failed, if it stopped early or can't be read)
     and its review."""
     source = english(record, kind)
+    terms = glossary.entries(config)
+    key = glossary_key(terms, lang)
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
-    wrong = what_failed(data_dir, before, record, kind, lang) if again else None
+    wrong = what_failed(data_dir, before, record, kind, lang, terms) if again else None
+    # A translation made again because the glossary changed has its own tries.
+    retry = again and before.get("glossary", "") == key
     # A translation made again in the month the one before it was (a correction, a changed summary) replaces
     # its file, so what that one cost is carried in this one, for the files to still record it (summarize.recount).
     earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
@@ -600,7 +666,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     if log:
         log.request(answered[0][0], "translation", paid, doc=doc["sha256"], lang=lang, model=settings(config)["model"],
                     usage=usage)
-    checked = check(source, result, kind, lang, town_words(data_dir))
+    checked = check(source, result, kind, lang, town_words(data_dir), terms)
     reviewed, review_cost = "not reviewed: the check failed", 0.0
     if checked == "ok":
         problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]],
@@ -614,9 +680,10 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "source_hash": source_hash(record, kind),
         "check": checked,
         "review": reviewed,
-        "attempts": before.get("attempts", 1) + 1 if again else 1,
+        "attempts": before.get("attempts", 1) + 1 if retry else 1,
         "model": settings(config)["model"],
         "prompt_version": VERSION,
+        "glossary": key,
         "generated_at": now.isoformat(timespec="seconds"),
         "usage": usage,
         "cost": round(paid + review_cost, 6),
@@ -646,7 +713,7 @@ For each English text and its translation, report every error that changes the m
 Don't report style, or a different word choice that keeps the meaning. Report nothing for a faithful translation: if, once you've looked, a translation is right, leave it out, or mark it is_error false.
 
 The translator was given these words and rules, so a translation that follows them isn't wrong for it:
-{readers}"""
+{readers}{glossary}"""
 
 REVIEW_PROMPT = """Check these translations. Each has an id, the English, and the {language}:
 {pairs}"""
@@ -692,7 +759,8 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
         response = client.messages.create(
             model=rsettings["model"],
             max_tokens=4000,
-            system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
+            system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
+                                               glossary=glossary_text(glossary.entries(config), lang))),
             messages=[{"role": "user", "content": REVIEW_PROMPT.format(
                 language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
             output_config={"effort": rsettings["effort"], "format": {"type": "json_schema", "schema": {
@@ -750,7 +818,7 @@ Rules:
 - Keep every number, and every {{placeholder}} and %(placeholder)s, exactly.
 - Plain and short, about an 8th-grade reading level. Neutral: no words that judge.
 
-{readers}"""
+{readers}{glossary}"""
 
 NAMES_PROMPT = """The website of {town}, {state}. Translate these {n} texts into {language}:
 {texts}"""
@@ -808,7 +876,8 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         response = client.messages.create(
             model=tsettings["model"],
             max_tokens=MAX_TOKENS,
-            system=cached(NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang])),
+            system=cached(NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
+                                              glossary=glossary_text(glossary.entries(config), lang))),
             messages=[{"role": "user", "content": NAMES_PROMPT.format(
                 town=config["town"]["name"], state=config["town"]["state"], n=len(batch), language=LANGUAGE_NAMES[lang],
                 texts=json.dumps(batch, ensure_ascii=False, indent=1))}],
