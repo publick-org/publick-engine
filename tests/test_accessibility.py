@@ -14,6 +14,7 @@ import pytest
 from conftest import PAGE_PATHS, serve
 from test_sample_towns import malden_site, manchester_site, wallingford_site  # noqa: F401 (fixtures)
 from test_site_check_pages import HAND_WRITTEN
+from test_spanish_site import built  # noqa: F401 (fixture)
 
 from pipeline import build_site
 from site_checks.pages import sample
@@ -271,3 +272,75 @@ def test_sample_town_pages(browser, axe, town, viewport, request):
             test_axe_no_violations(browser, axe, url, path, viewport, "light")
             if viewport == "phone":
                 test_reflows_without_horizontal_scroll(browser, url, path)
+
+
+# The weekly digest's signup where it's placed (site/templates/digest_box.html): near the top of the home page, at
+# the end of a meeting's page, and in the footer of the others.
+SIGNUP_PAGES = {"/": "home-signup", "/meetings/2026-08-25-city-council/": "meeting-signup", "/about/": "footer-signup"}
+
+
+@pytest.mark.parametrize("viewport", VIEWPORTS)
+def test_the_signup_in_spanish(browser, axe, built, viewport):  # noqa: F811
+    """The signup on the Spanish pages, where axe's other checks (the English pages) don't look."""
+    out, _, _ = built
+    with serve(out) as url:
+        for path in SIGNUP_PAGES:
+            test_axe_no_violations(browser, axe, url, "/es" + path, viewport, "light")
+            if viewport == "phone":
+                test_reflows_without_horizontal_scroll(browser, url, "/es" + path)
+
+
+# What moved as the page loaded, below the site's header (whose menu can move a pixel or two as the web fonts load,
+# on every page alike): each shift that moved anything outside it.
+LAYOUT_SHIFTS = """new Promise((done) => {
+  let total = 0;
+  new PerformanceObserver((list) => {
+    for (const e of list.getEntries()) {
+      if (e.sources.some((s) => !(s.node && s.node.closest && s.node.closest("header")))) total += e.value;
+    }
+  }).observe({ type: "layout-shift", buffered: true });
+  setTimeout(() => done(total), 500);
+})"""
+
+
+@pytest.mark.parametrize("path, form_id", SIGNUP_PAGES.items())
+def test_the_signup_moves_nothing_on_a_phone(browser, server_url, path, form_id):
+    """The box is in the page as it's served, so nothing shifts as it loads; on a meeting's page it's after the
+    meeting's own content, so it never moves that down."""
+    context = browser.new_context(viewport=VIEWPORTS["phone"])
+    page = context.new_page()
+    page.goto(server_url + path)
+    page.wait_for_load_state("load")
+    shifted = page.evaluate(LAYOUT_SHIFTS)
+    box = page.locator(f"#{form_id}").bounding_box()
+    agenda = page.locator("#agenda").bounding_box() if form_id == "meeting-signup" else None
+    field = page.get_by_label("Email address")
+    named = field.count() == 1 and field.get_attribute("id") == f"{form_id}-email"
+    context.close()
+    assert shifted == 0, f"{path}: layout shift {shifted}"
+    assert box and box["width"] <= VIEWPORTS["phone"]["width"]
+    assert named
+    if agenda:
+        assert box["y"] > agenda["y"]
+
+
+def test_the_signup_works_without_javascript(browser, server_url):
+    """A plain form: with scripts off, it posts the address and the page's language to /digest/subscribe, and the
+    browser follows the Worker's answer (stood in for here) to the "check your email" page."""
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    posted = []
+
+    def worker(route):
+        posted.append((route.request.method, route.request.post_data))
+        route.fulfill(status=303, headers={"Location": server_url + "/digest/thanks/"})
+    page.route("**/digest/subscribe", worker)
+    page.goto(server_url + "/meetings/2026-08-25-city-council/")
+    page.fill("#meeting-signup-email", "reader@example.org")
+    page.click("#meeting-signup button[type=submit]")
+    page.wait_for_url("**/digest/thanks/")
+    heading = page.locator("h1").inner_text()
+    context.close()
+    assert heading == "Check your email"
+    [(method, body)] = posted
+    assert method == "POST" and "email=reader%40example.org" in body and "lang=en" in body and "website=" in body

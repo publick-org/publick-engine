@@ -1370,10 +1370,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                                                                               mailing_address=digest.MAILING_ADDRESS,
                                                                               unsubscribe=digest.UNSUBSCRIBE_TAG)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
-        if common["digest_signup"]:
-            # Where the signup form leads (worker/digest.js); not for search engines.
-            for outcome in ("thanks", "problem"):
-                render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
+    if "meetings" in config and common["digest_signup"]:
+        # Where the signup form leads (worker/digest.js), in each language, as the form is on every language's
+        # pages; not for search engines.
+        for outcome in ("thanks", "problem"):
+            render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
