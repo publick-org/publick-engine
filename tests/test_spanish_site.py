@@ -78,6 +78,10 @@ def test_the_signup_in_another_language(built):
         assert '<html lang="es">' in answer and '<meta name="robots" content="noindex">' in answer
         assert answer.count('<a href="/digest/" hreflang="en">') == 2 and 'href="/es/digest/"' not in answer
         assert "/es/digest/" + outcome + "/" not in urls
+        # Built in both languages, unlike the rest of the digest's pages, so each names the other.
+        for version in (answer, page(out, f"/digest/{outcome}/")):
+            assert f'<link rel="alternate" hreflang="es" href="https://gloucester-ma.publick.org/es/digest/{outcome}/">' in version
+            assert f'<link rel="alternate" hreflang="en" href="https://gloucester-ma.publick.org/digest/{outcome}/">' in version
     assert "For now, the digest is in English." in page(out, "/es/digest/thanks/")
     assert "/es/" in urls and "/es/meetings/" in urls
     assert "https://gloucester-ma.publick.org/es/meetings/" in (out / "sitemap.xml").read_text()
