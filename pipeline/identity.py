@@ -321,6 +321,11 @@ def assign(store: dict, ledger: dict | None, town: str = "") -> dict:
     store = with_ids(store)
     town = town or ledger.get("town", "")
     known = known_boards(store, town)
+    # Every name each board's listings have been recorded under, kept when a listing is later renamed:
+    # a board page published under any of them stays reachable (build_site, moved pages).
+    names = {k: set(v) for k, v in ledger.get("boards", {}).items()}
+    for m in store.values():
+        names.setdefault(board_key(m["body"], town), set()).add(m["body"])
     listing = {i: Listing(m, known, town) for i, m in store.items()}
     meetings: dict[str, dict] = {}
     placed: dict[str, str] = {}
@@ -385,7 +390,8 @@ def assign(store: dict, ledger: dict | None, town: str = "") -> dict:
         if c.unplaced:
             entry["unplaced"] = True
         meetings[mid] = entry
-    return {"town": town, "meetings": dict(sorted(meetings.items()))}
+    return {"town": town, "boards": {k: sorted(v) for k, v in sorted(names.items())},
+            "meetings": dict(sorted(meetings.items()))}
 
 
 def update(data_dir: Path, store: dict, town: str, previous: dict | None = None) -> dict:
@@ -416,6 +422,7 @@ def meetings(store: dict, ledger: dict | None, town: str = "") -> list[dict]:
         if not records:
             continue
         out.append({"id": mid, "records": records, "addresses": e.get("addresses", []), "unplaced": e.get("unplaced", False),
-                    "body": display_body(records, known, town), "body_names": sorted({m["body"] for m in records}),
+                    "body": display_body(records, known, town), "body_names": sorted({n for m in records
+                                                        for n in full["boards"].get(board_key(m["body"], town), [m["body"]])}),
                     "kinds_differ": len({Listing(m, known, town).kind for m in records}) > 1})
     return out

@@ -418,6 +418,14 @@ def test_a_board_listed_under_two_names_has_one_page(malden, tmp_path):
     tree = [b for b in built["boards"] if "Tree Board" in b["name"]]
     assert [(b["name"], len(b["meetings"]), b["also_urls"]) for b in tree] == [
         ("Tree Board", 2, ["/meetings/boards/malden-tree-board/"])]
+    # A later fetch stores the listing under the board's name as first recorded (fetch_meetings.known_body),
+    # so "Malden Tree Board" is in no record any more: identities.json keeps the name, and its page.
+    store = load_store(tmp_path)
+    store["agendacenter-9102"]["body"] = "Tree Board"
+    fetch_meetings.save_store(tmp_path, store, malden)
+    built = build_site.load_meetings(tmp_path, NOW.date(), town="Malden")
+    assert [(b["name"], b["also_urls"]) for b in built["boards"] if "Tree Board" in b["name"]] == [
+        ("Tree Board", ["/meetings/boards/malden-tree-board/"])]
 
     malden["sections"] = [s for s in malden["sections"] if s["slug"] in ("meetings", "about")]
     for table in ("seeclickfix", "permits", "finance", "schools", "housing", "labor", "freshness", "summaries"):
