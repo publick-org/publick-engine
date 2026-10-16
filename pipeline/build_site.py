@@ -69,6 +69,9 @@ UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
+# Their pages built in every language all the same: where the digest's signup form leads, as the form is on
+# every language's pages (site/templates/digest_box.html).
+EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
 
 
 def url_for(rel_path: Path) -> str:
@@ -338,6 +341,42 @@ def tidy_recommendation(text: str) -> str:
     return f"{first[:1].upper()}{first[1:]}{' ' + after if after else ''}." + (f" ({vote})" if vote else "")
 
 
+class Decision(str):
+    """A decision's text as shown, with the page of the minutes its quote was found on and the quote
+    (factcheck.shown()'s "decision_pages"), or None for each."""
+
+    def __new__(cls, text: str, page: int | None = None, quote: str | None = None):
+        decision = super().__new__(cls, text)
+        decision.page, decision.quote = page, quote
+        return decision
+
+
+# Hosts whose links open a viewer, not the PDF itself, so a link to a page (#page=3) does nothing there.
+VIEWERS = {"drive.google.com", "docs.google.com"}
+# How many of a quote's words a link to its page gives the PDF viewer to find (pdf.js's search).
+QUOTE_WORDS = 8
+
+
+def minutes_pdf(doc: dict, document_url) -> str:
+    """The minutes' PDF, to link at a page: the one the city published, or the saved copy where the city's
+    link opens a viewer (Google Drive, Google Docs) or a Word document (converted to PDF when saved)."""
+    if doc.get("converted_from") or urlparse(doc["source_url"]).hostname in VIEWERS:
+        return document_url("minutes", doc["file"])
+    return doc["source_url"]
+
+
+def page_link(doc: dict, decision: Decision, document_url, site_url: str = "") -> str:
+    """A link to the page of the minutes a decision was found on (#page=3), with the first words of its quote
+    for the viewer to find there ("search", with "phrase", which Firefox's viewer reads; others open the page).
+    site_url, for a saved copy on the site itself, where the link is read elsewhere (the digest's email)."""
+    url = minutes_pdf(doc, document_url)
+    if url.startswith("/"):
+        url = site_url + url
+    words = re.split(r"\.\.\.|…", decision.quote or "")[0].split()[:QUOTE_WORDS]
+    find = f"&search={quote(' '.join(words), safe='')}&phrase=true" if words else ""
+    return f"{url}#page={decision.page}{find}"
+
+
 def decision_text(text: str) -> Markup:
     """A decision for reading: "TTE" (term to expire) spelled out, dollar amounts in bold."""
     return emphasize_money(re.sub(r"\bTTE\b", "term ends", text))
@@ -559,6 +598,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"], terms or ()),
                                                ms_raw, "minutes")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
+        if ms and ms.get("decisions"):
+            # Each with the page of the minutes it was found on, where it's known, for the pages to cite.
+            cited = ms.get("decision_pages") or [[None, None]] * len(ms["decisions"])
+            ms["decisions"] = [Decision(d, page, q) for d, (page, q) in zip(ms["decisions"], cited)]
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
         if ms_en and ms_en.get("is_minutes", True):
             for d, shown in zip(ms_en.get("decisions", []), ms.get("decisions", [])):
@@ -1226,6 +1269,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
+    # A decision's page in its minutes (macros.html cite), said in this language.
+    env.globals["page_link"] = lambda doc, d, site_url="": page_link(doc, d, env.globals["document_url"], site_url)
+    env.globals["page_lang"] = lang
     env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, export_version=EXPORT_VERSION,
                        change=lambda diff, since: change_text(diff, "", since))
     # Structured data for search engines (pipeline/structured.py); site_url is this language's home, without its slash.
@@ -1316,7 +1362,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
         versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
-                    for code in langs] if len(langs) > 1 and section_slug not in ENGLISH_ONLY_FOLDERS else []
+                    for code in langs] if len(langs) > 1 and (section_slug not in ENGLISH_ONLY_FOLDERS or url in EVERY_LANGUAGE_PAGES) else []
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
@@ -1385,10 +1431,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                                                                               mailing_address=digest.MAILING_ADDRESS,
                                                                               unsubscribe=digest.UNSUBSCRIBE_TAG)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
-        if common["digest_signup"]:
-            # Where the signup form leads (worker/digest.js); not for search engines.
-            for outcome in ("thanks", "problem"):
-                render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
+    if "meetings" in config and common["digest_signup"]:
+        # Where the signup form leads (worker/digest.js), in each language, as the form is on every language's
+        # pages; not for search engines.
+        for outcome in ("thanks", "problem"):
+            render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
