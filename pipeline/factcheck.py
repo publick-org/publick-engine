@@ -75,15 +75,24 @@ text (scanned pages in a typed document) can only be checked on what has text
 is weaker, since both come from the model: in both, what isn't found is
 listed, but the result is "weak", not "failed".
 
+Each decision whose quote is found also gets the page it's on, for the site
+to cite ("p. 3", linking the PDF at that page): the page the quote starts on,
+where every place the quote is found is on the same page. Checked against a
+transcription, the page is known only where one request transcribed that page
+alone ("transcript_pages", from pipeline/summarize.py's transcribe_pdf());
+otherwise, and for a quote that isn't found, there's none.
+
 Each summary's record keeps the result under "fact_check" ({"version",
-"source", "result", "problems"}), made when the run reads the document's text
-(pipeline/summarize.py) and again when VERSION changes. python -m
-pipeline.factcheck lists the problems for the maintainer.
+"source", "result", "problems"}, and for minutes with quotes, "pages", one
+entry per decision, a page number or null), made when the run reads the
+document's text (pipeline/summarize.py) and again when VERSION changes.
+python -m pipeline.factcheck lists the problems for the maintainer.
 """
 
 from __future__ import annotations
 
 import argparse
+import bisect
 import functools
 import itertools
 import json
@@ -94,8 +103,8 @@ from pipeline import translate
 
 # 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
 # after the quote; vote counts and who moved it, near the quote; the summary's outcome; names with capitals
-# inside, or after a title (translate.names()).
-VERSION = 5
+# inside, or after a title (translate.names()). 6: the page each decision's quote is on.
+VERSION = 6
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
@@ -366,6 +375,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         source, doc = "partial", "\n".join(pages)
     elif record.get("transcript") and record.get("transcript_source") == "ai":
         source, doc = "ai", record["transcript"]
+        pages = None
     else:
         return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
     found = facts(doc)
@@ -375,8 +385,12 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
             for p in check_text(text, doc, *found[:3], words, *found[3:]):
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
+    on_page = None
     if kind == "minutes" and "decision_evidence" in record:
         located = Located(doc)
+        at = page_at(pages, record.get("transcript_pages"))
+        on_page = [decision_page(located, (evidence or {}).get("quote"), at)
+                   for evidence in record["decision_evidence"][:len(record.get("decisions") or [])]]
         outcomes = []
         for i, (text, evidence) in enumerate(zip(record.get("decisions") or [], record["decision_evidence"])):
             whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
@@ -392,7 +406,34 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED]
     result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
-    return {"version": VERSION, "source": source, "result": result, "problems": problems}
+    return {"version": VERSION, "source": source, "result": result, "problems": problems,
+            **({"pages": on_page} if on_page is not None else {})}
+
+
+def page_at(pages: list[str] | None, transcribed: list | None):
+    """A function from a place in the text the check reads to the page it's on, 1 for the first, or None
+    where that isn't known. The PDF's own text is its pages joined by a line break each. A transcription
+    is known by page only where a request transcribed one page alone (transcribed: [start in the text,
+    first page, last page] for each request, pipeline/summarize.py's transcribe_pdf())."""
+    if pages:
+        starts = list(itertools.accumulate((len(p) + 1 for p in pages[:-1]), initial=0))
+        return lambda at: bisect.bisect_right(starts, at)
+    spans = sorted(transcribed or [])
+    if not spans:
+        return lambda at: None
+
+    def transcribed_page(at: int) -> int | None:
+        i = bisect.bisect_right([s[0] for s in spans], at) - 1
+        return spans[i][1] if i >= 0 and spans[i][1] == spans[i][2] else None
+    return transcribed_page
+
+
+def decision_page(located: Located, quote: str | None, at) -> int | None:
+    """The page a decision's quote starts on (a quote over two pages: the first), or None: where it isn't
+    found, where its page isn't known, or where the same words are found on more than one page."""
+    quote = (quote or "").strip()
+    found = {at(s) for s, _ in located.find(quote)} if quote else set()
+    return found.pop() if len(found) == 1 and None not in found else None
 
 
 def facts(doc: str) -> tuple:
@@ -489,12 +530,19 @@ class Located:
         kept = [(c.lower(), i) for i, c in enumerate(doc) if c.isalnum()]
         self.text = "".join(c for c, _ in kept)
         self.at = [i for _, i in kept]
+        # What find() found for each quote: the decisions' pages and their checks look for the same quotes.
+        self.found: dict[str, list[tuple[int, int]]] = {}
 
     def find(self, quote: str) -> list[tuple[int, int]]:
         """Where the quote is in the document, as (start, end) in its text: each of its words in
         order, with nothing between them but what the document adds (a page header, a line
         number), up to GAP characters at a time and GAPS in all. A quote cut with "..." is found
         part by part, in order."""
+        if quote not in self.found:
+            self.found[quote] = self.places(quote)
+        return self.found[quote]
+
+    def places(self, quote: str) -> list[tuple[int, int]]:
         parts = [re.findall(r"[a-z0-9]+", p.lower()) for p in re.split(r"\.\.\.|…", quote)]
         parts = [p for p in parts if p]
         if not parts or not self.text:
@@ -887,7 +935,9 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
       something else: then the check has found the model wrong in this summary, and what it
       could only note isn't shown either;
     - wherever it was checked, a vote count the document doesn't give (near its decision's quote,
-      for a decision with one) is left out of the text.
+      for a decision with one) is left out of the text;
+    - each decision shown has its page and the quote found there under "decision_pages" ([page,
+      quote], or [None, None] where the page isn't known), where the check gave them.
     Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
     on a page they can't read."""
     if not display or not record or not record.get("fact_check"):
@@ -909,6 +959,13 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                 out[field] = without_tally(out[field], p["what"])
         elif fc["result"] == "failed":
             hidden.setdefault(field, set()).add(p.get("entry"))
+    # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.
+    on_page = fc.get("pages")
+    if on_page and len(on_page) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
+        quotes = [(e or {}).get("quote") for e in record.get("decision_evidence") or []]
+        gone = hidden.get("decisions", set())
+        out["decision_pages"] = [[page, quotes[j] if page and j < len(quotes) else None]
+                                 for j, page in enumerate(on_page) if j + 1 not in gone]
     for field, entries in hidden.items():
         if isinstance(out[field], list):
             out[field] = [t for j, t in enumerate(out[field]) if j + 1 not in entries]

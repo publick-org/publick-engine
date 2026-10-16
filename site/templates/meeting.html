@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text %}
+{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {# A meeting's name: its board's, and the kind of meeting where its listing says (pipeline/meeting_names.py). #}
@@ -185,7 +185,7 @@
 {% elif ms.decisions %}
 <h3>{{ _("Decisions recorded") }}</h3>
 <ul{{ english_attr(ms) }}>
-  {% for d in ms.decisions %}<li>{{ d }}</li>{% endfor %}
+  {% for d in ms.decisions %}<li>{{ d }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
 </ul>
 {% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>

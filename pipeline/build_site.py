@@ -340,6 +340,42 @@ def tidy_recommendation(text: str) -> str:
     return f"{first[:1].upper()}{first[1:]}{' ' + after if after else ''}." + (f" ({vote})" if vote else "")
 
 
+class Decision(str):
+    """A decision's text as shown, with the page of the minutes its quote was found on and the quote
+    (factcheck.shown()'s "decision_pages"), or None for each."""
+
+    def __new__(cls, text: str, page: int | None = None, quote: str | None = None):
+        decision = super().__new__(cls, text)
+        decision.page, decision.quote = page, quote
+        return decision
+
+
+# Hosts whose links open a viewer, not the PDF itself, so a link to a page (#page=3) does nothing there.
+VIEWERS = {"drive.google.com", "docs.google.com"}
+# How many of a quote's words a link to its page gives the PDF viewer to find (pdf.js's search).
+QUOTE_WORDS = 8
+
+
+def minutes_pdf(doc: dict, document_url) -> str:
+    """The minutes' PDF, to link at a page: the one the city published, or the saved copy where the city's
+    link opens a viewer (Google Drive, Google Docs) or a Word document (converted to PDF when saved)."""
+    if doc.get("converted_from") or urlparse(doc["source_url"]).hostname in VIEWERS:
+        return document_url("minutes", doc["file"])
+    return doc["source_url"]
+
+
+def page_link(doc: dict, decision: Decision, document_url, site_url: str = "") -> str:
+    """A link to the page of the minutes a decision was found on (#page=3), with the first words of its quote
+    for the viewer to find there ("search", with "phrase", which Firefox's viewer reads; others open the page).
+    site_url, for a saved copy on the site itself, where the link is read elsewhere (the digest's email)."""
+    url = minutes_pdf(doc, document_url)
+    if url.startswith("/"):
+        url = site_url + url
+    words = re.split(r"\.\.\.|…", decision.quote or "")[0].split()[:QUOTE_WORDS]
+    find = f"&search={quote(' '.join(words), safe='')}&phrase=true" if words else ""
+    return f"{url}#page={decision.page}{find}"
+
+
 def decision_text(text: str) -> Markup:
     """A decision for reading: "TTE" (term to expire) spelled out, dollar amounts in bold."""
     return emphasize_money(re.sub(r"\bTTE\b", "term ends", text))
@@ -566,6 +602,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"]), pv_raw, "agenda")
         m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"]), ms_raw, "minutes")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
+        if ms and ms.get("decisions"):
+            # Each with the page of the minutes it was found on, where it's known, for the pages to cite.
+            cited = ms.get("decision_pages") or [[None, None]] * len(ms["decisions"])
+            ms["decisions"] = [Decision(d, page, q) for d, (page, q) in zip(ms["decisions"], cited)]
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
         if ms_en and ms_en.get("is_minutes", True):
             for d, shown in zip(ms_en.get("decisions", []), ms.get("decisions", [])):
@@ -1231,6 +1271,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         env.globals.update(state_pages.TEMPLATE_GLOBALS)
     # Saved agenda and minutes PDFs: in the site itself, or in the town's bucket (see pipeline/documents.py).
     env.globals["document_url"] = open_documents(config, data_dir).url
+    # A decision's page in its minutes (macros.html cite), said in this language.
+    env.globals["page_link"] = lambda doc, d, site_url="": page_link(doc, d, env.globals["document_url"], site_url)
+    env.globals["page_lang"] = lang
     env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, export_version=EXPORT_VERSION,
                        change=lambda diff, since: change_text(diff, "", since))
     # Structured data for search engines (pipeline/structured.py); site_url is this language's home, without its slash.
