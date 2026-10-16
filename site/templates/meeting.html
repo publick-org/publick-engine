@@ -65,6 +65,7 @@
 {% set event_name = named(m.board_name) if town.name.lower() in m.body_en.lower() else named(m.board_name) ~ ", " ~ town.name %}
 {% block structured_data %}{{ structured(event(m, canonical_url, meeting_name(event_name, m.date | date("mon_day_year")), self.description()),
   breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
 {% set district = m.source in ("drive", "finalsite", "page", "diligent", "opengov", "ical", "schedule") %}
@@ -195,7 +196,7 @@
 {% endif %}
 {% if ms.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none) }}
+{{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none, ms) }}
 {{ full_text("minutes", ms) }}
 {% elif m.get("withheld", {}).get("minutes") %}
 {# Taken down by hand after a reader reported an error ([[summaries.withheld]]), until it's fixed. #}
@@ -265,7 +266,7 @@
 {% endif %}
 {% if m.preview.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none) }}
+{{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none, m.preview) }}
 {{ full_text("agenda", m.preview) }}
 {% endif %}
 {% if m.agenda and not m.preview %}
@@ -313,12 +314,9 @@
 {% endif %}
 {% endif %}
 
-{# The weekly digest's signup, for a reader who came for one meeting; in English, as the digest is for now (pipeline/digest.py). #}
-{% if digest_signup and lang == "en" %}
-{# Translators: %(town)s is the town's name. #}
-<p class="callout">{% if meeting_links.documents %}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings and what they decided by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}
-{%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings for the week ahead by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}{% endif %}</p>
-{% endif %}
+{# The weekly digest's signup, for a reader who came for one meeting: after the meeting's own content, so it never
+   moves it down (digest_box.html), and so not in the footer too. #}
+{% with form_id="meeting-signup" %}{% include "digest_box.html" %}{% endwith %}
 
 {% if m.glossary %}
 <h2 id="terms">{{ _("Terms used here") }}</h2>

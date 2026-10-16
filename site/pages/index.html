@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, meeting_item %}
+{% from "macros.html" import calendar_behind_note, day_group, meeting_item, ai_summary_label %}
 {# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say. #}
 {% block title %}{% if config.meetings is defined %}
 {# Translators: the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
@@ -9,6 +9,8 @@
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city data{% endtrans %}{% endif %}{% endblock %}
 {% block head_title %}{{ self.title() }}{% endblock %}
 {% block structured_data %}{{ structured(website()) }}{% endblock %}
+{# This page has the signup near its top, so not in the footer too. #}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 <p class="dateline"><time datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time></p>
 <h1>{% trans town=town.name %}This week in {{ town }}{% endtrans %}</h1>
@@ -35,6 +37,9 @@
 </form>
 {% endif %}
 
+{# ---- The weekly digest's signup, near the top: the week it sends is next (digest_box.html) ---- #}
+{% with form_id="home-signup" %}{% include "digest_box.html" %}{% endwith %}
+
 {% if config.meetings is defined %}
 {# ---- Coming up ---- #}
 <div class="section-head">
@@ -48,7 +53,7 @@
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
-    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ _("AI summary") }}</span>{% endif %}</li>
+    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ ai_summary_label(m.preview_checked) }}</span>{% endif %}</li>
     {% endfor %}
   </ul>
 </div>
@@ -73,17 +78,6 @@
 {% endif %}
 {% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No public meetings are listed on the city calendar for the next seven days.") }}{% else %}{{ _("No public meetings are listed for the next seven days.") }}{% endif %}</p>
-{% endif %}
-
-{# ---- The weekly digest's signup, under the week it sends: in English, as the digest is for now (pipeline/digest.py) ---- #}
-{% if digest_signup and lang == "en" %}
-<section class="signup-box" aria-labelledby="digest-signup">
-  <h2 id="digest-signup">{{ _("Get the week ahead by email") }}</h2>
-  {# Translators: %(town)s is the town's name. #}
-  <p>{% if meeting_links.documents %}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead, and what was decided at the meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}
-  {%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/" %}Every Sunday evening, {{ town }}'s public meetings for the week ahead. Free, and every email has a link to unsubscribe. <a href="{{ url }}">See past issues</a>.{% endtrans %}{% endif %}</p>
-  {% with form_id="home-signup" %}{% include "digest_form.html" %}{% endwith %}
-</section>
 {% endif %}
 
 {# ---- Decided ---- #}

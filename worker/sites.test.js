@@ -472,14 +472,61 @@ test("signups over the rate limit, by IP or by address, aren't passed on", async
     assert.ok(counted.includes("ip:203.0.113.9"));
     assert.ok(counted.some((k) => /^email:[0-9a-f]{64}$/.test(k)));
     assert.ok(!counted.some((k) => k.includes("example.org")));
-    // Within the limits, or a limiter that fails: signed up as before.
-    for (const SIGNUP_LIMITER of [limiter("none:"), { limit: async () => { throw new Error("down"); } }]) {
-      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER };
-      const response = await worker.fetch(signup({ email: "reader@example.org" }), e);
-      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
-    }
+    // Within the limits: signed up as before.
+    const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER: limiter("none:") };
+    const response = await worker.fetch(signup({ email: "reader@example.org" }), e);
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+    assert.equal(fake.calls.length, 2);
   } finally {
     console.error = realError;
+    fake.restore();
+  }
+});
+
+test("a limiter that fails lets no signup through", async () => {
+  const fake = fakeButtondown({ [LOOKUP]: [404, {}], "POST /subscribers": [201, {}] });
+  const logged = [];
+  const realError = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    // One that throws, and one that gives no answer the Worker can read.
+    for (const SIGNUP_LIMITER of [{ limit: async () => { throw new Error("down"); } }, { limit: async () => undefined }]) {
+      const e = { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k", SIGNUP_LIMITER };
+      const response = await worker.fetch(signup({ email: "reader@example.org" }), e);
+      assert.equal(response.status, 303);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/problem/");
+    }
+    assert.equal(fake.calls.length, 0);
+    assert.ok(logged.length === 2 && logged.every((m) => m.startsWith("Digest signup: the rate limit couldn't be checked")));
+    assert.ok(!logged.some((m) => m.includes("example.org")));
+  } finally {
+    console.error = realError;
+    fake.restore();
+  }
+});
+
+test("a signup from another language's page goes on to that language's answer, where the site has it", async () => {
+  const SPANISH = { ...SIGNUP_MANIFEST, files: { ...SIGNUP_MANIFEST.files, "es/digest/thanks/index.html": entry("gracias") } };
+  const answers = { [LOOKUP]: [404, {}], "POST /subscribers": [201, {}] };
+  const fake = fakeButtondown(answers);
+  try {
+    const e = { ...env(SPANISH), BUTTONDOWN_SUBSCRIBE_KEY: "k" };
+    let response = await worker.fetch(signup({ email: "reader@example.org", lang: "es" }), e);
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/es/digest/thanks/");
+    // The digest is in English alone: the reader gets the English tag.
+    assert.deepEqual(fake.calls[1].body.tags, ["t-en"]);
+    response = await worker.fetch(signup({ email: "not an address", lang: "es" }), e);
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/es/digest/problem/");
+    // English, a language the site has no answer pages in, and anything else: the English pages.
+    for (const lang of ["en", "fr", "../x", ""]) {
+      response = await worker.fetch(signup({ email: "reader@example.org", lang }), e);
+      assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/", lang);
+    }
+    // A site built before its answer pages were in Spanish (its manifest read again).
+    clearManifests();
+    response = await worker.fetch(signup({ email: "reader@example.org", lang: "es" }), { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "k" });
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  } finally {
     fake.restore();
   }
 });

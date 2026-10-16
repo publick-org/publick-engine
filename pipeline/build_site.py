@@ -68,6 +68,9 @@ UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
+# Their pages built in every language all the same: where the digest's signup form leads, as the form is on
+# every language's pages (site/templates/digest_box.html).
+EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
 
 
 def url_for(rel_path: Path) -> str:
@@ -614,6 +617,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["public_hearing"] = bool(pv_en) and bool(PUBLIC_HEARING.search(
             " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
         m["preview_line"] = preview_line(m)
+        # How the summary that line comes from was checked, said beside it (factcheck.how_checked).
+        m["preview_checked"] = factcheck.how_checked(*preview_source(m)) if m["preview_line"] else None
         m["glossary"] = glossary_for(english, glossary or [])
 
     for problem in apply_corrections(meetings, corrections or []):
@@ -819,6 +824,16 @@ def clip(text: str, limit: int = 140) -> str:
     if len(text) <= limit:
         return text
     return text[:limit].rsplit(" ", 1)[0].rstrip(",;:—– ") + "…"
+
+
+def preview_source(meeting: dict) -> tuple[dict | None, str | None]:
+    """The summary preview_line() takes its line from, and its kind: the minutes', or else the agenda's."""
+    minutes, agenda = meeting.get("minutes_summary"), meeting.get("preview")
+    if minutes and minutes.get("is_minutes", True) and (minutes.get("headline") or minutes.get("decisions")):
+        return minutes, "minutes"
+    if agenda and (agenda.get("headline") or agenda.get("items")):
+        return agenda, "agenda"
+    return None, None
 
 
 def preview_line(meeting: dict) -> str | None:
@@ -1234,6 +1249,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
+    env.globals["how_checked"] = factcheck.how_checked
     env.filters["english"] = in_english
     # Text for a search result's description: one line, plain, at most limit characters (clip).
     env.filters["fit"] = lambda text, limit: clip(structured.plain(text), limit)
@@ -1348,7 +1364,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
         versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
-                    for code in langs] if len(langs) > 1 and section_slug not in ENGLISH_ONLY_FOLDERS else []
+                    for code in langs] if len(langs) > 1 and (section_slug not in ENGLISH_ONLY_FOLDERS or url in EVERY_LANGUAGE_PAGES) else []
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
@@ -1413,10 +1429,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                                                                               mailing_address=digest.MAILING_ADDRESS,
                                                                               unsubscribe=digest.UNSUBSCRIBE_TAG)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
-        if common["digest_signup"]:
-            # Where the signup form leads (worker/digest.js); not for search engines.
-            for outcome in ("thanks", "problem"):
-                render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
+    if "meetings" in config and common["digest_signup"]:
+        # Where the signup form leads (worker/digest.js), in each language, as the form is on every language's
+        # pages; not for search engines.
+        for outcome in ("thanks", "problem"):
+            render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if documents and english:
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
@@ -1582,6 +1599,12 @@ def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:
     return f"{site['repo_url']}/issues/new?{urlencode({'title': subject, 'body': body, 'labels': 'correction'}, quote_via=quote)}"
 
 
+def checked_short(how: str | None) -> str:
+    """How a summary was checked (factcheck.how_checked), in a few words, as macros.html's checked_short says it."""
+    return {"pdf": _("Checked against the city's PDF"), "partial": _("Partly checked against the city's PDF"),
+            "ai": _("Checked against an AI transcription")}.get(how, _("Not checked"))
+
+
 def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, built_at: datetime, limit: int = 50) -> None:
     """RSS feed of City Hall updates: each agenda and set of minutes as it is posted."""
     items = []
@@ -1590,13 +1613,16 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
         when = format_date(m["date"])
         if m["agenda"]:
             summary = (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary")
+            # How it was checked, after the credit (factcheck.how_checked).
+            credit = _("(AI summary of the agenda. Check the original.)") + " " + checked_short(factcheck.how_checked(m["preview"], "agenda")) + "."
             items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
-                          summary + " " + _("(AI summary of the agenda. Check the original.)") if summary else _("Agenda posted.")))
+                          summary + " " + credit if summary else _("Agenda posted.")))
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
             summary = ms.get("headline") or ms.get("summary")
+            credit = _("(AI summary of the minutes. Check the original.)") + " " + checked_short(factcheck.how_checked(ms, "minutes")) + "."
             items.append((m["minutes_doc"]["fetched_at"], "minutes", _("{board}: minutes of {date}").format(board=m["body"], date=when), m,
-                          summary + " " + _("(AI summary of the minutes. Check the original.)") if summary else _("Minutes posted.")))
+                          summary + " " + credit if summary else _("Minutes posted.")))
     items.sort(key=lambda i: i[0], reverse=True)
     site = config["site"]
     entries = "".join(
@@ -1660,7 +1686,8 @@ def export_summary(record: dict | None, kind: str, withheld: bool) -> dict | Non
         # Each with its kind, as decisions.csv gives it.
         out["decisions"] = [{"kind": decision_kind(d), "text": d} for d in record.get("decisions") or []]
     out.update({"not_shown": record.get("not_shown", 0), "ai_generated": True, "model": record.get("model"),
-                "generated_at": record.get("generated_at"), "fact_check": fc["result"] if fc else None})
+                "generated_at": record.get("generated_at"), "fact_check": fc["result"] if fc else None,
+                "checked": factcheck.how_checked(record, kind)})
     return out
 
 
