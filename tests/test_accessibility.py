@@ -290,16 +290,17 @@ def test_the_signup_in_spanish(browser, axe, built, viewport):  # noqa: F811
                 test_reflows_without_horizontal_scroll(browser, url, "/es" + path)
 
 
-# What moved as the page loaded, below the site's header (whose menu can move a pixel or two as the web fonts load,
-# on every page alike): each shift that moved anything outside it.
+# Every layout shift as the page loaded, and what each moved. Measured with the web fonts blocked (fallback fonts
+# only), so a font swapping in, which moves text on every page alike, isn't counted: what's left is what the
+# page's own content did.
 LAYOUT_SHIFTS = """new Promise((done) => {
-  let total = 0;
+  const shifts = [];
   new PerformanceObserver((list) => {
     for (const e of list.getEntries()) {
-      if (e.sources.some((s) => !(s.node && s.node.closest && s.node.closest("header")))) total += e.value;
+      shifts.push({ value: e.value, moved: e.sources.map((s) => s.node ? (s.node.id || s.node.className || s.node.nodeName) : "?") });
     }
   }).observe({ type: "layout-shift", buffered: true });
-  setTimeout(() => done(total), 500);
+  setTimeout(() => done(shifts), 500);
 })"""
 
 
@@ -309,15 +310,16 @@ def test_the_signup_moves_nothing_on_a_phone(browser, server_url, path, form_id)
     meeting's own content, so it never moves that down."""
     context = browser.new_context(viewport=VIEWPORTS["phone"])
     page = context.new_page()
+    page.route("**/*.woff2", lambda route: route.abort())
     page.goto(server_url + path)
     page.wait_for_load_state("load")
-    shifted = page.evaluate(LAYOUT_SHIFTS)
+    shifts = page.evaluate(LAYOUT_SHIFTS)
     box = page.locator(f"#{form_id}").bounding_box()
     agenda = page.locator("#agenda").bounding_box() if form_id == "meeting-signup" else None
     field = page.get_by_label("Email address")
     named = field.count() == 1 and field.get_attribute("id") == f"{form_id}-email"
     context.close()
-    assert shifted == 0, f"{path}: layout shift {shifted}"
+    assert not shifts, f"{path}: layout shifts {shifts}"
     assert box and box["width"] <= VIEWPORTS["phone"]["width"]
     assert named
     if agenda:
