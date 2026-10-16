@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -68,21 +69,39 @@ class HostLimiter:
             f.write(json.dumps(state))
             f.flush()
 
-    def wait(self, host: str, interval: float) -> None:
+    def wait(self, host: str, interval: float, lane: str | None = None, lane_interval: float = 0.0) -> None:
         """Wait until interval seconds after the host was last asked by any process, and past any
-        Retry-After it gave; then mark it asked now."""
+        Retry-After it gave; then mark it asked now. A request in a lane (one path of the host, such
+        as an API's listing) also waits lane_interval after the lane was last asked."""
         def turn(state: dict) -> dict:
-            ready = max(state.get("last", 0.0) + interval, state.get("until", 0.0))
+            lanes = state.get("lanes", {})
+            ready = max(state.get("last", 0.0) + interval, state.get("until", 0.0),
+                        lanes.get(lane, 0.0) + lane_interval if lane else 0.0)
             # Never longer than the longest Retry-After honoured, should the clock have jumped.
-            wait = min(ready - time.time(), max(interval, MAX_RETRY_AFTER))
+            wait = min(ready - time.time(), max(interval, lane_interval, MAX_RETRY_AFTER))
             if wait > 0:
                 time.sleep(wait)
-            return {**state, "last": time.time()}
+            asked = time.time()
+            return {**state, "last": asked, **({"lanes": {**lanes, lane: asked}} if lane else {})}
         self._update(host, turn)
 
     def hold(self, host: str, seconds: float) -> None:
         """The host asked for no requests for this many seconds (Retry-After): every process waits."""
         self._update(host, lambda state: {**state, "until": max(state.get("until", 0.0), time.time() + seconds)})
+
+    def refuse(self, host: str, lane: str, seconds: float) -> None:
+        """The host refused a lane: no process asks it again for this many seconds."""
+        self._update(host, lambda state: {**state, "refused": {**state.get("refused", {}), lane: time.time() + seconds}})
+
+    def refused_until(self, host: str, lane: str) -> float | None:
+        """When the host's refusal of a lane ends (a time.time()), or None if it isn't refused."""
+        found = []
+
+        def read(state: dict) -> dict:
+            found.append(state.get("refused", {}).get(lane, 0.0))
+            return state
+        self._update(host, read)
+        return found[0] if found[0] > time.time() else None
 
 
 class FetchError(Exception):
@@ -91,33 +110,77 @@ class FetchError(Exception):
         self.status = status
 
 
+class Refused(FetchError):
+    """A lane the host refused (Lane): this request, or another process's within the cool-down."""
+
+
+@dataclass(frozen=True)
+class Lane:
+    """Requests to one path of a host (an API's listing, not the lookups under it) that keep their
+    own, longer interval between them, and that the host may refuse on their own. A 403, or a 429
+    still answered after every retry, is a refusal: no process on the machine asks the path again
+    for cooldown seconds, and each request in that time raises Refused without being sent."""
+    path: str
+    interval: float
+    cooldown: float
+
+
 class PoliteClient:
     def __init__(self, user_agent: str, delay: float = 3.0, retries: int = 3, timeout: float = 30.0,
-                 limiter: HostLimiter | None = None):
+                 limiter: HostLimiter | None = None, lanes: tuple[Lane, ...] = ()):
         """With a limiter, the delay is kept between any two requests to a host from any process
-        on the machine using one, not only this client's own."""
+        on the machine using one, not only this client's own, and so are the lanes' intervals and
+        refusals. Without one, they're kept by this client alone."""
         self.session = requests.Session()
         self.session.headers["User-Agent"] = user_agent
         self.delay = delay
         self.retries = retries
         self.timeout = timeout
         self.limiter = limiter
+        self.lanes = {lane.path: lane for lane in lanes}
         self._last = 0.0
+        self._lane_last: dict[str, float] = {}
+        self._refused: dict[str, float] = {}
         self.request_count = 0
+
+    def _refused_until(self, host: str, lane: Lane) -> float | None:
+        if self.limiter:
+            return self.limiter.refused_until(host, lane.path)
+        until = self._refused.get(lane.path, 0.0)
+        return until if until > time.time() else None
+
+    def _refuse(self, host: str, lane: Lane, status: int) -> Refused:
+        if self.limiter:
+            self.limiter.refuse(host, lane.path, lane.cooldown)
+        else:
+            self._refused[lane.path] = time.time() + lane.cooldown
+        # The host and path only: never the query, which may carry a key.
+        return Refused(f"{host}{lane.path}: HTTP {status}", status)
+
+    def _wait(self, host: str, lane: Lane | None) -> None:
+        if self.limiter:
+            self.limiter.wait(host, self.delay, lane.path if lane else None, lane.interval if lane else 0.0)
+            return
+        ready = max(self._last + self.delay, self._lane_last.get(lane.path, 0.0) + lane.interval if lane else 0.0)
+        wait = ready - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        if lane:
+            self._lane_last[lane.path] = time.monotonic()
 
     def get(self, url: str) -> requests.Response:
         last_error, asked = None, None
-        host = urlsplit(url).hostname or ""
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+        lane = self.lanes.get(parts.path.rstrip("/"))
+        if lane and (until := self._refused_until(host, lane)):
+            ends = datetime.fromtimestamp(until, timezone.utc).strftime("%H:%M UTC")
+            raise Refused(f"{host}{lane.path}: refused earlier, not asked again before {ends}", 403)
         for attempt in range(self.retries + 1):
             if attempt:
                 # 10s, 30s, 90s, or longer if the server asked for longer.
                 time.sleep(max(10 * 3 ** (attempt - 1), asked or 0))
-            if self.limiter:
-                self.limiter.wait(host, self.delay)
-            else:
-                wait = self.delay - (time.monotonic() - self._last)
-                if wait > 0:
-                    time.sleep(wait)
+            self._wait(host, lane)
             self._last = time.monotonic()
             self.request_count += 1
             try:
@@ -131,7 +194,12 @@ class PoliteClient:
                 if asked and self.limiter:
                     self.limiter.hold(host, asked)
                 continue
+            if lane and response.status_code == 403:
+                raise self._refuse(host, lane, 403)
             if response.status_code >= 400:
                 raise FetchError(f"{url}: HTTP {response.status_code}", response.status_code)
             return response
+        if lane and getattr(last_error, "status", None) == 429:
+            # Still too many after every retry and every Retry-After: refused.
+            raise self._refuse(host, lane, 429)
         raise FetchError(f"{url}: {last_error}", getattr(last_error, "status", None))
