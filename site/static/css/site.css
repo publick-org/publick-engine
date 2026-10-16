@@ -128,6 +128,8 @@ main { display: block; padding: 1.25rem 0 3rem; }
 .credit-example { margin: 0.75rem 0 1rem; padding: 0.6rem 0.9rem; border-left: 3px solid var(--line-strong); background: var(--soft); }
 .credit-example p { margin: 0; }
 .credit p { margin: 0; }
+/* How the summary above was checked (macros.html checked_line), on its own line before the credit. */
+.credit .checked { margin-bottom: 0.4rem; color: var(--ink-soft); }
 .report-link {
   display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; margin-top: 0.5rem; padding: 0 0.85rem;
   border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); font-size: 0.875rem; font-weight: 600; text-decoration: none;
