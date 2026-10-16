@@ -68,6 +68,9 @@ UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
+# Their pages built in every language all the same: where the digest's signup form leads, as the form is on
+# every language's pages (site/templates/digest_box.html).
+EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
 
 
 def url_for(rel_path: Path) -> str:
@@ -1305,7 +1308,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         section = next((s for s in sections if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
         versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
-                    for code in langs] if len(langs) > 1 and section_slug not in ENGLISH_ONLY_FOLDERS else []
+                    for code in langs] if len(langs) > 1 and (section_slug not in ENGLISH_ONLY_FOLDERS or url in EVERY_LANGUAGE_PAGES) else []
         for v in versions:
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
