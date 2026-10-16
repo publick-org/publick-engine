@@ -95,8 +95,12 @@ pipeline/                   Python package
   fetch_diligent_meetings.py   Daily: a school board's meetings, agendas and minutes (a Diligent Community portal) -> data/meetings/
   fetch_opengov_meetings.py    Daily: public bodies' meetings, agendas and minutes (Rhode Island's Open Meetings portal) -> data/meetings/
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
-                            new documents first, with each month's cost in data/summary-costs.json; in a network's
+                            new documents first, with each request's cost in the cost log (cost_log.py); in a network's
                             daily run, sent as one batch at half the price and collected once it has ended
+  cost_log.py               Each request to the model, written as it's answered, counted once, and each month's totals made
+                            from it (the ledger, which the network's budget reads), kept out of git: in the private store
+                            (see Cost records), else in data/costs/ and data/summary-costs.json.
+                            `python -m pipeline.summarize ledger --check` compares the logs with the files' recorded costs
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
                             reviewed by AI -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
@@ -744,6 +748,23 @@ One bucket can serve several towns, each under its own `prefix`. Cloudflare R2 i
 
 The files remain in the repository's git history. Shrinking the history means rewriting it, which is a separate decision.
 
+## Cost records
+
+What each request to the model costs is written to a log as it's answered, and each month's totals are made from it (`pipeline/cost_log.py`); a network's daily runs share one monthly budget by those totals. A repository whose data is public shouldn't publish them, so they're kept out of git:
+
+- **With a private store**: an S3-compatible bucket that nothing serves, set by the secrets `PRIVATE_ENDPOINT`, `PRIVATE_BUCKET`, `PRIVATE_ACCESS_KEY_ID` and `PRIVATE_SECRET_ACCESS_KEY`. Each town's costs are under `costs/<town>/` (its `[storage]` prefix, or its config's name): one object for each run's lines in a month, and the ledger, `summary-costs.json`. Each line is appended to a copy on disk (`data/costs/pending/`, flushed) and then uploaded, so a run stopped at any moment, even with its machine, has counted every request but the one in flight; a copy that couldn't be uploaded goes up with the job's next step.
+- **Without one**: the same lines in `data/costs/`, whose own `.gitignore` keeps them out of git, and the ledger in `data/summary-costs.json`, as before. A town in its own repository that doesn't want the ledger in git adds `data/summary-costs.json` to its `.gitignore` (its runs then start each month's log again from the summary files).
+
+The first run with the private store's keys moves a town's existing `data/summary-costs.json` into the store (the network's budget step imports every town's before any town runs), starts the month's log from it, and deletes the file, so the run's data commit takes it out of git. Its earlier versions stay in the git history.
+
+The network's monthly budget is given as the secrets `SUMMARY_BUDGET` (dollars a month) and `SUMMARY_BUDGET_MONTH` (`YYYY-MM=dollars` for a month with its own, several separated by commas), so the run logs never show it: GitHub hides a secret's value in a log. `python -m pipeline.network budget` prints each town's share for the run as a fraction of the month's budget, and the budget's use as a fraction; the summaries step makes the fraction dollars again from the same secrets. No step prints what anything cost. The minutes and translation sets (`pipeline/evaluate.py`) leave the costs out of their reports and JSON when `PUBLICK_HIDE_COSTS` is set, as a workflow whose log is public sets it.
+
+One-time setup, with Cloudflare R2:
+
+1. **Create a bucket** (**R2 object storage → Create bucket**), separate from the documents and sites buckets. Give it no custom domain and leave its `r2.dev` address off, and bind it to no Worker: nothing should serve it.
+2. **Create an API token** (**R2 object storage → API Tokens → Manage → Create Account API token**) with *Object Read & Write* on that bucket only.
+3. **Set the secrets** `PRIVATE_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`), `PRIVATE_BUCKET`, and the token's `PRIVATE_ACCESS_KEY_ID` and `PRIVATE_SECRET_ACCESS_KEY`; for a network, `SUMMARY_BUDGET` (and `SUMMARY_BUDGET_MONTH` when a month has its own).
+
 ## Open data
 
 Every town with meetings publishes `/data/meetings.json`, built with the site (`meetings_export` in `pipeline/build_site.py`): every meeting the site lists, oldest first, with its board, date, time, place, status, any correction, and its agenda and minutes, each with the city's link, the saved copy, and its AI summary and decisions joined to it. It holds what the English pages show: after the fact check, without a summary taken down by hand (`summary_withheld`), and without costs. The format is `publick-meetings`, version `EXPORT_VERSION`: a field may be added in the same version, and a field renamed, removed, or changed in meaning moves the version up. The site's Data page (`/data/`, `site/pages/data/index.html`) describes each field, the credit line, and that the summaries are AI-written and can be wrong; change the two together, and its test (`tests/test_site.py`, `test_open_data_export`).
@@ -764,6 +785,7 @@ Set these under the repository's **Settings → Secrets and variables → Action
 - `STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY` (needed with `[storage]`): an R2 API token for the documents bucket. See [Document storage](#document-storage).
 - `SITES_ENDPOINT`, `SITES_BUCKET`, `SITES_ACCESS_KEY_ID`, `SITES_SECRET_ACCESS_KEY` (needed to publish to the sites bucket): see [Serving many sites from one bucket](#serving-many-sites-from-one-bucket).
 - `BLS_API_KEY` (optional): free key from bls.gov/developers for the unemployment rate. Without it the job uses BLS's keyless limit, then falls back to the bulk data file.
+- `PRIVATE_ENDPOINT`, `PRIVATE_BUCKET`, `PRIVATE_ACCESS_KEY_ID`, `PRIVATE_SECRET_ACCESS_KEY` (optional): the private store, where the summaries' costs are kept out of git. A network sets `SUMMARY_BUDGET` and `SUMMARY_BUDGET_MONTH` too. See [Cost records](#cost-records).
 
 A network served by the Workers also sets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (to deploy them), and for the weekly digest `BUTTONDOWN_SUBSCRIBE_KEY` and `BUTTONDOWN_SEND_KEY` (see [The email](#the-email)); publick.org's README lists the network's own.
 

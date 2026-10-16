@@ -200,7 +200,7 @@ def report(results: list[dict], run: dict | None = None) -> str:
     failed_first = t["first_tries_failed"]
     tokens = lambda role: (f"{t[role]['requests']} requests, {t[role]['input_tokens']:,} input "
                            f"({t[role]['cache_read_input_tokens']:,} more read from the cache) and "
-                           f"{t[role]['output_tokens']:,} output tokens, ${t[role]['cost']:.2f}")
+                           f"{t[role]['output_tokens']:,} output tokens, {minutes_set.money(t[role]['cost'])}")
     lines += [f"- Passed the first time: {pct(t['first_try'])}",
               f"- Passed after the correction: {pct(t['passed'])}",
               f"- Shown in English after both tries: {t['failed_check']} failed the check, {t['failed_review']} "
@@ -209,7 +209,7 @@ def report(results: list[dict], run: dict | None = None) -> str:
               f"the review, {failed_first.get('stopped', 0)} cut off or refused",
               f"- Translations: {tokens('translation')}",
               f"- Reviews: {tokens('review')}",
-              f"- Cost: ${t['cost']:.2f} (${t['cost_per_summary']:.4f} a summary)", "",
+              f"- Cost: {minutes_set.money(t['cost'])} ({minutes_set.money(t['cost_per_summary'], 4)} a summary)", "",
               "## Shown in English after both tries", ""]
     for r in results:
         if not r["passed"]:
@@ -254,9 +254,10 @@ def main(argv: list[str] | None = None) -> int:
                        run["review"]["prices"])
     print(report(results, run))
     if args.json:
-        args.json.write_text(json.dumps({"set": "translations", "prompt_version": translate.VERSION,
+        args.json.write_text(json.dumps(minutes_set.without_costs({
+                                         "set": "translations", "prompt_version": translate.VERSION,
                                          "translation": run["translation"], "review": run["review"],
-                                         "totals": totals(results), "summaries": results},
+                                         "totals": totals(results), "summaries": results}),
                                         indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return 0
 

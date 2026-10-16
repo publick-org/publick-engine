@@ -182,9 +182,10 @@ def report(docs: list[dict], run_info: dict) -> str:
                   f"| Problems by kind | {problems_text(new['problems_by_kind'])} | {problems_text(pub['problems_by_kind'])} |",
                   f"| Tokens, input / output | {new['input_tokens']:,} / {new['output_tokens']:,} | "
                   f"{pub['input_tokens']:,} / {pub['output_tokens']:,} |",
-                  f"| Cost (list price) | ${new['cost']:.2f} (${new['cost'] / max(new['documents'], 1):.4f} a document"
+                  f"| Cost (list price) | {evaluate.money(new['cost'])} "
+                  f"({evaluate.money(new['cost'] / max(new['documents'], 1), 4)} a document"
                   + (f"; {new['long_prompts']} at the long-prompt price" if new["long_prompts"] else "") + ") | "
-                  f"${pub['cost']:.2f}" + (f" ({pub['cost_missing']} not recorded)" if pub["cost_missing"] else "") + " |",
+                  f"{evaluate.money(pub['cost'])}" + (f" ({pub['cost_missing']} not recorded)" if pub["cost_missing"] else "") + " |",
                   f"| Seconds a document, median / longest | {seconds_text(new)} | not recorded |", ""]
     lines += ["## Each document", "",
               "Result, entries, hidden, and problems: made again / published. Published: its model and prompt version.", "",
@@ -192,7 +193,7 @@ def report(docs: list[dict], run_info: dict) -> str:
               "|---|---|---|---|---|---|---|---|---|---|---|"]
     for d in docs:
         new, pub = d["new"], d["published"]
-        cost = f"${new['cost']:.4f} / " + (f"${pub['cost']:.4f}" if pub.get("cost") is not None else "–")
+        cost = f"{evaluate.money(new['cost'], 4)} / " + (evaluate.money(pub['cost'], 4) if pub.get("cost") is not None else "–")
         lines.append(f"| {d['key']} {d['body'][:40]}, {d['date']} | {d['kind']} | {d['pages'] or '?'} | "
                      f"{pub['model']} v{pub['prompt_version']} | {new['result']} / {pub['result']} | "
                      f"{new.get('entries', 0)} / {pub['entries']} | {new.get('hidden_entries', 0)} / {pub['hidden_entries']} | "
@@ -237,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     info = {"set": "shadow", "model": args.model, "effort": args.effort, "prices": prices}
     print(report(docs, info))
     if args.json:
-        args.json.write_text(json.dumps({**info, "totals": totals(docs), "documents": docs}, indent=2,
+        args.json.write_text(json.dumps(evaluate.without_costs({**info, "totals": totals(docs), "documents": docs}), indent=2,
                                         ensure_ascii=False) + "\n", encoding="utf-8")
     return 1 if any(d["new"].get("error") for d in docs) else 0
 

@@ -29,8 +29,9 @@ language on never regenerates an English summary, and a translation is made
 again only when its English summary changes (or this module's prompt does:
 VERSION). summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
-summaries waiting, which cost about ten times as much; their cost is in the
-month's ledger as translation_cost. Their system prompts are the same for
+summaries waiting, which cost about ten times as much; each request is in the
+month's cost log as it's answered (pipeline/cost_log.py), and in the ledger as
+translation_cost. Their system prompts are the same for
 every request, so they're cached: within a run, each request after the first
 reads its system prompt at a tenth of the price.
 
@@ -538,9 +539,10 @@ def schema(kind: str) -> dict:
 
 
 def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
-              previous: dict | None = None, problems: str = "") -> tuple[dict, dict]:
+              previous: dict | None = None, problems: str = "", on_response=None) -> tuple[dict, dict]:
     """The model's translation of one English summary, and the tokens it used. previous: an
-    earlier translation that failed a check, to correct, and problems: what was wrong with it."""
+    earlier translation that failed a check, to correct, and problems: what was wrong with it.
+    on_response, if given, is called with the response and its tokens as soon as it's answered."""
     source = english(record, kind)
     prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
                            boards=board_names(config, lang, meeting["body"]),
@@ -556,6 +558,8 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
         output_config=output_config(config, schema(kind)),
     )
     usage = usage_of(response)
+    if on_response:
+        on_response(response, usage)
     if response.stop_reason != "end_turn":
         from pipeline.summarize import StoppedEarly, stop_reason
         raise StoppedEarly(stop_reason(response), usage)
@@ -568,24 +572,39 @@ def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
 
 
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
-         now: datetime, cost) -> tuple[dict, float]:
+         now: datetime, cost, log=None) -> tuple[dict, float]:
     """Translate one summary, check it, have the AI review its meaning if it passes, and save it.
     A second try corrects the first: the model gets it and what was wrong with it.
-    Returns the saved record and what it cost."""
+    Returns the saved record and what it cost. log: the month's cost log (pipeline/cost_log.py), which
+    gets each request as it's answered: the translation (failed, if it stopped early or can't be read)
+    and its review."""
     source = english(record, kind)
     before = saved(data_dir, lang, doc["sha256"])
     again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
     wrong = what_failed(data_dir, before, record, kind, lang) if again else None
     # A translation made again in the month the one before it was (a correction, a changed summary) replaces
-    # its file, so what that one cost is carried in this one, for month_counts to still count it.
+    # its file, so what that one cost is carried in this one, for the files to still record it (summarize.recount).
     earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
                if before and before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
-    result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "")
+    answered = []
+    try:
+        result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
+                                  lambda response, usage: answered.append((response, usage)))
+    except Exception:
+        if answered and log:
+            response, usage = answered[0]
+            log.request(response, "failed", cost(usage, settings(config)), doc=doc["sha256"], lang=lang,
+                        model=settings(config)["model"], usage=usage)
+        raise
     paid = cost(usage, settings(config))
+    if log:
+        log.request(answered[0][0], "translation", paid, doc=doc["sha256"], lang=lang, model=settings(config)["model"],
+                    usage=usage)
     checked = check(source, result, kind, lang, town_words(data_dir))
     reviewed, review_cost = "not reviewed: the check failed", 0.0
     if checked == "ok":
-        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]], cost)
+        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]],
+                                               cost, log, doc["sha256"])
         reviewed = "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok"
     out = {
         **{field: result.get(field) for field in FIELDS[kind]},
@@ -650,11 +669,13 @@ def review_settings(config: dict) -> dict:
 UNREVIEWED = "not reviewed"
 
 
-def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, object, object]], cost) -> tuple[dict[str, str], float]:
+def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, object, object]], cost, log=None,
+                   doc: str | None = None) -> tuple[dict[str, str], float]:
     """The AI's review of translations' meaning. pairs: (id, English, translation), where a text
     may be a list of texts (its entries' ids are "<id> 1", "<id> 2", ...). Returns the problems
     found, {id: problem}, empty if none, and what the review cost. A review that can't be made
-    returns {UNREVIEWED: why}, so nothing it didn't review is shown."""
+    returns {UNREVIEWED: why}, so nothing it didn't review is shown. log: the month's cost log, which
+    gets the request as it's answered, with doc, the hash of the document whose translation it is."""
     rsettings = review_settings(config)
     if rsettings["input_price"] is None or rsettings["output_price"] is None:
         return {UNREVIEWED: "[summaries] needs translation_review_input_price and translation_review_output_price"}, 0.0
@@ -686,6 +707,8 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
             raise
         return {UNREVIEWED: str(e)}, 0.0
     paid = cost(usage_of(response), rsettings)
+    if log:
+        log.request(response, "review", paid, doc=doc, lang=lang, model=rsettings["model"], usage=usage_of(response))
     if response.stop_reason != "end_turn":
         return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
     problems: dict[str, str] = {}
@@ -697,20 +720,18 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
     return problems, paid
 
 
-def month_counts(data_dir: Path) -> dict[str, dict]:
-    """What the saved translations cost, by the month they were made: {month: {"cost", "translations"}},
-    with what the ones they replaced that month cost (make()). A batch of drafted texts counts as one."""
-    counted: dict[str, dict] = {}
-    records = [json.loads(f.read_text(encoding="utf-8")) for f in sorted((data_dir / "summaries").glob("*/*.json"))]
+def made_in(data_dir: Path, month: str) -> list[tuple[str, str | None, dict]]:
+    """What was translated in a month, as the files record it: (language, document's hash, record) for
+    each translation saved in it, and (language, None, batch) for each batch of drafts made in it."""
+    out = []
+    for file in sorted((data_dir / "summaries").glob("*/*.json")):
+        record = json.loads(file.read_text(encoding="utf-8"))
+        if record.get("generated_at", "")[:7] == month:
+            out.append((file.parent.name, file.stem, record))
     for file in sorted((data_dir / "strings").glob("*.json")):
-        records += json.loads(file.read_text(encoding="utf-8")).get("batches", [])
-    for record in records:
-        at = record.get("generated_at", "")[:7]
-        if at:
-            row = counted.setdefault(at, {"cost": 0.0, "translations": 0})
-            row["cost"] += record.get("cost", 0.0) + record.get("replaced_cost", 0.0)
-            row["translations"] += 1
-    return counted
+        out += [(file.stem, None, batch) for batch in json.loads(file.read_text(encoding="utf-8")).get("batches", [])
+                if batch.get("generated_at", "")[:7] == month]
+    return out
 
 
 # ---- A town's own text and names, drafted ------------------------------------
@@ -769,10 +790,11 @@ def check_text(en: str, tr) -> str:
 
 
 def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str], now: datetime, cost,
-                allowance: float | None = None) -> tuple[int, float]:
+                allowance: float | None = None, log=None) -> tuple[int, float]:
     """Draft the texts (a town's own text and names with no translation yet), check each, and
     save them in data/strings/<language>.json. Stops before a batch once allowance (dollars) is
-    spent. Returns how many were drafted and what they cost."""
+    spent. Returns how many were drafted and what they cost. log: the month's cost log, which gets
+    each request, a batch's drafts and their review, as it's answered."""
     tsettings = settings(config)
     saved = saved_drafts(data_dir, lang)
     done, spent = 0, 0.0
@@ -796,6 +818,8 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         )
         usage = usage_of(response)
         paid = cost(usage, tsettings)
+        if log:
+            log.request(response, "draft", paid, lang=lang, model=tsettings["model"], usage=usage)
         spent += paid
         at = now.isoformat(timespec="seconds")
         saved["batches"].append({"generated_at": at, "texts": len(batch), "usage": usage, "cost": round(paid, 6)})
@@ -807,7 +831,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         checks = [check_text(en, tr) for en, tr in zip(batch, out)]
         # The AI reviews the ones that pass, which also catches a batch shifted by one.
         problems, review_cost = review_meaning(client, config, lang, [
-            (str(i), en, tr) for i, (en, tr, c) in enumerate(zip(batch, out, checks)) if c == "ok"], cost)
+            (str(i), en, tr) for i, (en, tr, c) in enumerate(zip(batch, out, checks)) if c == "ok"], cost, log)
         spent += review_cost
         saved["batches"][-1]["cost"] = round(paid + review_cost, 6)
         for i, (en, tr, checked) in enumerate(zip(batch, out, checks)):

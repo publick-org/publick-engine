@@ -20,7 +20,7 @@ daily runs do. Nothing is saved but the report, and it never fails on what it fi
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set batch [--efforts low,medium,high]
                                                       [--wait-minutes 100] [--only NAME] [--json FILE]
 
-It costs about half of a minutes run (pipeline/evaluate.py) for each effort: $1.50 to $3 for three.
+Each effort's batch costs about half of a minutes run (pipeline/evaluate.py).
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ def report(runs: list[dict], documents: list[dict], model: str, waited: float) -
         t = totals(run["results"])
         lines.append(f"| {run['effort']} | {minutes_and_seconds(run['seconds'], waited)} | {t['right']} | "
                      f"{t['wrong']} ({t['shown']}) | {t['missing']} | {t['held']} | {t['stopped']} | {t['failed']} | "
-                     f"{t['output_tokens']:,} | ${t['cost']:.2f} |")
+                     f"{t['output_tokens']:,} | {evaluate.money(t['cost'])} |")
     lines += ["", "Wrong (shown): a decision with the wrong outcome, and how many of those the site would show "
               "(not held back by the check). A scan isn't transcribed here, so its decisions aren't checked.", ""]
     for run in runs:
@@ -186,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     runs = collect(client, documents, pdfs, batches, prices)
     print(report(runs, documents, args.model, args.wait_minutes * 60))
     if args.json:
-        args.json.write_text(json.dumps(runs, indent=2) + "\n", encoding="utf-8")
+        args.json.write_text(json.dumps(evaluate.without_costs(runs), indent=2) + "\n", encoding="utf-8")
     return 0
 
 
