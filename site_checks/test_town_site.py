@@ -108,7 +108,7 @@ def test_internal_links_resolve(site_dir, page_files):
 def test_every_page_links_its_other_languages(site_dir, page_files, config):
     """On a site in more than one language, every page names each language's version
     (hreflang), and that page exists. A page in English only for now (build_site.ENGLISH_ONLY_FOLDERS)
-    names none, and has no other version."""
+    names none, and has no other version, except those built in every language (build_site.EVERY_LANGUAGE_PAGES)."""
     if len(PREFIXES) < 2:
         pytest.skip("The site is in one language.")
     base = f"https://{config['site']['domain']}"
@@ -116,7 +116,8 @@ def test_every_page_links_its_other_languages(site_dir, page_files, config):
         if path.name == "404.html":
             continue
         alternates = {a["hreflang"]: a["href"] for t, a in parse(path).attrs if t == "link" and a.get("hreflang")}
-        if path.relative_to(site_dir).parts[0] in build_site.ENGLISH_ONLY_FOLDERS:
+        rel = path.relative_to(site_dir)
+        if rel.parts[0] in build_site.ENGLISH_ONLY_FOLDERS and build_site.url_for(rel) not in build_site.EVERY_LANGUAGE_PAGES:
             assert not alternates, f"{path}: hreflang links on a page in English only"
             continue
         assert set(alternates) == set(PREFIXES) | {"x-default"}, f"{path}: hreflang links {sorted(alternates)}"

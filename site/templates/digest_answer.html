@@ -1,17 +1,21 @@
 {% extends "base.html" %}
 {% from "macros.html" import contact %}
-{# Where the weekly digest's signup form leads (worker/digest.js): "check your email", or "that didn't work". #}
+{# Where the weekly digest's signup form leads (worker/digest.js): "check your email", or "that didn't work". In each of
+   the site's languages, as the form is on every language's pages; the digest's own pages are in English for now, so
+   another language's links to them say so (hreflang, which also keeps localize_links from pointing them elsewhere). #}
 {% block title %}{% if outcome == "thanks" %}{{ _("Check your email") }}{% else %}{{ _("That didn't go through") }}{% endif %}{% endblock %}
 {# Not for search engines: they're only where the form leads. #}
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
+{# The signup is this page's own, or where it leads: not in the footer. #}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
-  <ol><li><a href="/digest/">{{ _("Weekly digest") }}</a></li></ol>
+  <ol><li><a href="/digest/"{% if lang != "en" %} hreflang="en"{% endif %}>{{ _("Weekly digest") }}</a></li></ol>
 </nav>
 <div class="page-head">
   <h1>{{ self.title() }}</h1>
   {% if outcome == "thanks" %}
-  <p class="lede">{{ _("We've sent you an email. Open the link in it to confirm your address, and the digest will start on the next Sunday.") }}</p>
+  <p class="lede">{{ _("We've sent you an email. Open the link in it to confirm your address, and the digest will start on the next Sunday.") }}{% if lang != "en" %} {{ _("For now, the digest is in English.") }}{% endif %}</p>
   <p>{{ _("If it isn't there in a few minutes, check your spam folder. If you're already signed up, there's nothing more to do.") }}</p>
   {% else %}
   <p class="lede">{{ _("Your address couldn't be signed up just now. Check that it's written correctly, and try again.") }}</p>
@@ -19,5 +23,5 @@
   <p>{% trans contact=contact(site) %}If it keeps happening, {{ contact }}.{% endtrans %}</p>
   {% endif %}
 </div>
-<p><a href="/digest/">{{ _("Back to the weekly digest") }}</a></p>
+<p><a href="/digest/"{% if lang != "en" %} hreflang="en"{% endif %}>{{ _("Back to the weekly digest") }}</a></p>
 {% endblock %}
