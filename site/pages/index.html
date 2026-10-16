@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, meeting_item %}
+{% from "macros.html" import calendar_behind_note, day_group, meeting_item, ai_summary_label %}
 {# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say. #}
 {% block title %}{% if config.meetings is defined %}
 {# Translators: the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
@@ -48,7 +48,7 @@
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
-    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ _("AI summary") }}</span>{% endif %}</li>
+    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ ai_summary_label(m.preview_checked) }}</span>{% endif %}</li>
     {% endfor %}
   </ul>
 </div>
