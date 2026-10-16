@@ -1,0 +1,122 @@
+# Runs the engine's sets against the real model on a pull request that
+# changes how summaries are made, checked, or translated, when the pull
+# request carries the `evaluate` label: when the label is added, and on each
+# push to it after that. A pull request without the label never runs it.
+#
+# What it runs depends on what the pull request changes:
+#   - the summary prompts (pipeline/summarize.py) or the fact check
+#     (pipeline/factcheck.py): the minutes set (evals/minutes.json,
+#     pipeline/evaluate.py), which fails when a wrong outcome would be shown;
+#   - the translator (pipeline/translate.py, pipeline/glossary.py): the
+#     translation set (evals/translations.json,
+#     pipeline/evaluate_translations.py), which fails when a threshold is
+#     missed;
+#   - a set or its runner: that set.
+# Each with the models the network runs (its defaults/network.toml
+# [summaries]): MODEL and EFFORT for summaries and translation drafts, and
+# REVIEW_MODEL and REVIEW_EFFORT for the review of each translation.
+#
+# The report is the run's summary, and every result the artifact
+# evaluation-<set>. The log and the report leave out what the run cost
+# (PUBLICK_HIDE_COSTS). The job gets the repository secret ANTHROPIC_API_KEY
+# and nothing else; a pull request from a fork gets no secrets, so it's
+# skipped. Adding the label is limited to people who can triage the
+# repository. The network's own Evaluate workflow runs the same sets by hand.
+name: Evaluate
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+    paths:
+      - pipeline/summarize.py
+      - pipeline/factcheck.py
+      - pipeline/translate.py
+      - pipeline/glossary.py
+      - pipeline/evaluate.py
+      - pipeline/evaluate_translations.py
+      - evals/minutes.json
+      - evals/translations.json
+
+permissions:
+  contents: read
+
+# A new push to the pull request replaces a run still going.
+concurrency:
+  group: evaluate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  MODEL: claude-haiku-5-5
+  EFFORT: high
+  REVIEW_MODEL: claude-sonnet-5-5
+  REVIEW_EFFORT: low
+
+jobs:
+  evaluate:
+    # Labeled now (with this label), or pushed to while labeled; never from a fork.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'evaluate') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'evaluate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Choose the sets
+        id: sets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          sets=""
+          if grep -qxE 'pipeline/(summarize|factcheck|evaluate)\.py|evals/minutes\.json' <<< "$changed"; then sets="minutes"; fi
+          if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
+          echo "Sets to run: ${sets:-none}"
+          echo "sets=$sets" >> "$GITHUB_OUTPUT"
+
+      - name: Run the sets against the model
+        if: ${{ steps.sets.outputs.sets != '' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PUBLICK_HIDE_COSTS: "1"
+          SETS: ${{ steps.sets.outputs.sets }}
+        # Each report goes to the run's summary whether or not it passes; the job fails if either set does.
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Set the repository secret ANTHROPIC_API_KEY to run the sets against the model."
+            exit 1
+          fi
+          status=0
+          for set in $SETS; do
+            case "$set" in
+              minutes) args=(--model "$MODEL" --effort "$EFFORT") ;;
+              translations) args=(--set translations --model "$MODEL" --effort "$EFFORT"
+                                  --review-model "$REVIEW_MODEL" --review-effort "$REVIEW_EFFORT") ;;
+            esac
+            python -m pipeline.evaluate "${args[@]}" --json "evaluation-$set.json" > "evaluation-$set.md" || status=1
+            cat "evaluation-$set.md"
+            cat "evaluation-$set.md" >> "$GITHUB_STEP_SUMMARY"
+          done
+          exit "$status"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() && steps.sets.outputs.sets != '' }}
+        with:
+          name: evaluation
+          path: |
+            evaluation-*.json
+            evaluation-*.md
+          if-no-files-found: ignore
