@@ -223,3 +223,20 @@
 {% macro area(n) -%}
 {% if areas == "precincts" %}{{ _("Precinct %(ward)s", ward=n) }}{% elif areas == "districts" %}{{ _("District %(ward)s", ward=n) }}{% else %}{{ _("Ward %(ward)s", ward=n) }}{% endif %}
 {%- endmacro %}
+
+{#- A decision's page in its minutes, where the fact check found its quote (build_site.Decision): " p. 3", linking the
+    PDF at that page (build_site.page_link()); nothing for a decision whose page isn't known. Screen readers hear "page 3
+    of the minutes" instead, and on the site that the link opens a new tab (mark_new_tab_links()). Its words are the
+    page's language, inside a list shown in English too. style and site_url, for the digest's email, which has no
+    stylesheet to hide text with: there the words screen readers hear are its label. -#}
+{% macro cite(doc, d, style=none, site_url="") -%}
+{%- if d.page is defined and d.page -%}
+{#- Translators: a decision's page in its minutes, shown after it, short: "p. 3"; %(page)s is its number. #}
+{%- set short = _("p. %(page)s", page=d.page) -%}
+{#- Translators: what screen readers say for a decision's page in its minutes ("p. 3"); %(page)s is its number. #}
+{%- set said = _("page %(page)s of the minutes", page=d.page) %} <a class="cite" href="{{ page_link(doc, d, site_url) }}"
+{%- if page_lang != "en" %} lang="{{ page_lang }}"{% endif %}
+{%- if style %} style="{{ style }}" aria-label="{{ said }}">{{ short }}</a>
+{%- else %}><span aria-hidden="true">{{ short }}</span><span class="visually-hidden">{{ said }}</span></a>{% endif %}
+{%- endif -%}
+{%- endmacro %}

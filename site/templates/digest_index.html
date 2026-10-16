@@ -6,6 +6,8 @@
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Each week, {{ town }}'s public meetings coming up, and what was decided at the meetings whose minutes were posted the week before.{% endtrans %}{% endblock %}
 {% block head %}<link rel="alternate" type="application/rss+xml" title="{{ site.name }}: {{ _("Weekly digest") }}" href="/digest/feed.xml">{% endblock %}
+{# The signup is this page's own, or where it leads: not in the footer. #}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("Weekly digest") }}</h1>
