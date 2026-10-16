@@ -649,11 +649,13 @@ def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: 
     """The model's transcription of a whole document, a few pages a request, and its usage: the
     requests' tokens together, and each request's under "requests". Without an effort, the model's
     default. on_response, if given, is called with each request's response and tokens as it's
-    answered, before anything else is done with it (so it's counted however the rest goes)."""
+    answered, before anything else is done with it (so it's counted however the rest goes). Under "pages",
+    where each request's text starts in the transcription, with its first and last page, so a quote found in
+    it can be given its page where a request read one page alone (pipeline/factcheck.py's page_at())."""
     pages = page_count(pdf) or 1
     step = TRANSCRIBE["pages"]
     # Each request's tokens too, under "requests", since a request is priced by its own prompt's length (cost()).
-    parts, usage = [], {"input_tokens": 0, "output_tokens": 0, "requests": []}
+    parts, usage = [], {"input_tokens": 0, "output_tokens": 0, "requests": [], "pages": []}
     for first in range(1, pages + 1, step):
         last = min(first + step - 1, pages)
         chunk = pdf if (first, last) == (1, pages) else page_range(pdf, first, last)
@@ -684,6 +686,7 @@ def transcribe_pdf(client, model: str, kind: str, pdf: bytes, title: str, date: 
         if response.stop_reason != "end_turn":
             raise StoppedEarly(stop_reason(response), usage)
         parts.append(json.loads(next(b.text for b in response.content if b.type == "text"))["transcript"].strip())
+        usage["pages"].append([sum(len(p) + 2 for p in parts[:-1]), first, last])
     return "\n\n".join(parts), usage
 
 
@@ -697,6 +700,7 @@ def own_text(record: dict, pdf: bytes) -> dict:
     if text:
         record.update(transcript=text, transcript_source="pdf")
         record.pop("plain_text", None)
+        record.pop("transcript_pages", None)
     elif not record.get("transcript"):
         record["plain_text"] = pdftext.plain_text(pdf)
         record["text_note"] = why
@@ -1333,7 +1337,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         paid = cost(usage, settings)
         spent += paid
         spent_backlog += paid
-        record = {**record, "transcript": text, "transcript_source": "ai",
+        record = {**record, "transcript": text, "transcript_source": "ai", "transcript_pages": usage["pages"],
                   "transcript_usage": {k: usage[k] for k in ("input_tokens", "output_tokens")},
                   "transcript_cost": round(paid, 6), "transcribed_at": now.isoformat(timespec="seconds")}
         record.pop("needs_transcript", None)

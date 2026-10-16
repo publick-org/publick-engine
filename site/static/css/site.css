@@ -160,7 +160,7 @@ main .link-row li + li { margin-top: 0; }
 .street-box label { display: block; margin-bottom: 0.4rem; font-family: var(--serif); font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); }
 .street-box .small { margin: 0.5rem 0 0; }
 
-/* The weekly digest's signup on the home page, under the week it sends */
+/* The weekly digest's signup (digest_box.html): near the top of the home page, at the end of a meeting's, and in the footer */
 .signup-box { margin: 3rem 0 0; padding: 1rem 1.1rem; border: 1px solid var(--line); border-left: 4px solid var(--primary); background: var(--soft); }
 .signup-box h2 { margin: 0 0 0.4rem; padding: 0; border: 0; font-size: 1.3rem; }
 .signup-box p { margin: 0; }
@@ -259,6 +259,8 @@ main .decision-list > li { max-width: none; margin: 0; }
 .decision-meeting > .item-detail { margin: 0.2rem 0 0.6rem; }
 .decision-meeting ul { margin: 0; padding-left: 1.25rem; }
 .decision-meeting details.expand { margin-top: 0.5rem; border-top: 0; padding: 0; }
+/* A decision's page in its minutes, after it ("p. 3", macros.html cite): kept on one line. */
+.cite { font-size: 0.875em; white-space: nowrap; }
 .decision-label { margin: 0.9rem 0 0.2rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 
 .board-list { margin: 0; padding: 0; list-style: none; columns: 1; }
@@ -369,6 +371,9 @@ main .jump li + li { margin-top: 0; }
 /* ---- Footer ---- */
 
 .site-footer { border-top: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 0.9rem; padding: 1.5rem 0 2rem; }
+.site-footer .signup-box { margin: 0 0 1.5rem; background: var(--bg); color: var(--ink); font-size: 1rem; }
+.site-footer .signup-box h2 { font-size: 1.15rem; }
+.site-footer .signup-box p { margin: 0; }
 .footer-brand { margin: 0 0 0.25rem; color: var(--primary-dark); font-weight: 800; }
 .site-footer p { margin: 0 0 0.5rem; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 0 1.25rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
