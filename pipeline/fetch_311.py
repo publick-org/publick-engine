@@ -94,6 +94,10 @@ CATCH_UP_REQUESTS = 20
 LISTING_DELAY = 8.0
 # Hours every process leaves the APIv2 listing alone once it's refused ([seeclickfix] listing_refused_hours).
 LISTING_REFUSED_HOURS = 6
+# Days the cursor may stay behind while the listing is refused before the step fails: the runs in
+# between save new requests, but not what changed on older ones (a request closed), so the 311
+# pages would go quietly out of date.
+LISTING_STALE_DAYS = 3
 OPEN = "open,acknowledged"
 EVERY = "open,acknowledged,closed,archived"
 
@@ -619,6 +623,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     if refused:
         # What was fetched is saved; the step fails, so the run says 311 is behind.
         raise FetchError(errors[-1], 403)
+    if listing_refused and now - when(state["cursor"]) > timedelta(days=LISTING_STALE_DAYS):
+        # Saved as above; the step fails so the run says 311 is behind, as for any failed fetch.
+        raise FetchError(f"SeeClickFix has refused its APIv2 listing since the cursor, {state['cursor']}, more than "
+                         f"{LISTING_STALE_DAYS} days ago: changes to requests already saved aren't being read")
     return summary
 
 
