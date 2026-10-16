@@ -36,6 +36,7 @@ from pipeline.documents import open_documents
 from pipeline import absences
 from pipeline import bucket_data
 from pipeline import freshness
+from pipeline import glossary
 from pipeline import common_strings
 from pipeline import digest
 from pipeline import dnn
@@ -396,24 +397,17 @@ def emphasize_money(text: str) -> Markup:
 
 
 def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
-    """Glossary entries whose term appears in a meeting's summaries or document text.
-
-    Acronyms match exactly; other terms ignore case. An entry with "bodies"
-    applies only to those boards, for terms that mean different things elsewhere.
+    """Glossary entries whose term appears in a meeting's summaries or document text, in English
+    (pipeline/glossary.py found()). An entry with "bodies" applies only to those boards, for terms
+    that mean different things elsewhere.
     """
     texts = []
     for doc in (meeting.get("preview"), meeting.get("minutes_summary")):
         if doc:
             texts += [doc.get("summary") or "", doc_text(doc), *doc.get("items", []), *doc.get("decisions", [])]
     text = "\n".join(texts)
-    found = []
-    for e in entries:
-        if e.get("bodies") and meeting["body"] not in e["bodies"]:
-            continue
-        pattern = rf"(?<![\w.]){re.escape(e['term'])}(?!\w)"
-        if re.search(pattern, text, 0 if e["term"].isupper() or "." in e["term"] else re.I):
-            found.append(e)
-    return found
+    return [e for e in entries
+            if not (e.get("bodies") and meeting["body"] not in e["bodies"]) and glossary.found(e, text)]
 
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
@@ -531,7 +525,7 @@ def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[
     return found
 
 
-def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, glossary: list[dict] | None = None,
+def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, terms: list[dict] | None = None,
                   corrections: list[dict] | None = None, withheld: list[dict] | None = None, town: str = "") -> dict:
     status_path = data_dir / "meetings" / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else None
@@ -619,7 +613,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview_line"] = preview_line(m)
         # How the summary that line comes from was checked, said beside it (factcheck.how_checked).
         m["preview_checked"] = factcheck.how_checked(*preview_source(m)) if m["preview_line"] else None
-        m["glossary"] = glossary_for(english, glossary or [])
+        m["glossary"] = glossary_for(english, terms or [])
 
     for problem in apply_corrections(meetings, corrections or []):
         if i18n.language() == "en":
@@ -749,6 +743,8 @@ def meeting_links(config: dict) -> dict:
 
 # Pages about agendas and minutes, left out for a town that doesn't collect them yet.
 DOCUMENT_PAGES = {"meetings/decisions/index.html", "meetings/search/index.html"}
+# The glossary's page, for a town whose glossary has terms (pipeline/glossary.py).
+GLOSSARY_PAGE = "meetings/glossary/index.html"
 
 
 def doc_text(doc: dict | None) -> str:
@@ -1012,9 +1008,9 @@ def needed_texts(config: dict, data_dir: Path, lang: str, built_at: datetime) ->
     tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
     with i18n.use(lang, town_kind(config, data_dir)):
         localize_config(config, tr)
-        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
-                             config.get("meetings", {}).get("corrections", []),
-                             config.get("summaries", {}).get("withheld", []), config["town"]["name"])
+        meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"),
+                                 glossary.shown(config, lang, tr), config.get("meetings", {}).get("corrections", []),
+                                 config.get("summaries", {}).get("withheld", []), config["town"]["name"])
         for m in meetings["all"]:
             tr.board(m["body"])
         for b in meetings["boards"]:
@@ -1048,8 +1044,6 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         for key in ("comment", "source_title", "video_title"):
             if key in part:
                 part[key] = tr(part[key])
-    for entry in config.get("glossary", []):
-        entry["definition"] = tr(entry["definition"])
     for source in config.get("freshness", {}).get("sources", []):
         source["label"] = tr(source["label"])
     config["absences"] = {slug: tr(note) for slug, note in config.get("absences", {}).items()}
@@ -1155,7 +1149,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                              f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
                              f"and site/states/{state.templates}/{section['slug']}.html.")
     base_url = f"https://{site['domain']}"
-    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), config.get("glossary", []),
+    # The town's glossary in this language (pipeline/glossary.py): its page, and the terms on meeting pages.
+    terms = glossary.shown(config, lang, tr)
+    meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), terms,
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []), config["town"]["name"])
     posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
@@ -1335,7 +1331,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     translation_models = models_shown(translate.settings(config)["model"], [
         t for other in langs if other != "en" for kind, doc, record in shown
         for t in [translate.shown(data_dir, other, doc["sha256"], record, kind)] if t])
-    common = dict(config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+    common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   areas=officials_mod.areas(config),
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
                   has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
@@ -1369,6 +1365,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             v["url"] = base_url + v["path"]
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            # Each term's first use on the page, linked to the glossary's page; a meeting's page links the terms it uses.
+            gloss=glossary.Linker(context["meeting"]["glossary"] if "meeting" in context else terms, lang),
             behind=absences.section_behind(common["data_status"], section_slug),
             moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
@@ -1391,6 +1389,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if len(rel.parts) > 1 and rel.parts[0] not in built_folders:
             continue
         if rel.as_posix() in DOCUMENT_PAGES and not documents:
+            continue
+        if rel.as_posix() == GLOSSARY_PAGE and not terms:
             continue
         url = url_for(rel)
         render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))

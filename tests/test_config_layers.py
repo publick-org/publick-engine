@@ -177,7 +177,13 @@ def test_the_network_is_found_from_the_towns_folder_or_by_name(tmp_path, monkeyp
     ("[seeclickfix.repeats]\nradius = 5\n", r"\[seeclickfix.repeats\] radius isn't a setting.*did you mean radius_m"),
     ("[[sections]]\nslug = 'about'\n", r"\[sections\] isn't a setting a layer can have"),
     ("[town]\nstate_abbr = 'MA'\n", r"\[town\] state_abbr isn't a setting a layer can have"),
-    ("[terms]\nADA = 1\n", r"\[terms\] ADA should be a string"),
+    ("[terms]\nADA = 1\n", r"\[terms\] ADA should be a string \(its definition\) or a table of languages"),
+    ('[terms.ZBA]\nes = { term = "x", definition = "y" }\n', r"\[terms\] ZBA should be a table with an en column"),
+    ('[terms.ZBA]\nen = { definition = "d" }\nes = { definition = "y" }\n', r"\[terms\] ZBA should be a table whose es column has its term"),
+    ('[terms.ZBA]\nen = { definition = "d", plural = "x" }\n', r"\[terms\] ZBA should be a table of languages, each with term, definition, also, pattern"),
+    ('[terms.ZBA]\nen = { definition = "d", also = "x" }\n', r"\[terms\] ZBA should be a table whose en.also is a list of strings"),
+    ('[terms.ZBA]\nen = { definition = "d", pattern = "(" }\n', r"\[terms\] ZBA should be a table whose en.pattern is a regular expression"),
+    ('[terms.ZBA]\nen = { definition = "d" }\nspanish = { term = "x", definition = "y" }\n', r"by their two-letter code, not 'spanish'"),
     ("[summaries]\neffort = 'hihg'\n", r'\[summaries\] effort should be one of "low", "medium", "high", "xhigh", "max", not \'hihg\''),
     ("[summaries]\ntranslation_effort = 'none'\n", r"\[summaries\] translation_effort should be one of"),
     ("[summaries]\nlong_prompt_tokens = 1e5\n", r"\[summaries\] long_prompt_tokens should be a whole number"),
@@ -221,6 +227,39 @@ def test_a_towns_own_file_is_checked_too(tmp_path):
     root, path = make_network(tmp_path / "c", town=TOWN + '\n[[glossary]]\nterm = "CPA"\n')
     with pytest.raises(SystemExit, match=r"the \[\[glossary\]\] entry 'CPA' has no definition"):
         read_config(path, root)
+
+
+TERMS_BY_LANGUAGE = """
+[terms."special permit"]
+en = { definition = "Permission for a use the zoning allows only with it.", also = ["special permits"] }
+es = { term = "permiso especial", definition = "Permiso para un uso que la zonificación permite solo con él." }
+
+[terms."M.G.L."]
+en = { definition = "Massachusetts General Laws." }
+es = { term = "Leyes Generales de Massachusetts (M.G.L.)", definition = "Las leyes del estado." }
+"""
+
+
+def test_a_term_given_by_language_is_merged_and_given_to_glossary_entries(tmp_path):
+    state = STATE.replace('"M.G.L." = "Massachusetts General Laws."\n', "") + TERMS_BY_LANGUAGE
+    root, path = make_network(tmp_path, state_layer=state)
+    config = read_config(path, root)
+    assert config["terms"]["special permit"]["es"]["term"] == "permiso especial"
+    # The network's string term and the state's tables, side by side.
+    assert config["terms"]["ADA"] == "Americans with Disabilities Act."
+    # A [[glossary]] entry with only its term takes the English definition, and the term's other languages.
+    entry = config["glossary"][0]
+    assert entry["term"] == "M.G.L." and entry["definition"] == "Massachusetts General Laws."
+    assert entry["languages"]["es"]["term"] == "Leyes Generales de Massachusetts (M.G.L.)"
+
+
+def test_a_town_can_change_one_language_of_a_layers_term(tmp_path):
+    state = STATE.replace('"M.G.L." = "Massachusetts General Laws."\n', "") + TERMS_BY_LANGUAGE
+    town = TOWN + '\n[terms."special permit"]\nes = { term = "permiso especial (special permit)", definition = "Otro." }\n'
+    root, path = make_network(tmp_path, state_layer=state, town=town)
+    term = read_config(path, root)["terms"]["special permit"]
+    assert term["es"] == {"term": "permiso especial (special permit)", "definition": "Otro."}
+    assert term["en"]["definition"].startswith("Permission")
 
 
 def test_show_names_the_file_each_value_came_from(tmp_path, monkeypatch):

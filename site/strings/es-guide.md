@@ -47,12 +47,21 @@ formal, not word for word from the English, and not from Spain.
 
 ## Glossary
 
+The civic terms readers see defined, on each site's glossary page and on the
+meeting pages, are the network's settings, by state (`[terms]` in its
+`defaults/`, read by pipeline/glossary.py), each with its Spanish; the
+translator is given them and checked against them. The table below is the
+sites' own wording, which should agree with them.
+
 | English | Spanish |
 |---|---|
 | meeting | reunión |
 | board / committee / commission | junta / comité / comisión |
 | City Council | Concejo Municipal (a town's board names are in its config, not here) |
 | city / town (the place) | la ciudad / el pueblo: write "la ciudad"; a town's site says "el pueblo" by rule (`TOWN_WORDING` in pipeline/i18n.py), so avoid words that must agree with *ciudad* (*ella*, *esta*, *propia*) |
+| Select Board, Board of Selectmen, Selectboard | Junta de Gobierno (*Select Board*): not *Junta de Selectos*, which reads as a board of chosen people |
+| town meeting / warrant article | asamblea municipal (*town meeting*) / artículo de la convocatoria (*warrant article*) |
+| variance (zoning) | variación; never *varianza* or *variancia*, words from statistics |
 | councilor | concejal, concejala |
 | Mayor | alcalde, alcaldesa |
 | agenda | agenda |
