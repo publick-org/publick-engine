@@ -8974,6 +8974,18 @@ msgstr "de ellas, viviendas de temporada o de vacaciones"
 msgid "open an issue on the <a href=\"%(issues)s\">project's public issue tracker</a>"
 msgstr "abra un reporte en el <a href=\"%(issues)s\">registro público de problemas del proyecto</a>"
 
+#. a decision's page in its minutes, shown after it, short: "p. 3"; %(page)s is its number.
+#: site/templates/macros.html
+#, python-format
+msgid "p. %(page)s"
+msgstr "pág. %(page)s"
+
+#. what screen readers say for a decision's page in its minutes ("p. 3"); %(page)s is its number.
+#: site/templates/macros.html
+#, python-format
+msgid "page %(page)s of the minutes"
+msgstr "página %(page)s de las actas"
+
 #: site/pages/housing/index.html
 msgctxt "year's count"
 msgid "partly estimated"
