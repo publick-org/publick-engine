@@ -86,7 +86,7 @@ class FakeSeeClickFix:
     issues defaults to saved_issues(); a test changes them between runs as the city would."""
 
     def __init__(self, issues=None, missing_ids=(), services=(), refused_ids=(), refuse_all=False,
-                 unlisted_ids=(), failing=None):
+                 unlisted_ids=(), failing=None, refuse_listing=None):
         self.services = list(services)
         self.issues = issues if issues is not None else saved_issues()
         self.missing_ids = {str(i) for i in missing_ids}
@@ -96,6 +96,9 @@ class FakeSeeClickFix:
         self.unlisted_ids = {str(i) for i in unlisted_ids}
         # "open311" or "v2": that listing answers 503.
         self.failing = failing
+        # APIv2's listing refused, as PoliteClient reports it (pipeline/http.py, Lane): True for every
+        # listing request, or a function of the URL saying which.
+        self.refuse_listing = refuse_listing
         self.urls = []
         self.request_count = 0
 
@@ -110,7 +113,7 @@ class FakeSeeClickFix:
         from datetime import datetime
         from urllib.parse import parse_qs, urlsplit
 
-        from pipeline.http import FetchError
+        from pipeline.http import FetchError, Refused
         self.urls.append(url)
         self.request_count += 1
         path = urlsplit(url).path
@@ -133,6 +136,8 @@ class FakeSeeClickFix:
         if path.endswith("/issues"):
             if self.failing == "v2":
                 raise FetchError(f"{url}: HTTP 503", 503)
+            if self.refuse_listing is True or (callable(self.refuse_listing) and self.refuse_listing(url)):
+                raise Refused("seeclickfix.com/api/v2/issues: HTTP 403", 403)
             page, size = int(q["page"]), int(q["per_page"])
             if page > 25:
                 raise FetchError(f"{url}: HTTP 400", 400)

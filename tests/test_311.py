@@ -17,7 +17,10 @@ from pipeline.geo import PrecinctLookup
 
 @pytest.fixture
 def config():
-    return load_config("gloucester")
+    config = load_config("gloucester")
+    # The fixture's history is small: read in one run, unless a test caps it.
+    config["seeclickfix"]["catch_up_requests"] = 1000
+    return config
 
 
 @pytest.fixture
@@ -364,6 +367,116 @@ def test_refused_lookups_stop_the_step_and_remove_nothing(config, data):
     # The block lifts: the next run looks them up.
     fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT)
     assert all(r["detail"] for r in load(data).values())
+
+
+def submitted(world: list[dict], request_id: int, at: datetime) -> dict:
+    """A new open request, submitted at a time."""
+    template = next(i for i in world if i["status"] == "Open")
+    return updated(dict(template, id=request_id, created_at=at.isoformat(timespec="seconds")), at)
+
+
+def test_a_refused_listing_falls_back_to_open311_and_keeps_the_cursor(config, data):
+    """SeeClickFix refusing APIv2's listing doesn't fail the step: the run saves the requests Open311
+    lists as submitted since the cursor, each looked up by itself, leaves the open list and the
+    history alone, keeps the cursor where it was, and says so. The next run with the listing reads
+    every update since that cursor."""
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    i = next(n for n, issue in enumerate(world) if issue["status"] == "Open")
+    world.append(submitted(world, 93000001, NOW + timedelta(hours=3)))
+    closed_at = NOW + timedelta(hours=5)
+    world[i] = updated(world[i], closed_at, status="Closed", closed_at=closed_at.isoformat())
+    client = FakeSeeClickFix(issues=world, refuse_listing=True)
+    # A week on: the open list is due too.
+    summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=8))
+    assert summary["listing_refused"] and summary["new"] == 1 and summary["details_fetched"] == 1
+    assert not summary["reconciled"] and summary["cursor"] == "2026-10-15T18:00:00Z"
+    assert "refused its APIv2 listing" in summary["errors"][0] and "?" not in summary["errors"][0]
+    # The refused listing, once; then only Open311 and the lookup.
+    assert sum("/issues?" in u for u in client.urls) == 1 and client.urls[-1].endswith("/issues/93000001")
+    store = load(data)
+    assert store["93000001"]["detail"]["checked_at"] == (NOW + timedelta(days=8)).isoformat()
+    assert store[str(world[i]["id"])]["status"] == "open"  # its update waits for the listing
+    assert json.loads((data / "311" / "sync.json").read_text())["cursor"] == "2026-10-15T18:00:00Z"
+    assert json.loads((data / "311" / "status.json").read_text())["listing_refused"] is True
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW + timedelta(days=9))
+    assert summary["synced_since"] == "2026-10-15T13:00:00-04:00" and not summary["listing_refused"]
+    assert summary["reconciled"] and not summary["errors"]
+    assert load(data)[str(world[i]["id"])]["status"] == "closed"
+    assert json.loads((data / "311" / "sync.json").read_text())["cursor"] == "2026-10-24T18:00:00Z"
+
+
+def test_a_listing_refused_after_the_sync_leaves_the_history_for_later(config, data):
+    """Refused while the history is read, the run keeps the sync it made and the months it read,
+    and the rest waits for the next run: the step doesn't fail."""
+    summary = fetch_311.run(config, FakeSeeClickFix(refuse_listing=lambda url: "updated_at_after" not in url),
+                            data, now=FETCHED_AT)
+    # The months before it with no requests were read without the listing.
+    assert summary["listing_refused"] and summary["history_windows_left"] == 34 - summary["history_windows_read"] > 30
+    assert summary["cursor"] == fetch_311.zulu(FETCHED_AT) and summary["errors"][0].startswith("SeeClickFix refused")
+    summary = fetch_311.run(config, FakeSeeClickFix(), data, now=FETCHED_AT)
+    assert summary["history_windows_left"] == 0 and summary["requests_total"] == 114
+
+
+def test_the_fallback_failing_fails_the_step(config, data):
+    """The fallback's own lookups refused is a block, as before: the step fails, and the requests it
+    saved wait to be looked up, none marked removed, the cursor where it was."""
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    fresh = [submitted(world, 93000001 + n, NOW + timedelta(hours=n + 1)) for n in range(3)]
+    with pytest.raises(fetch_311.FetchError, match="refused 3 lookups in a row"):
+        fetch_311.run(config, FakeSeeClickFix(issues=world + fresh, refuse_listing=True, refuse_all=True),
+                      data, now=NOW + timedelta(days=1))
+    sync = json.loads((data / "311" / "sync.json").read_text())
+    assert sync["cursor"] == "2026-10-15T18:00:00Z" and set(sync["lookups"]) == {str(i["id"]) for i in fresh}
+    assert not any(r.get("removed") for r in load(data).values())
+
+
+def test_the_catch_up_is_spread_over_runs_and_the_sync_isnt_counted(config, data, monkeypatch):
+    """A town's first run on the sync checks at most catch_up_requests months' counts, and each run
+    after goes on exactly where the last stopped. The daily sync, however many pages it takes,
+    always runs whole and isn't counted."""
+    world = [updated(i, NOW + timedelta(hours=1)) for i in real_issues()]
+    store = old_store(world, "2026-10-15T12:00:00-04:00", set())
+    (data / "311").mkdir()
+    fetch_311.save_json(data / "311" / "requests.json", store)
+    config["seeclickfix"]["catch_up_requests"] = 10
+    monkeypatch.setattr(fetch_311, "PAGE_SIZE", 5)
+    checked, pending = [], None
+    for day in range(1, 5):
+        client = FakeSeeClickFix(issues=world)
+        summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=day))
+        sync = json.loads((data / "311" / "sync.json").read_text())
+        if pending is not None:
+            assert sync["pending"] == pending[summary["history_windows_checked"]:]
+        pending = sync["pending"]
+        checked.append(summary["history_windows_checked"])
+        assert summary["catch_up_requests"] == summary["history_windows_checked"]
+        sync_requests = client.request_count - summary["catch_up_requests"]
+        assert sync_requests == len([u for u in client.urls if "per_page=1&" not in u])
+        if day == 1:
+            # 13 requests updated since the cursor: three pages of APIv2's listing.
+            assert summary["updated_listed"] == 13 and sum("updated_at_after" in u for u in client.urls) == 3
+    assert checked == [10, 10, 10, 5] and not pending
+
+
+def test_a_month_started_is_read_whole(config, data, monkeypatch):
+    """The share is checked between months: a month's pages are never cut short by it."""
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    config["seeclickfix"]["catch_up_requests"] = 1
+    monkeypatch.setattr(fetch_311, "PAGE_SIZE", 5)
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW + timedelta(days=1),
+                            backfill_from=date(2026, 9, 1))
+    # October's three pages on Open311 and three on APIv2; September waits.
+    assert summary["history_windows_read"] == 1 and summary["catch_up_requests"] == 6
+    assert [w["start"][:7] for w in json.loads((data / "311" / "sync.json").read_text())["pending"]] == ["2026-09"]
+
+
+def test_the_listing_is_its_own_lane(config):
+    lane = fetch_311.listing_lane(config["seeclickfix"])
+    assert lane.path == "/api/v2/issues"
+    assert lane.interval == fetch_311.LISTING_DELAY and lane.cooldown == fetch_311.LISTING_REFUSED_HOURS * 3600
 
 
 def test_scorecard_is_dated_by_the_last_fetch(config, data):
