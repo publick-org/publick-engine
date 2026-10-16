@@ -375,7 +375,7 @@ def submitted(world: list[dict], request_id: int, at: datetime) -> dict:
     return updated(dict(template, id=request_id, created_at=at.isoformat(timespec="seconds")), at)
 
 
-def test_a_refused_listing_falls_back_to_open311_and_keeps_the_cursor(config, data):
+def test_a_refused_listing_falls_back_to_open311_and_keeps_the_cursor(config, data, monkeypatch):
     """SeeClickFix refusing APIv2's listing doesn't fail the step: the run saves the requests Open311
     lists as submitted since the cursor, each looked up by itself, leaves the open list and the
     history alone, keeps the cursor where it was, and says so. The next run with the listing reads
@@ -387,7 +387,8 @@ def test_a_refused_listing_falls_back_to_open311_and_keeps_the_cursor(config, da
     closed_at = NOW + timedelta(hours=5)
     world[i] = updated(world[i], closed_at, status="Closed", closed_at=closed_at.isoformat())
     client = FakeSeeClickFix(issues=world, refuse_listing=True)
-    # A week on: the open list is due too.
+    # A week on: the open list is due too. (A cursor this old fails the step; see below.)
+    monkeypatch.setattr(fetch_311, "LISTING_STALE_DAYS", 30)
     summary = fetch_311.run(config, client, data, now=NOW + timedelta(days=8))
     assert summary["listing_refused"] and summary["new"] == 1 and summary["details_fetched"] == 1
     assert not summary["reconciled"] and summary["cursor"] == "2026-10-15T18:00:00Z"
@@ -404,6 +405,24 @@ def test_a_refused_listing_falls_back_to_open311_and_keeps_the_cursor(config, da
     assert summary["reconciled"] and not summary["errors"]
     assert load(data)[str(world[i]["id"])]["status"] == "closed"
     assert json.loads((data / "311" / "sync.json").read_text())["cursor"] == "2026-10-24T18:00:00Z"
+
+
+def test_a_listing_refused_for_days_fails_the_step_after_saving(config, data):
+    """A refusal that has kept the cursor back more than LISTING_STALE_DAYS still saves what Open311
+    lists, then fails the step, so the run says 311 is behind; within that, the step passes."""
+    world = real_issues()
+    fetch_311.run(config, FakeSeeClickFix(issues=world), data, now=NOW)
+    world.append(submitted(world, 93000002, NOW + timedelta(days=1)))
+    within = NOW + timedelta(days=fetch_311.LISTING_STALE_DAYS)
+    summary = fetch_311.run(config, FakeSeeClickFix(issues=world, refuse_listing=True), data, now=within)
+    assert summary["listing_refused"] and summary["new"] == 1
+    world.append(submitted(world, 93000003, within))
+    with pytest.raises(fetch_311.FetchError, match="refused its APIv2 listing since the cursor"):
+        fetch_311.run(config, FakeSeeClickFix(issues=world, refuse_listing=True), data,
+                      now=within + timedelta(hours=2))
+    assert "93000003" in load(data)
+    assert json.loads((data / "311" / "status.json").read_text())["listing_refused"] is True
+    assert json.loads((data / "311" / "sync.json").read_text())["cursor"] == "2026-10-15T18:00:00Z"
 
 
 def test_a_listing_refused_after_the_sync_leaves_the_history_for_later(config, data):
