@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text %}
+{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {# A meeting's name: its board's, and the kind of meeting where its listing says (pipeline/meeting_names.py). #}
@@ -65,6 +65,7 @@
 {% set event_name = named(m.board_name) if town.name.lower() in m.body_en.lower() else named(m.board_name) ~ ", " ~ town.name %}
 {% block structured_data %}{{ structured(event(m, canonical_url, meeting_name(event_name, m.date | date("mon_day_year")), self.description()),
   breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
+{% block footer_signup %}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
 {% set district = m.source in ("drive", "finalsite", "page", "diligent", "opengov", "ical", "schedule") %}
@@ -184,7 +185,7 @@
 {% elif ms.decisions %}
 <h3>{{ _("Decisions recorded") }}</h3>
 <ul{{ english_attr(ms) }}>
-  {% for d in ms.decisions %}<li>{{ gloss(d, ms.get("english")) }}</li>{% endfor %}
+  {% for d in ms.decisions %}<li>{{ gloss(d, ms.get("english")) }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
 </ul>
 {% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
@@ -313,12 +314,9 @@
 {% endif %}
 {% endif %}
 
-{# The weekly digest's signup, for a reader who came for one meeting; in English, as the digest is for now (pipeline/digest.py). #}
-{% if digest_signup and lang == "en" %}
-{# Translators: %(town)s is the town's name. #}
-<p class="callout">{% if meeting_links.documents %}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings and what they decided by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}
-{%- else %}{# Translators: %(town)s is the town's name. #}{% trans town=town.name, url="/digest/#signup" %}Get {{ town }}'s meetings for the week ahead by email, every Sunday evening: <a href="{{ url }}">sign up for the weekly digest</a>.{% endtrans %}{% endif %}</p>
-{% endif %}
+{# The weekly digest's signup, for a reader who came for one meeting: after the meeting's own content, so it never
+   moves it down (digest_box.html), and so not in the footer too. #}
+{% with form_id="meeting-signup" %}{% include "digest_box.html" %}{% endwith %}
 
 {% if m.glossary %}
 <h2 id="terms">{{ _("Terms used here") }}</h2>

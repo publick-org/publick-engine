@@ -130,8 +130,9 @@ export async function addSubscriber(key, email, tag, { ip = null, referrer = "" 
 // Whether a signup is within SIGNUP_LIMITER's limits (a Workers rate limiting binding, set in the
 // network's wrangler.toml), counted for the visitor's IP address and, apart, for the address being
 // signed up, so a script can't have Buttondown send someone confirmation after confirmation. The
-// address is counted by its hash, so it isn't kept anywhere. Without the binding, or if it fails,
-// every signup is within limits: Buttondown's own firewall still sees the IP address.
+// address is counted by its hash, so it isn't kept anywhere. Without the binding every signup is
+// within limits (a site served without the network's wrangler.toml); with it, a limiter that fails
+// lets none through, as a signup it can't count could be one too many.
 export async function withinLimits(env, request, email) {
   if (!env.SIGNUP_LIMITER) return true;
   try {
@@ -143,16 +144,25 @@ export async function withinLimits(env, request, email) {
     console.error("Digest signup: over the rate limit");
     return false;
   } catch (error) {
-    console.error(`Digest signup: the rate limit couldn't be checked: ${error.message}`);
-    return true;
+    console.error(`Digest signup: the rate limit couldn't be checked, so the signup wasn't passed on: ${error.message}`);
+    return false;
   }
 }
 
-// The answer to the signup form: on to the town's "check your email" page, or its "that didn't work" page.
-export async function subscribe(request, env, url) {
+// The pages the form leads to in a language other than English, which the build makes when the form is on that
+// language's pages: es/digest/thanks/ for Spanish. (The digest itself, and its tag, are in LANGUAGES alone.)
+export function answerPrefix(lang, manifest) {
+  const code = String(lang || "");
+  return /^[a-z]{2}$/.test(code) && code !== "en" && manifest?.files?.[`${code}/digest/thanks/index.html`] ? `/${code}` : "";
+}
+
+// The answer to the signup form: on to the town's "check your email" page, or its "that didn't work" page, in
+// the language of the page the form was on, where the site has them in it (answerPrefix).
+export async function subscribe(request, env, url, manifest = null) {
+  let prefix = "";
   const answer = (page) => new Response(null, {
     status: 303,
-    headers: { Location: `${url.origin}/digest/${page}/`, "Cache-Control": "no-store" },
+    headers: { Location: `${url.origin}${prefix}/digest/${page}/`, "Cache-Control": "no-store" },
   });
   // Only the town's own pages post here.
   if (request.headers.get("Origin") !== url.origin) return new Response("Forbidden", { status: 403 });
@@ -162,6 +172,7 @@ export async function subscribe(request, env, url) {
   } catch {
     return answer("problem");
   }
+  prefix = answerPrefix(form.get("lang"), manifest);
   // A field people don't see, which bots fill in: answered as if done, and nothing sent.
   if (form.get("website")) return answer("thanks");
   const email = String(form.get("email") || "").trim();
