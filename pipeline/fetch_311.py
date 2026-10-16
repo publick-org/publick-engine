@@ -69,6 +69,9 @@ from pipeline.geo import PrecinctLookup
 from pipeline.http import FetchError, HostLimiter, Lane, PoliteClient, Refused
 
 PAGE_SIZE = 100
+# The page size of a count (APIv2's listing, read for its total only). SeeClickFix answers per_page=1
+# with HTTP 403, as it does a refused listing; 10 is answered.
+COUNT_PAGE_SIZE = 10
 # APIv2 serves no page past the 25th ("page cannot be greater than 25"): a window listing more is split.
 V2_PAGES = 25
 # Open311 states no limit of its own; a window that fills this many pages is split too.
@@ -246,7 +249,7 @@ class SeeClickFix:
         """How many APIv2 requests of these request types and statuses were submitted in created."""
         if not codes:
             return 0
-        data = self.get(self._v2_url(codes, status, created, None, 1, 1)).json()
+        data = self.get(self._v2_url(codes, status, created, None, COUNT_PAGE_SIZE, 1)).json()
         return data["metadata"]["pagination"]["entries"]
 
     def _v2_window(self, codes: set[str], status: str, created, updated) -> list[dict] | None:
