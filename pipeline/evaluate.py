@@ -8,6 +8,10 @@ the whole set:
 - each decision written down by hand: right (the model gave its outcome), wrong (it gave
   another), or missing; and for a right one, whether the check held it back anyway, and for a
   wrong one, whether the check caught it;
+- for a decision written down with its vote count, amounts, or names (what the minutes record,
+  where they're plain), whether the model's decision gives them: the count as "5-0" (or
+  "unanimously", for one with no one opposed), each amount however it's written ("$2.5 million"),
+  each name as written;
 - every decision the check held back or listed, and why: a quote not in the minutes, an
   outcome that disagrees, a number or name far from the quote;
 - errors planted in the model's own decisions that passed (approved turned to denied, and
@@ -86,13 +90,54 @@ PRICES = {
                          "long_prompt_tokens": 100_000, "long_input_price": 0.5, "long_output_price": 2.5},
 }
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# What a decision written down by hand may record beyond its outcome, and how the report names each.
+FACTS = {"vote": "vote counts", "amounts": "amounts", "names": "names"}
 # A decision written down as denied is wrong given any of these; anything else is wrong given denied.
 NOT_DENIED = {"approved", "tabled", "continued", "referred", "recommended"}
 
 
+# A number in a decision, with its scale if it has one: "$2,500,000", "$2.5 million", "17K".
+AMOUNT = re.compile(r"\$?(\d[\d,]*(?:\.\d+)?)\s*(billion|million|thousand|[BMK]\b)?", re.I)
+SCALES = {"billion": 1e9, "b": 1e9, "million": 1e6, "m": 1e6, "thousand": 1e3, "k": 1e3}
+
+
+def amounts_in(text: str) -> set[float]:
+    """The amounts a text gives, as numbers."""
+    return {float(m.group(1).replace(",", "")) * SCALES.get((m.group(2) or "").lower(), 1) for m in AMOUNT.finditer(text)}
+
+
+def gives_vote(text: str, vote: str) -> bool:
+    """Whether a decision gives a vote count ("8-3": yeas, then nays) as "8-3", "8–3", "8 to 3", or "8 in favor,
+    3 opposed"; or, for one with no nays, as unanimous."""
+    yeas, nays = vote.split("-")
+    if re.search(rf"(?<![\d-]){yeas}\s*(?:-|–|—|to)\s*{nays}(?![\d])", text):
+        return True
+    if re.search(rf"\b{yeas}\s+(?:in favor|yeas?|ayes?)\W+{nays}\s+(?:opposed|nays?|against)\b", text, re.I):
+        return True
+    return nays == "0" and bool(re.search(r"\bunanimous", text, re.I))
+
+
+def facts(expected: dict, texts: list[str]) -> dict:
+    """What a decision written down by hand records beyond its outcome (its vote, amounts, and names), each
+    with whether one of the model's matching decisions gives it: {"vote": True, "amounts": False, ...}. Only
+    what was written down; nothing for a decision the model left out."""
+    out = {}
+    if not texts:
+        return out
+    if expected.get("vote"):
+        out["vote"] = any(gives_vote(t, expected["vote"]) for t in texts)
+    if expected.get("amounts"):
+        given = set().union(*(amounts_in(t) for t in texts))
+        out["amounts"] = all(float(a) in given for a in expected["amounts"])
+    if expected.get("names"):
+        out["names"] = all(any(n.lower() in t.lower() for t in texts) for n in expected["names"])
+    return out
+
+
 def compare(expected: dict, decisions: list[str], evidence: list[dict]) -> dict:
     """One decision written down by hand against the model's: the entries (counting from 1) that
-    match it, their outcomes, and whether it's right, wrong, or missing."""
+    match it, their outcomes, whether it's right, wrong, or missing, and what it records beyond
+    its outcome that they give (facts())."""
     outcomes = expected["outcome"] if isinstance(expected["outcome"], list) else [expected["outcome"]]
     entries = [i + 1 for i, text in enumerate(decisions)
                if re.search(expected["match"], text, re.I)
@@ -105,7 +150,8 @@ def compare(expected: dict, decisions: list[str], evidence: list[dict]) -> dict:
         status = "right"
     else:
         status = "wrong"
-    return {"match": expected["match"], "expected": outcomes, "entries": entries, "given": given, "status": status}
+    return {"match": expected["match"], "expected": outcomes, "entries": entries, "given": given, "status": status,
+            "facts": facts(expected, [decisions[i - 1] for i in entries])}
 
 
 def held(fact_check: dict) -> dict[int, list[dict]]:
@@ -305,6 +351,7 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
     lines, shown_wrong = ["# Minutes prompt against decisions checked by hand", ""], False
     totals = {"decisions": 0, "held": 0, "right": 0, "wrong": 0, "missing": 0, "right_held": 0, "wrong_caught": 0,
               "planted": 0, "caught": 0, "away": 0, "stopped": 0, "cost": 0.0}
+    graded = {kind: [0, 0] for kind in FACTS}
     for r in results:
         if "stopped" in r:
             # A summary cut off is one the site would never get: it counts as wrong.
@@ -341,6 +388,12 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
                 totals["wrong_caught"] += caught
                 shown_wrong |= not caught and r["source"] == "pdf"
                 note = " — caught" if caught else " — **shown**"
+            for kind, ok in row.get("facts", {}).items():
+                graded[kind][0] += ok
+                graded[kind][1] += 1
+            missed_facts = [kind for kind, ok in row.get("facts", {}).items() if not ok]
+            if missed_facts:
+                note += f"; not given: {', '.join(missed_facts)}"
             lines.append(f"- `{row['match']}`: {row['status']} (expected {'/'.join(row['expected'])}, "
                          f"given {', '.join(map(str, row['given'])) or 'none'}){note}")
         for p in r["problems"]:
@@ -355,6 +408,8 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
         f"- Written down by hand: {totals['right']} right, {totals['wrong']} wrong ({totals['wrong_caught']} caught), "
         f"{totals['missing']} missing; right but held back: {totals['right_held']}.",
         f"- Planted errors caught: {totals['caught']} of {totals['planted']}.",
+        "- Beyond the outcome, of those written down and found: " + "; ".join(
+            f"{FACTS[kind]} {graded[kind][0]} of {graded[kind][1]} given" for kind in FACTS) + ".",
         f"- Documents whose summary was cut off: {totals['stopped']}.",
         f"- Cost: {money(totals['cost'])} ({money(totals['cost'] / max(len(results), 1), 4)} a document).",
         *([tokens_text(results)] if any(r.get("spent") for r in results) else []),
@@ -400,7 +455,8 @@ def totals_of(results: list[dict]) -> dict:
     """The run's totals for its JSON: documents, decisions and how those written down came out, held back,
     cut off, tokens, and cost."""
     t = {"documents": len(results), "decisions": 0, "held_back": 0, "right": 0, "wrong": 0, "wrong_shown": 0,
-         "missing": 0, "stopped": 0, "input_tokens": 0, "output_tokens": 0, "long_prompts": 0, "cost": 0.0}
+         "missing": 0, "stopped": 0, "input_tokens": 0, "output_tokens": 0, "long_prompts": 0, "cost": 0.0,
+         **{f"{kind}_given": 0 for kind in FACTS}, **{f"{kind}_graded": 0 for kind in FACTS}}
     for r in results:
         t["cost"] += r["cost"]
         for key in ("input_tokens", "output_tokens", "long_prompts"):
@@ -414,6 +470,9 @@ def totals_of(results: list[dict]) -> dict:
             t[row["status"]] += 1
             t["wrong_shown"] += (row["status"] == "wrong" and r["source"] == "pdf"
                                  and not all(i in r["held_back"] for i in row["entries"]))
+            for kind, ok in row.get("facts", {}).items():
+                t[f"{kind}_given"] += ok
+                t[f"{kind}_graded"] += 1
     t["cost"] = round(t["cost"], 4)
     t["cost_per_document"] = round(t["cost"] / max(len(results), 1), 4)
     return t
