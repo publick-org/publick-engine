@@ -45,20 +45,44 @@ def page(site: Path, url: str) -> str:
 
 
 def test_every_page_in_both_languages(built, site_dir):
-    """Every page but the weekly digest's, which is in English for now (pipeline/digest.py)."""
+    """Every page but the weekly digest's, which is in English for now (pipeline/digest.py), except the pages
+    its signup form leads to, as the form is on every language's pages."""
     out, urls, _ = built
     english = sorted(p.relative_to(site_dir) for p in site_dir.rglob("*.html"))
     assert english
+    answers = {("digest", "thanks", "index.html"), ("digest", "problem", "index.html")}
     for rel in english:
         assert (out / rel).exists(), rel
-        assert (out / "es" / rel).exists() != (rel.parts[0] == "digest"), f"es/{rel}"
+        assert (out / "es" / rel).exists() == (rel.parts[0] != "digest" or rel.parts in answers), f"es/{rel}"
     digest = page(out, "/digest/")
     assert "hreflang" not in digest and "language-switch" not in digest
-    assert 'href="/digest/"' in page(out, "/") and 'href="/digest/"' not in page(out, "/es/")
-    # Nor its signup, on the home page and each meeting's and board's.
-    assert "signup-box" in page(out, "/") and "/digest/" not in page(out, "/es/")
-    for url in ("/meetings/2026-08-25-city-council/", "/meetings/boards/city-council/"):
-        assert "/digest/#signup" in page(out, url) and "/digest/" not in page(out, f"/es{url}")
+    assert 'href="/digest/"' in page(out, "/") and "/es/digest/" not in page(out, "/es/")
+
+
+def test_the_signup_in_another_language(built):
+    """The digest's signup on the Spanish pages, where it is on the English ones: it says the digest is in English,
+    links its issues in English, and says the language it was signed up in, for the Worker to answer in it."""
+    out, urls, _ = built
+    for url, form_id in (("/", "home-signup"), ("/meetings/2026-08-25-city-council/", "meeting-signup"),
+                         ("/meetings/boards/city-council/", "footer-signup"), ("/about/", "footer-signup")):
+        spanish = page(out, f"/es{url}")
+        [box] = re.findall(r'<section class="signup-box".*?</section>', spanish, re.S)
+        assert f'id="{form_id}"' in box and f'<label for="{form_id}-email">' in box
+        assert '<form class="search-form" action="/digest/subscribe" method="post">' in box
+        assert '<input type="hidden" name="lang" value="es">' in box
+        assert "For now, the digest is in English." in box
+        assert '<a href="/digest/" hreflang="en">' in box and "/es/digest/" not in box
+        assert 'href="/es/about/#privacy"' in box
+    for outcome in ("thanks", "problem"):
+        answer = page(out, f"/es/digest/{outcome}/")
+        assert '<html lang="es">' in answer and '<meta name="robots" content="noindex">' in answer
+        assert answer.count('<a href="/digest/" hreflang="en">') == 2 and 'href="/es/digest/"' not in answer
+        assert "/es/digest/" + outcome + "/" not in urls
+        # Built in both languages, unlike the rest of the digest's pages, so each names the other.
+        for version in (answer, page(out, f"/digest/{outcome}/")):
+            assert f'<link rel="alternate" hreflang="es" href="https://gloucester-ma.publick.org/es/digest/{outcome}/">' in version
+            assert f'<link rel="alternate" hreflang="en" href="https://gloucester-ma.publick.org/digest/{outcome}/">' in version
+    assert "For now, the digest is in English." in page(out, "/es/digest/thanks/")
     assert "/es/" in urls and "/es/meetings/" in urls
     assert "https://gloucester-ma.publick.org/es/meetings/" in (out / "sitemap.xml").read_text()
 
@@ -103,6 +127,9 @@ def test_spanish_pages_link_spanish_pages(built):
             if not target or target.group(1).startswith("//") or "hreflang=" in tag:
                 continue
             url = target.group(1).split("#")[0].split("?")[0]
+            # The digest's signup posts to the one address the Worker answers, in every language.
+            if url == "/digest/subscribe" and tag.startswith("<form"):
+                continue
             if url.endswith("/"):
                 assert url.startswith("/es/"), f"{path.relative_to(out)}: {tag}"
                 assert (out / url.lstrip("/") / "index.html").exists(), f"{path.relative_to(out)}: {url}"

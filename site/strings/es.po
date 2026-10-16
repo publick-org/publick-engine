@@ -431,6 +431,8 @@ msgid ""
 "%(provider)s, the service that sends the digest, keeps your address until you unsubscribe. <a "
 "href=\"%(url)s\">What's kept</a>."
 msgstr ""
+"%(provider)s, el servicio que envía el resumen, guarda su dirección hasta que cancele la "
+"suscripción. <a href=\"%(url)s\">Qué se guarda</a>."
 
 #: site/pages/about/accessibility/index.html
 #, python-format
@@ -2049,7 +2051,7 @@ msgstr "Valor promedio"
 
 #: site/templates/digest_answer.html
 msgid "Back to the weekly digest"
-msgstr ""
+msgstr "Volver al resumen semanal"
 
 #: site/pages/311/methodology/index.html
 #, python-format
@@ -2298,7 +2300,7 @@ msgstr "Revise el original antes de basarse en él."
 
 #: site/templates/digest_answer.html
 msgid "Check your email"
-msgstr ""
+msgstr "Revise su correo electrónico"
 
 #: site/pages/officials/index.html
 #, python-format
@@ -3035,7 +3037,7 @@ msgstr "Comisión Electoral"
 
 #: site/templates/digest_form.html
 msgid "Email address"
-msgstr ""
+msgstr "Correo electrónico"
 
 #: site/pages/index.html
 msgid "Email or text alerts from the city"
@@ -3095,21 +3097,28 @@ msgstr ""
 "su próxima reunión."
 
 #. %(town)s is the town's name.
-#: site/pages/index.html
+#: site/templates/digest_box.html
 #, python-format
 msgid ""
 "Every Sunday evening, %(town)s's public meetings for the week ahead, and what was decided at the "
 "meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a "
-"href=\"%(url)s\">See past issues</a>."
+"href=\"%(url)s\" hreflang=\"en\">See past issues</a>."
 msgstr ""
+"Cada domingo por la tarde, las reuniones públicas de %(town)s de la semana que viene, y lo que se"
+" decidió en las reuniones cuyas actas se publicaron. Es gratis, y cada correo tiene un enlace "
+"para cancelar la suscripción. <a href=\"%(url)s\" hreflang=\"en\">Vea los resúmenes "
+"anteriores</a>."
 
 #. %(town)s is the town's name.
-#: site/pages/index.html
+#: site/templates/digest_box.html
 #, python-format
 msgid ""
 "Every Sunday evening, %(town)s's public meetings for the week ahead. Free, and every email has a "
-"link to unsubscribe. <a href=\"%(url)s\">See past issues</a>."
+"link to unsubscribe. <a href=\"%(url)s\" hreflang=\"en\">See past issues</a>."
 msgstr ""
+"Cada domingo por la tarde, las reuniones públicas de %(town)s de la semana que viene. Es gratis, "
+"y cada correo tiene un enlace para cancelar la suscripción. <a href=\"%(url)s\" "
+"hreflang=\"en\">Vea los resúmenes anteriores</a>."
 
 #: site/pages/about/accessibility/index.html
 msgid "Every chart has a table with the same numbers."
@@ -3349,6 +3358,10 @@ msgstr ""
 msgid "For minutes, false when the city filed another document as the minutes."
 msgstr "En las actas, false cuando la ciudad publicó otro documento como acta."
 
+#: site/templates/digest_answer.html site/templates/digest_box.html
+msgid "For now, the digest is in English."
+msgstr "Por ahora, el resumen está en inglés."
+
 #: site/templates/meeting.html
 #, python-format
 msgid ""
@@ -3523,29 +3536,13 @@ msgstr "Gasto del fondo general en el año fiscal %(year)s, según en qué se us
 msgid "General government"
 msgstr "Gobierno general"
 
-#. %(town)s is the town's name.
-#: site/templates/meeting.html
-#, python-format
-msgid ""
-"Get %(town)s's meetings and what they decided by email, every Sunday evening: <a "
-"href=\"%(url)s\">sign up for the weekly digest</a>."
-msgstr ""
-
-#. %(town)s is the town's name.
-#: site/templates/meeting.html
-#, python-format
-msgid ""
-"Get %(town)s's meetings for the week ahead by email, every Sunday evening: <a "
-"href=\"%(url)s\">sign up for the weekly digest</a>."
-msgstr ""
-
 #: site/templates/digest_signup.html
 msgid "Get it by email"
 msgstr ""
 
-#: site/pages/index.html
+#: site/templates/digest_box.html
 msgid "Get the week ahead by email"
-msgstr ""
+msgstr "Reciba la semana que viene por correo electrónico"
 
 #: site/templates/digest.html
 msgid "Get the weekly digest by email"
@@ -3785,13 +3782,15 @@ msgid ""
 "If it isn't there in a few minutes, check your spam folder. If you're already signed up, there's "
 "nothing more to do."
 msgstr ""
+"Si no le llega en unos minutos, revise la carpeta de correo no deseado. Si ya está suscrito, no "
+"tiene que hacer nada más."
 
 #. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
 #. project's public issue tracker".
 #: site/templates/digest_answer.html
 #, python-format
 msgid "If it keeps happening, %(contact)s."
-msgstr ""
+msgstr "Si sigue pasando, %(contact)s."
 
 #. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
 #. project's public issue tracker".
@@ -4111,7 +4110,7 @@ msgstr "Última solicitud en SeeClickFix"
 
 #: site/templates/digest_form.html
 msgid "Leave this empty"
-msgstr ""
+msgstr "Deje esto en blanco"
 
 #: site/states/nh/budget.html
 #, python-format
@@ -6112,7 +6111,7 @@ msgstr ""
 
 #: site/templates/digest_form.html
 msgid "Sign up"
-msgstr ""
+msgstr "Suscribirse"
 
 #: pipeline/states/ma/housing.py
 msgid "Single-family homes"
@@ -7037,7 +7036,7 @@ msgstr "El texto y los controles cumplen los requisitos de contraste."
 
 #: site/templates/digest_answer.html
 msgid "That didn't go through"
-msgstr ""
+msgstr "No se pudo completar"
 
 #: site/pages/officials/index.html
 #, python-format
@@ -7734,6 +7733,11 @@ msgid ""
 "The emails don't record whether you open them or which links you click, and this site keeps none "
 "of it."
 msgstr ""
+"La única excepción es el resumen semanal por correo electrónico, si se suscribe: su dirección de "
+"correo, la ciudad y el idioma que eligió, y la dirección IP desde la que se suscribió van a "
+"%(provider)s, el servicio que lo envía, que los guarda hasta que cancele la suscripción (<a "
+"href=\"%(url)s\">su política de privacidad</a>). Los correos no registran si usted los abre ni en"
+" qué enlaces hace clic, y este sitio no guarda nada de eso."
 
 #: site/pages/officials/index.html
 msgid "The precinct map isn't available yet. Each member's seat is listed under its office below."
@@ -8376,6 +8380,8 @@ msgid ""
 "We've sent you an email. Open the link in it to confirm your address, and the digest will start "
 "on the next Sunday."
 msgstr ""
+"Le enviamos un correo electrónico. Abra el enlace que contiene para confirmar su dirección, y el "
+"resumen empezará a llegarle el próximo domingo."
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -8401,7 +8407,7 @@ msgstr ""
 #: pipeline/build_site.py site/pages/index.html site/templates/digest.html
 #: site/templates/digest_answer.html site/templates/digest_index.html
 msgid "Weekly digest"
-msgstr ""
+msgstr "Resumen semanal"
 
 #: site/pages/index.html
 msgid "Weekly digest by email"
@@ -8742,6 +8748,8 @@ msgstr "Usted está en el Distrito {ward}."
 #: site/templates/digest_answer.html
 msgid "Your address couldn't be signed up just now. Check that it's written correctly, and try again."
 msgstr ""
+"No se pudo suscribir su dirección en este momento. Revise que esté bien escrita y vuelva a "
+"intentarlo."
 
 #: site/pages/officials/index.html
 msgid ""
@@ -9007,6 +9015,18 @@ msgstr "de ellas, viviendas de temporada o de vacaciones"
 #, python-format
 msgid "open an issue on the <a href=\"%(issues)s\">project's public issue tracker</a>"
 msgstr "abra un reporte en el <a href=\"%(issues)s\">registro público de problemas del proyecto</a>"
+
+#. a decision's page in its minutes, shown after it, short: "p. 3"; %(page)s is its number.
+#: site/templates/macros.html
+#, python-format
+msgid "p. %(page)s"
+msgstr "pág. %(page)s"
+
+#. what screen readers say for a decision's page in its minutes ("p. 3"); %(page)s is its number.
+#: site/templates/macros.html
+#, python-format
+msgid "page %(page)s of the minutes"
+msgstr "página %(page)s de las actas"
 
 #: site/pages/housing/index.html
 msgctxt "year's count"
