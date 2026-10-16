@@ -164,13 +164,26 @@ def test_a_new_towns_meetings_have_their_own_addresses_from_the_start(tmp_path):
 
 def test_a_board_is_shown_under_its_name_as_first_recorded():
     """The calendar's 'Waltham Historical Commission' is the Agenda Center's 'Historical Commission', recorded
-    first: one board, with one name, whichever listing a meeting has; the names its listings give are kept."""
+    first: one board, with one name, whichever listing a meeting has; every name the board's listings have
+    given is kept, for each of its meetings (a board page published under any of them stays reachable)."""
     first = record("agendacenter-1", "Historical Commission", date="2026-09-01", source="agendacenter", seen="2026-09-01T07:00:00")
     later = record("2", "Waltham Historical Commission", time="19:00")
     found = identity.meetings(store_of(first, later), {}, "Waltham")
     assert [(m["id"], m["body"], m["body_names"]) for m in found] == [
-        ("2026-09-01-historical-commission", "Historical Commission", ["Historical Commission"]),
-        ("2026-10-06-historical-commission", "Historical Commission", ["Waltham Historical Commission"])]
+        ("2026-09-01-historical-commission", "Historical Commission", ["Historical Commission", "Waltham Historical Commission"]),
+        ("2026-10-06-historical-commission", "Historical Commission", ["Historical Commission", "Waltham Historical Commission"])]
+
+
+def test_a_board_name_no_listing_has_any_more_is_kept():
+    """A name the ledger has for a board stays in its meetings' names after the listings are renamed, and a
+    new name is added; none is dropped."""
+    ledger = identity.assign(store_of(record("1", "Waltham Historical Commission")), None, "Waltham")
+    assert ledger["boards"] == {"historical commission": ["Waltham Historical Commission"]}
+    store = store_of(record("1", "Historical Commission"))
+    assert identity.assign(store, ledger, "Waltham")["boards"] == {
+        "historical commission": ["Historical Commission", "Waltham Historical Commission"]}
+    assert [m["body_names"] for m in identity.meetings(store, ledger, "Waltham")] == [
+        ["Historical Commission", "Waltham Historical Commission"]]
 
 
 def test_an_address_is_never_given_to_another_meeting():
