@@ -413,6 +413,7 @@ def test_open_data_export(site_dir, data_dir):
         assert copy.path in (site_dir / urlparse(r["url"]).path.lstrip("/") / "index.html").read_text()
         if d["summary"]:
             assert d["summary"]["ai_generated"] and d["summary"]["model"]
+            assert d["summary"]["checked"] in ("pdf", "partial", "ai", "none")
             assert ("items" in d["summary"]) == (kind == "agenda") and ("decisions" in d["summary"]) == (kind == "minutes")
     # The decisions are those decisions.csv has, with the same kinds.
     rows_csv = list(csv.reader((site_dir / "meetings" / "data" / "decisions.csv").open()))[1:]
@@ -454,14 +455,17 @@ def test_summaries_in_lists_say_they_are_ai(site_dir):
     home = (site_dir / "index.html").read_text()
     rows = re.findall(r'<li class="meeting-item">.*?</li>', home, re.S)
     assert rows and all(("meeting-preview" in r) == ("AI summary" in r) for r in rows)
-    assert any("AI summary · Agenda posted" in r for r in rows) and any("AI summary · Minutes posted" in r for r in rows)
+    # With how it was checked (factcheck.how_checked; the fixture's documents are scans, checked against their transcription).
+    assert any("AI summary, checked against an AI transcription · Agenda posted" in r for r in rows)
+    assert any("AI summary, checked against an AI transcription · Minutes posted" in r for r in rows)
     for row in rows:
         if "AI summary" in row:
             assert row.index("meeting-preview") < row.index("AI summary")
     feed = (site_dir / "feed.xml").read_text()
     for item in re.findall(r"<description>(.*?)</description>", feed)[1:]:
-        assert item in ("Agenda posted.", "Minutes posted.") or item.endswith(
-            ("(AI summary of the agenda. Check the original.)", "(AI summary of the minutes. Check the original.)"))
+        assert item in ("Agenda posted.", "Minutes posted.") or re.search(
+            r"\(AI summary of the (agenda|minutes)\. Check the original\.\) (Checked against the city's PDF|"
+            r"Partly checked against the city's PDF|Checked against an AI transcription|Not checked)\.$", html.unescape(item))
 
 
 def test_public_hearings_say_their_summary_is_ai(tmp_path):
@@ -480,7 +484,8 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
     box = home[home.index('class="notice"'):]
     box = box[:box.index("</div>")]
     hearing = re.search(r"<li>.*?</li>", box, re.S).group(0)
-    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary</span></li>$', hearing)
+    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary, checked against an AI '
+                     r'transcription</span></li>$', hearing)
     assert hearing.index("<time") < hearing.index("AI summary")
 
 

@@ -99,6 +99,7 @@
         <li>{{ _("not_shown: how many items or decisions were left out because they couldn't be matched to the document;") }}</li>
         <li>{{ _("model and generated_at: the AI model, and when it wrote the summary;") }}</li>
         <li>{{ _("fact_check: what our fact check found when it compared the summary's names, numbers, and decisions with the document's text. \"ok\": everything was found. \"failed\": something wasn't, and it's left out. \"weak\": the document is scanned, so only what could be read was checked, and nothing is left out. \"unchecked\": there was no text to check against. null: not checked yet.") }}</li>
+        <li>{{ _("checked: how the summary was checked, as the line under it on its page says. \"pdf\": against the city's PDF. \"partial\": against the pages of the PDF that have text. \"ai\": against an AI transcription of a scanned PDF. \"none\": not checked, or minutes summarized before each decision was matched to the minutes' own words.") }}</li>
       </ul>
     </td></tr>
   </tbody>

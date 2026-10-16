@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import report_button %}
+{% from "macros.html" import report_button, checked_short %}
 {% block title %}{{ _("Decisions") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} votes and decisions from meeting minutes{% endtrans %}{% endblock %}
@@ -49,7 +49,7 @@
   {% set ds = m.decisions %}
   <li class="decision-meeting">
     <h3><a href="{{ m.url }}#minutes">{{ m.body }}</a></h3>
-    <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time> · <a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes") }}</a></p>
+    <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time> · <a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes") }}</a> · {{ checked_short(how_checked(m.minutes_summary, "minutes")) }}</p>
     {% if ds.decided %}
     {# Each term's first use on the page linked to the glossary, of the terms this meeting's board uses. #}
     {% set terms = gloss.for_meeting(m) %}
