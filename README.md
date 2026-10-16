@@ -193,6 +193,8 @@ worker/                     The Cloudflare Workers: index.js serves every site p
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see Versions)
+.github/workflows/evaluate.yml  The minutes and translation sets against the model, on a pull request labeled `evaluate`
+                                that changes a summary prompt, the fact check, or the translator (never on any other)
 .github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes
 ```
 

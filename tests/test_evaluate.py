@@ -20,9 +20,15 @@ def test_the_set_is_well_formed():
             outcomes = e["outcome"] if isinstance(e["outcome"], list) else [e["outcome"]]
             assert set(outcomes) <= set(factcheck.OUTCOMES), e
             assert e["minutes"]
+            assert re.fullmatch(r"\d+-\d+", e.get("vote", "0-0")), e
+            assert all(isinstance(a, (int, float)) for a in e.get("amounts", [])) and all(e.get("names", ["x"]))
     # What the set is for: failed motions, and a scan.
     outcomes = [e["outcome"] for d in documents for e in d["decisions"]]
     assert outcomes.count("denied") >= 10 and any(d.get("scan") for d in documents)
+    # And beyond the outcome: vote counts, amounts, and names, where the minutes give them plainly.
+    decisions = [e for d in documents for e in d["decisions"]]
+    assert sum("vote" in e for e in decisions) >= 25 and any("amounts" in e for e in decisions)
+    assert any("names" in e for e in decisions)
 
 
 def test_a_decision_written_down_is_right_wrong_or_missing():
@@ -37,6 +43,38 @@ def test_a_decision_written_down_is_right_wrong_or_missing():
     # Either of two outcomes, where the minutes allow both.
     assert evaluate.compare({"match": "executive", "unless": "tabl", "outcome": ["withdrawn", "approved"]},
                             decisions, evidence)["status"] == "right"
+
+
+def test_a_decision_written_down_with_its_vote_amounts_and_names_is_graded_on_them():
+    decisions = ["Failed a motion to table Order 200-26, 3-8.", "Approved a $2.5 million loan order for vehicles, 8 to 0.",
+                 "Approved Robert Gordon's appointment unanimously.", "Approved $17,000 from MassDevelopment, 5-3."]
+    evidence = [{"outcome": "denied"}, {"outcome": "approved"}, {"outcome": "approved"}, {"outcome": "approved"}]
+    def facts(**expected):
+        return evaluate.compare({"outcome": "approved", **expected}, decisions, evidence)["facts"]
+    assert facts(match="tabl", vote="3-8") == {"vote": True}
+    assert facts(match="tabl", vote="8-3") == {"vote": False}
+    # However the amount is written, and a count as "8 to 0" or, with no one opposed, "unanimously".
+    assert facts(match="vehicle", vote="8-0", amounts=[2500000]) == {"vote": True, "amounts": True}
+    assert facts(match="Gordon", vote="2-0", names=["Robert Gordon"]) == {"vote": True, "names": True}
+    assert facts(match="MassDevelopment", vote="5-3", amounts=[17000, 3000]) == {"vote": True, "amounts": False}
+    assert facts(match="Gordon", names=["Gordon", "Smith"]) == {"names": False}
+    # A count that's part of a longer one isn't it.
+    assert not evaluate.gives_vote("Approved, 15-30.", "5-3") and evaluate.gives_vote("5 in favor, 3 opposed", "5-3")
+    # Nothing to grade for a decision the model left out, nor beyond what was written down.
+    assert facts(match="Moose", vote="3-0") == {} and facts(match="tabl") == {}
+
+
+def test_the_report_counts_votes_amounts_and_names_given():
+    row = {"match": "roof", "expected": ["approved"], "entries": [1], "given": ["approved"], "status": "right",
+           "held_back": [], "facts": {"vote": True, "amounts": False}}
+    result = {"name": "example", "source": "pdf", "cost": 0.05, "decisions": ["Approved $8,000 for the roof, 5-0."],
+              "problems": [], "held_back": [], "planted": 0, "caught": 0, "expected": [row]}
+    text, shown_wrong = evaluate.report([result])
+    assert not shown_wrong
+    assert "- Beyond the outcome, of those written down and found: vote counts 1 of 1 given; amounts 0 of 1 given; names 0 of 0 given." in text
+    assert "`roof`: right (expected approved, given approved); not given: amounts" in text
+    totals = evaluate.totals_of([result])
+    assert (totals["vote_given"], totals["vote_graded"], totals["amounts_given"], totals["amounts_graded"]) == (1, 1, 0, 1)
 
 
 def test_errors_planted_in_decisions_that_passed_are_caught():
