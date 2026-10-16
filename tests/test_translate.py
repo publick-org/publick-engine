@@ -172,10 +172,13 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     # The first try, made the same month and replaced by the second, is still counted.
     second = translations(tmp_path)[sha]
     assert second["replaced_cost"] == record["cost"]
-    month = translate.month_counts(tmp_path)["2026-09"]
-    assert month["cost"] == pytest.approx(sum(r["cost"] + r.get("replaced_cost", 0) for r in translations(tmp_path).values())
-                                          + sum(b["cost"] for b in json.loads(next((tmp_path / "strings").glob("*.json"))
-                                                                              .read_text()).get("batches", [])))
+    month = summarize.recount(tmp_path, summarize.summary_settings(config), "2026-09")
+    paid = (sum(r["cost"] + r.get("replaced_cost", 0) for r in translations(tmp_path).values())
+            + sum(b["cost"] for b in json.loads(next((tmp_path / "strings").glob("*.json")).read_text()).get("batches", [])))
+    assert month["translation_cost"] == pytest.approx(paid, abs=1e-4)
+    # The log has every request: the first tries' too, and both reviews.
+    row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
+    assert row["translation_cost"] == pytest.approx(paid, abs=1e-4)
 
 
 def test_the_check_runs_again_when_shown(tmp_path):

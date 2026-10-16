@@ -38,8 +38,21 @@ are checked on a sample (publick.org's network.yml), so the run's time grows
 with the kinds of town, not their number.
 
 budget splits what's left of the month's summary budget among the towns in a
-run, from each town's data/summary-costs.json (pipeline.summarize), keeping
-back every other town's floor for the rest of the month.
+run, from each town's ledger (pipeline/cost_log.py), keeping back every other
+town's floor for the rest of the month. With the private store's keys
+(PRIVATE_*), the ledgers are read from it, and a town it has none for yet has
+its data/summary-costs.json imported first, once, so the month's total carries
+on; without them, from each town's data/summary-costs.json. The month's budget
+comes from SUMMARY_BUDGET and SUMMARY_BUDGET_MONTH (secrets, so the run's log
+never shows them), or --monthly. It prints each town's share for the run as a
+fraction of the month's budget, and how much of the budget is used, as a
+fraction: never an amount, since the run's log is public. (With --monthly, as
+the network's workflow gave it before, the amounts too.)
+
+ledgers checks each town's cost logs (pipeline/cost_log.py), from which its
+ledger is made, against the costs its summary and translation files record
+(pipeline.summarize ledger --check), and lists every difference; it changes
+nothing, and fails if a town has one.
 
 states fetches the statewide sources the network's towns use, once per state
 for all of them, into states/ (for Massachusetts, the DLS exports: see
@@ -52,7 +65,8 @@ state's statewide checks that keep failing are listed by behind.
                                       [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
-    python -m pipeline.network budget [--root .] --monthly 50 --towns-in-run N
+    python -m pipeline.network budget [--root .] [--monthly 50] --towns-in-run N
+    python -m pipeline.network ledgers [--root .] [--towns a,b]
     python -m pipeline.network canaries [--root .]
     python -m pipeline.network states [--root .]
 
@@ -79,6 +93,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from pipeline import cost_log
 from pipeline.config import ENGINE_DIR, LAYERS, NETWORK_ENV, read_config
 from pipeline.files import write_atomic
 
@@ -120,9 +135,10 @@ NEW_DOCUMENTS_RESERVE = 0.2
 # month's days and the network's towns) that's kept for it for every day left in the month, so no
 # other town's spending, a launch's history or a big week of agendas, can take it.
 TOWN_FLOOR_SHARE = 0.5
-# Each town's summary costs by month, as pipeline.summarize keeps them. Not imported from
-# there: the network's plan and report jobs run without the engine's packages installed.
-SUMMARY_LEDGER = "summary-costs.json"
+# Each town's summary costs by month, as pipeline.summarize makes them from its cost logs: in the private
+# store, or else the town's data/ (pipeline/cost_log.py, which needs only the standard library, and boto3
+# for the private store: the network's plan and report jobs run without the engine's other packages).
+SUMMARY_LEDGER = cost_log.LEDGER
 # Towns file each summary's cost under the month in their own time zone, so the budget's month is
 # the network's (every town so far is Eastern), not UTC's, which starts a month 4 or 5 hours early.
 NETWORK_TZ = ZoneInfo("America/New_York")
@@ -244,9 +260,13 @@ def town_env(root: Path, name: str) -> dict:
     return env
 
 
-# The keys a town's steps use: fetching (pipeline/update.py gives each of its steps only its own) and
-# publishing. The freshness check, the build, and the checks get none.
-FETCH_KEYS = ("ANTHROPIC_API_KEY", "BLS_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+# The keys a town's steps use: fetching (pipeline/update.py gives each of its steps only its own; the
+# private store's and the budget's go to the summaries alone) and publishing. The freshness check, the
+# build, and the checks get none.
+PRIVATE_KEYS = cost_log.PRIVATE_KEYS
+BUDGET_KEYS = cost_log.BUDGET_KEYS
+FETCH_KEYS = ("ANTHROPIC_API_KEY", "BLS_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY",
+              *PRIVATE_KEYS, *BUDGET_KEYS)
 PUBLISH_KEYS = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_ACCESS_KEY")
 
 
@@ -290,8 +310,9 @@ def trim_sources(rows: list[dict]) -> list[dict]:
 
 # The town's summaries sent as one batch, waiting to be collected (pipeline/summarize.py's BATCH_FILE).
 SUMMARY_BATCH = "summary-batch.json"
-# The keys collecting it needs: the model's, and the document bucket's, to read each document again.
-COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY")
+# The keys collecting it needs: the model's, the document bucket's, to read each document again, and the
+# private store's and the budget's, for its costs.
+COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY", *PRIVATE_KEYS, *BUDGET_KEYS)
 
 
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
@@ -562,7 +583,19 @@ def newly_behind_text(rows: list[dict], previous: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | None = None) -> dict:
+def town_ledger(root: Path, name: str, client=None) -> dict:
+    """The town's ledger: the private store's with its keys (or a stand-in client), its data/summary-costs.json
+    imported there first if the store has none for it yet; else that file's."""
+    data = root / TOWNS / name / "data"
+    if client is None and not cost_log.private_configured():
+        return cost_log.read_json(data / SUMMARY_LEDGER) or {}
+    prefix = cost_log.town_prefix(town_config(root, name), slug(root, name))
+    store = cost_log.BucketStore(client or cost_log.private_client(), os.environ.get("PRIVATE_BUCKET", ""), prefix,
+                                 data)
+    return store.import_ledger()
+
+
+def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | None = None, client=None) -> dict:
     """Each town's share, for one run, of what's left of the month's summary budget.
 
     allowance is what's left beyond the other towns' floors, split among the run's
@@ -573,19 +606,19 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
     left doesn't cover the floors, each town in the run gets its floor for today.
     backlog_allowance paces older documents over the rest of the month: what's
     left beyond a reserve for new documents, spread over the days left and every
-    town in the network (each has one daily run). Both are rounded down to the cent."""
+    town in the network (each has one daily run). Both are rounded down to the cent, and given as well as
+    a fraction of the month's budget (allowance_share, backlog_share), which is what the network's workflow
+    passes on, with used_share, the fraction of the budget spent: amounts stay out of its public log."""
     today = today or datetime.now(NETWORK_TZ).date()
     month = today.strftime("%Y-%m")
     towns = town_dirs(root)
     spent = 0.0
+    if client is None and cost_log.private_configured():
+        client = cost_log.private_client()
     for name in towns:
-        path = root / TOWNS / name / "data" / SUMMARY_LEDGER
-        if path.exists():
-            row = json.loads(path.read_text()).get(month, {})
-            # A summary (and one made again since), a cut-off request, a transcription, or a translation:
-            # all paid for this month (summarize.LEDGER_COSTS).
-            spent += sum(row.get(key, 0.0) for key in ("cost", "failed_cost", "transcript_cost", "translation_cost",
-                                                          "replaced_cost"))
+        # A summary (and one made again since), a cut-off request, a transcription, or a translation:
+        # all paid for this month (cost_log.COSTS).
+        spent += cost_log.month_cost(town_ledger(root, name, client).get(month, {}))
     left = max(monthly - spent, 0.0)
     days_in_month = calendar.monthrange(today.year, today.month)[1]
     days_left = days_in_month - today.day + 1
@@ -595,9 +628,38 @@ def summary_budget(root: Path, monthly: float, towns_in_run: int, today: date | 
     allowance = min(left / in_run, max((left - kept) / in_run, floor))
     backlog = max(left - monthly * NEW_DOCUMENTS_RESERVE, 0.0) / days_left / max(len(towns), 1)
     cents = lambda x: math.floor(x * 100) / 100
+    share = lambda x: round(x / monthly, 10) if monthly > 0 else 0.0
+    allowance, backlog = cents(allowance), cents(min(backlog, allowance))
     return {"month": month, "budget": monthly, "spent": round(spent, 2), "left": round(left, 2),
             "floor": cents(floor), "kept_for_floors": round(kept, 2),
-            "allowance": cents(allowance), "backlog_allowance": cents(min(backlog, allowance))}
+            "allowance": allowance, "backlog_allowance": backlog,
+            "allowance_share": share(allowance), "backlog_share": share(backlog),
+            "used_share": round(spent / monthly, 4) if monthly > 0 else 1.0, "within_budget": spent < monthly}
+
+
+# What the budget step prints for the network's workflow: no amounts.
+SHARE_FIELDS = ("month", "allowance_share", "backlog_share", "used_share", "within_budget")
+
+
+def budget_note(budget: dict, towns_in_run: int) -> str:
+    """The budget in words for the run's log, as fractions of the month's budget."""
+    used = f"{budget['used_share']:.0%} of the month's summary budget used"
+    if not budget["within_budget"]:
+        return f"{budget['month']}: {used}: over budget, so the run's {towns_in_run} towns get no share of it."
+    return (f"{budget['month']}: {used}; each of the run's {towns_in_run} towns may use up to "
+            f"{budget['allowance_share']:.2%} of it, {budget['backlog_share']:.2%} for older documents.")
+
+
+def check_ledgers(root: Path, towns: list[str] | None = None) -> bool:
+    """Each town's cost logs checked against its files, a step of its own (pipeline.summarize ledger
+    --check); whether every town's agree."""
+    results = []
+    for name in towns or town_dirs(root):
+        env = town_env(root, name)
+        results.append(step("Check the cost log", [sys.executable, "-m", "pipeline.summarize", "ledger", "--check",
+                                                    "--town", env["TOWN"]], keyed(env, PRIVATE_KEYS),
+                            root / TOWNS / name, None))
+    return all(r["ok"] for r in results)
 
 
 def report(reports: Path) -> tuple[str, bool]:
@@ -690,10 +752,14 @@ def main() -> int:
     st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
     m.add_argument("--root", type=Path, default=Path.cwd())
-    m.add_argument("--monthly", type=float, required=True, help="the network's monthly summary budget, in dollars")
+    m.add_argument("--monthly", type=float,
+                   help="the network's monthly summary budget, in dollars (default: SUMMARY_BUDGET, SUMMARY_BUDGET_MONTH)")
     m.add_argument("--towns-in-run", type=int, required=True)
     c = sub.add_parser("canaries")
     c.add_argument("--root", type=Path, default=Path.cwd())
+    lg = sub.add_parser("ledgers")
+    lg.add_argument("--root", type=Path, default=Path.cwd())
+    lg.add_argument("--towns", help="only these town folders, comma-separated")
     args = parser.parse_args()
 
     if args.command == "canaries":
@@ -734,8 +800,20 @@ def main() -> int:
         print(json.dumps(refresh_states(args.root.resolve()), indent=2))
         return 0
     if args.command == "budget":
-        print(json.dumps(summary_budget(args.root.resolve(), args.monthly, args.towns_in_run)))
+        month = datetime.now(NETWORK_TZ).strftime("%Y-%m")
+        monthly = args.monthly if args.monthly is not None else cost_log.monthly_budget(month)
+        if monthly is None:
+            raise SystemExit("Set SUMMARY_BUDGET (or give --monthly).")
+        budget = summary_budget(args.root.resolve(), monthly, args.towns_in_run)
+        if args.monthly is not None:
+            # As the network's workflow read it before the budget was a secret.
+            print(json.dumps(budget))
+            return 0
+        print(budget_note(budget, args.towns_in_run), file=sys.stderr)
+        print(json.dumps({k: budget[k] for k in SHARE_FIELDS}))
         return 0
+    if args.command == "ledgers":
+        return 0 if check_ledgers(args.root.resolve(), args.towns.split(",") if args.towns else None) else 1
     table, ok = report(args.reports)
     print(table)
     if os.environ.get(SUMMARY_ENV):

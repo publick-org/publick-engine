@@ -171,6 +171,29 @@ def test_the_set_runs_with_another_model_at_an_effort_and_says_what_it_used(tmp_
     assert totals["cost_per_document"] == round(result["cost"], 4)
 
 
+def test_a_run_for_a_public_log_leaves_out_what_it_cost(monkeypatch):
+    import hashlib
+
+    from fakes import FakeAnthropic
+    pdf = (__import__("pathlib").Path(__file__).parent / "fixtures" / "civicplus_agenda_scanned.pdf").read_bytes()
+    document = {"name": "scan", "url": "https://files.publick.org/x.pdf", "sha256": hashlib.sha256(pdf).hexdigest(),
+                "title": "City Council", "date": "2026-03-16", "scan": True,
+                "decisions": [{"match": "site plan", "outcome": "approved"}]}
+    prices = evaluate.prices_for("claude-haiku-5-5")
+    result = evaluate.evaluate(document, FakeAnthropic(), "claude-haiku-5-5", prices, get=lambda url: pdf)
+    run = {"set": "minutes", "model": "claude-haiku-5-5", "effort": None, "prices": prices}
+    monkeypatch.setenv(evaluate.HIDE_COSTS_ENV, "1")
+    text, _ = evaluate.report([result], run)
+    # The models' list prices stay (the line that gives them); what the run cost doesn't.
+    prices_line = next(line for line in text.splitlines() if "prices per million tokens" in line)
+    assert text.count("$") == prices_line.count("$") > 0
+    assert "- Cost: – (– a document)." in text and "(the transcription: –)" in text
+    saved = evaluate.without_costs({**run, "totals": evaluate.totals_of([result]), "documents": [result]})
+    assert saved["totals"]["input_tokens"] == 3000 and saved["prices"] == run["prices"]
+    assert not any(evaluate.cost_key(k) for k in saved["totals"]) and "cost" not in saved["documents"][0]
+    assert "cost" not in saved["documents"][0]["spent"]
+
+
 def test_a_refusal_is_reported_with_its_category_and_the_set_goes_on():
     import hashlib
     from types import SimpleNamespace
