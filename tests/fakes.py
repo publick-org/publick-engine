@@ -139,6 +139,9 @@ class FakeSeeClickFix:
             if self.refuse_listing is True or (callable(self.refuse_listing) and self.refuse_listing(url)):
                 raise Refused("seeclickfix.com/api/v2/issues: HTTP 403", 403)
             page, size = int(q["page"]), int(q["per_page"])
+            if size < 2:
+                # SeeClickFix answers per_page=1 with its 403 page.
+                raise Refused("seeclickfix.com/api/v2/issues: HTTP 403", 403)
             if page > 25:
                 raise FetchError(f"{url}: HTTP 400", 400)
             codes, statuses = set(q["request_types"].split(",")), set(q["status"].split(","))

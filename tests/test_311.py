@@ -287,7 +287,7 @@ def test_saved_requests_go_on_from_where_the_last_fetch_left_them(config, data):
     # as many as are saved.
     assert summary["history_windows_checked"] == 34
     assert client.request_count == 3 + 2 + 34 and any("after=2026-08-01T04%3A00%3A00Z" in u for u in client.urls)
-    assert sum("per_page=1&" in u for u in client.urls) == 34
+    assert sum(f"per_page={fetch_311.COUNT_PAGE_SIZE}&" in u for u in client.urls) == 34
     after = load(data)
     synced = {k for k, r in after.items() if r["last_seen"] != stamp} - missing
     assert len(synced) == summary["updated_listed"] == 3
@@ -472,7 +472,7 @@ def test_the_catch_up_is_spread_over_runs_and_the_sync_isnt_counted(config, data
         checked.append(summary["history_windows_checked"])
         assert summary["catch_up_requests"] == summary["history_windows_checked"]
         sync_requests = client.request_count - summary["catch_up_requests"]
-        assert sync_requests == len([u for u in client.urls if "per_page=1&" not in u])
+        assert sync_requests == len([u for u in client.urls if f"per_page={fetch_311.COUNT_PAGE_SIZE}&" not in u])
         if day == 1:
             # 13 requests updated since the cursor: three pages of APIv2's listing.
             assert summary["updated_listed"] == 13 and sum("updated_at_after" in u for u in client.urls) == 3
