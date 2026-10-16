@@ -49,48 +49,115 @@ class FakeJSONResponse(FakeResponse):
         return self._data
 
 
-class FakeSeeClickFix:
-    """Serves saved Open311 pages and a single-issue record for any id."""
+def saved_issues() -> list[dict]:
+    """The saved Open311 pages' requests as APIv2 lists them: an open one acknowledged when its id is
+    odd, at its last update; a closed one archived, closed at its last update."""
+    import json
+    issue = json.loads((FIXTURES / "scf_issue_acknowledged.json").read_text())
+    items = {}
+    for name in ("open311_open_page.json", "open311_window_page.json"):
+        for item in json.loads((FIXTURES / name).read_text()):
+            items.setdefault(item["service_request_id"], item)
+    issues = []
+    for item in items.values():
+        data = dict(issue, id=item["service_request_id"], created_at=item["requested_datetime"],
+                    updated_at=item["updated_datetime"], lat=item["lat"], lng=item["long"], address=item["address"],
+                    request_type={"id": item["service_code"], "title": item["service_name"], "organization": "Gloucester, MA"})
+        if item["status"] == "closed":
+            data.update(status="Archived", closed_at=item["updated_datetime"])
+        elif item["service_request_id"] % 2:
+            data.update(status="Acknowledged", acknowledged_at=item["updated_datetime"])
+        else:
+            data.update(status="Open", acknowledged_at=None)
+        issues.append(data)
+    return issues
 
-    def __init__(self, open_items=None, window_items=None, issue=None, missing_ids=(), services=(), refused_ids=(),
-                 refuse_all=False):
-        import json
+
+def real_issues() -> list[dict]:
+    """A page of real APIv2 requests (Gloucester, October 2026), without what their reporters wrote."""
+    import json
+    return json.loads((FIXTURES / "scf_v2_issues.json").read_text())["issues"]
+
+
+class FakeSeeClickFix:
+    """Serves a set of APIv2 requests as SeeClickFix lists them: on the organization's Open311 list
+    (by submission time and open or closed), and on APIv2 (by request type, submission and update
+    time, and status, no page past the 25th), newest first, 100 to a page; and one at a time.
+    issues defaults to saved_issues(); a test changes them between runs as the city would."""
+
+    def __init__(self, issues=None, missing_ids=(), services=(), refused_ids=(), refuse_all=False,
+                 unlisted_ids=(), failing=None, refuse_listing=None):
         self.services = list(services)
-        self.open_items = open_items if open_items is not None else json.loads((FIXTURES / "open311_open_page.json").read_text())
-        self.window_items = window_items if window_items is not None else json.loads((FIXTURES / "open311_window_page.json").read_text())
-        self.issue = issue or json.loads((FIXTURES / "scf_issue_acknowledged.json").read_text())
-        self.missing_ids = set(missing_ids)
+        self.issues = issues if issues is not None else saved_issues()
+        self.missing_ids = {str(i) for i in missing_ids}
         # A request made private (403 for that one), or SeeClickFix refusing every lookup.
-        self.refused_ids, self.refuse_all = set(refused_ids), refuse_all
+        self.refused_ids, self.refuse_all = {str(i) for i in refused_ids}, refuse_all
+        # Requests on Open311 that APIv2's listings leave out.
+        self.unlisted_ids = {str(i) for i in unlisted_ids}
+        # "open311" or "v2": that listing answers 503.
+        self.failing = failing
+        # APIv2's listing refused, as PoliteClient reports it (pipeline/http.py, Lane): True for every
+        # listing request, or a function of the URL saying which.
+        self.refuse_listing = refuse_listing
         self.urls = []
         self.request_count = 0
 
+    @staticmethod
+    def open311(issue: dict) -> dict:
+        return {"service_request_id": issue["id"], "service_code": issue["request_type"]["id"],
+                "service_name": issue["request_type"]["title"], "requested_datetime": issue["created_at"],
+                "updated_datetime": issue["updated_at"], "status": "open" if issue["status"] in ("Open", "Acknowledged") else "closed",
+                "lat": issue["lat"], "long": issue["lng"], "address": issue["address"], "description": "", "media_url": None}
+
     def get(self, url):
-        from pipeline.http import FetchError
+        from datetime import datetime
+        from urllib.parse import parse_qs, urlsplit
+
+        from pipeline.http import FetchError, Refused
         self.urls.append(url)
         self.request_count += 1
-        if url.endswith("/services.json"):
+        path = urlsplit(url).path
+        q = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
+
+        def within(ts, start, end):
+            t = datetime.fromisoformat(ts)
+            return (not start or t >= datetime.fromisoformat(start)) and (not end or t < datetime.fromisoformat(end))
+
+        newest = sorted(self.issues, key=lambda i: datetime.fromisoformat(i["created_at"]), reverse=True)
+        if path.endswith("/services.json"):
             return FakeJSONResponse(self.services)
-        if "/requests.json" in url:
-            page = int(url.split("page=")[1].split("&")[0])
-            items = self.open_items if "status=open" in url else self.window_items
-            return FakeJSONResponse(items[(page - 1) * 100: page * 100])
-        if "/issues/" in url:
-            issue_id = url.rsplit("/", 1)[1]
+        if path.endswith("/requests.json"):
+            if self.failing == "open311":
+                raise FetchError(f"{url}: HTTP 503", 503)
+            items = [self.open311(i) for i in newest if within(i["created_at"], q.get("start_date"), q.get("end_date"))
+                     and q.get("status", self.open311(i)["status"]) == self.open311(i)["status"]]
+            page, size = int(q["page"]), int(q["page_size"])
+            return FakeJSONResponse(items[(page - 1) * size: page * size])
+        if path.endswith("/issues"):
+            if self.failing == "v2":
+                raise FetchError(f"{url}: HTTP 503", 503)
+            if self.refuse_listing is True or (callable(self.refuse_listing) and self.refuse_listing(url)):
+                raise Refused("seeclickfix.com/api/v2/issues: HTTP 403", 403)
+            page, size = int(q["page"]), int(q["per_page"])
+            if page > 25:
+                raise FetchError(f"{url}: HTTP 400", 400)
+            codes, statuses = set(q["request_types"].split(",")), set(q["status"].split(","))
+            items = [i for i in newest if str(i["request_type"]["id"]) in codes and i["status"].lower() in statuses
+                     and str(i["id"]) not in self.unlisted_ids
+                     and within(i["created_at"], q.get("after"), q.get("before"))
+                     and within(i["updated_at"], q.get("updated_at_after"), q.get("updated_at_before"))]
+            return FakeJSONResponse({"issues": items[(page - 1) * size: page * size], "errors": {},
+                                     "metadata": {"pagination": {"entries": len(items), "page": page, "per_page": size}}})
+        if "/issues/" in path:
+            issue_id = path.rsplit("/", 1)[1]
             if issue_id in self.missing_ids:
                 raise FetchError(f"{url}: HTTP 404", 404)
             if self.refuse_all or issue_id in self.refused_ids:
                 raise FetchError(f"{url}: HTTP 403", 403)
-            item = next((i for i in self.open_items + self.window_items if str(i["service_request_id"]) == issue_id), None)
-            data = dict(self.issue, id=int(issue_id))
-            if item and item["status"] == "closed":
-                data.update(status="Archived", closed_at=item["updated_datetime"], updated_at=item["updated_datetime"])
-            elif item and int(issue_id) % 2:
-                data.update(status="Acknowledged", acknowledged_at=item["updated_datetime"], updated_at=item["updated_datetime"])
-            elif item:
-                data.update(status="Open", acknowledged_at=None, updated_at=item["updated_datetime"])
-            data["created_at"] = item["requested_datetime"] if item else data["created_at"]
-            return FakeJSONResponse(data)
+            issue = next((i for i in self.issues if str(i["id"]) == issue_id), None)
+            if issue is None:
+                raise FetchError(f"{url}: HTTP 404", 404)
+            return FakeJSONResponse(issue)
         raise AssertionError(f"unexpected URL {url}")
 
 

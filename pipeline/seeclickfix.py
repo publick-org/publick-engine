@@ -1,10 +1,15 @@
 """Parsers for SeeClickFix public data.
 
 Two public endpoints are used:
-- Open311 GeoReport v2 (/open311/v2/<org>/requests.json): lists requests with
-  category, location, and open/closed status. Paged, 100 per page, newest first.
-- APIv2 single issue (/api/v2/issues/<id>): exact acknowledged, closed, and
-  reopened times, and the detailed status (Open, Acknowledged, Closed, Archived).
+- Open311 GeoReport v2 (/open311/v2/<org>/requests.json): lists the
+  organization's requests with category, location, and open/closed status.
+  Paged, 100 per page, newest first.
+- APIv2 (/api/v2/issues): lists requests by request type (request_types),
+  submission time (after, before), last update (updated_at_after,
+  updated_at_before) and status, each with what Open311 gives and the exact
+  acknowledged, closed, and reopened times and detailed status (Open,
+  Acknowledged, Closed, Archived). Paged, 100 per page, newest first, and no
+  further than page 25. /api/v2/issues/<id> is one request.
 
 Descriptions, photos, and reporter details are not stored.
 """
@@ -72,6 +77,23 @@ def parse_open311(item: dict) -> dict:
         "lat": item.get("lat"),
         "lng": item.get("long"),
         "address": (item.get("address") or "").strip(),
+    }
+
+
+def parse_listed(issue: dict) -> dict:
+    """An APIv2 request as parse_open311 reads Open311's: the two list the same request types,
+    names, places and times. Acknowledged is open there, and archived closed."""
+    request_type = issue.get("request_type") or {}
+    return {
+        "id": str(issue["id"]),
+        "category": (request_type.get("title") or "Uncategorized").strip(),
+        "service_code": request_type.get("id"),
+        "status": "open" if (issue.get("status") or "").lower() in ("open", "acknowledged") else "closed",
+        "created_at": issue.get("created_at"),
+        "updated_at": issue.get("updated_at"),
+        "lat": issue.get("lat"),
+        "lng": issue.get("lng"),
+        "address": (issue.get("address") or "").strip(),
     }
 
 
