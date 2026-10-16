@@ -257,6 +257,8 @@ main .decision-list > li { max-width: none; margin: 0; }
 .decision-meeting > .item-detail { margin: 0.2rem 0 0.6rem; }
 .decision-meeting ul { margin: 0; padding-left: 1.25rem; }
 .decision-meeting details.expand { margin-top: 0.5rem; border-top: 0; padding: 0; }
+/* A decision's page in its minutes, after it ("p. 3", macros.html cite): kept on one line. */
+.cite { font-size: 0.875em; white-space: nowrap; }
 .decision-label { margin: 0.9rem 0 0.2rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 
 .board-list { margin: 0; padding: 0; list-style: none; columns: 1; }

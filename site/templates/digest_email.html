@@ -16,6 +16,9 @@
 {% set h2 = serif ~ "margin:32px 0 6px;font-size:22px;line-height:1.25;font-weight:700;color:" ~ palette.primary_dark ~ ";" %}
 {% set note = "margin:0 0 4px;font-size:14px;line-height:1.5;color:#545c65;" %}
 {% set link = "color:" ~ palette.primary_dark ~ ";font-weight:700;text-decoration:none;" %}
+{# A decision's page in its minutes, after it (macros.html cite). #}
+{% from "macros.html" import cite %}
+{% set cite_style = "color:" ~ palette.primary ~ ";font-size:14px;white-space:nowrap;" %}
 {% macro name(m) -%}
 {%- set title = (m.title or "")[:-8] if (m.title or "").endswith(" Meeting") else (m.title or "") -%}
 {%- if title != m.body and title.startswith(m.body ~ " ") %}{{ title }}{% else %}{{ m.body }}{% endif %}{% if m.get("day_part") %} ({{ m.day_part }}){% endif -%}
@@ -61,14 +64,14 @@
 {% set ds = m.decisions %}
 {% if ds.decided %}
 <ul style="margin:4px 0 0;padding-left:20px;">
-  {% for d in ds.decided[:5] %}<li style="margin:3px 0;">{{ d | decision }}</li>{% endfor %}
+  {% for d in ds.decided[:5] %}<li style="margin:3px 0;">{{ d | decision }}{{ cite(m.minutes_doc, d, cite_style, site_url) }}</li>{% endfor %}
 </ul>
 {% if ds.decided | length > 5 %}<p style="margin:4px 0 0;font-size:14px;"><a href="{{ site_url }}{{ m.url }}{{ q }}" style="color:{{ palette.primary }};">{% trans count=ds.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
 {% endif %}
 {% if ds.recommended %}
 <p style="margin:8px 0 0;font-size:14px;font-weight:700;color:#3d444c;">{{ _("Committee recommendations to the City Council") }}</p>
 <ul style="margin:2px 0 0;padding-left:20px;">
-  {% for d in ds.recommended[:3] %}<li style="margin:3px 0;">{{ d | recommendation }}</li>{% endfor %}
+  {% for d in ds.recommended[:3] %}<li style="margin:3px 0;">{{ d | recommendation }}{{ cite(m.minutes_doc, d, cite_style, site_url) }}</li>{% endfor %}
 </ul>
 {% endif %}
 {% if not ds.decided and not ds.recommended %}

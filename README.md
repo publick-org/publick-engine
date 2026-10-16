@@ -107,6 +107,7 @@ pipeline/                   Python package
   factcheck.py              Each summary checked against its PDF's own text (no AI): numbers, amounts, dates, names, vote counts,
                             and each decision's quote from the minutes and its outcome (approved, denied, ...), read against how
                             the motion ended after the quote, so a dropped "not" or a failed vote called approved is caught. Kept in data/summaries/; what isn't in the document isn't shown. `python -m pipeline.factcheck` lists it
+                            The page each decision's quote is on, which the site cites after it ("p. 3", linking the PDF at that page)
   evaluate.py               The minutes prompt run against the real model on minutes checked by hand (evals/minutes.json), with the
                             checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
   evaluate_translations.py  The translation prompt run the same way on one town's summaries (evals/translations.json):
