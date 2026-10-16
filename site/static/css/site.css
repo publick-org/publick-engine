@@ -392,6 +392,11 @@ main .jump li + li { margin-top: 0; }
 dl.defs { margin: 0.5rem 0 1rem; }
 dl.defs dt { margin-top: 0.9rem; font-weight: 700; color: var(--primary-dark); }
 dl.defs dd { margin: 0.15rem 0 0; max-width: var(--measure); }
+dl.glossary dt { scroll-margin-top: 1rem; }
+dl.glossary dt:target { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* A term's first use on a page, linked to its definition (pipeline/glossary.py): underlined with dots, not by color alone. */
+a.term { text-decoration-style: dotted; text-decoration-thickness: 1px; }
+a.term:hover { text-decoration-style: solid; }
 .stat a.external::after { content: none; }
 
 /* ---- Maps ---- */
