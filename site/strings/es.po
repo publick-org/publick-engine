@@ -1188,6 +1188,20 @@ msgstr ""
 " del departamento de Inspectional Services</a> de la ciudad."
 
 #: site/pages/about/index.html
+msgid ""
+"<strong>Checked against an AI transcription</strong>: the PDF is a scanned image, so the summary "
+"is compared with AI's reading of it. Both come from AI and can share a mistake, so nothing is "
+"held back."
+msgstr ""
+"<strong>Verificado con una transcripción hecha con IA</strong>: el PDF es una imagen escaneada, "
+"así que el resumen se compara con una lectura hecha con IA. Las dos vienen de la IA y pueden "
+"tener el mismo error, así que no se omite nada."
+
+#: site/pages/about/index.html
+msgid "<strong>Checked against the city's PDF</strong>: against the document's own text."
+msgstr "<strong>Verificado con el PDF de la ciudad</strong>: con el texto del propio documento."
+
+#: site/pages/about/index.html
 #, python-format
 msgid "<strong>District maps:</strong> <a href=\"%(url)s\">%(publisher)s</a>, %(year)s boundaries."
 msgstr "<strong>Mapas de distritos:</strong> <a href=\"%(url)s\">%(publisher)s</a>, límites de %(year)s."
@@ -1330,6 +1344,22 @@ msgid ""
 msgstr ""
 "<strong>Reuniones:</strong> el <a href=\"%(calendar)s\">calendario</a> de la ciudad. La página de"
 " cada reunión enlaza a su agenda y a sus actas donde la ciudad las publica."
+
+#: site/pages/about/index.html
+msgid ""
+"<strong>Not checked</strong>: there was no text to check against, or the summary is older than "
+"the check that matches decisions to the minutes' own words."
+msgstr ""
+"<strong>Sin verificar</strong>: no había texto con qué comparar, o el resumen es anterior a la "
+"verificación que compara las decisiones con las palabras de las actas."
+
+#: site/pages/about/index.html
+msgid ""
+"<strong>Partly checked</strong>: some pages are scanned images, and only the pages with text "
+"could be checked, so nothing is held back."
+msgstr ""
+"<strong>Verificado en parte</strong>: algunas páginas son imágenes escaneadas y solo se pudieron "
+"verificar las páginas con texto, así que no se omite nada."
 
 #: site/states/ri/about_finance.html
 #, python-format
@@ -1603,7 +1633,7 @@ msgstr "Estimaciones de 5 años de la ACS {year}"
 msgid "AI summaries"
 msgstr "Resúmenes hechos con IA"
 
-#: site/pages/index.html site/templates/digest.html site/templates/macros.html
+#: site/templates/macros.html
 msgid "AI summary"
 msgstr "Resumen hecho con IA"
 
@@ -1616,6 +1646,22 @@ msgstr "Resumen de la agenda hecho con IA: %(headline)s"
 #, python-format
 msgid "AI summary of the minutes: %(headline)s"
 msgstr "Resumen de las actas hecho con IA: %(headline)s"
+
+#: site/templates/macros.html
+msgid "AI summary, checked against an AI transcription"
+msgstr "Resumen hecho con IA, verificado con una transcripción hecha con IA"
+
+#: site/templates/macros.html
+msgid "AI summary, checked against the city's PDF"
+msgstr "Resumen hecho con IA, verificado con el PDF de la ciudad"
+
+#: site/templates/macros.html
+msgid "AI summary, not checked"
+msgstr "Resumen hecho con IA, sin verificar"
+
+#: site/templates/macros.html
+msgid "AI summary, partly checked against the city's PDF"
+msgstr "Resumen hecho con IA, verificado en parte con el PDF de la ciudad"
 
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
 #: site/pages/data/index.html site/templates/base.html
@@ -2270,6 +2316,22 @@ msgid ""
 msgstr ""
 "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>. Si la ciudad cambia esta publicación, "
 "esta nota se quita hasta que se revise de nuevo."
+
+#: pipeline/build_site.py site/templates/macros.html
+msgid "Checked against an AI transcription"
+msgstr "Verificado con una transcripción hecha con IA"
+
+#: site/templates/macros.html
+msgid "Checked against an AI transcription."
+msgstr "Verificado con una transcripción hecha con IA."
+
+#: pipeline/build_site.py site/templates/macros.html
+msgid "Checked against the city's PDF"
+msgstr "Verificado con el PDF de la ciudad"
+
+#: site/templates/macros.html
+msgid "Checked against the city's PDF."
+msgstr "Verificado con el PDF de la ciudad."
 
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
 #: site/states/ri/schools.html site/states/vt/schools.html
@@ -3067,6 +3129,18 @@ msgstr ""
 "Todas las solicitudes públicas desde %(since)s, más las más antiguas que siguen abiertas, "
 "revisadas a diario."
 
+#: site/pages/about/index.html
+msgid ""
+"Every summary is then checked against the city's document by a program, without AI: each number, "
+"date, and name in it must be in the document, and in minutes, each decision must match the "
+"minutes' own words. Against the document's full text, what isn't found isn't shown. A line under "
+"each summary says how it was checked:"
+msgstr ""
+"Luego, un programa, sin IA, compara cada resumen con el documento de la ciudad: cada número, "
+"fecha y nombre debe estar en el documento y, en las actas, cada decisión debe coincidir con las "
+"palabras de las actas. Cuando se compara con el texto completo del documento, lo que no se "
+"encuentra no se muestra. Una línea debajo de cada resumen dice cómo se verificó:"
+
 #: site/pages/about/accessibility/index.html
 msgid ""
 "Every update is checked automatically on every page, at phone and desktop sizes, and isn't "
@@ -3631,6 +3705,10 @@ msgstr ""
 #: site/pages/311/repeat-locations/index.html
 msgid "How repeat locations are found"
 msgstr "Cómo se identifican los lugares con solicitudes repetidas"
+
+#: site/templates/macros.html
+msgid "How summaries are checked"
+msgstr "Cómo se verifican los resúmenes"
 
 #: site/pages/311/methodology/index.html
 msgid "How the 311 numbers work"
@@ -4895,6 +4973,14 @@ msgstr "No se encontró nada."
 msgid "Nonhomestead education"
 msgstr "Educación, otras propiedades"
 
+#: pipeline/build_site.py site/templates/macros.html
+msgid "Not checked"
+msgstr "Sin verificar"
+
+#: site/templates/macros.html
+msgid "Not checked."
+msgstr "Sin verificar."
+
 #: site/templates/meeting.html
 #, python-format
 msgid ""
@@ -5168,6 +5254,14 @@ msgid ""
 msgstr ""
 "Parte de %(network)s, una red de sitios independientes que publican el registro público de "
 "pueblos y ciudades."
+
+#: pipeline/build_site.py site/templates/macros.html
+msgid "Partly checked against the city's PDF"
+msgstr "Verificado en parte con el PDF de la ciudad"
+
+#: site/templates/macros.html
+msgid "Partly checked against the city's PDF."
+msgstr "Verificado en parte con el PDF de la ciudad."
 
 #: site/pages/311/index.html
 msgid "Past 12 months. \"Typical\" means the median: half took less time, half took more."
@@ -6027,6 +6121,12 @@ msgstr "Puede que algunos datos de esta página estén desactualizados:"
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
 msgstr "Algunos departamentos usan SeeClickFix más que otros."
+
+#: site/templates/macros.html
+msgid "Some of its pages are scanned images, so only the pages with text could be checked."
+msgstr ""
+"Algunas de sus páginas son imágenes escaneadas, así que solo se pudieron verificar las páginas "
+"con texto."
 
 #: site/templates/base.html
 #, python-format
@@ -7219,6 +7319,15 @@ msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustada
 msgid "The city"
 msgstr "La ciudad"
 
+#: site/templates/macros.html
+msgid ""
+"The city's PDF is a scanned image, so this summary was compared with an AI reading of it, not the"
+" city's own text. Both come from AI, so they can share a mistake."
+msgstr ""
+"El PDF de la ciudad es una imagen escaneada, así que este resumen se comparó con una lectura "
+"hecha con IA, no con el texto de la ciudad. Las dos vienen de la IA, así que pueden tener el "
+"mismo error."
+
 #: site/pages/data/index.html
 msgid ""
 "The city's agendas and minutes are the official record. Every summary in the file links the "
@@ -7573,6 +7682,18 @@ msgstr ""
 "El valor tasado neto de todo lo que gravó la ciudad en el año fiscal %(year)s fue de %(total)s, "
 "después de exenciones como las de personas mayores y veteranos."
 
+#: site/templates/macros.html
+msgid "The numbers, dates, and names shown here are in the agenda's own text."
+msgstr "Los números, las fechas y los nombres que se muestran aquí están en el texto de la agenda."
+
+#: site/templates/macros.html
+msgid ""
+"The numbers, dates, and names shown here are in the minutes' own text, and each decision matches "
+"the minutes' own words."
+msgstr ""
+"Los números, las fechas y los nombres que se muestran aquí están en el texto de las actas, y cada"
+" decisión coincide con las palabras de las actas."
+
 #. %(provider)s is the email service that sends the digest, such as "Buttondown".
 #: site/pages/about/index.html
 #, python-format
@@ -7837,9 +7958,19 @@ msgstr ""
 "Este sitio todavía no ha podido revisar las listas de reuniones de la ciudad, así que puede que "
 "falten reuniones aquí."
 
+#: site/templates/macros.html
+msgid "This summary hasn't been compared with the city's document."
+msgstr "Este resumen no se ha comparado con el documento de la ciudad."
+
 #: site/templates/meeting.html
 msgid "This summary hasn't been translated yet, so it's shown in English."
 msgstr "Este resumen aún no se ha traducido, así que aparece en inglés."
+
+#: site/templates/macros.html
+msgid "This summary is older than the check that matches each decision to the minutes' own words."
+msgstr ""
+"Este resumen es anterior a la verificación que compara cada decisión con las palabras de las "
+"actas."
 
 #: site/templates/meeting.html
 msgid "This summary is shown in English: its automatic translation didn't pass our checks."
@@ -8670,6 +8801,18 @@ msgstr "puntos de la agenda"
 #: pipeline/build_site.py
 msgid "building permits"
 msgstr "permisos de construcción"
+
+#: site/pages/data/index.html
+msgid ""
+"checked: how the summary was checked, as the line under it on its page says. \"pdf\": against the"
+" city's PDF. \"partial\": against the pages of the PDF that have text. \"ai\": against an AI "
+"transcription of a scanned PDF. \"none\": not checked, or minutes summarized before each decision"
+" was matched to the minutes' own words."
+msgstr ""
+"checked: cómo se verificó el resumen, como dice la línea debajo de él en su página. “pdf”: con el"
+" PDF de la ciudad. “partial”: con las páginas del PDF que tienen texto. “ai”: con una "
+"transcripción hecha con IA de un PDF escaneado. “none”: sin verificar, o actas resumidas antes de"
+" que cada decisión se comparara con las palabras de las actas."
 
 #: pipeline/build_site.py
 msgid "city calendar"
