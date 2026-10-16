@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import day_group, calendar_behind_note, report_button %}
+{% from "macros.html" import day_group, calendar_behind_note, report_button, checked_short, ai_summary_label %}
 {# One issue of the weekly digest (pipeline/digest.py): the week's meetings, and the minutes posted the week before. #}
 {# Translators: the title of one week's digest; %(when)s is its Monday, such as "October 12, 2026". #}
 {% block title %}{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}{% endblock %}
@@ -45,8 +45,9 @@
     </ul>
     {# Translators: %(count)s is how many of a meeting's decisions aren't listed here, 1 or more. #}
     {% if m.decisions.decided | length > 5 %}<p class="small"><a href="{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
+    <p class="small checked" data-checked="{{ how_checked(m.minutes_summary, 'minutes') }}">{{ checked_short(how_checked(m.minutes_summary, "minutes")) }}</p>
     {% elif m.preview_line %}
-    <p>{{ m.preview_line }} <span class="small">({{ _("AI summary") }})</span></p>
+    <p>{{ m.preview_line }} <span class="small">({{ ai_summary_label(m.preview_checked) }})</span></p>
     {% else %}
     <p class="small">{{ _("No decisions recorded in these minutes.") }}</p>
     {% endif %}

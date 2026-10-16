@@ -982,6 +982,29 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     return out
 
 
+# How a summary was checked, as its page says (how_checked()): against the PDF's own text, against
+# it where its pages have text, against the model's transcription of a scan, or not at all.
+HOW_CHECKED = ("pdf", "partial", "ai", "none")
+# Minutes summarized before this version of the prompt have no quote or outcome for their decisions,
+# so none of them is anchored in the minutes (the decision_evidence checks in check()).
+ANCHORED_SINCE = 3
+
+
+def how_checked(record: dict | None, kind: str | None = None) -> str | None:
+    """How a summary was checked against its document, from what its record already holds, for the
+    line each summary carries: "pdf", "partial", "ai", or "none" (no check saved, a scan with no text
+    or transcription to check against, or minutes from before ANCHORED_SINCE). None for no summary, and for
+    a document filed as minutes that isn't any, whose summary isn't shown."""
+    if not record or record.get("is_minutes") is False:
+        return None
+    kind = kind or kind_of(record)
+    fc = record.get("fact_check") or {}
+    if kind == "minutes" and (record.get("prompt_version") or 0) < ANCHORED_SINCE:
+        return "none"
+    source = fc.get("source")
+    return source if source in ("pdf", "partial", "ai") else "none"
+
+
 def kind_of(record: dict) -> str:
     return record.get("kind") or ("minutes" if "decisions" in record else "agenda")
 

@@ -227,7 +227,7 @@ async function route(request, env, ctx) {
   const url = new URL(request.url);
   if (request.method === "POST" && url.pathname === SIGNUP_PATH) {
     const manifest = await loadManifest(env, url.hostname.toLowerCase());
-    if (manifest && manifest.files["digest/thanks/index.html"]) return subscribe(request, env, url);
+    if (manifest && manifest.files["digest/thanks/index.html"]) return subscribe(request, env, url, manifest);
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
     return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
