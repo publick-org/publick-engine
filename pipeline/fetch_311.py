@@ -12,13 +12,25 @@ Each run reads only what changed on SeeClickFix since the last one:
      any saved as open that the list leaves out: closed, deleted, made
      private, or moved to another organization's request types.
   3. Read the history still to be read, a month of submissions at a time,
-     within the time budget, and go on from there next run: a new town's
-     history since [seeclickfix] history_since (and older requests still
-     open), or, for requests saved before the sync, the months with requests
-     whose exact times are missing or out of date, and those where APIv2
-     counts more or fewer requests than are saved (one request a month).
+     within the time budget and at most [seeclickfix] catch_up_requests
+     requests a run (a month started is read whole), and go on from there
+     next run: a new town's history since [seeclickfix] history_since (and
+     older requests still open), or, for requests saved before the sync, the
+     months with requests whose exact times are missing or out of date, and
+     those where APIv2 counts more or fewer requests than are saved (one
+     request a month). The sync and the open list aren't counted.
   4. Look up, one at a time, the few requests the listings didn't have.
   5. Tag each request with its ward and precinct.
+
+If SeeClickFix refuses the APIv2 listing (a 403, or a 429 after every
+retry), the run goes on without it: every town on the machine leaves the
+listing alone for [seeclickfix] listing_refused_hours (pipeline/http.py,
+Lane), the sync falls back to Open311's list of requests submitted since the
+cursor and looks each new one up by itself, steps 2 and 3 wait for the next
+run, and the cursor stays where it was, so the updates since then are read
+once the listing answers again. status.json says the listing was refused.
+APIv2 listing requests are spaced [seeclickfix] listing_delay seconds apart,
+across every process on the machine.
 
 A listing longer than SeeClickFix serves (APIv2: 25 pages of 100) is read in
 narrower windows of time, and one whose count changes while it's read is read
@@ -31,7 +43,7 @@ leaves it behind them, never ahead. A town's first run on this code takes its
 cursor from its saved requests and goes on from there.
 
 Backfill: python -m pipeline.fetch_311 --backfill 2024-01 adds the history
-since that month to what's read.
+since that month to what's read (with --catch-up, more of it a run).
 
 Writes data/311/requests.json, data/311/sync.json, and data/311/status.json.
 For a town with a [storage] table, requests.json is kept in its bucket, not
@@ -47,14 +59,14 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 from pipeline import bucket_data, seeclickfix
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.files import write_atomic
 from pipeline.geo import PrecinctLookup
-from pipeline.http import FetchError, HostLimiter, PoliteClient
+from pipeline.http import FetchError, HostLimiter, Lane, PoliteClient, Refused
 
 PAGE_SIZE = 100
 # APIv2 serves no page past the 25th ("page cannot be greater than 25"): a window listing more is split.
@@ -75,6 +87,13 @@ RECONCILE_DAYS = 7
 CHECKPOINT_SECONDS = 300
 # Reads of a window whose count changed while it was read, before it's split into narrower ones.
 LISTING_ATTEMPTS = 2
+# Requests a run spends on step 3 (history: counts, and Open311 and APIv2 pages), unless
+# [seeclickfix] catch_up_requests says otherwise. The sync and the weekly list aren't counted.
+CATCH_UP_REQUESTS = 20
+# Seconds between two APIv2 listing requests from any process on the machine ([seeclickfix] listing_delay).
+LISTING_DELAY = 8.0
+# Hours every process leaves the APIv2 listing alone once it's refused ([seeclickfix] listing_refused_hours).
+LISTING_REFUSED_HOURS = 6
 OPEN = "open,acknowledged"
 EVERY = "open,acknowledged,closed,archived"
 
@@ -122,8 +141,14 @@ class SeeClickFix:
     def __init__(self, config: dict, client):
         self.source = config["seeclickfix"]
         self.client = client
+        # Requests made through this source, to keep step 3 within its share.
+        self.requests = 0
         self._codes: set[str] | None = None
         self._services: list[dict] | None = None
+
+    def get(self, url: str):
+        self.requests += 1
+        return self.client.get(url)
 
     def base_url(self) -> str:
         return f"{self.source['open311_base'].rstrip('/')}/{self.source['organization_id']}"
@@ -131,7 +156,7 @@ class SeeClickFix:
     def services(self) -> list[dict]:
         """The organization's own list of services (request types), on Open311."""
         if self._services is None:
-            self._services = self.client.get(f"{self.base_url()}/services.json").json()
+            self._services = self.get(f"{self.base_url()}/services.json").json()
         return self._services
 
     def service_codes(self) -> set[str] | None:
@@ -174,7 +199,7 @@ class SeeClickFix:
         items = []
         for page in range(1, OPEN311_PAGES + 1):
             query = urlencode({"page_size": PAGE_SIZE, "page": page, **params})
-            batch = self.client.get(f"{self.base_url()}/requests.json?{query}").json()
+            batch = self.get(f"{self.base_url()}/requests.json?{query}").json()
             items.extend(batch)
             if len(batch) < PAGE_SIZE:
                 return [seeclickfix.parse_open311(i) for i in items]
@@ -217,7 +242,7 @@ class SeeClickFix:
         """How many APIv2 requests of these request types and statuses were submitted in created."""
         if not codes:
             return 0
-        data = self.client.get(self._v2_url(codes, status, created, None, 1, 1)).json()
+        data = self.get(self._v2_url(codes, status, created, None, 1, 1)).json()
         return data["metadata"]["pagination"]["entries"]
 
     def _v2_window(self, codes: set[str], status: str, created, updated) -> list[dict] | None:
@@ -227,7 +252,7 @@ class SeeClickFix:
         for _ in range(LISTING_ATTEMPTS):
             issues, entries = [], None
             for page in range(1, V2_PAGES + 1):
-                data = self.client.get(self._v2_url(codes, status, created, updated, PAGE_SIZE, page)).json()
+                data = self.get(self._v2_url(codes, status, created, updated, PAGE_SIZE, page)).json()
                 listed = data["metadata"]["pagination"]["entries"]
                 if entries is None:
                     entries = listed
@@ -246,7 +271,7 @@ class SeeClickFix:
 
     def issue(self, issue_id: str) -> dict:
         url = f"{self.source['api_base'].rstrip('/')}/issues/{issue_id}"
-        return seeclickfix.parse_issue(self.client.get(url).json())
+        return seeclickfix.parse_issue(self.get(url).json())
 
 
 def needs_detail(record: dict) -> bool:
@@ -443,7 +468,7 @@ def save(config: dict, data_dir: Path, store: dict, state: dict) -> None:
 
 def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         backfill_from: date | None = None, detail_limit: int | None = None,
-        time_budget: float | None = None) -> dict:
+        time_budget: float | None = None, catch_up: int | None = None) -> dict:
     source = config["seeclickfix"]
     tz = ZoneInfo(config["site"]["timezone"])
     now = now or datetime.now(tz)
@@ -476,21 +501,41 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     since = when(state["cursor"]) - OVERLAP
     submitted = api.submitted(since, now)
     codes = request_types(api, store, submitted)
-    issues = api.issues(codes, EVERY, updated=(since, now))
-    new, changed = merge(store, issues, stamp, history_start)
-    listed = {str(i["id"]) for i in issues}
-    unlisted = [i for i in submitted if i["id"] not in listed]
-    new += add_unlisted(store, unlisted, stamp)
-    lookups = state["lookups"] + [i["id"] for i in unlisted]
-    state = {**state, "cursor": zulu(now), "lookups": lookups}
-    print(f"{time.monotonic() - started:.0f}s: {len(issues)} requests updated since {zulu(since)}, {new} new", flush=True)
+    errors, refused, listing_refused = [], False, False
+    try:
+        issues = api.issues(codes, EVERY, updated=(since, now))
+    except Refused as e:
+        # The listing refused: what Open311 lists as submitted since the cursor, each looked up
+        # by itself (new ones first), and the cursor left where it was.
+        listing_refused, issues = True, []
+        errors.append(f"SeeClickFix refused its APIv2 listing ({e}): synced from Open311 only the requests "
+                      f"submitted since {zulu(since)}; the cursor stays at {state['cursor']}")
+        new, changed = add_unlisted(store, submitted, stamp), 0
+        waiting = [i["id"] for i in submitted if store[i["id"]].get("detail") is None]
+        state = {**state, "lookups": waiting + state["lookups"]}
+        print(f"{time.monotonic() - started:.0f}s: APIv2 listing refused; {len(submitted)} submitted since "
+              f"{zulu(since)} on Open311, {new} new", flush=True)
+    else:
+        new, changed = merge(store, issues, stamp, history_start)
+        listed = {str(i["id"]) for i in issues}
+        unlisted = [i for i in submitted if i["id"] not in listed]
+        new += add_unlisted(store, unlisted, stamp)
+        lookups = state["lookups"] + [i["id"] for i in unlisted]
+        state = {**state, "cursor": zulu(now), "lookups": lookups}
+        print(f"{time.monotonic() - started:.0f}s: {len(issues)} requests updated since {zulu(since)}, {new} new", flush=True)
 
-    errors, refused = [], False
+    def refusal(e: Refused) -> None:
+        nonlocal listing_refused
+        listing_refused = True
+        errors.append(f"SeeClickFix refused its APIv2 listing ({e}); the rest waits for the next run")
+
     # 2. The open requests, every RECONCILE_DAYS days.
     reconciled = False
-    if now - when(state["reconciled_at"]) >= timedelta(days=RECONCILE_DAYS):
+    if not listing_refused and now - when(state["reconciled_at"]) >= timedelta(days=RECONCILE_DAYS):
         try:
             open_issues = api.issues(codes, OPEN, created=(EPOCH, now))
+        except Refused as e:
+            refusal(e)
         except FetchError as e:
             errors.append(f"open requests: {e}")
             refused = e.status == 403
@@ -503,13 +548,18 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
             reconciled = True
             print(f"{time.monotonic() - started:.0f}s: {len(open_issues)} open; {len(gone)} saved as open aren't", flush=True)
 
-    # 3. History, a window at a time, each saved whole.
+    # 3. History, a window at a time, each saved whole, within its share of requests.
+    cap = catch_up if catch_up is not None else source.get("catch_up_requests", CATCH_UP_REQUESTS)
     windows_read = windows_checked = 0
-    saved_at = time.monotonic()
-    while state["pending"] and not refused and time.monotonic() < deadline:
+    saved_at, before = time.monotonic(), api.requests
+    while (state["pending"] and not refused and not listing_refused and time.monotonic() < deadline
+           and api.requests - before < cap):
         window = state["pending"][0]
         try:
             result = read_window(api, store, window, codes, stamp, history_start)
+        except Refused as e:
+            refusal(e)
+            break
         except FetchError as e:
             errors.append(f"history from {window['start'][:10]}: {e}")
             refused = e.status == 403
@@ -525,6 +575,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
             save(config, data_dir, store, state)
             saved_at = time.monotonic()
             print(f"{time.monotonic() - started:.0f}s: saved progress", flush=True)
+
+    catch_up = api.requests - before
 
     # 4. Lookups, one request at a time.
     limit = detail_limit if detail_limit is not None else source.get("max_details_per_run", 400)
@@ -543,6 +595,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     summary = {
         "updated_at": stamp,
         "synced_since": iso(since.astimezone(tz)),
+        # Every update before it is saved.
+        "cursor": state["cursor"],
+        "listing_refused": listing_refused,
         "requests_total": len(store),
         "updated_listed": len(issues),
         "new": new,
@@ -551,6 +606,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         "history_windows_read": windows_read,
         "history_windows_checked": windows_checked,
         "history_windows_left": len(state["pending"]),
+        "catch_up_requests": catch_up,
         "details_fetched": details_done,
         "lookups_left": len(left),
         "details_missing": sum(1 for r in store.values() if not r.get("detail") and not r.get("removed")),
@@ -566,6 +622,14 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     return summary
 
 
+def listing_lane(source: dict) -> Lane:
+    """APIv2's listing (/api/v2/issues; not the lookups under it), as every town on this machine
+    that reads SeeClickFix shares it (pipeline/http.py): its own interval, and its refusals."""
+    path = urlsplit(source["api_base"]).path.rstrip("/") + "/issues"
+    return Lane(path, source.get("listing_delay", LISTING_DELAY),
+                source.get("listing_refused_hours", LISTING_REFUSED_HOURS) * 3600)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--town", default=DEFAULT_TOWN)
@@ -573,16 +637,17 @@ def main() -> int:
     parser.add_argument("--backfill", metavar="YYYY-MM", help="read every request since this month")
     parser.add_argument("--details", type=int, help="max one-at-a-time lookups this run")
     parser.add_argument("--time-budget", type=float, help="seconds to spend reading history and looking up requests")
+    parser.add_argument("--catch-up", type=int, help="max requests this run spends reading history")
     args = parser.parse_args()
     config = load_config(args.town)
     if not configured(config, "seeclickfix"):
         return 0
-    # Every town on this machine that reads SeeClickFix shares its rate limit (pipeline/http.py).
     client = PoliteClient(config["site"]["user_agent"], delay=config["seeclickfix"].get("request_delay", 3.2),
-                          limiter=HostLimiter())
+                          limiter=HostLimiter(), lanes=(listing_lane(config["seeclickfix"]),))
     backfill = date.fromisoformat(args.backfill + "-01") if args.backfill else None
     try:
-        summary = run(config, client, args.data, backfill_from=backfill, detail_limit=args.details, time_budget=args.time_budget)
+        summary = run(config, client, args.data, backfill_from=backfill, detail_limit=args.details, time_budget=args.time_budget,
+                      catch_up=args.catch_up)
     except FetchError as e:
         print(f"::error::311 requests: {e}")
         return 1
