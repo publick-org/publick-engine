@@ -152,6 +152,9 @@ def format_date(value: str | date, fmt: str = "long") -> str:
         return str(d.day)
     if fmt == "weekday":
         return weekday_name(d)
+    if fmt == "weekday_month_day":
+        # A day this year, such as "Thursday, October 1": the list's format with the full names.
+        return _("{weekday}, {month} {day}").format(weekday=weekday_name(d), month=month_name(d.month), day=d.day)
     # Translators: a full date, such as "Thursday, October 1, 2026".
     return _("{weekday}, {month} {day}, {year}").format(weekday=weekday_name(d), month=month_name(d.month), day=d.day, year=d.year)
 
@@ -902,7 +905,7 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
             change += " · " + _("{percent}% of requests were acknowledged").format(
                 percent=round(overall["acknowledged"] / overall["checked"] * 100))
         numbers.append({
-            "label": _("Typical time for the city to acknowledge a request"),
+            "label": _("Time to acknowledge a 311 request"),
             "value": format_duration(overall["time_to_acknowledge"]["median"]), "href": "/311/#speed", "change": change,
         })
     tax_path = data_dir / "finance" / "tax_bill.json"
@@ -1186,7 +1189,6 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), terms,
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []), config["town"]["name"])
-    posted = digest.minutes_posted(meetings["all"], meetings["tracking_since"], ZoneInfo(site["timezone"]))
     # A board's name alone in this language, for its pages' titles (the pages show its English name too),
     # unless another board's is the same: then with its English name after it, as elsewhere.
     alone = defaultdict(set)
@@ -1200,8 +1202,6 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         m["kind"] = meeting_names.kind(m["title"], m["body"], m["special"])
         m["title_says_more"] = meeting_names.says_more(m["title"], m["body"], config["town"]["name"])
         m["body"] = tr.board(m["body"])
-        # When its minutes came out, for the home page's "Recently decided" (digest.minutes_posted).
-        m["minutes_posted"] = posted[id(m)].isoformat() if posted[id(m)] else None
     for b in meetings["boards"]:
         b["board_name"] = board_name(b["name"])
         b["name"] = tr.board(b["name"])

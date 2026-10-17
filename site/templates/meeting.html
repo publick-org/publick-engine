@@ -211,11 +211,18 @@
 {% else %}
 <p>{{ _("Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and older ones a few each day.") }}</p>
 {% endif %}
+{% if m.minutes_doc.get("converted_from") %}
+{# Posted as another kind of file, which the button above doesn't link: its PDF is the saved copy. #}
 <ul>
   {# Translators: %(where)s is where the minutes were posted, such as "the city website". #}
-  <li>{% trans url=m.minutes_doc.source_url, where=m.minutes_doc.get("posted_on") or _("the city website") %}<a href="{{ url }}">Minutes on {{ where }}</a>{% endtrans %}{% if not m.minutes_doc.get("converted_from") %} · PDF, {{ m.minutes_doc.bytes | filesize }}{% endif %}</li>
+  <li>{% trans url=m.minutes_doc.source_url, where=m.minutes_doc.get("posted_on") or _("the city website") %}<a href="{{ url }}">Minutes on {{ where }}</a>{% endtrans %}</li>
   <li>{% trans url=document_url('minutes', m.minutes_doc.file), iso=m.minutes_doc.fetched_at, when=m.minutes_doc.fetched_at | timestamp %}<a href="{{ url }}">Saved copy of the minutes</a> · saved <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</li>
 </ul>
+{% else %}
+{# The city's PDF is the button at the top of the page; here, where it's posted, and the copy saved in case it changes. #}
+{# Translators: %(where)s is where the minutes were posted, such as "the city website"; %(size)s is the file's size, such as "257 KB". #}
+<p class="small">{% trans where=m.minutes_doc.get("posted_on") or _("the city website"), size=m.minutes_doc.bytes | filesize %}Minutes posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('minutes', m.minutes_doc.file), iso=m.minutes_doc.fetched_at, when=m.minutes_doc.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+{% endif %}
 {% if m.minutes | length > 1 %}
 <p>{{ _("Earlier versions of these minutes:") }}</p>
 <ul>
@@ -257,9 +264,19 @@
 {% if m.preview.summary %}<p{{ english_attr(m.preview) }}>{{ gloss(m.preview.summary, m.preview.get("english")) }}</p>{% endif %}
 {% if m.preview["items"] %}
 <h3 id="agenda-items">{{ _("Agenda items") }}</h3>
+{# More than ten: the first eight, and the rest a tap away. #}
+{% set shown_items = 8 if m.preview["items"] | length > 10 else m.preview["items"] | length %}
 <ul{{ english_attr(m.preview) }}>
-  {% for item in m.preview["items"] %}<li>{{ gloss(item, m.preview.get("english")) }}</li>{% endfor %}
+  {% for item in m.preview["items"][:shown_items] %}<li>{{ gloss(item, m.preview.get("english")) }}</li>{% endfor %}
 </ul>
+{% if m.preview["items"] | length > shown_items %}
+<details class="expand more-items">
+  <summary>{% trans count=m.preview["items"] | length - shown_items %}Show {{ count }} more item{% pluralize %}Show {{ count }} more items{% endtrans %}</summary>
+  <ul{{ english_attr(m.preview) }}>
+    {% for item in m.preview["items"][shown_items:] %}<li>{{ gloss(item, m.preview.get("english")) }}</li>{% endfor %}
+  </ul>
+</details>
+{% endif %}
 {% endif %}
 {% if m.preview.get("not_shown") %}
 <p class="small">{% trans count=m.preview.not_shown %}{{ count }} agenda item isn't shown: it couldn't be matched to the agenda.{% pluralize %}{{ count }} agenda items aren't shown: they couldn't be matched to the agenda.{% endtrans %}</p>
@@ -277,11 +294,9 @@
 {% elif not m.summary_gap and not m.agenda_gave_up %}<p>{{ _("A plain-English summary of the agenda will be added: agendas for upcoming meetings are summarized first, and older ones a few each day.") }}</p>{% endif %}
 {% endif %}
 {% if m.agenda %}
-<ul>
-  {# Translators: %(where)s is where the agenda was posted, such as "the city website". #}
-  <li>{% trans url=m.agenda.source_url, where=m.agenda.get("posted_on") or _("the city website") %}<a href="{{ url }}">Agenda on {{ where }}</a>{% endtrans %} · PDF, {{ m.agenda.bytes | filesize }}</li>
-  <li>{% trans url=document_url('agendas', m.agenda.file), iso=m.agenda.fetched_at, when=m.agenda.fetched_at | timestamp %}<a href="{{ url }}">Saved copy of the agenda</a> · saved <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</li>
-</ul>
+{# The city's PDF is the button at the top of the page; here, where it's posted, and the copy saved in case it changes. #}
+{# Translators: %(where)s is where the agenda was posted, such as "the city website"; %(size)s is the file's size, such as "257 KB". #}
+<p class="small">{% trans where=m.agenda.get("posted_on") or _("the city website"), size=m.agenda.bytes | filesize %}Agenda posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('agendas', m.agenda.file), iso=m.agenda.fetched_at, when=m.agenda.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
 {% if m.agenda.has_text == false %}
 {# Translators: %(who)s is who posted the agenda: "The city" or a school district's name. #}
 <p class="small">{% trans who=m.agenda.get("posted_by") or _("The city") %}{{ who }} posted this as a scanned image.{% endtrans %}{% if m.preview %} {{ _("The full text above is a readable version.") }}{% endif %}</p>

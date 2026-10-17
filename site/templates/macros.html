@@ -37,22 +37,8 @@
 {%- for p in parts %}<span class="flag">{{ p }}</span>{% if not loop.last %} · {% endif %}{% endfor -%}
 {%- endmacro %}
 
-{# How a summary was checked against its document (factcheck.how_checked), said in full under it on its meeting's
-   page, in its own paragraph before the credit. record is the summary as shown; its check is the English summary's,
-   which a translation is made from. #}
-{% macro checked_line(doc_label, record) -%}
-{%- set how = how_checked(record, doc_label) -%}
-{%- if how -%}
-<p class="checked" data-checked="{{ how }}">
-{%- if how == "pdf" %}<strong>{{ _("Checked against the city's PDF.") }}</strong> {% if doc_label == "minutes" %}{{ _("The numbers, dates, and names shown here are in the minutes' own text, and each decision matches the minutes' own words.") }}{% else %}{{ _("The numbers, dates, and names shown here are in the agenda's own text.") }}{% endif %}
-{%- elif how == "partial" %}<strong>{{ _("Partly checked against the city's PDF.") }}</strong> {{ _("Some of its pages are scanned images, so only the pages with text could be checked.") }}
-{%- elif how == "ai" %}<strong>{{ _("Checked against an AI transcription.") }}</strong> {{ _("The city's PDF is a scanned image, so this summary was compared with an AI reading of it, not the city's own text. Both come from AI, so they can share a mistake.") }}
-{%- elif doc_label == "minutes" and (record.get("fact_check") or {}).get("source") in ("pdf", "partial", "ai") %}<strong>{{ _("Not checked.") }}</strong> {{ _("This summary is older than the check that matches each decision to the minutes' own words.") }}
-{%- else %}<strong>{{ _("Not checked.") }}</strong> {{ _("This summary hasn't been compared with the city's document.") }}{% endif %} <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
-{%- endif -%}
-{%- endmacro %}
-
-{# The same, in a few words, beside a summary's line in a list: "Checked against the city's PDF". #}
+{# How a summary was checked (factcheck.how_checked), in a few words beside its line in a list: "Checked against the
+   city's PDF". #}
 {% macro checked_short(how) -%}
 {%- if how == "pdf" %}{{ _("Checked against the city's PDF") }}{% elif how == "partial" %}{{ _("Partly checked against the city's PDF") }}
 {%- elif how == "ai" %}{{ _("Checked against an AI transcription") }}{% elif how %}{{ _("Not checked") }}{% endif -%}
@@ -64,17 +50,31 @@
 {%- elif how == "ai" %}{{ _("AI summary, checked against an AI transcription") }}{% elif how %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
 {%- endmacro %}
 
-{# The quiet credit line under AI-written text, after the line saying how it was checked (record, the summary shown). #}
+{# The same, in a list of meetings: that the line is AI's, and a warning when it wasn't checked; the meeting's page
+   says how it was. #}
+{% macro ai_summary_short(how) -%}
+{%- if how and how not in ["pdf", "partial", "ai"] %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
+{%- endmacro %}
+
+{# The credit under AI-written text, in one paragraph: what it was written from, how it was checked
+   (factcheck.how_checked; a summary not checked says so first), a translation's English, and the button to report
+   an error. record is the summary as shown; its check is the English summary's, which a translation is made from. #}
 {# english_url, for a summary shown translated: the same page in English, with the summary it was translated from. #}
 {% macro ai_credit(doc_label, url, report_url, posted_by=none, english_url=none, record=none) -%}
-<div class="credit">
-  {{ checked_line(doc_label, record) }}
-  {# Translators: %(by)s is who posted the document, such as a school district's name. #}
-  <p>{% if posted_by and doc_label == "minutes" %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">minutes posted by {{ by }}</a>.{% endtrans %}
+{%- set how = how_checked(record, doc_label) if record else none -%}
+<div class="credit"{% if how %} data-checked="{{ how }}"{% endif %}>
+  <p>
+  {%- if how and how not in ("pdf", "partial", "ai") %}<strong>{{ _("Not checked.") }}</strong> {% if doc_label == "minutes" and (record.get("fact_check") or {}).get("source") in ("pdf", "partial", "ai") %}{{ _("This summary is older than the check that matches each decision to the minutes' own words.") }}{% else %}{{ _("This summary hasn't been compared with the city's document.") }}{% endif %} {% endif %}
+  {#- Translators: %(by)s is who posted the document, such as a school district's name. -#}
+  {%- if posted_by and doc_label == "minutes" %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">minutes posted by {{ by }}</a>.{% endtrans %}
   {%- elif posted_by %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">agenda posted by {{ by }}</a>.{% endtrans %}
   {%- elif doc_label == "minutes" %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's minutes</a>.{% endtrans %}
-  {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %} {{ _("Check the original before relying on it.") }}
-  {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %}
+  {%- if how == "pdf" %} {{ _("Checked against the city's PDF.") }}
+  {%- elif how == "partial" %} {{ _("Partly checked against the city's PDF.") }}
+  {%- elif how == "ai" %} {{ _("Checked against an AI transcription.") }} {{ _("Both come from AI, so they can share a mistake.") }}{% endif %}
+  {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %}
+  {{ _("Check the original before relying on it.") }} <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
   {{ report_button(report_url, _("Report an error in this summary")) }}
 </div>
 {%- endmacro %}
@@ -119,7 +119,8 @@
 
 {# One meeting as a row: time (or date), name, preview, and plain status words. #}
 {# show_day: the day above the time, for a list not grouped by day (the home page's). #}
-{# posted: say when the minutes came out (the home page's "Recently decided"), where that's known (digest.minutes_posted). #}
+{# posted: the home page's "Recently decided", where the decision matters, not when: no weekday or time, and a
+   committee's recommendation marked. #}
 {% macro meeting_item(m, show_date=false, show_body=true, preview=true, show_day=false, posted=false) -%}
 <li class="meeting-item">
   <span class="meeting-when">
@@ -132,12 +133,10 @@
     <a class="meeting-link" href="{{ m.url }}">{% if show_body and not m.get("same_day") %}{{ m.body }}{% else %}{{ m.title }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}{% endif %}</a>
     {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
-    {% if show_date %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
-    {# The line above is written by AI, so say so where it's shown; the meeting's page has the full credit. #}
-    {% if preview and m.preview_line %}{% set __ = meta.append(ai_summary_label(m.preview_checked)) %}{% endif %}
-    {# Translators: %(date)s is a day, such as "Oct 9"; minutes are collected each morning, so they were posted that day or before. #}
-    {% if m.minutes_doc and posted and m.get("minutes_posted") %}{% set __ = meta.append(_("Minutes posted by %(date)s", date=m.minutes_posted | date("mon_day"))) %}
-    {%- elif m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
+    {% if show_date and not posted %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
+    {# The line above is written by AI, so say so where it's shown; the meeting's page says how it was checked. #}
+    {% if preview and m.preview_line %}{% set __ = meta.append(ai_summary_short(m.preview_checked)) %}{% endif %}
+    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
     {# On the home page's "Recently decided", a committee's recommendations aren't final until the governing body votes. #}
     {% if posted and m.get("decisions") and m.decisions.recommended and not m.decisions.decided %}{% set __ = meta.append(_("Committee recommendation")) %}{% endif %}
     {% if m.remote_url and m.date >= today %}{% set __ = meta.append(_("Online option")) %}{% endif %}
@@ -151,7 +150,8 @@
 {# A day's meetings, under a date heading. #}
 {% macro day_group(day, items, level=3) -%}
 <section aria-labelledby="day-{{ day }}">
-  <h{{ level }} class="day-heading" id="day-{{ day }}"><time datetime="{{ day }}">{{ day | date }}</time></h{{ level }}>
+  {# A day this year without its year. #}
+  <h{{ level }} class="day-heading" id="day-{{ day }}"><time datetime="{{ day }}">{{ day | date("weekday_month_day") if day[:4] == today[:4] else day | date }}</time></h{{ level }}>
   <ul class="meeting-list">
     {% for m in items %}{{ meeting_item(m) }}{% endfor %}
   </ul>
@@ -192,11 +192,11 @@
 {%- endmacro %}
 
 {% macro search_form() -%}
-<form class="search-form" role="search" action="/meetings/search/" method="get">
+<form class="search-form site-search" role="search" action="/meetings/search/" method="get">
   <label for="search-q">{{ _("Search agendas and minutes") }}</label>
   <div class="search-row">
     <input id="search-q" name="q" type="search" autocomplete="off" spellcheck="false">
-    <button class="button button-primary" type="submit">{{ _("Search") }}</button>
+    <button class="button" type="submit">{{ _("Search") }}</button>
   </div>
 </form>
 {%- endmacro %}

@@ -283,7 +283,7 @@ def test_site_shows_the_districts_meetings(config, data_dir, tmp_path, monkeypat
     shown = {m["id"]: m for m in build_site.load_meetings(data, BUILT_AT.date())["all"]}
 
     page = (out / "meetings" / shown["diligent-1195"]["slug"] / "index.html").read_text()
-    assert "Minutes on Diligent Community" in page and "Agenda on Diligent Community" in page
+    assert "Minutes posted on Diligent Community" in page and "Agenda posted on Diligent Community" in page
     assert "This meeting on the Burlington School District meeting portal" in page and "</a> (Diligent Community)." in page
     assert "Hunt Middle School - Library 1364 North Avenue" in page
     assert "Not listed on the city calendar" not in page

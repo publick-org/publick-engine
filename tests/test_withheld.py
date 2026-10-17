@@ -80,4 +80,4 @@ def test_a_withheld_summary_is_shown_nowhere(config, data_dir, tmp_path, monkeyp
     assert row["agenda"]["summary"] is None and row["agenda"]["summary_withheld"]
     assert row["minutes"]["url"] and row["agenda"]["url"]
     # The documents themselves are still linked.
-    assert "Saved copy of the minutes" in page
+    assert "Minutes posted on" in page and ">Saved copy<" in page

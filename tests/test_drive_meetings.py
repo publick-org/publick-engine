@@ -145,8 +145,8 @@ def test_versions_variants_and_calendar_meetings(tmp_path):
 def test_site_shows_school_committee_documents(site_dir):
     pages = {p.parent.name: p.read_text() for p in (site_dir / "meetings").glob("2026-09-09-school-committee*/index.html")}
     page = pages["2026-09-09-school-committee"]
-    assert "Minutes on the School Committee&#39;s Google Drive" in page
-    assert "Agenda on the School Committee&#39;s Google Drive" in page
+    assert "Minutes posted on the School Committee&#39;s Google Drive" in page
+    assert "Agenda posted on the School Committee&#39;s Google Drive" in page
     assert "Gloucester Public Schools posted this as a scanned image." in page
     assert "known from the <a" in page and "Gloucester Public Schools website" in page
     assert "minutes posted by Gloucester Public Schools<span" in page and "city&#39;s minutes" not in page
