@@ -177,59 +177,57 @@ def test_the_signup_form_posts_to_the_site_itself(site_dir):
     assert "noindex" not in (site_dir / "digest" / "index.html").read_text()
 
 
-def boxes(page: str) -> list[str]:
-    """Each signup box (site/templates/digest_box.html) on a built page."""
-    return [m.group(0) for m in re.finditer(r'<section class="signup-box".*?</section>', page, re.S)]
+def lines(page: str) -> list[str]:
+    """Each signup (site/templates/digest_line.html) on a built page."""
+    return [m.group(0) for m in re.finditer(r'<form class="line-form" id="[^"]*-signup[^"]*".*?</form>', page, re.S)]
 
 
-def check_box(box: str, form_id: str, lang: str = "en") -> None:
-    """One signup box: named by its heading, a labeled email field described by the note under it, the
-    language it was signed up in, a field for bots that people never reach, and a plain form, no script."""
-    assert f'<section class="signup-box" id="{form_id}" aria-labelledby="{form_id}-heading">' in box
-    assert f'<h2 id="{form_id}-heading">' in box
-    assert '<form class="search-form" action="/digest/subscribe" method="post">' in box
-    assert f'<label for="{form_id}-email">' in box
+def check_line(line: str, form_id: str, lang: str = "en") -> None:
+    """One signup: a labeled email field described by the note under it, the language it was signed up in, a
+    field for bots that people never reach, and a plain form, no script."""
+    assert f'<form class="line-form" id="{form_id}" action="/digest/subscribe" method="post">' in line
+    assert f'<label for="{form_id}-email">' in line
     assert re.search(rf'<input id="{form_id}-email" name="email" type="email" required maxlength="254" '
-                     rf'autocomplete="email" aria-describedby="{form_id}-note">', box)
-    assert f'<p class="small" id="{form_id}-note">' in box
-    assert f'<input type="hidden" name="lang" value="{lang}">' in box
-    assert re.search(rf'<div hidden>\s*<label for="{form_id}-website">', box)
-    assert '<button class="button button-primary" type="submit">' in box
-    assert "<script" not in box and "onsubmit" not in box
-    # Its past issues are in English, wherever the box is.
-    assert '<a href="/digest/" hreflang="en">' in box
+                     rf'autocomplete="email" placeholder="[^"]+" aria-describedby="{form_id}-note">', line)
+    assert f'<p class="small" id="{form_id}-note">' in line
+    assert f'<input type="hidden" name="lang" value="{lang}">' in line
+    assert re.search(rf'<div hidden>\s*<label for="{form_id}-website">', line)
+    assert '<button class="button button-primary" type="submit">' in line
+    assert "<script" not in line and "onsubmit" not in line
+    # Its past issues are in English, wherever the form is.
+    assert '<a href="/digest/" hreflang="en">' in line
 
 
 def test_the_signup_is_where_readers_are(site_dir):
-    """Most readers never reach /digest/: the same form is near the top of the home page, at the end of each
-    meeting's page, and in the footer of the other pages; once on any page."""
+    """Most readers never reach /digest/: the form is on the home page as one line, under the heading and again
+    in "Stay up to date", at the end of each meeting's page, and in the footer of the other pages."""
     home = (site_dir / "index.html").read_text()
-    [box] = boxes(home)
-    check_box(box, "home-signup")
-    assert "what was decided at the meetings whose minutes came out" in box
-    # Near the top: under the heading and the street lookup, before the week's meetings.
-    assert home.index("<h1>") < home.index('id="home-street"') < home.index('class="signup-box"') < home.index('id="coming-up"')
-    # The ways to keep up, apart from the menu's pages.
+    top, end = lines(home)
+    check_line(top, "home-signup")
+    check_line(end, "home-signup-end")
+    # The first under the heading, before the week's meetings and the street lookup; the second with the ways to
+    # keep up, which don't link the digest the form signs up for.
+    assert home.index("<h1>") < home.index('id="home-signup"') < home.index('id="coming-up"') < home.index('id="home-street"')
     keep_up = home[home.index('id="keep-up"'):home.index('id="explore"')]
-    assert 'href="/digest/">Weekly digest by email</a>' in keep_up and 'href="/feed.xml"' in keep_up
+    assert 'id="home-signup-end"' in keep_up and 'href="/feed.xml"' in keep_up and 'href="/digest/">' not in keep_up
     for meeting_page in sorted((site_dir / "meetings").glob("20*/index.html")):
         page = meeting_page.read_text()
         if 'http-equiv="refresh"' in page:
             continue
-        [box] = boxes(page)
-        check_box(box, "meeting-signup")
+        [line] = lines(page)
+        check_line(line, "meeting-signup")
         # After the meeting's own content, so it never moves it down; not in the footer too.
-        assert page.index('id="agenda"') < page.index('class="signup-box"') < page.index('id="source"')
-        assert page.index('class="signup-box"') < page.index("<footer")
+        assert page.index('id="agenda"') < page.index('id="meeting-signup"') < page.index('id="source"')
+        assert page.index('id="meeting-signup"') < page.index("<footer")
     for url in ("meetings", "meetings/boards/city-council", "about", "311", "digest/2026-09-28"):
         page = (site_dir / url / "index.html").read_text()
-        [box] = boxes(page)
-        check_box(box, "footer-signup")
-        assert page.index("<footer") < page.index('class="signup-box"')
+        [line] = lines(page)
+        check_line(line, "footer-signup")
+        assert page.index("<footer") < page.index('id="footer-signup"')
     assert 'the <a href="/digest/#signup">weekly digest by email</a> lists every board' in \
         (site_dir / "meetings" / "boards" / "city-council" / "index.html").read_text()
     # The digest's own page has its form, and the pages the form leads to have none.
-    assert boxes((site_dir / "digest" / "index.html").read_text()) == []
+    assert lines((site_dir / "digest" / "index.html").read_text()) == []
     for outcome in ("thanks", "problem"):
         assert "/digest/subscribe" not in (site_dir / "digest" / outcome / "index.html").read_text()
     # Every id on a page is its own, with the form on it.
@@ -255,7 +253,9 @@ def test_a_town_without_a_digest_shows_no_signup(data_dir, monkeypatch):
     assert any(p.parts[-3:] == ("es", "meetings", "index.html") for p in pages)
     for path in pages:
         page = path.read_text()
-        assert "signup-box" not in page and "/digest/subscribe" not in page, path
+        assert "-signup-email" not in page and "/digest/subscribe" not in page, path
+    # The home page links the digest's issues in its place.
+    assert 'href="/digest/">Weekly digest</a>' in (out / "index.html").read_text()
     assert not (out / "digest" / "thanks").exists() and not (out / "es" / "digest").exists()
 
 
@@ -307,13 +307,13 @@ def test_the_email_lists_some_meetings_minutes_and_links_the_rest(with_new_minut
     assert "Approved the site plan for 12 Main St" in (out / "digest" / "2026-10-05" / "index.html").read_text()
 
 
-@pytest.mark.parametrize("lang, heading, label, button, note", [
+@pytest.mark.parametrize("lang, label, placeholder, button, note", [
     ("en", "Get the week ahead by email", "Email address", "Sign up", None),
     ("es", "Reciba la semana que viene por correo electrónico", "Correo electrónico", "Suscribirse",
      "Por ahora, el resumen está en inglés."),
 ])
-def test_the_signup_in_each_language(lang, heading, label, button, note):
-    """The box's own words in the site's Spanish (site/strings/es.po), and the language it's signed up in."""
+def test_the_signup_in_each_language(lang, label, placeholder, button, note):
+    """The signup's own words in the site's Spanish (site/strings/es.po), and the language it's signed up in."""
     from jinja2 import Environment, FileSystemLoader
 
     from pipeline import i18n
@@ -324,12 +324,12 @@ def test_the_signup_in_each_language(lang, heading, label, button, note):
     context = {"digest_signup": {"provider": "Buttondown"}, "config": {"meetings": {}}, "meeting_links": {"documents": True},
                "town": {"name": "Gloucester"}, "lang": lang, "form_id": "home-signup"}
     with i18n.use(lang):
-        box = env.get_template("digest_box.html").render(**context)
-    assert f'<h2 id="home-signup-heading">{heading}</h2>' in box
-    assert f'<label for="home-signup-email">{label}</label>' in box
-    assert f'type="submit">{button}</button>' in box
-    assert f'<input type="hidden" name="lang" value="{lang}">' in box
-    assert (note in box) if note else "For now" not in box
+        line = env.get_template("digest_line.html").render(**context)
+    assert f'<label for="home-signup-email">{label}</label>' in line
+    assert f'placeholder="{placeholder}"' in line
+    assert f'type="submit">{button}</button>' in line
+    assert f'<input type="hidden" name="lang" value="{lang}">' in line
+    assert (note in line) if note else "For now" not in line
     # Nothing for a town without the signup.
     with i18n.use(lang):
-        assert env.get_template("digest_box.html").render(**{**context, "digest_signup": None}).strip() == ""
+        assert env.get_template("digest_line.html").render(**{**context, "digest_signup": None}).strip() == ""
