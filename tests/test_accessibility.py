@@ -274,7 +274,7 @@ def test_sample_town_pages(browser, axe, town, viewport, request):
                 test_reflows_without_horizontal_scroll(browser, url, path)
 
 
-# The weekly digest's signup where it's placed (site/templates/digest_box.html): near the top of the home page, at
+# The weekly digest's signup where it's placed (site/templates/digest_line.html): under the home page's heading, at
 # the end of a meeting's page, and in the footer of the others.
 SIGNUP_PAGES = {"/": "home-signup", "/meetings/2026-08-25-city-council/": "meeting-signup", "/about/": "footer-signup"}
 
@@ -306,8 +306,8 @@ LAYOUT_SHIFTS = """new Promise((done) => {
 
 @pytest.mark.parametrize("path, form_id", SIGNUP_PAGES.items())
 def test_the_signup_moves_nothing_on_a_phone(browser, server_url, path, form_id):
-    """The box is in the page as it's served, so nothing shifts as it loads; on a meeting's page it's after the
-    meeting's own content, so it never moves that down."""
+    """The signup is in the page as it's served, so nothing shifts as it loads; its field is named by its label;
+    on a meeting's page it's after the meeting's own content, so it never moves that down."""
     context = browser.new_context(viewport=VIEWPORTS["phone"])
     page = context.new_page()
     page.route("**/*.woff2", lambda route: route.abort())
@@ -316,7 +316,7 @@ def test_the_signup_moves_nothing_on_a_phone(browser, server_url, path, form_id)
     shifts = page.evaluate(LAYOUT_SHIFTS)
     box = page.locator(f"#{form_id}").bounding_box()
     agenda = page.locator("#agenda").bounding_box() if form_id == "meeting-signup" else None
-    field = page.get_by_label("Email address")
+    field = page.locator(f"#{form_id}").get_by_label("Get the week ahead by email")
     named = field.count() == 1 and field.get_attribute("id") == f"{form_id}-email"
     context.close()
     assert not shifts, f"{path}: layout shifts {shifts}"

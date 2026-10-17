@@ -70,7 +70,7 @@ SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest"}
 # Their pages built in every language all the same: where the digest's signup form leads, as the form is on
-# every language's pages (site/templates/digest_box.html).
+# every language's pages (site/templates/digest_line.html).
 EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
 
 

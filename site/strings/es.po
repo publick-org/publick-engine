@@ -3035,7 +3035,7 @@ msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ell
 msgid "Election Commission"
 msgstr "Comisión Electoral"
 
-#: site/templates/digest_form.html
+#: site/templates/digest_form.html site/templates/digest_line.html
 msgid "Email address"
 msgstr "Correo electrónico"
 
@@ -3095,30 +3095,6 @@ msgid "Every %(town)s board, commission, and committee with a meeting listed, an
 msgstr ""
 "Todas las juntas, comisiones y comités de %(town)s que tienen reuniones publicadas, y cuándo es "
 "su próxima reunión."
-
-#. %(town)s is the town's name.
-#: site/templates/digest_box.html
-#, python-format
-msgid ""
-"Every Sunday evening, %(town)s's public meetings for the week ahead, and what was decided at the "
-"meetings whose minutes came out. Free, and every email has a link to unsubscribe. <a "
-"href=\"%(url)s\" hreflang=\"en\">See past issues</a>."
-msgstr ""
-"Cada domingo por la tarde, las reuniones públicas de %(town)s de la semana que viene, y lo que se"
-" decidió en las reuniones cuyas actas se publicaron. Es gratis, y cada correo tiene un enlace "
-"para cancelar la suscripción. <a href=\"%(url)s\" hreflang=\"en\">Vea los resúmenes "
-"anteriores</a>."
-
-#. %(town)s is the town's name.
-#: site/templates/digest_box.html
-#, python-format
-msgid ""
-"Every Sunday evening, %(town)s's public meetings for the week ahead. Free, and every email has a "
-"link to unsubscribe. <a href=\"%(url)s\" hreflang=\"en\">See past issues</a>."
-msgstr ""
-"Cada domingo por la tarde, las reuniones públicas de %(town)s de la semana que viene. Es gratis, "
-"y cada correo tiene un enlace para cancelar la suscripción. <a href=\"%(url)s\" "
-"hreflang=\"en\">Vea los resúmenes anteriores</a>."
 
 #: site/pages/about/accessibility/index.html
 msgid "Every chart has a table with the same numbers."
@@ -3358,7 +3334,7 @@ msgstr ""
 msgid "For minutes, false when the city filed another document as the minutes."
 msgstr "En las actas, false cuando la ciudad publicó otro documento como acta."
 
-#: site/templates/digest_answer.html site/templates/digest_box.html
+#: site/templates/digest_answer.html site/templates/digest_line.html
 msgid "For now, the digest is in English."
 msgstr "Por ahora, el resumen está en inglés."
 
@@ -3397,6 +3373,11 @@ msgstr ""
 "El efectivo disponible (free cash) es dinero que sobró de años anteriores y que el estado "
 "certifica como disponible para gastar. El fondo de estabilización es una cuenta de ahorros; para "
 "gastar de ese fondo se necesita el voto de dos tercios del Concejo Municipal."
+
+#: site/templates/digest_line.html
+#, python-format
+msgid "Free, every Sunday evening. <a href=\"%(issues)s\" hreflang=\"en\">Past issues</a>"
+msgstr "Gratis, cada domingo por la tarde. <a href=\"%(issues)s\" hreflang=\"en\">Resúmenes anteriores</a>"
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -3540,7 +3521,7 @@ msgstr "Gobierno general"
 msgid "Get it by email"
 msgstr ""
 
-#: site/templates/digest_box.html
+#: site/templates/digest_line.html
 msgid "Get the week ahead by email"
 msgstr "Reciba la semana que viene por correo electrónico"
 
@@ -4108,7 +4089,7 @@ msgstr "Últimos datos"
 msgid "Latest request on SeeClickFix"
 msgstr "Última solicitud en SeeClickFix"
 
-#: site/templates/digest_form.html
+#: site/templates/digest_form.html site/templates/digest_line.html
 msgid "Leave this empty"
 msgstr "Deje esto en blanco"
 
@@ -6109,7 +6090,7 @@ msgstr ""
 "Se muestran {shown} de {total} reuniones que coinciden con {query}. Agregue una palabra para "
 "reducir la lista."
 
-#: site/templates/digest_form.html
+#: site/templates/digest_form.html site/templates/digest_line.html
 msgid "Sign up"
 msgstr "Suscribirse"
 
@@ -8408,10 +8389,6 @@ msgstr ""
 #: site/templates/digest_answer.html site/templates/digest_index.html
 msgid "Weekly digest"
 msgstr "Resumen semanal"
-
-#: site/pages/index.html
-msgid "Weekly digest by email"
-msgstr ""
 
 #. under the site's name at the top of the weekly digest's email; %(when)s is its Monday, such as
 #. "October 12, 2026".

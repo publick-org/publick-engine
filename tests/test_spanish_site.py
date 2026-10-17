@@ -66,13 +66,12 @@ def test_the_signup_in_another_language(built):
     for url, form_id in (("/", "home-signup"), ("/meetings/2026-08-25-city-council/", "meeting-signup"),
                          ("/meetings/boards/city-council/", "footer-signup"), ("/about/", "footer-signup")):
         spanish = page(out, f"/es{url}")
-        [box] = re.findall(r'<section class="signup-box".*?</section>', spanish, re.S)
-        assert f'id="{form_id}"' in box and f'<label for="{form_id}-email">' in box
-        assert '<form class="search-form" action="/digest/subscribe" method="post">' in box
+        [box] = re.findall(rf'<form class="line-form" id="{form_id}".*?</form>', spanish, re.S)
+        assert f'<label for="{form_id}-email">' in box
+        assert 'action="/digest/subscribe" method="post"' in box
         assert '<input type="hidden" name="lang" value="es">' in box
         assert "For now, the digest is in English." in box
         assert '<a href="/digest/" hreflang="en">' in box and "/es/digest/" not in box
-        assert 'href="/es/about/#privacy"' in box
     for outcome in ("thanks", "problem"):
         answer = page(out, f"/es/digest/{outcome}/")
         assert '<html lang="es">' in answer and '<meta name="robots" content="noindex">' in answer
