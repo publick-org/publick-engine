@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import figures_dash, on_this_page, calculated %}
+{% from "macros.html" import figures_dash, calculated %}
 {% block title %}{{ _("Schools") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} public schools: test scores and graduation{% endtrans %}{% endblock %}
@@ -59,7 +59,6 @@
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page([("graduation", _("Graduation"))] + ([("absenteeism", _("Absenteeism"))] if absent else []) + ([("tests", _("State tests"))] if ela else []) + ([("spending", _("Spending per pupil"))] if spending else [])) }}
 
 <h2 id="graduation">{{ _("Graduation rate") }}</h2>
 <p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}</p>

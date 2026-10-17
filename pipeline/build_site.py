@@ -853,6 +853,36 @@ def preview_line(meeting: dict) -> str | None:
     return None
 
 
+def site_nav(page_url: str, sections: list[dict], street_sources: str, documents: bool) -> dict:
+    """The menu and the tabs of the group a page is in. The menu is the week and three groups, each named for what
+    a reader comes for: City Hall (meetings, decisions, boards, officials), Your street (the street lookup, 311),
+    and The city (budget, schools, housing), with only the pages the town has. A group's menu item goes to its
+    first page. The tabs show on each of a group's own pages; a page under one (a meeting, a board, a 311
+    category) has a breadcrumb instead. Each entry is (href, label, current), current being an aria-current
+    value: "page" on the page itself, "true" on its group's item from a page under it."""
+    slugs = {s["slug"] for s in sections}
+    groups = [
+        (_("City Hall"), [("/meetings/", _("Meetings"))] * ("meetings" in slugs)
+         + [("/meetings/decisions/", _("Decisions"))] * ("meetings" in slugs and documents)
+         + [("/meetings/boards/", _("Boards"))] * ("meetings" in slugs)
+         + [("/officials/", _("Officials"))] * ("officials" in slugs)),
+        (_("Your street"), [("/streets/", _("Look up a street"))] * bool(street_sources)
+         + [("/311/", pgettext("menu", "311 requests"))] * ("311" in slugs)),
+        (_("The city"), [("/budget/", _("Budget & taxes"))] * ("budget" in slugs)
+         + [("/schools/", _("Schools"))] * ("schools" in slugs) + [("/housing/", _("Housing"))] * ("housing" in slugs)),
+    ]
+    menu, tabs = [("/", _("This week"), "page" if page_url == "/" else None)], []
+    for label, items in groups:
+        if not items:
+            continue
+        hrefs = [href for href, _name in items]
+        current = "page" if page_url == hrefs[0] else "true" if any(page_url.startswith(h) for h in hrefs) else None
+        menu.append((hrefs[0], label, current))
+        if page_url in hrefs:
+            tabs = [(href, name, "page" if page_url == href else None) for href, name in items]
+    return {"menu": menu, "tabs": tabs}
+
+
 def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> list[dict]:
     """The home page's headline row. Each number links to where it comes from."""
     numbers = []
@@ -1343,7 +1373,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
-                  headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard))
+                  headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard),
+                  site_nav=lambda url: site_nav(url, sections, street_sources, documents))
     urls = {}
     today = built_at.date()
     # The day each meeting's page last changed (meeting_lastmod); a board's and a list's is their newest meeting's.
