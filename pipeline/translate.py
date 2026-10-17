@@ -31,10 +31,18 @@ the page shows the English summary, and says so.
 
 Each translation is its own record, data/summaries/<language>/<document's
 SHA-256>.json, holding the hash of the English it came from. Turning a
-language on never regenerates an English summary, and a translation is made
-again only when its English summary changes (or this module's prompt does:
-VERSION), or when the glossary changes and the translation no longer writes
-its terms as given: only those, and with a try of their own. summarize.py runs the translations within the same budget as the
+language on never regenerates an English summary. A translation made from
+the English summary as it is now is shown, whichever version of this
+module's prompt (VERSION) made it, as long as it passes the checks as they
+are now: the one without AI, run again with the town's glossary as it is
+now, and the AI's review, as saved. It's made again only when its English
+summary changes, when it fails those checks (a glossary change it no longer
+writes as given, say), with ATTEMPTS of its own for each glossary, or when
+it was made with a prompt older than REMAKE_BELOW, which a prompt change
+raises on purpose when what the older prompts made is known to be wrong in
+a way the checks can't see. Raising VERSION alone makes nothing again. While
+a translation is made again, the one it replaces stays shown if it passed,
+until a new one passes ("previous"). summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
 summaries waiting, which cost about ten times as much; each request is in the
 month's cost log as it's answered (pipeline/cost_log.py), and in the ledger as
@@ -49,8 +57,10 @@ what many towns share ("Planning Board", "Ward 3"). Whatever is still missing
 is drafted here by the same small model, a batch per run: draft_texts(),
 checked without AI (every number and placeholder kept) and reviewed by the
 larger model, and saved in data/strings/<language>.json. A draft that passes
-is shown, so a new town or a new board needs no one's translation; one that
-fails twice stays in English. `python -m pipeline.translate drafts` prints the
+is shown, whichever version of the drafting prompt (NAMES_VERSION) made it,
+so a new town or a new board needs no one's translation; one that fails
+twice stays in English. As with the summaries, a draft is made again only
+when it fails, or when it's older than NAMES_REMAKE_BELOW. `python -m pipeline.translate drafts` prints the
 drafts as [strings.<language>] lines, for anyone who wants to correct them in
 the town's config, which then wins.
 """
@@ -69,7 +79,13 @@ from pathlib import Path
 from pipeline import glossary
 from pipeline.files import write_atomic
 
+# The translation prompt's version, saved with each translation. Raise it when the prompt changes
+# (tests/test_prompt_versions.py); that alone makes nothing again (current()).
 VERSION = 5
+# Translations made with a prompt version below this are made again, even those that pass the checks:
+# raise it, with VERSION, only when what the older prompts made is known to be wrong in a way the checks
+# can't catch. Each stays shown until its new translation passes.
+REMAKE_BELOW = 0
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -180,17 +196,29 @@ def saved(data_dir: Path, lang: str, sha256: str) -> dict | None:
     return json.loads(file.read_text(encoding="utf-8")) if file.exists() else None
 
 
-# A translation that fails its checks is made again once, then left (and the English shown).
+# A translation that fails its checks is made again once, then left (and the English shown, or the
+# translation it replaced, if that passes).
 ATTEMPTS = 2
 
 
+def made_from(found: dict | None, record: dict, kind: str) -> bool:
+    """Whether a saved translation was made from this English summary as it is now."""
+    return bool(found) and found.get("source_hash") == source_hash(record, kind)
+
+
+def to_remake(found: dict) -> bool:
+    """Whether a saved translation is made again whether or not it passes: its prompt is older than
+    REMAKE_BELOW."""
+    return (found.get("prompt_version") or 0) < REMAKE_BELOW
+
+
 def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> dict | None:
-    """The saved translation of this English summary, made with the current prompt, when there's
-    no need to make it again: it passed its checks, or it's had its ATTEMPTS with this glossary
-    (terms: the town's, glossary.entries()). One that fails now only because the glossary changed is
-    made again, with tries of its own."""
+    """The saved translation of this English summary when there's no need to make it again,
+    whichever prompt version made it (unless it's older than REMAKE_BELOW): it passes the checks as
+    they are now, or it's had its ATTEMPTS with this glossary (terms: the town's, glossary.entries()).
+    One that fails now only because the glossary changed is made again, with tries of its own."""
     found = saved(data_dir, lang, sha256)
-    if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION and (
+    if made_from(found, record, kind) and not to_remake(found) and (
             passes(data_dir, found, record, kind, lang, terms) or (
                 found.get("attempts", 1) >= ATTEMPTS and found.get("glossary", "") == glossary_key(terms, lang))):
         return found
@@ -206,13 +234,22 @@ def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str, term
 
 
 def shown(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> dict | None:
-    """The translation to show for an English summary: one made from this English, with the
-    current prompt, that passes both checks."""
+    """The translation to show for an English summary: one made from this English that passes both
+    checks as they are now, whichever prompt version made it. The latest one made, or, while that
+    one fails, the one it replaced ("previous"), if that passes."""
     found = saved(data_dir, lang, sha256)
-    if found and found.get("source_hash") == source_hash(record, kind) and found.get("prompt_version") == VERSION \
-            and passes(data_dir, found, record, kind, lang, terms):
-        return found
+    for candidate in (found, (found or {}).get("previous")):
+        if made_from(candidate, record, kind) and passes(data_dir, candidate, record, kind, lang, terms):
+            return candidate
     return None
+
+
+# What a translation that's replaced keeps, as "previous", to be shown until its replacement passes.
+PREVIOUS = ("source_hash", "check", "review", "model", "prompt_version", "glossary", "generated_at")
+
+
+def previous_of(found: dict, kind: str) -> dict:
+    return {key: found[key] for key in (*FIELDS[kind], *PREVIOUS) if key in found}
 
 
 def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> str | None:
@@ -226,9 +263,9 @@ def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str,
 
 
 def failed(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> bool:
-    """Whether this English summary's translation was made and failed its checks for good."""
-    found = current(data_dir, lang, sha256, record, kind, terms)
-    return bool(found) and not passes(data_dir, found, record, kind, lang, terms)
+    """Whether this English summary's translation was made and failed its checks for good, with no
+    translation to show."""
+    return bool(current(data_dir, lang, sha256, record, kind, terms)) and not shown(data_dir, lang, sha256, record, kind, terms)
 
 
 # A number as the summaries write it: "1,500", "4.5", "7:00", "2026", the 5 and the 0 of "5-0".
@@ -644,10 +681,13 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     terms = glossary.entries(config)
     key = glossary_key(terms, lang)
     before = saved(data_dir, lang, doc["sha256"])
-    again = bool(before and before.get("source_hash") == source_hash(record, kind) and before.get("prompt_version") == VERSION)
+    # Made again because it failed (whichever prompt version made it): corrected, and counted as another try.
+    again = made_from(before, record, kind) and not to_remake(before)
     wrong = what_failed(data_dir, before, record, kind, lang, terms) if again else None
     # A translation made again because the glossary changed has its own tries.
     retry = again and before.get("glossary", "") == key
+    # What's shown now, which stays shown until a new translation passes.
+    showing = shown(data_dir, lang, doc["sha256"], record, kind, terms)
     # A translation made again in the month the one before it was (a correction, a changed summary) replaces
     # its file, so what that one cost is carried in this one, for the files to still record it (summarize.recount).
     earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
@@ -689,6 +729,8 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "cost": round(paid + review_cost, 6),
         **({"replaced_cost": round(earlier, 6)} if earlier else {}),
     }
+    if showing and not (checked == "ok" and reviewed == "ok"):
+        out["previous"] = previous_of(showing, kind)
     save(data_dir, lang, doc["sha256"], out)
     return out, paid + review_cost
 
@@ -804,7 +846,10 @@ def made_in(data_dir: Path, month: str) -> list[tuple[str, str | None, dict]]:
 
 # ---- A town's own text and names, drafted ------------------------------------
 
+# The drafting prompt's version, saved with each draft: raising it makes nothing again, as with VERSION.
 NAMES_VERSION = 2
+# Drafts made with a prompt version below this are made again, even those that pass: as REMAKE_BELOW.
+NAMES_REMAKE_BELOW = 0
 # Texts per request: one batch covers a new town's config and boards.
 NAMES_BATCH = 80
 
@@ -837,11 +882,31 @@ def saved_drafts(data_dir: Path, lang: str) -> dict:
     return json.loads(file.read_text(encoding="utf-8")) if file.exists() else {"drafts": {}, "batches": []}
 
 
+def draft_shown(en: str, d: dict) -> dict | None:
+    """The draft of a text to show, whichever prompt version made it: the latest, or, while that one
+    fails, the one it replaced ("previous"), if it passed its review and passes the check as it is now."""
+    for candidate in (d, d.get("previous")):
+        if candidate and candidate.get("check") == "ok" and check_text(en, candidate.get("text")) == "ok":
+            return candidate
+    return None
+
+
+def draft_to_remake(d: dict) -> bool:
+    """Whether a draft is made again whether or not it passes: its prompt is older than NAMES_REMAKE_BELOW."""
+    return (d.get("prompt_version") or 0) < NAMES_REMAKE_BELOW
+
+
+def drafts_to_remake(data_dir: Path, lang: str) -> list[str]:
+    """The texts to draft again though a draft of them is shown: those older than NAMES_REMAKE_BELOW, and
+    those whose new draft failed with tries left, the draft it replaced shown meanwhile."""
+    return [en for en, d in saved_drafts(data_dir, lang)["drafts"].items() for shown in [draft_shown(en, d)]
+            if shown and (draft_to_remake(d) or (shown is not d and d.get("attempts", 1) < ATTEMPTS))]
+
+
 def drafts(data_dir: Path, lang: str) -> dict[str, str]:
-    """The drafts that can be shown: {English: translation}, each made with the current prompt
-    and passing the check."""
-    return {en: d["text"] for en, d in saved_drafts(data_dir, lang)["drafts"].items()
-            if d.get("check") == "ok" and d.get("prompt_version") == NAMES_VERSION}
+    """The drafts that can be shown: {English: translation}, each passing the check (draft_shown())."""
+    return {en: shown["text"] for en, d in saved_drafts(data_dir, lang)["drafts"].items()
+            for shown in [draft_shown(en, d)] if shown}
 
 
 def check_text(en: str, tr) -> str:
@@ -859,16 +924,17 @@ def check_text(en: str, tr) -> str:
 
 def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str], now: datetime, cost,
                 allowance: float | None = None, log=None) -> tuple[int, float]:
-    """Draft the texts (a town's own text and names with no translation yet), check each, and
-    save them in data/strings/<language>.json. Stops before a batch once allowance (dollars) is
-    spent. Returns how many were drafted and what they cost. log: the month's cost log, which gets
-    each request, a batch's drafts and their review, as it's answered."""
+    """Draft the texts (a town's own text and names with no translation yet, and those to draft again:
+    drafts_to_remake()), check each, and save them in data/strings/<language>.json.
+    Stops before a batch once allowance (dollars) is spent. Returns how many were drafted and what
+    they cost. log: the month's cost log, which gets each request, a batch's drafts and their review,
+    as it's answered."""
     tsettings = settings(config)
     saved = saved_drafts(data_dir, lang)
     done, spent = 0, 0.0
     # A text whose drafts failed ATTEMPTS times is left in English, not paid for every run.
     texts = [t for t in dict.fromkeys(texts) if not (
-        saved["drafts"].get(t, {}).get("prompt_version") == NAMES_VERSION and saved["drafts"][t].get("attempts", 1) >= ATTEMPTS)]
+        t in saved["drafts"] and not draft_to_remake(saved["drafts"][t]) and saved["drafts"][t].get("attempts", 1) >= ATTEMPTS)]
     for start in range(0, len(texts), NAMES_BATCH):
         if allowance is not None and spent >= allowance:
             break
@@ -906,10 +972,14 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         for i, (en, tr, checked) in enumerate(zip(batch, out, checks)):
             if checked == "ok" and (UNREVIEWED in problems or str(i) in problems):
                 checked = f"review: {problems.get(str(i)) or problems[UNREVIEWED]}"
-            before = saved["drafts"].get(en, {})
-            attempts = before.get("attempts", 1) + 1 if before.get("prompt_version") == NAMES_VERSION else 1
+            before = saved["drafts"].get(en)
+            attempts = before.get("attempts", 1) + 1 if before and not draft_to_remake(before) else 1
             saved["drafts"][en] = {"text": tr, "check": checked, "model": tsettings["model"],
                                    "prompt_version": NAMES_VERSION, "attempts": attempts, "generated_at": at}
+            # A draft that fails leaves the one it replaces shown, if that one passed.
+            showing = draft_shown(en, before) if before else None
+            if checked != "ok" and showing:
+                saved["drafts"][en]["previous"] = {k: v for k, v in showing.items() if k != "previous"}
             done += 1
     if done or saved["batches"]:
         file = strings_path(data_dir, lang)
@@ -931,8 +1001,9 @@ def review(config: dict, data_dir: Path, lang: str) -> str:
     for en, d in saved_drafts(data_dir, lang)["drafts"].items():
         if en in own:
             continue
-        line = f"{toml_string(en)} = {toml_string(d['text'])}"
-        lines.append(line if d.get("check") == "ok" else f"# {line}  # {d.get('check')}")
+        shown = draft_shown(en, d)
+        line = f"{toml_string(en)} = {toml_string((shown or d)['text'])}"
+        lines.append(line if shown else f"# {line}  # {d.get('check')}")
     return "\n".join(lines) + "\n"
 
 
