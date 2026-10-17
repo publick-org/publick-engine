@@ -394,6 +394,52 @@ def test_a_scan_is_transcribed_a_few_pages_a_request(tmp_path, monkeypatch):
     assert ledger["2026-09"]["transcript_cost"] == round(record["transcript_cost"], 4)
 
 
+def test_a_summary_made_again_keeps_its_scans_transcription(tmp_path, monkeypatch):
+    """A scan's summary made again (a newer prompt) keeps the transcription already paid for: no
+    transcription request, and the summary is checked against it at once."""
+    config = setup(tmp_path)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["transcribed"] == 1
+    sha = next((tmp_path / "summaries").glob("*.json")).stem
+    first = saved(tmp_path, sha)
+    assert first["transcript_source"] == "ai"
+    monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 1 and result["transcribed"] == 0 and transcription_requests(client) == []
+    record = saved(tmp_path, sha)
+    assert record["prompt_version"] == summarize.KINDS["agenda"]["version"] and "needs_transcript" not in record
+    assert {k: record.get(k) for k in summarize.TRANSCRIPTION} == {k: first.get(k) for k in summarize.TRANSCRIPTION}
+    # Its cost stays recorded once, in its file and the log.
+    assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
+
+
+def test_a_changed_scan_is_transcribed_again(tmp_path):
+    """A changed scan is another document (another hash): nothing of the old one's transcription is kept."""
+    config = load_config("gloucester")
+    scan = (Path(__file__).parent / "fixtures" / "civicplus_agenda_scanned.pdf").read_bytes()
+    old = minutes_town(tmp_path, scan)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["transcribed"] == 1
+    from pypdf import PdfReader, PdfWriter
+    import io
+    import shutil
+    writer = PdfWriter()
+    for page in PdfReader(io.BytesIO(scan)).pages:
+        writer.add_page(page)
+    writer.add_metadata({"/Title": "Revised"})
+    out = io.BytesIO()
+    writer.write(out)
+    shutil.rmtree(tmp_path / "meetings" / "minutes")
+    new = minutes_town(tmp_path, out.getvalue())
+    assert new != old and summarize.kept_transcription(tmp_path, new) == {}
+    client = FakeAnthropic()
+    result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    assert result["summarized"] == 1 and result["transcribed"] == 1 and transcription_requests(client)
+    assert saved(tmp_path, new)["transcript_source"] == "ai"
+    # Nor is a transcription kept from a record that says it's another document's.
+    summarize.save_record(tmp_path, new, {**saved(tmp_path, new), "source_sha256": old})
+    assert summarize.kept_transcription(tmp_path, new) == {}
+
+
 def test_transcriptions_wait_for_every_summary(tmp_path):
     config = setup(tmp_path)
     # The fixture agenda's summary is the only one waiting; with no room for it, nothing is transcribed.
