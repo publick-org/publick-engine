@@ -24,21 +24,8 @@
 <p class="lede">{{ _("How the city is doing, from public data.") }} {{ _("Updated every morning.") }}</p>
 {% endif %}
 
-{% if street_sources %}
-<form class="street-box" role="search" action="/streets/" method="get">
-  <label for="home-street">{{ _("What's happening on your street?") }}</label>
-  <div class="search-row">
-    <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-describedby="home-street-hint">
-    <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
-  </div>
-  {# Translators: %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311 requests"; %(example)s is a street's name. #}
-  <p class="small" id="home-street-hint">{% if street_example %}{% trans sources=street_sources | capitalize_first, example=street_example %}{{ sources }} on any street, such as "{{ example }}".{% endtrans %}
-  {%- else %}{% trans sources=street_sources | capitalize_first %}{{ sources }} on any street.{% endtrans %}{% endif %}</p>
-</form>
-{% endif %}
-
-{# ---- The weekly digest's signup, near the top: the week it sends is next (digest_box.html) ---- #}
-{% with form_id="home-signup" %}{% include "digest_box.html" %}{% endwith %}
+{# ---- The weekly digest's signup, as one line under the lede, and again in "Stay up to date" (digest_line.html) ---- #}
+{% with form_id="home-signup" %}{% include "digest_line.html" %}{% endwith %}
 
 {% if config.meetings is defined %}
 {# ---- Coming up ---- #}
@@ -94,6 +81,23 @@
 {% endif %}
 {% endif %}
 
+{# ---- The street lookup, after the week's news: one line, like the signup ---- #}
+{% if street_sources %}
+<div class="section-head">
+  <h2 id="your-street">{{ _("What's happening on your street?") }}</h2>
+</div>
+{# The section's heading names the field. #}
+<form class="line-form" role="search" action="/streets/" method="get">
+  <div class="search-row">
+    <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-labelledby="your-street" aria-describedby="home-street-hint">
+    <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
+  </div>
+  {# Translators: %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311 requests"; %(example)s is a street's name. #}
+  <p class="small" id="home-street-hint">{% if street_example %}{% trans sources=street_sources | capitalize_first, example=street_example %}{{ sources }} on any street, such as "{{ example }}".{% endtrans %}
+  {%- else %}{% trans sources=street_sources | capitalize_first %}{{ sources }} on any street.{% endtrans %}{% endif %}</p>
+</form>
+{% endif %}
+
 {# ---- Numbers ---- #}
 {% if headline %}
 <div class="section-head">
@@ -115,13 +119,14 @@
 {# ---- Ways to keep up: the weekly digest (in English for now, pipeline/digest.py), the feed, the city's own alerts ---- #}
 {% if config.meetings is defined %}
 {% set keep_up %}
-  {% if lang == "en" %}<li><a href="/digest/">{% if digest_signup %}{{ _("Weekly digest by email") }}{% else %}{{ _("Weekly digest") }}{% endif %}</a></li>{% endif %}
+  {% if lang == "en" and not digest_signup %}<li><a href="/digest/">{{ _("Weekly digest") }}</a></li>{% endif %}
   {% if meeting_links.documents %}<li><a href="/feed.xml">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   {% if meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
 {% endset %}
-{% if keep_up | trim %}
+{% if keep_up | trim or digest_signup %}
 <h2 id="keep-up">{{ _("Stay up to date") }}</h2>
-<ul class="link-row">{{ keep_up }}</ul>
+{% with form_id="home-signup-end" %}{% include "digest_line.html" %}{% endwith %}
+{% if keep_up | trim %}<ul class="link-row">{{ keep_up }}</ul>{% endif %}
 {% endif %}
 {% endif %}
 

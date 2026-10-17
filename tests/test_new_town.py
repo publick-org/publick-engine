@@ -119,7 +119,7 @@ def test_town_without_meetings_leaves_them_out(no_meetings_site):
         assert not (no_meetings_site / path).exists(), path
     assert (no_meetings_site / "housing" / "index.html").exists()
     home = (no_meetings_site / "index.html").read_text()
-    assert "feed.xml" not in home and "street-box" not in home and "Coming up" not in home
+    assert "feed.xml" not in home and 'action="/streets/"' not in home and "Coming up" not in home
     assert "Unemployment rate" in home
     about = (no_meetings_site / "about" / "index.html").read_text()
     assert "Archive Center" not in about and "RSS" not in about and "Subsidized Housing Inventory" not in about

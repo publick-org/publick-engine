@@ -106,8 +106,8 @@
 
   <footer class="site-footer">
     <div class="wrap">
-      {# The weekly digest's signup (digest_box.html); a page with its own empties this block. #}
-      {% block footer_signup %}{% with form_id="footer-signup" %}{% include "digest_box.html" %}{% endwith %}{% endblock %}
+      {# The weekly digest's signup (digest_line.html); a page with its own empties this block. #}
+      {% block footer_signup %}{% with form_id="footer-signup" %}{% include "digest_line.html" %}{% endwith %}{% endblock %}
       <p class="footer-brand">{{ site.name }}</p>
       {% if site.get("network") %}
       {% set network = ('<a href="%s">%s</a>' | safe) % (site.network_url, site.network) if site.get("network_url") else site.network %}
