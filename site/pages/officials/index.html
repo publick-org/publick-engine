@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
 {% from "macros.html" import area with context %}
 {% set o = officials %}
 {#- The page's words for the town's areas ([town] areas): wards, or voting precincts or districts. -#}
@@ -65,7 +64,6 @@
 {% set links = [] %}
 {% if o.wards %}{% set __ = links.append(("wards", say.find)) %}{% endif %}
 {% for b in o.bodies %}{% set __ = links.append((b.id, b.name)) %}{% endfor %}
-{{ on_this_page(links) }}
 
 {% if o.wards %}
 <h2 id="wards">{{ say.find }}</h2>

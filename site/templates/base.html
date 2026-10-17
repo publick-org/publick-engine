@@ -56,27 +56,28 @@
   <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
 
   <header class="site-header">
+    {# A strip above the name: the day's date, and the same page in the site's other languages, each named in its own
+       language. ?lang has the network's Worker remember the choice over the browser's language (worker/sites.js).
+       Search engines aren't sent through it: its redirect is temporary, so they would keep the ?lang address as the
+       page's, and the hreflang links in the head already name each language's page. #}
+    <div class="topline">
+      <div class="wrap">
+        <time class="topline-date" datetime="{{ built_at.date().isoformat() }}">{{ built_at.date() | date }}</time>
+        {% for v in versions if v.lang != lang %}
+        <a class="language-switch" href="{{ v.path }}?lang={{ v.lang }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}" rel="nofollow">{{ v.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
     <div class="wrap masthead">
-      {# The same page in the site's other languages, each named in its own language. ?lang has the
-         network's Worker remember the choice over the browser's language (worker/sites.js). Search engines
-         aren't sent through it: its redirect is temporary, so they would keep the ?lang address as the page's,
-         and the hreflang links in the head already name each language's page. #}
-      {% for v in versions if v.lang != lang %}
-      <a class="language-switch" href="{{ v.path }}?lang={{ v.lang }}" hreflang="{{ v.lang }}" lang="{{ v.lang }}" rel="nofollow">{{ v.name }}</a>
-      {% endfor %}
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>
     </div>
+    {# The menu: the week, and the groups of the site's pages (build_site.py site_nav). #}
+    {% set nav = site_nav(page_url) %}
     <nav class="site-nav" aria-label="{{ _("Main") }}">
       <div class="wrap">
         <ul class="nav-list">
-          <li><a href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ _("This week") }}</a></li>
-          {% for s in sections %}
-          {% set href = "/" ~ s.slug ~ "/" %}
-          <li><a href="{{ href }}"
-            {%- if page_url == href %} aria-current="page"
-            {%- elif page_url.startswith(href) %} aria-current="true"{% endif %}>{{ s.get("nav", s.title) }}</a></li>
-          {% endfor %}
+          {% for href, label, current in nav.menu %}<li><a href="{{ href }}"{% if current %} aria-current="{{ current }}"{% endif %}>{{ label }}</a></li>{% endfor %}
         </ul>
       </div>
     </nav>
@@ -84,6 +85,12 @@
 
   <main id="main" tabindex="-1">
     <div class="wrap">
+      {# The group's pages as tabs, on each of them; the pages under them have a breadcrumb instead. #}
+      {% if nav.tabs %}
+      <nav class="tabs" aria-label="{{ _("In this section") }}">
+        <ul>{% for href, label, current in nav.tabs %}<li><a href="{{ href }}"{% if current %} aria-current="page"{% endif %}>{{ label }}</a></li>{% endfor %}</ul>
+      </nav>
+      {% endif %}
       {% if behind %}
       {# A source this section's pages show is behind (pipeline/absences.py), said before what it shows. #}
       <div class="notice" id="data-behind">

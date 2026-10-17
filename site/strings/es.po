@@ -906,6 +906,11 @@ msgstr "Solicitudes al 311"
 msgid "311 requests"
 msgstr "solicitudes al 311"
 
+#: pipeline/build_site.py
+msgctxt "menu"
+msgid "311 requests"
+msgstr "Solicitudes al 311"
+
 #: site/templates/ward.html
 #, python-format
 msgid ""
@@ -1681,11 +1686,6 @@ msgstr "Acerca de"
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
-#: site/states/ri/schools.html site/states/vt/schools.html
-msgid "Absenteeism"
-msgstr "Ausentismo"
-
 #: site/pages/about/accessibility/index.html site/templates/base.html
 msgid "Accessibility"
 msgstr "Accesibilidad"
@@ -1988,10 +1988,6 @@ msgstr ""
 msgid "As used by: %(boards)s."
 msgstr "Así lo usa: %(boards)s."
 
-#: site/states/ri/budget.html
-msgid "Assessed value"
-msgstr "Valor tasado"
-
 #: site/states/me/budget.html
 #, python-format
 msgid "Assessed values were %(ratio)s%% of market value that year, so the home's market value was higher."
@@ -2035,11 +2031,6 @@ msgstr "Impuesto promedio de una vivienda principal"
 #: site/states/nh/budget.html
 msgid "Average single-family tax bill"
 msgstr "Impuesto promedio de una casa unifamiliar"
-
-#: site/states/ct/budget.html site/states/me/budget.html site/states/nh/budget.html
-#: site/states/vt/budget.html
-msgid "Average tax bill"
-msgstr "Factura promedio del impuesto"
 
 #: pipeline/states/ma/tax_bill.py
 msgid "Average tax bill (Mass. DLS)"
@@ -2141,7 +2132,11 @@ msgstr "Junta de Registradores de Votantes"
 msgid "Board of Selectmen"
 msgstr "Junta de Gobierno"
 
-#: site/pages/meetings/boards/index.html site/pages/meetings/index.html site/templates/board.html
+#: pipeline/build_site.py
+msgid "Boards"
+msgstr "Juntas"
+
+#: site/pages/meetings/boards/index.html site/templates/board.html
 msgid "Boards and committees"
 msgstr "Juntas y comités"
 
@@ -2151,7 +2146,6 @@ msgstr "Calificaciones crediticias"
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
-#: site/pages/meetings/boards/index.html site/pages/meetings/decisions/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
 #: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
 #: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
@@ -2159,9 +2153,13 @@ msgstr "Calificaciones crediticias"
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
-#: pipeline/build_site.py site/states/ct/budget.html site/states/nh/budget.html
+#: pipeline/build_site.py
 msgid "Budget"
 msgstr "Presupuesto"
+
+#: pipeline/build_site.py
+msgid "Budget & taxes"
+msgstr "Presupuesto e impuestos"
 
 #: site/pages/about/index.html
 msgid "Budget and tax figures"
@@ -2212,19 +2210,15 @@ msgstr "Por categoría y precinto"
 msgid "By category and ward"
 msgstr "Por categoría y distrito"
 
-#: site/pages/311/index.html site/templates/category.html
+#: site/templates/category.html
 msgid "By district"
 msgstr "Por distrito"
 
-#: site/pages/311/index.html
-msgid "By month"
-msgstr "Por mes"
-
-#: site/pages/311/index.html site/templates/category.html
+#: site/templates/category.html
 msgid "By precinct"
 msgstr "Por precinto"
 
-#: site/pages/311/index.html site/templates/category.html
+#: site/templates/category.html
 msgid "By ward"
 msgstr "Por distrito"
 
@@ -2405,6 +2399,10 @@ msgstr "Comité de Desarrollo Económico del Concejo Municipal"
 #: pipeline/common_strings.py
 msgid "City Council Public Safety Committee"
 msgstr "Comité de Seguridad Pública del Concejo Municipal"
+
+#: pipeline/build_site.py
+msgid "City Hall"
+msgstr "Alcaldía"
 
 #: pipeline/build_site.py site/templates/base.html
 msgid "City Hall updates"
@@ -2687,7 +2685,7 @@ msgctxt "month"
 msgid "December"
 msgstr "diciembre"
 
-#: site/pages/meetings/decisions/index.html site/pages/meetings/index.html
+#: pipeline/build_site.py site/pages/meetings/decisions/index.html
 msgid "Decisions"
 msgstr "Decisiones"
 
@@ -3529,7 +3527,7 @@ msgstr "Reciba la semana que viene por correo electrónico"
 msgid "Get the weekly digest by email"
 msgstr ""
 
-#: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
+#: site/pages/meetings/glossary/index.html
 msgid "Glossary"
 msgstr "Glosario"
 
@@ -3548,11 +3546,6 @@ msgstr "Graduados"
 
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
 #: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
-msgid "Graduation"
-msgstr "Graduación"
-
-#: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
-#: site/states/nh/schools.html site/states/ri/schools.html site/states/vt/schools.html
 msgid "Graduation rate"
 msgstr "Tasa de graduación"
 
@@ -3564,7 +3557,7 @@ msgstr "Graduación, asistencia y resultados del MCAS, comparados con el estado.
 msgid "Graffiti"
 msgstr "Grafiti"
 
-#: site/states/ct/budget.html site/states/vt/budget.html
+#: site/states/ct/budget.html
 msgid "Grand list"
 msgstr "Lista de propiedades gravables"
 
@@ -3734,7 +3727,7 @@ msgstr "Cómo le va a la ciudad"
 msgid "How the city is doing, from public data."
 msgstr "Cómo le va a la ciudad, según datos públicos."
 
-#: site/pages/311/index.html site/templates/category.html
+#: site/templates/category.html
 msgid "How these numbers are calculated"
 msgstr "Cómo se calculan estas cifras"
 
@@ -3989,6 +3982,10 @@ msgstr ""
 msgid "In the tables, – means fewer than %(min)s requests, too few for a typical time."
 msgstr "En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo típico."
 
+#: site/templates/base.html
+msgid "In this section"
+msgstr "En esta sección"
+
 #: pipeline/common_strings.py
 msgid "Inland Wetlands Commission"
 msgstr "Comisión de Humedales Interiores"
@@ -4210,6 +4207,10 @@ msgstr "Solicitudes abiertas desde hace más tiempo en el Distrito %(ward)s"
 #: site/pages/index.html site/pages/officials/index.html site/pages/streets/index.html
 msgid "Look up"
 msgstr "Buscar"
+
+#: pipeline/build_site.py
+msgid "Look up a street"
+msgstr "Buscar una calle"
 
 #. the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such
 #. as "Ward 3", and {areas} several, such as "Ward 2 and Ward 3"; {address} is a street address, such
@@ -4462,8 +4463,7 @@ msgstr ""
 "revisa antes de publicarlos. El documento de la ciudad es el registro oficial, y cada resumen "
 "enlaza a él."
 
-#: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/boards/index.html
-#: site/pages/meetings/decisions/index.html site/pages/meetings/glossary/index.html
+#: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/glossary/index.html
 #: site/pages/meetings/index.html site/pages/meetings/past/index.html
 #: site/pages/meetings/search/index.html site/templates/board.html site/templates/digest.html
 #: site/templates/digest_email.html site/templates/meeting.html
@@ -4741,10 +4741,6 @@ msgstr ""
 #, python-brace-format
 msgid "New agendas and minutes from {town} city boards and committees."
 msgstr "Nuevas agendas y actas de las juntas y comités de la ciudad de {town}."
-
-#: site/pages/housing/index.html
-msgid "New homes"
-msgstr "Viviendas nuevas"
 
 #: site/pages/housing/index.html
 msgid "New homes permitted"
@@ -5100,10 +5096,6 @@ msgstr ""
 "comprueba su significado. Si una traducción no pasa alguna de las dos, se muestra el resumen en "
 "inglés. Cada resumen traducido tiene un enlace al inglés."
 
-#: site/templates/macros.html
-msgid "On this page"
-msgstr "En esta página"
-
 #. %(version)s is the file format's version number, such as 1.
 #: site/pages/data/index.html
 #, python-format
@@ -5144,10 +5136,6 @@ msgstr "Solicitudes al 311 abiertas"
 #: pipeline/common_strings.py
 msgid "Open Space Committee"
 msgstr "Comité de Espacios Abiertos"
-
-#: site/pages/311/index.html
-msgid "Open requests"
-msgstr "Solicitudes abiertas"
 
 #: site/pages/311/index.html
 msgid "Open requests by age"
@@ -5297,10 +5285,6 @@ msgstr ""
 "Últimos 12 meses. Las diferencias reflejan en parte con qué frecuencia la gente de cada distrito "
 "informa problemas."
 
-#: site/pages/311/index.html
-msgid "Past 30 days"
-msgstr "Últimos 30 días"
-
 #: site/pages/meetings/index.html site/pages/meetings/past/index.html
 msgid "Past meetings"
 msgstr "Reuniones pasadas"
@@ -5334,11 +5318,6 @@ msgid ""
 msgstr ""
 "Por estudiante matriculado, incluidos los estudiantes que el distrito paga para que estudien en "
 "otro lugar. En años anteriores también se contaban obras menores de construcción escolar."
-
-#: site/states/ct/budget.html site/states/ma/budget.html site/states/me/budget.html
-#: site/states/nh/budget.html site/states/ri/budget.html site/states/vt/budget.html
-msgid "Per resident"
-msgstr "Por residente"
 
 #: site/states/ct/budget.html site/states/ri/budget.html
 msgid "Personal property"
@@ -5731,10 +5710,6 @@ msgstr ""
 "allí después de que se cerró una solicitud anterior en ese mismo lugar. Últimos 12 meses."
 
 #: site/pages/311/index.html
-msgid "Requests on your street"
-msgstr "Solicitudes en su calle"
-
-#: site/pages/311/index.html
 msgid "Requests per 1,000 residents by district"
 msgstr "Solicitudes por cada 1,000 residentes, por distrito"
 
@@ -5773,10 +5748,6 @@ msgstr "Solicitudes, últimos 12 meses"
 msgctxt "meeting"
 msgid "Rescheduled"
 msgstr "Reprogramada"
-
-#: site/states/ma/budget.html
-msgid "Reserves"
-msgstr "Reservas"
 
 #: site/states/ma/budget.html
 msgid "Reserves and bond ratings"
@@ -6796,11 +6767,6 @@ msgstr "Examen estatal de matemáticas, grados 3–8"
 msgid "State test, math, grades 3–9"
 msgstr "Examen estatal de matemáticas, grados 3–9"
 
-#: site/states/ct/schools.html site/states/me/schools.html site/states/nh/schools.html
-#: site/states/ri/schools.html site/states/vt/schools.html
-msgid "State tests"
-msgstr "Exámenes estatales"
-
 #: site/pages/about/index.html
 msgctxt "data status"
 msgid "Status"
@@ -6947,21 +6913,9 @@ msgstr "domingo"
 msgid "Tax bill (calculated)"
 msgstr "Factura del impuesto a la propiedad (calculada)"
 
-#: site/states/ct/budget.html site/states/ri/budget.html
-msgid "Tax levy"
-msgstr "Recaudación"
-
-#: site/states/me/budget.html site/states/nh/budget.html
-msgid "Tax rate"
-msgstr "Tasa de impuesto"
-
 #: pipeline/states/me/budget.py
 msgid "Tax rate and property tax"
 msgstr "Tasa e impuesto a la propiedad"
-
-#: site/states/ri/budget.html site/states/vt/budget.html
-msgid "Tax rates"
-msgstr "Tasas de impuesto"
 
 #: pipeline/states/ri/budget.py
 msgid "Tax rates and levy"
@@ -6994,10 +6948,6 @@ msgstr "Valoración gravable"
 #: site/states/vt/budget.html
 msgid "Taxes for fire, village, and other districts within the city aren't included."
 msgstr "No se incluyen los impuestos de los distritos de bomberos, de aldea y otros dentro de la ciudad."
-
-#: site/states/vt/budget.html
-msgid "Taxes raised"
-msgstr "Impuestos recaudados"
 
 #: site/pages/officials/index.html
 msgid "Term ends"
@@ -7325,7 +7275,7 @@ msgstr "La junta o el comité, y el nombre de la reunión tal como lo publica la
 msgid "The change is in the commitment. Amounts are not adjusted for inflation."
 msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustadas por inflación."
 
-#: site/templates/meeting.html
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "The city"
 msgstr "La ciudad"
 
@@ -7991,7 +7941,7 @@ msgstr ""
 msgid "This summary is shown in English: its automatic translation didn't pass our checks."
 msgstr "Este resumen aparece en inglés: su traducción automática no pasó nuestras revisiones."
 
-#: site/templates/base.html
+#: pipeline/build_site.py
 msgid "This week"
 msgstr "Esta semana"
 
@@ -8218,10 +8168,6 @@ msgstr "Se actualiza cada mañana."
 #: site/pages/housing/index.html
 msgid "Vacant"
 msgstr "Desocupadas"
-
-#: site/pages/housing/index.html
-msgid "Values and rents"
-msgstr "Valores y alquileres"
 
 #: site/states/vt/budget.html
 msgid "Vermont doesn't publish an average bill."
@@ -8791,7 +8737,7 @@ msgstr ""
 "Su ubicación no está en ninguno de los distritos de {town}. Puede buscar su distrito en el mapa o"
 " en la lista de abajo."
 
-#: site/pages/meetings/index.html site/pages/streets/index.html
+#: pipeline/build_site.py site/pages/streets/index.html
 msgid "Your street"
 msgstr "Su calle"
 

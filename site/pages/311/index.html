@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page, city_report_button %}
+{% from "macros.html" import city_report_button %}
 {% from "macros.html" import area with context %}
 {% from "charts.html" import month_columns, bars, chart_links, map_figure, map_assets %}
 {% block title %}{{ _("311 Requests") }}{% endblock %}
@@ -24,11 +24,6 @@
   <p class="source-note">{% trans iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
   {% endif %}
   {{ city_report_button(config) }}
-  <ul class="link-row">
-    <li><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a></li>
-    <li><a href="/311/repeat-locations/">{{ _("Repeat locations") }}</a></li>
-    <li><a href="/streets/">{{ _("Requests on your street") }}</a></li>
-  </ul>
 </div>
 
 {% if not sc %}
@@ -70,8 +65,6 @@
   {% if o.checked < o.received %}<li>{% trans checked=o.checked | number, received=o.received | number %}Acknowledgment times are known for {{ checked }} of {{ received }} requests so far. The rest are being looked up.{% endtrans %}</li>{% endif %}
 </ul>
 {% endif %}
-
-{{ on_this_page([("monthly", _("By month"))] + ([("wards", _("By precinct") if areas == "precincts" else _("By district") if areas == "districts" else _("By ward"))] if has_areas else []) + [("categories", _("By category")), ("open", _("Open requests")), ("recent", _("Past 30 days")), ("repeats", _("Repeat locations"))]) }}
 
 {# ---- Monthly ---- #}
 {% set months = sc.monthly %}

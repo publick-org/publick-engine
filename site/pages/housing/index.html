@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "macros.html" import on_this_page %}
 {% from "charts.html" import year_columns, chart_links %}
 {% block title %}{{ _("Housing") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
@@ -53,7 +52,6 @@
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page(([("permits", _("New homes"))] if pm else []) + ([("costs", _("Values and rents"))] if acs else []) + ([("affordable", _("Affordable housing"))] if h.get("shi") else []) + [("stock", _("Housing stock"))]) }}
 
 {# ---- Permits ---- #}
 {% if pm %}

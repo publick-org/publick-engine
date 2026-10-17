@@ -939,3 +939,56 @@ def test_recently_decided_marks_committee_recommendations():
                 "decisions": {"decided": decided, "recommended": recommended, "procedural": []}}
     assert "Committee recommendation" in item.render(m=meeting([], ["Recommended a permit."]))
     assert "Committee recommendation" not in item.render(m=meeting(["Approved a permit."], ["Recommended a permit."]))
+
+
+def menu_and_tabs(page: str) -> tuple[list, list]:
+    """The menu's and the tabs' links on a built page: (href, label, aria-current or None)."""
+    found = []
+    for name in ("site-nav", "tabs"):
+        nav = re.search(rf'<nav class="{name}".*?</nav>', page, re.S)
+        found.append(re.findall(r'<a href="([^"]+)"(?: aria-current="([^"]+)")?>([^<]+)</a>', nav.group(0)) if nav else [])
+    return tuple([(href, label, current or None) for href, current, label in links] for links in found)
+
+
+def test_the_menu_and_its_tabs(site_dir):
+    """The menu is the week and three groups, each going to its first page; each group's pages are tabs on each
+    of them, and a page under one marks its group but has no tabs (it has a breadcrumb)."""
+    read = lambda url: (site_dir / url.lstrip("/") / "index.html").read_text()
+    menu, tabs = menu_and_tabs(read("/"))
+    assert menu == [("/", "This week", "page"), ("/meetings/", "City Hall", None), ("/streets/", "Your street", None),
+                    ("/budget/", "The city", None)]
+    assert tabs == []
+    menu, tabs = menu_and_tabs(read("/meetings/decisions/"))
+    assert ("/meetings/", "City Hall", "true") in menu
+    assert tabs == [("/meetings/", "Meetings", None), ("/meetings/decisions/", "Decisions", "page"),
+                    ("/meetings/boards/", "Boards", None), ("/officials/", "Officials", None)]
+    assert [t[0] for t in menu_and_tabs(read("/officials/"))[1]] == [t[0] for t in tabs]
+    menu, tabs = menu_and_tabs(read("/311/"))
+    assert ("/streets/", "Your street", "true") in menu
+    assert tabs == [("/streets/", "Look up a street", None), ("/311/", "311 requests", "page")]
+    menu, tabs = menu_and_tabs(read("/housing/"))
+    assert ("/budget/", "The city", "true") in menu and ("/housing/", "Housing", "page") in tabs
+    # A meeting's page, a board's, and a 311 category's mark their group, with a breadcrumb rather than tabs.
+    for url, group in (("/meetings/2026-09-28-human-rights-commission/", "City Hall"),
+                       ("/meetings/boards/city-council/", "City Hall"), ("/311/methodology/", "Your street")):
+        menu, tabs = menu_and_tabs(read(url))
+        assert [m[1] for m in menu if m[2]] == [group] and tabs == [], url
+        assert 'class="breadcrumb"' in read(url), url
+    # About is in the footer, not the menu.
+    assert 'href="/about/">About</a>' in read("/").split("<footer")[1]
+
+
+def test_the_menu_has_only_the_towns_pages():
+    """A group with none of its pages isn't in the menu, and a group goes to the first page it has."""
+    sections = [{"slug": "meetings"}, {"slug": "housing"}]
+    nav = build_site.site_nav("/housing/", sections, "", documents=False)
+    assert nav["menu"] == [("/", "This week", None), ("/meetings/", "City Hall", None), ("/housing/", "The city", "page")]
+    assert nav["tabs"] == [("/housing/", "Housing", "page")]
+    assert build_site.site_nav("/meetings/", sections, "", documents=False)["tabs"] == [
+        ("/meetings/", "Meetings", "page"), ("/meetings/boards/", "Boards", None)]
+    nav = build_site.site_nav("/311/", [{"slug": "311"}], "", documents=False)
+    assert nav["menu"][1] == ("/311/", "Your street", "page")
+    # A town's site says Town Hall and The town.
+    with i18n.use("en", "town"):
+        assert [m[1] for m in build_site.site_nav("/", sections + [{"slug": "budget"}], "", False)["menu"]] == [
+            "This week", "Town Hall", "The town"]
