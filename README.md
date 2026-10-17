@@ -588,10 +588,11 @@ exclude_pattern = '...' # entries to skip; include_pattern keeps only matching o
 
 ## Adding a section
 
-1. Add a `[[sections]]` entry to `config/<town>.toml`. It appears in the main navigation.
+1. Add a `[[sections]]` entry to `config/<town>.toml`.
 2. Create `site/pages/<slug>/index.html` extending `base.html`. It is served at `/<slug>/`.
 3. Sub-pages go in sub-folders: `site/pages/<slug>/<name>/index.html` is served at `/<slug>/<name>/`.
 4. Pages generated from data (one per record) use a template in `site/templates/` and are added in `pipeline/build_site.py`.
+5. Put the page in the menu. The menu is "This week" and three groups, each named for what a reader comes for: City Hall (meetings, decisions, boards, officials), Your street (the street lookup, 311), and The city (budget, schools, housing). They're listed in `site_nav()` in `pipeline/build_site.py`. Each group's menu item goes to its first page, and its pages are tabs above each of them; a page under one (a meeting, a board, a 311 category) has a breadcrumb instead.
 
 New pages are picked up by the tests and the site checks automatically. A section belongs to the engine, so every town that lists it gets it.
 

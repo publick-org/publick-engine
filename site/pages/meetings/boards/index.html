@@ -5,9 +5,6 @@
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Every {{ town }} board, commission, and committee with a meeting listed, and when each meets next.{% endtrans %}{% endblock %}
 {% block content %}
-<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
-  <ol><li><a href="/meetings/">{{ _("Meetings") }}</a></li></ol>
-</nav>
 <h1>{{ _("Boards and committees") }}</h1>
 <p class="lede">{{ _("When each board and committee meets next.") }}</p>
 {% if meetings.boards %}

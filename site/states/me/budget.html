@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import figures_dash, on_this_page, calculated %}
+{% from "macros.html" import figures_dash, calculated %}
 {% from "charts.html" import chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
@@ -49,7 +49,6 @@
   </a></li>
   {% endif %}
 </ul>
-{{ on_this_page([("tax-rate", _("Tax rate")), ("commitment", _("Property tax raised"))] + ([("tax-bill", _("Average tax bill"))] if bill else []) + ([("per-resident", _("Per resident"))] if pr else [])) }}
 
 {# ---- Tax rate ---- #}
 <h2 id="tax-rate">{{ _("Property tax rate") }}</h2>

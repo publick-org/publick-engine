@@ -172,7 +172,9 @@ def test_the_glossary_page_in_each_language(built):
     assert '<dt id="special-permit">permiso especial <span class="meta" lang="en">(special permit)</span></dt>' in spanish
     # A town entry with no Spanish wording is marked English.
     assert '<dt id="coa"><span lang="en">COA</span>' in spanish
-    assert 'href="/meetings/glossary/"' in page(out, "/meetings/") and 'href="/es/meetings/glossary/"' in page(out, "/es/meetings/")
+    # Linked from each meeting's page that uses a term, under "Terms used here", in each language.
+    meeting = "/meetings/2026-09-28-human-rights-commission/"
+    assert 'href="/meetings/glossary/"' in page(out, meeting) and 'href="/es/meetings/glossary/"' in page(out, "/es" + meeting)
 
 
 def test_meeting_pages_link_a_terms_first_use_to_the_glossary(built):
