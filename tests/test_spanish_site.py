@@ -14,7 +14,7 @@ from pipeline import build_site, i18n
 from pipeline.config import load_config
 
 TOWN_STRINGS = {"City Council": "Concejo Municipal", "Meetings": "Reuniones", "Pothole": "Bache"}
-ENGINE_STRINGS = {(None, "This week"): "Esta semana", ("month", "October"): "octubre", ("month, short", "Aug"): "ago",
+ENGINE_STRINGS = {(None, "This week"): "Esta semana", (None, "City Hall"): "Alcaldía", ("month", "October"): "octubre", ("month, short", "Aug"): "ago",
                   ("short date", "{month} {day}, {year}"): "{day} {month} {year}", (None, "%(board)s minutes"): "%(board)s: actas"}
 
 
@@ -140,8 +140,8 @@ def test_spanish_wording(built):
     out, _, _ = built
     es, en = page(out, "/es/"), page(out, "/")
     assert ">Esta semana</a>" in es and ">This week</a>" in en
-    # The town's text: section titles, and boards with their English names after.
-    assert ">Reuniones</a>" in es
+    # The menu, with what isn't translated yet in English, and boards with their English names after.
+    assert ">Alcaldía</a>" in es and ">Your street</a>" in es
     assert "Concejo Municipal (City Council)" in page(out, "/es/meetings/boards/city-council/")
     assert "Concejo Municipal" not in page(out, "/meetings/boards/city-council/")
 

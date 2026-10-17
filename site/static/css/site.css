@@ -147,8 +147,6 @@ main { display: block; padding: 1rem 0 3rem; }
 .credit-example { margin: 0.75rem 0 1rem; padding: 0.6rem 0.9rem; border-left: 3px solid var(--line-strong); background: var(--soft); }
 .credit-example p { margin: 0; }
 .credit p { margin: 0; }
-/* How the summary above was checked (macros.html checked_line), on its own line before the credit. */
-.credit .checked { margin-bottom: 0.4rem; color: var(--ink-soft); }
 .report-link {
   display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; margin-top: 0.5rem; padding: 0 0.85rem;
   border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); font-size: 0.875rem; font-weight: 600; text-decoration: none;
@@ -187,6 +185,9 @@ main .link-row li + li { margin-top: 0; }
 /* Meeting search */
 .search-form { margin: 1.25rem 0 0; }
 .search-form label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+/* The meetings search (macros.html search_form): a field of reading width, with a plain button, as a secondary action */
+.site-search { max-width: 36rem; }
+.site-search label { font-size: 0.95rem; font-weight: 600; }
 .search-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .search-row input {
   flex: 1 1 12rem; min-width: 0; min-height: 2.9rem; padding: 0 0.75rem;
@@ -225,6 +226,13 @@ main .stats > li { max-width: none; margin: 0; }
 .stat-label, .stat-value, .stat-change { overflow-wrap: break-word; hyphens: auto; }
 .stat-change { display: block; font-size: 0.9rem; line-height: 1.4; }
 .stat-source { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.8125rem; line-height: 1.4; }
+/* A row's values on one line however its labels wrap: each number's label, value, and detail are rows of the grid. */
+.stats-aligned .stat, .stats-aligned .stat > a { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+.stats-aligned .stat > a { height: auto; }
+.stats-aligned .stat-label { min-height: 0; }
+.stats-aligned .stat-value { align-self: end; }
+/* Under the numbers, their own bottom rules stand for the next section's. */
+.stats + .section-head, .stats + h2 { border-top: 0; padding-top: 0; }
 @media (min-width: 48rem) {
   .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .stat { border-right: 1px solid var(--line); }
@@ -240,6 +248,8 @@ main .stats > li { max-width: none; margin: 0; }
   color: var(--accent); font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
 }
 .meeting-list { margin: 0; padding: 0; list-style: none; }
+/* No rule under a list's last item where the next section's own rule follows */
+.meeting-list:has(+ .section-head, + h2) > li:last-child, .decision-list:has(+ .section-head, + h2) > li:last-child { border-bottom: 0; }
 main .meeting-list > li { max-width: none; margin: 0; }
 .meeting-item { display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.1rem 0.75rem; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
 .meeting-when { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -268,6 +278,12 @@ details.more-meetings { margin: 0; border-top: 0; border-bottom: 1px solid var(-
 
 /* Decisions: one block per meeting, its votes as a plain list. */
 .decision-list { margin: 0; padding: 0; list-style: none; }
+/* An earlier month on Decisions, folded under its name */
+details.month-fold { margin: 0; padding: 0; border-top: 1px solid var(--line); }
+details.month-fold:last-of-type { border-bottom: 1px solid var(--line); }
+.month-fold > summary { padding: 0.75rem 0; }
+.month-fold .month-name { font-family: var(--serif); font-size: 1.2rem; font-weight: 700; color: var(--primary-dark); }
+.month-fold > summary .item-detail { display: inline; margin-left: 0.5rem; font-size: 0.9rem; font-weight: 400; color: var(--muted); }
 main .decision-list > li { max-width: none; margin: 0; }
 .decision-meeting { padding: 1.25rem 0; border-bottom: 1px solid var(--line); }
 .decision-meeting h3 { margin: 0; }
@@ -341,12 +357,15 @@ figure.chart { margin: 0.75rem 0 0; }
 
 .hbars { margin: 0.5rem 0 0; padding: 0; list-style: none; }
 main .hbars > li { max-width: none; margin: 0; }
-.hbar { display: grid; grid-template-columns: 5.5rem 1fr 3.5rem; align-items: center; gap: 0.6rem; padding: 0.3rem 0; font-size: 0.95rem; }
+/* The label column is wide enough for a label's words, which wrap between them, never inside one. */
+.hbar { display: grid; grid-template-columns: 7.5rem 1fr 3.5rem; align-items: center; gap: 0.6rem; padding: 0.3rem 0; font-size: 0.95rem; }
+.hbar > span:first-child { overflow-wrap: normal; hyphens: manual; }
 .hbar .bar { height: 0.85rem; min-width: 2px; background: var(--primary); border-radius: 2px; }
 .hbar .n { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.hbars.wide-n .hbar { grid-template-columns: 5.5rem 1fr auto; }
+.hbars.wide-n .hbar { grid-template-columns: 7.5rem 1fr auto; }
 .hbars.wide-n .n { white-space: nowrap; }
-.hbars.wide-l .hbar { grid-template-columns: 8rem 1fr auto; }
+.hbars.wide-l .hbar { grid-template-columns: 9rem 1fr auto; }
+@media (min-width: 48rem) { .hbar, .hbars.wide-n .hbar, .hbars.wide-l .hbar { grid-template-columns: 14rem 1fr auto; } }
 .hbar a { font-weight: 600; }
 
 /* Positioned, so screen-reader-only text in a wide table is clipped with it rather than widening the page. */
@@ -385,6 +404,7 @@ main .plain-list > li + li { margin-top: 0.75rem; }
 .site-footer { border-top: 1px solid var(--line); background: var(--soft); color: var(--muted); font-size: 0.9rem; padding: 1.5rem 0 2rem; }
 .site-footer .line-form { margin: 0 0 1.5rem; }
 .footer-brand { margin: 0 0 0.25rem; color: var(--primary-dark); font-weight: 800; }
+.site-footer p { max-width: 50rem; }
 .site-footer p { margin: 0 0 0.5rem; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 0 1.25rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
 .footer-links a { display: inline-flex; align-items: center; min-height: 2.75rem; }

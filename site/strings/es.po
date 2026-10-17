@@ -350,6 +350,13 @@ msgid_plural "%(num)s have no map location and are only in the list."
 msgstr[0] "%(num)s no tiene ubicación en el mapa y solo aparece en la lista."
 msgstr[1] "%(num)s no tienen ubicación en el mapa y solo aparecen en la lista."
 
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid "%(num)s meeting"
+msgid_plural "%(num)s meetings"
+msgstr[0] "%(num)s reunión"
+msgstr[1] "%(num)s reuniones"
+
 #: site/pages/311/index.html
 #, python-format
 msgid "%(num)s more categories"
@@ -979,12 +986,6 @@ msgstr "Solicitudes de servicio 311"
 msgid "<a href=\"%(url)s\">%(title)s</a>, on the %(listing)s"
 msgstr "<a href=\"%(url)s\">%(title)s</a>, en el %(listing)s"
 
-#. %(where)s is where the agenda was posted, such as "the city website".
-#: site/templates/meeting.html
-#, python-format
-msgid "<a href=\"%(url)s\">Agenda on %(where)s</a>"
-msgstr "<a href=\"%(url)s\">Agenda en %(where)s</a> (en inglés)"
-
 #: site/templates/meeting.html
 #, python-format
 msgid "<a href=\"%(url)s\">How we know</a>."
@@ -999,20 +1000,16 @@ msgstr "<a href=\"%(url)s\">Actas en %(where)s</a> (en inglés)"
 #: site/templates/meeting.html
 #, python-format
 msgid ""
-"<a href=\"%(url)s\">Saved copy of the agenda</a> · saved <time "
-"datetime=\"%(iso)s\">%(when)s</time>"
-msgstr ""
-"<a href=\"%(url)s\">Copia guardada de la agenda</a> (en inglés) · guardada el <time "
-"datetime=\"%(iso)s\">%(when)s</time>"
-
-#: site/templates/meeting.html
-#, python-format
-msgid ""
 "<a href=\"%(url)s\">Saved copy of the minutes</a> · saved <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
 msgstr ""
 "<a href=\"%(url)s\">Copia guardada de las actas</a> (en inglés) · guardadas el <time "
 "datetime=\"%(iso)s\">%(when)s</time>"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Saved copy</a>, saved <time datetime=\"%(iso)s\">%(when)s</time>."
+msgstr "<a href=\"%(url)s\">Copia guardada</a>, guardada el <time datetime=\"%(iso)s\">%(when)s</time>."
 
 #. %(name)s is a school district, such as "Burlington School District".
 #: site/templates/meeting.html
@@ -1682,7 +1679,7 @@ msgstr "Resumen hecho con IA, verificado en parte con el PDF de la ciudad"
 msgid "About"
 msgstr "Acerca de"
 
-#: site/pages/meetings/decisions/index.html site/templates/digest.html site/templates/macros.html
+#: site/pages/meetings/decisions/index.html site/templates/digest.html
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
@@ -1792,6 +1789,13 @@ msgstr ""
 #: site/templates/macros.html
 msgid "Agenda posted"
 msgstr "Agenda publicada"
+
+#. %(where)s is where the agenda was posted, such as "the city website"; %(size)s is the file's size,
+#. such as "257 KB".
+#: site/templates/meeting.html
+#, python-format
+msgid "Agenda posted on %(where)s (PDF, %(size)s)."
+msgstr "Agenda publicada en %(where)s (PDF, %(size)s, en inglés)."
 
 #: pipeline/build_site.py
 msgid "Agenda posted."
@@ -1918,7 +1922,7 @@ msgstr "Las cantidades no están ajustadas por inflación."
 msgid "An identifier that doesn't change, and the meeting's page on this site."
 msgstr "Un identificador que no cambia, y la página de la reunión en este sitio."
 
-#: site/templates/base.html site/templates/digest_email.html
+#: site/templates/digest_email.html
 #, python-format
 msgid ""
 "An independent project. Not affiliated with or endorsed by the City of %(town)s. Official "
@@ -1935,6 +1939,11 @@ msgid ""
 msgstr ""
 "Un sitio independiente que sigue los datos públicos de la Ciudad de %(town)s. La ciudad no lo "
 "administra y el sitio no está afiliado al gobierno municipal."
+
+#: site/templates/base.html
+#, python-format
+msgid "An independent site, not affiliated with or endorsed by the City of %(town)s."
+msgstr "Un sitio independiente, sin afiliación con la Ciudad de %(town)s ni su respaldo."
 
 #: site/pages/311/methodology/index.html
 msgid ""
@@ -2143,6 +2152,10 @@ msgstr "Juntas y comités"
 #: site/states/ma/budget.html
 msgid "Bond ratings"
 msgstr "Calificaciones crediticias"
+
+#: site/templates/macros.html
+msgid "Both come from AI, so they can share a mistake."
+msgstr "Las dos vienen de la IA, así que pueden tener el mismo error."
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
@@ -2429,9 +2442,11 @@ msgstr ""
 "Los documentos del presupuesto de la ciudad, con el detalle por departamento, están en el <a "
 "href=\"%(url)s\">sitio web de la ciudad</a>."
 
-#: site/pages/index.html
-msgid "City services and news"
-msgstr "Servicios y noticias de la ciudad"
+#. %(town)s is the town's name; the link is to its government's own website.
+#: site/templates/base.html
+#, python-format
+msgid "City of %(town)s website"
+msgstr "Sitio web de la Ciudad de %(town)s"
 
 #: site/pages/311/index.html
 #, python-format
@@ -2973,6 +2988,10 @@ msgstr ""
 "Las reuniones anteriores están en el <a href=\"%(url)s\">portal de Reuniones Abiertas del "
 "estado</a>."
 
+#: site/pages/meetings/decisions/index.html
+msgid "Earlier months"
+msgstr "Meses anteriores"
+
 #: site/templates/meeting.html
 msgid "Earlier versions of these minutes:"
 msgstr "Versiones anteriores de estas actas:"
@@ -3167,10 +3186,6 @@ msgstr ""
 #: pipeline/states/ct/budget.py
 msgid "Everything else"
 msgstr "Todo lo demás"
-
-#: site/pages/index.html
-msgid "Explore"
-msgstr "Explorar"
 
 #: pipeline/common_strings.py
 msgid "Fair Rent Commission"
@@ -4011,11 +4026,6 @@ msgstr "Su agenda y sus actas, que se describen abajo."
 msgid "Its recording, and where the city lists it."
 msgstr "Su grabación, y dónde la publica la ciudad."
 
-#: site/templates/base.html
-#, python-format
-msgid "Its summaries and data are <a href=\"%(url)s\">free to reuse with credit</a>."
-msgstr "Sus resúmenes y datos se pueden <a href=\"%(url)s\">reutilizar libremente, dando crédito</a>."
-
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Jan"
@@ -4644,12 +4654,12 @@ msgstr[1] ""
 msgid "Minutes posted"
 msgstr "Actas publicadas"
 
-#. %(date)s is a day, such as "Oct 9"; minutes are collected each morning, so they were posted that day
-#. or before.
-#: site/templates/macros.html
+#. %(where)s is where the minutes were posted, such as "the city website"; %(size)s is the file's size,
+#. such as "257 KB".
+#: site/templates/meeting.html
 #, python-format
-msgid "Minutes posted by %(date)s"
-msgstr "Actas publicadas el %(date)s o antes"
+msgid "Minutes posted on %(where)s (PDF, %(size)s)."
+msgstr "Actas publicadas en %(where)s (PDF, %(size)s, en inglés)."
 
 #: pipeline/build_site.py
 msgid "Minutes posted."
@@ -5248,10 +5258,10 @@ msgstr "Parte de %(network)s"
 #, python-format
 msgid ""
 "Part of %(network)s, a network of independent sites publishing the public record of towns and "
-"cities."
+"cities, free to <a href=\"%(url)s\">reuse with credit</a>."
 msgstr ""
 "Parte de %(network)s, una red de sitios independientes que publican el registro público de "
-"pueblos y ciudades."
+"pueblos y ciudades, que se puede <a href=\"%(url)s\">reutilizar libremente, dando crédito</a>."
 
 #: pipeline/build_site.py site/templates/macros.html
 msgid "Partly checked against the city's PDF"
@@ -6042,6 +6052,13 @@ msgstr ""
 msgid "Short forms like St and Ave work too."
 msgstr "También puede usar abreviaturas como St y Ave."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Show %(count)s more item"
+msgid_plural "Show %(count)s more items"
+msgstr[0] "Ver %(count)s punto más"
+msgstr[1] "Ver %(count)s puntos más"
+
 #: site/pages/index.html
 #, python-format
 msgid "Show %(count)s more meeting this week"
@@ -6102,12 +6119,6 @@ msgstr "Puede que algunos datos de esta página estén desactualizados:"
 #: site/pages/311/methodology/index.html
 msgid "Some departments use SeeClickFix more than others."
 msgstr "Algunos departamentos usan SeeClickFix más que otros."
-
-#: site/templates/macros.html
-msgid "Some of its pages are scanned images, so only the pages with text could be checked."
-msgstr ""
-"Algunas de sus páginas son imágenes escaneadas, así que solo se pudieron verificar las páginas "
-"con texto."
 
 #: site/templates/base.html
 #, python-format
@@ -7279,15 +7290,6 @@ msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustada
 msgid "The city"
 msgstr "La ciudad"
 
-#: site/templates/macros.html
-msgid ""
-"The city's PDF is a scanned image, so this summary was compared with an AI reading of it, not the"
-" city's own text. Both come from AI, so they can share a mistake."
-msgstr ""
-"El PDF de la ciudad es una imagen escaneada, así que este resumen se comparó con una lectura "
-"hecha con IA, no con el texto de la ciudad. Las dos vienen de la IA, así que pueden tener el "
-"mismo error."
-
 #: site/pages/data/index.html
 msgid ""
 "The city's agendas and minutes are the official record. Every summary in the file links the "
@@ -7642,18 +7644,6 @@ msgstr ""
 "El valor tasado neto de todo lo que gravó la ciudad en el año fiscal %(year)s fue de %(total)s, "
 "después de exenciones como las de personas mayores y veteranos."
 
-#: site/templates/macros.html
-msgid "The numbers, dates, and names shown here are in the agenda's own text."
-msgstr "Los números, las fechas y los nombres que se muestran aquí están en el texto de la agenda."
-
-#: site/templates/macros.html
-msgid ""
-"The numbers, dates, and names shown here are in the minutes' own text, and each decision matches "
-"the minutes' own words."
-msgstr ""
-"Los números, las fechas y los nombres que se muestran aquí están en el texto de las actas, y cada"
-" decisión coincide con las palabras de las actas."
-
 #. %(provider)s is the email service that sends the digest, such as "Buttondown".
 #: site/pages/about/index.html
 #, python-format
@@ -7978,6 +7968,10 @@ msgstr "Hora por anunciar"
 msgid "Time to acknowledge"
 msgstr "Tiempo de confirmación"
 
+#: pipeline/build_site.py
+msgid "Time to acknowledge a 311 request"
+msgstr "Tiempo para confirmar una solicitud al 311"
+
 #: site/pages/311/methodology/index.html
 msgid "Time to close"
 msgstr "Tiempo de cierre"
@@ -8067,10 +8061,6 @@ msgstr "Confirmación típica"
 msgid "Typical close"
 msgstr "Cierre típico"
 
-#: pipeline/build_site.py
-msgid "Typical time for the city to acknowledge a request"
-msgstr "Tiempo típico para que la ciudad confirme una solicitud"
-
 #: site/pages/311/index.html site/templates/category.html site/templates/ward.html
 msgid "Typical time to acknowledge"
 msgstr "Tiempo típico de confirmación"
@@ -8151,11 +8141,6 @@ msgid ""
 msgstr ""
 "Próximas reuniones públicas en %(town)s, %(state)s, con horarios, lugares, cómo asistir, agendas "
 "y lo que se decidió."
-
-#: site/templates/base.html
-#, python-format
-msgid "Updated <time datetime=\"%(iso)s\">%(when)s</time>."
-msgstr "Actualizado el <time datetime=\"%(iso)s\">%(when)s</time>."
 
 #: site/pages/about/index.html
 msgid "Updated every morning from public sources."

@@ -319,7 +319,7 @@ def test_wallingford_board_of_education_from_the_district_website(wallingford_si
     committee = meeting_page(wallingford_site, "finalsite-1698")
     assert "<h1>Board of Education Operations Committee – Sep 14, 2026</h1>" in committee
     assert f"https://docs.google.com/document/d/{MINUTES_DOC}/edit?usp=sharing" in committee
-    assert "Minutes on Google Docs" in committee and "Agenda on Google Docs" in committee
+    assert "Minutes posted on Google Docs" in committee and "Agenda posted on Google Docs" in committee
     assert 'href="/meetings/minutes/' in committee and "What was decided" in committee
     assert "minutes posted by Wallingford Public Schools" in committee
     assert f'known from the <a href="{FakeFinalsite.PAGE_URL}"' in committee and "Wallingford Public Schools website" in committee
