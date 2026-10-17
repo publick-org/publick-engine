@@ -26,7 +26,11 @@ otherwise) reviews its meaning against the English, knowing the translator's
 rules and words: adjourned shown as dissolved, a guessed gender, a
 mistranslated board. A translation that fails either is made again once
 (ATTEMPTS), as a correction: the model gets its first translation and what
-was wrong with it. Then it's kept, so it isn't paid for again, but not shown:
+was wrong with it. A translation that passes the check but has no review
+(it couldn't be made, an API error, or the check failed when it was made
+and passes now) has its review asked again by itself, the translation kept,
+up to REVIEW_RETRIES times; one the review then flags is made again as any
+other. Then it's kept, so it isn't paid for again, but not shown:
 the page shows the English summary, and says so.
 
 Each translation is its own record, data/summaries/<language>/<document's
@@ -199,6 +203,9 @@ def saved(data_dir: Path, lang: str, sha256: str) -> dict | None:
 # A translation that fails its checks is made again once, then left (and the English shown, or the
 # translation it replaced, if that passes).
 ATTEMPTS = 2
+# A translation with no review (UNREVIEWED) that passes the check has its review asked again by itself up to
+# this many times, before it's made again as any translation that fails (review_due()).
+REVIEW_RETRIES = 2
 
 
 def made_from(found: dict | None, record: dict, kind: str) -> bool:
@@ -218,6 +225,8 @@ def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, ter
     they are now, or it's had its ATTEMPTS with this glossary (terms: the town's, glossary.entries()).
     One that fails now only because the glossary changed is made again, with tries of its own."""
     found = saved(data_dir, lang, sha256)
+    if review_due(data_dir, found, record, kind, lang, terms):
+        return None
     if made_from(found, record, kind) and not to_remake(found) and (
             passes(data_dir, found, record, kind, lang, terms) or (
                 found.get("attempts", 1) >= ATTEMPTS and found.get("glossary", "") == glossary_key(terms, lang))):
@@ -230,6 +239,17 @@ def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str, term
     town's glossary as it is now (so a translation the check once wrongly failed is shown once the
     check is fixed, without paying for it again), and the AI's review of its meaning, as saved."""
     return (found.get("review") == "ok"
+            and check(english(record, kind), found, kind, lang, town_words(data_dir), terms) == "ok")
+
+
+def review_due(data_dir: Path, found: dict | None, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> bool:
+    """Whether a saved translation waits only for its review: made from this English, not one to make again
+    (REMAKE_BELOW), it passes the check without AI as it is now, it has no review (UNREVIEWED: one couldn't be
+    made, or the check failed when it was made), and it has review-only tries left (REVIEW_RETRIES). Its tries
+    (ATTEMPTS) don't count these: no translation is made."""
+    return (made_from(found, record, kind) and not to_remake(found)
+            and found.get("review", "").startswith(UNREVIEWED)
+            and found.get("review_retries", 0) < REVIEW_RETRIES
             and check(english(record, kind), found, kind, lang, town_words(data_dir), terms) == "ok")
 
 
@@ -681,6 +701,8 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     terms = glossary.entries(config)
     key = glossary_key(terms, lang)
     before = saved(data_dir, lang, doc["sha256"])
+    if review_due(data_dir, before, record, kind, lang, terms):
+        return review_again(client, config, data_dir, lang, kind, doc, record, before, now, cost, log)
     # Made again because it failed (whichever prompt version made it): corrected, and counted as another try.
     again = made_from(before, record, kind) and not to_remake(before)
     wrong = what_failed(data_dir, before, record, kind, lang, terms) if again else None
@@ -733,6 +755,29 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         out["previous"] = previous_of(showing, kind)
     save(data_dir, lang, doc["sha256"], out)
     return out, paid + review_cost
+
+
+def review_again(client, config: dict, data_dir: Path, lang: str, kind: str, doc: dict, record: dict, before: dict,
+                 now: datetime, cost, log=None) -> tuple[dict, float]:
+    """Ask for the review of a saved translation that has none (review_due()),
+    keeping the translation: no new one is paid for. Saved with what the review found (ok, its problems,
+    or why it couldn't be made, again), one more review_retries, and what it cost; a translation saved
+    earlier in the same month carries what that one cost (replaced_cost), as make() does."""
+    source = english(record, kind)
+    problems, paid = review_meaning(client, config, lang, [(f, source[f], before.get(f)) for f in FIELDS[kind]],
+                                    cost, log, doc["sha256"])
+    earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
+               if before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
+    out = {key: value for key, value in before.items() if key != "replaced_cost"}
+    out.update({
+        "review": "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok",
+        "review_retries": before.get("review_retries", 0) + 1,
+        "generated_at": now.isoformat(timespec="seconds"),
+        "cost": round(paid, 6),
+        **({"replaced_cost": round(earlier, 6)} if earlier else {}),
+    })
+    save(data_dir, lang, doc["sha256"], out)
+    return out, paid
 
 
 # ---- The AI's review of a translation's meaning ----------------------------------

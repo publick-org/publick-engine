@@ -10,7 +10,8 @@ they can be used (pipeline/pdftext.py: a supported style, laid out and checked
 word for word), at no cost. A scan (or a scanner's own recognized text), which
 screen readers can't read, is transcribed by the model, but only after every
 summary waiting, from what's left of the budget, a few pages a request so a
-long document is never cut off. Any other PDF has text a screen reader can
+long document is never cut off, and once: a summary made again keeps its
+document's transcription (kept_transcription()). Any other PDF has text a screen reader can
 read, so the page links it; search and the street lookup use its plain text.
 Minutes of a body in the town's [officials] table also get their roll call
 votes, read from the same text without AI (pipeline/votes.py).
@@ -781,6 +782,24 @@ def missing_prices(settings: dict) -> str | None:
     return None
 
 
+# What a model's transcription of a scan leaves in its document's record, with the plain text and note saved
+# before it (own_text()).
+TRANSCRIPTION = ("transcript", "transcript_source", "transcript_pages", "transcript_usage", "transcript_cost",
+                 "transcribed_at", "plain_text", "text_note")
+
+
+def kept_transcription(data_dir: Path, sha256: str) -> dict:
+    """The model's transcription in the document's saved record, if it has one, for a summary of the same
+    document made again (a newer prompt, an agenda's start time) to keep rather than pay for again. A record
+    is saved by its PDF's hash, so a scan that changed is a new document, with no record and nothing kept:
+    it's transcribed again as any new scan is."""
+    path = summaries_dir(data_dir) / f"{sha256}.json"
+    old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if old.get("transcript_source") != "ai" or not old.get("transcript") or old.get("source_sha256", sha256) != sha256:
+        return {}
+    return {key: old[key] for key in TRANSCRIPTION if key in old}
+
+
 def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: dict, pdf: bytes, result: dict,
                  usage: dict, paid: float, settings: dict, now: datetime, words: set[str], log: cost_log.Log,
                  key: str) -> bool:
@@ -797,6 +816,8 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
         "generated_at": now.isoformat(timespec="seconds"),
         "usage": usage,
         "cost": round(paid, 6),
+        # A scan's transcription, kept: the document's own text still replaces it where it can be used.
+        **kept_transcription(data_dir, doc["sha256"]),
     }
     record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
     if record.get("is_minutes") is not False:

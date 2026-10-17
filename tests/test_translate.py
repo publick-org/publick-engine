@@ -293,6 +293,107 @@ def test_a_second_try_corrects_the_first(tmp_path):
                                  json.loads((tmp_path / "summaries" / f"{sha}.json").read_text()), first["kind"], "es") is None
 
 
+class ReviewDown(FakeAnthropic):
+    """The stand-in, with every review request failing (an API error)."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        create = self.messages.create
+
+        def failing(**request):
+            if "problems" in request["output_config"]["format"]["schema"]["properties"]:
+                self.calls.append(request)
+                raise RuntimeError("overloaded")
+            return create(**request)
+        self.messages.create = failing
+
+
+def review_calls(client):
+    """The reviews of summaries' translations, not of the town's own text."""
+    return [c for c in client.calls if system(c).startswith("You check") and '"id": "headline"' in c["messages"][0]["content"]]
+
+
+def unreviewed(tmp_path, **changes):
+    """Every saved translation as if its review couldn't be made."""
+    for sha, record in translations(tmp_path).items():
+        translate.path(tmp_path, "es", sha).write_text(json.dumps({**record, "review": "not reviewed: overloaded", **changes}))
+
+
+def test_a_review_that_couldnt_be_made_is_asked_again_by_itself(tmp_path):
+    """The translation is kept and only its review is sent again; once it passes, it's shown. Its
+    tries (attempts) don't count it, and its cost is recorded once in its file and the log."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    unreviewed(tmp_path)
+    before = translations(tmp_path)
+    sha, record = next(iter(before.items()))
+    english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+    assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
+    assert translate.current(tmp_path, "es", sha, english, record["kind"]) is None
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(before)
+    assert translation_calls(client) == [] and len(review_calls(client)) == len(before)
+    for sha, after in translations(tmp_path).items():
+        assert after["review"] == "ok" and after["review_retries"] == 1 and after["attempts"] == before[sha]["attempts"]
+        assert {f: after[f] for f in translate.FIELDS[after["kind"]]} == {f: before[sha][f] for f in translate.FIELDS[after["kind"]]}
+        assert after["cost"] == pytest.approx(REVIEW) and after["replaced_cost"] == pytest.approx(before[sha]["cost"])
+    assert translate.shown(tmp_path, "es", sha, json.loads((tmp_path / "summaries" / f"{sha}.json").read_text()), after["kind"])
+    assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+
+
+def summary_translation_calls(client):
+    """The calls that translate a summary, not the town's own text."""
+    return [c for c in translation_calls(client) if system(c).startswith("You translate short summaries")]
+
+
+def test_a_retried_review_that_flags_the_translation_has_it_made_again(tmp_path):
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    unreviewed(tmp_path)
+    flagged = FakeAnthropic(review_problems=[{"id": "headline", "problem": "\"adjourned\" as \"se disolvió\""}])
+    summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)
+    # Each review asked again by itself; one it flags is then made again as any other, as a correction
+    # (an older document's in the same run, as its translations are looked at twice).
+    assert len(review_calls(flagged)) == len(translations(tmp_path)) + len(summary_translation_calls(flagged))
+    assert all("didn't pass a check" in c["messages"][0]["content"] for c in summary_translation_calls(flagged))
+    waiting = {sha for sha, r in translations(tmp_path).items() if r["attempts"] == 1}
+    assert waiting and all(r["review"] == 'headline: "adjourned" as "se disolvió"' and r["review_retries"] == 1
+                           for sha, r in translations(tmp_path).items() if sha in waiting)
+    again = FakeAnthropic()
+    assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(waiting)
+    assert len(summary_translation_calls(again)) == len(waiting)
+    assert all("didn't pass a check" in c["messages"][0]["content"] for c in summary_translation_calls(again))
+    assert all(r["review"] == "ok" and r["attempts"] == 2 and "review_retries" not in r
+               for sha, r in translations(tmp_path).items() if sha in waiting)
+
+
+def test_reviews_that_keep_failing_are_asked_again_a_few_times_only(tmp_path):
+    """REVIEW_RETRIES review-only tries for each translation made, within its ATTEMPTS: then it's left."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, ReviewDown(), tmp_path, limit=50, now=FETCHED_AT)
+    shas = set(translations(tmp_path))
+    assert all(r["review"].startswith(translate.UNREVIEWED) for r in translations(tmp_path).values())
+    drafts, reviews = len(shas), len(shas)
+    for _ in range(10):
+        client = ReviewDown()
+        if not summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["translated"]:
+            break
+        drafts += len(summary_translation_calls(client))
+        reviews += len(review_calls(client))
+    else:
+        raise AssertionError("still sending requests after 10 runs")
+    assert drafts == translate.ATTEMPTS * len(shas)
+    assert reviews == translate.ATTEMPTS * (1 + translate.REVIEW_RETRIES) * len(shas)
+    assert all(r["attempts"] == translate.ATTEMPTS and r["review_retries"] == translate.REVIEW_RETRIES
+               for r in translations(tmp_path).values())
+    # One that has had its tries still has its review asked again, with no new translation.
+    unreviewed(tmp_path, review_retries=0)
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(shas)
+    assert translation_calls(client) == [] and all(r["review"] == "ok" for r in translations(tmp_path).values())
+
+
 def test_a_review_that_finds_nothing_wrong_doesnt_fail_it(tmp_path):
     """The review sometimes writes an entry that ends "No error": it's not a problem."""
     config = spanish_town(tmp_path)
