@@ -1,0 +1,26 @@
+{# The weekly digest's signup where readers are, as one line: a label, the email field, and the button, with a short
+   note under them. On the home page twice (under the lede, and in "Stay up to date"), at the end of each meeting's
+   page, and in the footer of the other pages (base.html's footer_signup block, which a page with its own form
+   empties); form_id ("home-signup", "home-signup-end", "meeting-signup", "footer-signup") tells their fields apart.
+   It posts where digest_form.html does, with the same field for bots, and needs no JavaScript. Nothing for a town
+   without a signup ([digest] signup, pipeline/digest.py). The digest is in English for now, so another language's
+   pages say so, and link its issues in English (hreflang, which keeps localize_links from pointing them at pages
+   that don't exist). #}
+{% if digest_signup and config.meetings is defined %}
+<form class="line-form" id="{{ form_id }}" action="/digest/subscribe" method="post">
+  <div class="line-row">
+    <label for="{{ form_id }}-email">{{ _("Get the week ahead by email") }}</label>
+    <div class="search-row">
+      <input id="{{ form_id }}-email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="{{ _('Email address') }}" aria-describedby="{{ form_id }}-note">
+      <button class="button button-primary" type="submit">{{ _("Sign up") }}</button>
+    </div>
+  </div>
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <div hidden>
+    <label for="{{ form_id }}-website">{{ _("Leave this empty") }}</label>
+    <input id="{{ form_id }}-website" name="website" type="text" tabindex="-1" autocomplete="off">
+  </div>
+  <p class="small" id="{{ form_id }}-note">{% trans issues="/digest/" %}Free, every Sunday evening. <a href="{{ issues }}" hreflang="en">Past issues</a>{% endtrans %}
+  {%- if lang != "en" %} · {{ _("For now, the digest is in English.") }}{% endif %}</p>
+</form>
+{% endif %}
