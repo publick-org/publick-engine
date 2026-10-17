@@ -10,13 +10,6 @@
   <h1>{{ _("Meetings") }}</h1>
   {# Translators: %(council)s is the town's governing body, such as "City Council". #}
   <p class="lede">{% if meeting_links.documents %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet, what's on the agenda, and what they decided.{% endtrans %}{% else %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet.{% endtrans %}{% endif %}</p>
-  <ul class="link-row">
-    <li><a href="/meetings/boards/">{{ _("Boards and committees") }}</a></li>
-    {% if meeting_links.documents %}<li><a href="/meetings/decisions/">{{ _("Decisions") }}</a></li>{% endif %}
-    {% if street_sources %}<li><a href="/streets/">{{ _("Your street") }}</a></li>{% endif %}
-    <li><a href="/meetings/past/">{{ _("Past meetings") }}</a></li>
-    {% if glossary %}<li><a href="/meetings/glossary/">{{ _("Glossary") }}</a></li>{% endif %}
-  </ul>
   {% if meeting_links.documents %}{{ search_form() }}{% endif %}
 </div>
 
@@ -27,6 +20,7 @@
 {% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No upcoming meetings are listed on the city calendar right now.") }}{% else %}{{ _("No upcoming meetings are listed right now.") }}{% endif %}</p>
 {% endif %}
+<p><a href="/meetings/past/">{{ _("Past meetings") }}</a></p>
 {# Where the meetings come from: each of the town's sources, in a sentence of its own. #}
 <p class="source-note">
 {%- if meeting_links.has_calendar and meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}
