@@ -26,9 +26,11 @@ otherwise) reviews its meaning against the English, knowing the translator's
 rules and words: adjourned shown as dissolved, a guessed gender, a
 mistranslated board. A translation that fails either is made again once
 (ATTEMPTS), as a correction: the model gets its first translation and what
-was wrong with it. A review that couldn't be made (an API error) is asked
-again by itself, the translation kept, up to REVIEW_RETRIES times; a
-translation the retried review flags is then made again as any other. Then it's kept, so it isn't paid for again, but not shown:
+was wrong with it. A translation that passes the check but has no review
+(it couldn't be made, an API error, or the check failed when it was made
+and passes now) has its review asked again by itself, the translation kept,
+up to REVIEW_RETRIES times; one the review then flags is made again as any
+other. Then it's kept, so it isn't paid for again, but not shown:
 the page shows the English summary, and says so.
 
 Each translation is its own record, data/summaries/<language>/<document's
@@ -184,8 +186,8 @@ def saved(data_dir: Path, lang: str, sha256: str) -> dict | None:
 
 # A translation that fails its checks is made again once, then left (and the English shown).
 ATTEMPTS = 2
-# A translation whose review couldn't be made has its review asked again by itself up to this many times,
-# before it's made again as any translation that fails (review_due()).
+# A translation with no review (UNREVIEWED) that passes the check has its review asked again by itself up to
+# this many times, before it's made again as any translation that fails (review_due()).
 REVIEW_RETRIES = 2
 
 
@@ -214,8 +216,8 @@ def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str, term
 
 def review_due(data_dir: Path, found: dict | None, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> bool:
     """Whether a saved translation waits only for its review: made from this English with the current
-    prompt, it passes the check without AI as it is now, its review couldn't be made (UNREVIEWED), and it
-    has review-only tries left (REVIEW_RETRIES). Its tries (ATTEMPTS) don't count these: no translation
+    prompt, it passes the check without AI as it is now, it has no review (UNREVIEWED: one couldn't be
+    made, or the check failed when it was made), and it has review-only tries left (REVIEW_RETRIES). Its tries (ATTEMPTS) don't count these: no translation
     is made."""
     return (bool(found) and found.get("source_hash") == source_hash(record, kind)
             and found.get("prompt_version") == VERSION and found.get("review", "").startswith(UNREVIEWED)
@@ -715,7 +717,7 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
 
 def review_again(client, config: dict, data_dir: Path, lang: str, kind: str, doc: dict, record: dict, before: dict,
                  now: datetime, cost, log=None) -> tuple[dict, float]:
-    """Ask again for the review of a saved translation whose review couldn't be made (review_due()),
+    """Ask for the review of a saved translation that has none (review_due()),
     keeping the translation: no new one is paid for. Saved with what the review found (ok, its problems,
     or why it couldn't be made, again), one more review_retries, and what it cost; a translation saved
     earlier in the same month carries what that one cost (replaced_cost), as make() does."""
