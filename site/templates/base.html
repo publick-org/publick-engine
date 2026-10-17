@@ -116,13 +116,12 @@
       {# The weekly digest's signup (digest_line.html); a page with its own empties this block. #}
       {% block footer_signup %}{% with form_id="footer-signup" %}{% include "digest_line.html" %}{% endwith %}{% endblock %}
       <p class="footer-brand">{{ site.name }}</p>
-      {% if site.get("network") %}
-      {% set network = ('<a href="%s">%s</a>' | safe) % (site.network_url, site.network) if site.get("network_url") else site.network %}
-      <p>{% trans %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities.{% endtrans %} {% trans url="/about/#reuse" %}Its summaries and data are <a href="{{ url }}">free to reuse with credit</a>.{% endtrans %}</p>
-      {% endif %}
-      <p>{% trans town=town.name, url=town.official_site, site=town.official_site | replace("https://", "") %}An independent project. Not affiliated with or endorsed by the City of {{ town }}. Official information: <a href="{{ url }}">{{ site }}</a>.{% endtrans %}</p>
-      {# The page was built that day; a source it uses may be older (pipeline/freshness.py), and then it says so. #}
-      <p>{% trans iso=built_at.isoformat(timespec='minutes'), when=built_at.date() | date %}Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% if data_status | selectattr("stale") | list %} {% trans url="/about/#data-status" %}Some of this site's data is behind: see <a href="{{ url }}">Data status</a>.{% endtrans %}{% endif %}</p>
+      {# What the site is, in a sentence or two; the date is in the strip at the top, and a source that's behind is
+         said here (pipeline/freshness.py). #}
+      {% set network = ('<a href="%s">%s</a>' | safe) % (site.network_url, site.network) if site.get("network_url") else site.get("network") %}
+      <p>{% trans town=town.name %}An independent site, not affiliated with or endorsed by the City of {{ town }}.{% endtrans %}
+      {%- if network %} {% trans url="/about/#reuse" %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities, free to <a href="{{ url }}">reuse with credit</a>.{% endtrans %}{% endif %}
+      {%- if data_status | selectattr("stale") | list %} {% trans url="/about/#data-status" %}Some of this site's data is behind: see <a href="{{ url }}">Data status</a>.{% endtrans %}{% endif %}</p>
       {% if lang != "en" and versions %}
       {# On a page in another language: no person checks its translation. #}
       <p>{% trans url=versions[0].path %}This page was translated from English automatically with AI and may have errors. <a href="{{ url }}" hreflang="en">Read it in English</a>.{% endtrans %}</p>
@@ -132,6 +131,8 @@
         <li><a href="{{ report_link(page_url, self.title()) }}">{{ _("Report a problem with this page") }}</a></li>
         <li><a href="/about/accessibility/">{{ _("Accessibility") }}</a></li>
         <li><a href="{{ site.repo_url }}">{{ _("Source code and data") }}</a></li>
+        {# Translators: %(town)s is the town's name; the link is to its government's own website. #}
+        <li><a href="{{ town.official_site }}">{% trans town=town.name %}City of {{ town }} website{% endtrans %}</a></li>
       </ul>
     </div>
   </footer>

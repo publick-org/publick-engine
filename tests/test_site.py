@@ -160,7 +160,7 @@ def test_meeting_pages(site_dir):
 def test_home_lists_this_weeks_meetings(site_dir):
     home = (site_dir / "index.html").read_text()
     assert "Coming up" in home and "Recently decided" in home
-    for label in ("Open 311 requests", "Typical time for the city to acknowledge", "Average single-family tax bill", "Unemployment rate"):
+    for label in ("Open 311 requests", "Time to acknowledge a 311 request", "Average single-family tax bill", "Unemployment rate"):
         assert label in home
     assert "↓ 0.5 pts from July 2025" in home and "↑ 3.0% from last year" in home
     assert "/meetings/2026-10-05-city-council-ordinances-and-administration-committee/" in home
@@ -306,7 +306,8 @@ def test_schools_page(site_dir):
     page = (site_dir / "schools" / "index.html").read_text()
     assert "Graduation rate" in page and "84.7%" in page and "State 89.3%" in page
     assert 'href="https://gloucesterschoolsreport.com"' in page
-    assert 'href="/schools/"' in (site_dir / "index.html").read_text()
+    # A tab on the other pages of its group in the menu.
+    assert 'href="/schools/"' in (site_dir / "budget" / "index.html").read_text()
 
 
 def test_meeting_search_index(site_dir):
@@ -455,9 +456,10 @@ def test_summaries_in_lists_say_they_are_ai(site_dir):
     home = (site_dir / "index.html").read_text()
     rows = re.findall(r'<li class="meeting-item">.*?</li>', home, re.S)
     assert rows and all(("meeting-preview" in r) == ("AI summary" in r) for r in rows)
-    # With how it was checked (factcheck.how_checked; the fixture's documents are scans, checked against their transcription).
-    assert any("AI summary, checked against an AI transcription · Agenda posted" in r for r in rows)
-    assert any("AI summary, checked against an AI transcription · Minutes posted" in r for r in rows)
+    # The meeting's page says how it was checked; the list warns only of a summary not checked (the fixture's
+    # documents are scans, checked against their transcription).
+    assert any("AI summary · Agenda posted" in r for r in rows)
+    assert any("AI summary · Minutes posted" in r for r in rows)
     for row in rows:
         if "AI summary" in row:
             assert row.index("meeting-preview") < row.index("AI summary")
@@ -484,8 +486,7 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
     box = home[home.index('class="notice"'):]
     box = box[:box.index("</div>")]
     hearing = re.search(r"<li>.*?</li>", box, re.S).group(0)
-    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary, checked against an AI '
-                     r'transcription</span></li>$', hearing)
+    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary</span></li>$', hearing)
     assert hearing.index("<time") < hearing.index("AI summary")
 
 
@@ -532,7 +533,7 @@ def test_about_page_says_how_to_reuse(site_dir, config):
     assert "CC BY-NC-SA 3.0" in reuse and "public records" in reuse
     assert f'href="{config["site"]["repo_url"]}/blob/main/LICENSE"' in reuse
     home = (site_dir / "index.html").read_text()
-    assert 'href="/about/#reuse">free to reuse with credit</a>' in home[home.index("site-footer"):]
+    assert 'href="/about/#reuse">reuse with credit</a>' in home[home.index("site-footer"):]
 
 
 def test_311_pages_say_when_seeclickfix_was_last_read(site_dir, data_dir):
@@ -721,8 +722,9 @@ def test_home_page_layout(site_dir):
         assert re.search(r"Show \d+ more meetings? this week", week)
     decided = home[home.index('id="decided"'):home.index('id="numbers"')] if 'id="decided"' in home else ""
     assert decided.count('class="meeting-item"') <= 3
-    # Decisions, then the numbers, then one row of links.
-    assert home.index('id="coming-up"') < home.index('id="numbers"') < home.index('id="explore"')
+    # Decisions, then the numbers, then the ways to keep up; the menu has the site's pages, so no row of them here.
+    assert home.index('id="coming-up"') < home.index('id="numbers"') < home.index('id="keep-up"')
+    assert 'id="explore"' not in home
     assert 'class="meeting-item single"' not in home
 
 
@@ -992,3 +994,63 @@ def test_the_menu_has_only_the_towns_pages():
     with i18n.use("en", "town"):
         assert [m[1] for m in build_site.site_nav("/", sections + [{"slug": "budget"}], "", False)["menu"]] == [
             "This week", "Town Hall", "The town"]
+
+
+def test_decisions_fold_earlier_months(site_dir):
+    """Decisions shows its latest two months in full; each earlier one is folded under its name, with how many
+    meetings it has, and keeps its anchor."""
+    page = (site_dir / "meetings" / "decisions" / "index.html").read_text()
+    months = re.findall(r'<h2 id="m-(\d{4}-\d{2})">', page)
+    folded = re.findall(r'<details class="expand month-fold" id="m-(\d{4}-\d{2})">\s*<summary><span class="month-name">'
+                        r'[^<]+</span> <span class="item-detail">(\d+) meetings?</span></summary>', page)
+    assert len(months) <= 2 and months == sorted(months, reverse=True)
+    if folded:
+        assert len(months) == 2 and 'id="earlier"' in page and folded[0][0] < months[-1]
+        assert all(int(n) > 0 for _, n in folded)
+
+
+def test_a_long_agenda_shows_its_first_items(tmp_path):
+    """An agenda's items past ten are a tap away: the first eight, then "Show N more items"; ten or fewer are all
+    shown."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    long = None
+    for path in sorted((data / "summaries").glob("*.json")):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "agenda" and rec.get("items") and not long:
+            rec["items"] = [f"Item number {n}" for n in range(1, 13)]
+            path.write_text(json.dumps(rec))
+            long = True
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    pages = [p.read_text() for p in (tmp_path / "site" / "meetings").glob("20*/index.html") if "Item number 12" in p.read_text()]
+    assert pages
+    page = pages[0]
+    shown, rest = page.split('<details class="expand more-items">')
+    assert "Item number 8<" in shown and "Item number 9<" not in shown
+    assert "<summary>Show 4 more items</summary>" in rest and "Item number 9<" in rest and "Item number 12<" in rest
+
+
+def test_dates_this_year_leave_out_the_year():
+    with i18n.use("en"):
+        assert build_site.format_date("2026-10-19", "weekday_month_day") == "Monday, October 19"
+
+
+def test_day_headings_say_the_year_only_for_another_year(site_dir):
+    page = (site_dir / "meetings" / "index.html").read_text()
+    headings = re.findall(r'<h3 class="day-heading" id="day-(\d{4})-[^"]+"><time[^>]*>([^<]+)</time>', page)
+    assert headings
+    for year, said in headings:
+        assert (year in said) == (year != "2026"), said
+
+
+def test_the_footer(site_dir, config):
+    """The footer says what the site is in one paragraph and links the city's own website; the date is in the strip
+    at the top."""
+    home = (site_dir / "index.html").read_text()
+    footer = home[home.index("<footer"):]
+    assert "An independent site, not affiliated with or endorsed by the City of Gloucester." in footer
+    assert f'href="{config["town"]["official_site"]}"' in footer and "City of Gloucester website" in footer
+    assert "Updated <time" not in footer
+    assert '<time class="topline-date"' in home[:home.index("<main")]
