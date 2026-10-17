@@ -327,15 +327,194 @@ def test_a_translation_the_review_flags_isnt_shown(tmp_path):
     assert translate.shown(tmp_path, "es", sha, english, record["kind"])
 
 
-def test_a_translation_from_an_older_prompt_isnt_shown(tmp_path):
+def older(tmp_path, **changes):
+    """Every saved translation as if an older prompt had made it, with changes."""
+    for sha, record in translations(tmp_path).items():
+        translate.path(tmp_path, "es", sha).write_text(json.dumps({**record, "prompt_version": translate.VERSION - 1,
+                                                                   **changes}))
+
+
+def english_of(tmp_path, sha):
+    return json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
+
+
+class Rendering(FakeAnthropic):
+    """The stand-in, with its translations writing one phrase as another (a glossary term as given)."""
+
+    def __init__(self, phrase, wording, **kwargs):
+        super().__init__(**kwargs)
+        create = self.messages.create
+
+        def rendered(**request):
+            response = create(**request)
+            for block in response.content:
+                block.text = block.text.replace(phrase, wording)
+            return response
+        self.messages.create = rendered
+
+
+def test_a_translation_from_an_older_prompt_that_passes_is_shown_and_kept(tmp_path):
+    """Raising VERSION makes nothing again and hides nothing: a translation an older prompt made,
+    from the English as it is now, that passes the checks as they are now, stays."""
     config = spanish_town(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
-    sha, record = next(iter(translations(tmp_path).items()))
-    english = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
-    assert translate.shown(tmp_path, "es", sha, english, record["kind"])
-    translate.path(tmp_path, "es", sha).write_text(json.dumps({**record, "prompt_version": translate.VERSION - 1}))
-    assert translate.shown(tmp_path, "es", sha, english, record["kind"]) is None
+    older(tmp_path)
+    before = translations(tmp_path)
+    for sha, record in before.items():
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"]) == record
+        assert translate.current(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"]) == record
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+    assert translation_calls(client) == [] and translations(tmp_path) == before
+
+
+def test_a_translation_from_an_older_prompt_that_fails_a_glossary_term_is_made_again(tmp_path):
+    """An older translation that doesn't write a glossary term as given now is made again, and stays
+    hidden (the English shown) until a translation passes."""
+    config = spanish_town(tmp_path)
+    term = {"en": {"definition": "A drawing of a project."}, "es": {"term": "site plan", "definition": "Un plano."}}
+    config["terms"] = {"site plan": term}
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    older(tmp_path, attempts=2)
+    before = translations(tmp_path)
+    config["terms"] = {"site plan": {**term, "es": {"term": "plano del sitio", "definition": "Un plano."}}}
+    terms = translate.glossary.entries(config)
+    # Those whose English uses the term ("site plan", "Site Plans") fail now, and aren't shown.
+    uses = {sha for sha, r in before.items()
+            if translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), r["kind"], terms) is None}
+    assert uses and len(uses) < len(before)
+    assert all("isn't written" in translate.what_failed(tmp_path, before[sha], english_of(tmp_path, sha),
+                                                         before[sha]["kind"], "es", terms) for sha in uses)
+    # Made again (still writing "site plan", so failing), and still not shown; the others are kept. (An older
+    # document's is tried twice in a run: once among the older summaries, again after the older documents.)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] >= len(uses)
+    after = translations(tmp_path)
+    assert all(after[sha] == before[sha] for sha in before if sha not in uses)
+    for sha in uses:
+        assert after[sha]["prompt_version"] == translate.VERSION and after[sha]["attempts"] in (1, 2)
+        assert after[sha]["check"].endswith('"site plan" isn\'t written "plano del sitio"') and "previous" not in after[sha]
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), after[sha]["kind"], terms) is None
+    # A try that writes the term as given is shown; those that have had their tries aren't made again.
+    second = {sha for sha in uses if after[sha]["attempts"] == 1}
+    assert second
+    rendering = Rendering("site plan", "plano del sitio")
+    rendering.messages.create = (lambda create: lambda **request: create(**{**request, "messages": [
+        {**m, "content": m["content"].replace("Site plan", "site plan")} for m in request["messages"]]}))(
+        rendering.messages.create)
+    assert summarize.run(config, rendering, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(second)
+    for sha in uses:
+        shown = translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), before[sha]["kind"], terms)
+        assert bool(shown) == (sha in second)
+        assert not shown or ("plano del sitio" in json.dumps(shown, ensure_ascii=False) and shown["attempts"] == 2)
+
+
+def test_a_changed_english_summary_is_translated_again_whatever_made_its_translation(tmp_path):
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    older(tmp_path)
+    sha, record = next((s, r) for s, r in translations(tmp_path).items() if r["kind"] == "minutes")
+    file = tmp_path / "summaries" / f"{sha}.json"
+    file.write_text(json.dumps({**json.loads(file.read_text()), "headline": "Approved a site plan for 14 Main St."}))
+    # Not shown: it isn't a translation of this English.
+    assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), "minutes") is None
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 1
+    remade = translations(tmp_path)[sha]
+    assert "14 Main St" in remade["headline"] and remade["prompt_version"] == translate.VERSION and remade["attempts"] == 1
+    assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), "minutes") == remade
+
+
+def test_remake_below_makes_older_translations_again_and_keeps_them_shown_until_then(tmp_path, monkeypatch):
+    """REMAKE_BELOW, raised on purpose, makes every translation older than it again, passing or not;
+    each stays shown until a new one passes, and a new one that fails has its tries."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    older(tmp_path)
+    before = translations(tmp_path)
+    monkeypatch.setattr(translate, "REMAKE_BELOW", translate.VERSION)
+    assert all(translate.current(tmp_path, "es", sha, english_of(tmp_path, sha), r["kind"]) is None for sha, r in before.items())
+    flagged = lambda: FakeAnthropic(review_problems=[{"id": "headline", "problem": "a wrong word"}])
+    first = flagged()
+    # (An older document's is tried twice in a run: once among the older summaries, again after the older documents.)
+    made = summarize.run(config, first, tmp_path, limit=50, now=FETCHED_AT)["translated"]
+    # Each made again as a first try, not as a correction of the one that passed.
+    corrections = [c for c in translation_calls(first) if "didn't pass a check" in c["messages"][0]["content"]]
+    assert made > len(before) and len(corrections) == made - len(before)
+    once = set()
+    for sha, record in translations(tmp_path).items():
+        assert record["review"] == "headline: a wrong word" and record["prompt_version"] == translate.VERSION
+        once |= {sha} if record["attempts"] == 1 else set()
+        # The one it replaced is still shown.
+        shown = translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"])
+        assert shown["prompt_version"] == translate.VERSION - 1 and shown["headline"] == before[sha]["headline"]
+        assert not translate.failed(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"])
+    # Its second try fails too: the older one stays shown, and nothing is made a third time.
+    assert once and summarize.run(config, flagged(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(once)
+    for sha, record in translations(tmp_path).items():
+        assert record["attempts"] == 2 and record["previous"]["generated_at"] == before[sha]["generated_at"]
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"])["prompt_version"] \
+            == translate.VERSION - 1
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+    # Once the glossary changes, a new try passes and takes its place.
+    config["terms"] = {"M.G.L.": "Massachusetts General Laws."}
+    config["terms"]["Select Board"] = SELECT_BOARD[0]["languages"]
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(before)
+    terms = translate.glossary.entries(config)
+    for sha, record in translations(tmp_path).items():
+        assert "previous" not in record and record["review"] == "ok"
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"], terms) == record
+
+
+def test_tries_are_still_counted_for_each_glossary_whatever_the_prompt_version(tmp_path):
+    """An older translation that failed has the tries it had left with this glossary, no more: one
+    that's had them isn't made again because VERSION went up."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(review_problems=[{"id": "summary", "problem": "a wrong word"}]), tmp_path,
+                  limit=50, now=FETCHED_AT)
+    shas = sorted(translations(tmp_path))
+    older(tmp_path)
+    spent = shas[:5]
+    for sha in spent:
+        file = translate.path(tmp_path, "es", sha)
+        file.write_text(json.dumps({**json.loads(file.read_text()), "attempts": translate.ATTEMPTS}))
+    flagged = FakeAnthropic(review_problems=[{"id": "summary", "problem": "a wrong word"}])
+    assert summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(shas) - len(spent)
+    after = translations(tmp_path)
+    assert all(after[sha]["attempts"] == 2 and after[sha]["prompt_version"] == translate.VERSION
+               for sha in shas if sha not in spent)
+    assert all(after[sha]["prompt_version"] == translate.VERSION - 1 for sha in spent)
+    assert all(translate.failed(tmp_path, "es", sha, english_of(tmp_path, sha), after[sha]["kind"]) for sha in shas)
+    assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+
+
+def test_drafts_from_an_older_prompt_stay_until_remake_below_says_otherwise(tmp_path, monkeypatch):
+    config = spanish_town(tmp_path)
+    config["strings"] = {}
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    file = translate.strings_path(tmp_path, "es")
+    saved = json.loads(file.read_text())
+    saved["drafts"] = {en: {**d, "prompt_version": translate.NAMES_VERSION - 1} for en, d in saved["drafts"].items()}
+    file.write_text(json.dumps(saved))
+    shown = translate.drafts(tmp_path, "es")
+    assert shown and set(shown) == set(saved["drafts"])
+    drafting = lambda client: [c for c in client.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == 0 and not drafting(client)
+    # Raised on purpose: drafted again; one the review flags leaves the older draft shown.
+    monkeypatch.setattr(translate, "NAMES_REMAKE_BELOW", translate.NAMES_VERSION)
+    flagged = FakeAnthropic(review_problems=[{"id": "0", "problem": "a wrong title"}])
+    assert summarize.run(config, flagged, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == len(shown)
+    after = translate.saved_drafts(tmp_path, "es")["drafts"]
+    wrong = [en for en, d in after.items() if d["check"] == "review: a wrong title"]
+    assert len(wrong) == 1 and after[wrong[0]]["previous"]["prompt_version"] == translate.NAMES_VERSION - 1
+    assert translate.drafts(tmp_path, "es") == shown
+    assert all(d["prompt_version"] == translate.NAMES_VERSION for d in after.values())
+    # It has a second try, and then isn't drafted again; the older draft stays shown.
+    again = FakeAnthropic(review_problems=[{"id": "0", "problem": "a wrong title"}])
+    assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == 1
+    assert translate.saved_drafts(tmp_path, "es")["drafts"][wrong[0]]["attempts"] == 2
+    assert translate.drafts(tmp_path, "es") == shown
+    third = FakeAnthropic()
+    assert summarize.run(config, third, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == 0 and not drafting(third)
 
 
 def test_a_run_drafts_the_towns_own_text_and_the_site_shows_it(tmp_path, monkeypatch):
