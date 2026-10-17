@@ -1102,7 +1102,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         from pipeline.build_site import needed_texts
         try:
             needed = needed_texts(config, data_dir, lang, now)
-            texts = needed["config"] + needed["data"]
+            texts = needed["config"] + needed["data"] + translate.drafts_to_remake(data_dir, lang)
             if texts:
                 # Past the budget too, up to DRAFT_FLOOR: a few texts cost a fraction of a cent, and
                 # without them a page shows English.
