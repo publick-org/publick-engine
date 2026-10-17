@@ -1,5 +1,6 @@
-"""How each summary was checked against its document (factcheck.how_checked), and the line that says so
-on its meeting's page, beside its line in lists, in the digest, the feed, and the open data export."""
+"""How each summary was checked against its document (factcheck.how_checked), and where that's said: in its
+credit on its meeting's page, in the digest, the feed, and the open data export; a list of meetings warns of a
+summary not checked."""
 
 import json
 import re
@@ -82,17 +83,18 @@ LINES = {
 
 
 @pytest.mark.parametrize("record, kind, how", STATES)
-def test_line_on_the_meeting_page(record, kind, how):
-    """The line in the summary's credit says how it was checked, in words, and links how summaries are checked."""
+def test_credit_on_the_meeting_page(record, kind, how):
+    """The summary's credit says how it was checked, in words, and links how summaries are checked; a summary not
+    checked says so first."""
     html = env().from_string('{% from "macros.html" import ai_credit %}{{ ai_credit(kind, "https://city.example/a.pdf", '
                              '"/report", record=r) }}').render(r=record, kind=kind)
-    line = re.search(r'<p class="checked" data-checked="(\w+)">(.*?)</p>', html, re.S)
-    assert line and line.group(1) == how
-    said = text(line.group(2))
-    assert said.startswith(LINES[how])
-    assert '<a href="/about/#checks">How summaries are checked</a>' in line.group(2)
-    # One line, before the credit itself.
-    assert html.count('class="checked"') == 1 and html.index('class="checked"') < html.index("Summary written by AI")
+    credit = re.search(r'<div class="credit" data-checked="(\w+)">\s*<p>(.*?)</p>', html, re.S)
+    assert credit and credit.group(1) == how
+    said = text(credit.group(2))
+    assert LINES[how] in said and said.count("Summary written by AI") == 1
+    assert said.startswith("Not checked.") == (how == "none")
+    assert '<a href="/about/#checks">How summaries are checked</a>' in credit.group(2)
+    assert 'href="/report"' in html
     if how == "ai":
         assert "share a mistake" in said
     if how == "none" and record.get("prompt_version") == 2 and record.get("fact_check"):
@@ -101,20 +103,21 @@ def test_line_on_the_meeting_page(record, kind, how):
         assert "hasn't been compared with the city's document" in said
 
 
-def test_no_line_without_a_summary():
-    html = env().from_string('{% from "macros.html" import checked_line %}{{ checked_line("agenda", none) }}').render()
-    assert html.strip() == ""
+def test_no_check_said_without_a_summary():
+    html = env().from_string('{% from "macros.html" import ai_credit %}{{ ai_credit("agenda", "/a.pdf", "/report") }}').render()
+    assert "data-checked" not in html and "Checked" not in html and "Not checked" not in html
 
 
 @pytest.mark.parametrize("how, label", [
-    ("pdf", "AI summary, checked against the city's PDF"),
-    ("partial", "AI summary, partly checked against the city's PDF"),
-    ("ai", "AI summary, checked against an AI transcription"),
+    ("pdf", "AI summary"),
+    ("partial", "AI summary"),
+    ("ai", "AI summary"),
     ("none", "AI summary, not checked"),
     (None, "AI summary"),
 ])
 def test_label_in_lists(how, label):
-    """A meeting's line in a list (the home page, a board's page, the digest) says how its summary was checked."""
+    """A meeting's line in a list (the home page, a board's page) says its summary is AI's, and warns when it wasn't
+    checked; the meeting's page says how it was."""
     e = env()
     e.globals["today"] = "2026-10-14"
     m = {"date": "2026-10-07", "start_time": None, "url": "/meetings/x/", "body": "Planning Board", "title": "Planning Board",
@@ -127,16 +130,16 @@ def test_label_in_lists(how, label):
 
 @pytest.mark.parametrize("how", ["pdf", "partial", "ai", "none"])
 def test_in_spanish(how):
-    """Each state has its Spanish, on the meeting page and in lists."""
+    """Each state has its Spanish, on the meeting page and in the digest's lists."""
     record = next(r for r, kind, h in STATES if h == how and kind == "minutes")
     e = env()
     with i18n.use("es"):
-        line = e.from_string('{% from "macros.html" import checked_line %}{{ checked_line("minutes", r) }}').render(r=record)
+        credit = e.from_string('{% from "macros.html" import ai_credit %}{{ ai_credit("minutes", "/a.pdf", "/report", record=r) }}').render(r=record)
         label = e.from_string('{% from "macros.html" import ai_summary_label %}{{ ai_summary_label(how) }}').render(how=how)
         short = build_site.checked_short(how)
     assert {"pdf": "Verificado con el PDF de la ciudad.", "partial": "Verificado en parte con el PDF de la ciudad.",
-            "ai": "Verificado con una transcripción hecha con IA.", "none": "Sin verificar."}[how] in text(line)
-    assert "Cómo se verifican los resúmenes" in line
+            "ai": "Verificado con una transcripción hecha con IA.", "none": "Sin verificar."}[how] in text(credit)
+    assert "Cómo se verifican los resúmenes" in credit
     words = {"pdf": "verificado con el PDF de la ciudad", "partial": "verificado en parte con el PDF de la ciudad",
              "ai": "verificado con una transcripción hecha con IA", "none": "sin verificar"}[how]
     assert label == "Resumen hecho con IA, " + words
@@ -154,8 +157,8 @@ def test_preview_source():
 
 
 def test_built_site(site_dir):
-    """In the fixture town's build: each summary's credit has its line, the line agrees with the
-    export, and the feed and the digest say how each summary was checked."""
+    """In the fixture town's build: each summary's credit says how it was checked, as the export does, and
+    the feed and the digest say so too."""
     export = json.loads((site_dir / "data" / "meetings.json").read_text())
     states = {}
     for row in export["meetings"]:
@@ -169,8 +172,8 @@ def test_built_site(site_dir):
             page = page or (site_dir / row["url"].split("/", 3)[3] / "index.html").read_text()
             assert f'data-checked="{summary["checked"]}"' in page
         if page:
-            # One line in each credit.
-            assert page.count('class="checked"') == page.count('<div class="credit">')
+            # Each summary's credit says how it was checked.
+            assert page.count('<div class="credit" data-checked="') >= 1
     assert states
     feed = ET.parse(site_dir / "feed.xml").getroot()
     said = [d.text for d in feed.iter("description") if d.text and "(AI summary of the" in d.text]

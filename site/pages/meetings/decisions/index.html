@@ -40,8 +40,16 @@
   <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {{ report_button(report_link(page_url, "Decisions page"), _("Report an error in a decision")) }}
 </div>
+{# The latest two months in full; each earlier one folded under its name, with how many meetings it has, so the page
+   stays short however many months it has. #}
 {% for month, items in group_by(meetings.decided, "month") %}
+{% if loop.index == 3 %}<h2 id="earlier">{{ _("Earlier months") }}</h2>{% endif %}
+{% if loop.index <= 2 %}
 <h2 id="m-{{ month[:7] }}">{{ month | date("month") }}</h2>
+{% else %}
+<details class="expand month-fold" id="m-{{ month[:7] }}">
+<summary><span class="month-name">{{ month | date("month") }}</span> <span class="item-detail">{% trans count=items | length, num=items | length | number %}{{ num }} meeting{% pluralize %}{{ num }} meetings{% endtrans %}</span></summary>
+{% endif %}
 <ul class="decision-list">
   {% for m in items %}
   {% set ds = m.decisions %}
@@ -68,6 +76,7 @@
   </li>
   {% endfor %}
 </ul>
+{% if loop.index > 2 %}</details>{% endif %}
 {% endfor %}
 <ul class="link-row">
   <li><a href="/meetings/data/decisions.csv" download>{{ _("Download all decisions (CSV)") }}</a></li>

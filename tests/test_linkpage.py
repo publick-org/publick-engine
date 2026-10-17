@@ -336,7 +336,7 @@ def test_site_shows_the_districts_meetings(config, data_dir, tmp_path, monkeypat
     shown = {m["id"]: m for m in build_site.load_meetings(data, BUILT_AT.date())["all"]}
 
     page = (out / "meetings" / shown["page-2026-09-25-policy-subcommittee"]["slug"] / "index.html").read_text()
-    assert "Minutes on Google Drive" in page and "Agenda on Google Drive" in page
+    assert "Minutes posted on Google Drive" in page and "Agenda posted on Google Drive" in page
     assert "known from the <a" in page and "Methuen Public Schools website" in page
     assert "Not listed on the city calendar" not in page
     about = (out / "about" / "index.html").read_text()

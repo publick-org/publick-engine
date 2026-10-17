@@ -208,7 +208,7 @@ def test_the_signup_is_where_readers_are(site_dir):
     # The first under the heading, before the week's meetings and the street lookup; the second with the ways to
     # keep up, which don't link the digest the form signs up for.
     assert home.index("<h1>") < home.index('id="home-signup"') < home.index('id="coming-up"') < home.index('id="home-street"')
-    keep_up = home[home.index('id="keep-up"'):home.index('id="explore"')]
+    keep_up = home[home.index('id="keep-up"'):home.index("<footer")]
     assert 'id="home-signup-end"' in keep_up and 'href="/feed.xml"' in keep_up and 'href="/digest/">' not in keep_up
     for meeting_page in sorted((site_dir / "meetings").glob("20*/index.html")):
         page = meeting_page.read_text()
@@ -259,23 +259,13 @@ def test_a_town_without_a_digest_shows_no_signup(data_dir, monkeypatch):
     assert not (out / "digest" / "thanks").exists() and not (out / "es" / "digest").exists()
 
 
-def test_recently_decided_says_when_new_minutes_came_out(data_dir, site_dir):
-    """On the home page, minutes collected after the site's first day say when; the history, collected
-    the first day, doesn't."""
-    def decided(site: Path) -> str:
-        home = (site / "index.html").read_text()
-        return home[home.index('id="decided"'):home.index('id="numbers"')]
-
-    assert "Minutes posted" in decided(site_dir) and "Minutes posted by" not in decided(site_dir)
-    base = Path(tempfile.mkdtemp(prefix="publick-digest-"))
-    shutil.copytree(data_dir, base / "data")
-    path = base / "data" / "meetings" / "meetings.json"
-    store = json.loads(path.read_text())
-    newest = next(m for m in store.values() if m["date"] == "2026-09-17" and m["minutes"])
-    newest["minutes"][-1]["fetched_at"] = "2026-09-30T06:00:00-04:00"
-    path.write_text(json.dumps(store))
-    build_site.build("gloucester", base / "site", data_dir=base / "data", now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
-    assert decided(base / "site").count("Minutes posted by Sep 30") == 1
+def test_recently_decided_says_what_was_decided_not_when(site_dir):
+    """On the home page, a decided meeting's line says its minutes are posted and marks a committee's
+    recommendation, without the weekday and time beside its date."""
+    home = (site_dir / "index.html").read_text()
+    decided = home[home.index('id="decided"'):home.index('id="numbers"')]
+    assert "Minutes posted" in decided and "Minutes posted by" not in decided
+    assert not re.search(r"(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[,·<]", decided)
 
 
 def test_the_about_page_says_what_the_signup_keeps(site_dir):

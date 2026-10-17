@@ -201,7 +201,7 @@ def test_site_shows_the_portals_meetings(config, data_dir, tmp_path, monkeypatch
     shown = {m["id"]: m for m in build_site.load_meetings(data, BUILT_AT.date())["all"]}
 
     page = (out / "meetings" / shown["opengov-1093108"]["slug"] / "index.html").read_text()
-    assert "Minutes on the Open Meetings portal" in page and "Agenda on the Open Meetings portal" in page
+    assert "Minutes posted on the Open Meetings portal" in page and "Agenda posted on the Open Meetings portal" in page
     assert "This meeting on the state's Open Meetings portal" in page
     about = (out / "about" / "index.html").read_text()
     assert "<strong>School Committee meetings, agendas, and minutes:</strong> the Rhode Island Secretary of State" in about
