@@ -346,15 +346,18 @@ test("the Worker's module exports only its handler", async () => {
 
 const SIGNUP_MANIFEST = { ...MANIFEST, files: { ...MANIFEST.files, "digest/thanks/index.html": entry("thanks") } };
 
-// Buttondown's API, recorded: each call's method, path, headers and body; answers from `answers` ("METHOD path" -> [status, body]).
+// Buttondown's API, recorded: each call's method, path, headers and body; answers from `answers` ("METHOD path" ->
+// [status, body], or a function of the call giving one).
 function fakeButtondown(answers) {
   const calls = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const path = url.replace("https://api.buttondown.com/v1", "");
     const method = init.method || "GET";
-    calls.push({ method, path, headers: init.headers, body: init.body ? JSON.parse(init.body) : null });
-    const [status, body] = answers[`${method} ${path}`] || [500, { detail: "not expected" }];
+    const call = { method, path, headers: init.headers, body: init.body ? JSON.parse(init.body) : null };
+    calls.push(call);
+    const answer = answers[`${method} ${path}`] || [500, { detail: "not expected" }];
+    const [status, body] = typeof answer === "function" ? answer(call) : answer;
     return new Response(JSON.stringify(body), { status });
   };
   return { calls, restore: () => { globalThis.fetch = realFetch; } };
@@ -445,6 +448,44 @@ test("an address that isn't one, a missing key, or Buttondown failing: the 'didn
   }
   // The Worker's logs say what failed, never whose address it was.
   assert.deepEqual(logged, ["Digest signup on t.publick.org: adding a subscriber: HTTP 400 email_invalid"]);
+});
+
+// Buttondown's firewall: blocks a signup, unless it's sent past the firewall, up to its limit (429).
+const BLOCKED = [400, { code: "subscriber_blocked", detail: "reader@example.org was blocked" }];
+const firewall = (past) => (call) => (call.headers["X-Buttondown-Bypass-Firewall"] === "true" ? past : BLOCKED);
+
+test("a signup Buttondown's firewall blocks is sent once more past it", async () => {
+  const { response, calls } = await signUp({ [LOOKUP]: [404, {}], "POST /subscribers": firewall([201, {}]) });
+  assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  assert.equal(calls.length, 3);
+  assert.equal(calls[1].headers["X-Buttondown-Bypass-Firewall"], undefined);
+  assert.equal(calls[2].headers["X-Buttondown-Bypass-Firewall"], "true");
+  assert.deepEqual(calls[2].body, calls[1].body);
+  // An address already there keeps its collision behavior past the firewall.
+  const { response: tagged, calls: again } = await signUp({ [LOOKUP]: [200, { type: "regular" }],
+    "POST /subscribers": firewall([201, {}]) });
+  assert.equal(tagged.headers.get("Location"), "https://t.publick.org/digest/thanks/");
+  assert.equal(again.length, 3);
+  assert.equal(again[2].headers["X-Buttondown-Collision-Behavior"], "add");
+  assert.equal(again[2].headers["X-Buttondown-Bypass-Firewall"], "true");
+});
+
+test("a signup blocked past the firewall too, or failing otherwise, isn't sent again", async () => {
+  const logged = [];
+  const realError = console.error;
+  console.error = (message) => logged.push(message);
+  try {
+    const { response, calls } = await signUp({ [LOOKUP]: [404, {}],
+      "POST /subscribers": firewall([429, { code: "rate_limited" }]) });
+    assert.equal(response.headers.get("Location"), "https://t.publick.org/digest/problem/");
+    assert.equal(calls.length, 3);
+    const { calls: invalid } = await signUp({ [LOOKUP]: [404, {}], "POST /subscribers": [400, { code: "email_invalid" }] });
+    assert.equal(invalid.length, 2);
+  } finally {
+    console.error = realError;
+  }
+  assert.deepEqual(logged, ["Digest signup on t.publick.org: adding a subscriber: HTTP 429 rate_limited",
+                            "Digest signup on t.publick.org: adding a subscriber: HTTP 400 email_invalid"]);
 });
 
 test("only the town's own pages can sign someone up", async () => {
