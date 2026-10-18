@@ -16,6 +16,7 @@ minutes; a revised file is published under a new number.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from urllib.parse import quote
 
@@ -92,7 +93,9 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
             # The agenda and minutes stay on the portal for now; this links to them once posted.
             "documents_url": url if e.get("publishedFiles") else None,
         }
-        event.update(parse_name(e.get("eventName", ""), boards, aliases))
+        # The portal can put the event's recurrence before its name: "One Time EventJoint Public Hearing ...".
+        name = re.sub(r"^\s*one[ -]time event\s*", "", e.get("eventName") or "", flags=re.I)
+        event.update(parse_name(name, boards, aliases))
         if api_url:
             event.update(documents(e, api_url))
         events.append(event)

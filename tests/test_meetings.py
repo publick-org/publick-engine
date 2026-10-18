@@ -26,6 +26,28 @@ def test_parse_title(title, expected):
     assert (t["title"], t["body"], t["status"], t["special"]) == expected
 
 
+# A city's calendars can write each meeting's date, or who else it's posted for, into its name.
+@pytest.mark.parametrize("title, body", [
+    ("Planning Board Meeting, December 17, 2026", "Planning Board"),
+    ("Board of Health Meeting 10/13/2026", "Board of Health"),
+    ("Food Policy Council Meeting 10/5/2026", "Food Policy Council"),
+    ("City Council Regular Meeting October 8, 2026", "City Council"),
+    ("Affordable Housing Trust Meeting, November 16, 2026 ( from 10/6/2026 regular meeting)", "Affordable Housing Trust"),
+    ("RESCHEDULED TO 10/21/2026 Commission on Disabilities Meeting", "Commission on Disabilities"),
+    ("City Council Committee on Administration and Finance Co-posted with the Committee of the Whole, "
+     "October 8, 2026", "City Council Committee on Administration and Finance"),
+    ("City Council Committee on Ordinances, Licenses and Legal Affairs co-posted COW October 15, 2026",
+     "City Council Committee on Ordinances, Licenses and Legal Affairs"),
+    ("Tuesday, Oct. 6 Conservation Commission", "Conservation Commission"),
+    ("Planning Board 2026-11-05", "Planning Board"),
+    # A number that isn't a date stays: a ward, or a year in a board's own name.
+    ("Ward 2 Neighborhood Association", "Ward 2 Neighborhood Association"),
+    ("America 250 Committee", "America 250 Committee"),
+])
+def test_parse_title_leaves_dates_out_of_the_board(title, body):
+    assert civicplus.parse_title(title)["body"] == body
+
+
 @pytest.mark.parametrize("value, expected", [
     ("06:00 PM - 11:59 PM", ("18:00", None)),       # CivicPlus default end time means "not given"
     ("06:30 PM - 08:30 PM", ("18:30", "20:30")),
