@@ -15,9 +15,10 @@
 // (bounced, marked as spam) is left alone. Every one is answered the same
 // way, so the form never says whether an address is subscribed. Buttondown is
 // given the reader's IP address, for its firewall, which flags an address
-// submitting many signups: the form has no CAPTCHA. With SIGNUP_LIMITER bound,
-// the Worker also limits how often one IP address, and one email address, can
-// sign up (withinLimits).
+// submitting many signups: the form has no CAPTCHA. A signup the firewall blocks
+// is sent once more past it (postSubscriber). With SIGNUP_LIMITER bound, the
+// Worker also limits how often one IP address, and one email address, can sign
+// up (withinLimits).
 //
 // Sending: on each DIGEST_CRON trigger the scheduler reads each town in
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
@@ -80,16 +81,20 @@ async function ok(response, what) {
   return response;
 }
 
+// Buttondown's code for an error ("email_invalid"), or "" for none.
+async function errorCode(response) {
+  try {
+    return String((await response.json()).code || "").replace(/[^a-z_]/g, "");
+  } catch {
+    return "";
+  }
+}
+
 // As ok(), for a reader's address: the error names Buttondown's code alone, never its text, which
 // may quote the address, so the Worker's logs keep none.
 async function okQuietly(response, what) {
   if (response.ok) return response;
-  let code = "";
-  try {
-    code = String((await response.json()).code || "").replace(/[^a-z_]/g, "");
-  } catch {
-    // No code to give.
-  }
+  const code = await errorCode(response);
   throw new Error(`${what}: HTTP ${response.status}${code ? ` ${code}` : ""}`);
 }
 
@@ -104,6 +109,26 @@ export function tagName(town, lang) {
 
 // ---- Signing up -------------------------------------------------------------
 
+// Buttondown's firewall blocks a signup it judges suspicious (subscriber_blocked), as it does every
+// signup from an IP address that has made several lately: a household's, or one a mobile network
+// shares among many phones. A blocked signup is sent once more with this header, which skips the
+// firewall, and which Buttondown allows five times an hour (then 429). The Worker's own checks (the
+// hidden field, withinLimits) have already passed, and the address must still confirm.
+export const BYPASS_FIREWALL = "X-Buttondown-Bypass-Firewall";
+
+// Posts a subscriber, and, if the firewall blocks it, once more past the firewall.
+async function postSubscriber(key, fields, headers, what) {
+  const post = (extra) => buttondown(key, "/subscribers", {
+    method: "POST", headers: { ...headers, ...extra }, body: JSON.stringify(fields),
+  });
+  let response = await post({});
+  if (response.status === 400 && (await errorCode(response.clone())) === "subscriber_blocked") {
+    console.log(`Digest signup: ${what} was blocked by Buttondown's firewall, so it's sent again past it`);
+    response = await post({ [BYPASS_FIREWALL]: "true" });
+  }
+  return okQuietly(response, what);
+}
+
 // Adds an address to the newsletter with a town's tag, as the top of this file says.
 // Returns what was done: "added", "tagged", "confirm_again", or "left_alone".
 export async function addSubscriber(key, email, tag, { ip = null, referrer = "" } = {}) {
@@ -111,7 +136,7 @@ export async function addSubscriber(key, email, tag, { ip = null, referrer = "" 
   const found = await buttondown(key, `/subscribers/${encodeURIComponent(email)}`);
   if (found.status === 404) {
     // Unconfirmed, the default: Buttondown asks the address to confirm.
-    await okQuietly(await buttondown(key, "/subscribers", { method: "POST", body: JSON.stringify(fields) }), "adding a subscriber");
+    await postSubscriber(key, fields, {}, "adding a subscriber");
     return "added";
   }
   const subscriber = await (await okQuietly(found, "looking up a subscriber")).json();
@@ -119,11 +144,8 @@ export async function addSubscriber(key, email, tag, { ip = null, referrer = "" 
   const again = CONFIRM_AGAIN.includes(subscriber.type);
   // "add" merges the tag into the subscriber's others. Without a type it would also take back an
   // unsubscribe, unasked, so one who left (or never confirmed) is asked to confirm again.
-  await okQuietly(await buttondown(key, "/subscribers", {
-    method: "POST",
-    headers: { "X-Buttondown-Collision-Behavior": "add" },
-    body: JSON.stringify({ ...fields, ...(again ? { type: "unactivated" } : {}) }),
-  }), "tagging a subscriber");
+  await postSubscriber(key, { ...fields, ...(again ? { type: "unactivated" } : {}) },
+    { "X-Buttondown-Collision-Behavior": "add" }, "tagging a subscriber");
   return again ? "confirm_again" : "tagged";
 }
 
