@@ -73,6 +73,10 @@ def load(data_dir):
     ("Board of Water Commissioners Meeting", "Board of Water Commissioners", False, "scheduled"),
     ("Central Business Service District (CBSD) Advisory Board", "Central Business Service District Advisory Board", False, "scheduled"),
     ("Special Meeting of the Heritage Commission - Site Walk", "Heritage Commission", True, "scheduled"),
+    # Not listed, with the meeting's date in its name.
+    ("City Council Regular Meeting June 11, 2026", "City Council", False, "scheduled"),
+    ("Airport Commission 9-2-26", "Airport Commission", False, "scheduled"),
+    ("Mayor's Veterans Council Meeting, 03/09/26", "Mayor's Veterans Council", False, "scheduled"),
 ])
 def test_parse_name(name, body, special, status):
     parsed = parse_name(name, BOARDS, ALIASES)
@@ -124,6 +128,14 @@ def test_civicclerk_events():
     assert events["civicclerk-1970"]["documents_url"] is None
     assert civicclerk.next_page(data) is None
     assert "skiptoken" in civicclerk.next_page(json.loads((FIXTURES / "civicclerk_events_1.json").read_text()))
+
+
+def test_civicclerk_event_name_without_its_recurrence():
+    data = {"value": [{"id": 7, "startDateTime": "2026-09-09T18:30:00Z", "publishedFiles": [],
+                       "eventName": "One Time EventJoint Public Hearing with the Planning Board September 9, 2026"}]}
+    event = civicclerk.parse_events(data, PORTAL)[0]
+    assert event["title"] == "Joint Public Hearing with the Planning Board September 9, 2026"
+    assert event["body"] == "Joint Public Hearing with the Planning Board"
 
 
 def test_civicclerk_events_url():

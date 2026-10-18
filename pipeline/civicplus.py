@@ -31,6 +31,29 @@ STATUS_WORDS = {
 }
 
 
+# A date written into a meeting's name, which isn't part of the board's: "Planning Board Meeting,
+# December 17, 2026", "Board of Health Meeting 10/13/2026", or what's left of "RESCHEDULED TO
+# 10/21/2026 Commission on Disabilities Meeting" once its status word is taken out.
+MONTHS = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?"
+          r"|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
+WEEKDAYS = r"(?:mon|tue|tues|wed|wednes|thu|thur|thurs|fri|sat|satur|sun)(?:day)?"
+DATE_IN_NAME = re.compile(
+    rf"(?:\b(?:on|for|to)\s+)?(?:\b{WEEKDAYS}\.?,?\s+)?"
+    rf"(?:\b{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+\d{{4}}\b)?"
+    r"|(?<![\d/.-])\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})(?![\d/.-])"
+    r"|(?<!\d)\d{4}-\d{2}-\d{2}(?!\d))", re.I)
+# A committee's meeting posted as the full council's too, so a quorum of it may attend: "Committee on
+# Administration and Finance co-posted with the Committee of the Whole". The meeting is the committee's.
+CO_POSTED = re.compile(r"\s*,?\s*\bco-?posted\b.*$", re.I)
+
+
+def board_part(name: str) -> str:
+    """A meeting's name without what says when, or who else it's posted for, rather than which board:
+    'Planning Board Meeting, December 17, 2026' -> 'Planning Board Meeting'."""
+    name = CO_POSTED.sub("", DATE_IN_NAME.sub(" ", name))
+    return re.sub(r"\s{2,}", " ", re.sub(r"^[\s,\-–:]+|[\s,\-–:]+$", "", name))
+
+
 def clean_text(value: str | None) -> str:
     if not value:
         return ""
@@ -58,8 +81,9 @@ def parse_title(title: str) -> dict:
     special = bool(re.search(r"\bspecial\b", name, re.I))
     # The board, without what the clerk added after it ("Planning Board - Public
     # Hearing", "License Board Meeting - Agenda - October 1, 2026") or in brackets
-    # ("Community Preservation Committee (CPC)"), or the kind of meeting.
-    body = re.split(r"\s+[-–]+\s+", re.sub(r"\s*\([^)]*\)", "", name))[0]
+    # ("Community Preservation Committee (CPC)"), its date (board_part), or the kind
+    # of meeting.
+    body = re.split(r"\s+[-–]+\s+", board_part(re.sub(r"\s*\([^)]*\)", "", name)))[0]
     body = re.sub(r"^regular\s+", "", body, flags=re.I)
     body = re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$", "", body, flags=re.I)
     body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip() or name
