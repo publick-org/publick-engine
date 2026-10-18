@@ -219,6 +219,24 @@ def test_meeting_pages_say_why_something_is_missing(site_dir):
             assert 'data-gap="not_posted"' not in html, f"{path.relative_to(site_dir)}: says minutes are coming for a meeting not held"
 
 
+# A date in a board page's address: "planning-board-meeting-december-17-2026", "board-of-health-meeting-10-13-2026".
+BOARD_DATE = re.compile(r"(?:^|-)(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*-\d{1,2}"
+                        r"|\d{1,2}-\d{1,2}-(?:\d{2}|\d{4}))(?:-|$)")
+
+
+def test_no_board_is_named_for_a_date(site_dir):
+    """A board's name says who meets, not when. A listing whose date stayed in its board's name
+    ("Planning Board Meeting, December 17, 2026") makes a board page for that one meeting.
+    pipeline.civicplus.board_part takes the dates it recognizes out; another needs an entry in the
+    town's [meetings.aliases]."""
+    html = (site_dir / "meetings" / "boards" / "index.html")
+    if not html.exists():
+        pytest.skip("No Boards page.")
+    slugs = set(re.findall(r'href="/meetings/boards/([^/"]+)/"', html.read_text(encoding="utf-8")))
+    dated = sorted(s for s in slugs if BOARD_DATE.search(s))
+    assert not dated, "board pages named for a date:\n" + "\n".join(f"/meetings/boards/{s}/" for s in dated)
+
+
 def test_officials_page_says_why_there_is_no_ward_map(site_dir, config):
     """A ward map missing from a town with wards is explained; a town with none says nothing."""
     from pipeline import officials
