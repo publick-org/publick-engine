@@ -258,6 +258,7 @@ def vt_site(vt_figures, tmp_path, data_dir, monkeypatch):
 def test_vermont_pages(vt_site):
     budget = (vt_site / "budget" / "index.html").read_text()
     assert "Property Valuation and Review" in budget and "Division of Local Services" not in budget
+    assert "<title>Burlington, VT city budget and 2025 property tax rate</title>" in budget
     assert "$1.5264" in budget and "$10,043" in budget and "76.25%" in budget and "5,674 homesteads" in budget
     assert "%%" not in budget, "a percent sign doubled in a {% trans %} block"
     for name in ("tax-rates", "taxes-raised", "grand-list"):

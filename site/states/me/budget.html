@@ -2,8 +2,13 @@
 {% from "macros.html" import figures_dash, calculated %}
 {% from "charts.html" import chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
-{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and property tax rate{% endtrans %}{% endblock %}
+{# The year of the rate the page leads with, as searches for the rate name it; the bare title until there are figures. #}
+{% block head_title %}{% if budget and budget.rates %}
+{#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(year)s the tax rate's tax year, such as "2026". -#}
+{% trans town=town.name, state=town.state_abbr, year=budget.rates[-1].tax_year %}{{ town }}, {{ state }} city budget and {{ year }} property tax rate{% endtrans %}
+{%- else %}
+{#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
+{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and property tax rate{% endtrans %}{% endif %}{% endblock %}
 {% block description %}{% if state.source("tax_bill", config) %}{% trans town=town.name %}{{ town }}'s property tax rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% else %}{% trans town=town.name %}{{ town }}'s property tax rate and what the property tax raises.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">

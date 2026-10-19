@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% from "charts.html" import year_columns, bars, chart_links %}
 {% block title %}{{ _("City budget") }}{% endblock %}
-{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget: revenue and spending{% endtrans %}{% endblock %}
+{# The fiscal year of the spending the page leads with, as searches for a budget name it. #}
+{% block head_title %}{% if budget and budget.spending %}
+{#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(year)s the fiscal year of the latest spending figures, such as "2026". -#}
+{% trans town=town.name, state=town.state_abbr, year=budget.spending[-1].fiscal_year %}{{ town }}, {{ state }} FY {{ year }} city budget: revenue and spending{% endtrans %}
+{%- else %}
+{#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
+{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget: revenue and spending{% endtrans %}{% endif %}{% endblock %}
 {% block description %}{% trans town=town.name %}Where {{ town }}'s general fund money comes from and how it is spent, from the city's filings with the state.{% endtrans %}{% endblock %}
 {% block content %}
 <div class="page-head">
