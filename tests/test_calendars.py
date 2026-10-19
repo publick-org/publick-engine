@@ -138,6 +138,14 @@ def test_civicclerk_event_name_without_its_recurrence():
     assert event["body"] == "Joint Public Hearing with the Planning Board"
 
 
+def test_civicclerk_event_named_only_for_its_recurrence():
+    """An event named "One Time Event" and nothing else is its category's board."""
+    data = {"value": [{"id": 9764, "startDateTime": "2026-09-23T18:00:00Z", "publishedFiles": [],
+                       "eventName": "One Time Event", "categoryName": "Peaks Island Council"}]}
+    event = civicclerk.parse_events(data, PORTAL)[0]
+    assert (event["title"], event["body"]) == ("Peaks Island Council", "Peaks Island Council")
+
+
 def test_civicclerk_events_url():
     assert (civicclerk.events_url("https://x.api.civicclerk.com/v1/", date(2026, 1, 1))
             == "https://x.api.civicclerk.com/v1/Events?$filter=startDateTime%20ge%202026-01-01&$orderby=startDateTime")
