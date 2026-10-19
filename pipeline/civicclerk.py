@@ -93,8 +93,11 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
             # The agenda and minutes stay on the portal for now; this links to them once posted.
             "documents_url": url if e.get("publishedFiles") else None,
         }
-        # The portal can put the event's recurrence before its name: "One Time EventJoint Public Hearing ...".
-        name = re.sub(r"^\s*one[ -]time event\s*", "", e.get("eventName") or "", flags=re.I)
+        # The portal can put the event's recurrence before its name: "One Time EventJoint Public Hearing ...",
+        # or give it as the whole name, the board then only in the event's category ("Peaks Island Council").
+        raw = e.get("eventName") or ""
+        name = (re.sub(r"^\s*one[ -]time event\s*", "", raw, flags=re.I)
+                or (e.get("categoryName") or "").strip() or raw)
         event.update(parse_name(name, boards, aliases))
         if api_url:
             event.update(documents(e, api_url))
