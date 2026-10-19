@@ -381,6 +381,7 @@ def me_site(me_figures, tmp_path, data_dir, monkeypatch):
 def test_maine_pages(me_site):
     budget = (me_site / "budget" / "index.html").read_text()
     assert "Calculated by Publick." in budget and "6,510 single-family homes" in budget
+    assert "<title>Lewiston, ME city budget and 2024 property tax rate</title>" in budget
     assert "$31.77" in budget and "$3,436" in budget and "54% of market value" in budget
     assert "Maine Revenue Services" in budget and "Division of Local Services" not in budget
     assert (me_site / "budget" / "data" / "tax-rates.csv").read_text().startswith("tax_year,tax_rate,")

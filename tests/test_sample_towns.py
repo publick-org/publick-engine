@@ -10,6 +10,7 @@ these towns fails here before it reaches their sites."""
 
 import copy
 import inspect
+import re
 import shutil
 from datetime import datetime
 from types import SimpleNamespace
@@ -282,7 +283,7 @@ def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
     assert "Not listed on the" not in finance and "calendar" not in finance
     assert "This meeting's agenda in the City of Malden's Agenda Center" in finance
     # Its description is the agenda's summary; the time read from the agenda is the event's for search engines.
-    assert '<meta name="description" content="AI summary of the agenda: ' in finance
+    assert re.search(r'<meta name="description" content="[^"]+ \(AI summary\)">', finance)
     assert '"startDate":"2026-09-29T18:30:00-04:00"' in finance
 
 

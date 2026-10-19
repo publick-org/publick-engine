@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite %}
+{% from "search_text.html" import when_where, with_ai_label %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {# A meeting's name: its board's, and the kind of meeting where its listing says (pipeline/meeting_names.py). #}
@@ -36,7 +37,8 @@
 {# What a search result shows under the title, in at most about 155 characters: for a meeting to come, when and where,
    then what's on its agenda (the summary's headline, or its items); for one past, what it decided (its final decisions,
    or else its recommendations, or the headline). Only what the page itself shows: a summary as its fact check leaves it
-   (factcheck.shown), said to be by AI, and none shown in English on another language's page. #}
+   (factcheck.shown), said to be by AI after it, where a result shows the words that matter first, and none shown in
+   English on another language's page. #}
 {% block description %}
 {% set ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes", True) and not m.minutes_summary.get("english") else none %}
 {% set pv = m.preview if m.preview and not m.preview.get("english") else none %}
@@ -44,11 +46,12 @@
 {% set decided = (m.decisions.decided or m.decisions.recommended) if ms else [] %}
 {% set agenda_items = pv["items"] if pv and pv.get("items") else [] %}
 {% macro listed(entries) %}{% for e in entries %}{{ e.rstrip(".") }}{% if not loop.last %}; {% endif %}{% endfor %}.{% endmacro %}
-{% set place = m.location_name or (m.address or m.location) | street %}
+{% set from_minutes = ms and (decided or ms.get("headline")) %}
+{% set from_agenda = not from_minutes and pv and (agenda_items or pv.get("headline")) %}
 {% set text %}
-{% if upcoming %}{{ m.date | date("short") | capitalize_first }}{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% if place %}, {{ place }}{% endif %}. {% endif %}
-{%- if ms and (decided or ms.get("headline")) %}{% trans headline=listed(decided) if decided else ms.headline %}AI summary of the minutes: {{ headline }}{% endtrans %}
-{%- elif pv and (agenda_items or pv.get("headline")) %}{% trans headline=pv.headline or listed(agenda_items) %}AI summary of the agenda: {{ headline }}{% endtrans %}
+{% if upcoming %}{{ when_where(m) }}. {% endif %}
+{%- if from_minutes %}{{ listed(decided) if decided else ms.headline }}
+{%- elif from_agenda %}{{ pv.headline or listed(agenda_items) }}
 {%- elif upcoming %}{{ _("How to attend, and the agenda.") }}
 {%- else %}
 {# Translators: %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community". #}
@@ -60,7 +63,10 @@
 {% else %}{% trans when=m.date | date %}{{ what }} on {{ when }}: location, how to attend, and agenda.{% endtrans %}
 {% endif %}
 {% endif %}
-{% endset %}{{ text | fit(155) }}{% endblock %}
+{% endset %}
+{%- if from_minutes %}{{ with_ai_label(text, how_checked(ms, "minutes")) }}
+{%- elif from_agenda %}{{ with_ai_label(text, how_checked(pv, "agenda")) }}
+{%- else %}{{ text | fit(155) }}{% endif %}{% endblock %}
 {# For search engines, the meeting's name says the town, unless its board's does: "City Council, Gloucester – Oct 19, 2026". #}
 {% set event_name = named(m.board_name) if town.name.lower() in m.body_en.lower() else named(m.board_name) ~ ", " ~ town.name %}
 {% block structured_data %}{{ structured(event(m, canonical_url, meeting_name(event_name, m.date | date("mon_day_year")), self.description()),
