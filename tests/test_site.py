@@ -328,6 +328,8 @@ def test_plain_text():
 def test_budget_page(site_dir):
     page = (site_dir / "budget" / "index.html").read_text()
     assert "$140.6M" in page and "Fiscal year 2025" in page
+    # The fiscal year of the spending it leads with, as searches for a budget name it.
+    assert "<title>Gloucester, MA FY 2025 city budget: revenue and spending</title>" in page
     assert "State median $4,297" in page
     assert 'href="/budget/"' in (site_dir / "index.html").read_text()
     spending = (site_dir / "budget" / "data" / "spending.csv").read_text().splitlines()
@@ -734,21 +736,45 @@ def structured_data(path) -> list[dict]:
 
 
 def test_meeting_descriptions_lead_with_the_summary_and_say_it_is_ai(site_dir):
-    """A search result shows the description on its own: for a past meeting, what it decided, said to be from
-    an AI summary; for one to come, when and where, then what's on its agenda. At most 155 characters."""
+    """A search result shows the description on its own: for a past meeting, what it decided; for one to come,
+    when and where, then what's on its agenda; either said to be an AI summary after it, where a result shows the
+    words that matter first, and never cut. At most 155 characters."""
     meetings = site_dir / "meetings"
     page = (meetings / "2026-07-14-city-council" / "index.html").read_text()
-    assert '<meta name="description" content="AI summary of the minutes: Approved the site plan for 12 Main St.">' in page
+    assert '<meta name="description" content="Approved the site plan for 12 Main St. (AI summary)">' in page
     upcoming = (meetings / "2026-10-07-city-council-planning-and-development-committee" / "index.html").read_text()
-    assert ('<meta name="description" content="Wed, Oct 7, 6:00 PM, City Council Committee Room. AI summary of the agenda: '
-            'ADA compliance with the city&#39;s operations director and a draft plan for…">') in upcoming
+    assert ('<meta name="description" content="Wed, Oct 7, 6:00 PM, City Council Committee Room. ADA compliance with the '
+            'city&#39;s operations director and a draft plan for recruiting a… (AI summary)">') in upcoming
+    descriptions = {p: html.unescape(re.search(r'<meta name="description" content="([^"]*)"', p.read_text()).group(1))
+                    for p in meetings.glob("20*/index.html")}
+    summarized = [d for d in descriptions.values() if "AI summary" in d]
+    assert summarized and all(re.search(r" \(AI summary(, not checked)?\)$", d) for d in summarized)
     # A meeting with no summary says what the page has.
-    plain = [p.read_text() for p in meetings.glob("20*/index.html") if "AI summary of the" not in p.read_text()]
-    assert plain and all(re.search(r'<meta name="description" content="(?:[^"]+ on \w+day, |\w{3}, \w{3} \d+[^"]*How to attend)', p)
-                         for p in plain)
-    for p in meetings.glob("20*/index.html"):
-        description = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', p.read_text()).group(1))
+    plain = [d for d in descriptions.values() if "AI summary" not in d]
+    assert plain and all(re.search(r"^(?:.+ on \w+day, |\w{3}, \w{3} \d+.*How to attend)", d) for d in plain)
+    for p, description in descriptions.items():
         assert len(description) <= 155, p
+
+
+def test_board_descriptions_say_the_next_meeting_and_what_the_page_has(site_dir):
+    """A board's search result says when it meets next and what's on the agenda, said to be an AI summary, or else
+    what the page has, from when; at most 155 characters, and never the town's name twice."""
+    boards = site_dir / "meetings" / "boards"
+    def description(slug):
+        page = (boards / slug / "index.html").read_text()
+        return html.unescape(re.search(r'<meta name="description" content="([^"]*)"', page).group(1))
+    assert description("conservation-commission") == (
+        "Next meeting: Wed, Oct 7, 5:30 PM, City Council Committee Room. ADA compliance with the city's operations "
+        "director and a draft plan for… (AI summary)")
+    # With no agenda summary yet, the next meeting and then what the page has.
+    assert description("school-committee") == (
+        "Next meeting: Wed, Oct 14. Meetings of the Gloucester School Committee since August 2026, with agendas and minutes.")
+    # With no meeting to come, what the page has.
+    assert description("city-council") == "Meetings of the Gloucester City Council since July 2026, with agendas and minutes."
+    assert description("gloucester-retirement-board") == (
+        "Meetings of the Gloucester Retirement Board since September 2026, with agendas and minutes.")
+    for page in boards.glob("*/index.html"):
+        assert len(description(page.parent.name)) <= 155, page
 
 
 def test_meetings_are_events_for_search_engines(site_dir):
@@ -772,7 +798,7 @@ def test_meetings_are_events_for_search_engines(site_dir):
     assert event["eventAttendanceMode"] == "https://schema.org/MixedEventAttendanceMode"
     assert event["location"][0]["address"]["addressLocality"] == "Gloucester"
     assert event["location"][1]["@type"] == "VirtualLocation"
-    assert event["description"].startswith("AI summary of the agenda: ")
+    assert event["description"].endswith(" (AI summary)")
     # A meeting is an event only when the page says where it is.
     for slug, item in events.items():
         assert item["location"], slug

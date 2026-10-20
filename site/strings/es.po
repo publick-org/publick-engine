@@ -628,6 +628,13 @@ msgstr "%(town)s, %(state)s: solicitudes al 311 en el distrito %(ward)s"
 msgid "%(town)s, %(state)s 311 requests: %(category)s"
 msgstr "%(town)s, %(state)s: solicitudes al 311, %(category)s"
 
+#. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
+#. as "MA", and %(year)s the fiscal year of the latest spending figures, such as "2026".
+#: site/states/ma/budget.html
+#, python-format
+msgid "%(town)s, %(state)s FY %(year)s city budget: revenue and spending"
+msgstr "%(town)s, %(state)s: presupuesto municipal del año fiscal %(year)s, ingresos y gastos"
+
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
 #: site/pages/meetings/search/index.html
@@ -641,6 +648,27 @@ msgstr "%(town)s, %(state)s: buscar en agendas y actas"
 #, python-format
 msgid "%(town)s, %(state)s boards, commissions, and committees"
 msgstr "%(town)s, %(state)s: juntas, comisiones y comités"
+
+#. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
+#. as "MA", and %(year)s the tax rate's tax year, such as "2026".
+#: site/states/me/budget.html site/states/nh/budget.html site/states/vt/budget.html
+#, python-format
+msgid "%(town)s, %(state)s city budget and %(year)s property tax rate"
+msgstr "%(town)s, %(state)s: presupuesto e impuesto a la propiedad de %(year)s"
+
+#. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
+#. as "MA", and %(year)s the mill rate's fiscal year, such as "2026".
+#: site/states/ct/budget.html
+#, python-format
+msgid "%(town)s, %(state)s city budget and FY %(year)s mill rate"
+msgstr "%(town)s, %(state)s: presupuesto municipal y mill rate del año fiscal %(year)s"
+
+#. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
+#. as "MA", and %(year)s the tax rate's fiscal year, such as "2026".
+#: site/states/ri/budget.html
+#, python-format
+msgid "%(town)s, %(state)s city budget and FY %(year)s property tax rate"
+msgstr "%(town)s, %(state)s: presupuesto e impuesto a la propiedad del año fiscal %(year)s"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -1647,16 +1675,6 @@ msgstr "Resúmenes hechos con IA"
 #: site/templates/macros.html
 msgid "AI summary"
 msgstr "Resumen hecho con IA"
-
-#: site/templates/meeting.html
-#, python-format
-msgid "AI summary of the agenda: %(headline)s"
-msgstr "Resumen de la agenda hecho con IA: %(headline)s"
-
-#: site/templates/meeting.html
-#, python-format
-msgid "AI summary of the minutes: %(headline)s"
-msgstr "Resumen de las actas hecho con IA: %(headline)s"
 
 #: site/templates/macros.html
 msgid "AI summary, checked against an AI transcription"
@@ -4509,6 +4527,34 @@ msgstr ""
 msgid "Meetings from %(start)s, to %(end)s."
 msgstr ""
 
+#. %(board)s is a board's name that includes its town's, such as "Gloucester Retirement Board", and
+#. %(month)s a month and year, such as "January 2026".
+#: site/templates/board.html
+#, python-format
+msgid "Meetings of the %(board)s since %(month)s, with agendas and minutes."
+msgstr "%(board)s: reuniones desde %(month)s, con sus agendas y actas."
+
+#. %(board)s is a board's name that includes its town's, such as "Gloucester Retirement Board", and
+#. %(month)s a month and year, such as "January 2026".
+#: site/templates/board.html
+#, python-format
+msgid "Meetings of the %(board)s since %(month)s, with agendas."
+msgstr "%(board)s: reuniones desde %(month)s, con sus agendas."
+
+#. %(town)s is the town, %(board)s a board's name, such as "City Council", and %(month)s a month and
+#. year, such as "January 2026".
+#: site/templates/board.html
+#, python-format
+msgid "Meetings of the %(town)s %(board)s since %(month)s, with agendas and minutes."
+msgstr "%(board)s de %(town)s: reuniones desde %(month)s, con sus agendas y actas."
+
+#. %(town)s is the town, %(board)s a board's name, such as "City Council", and %(month)s a month and
+#. year, such as "January 2026".
+#: site/templates/board.html
+#, python-format
+msgid "Meetings of the %(town)s %(board)s since %(month)s, with agendas."
+msgstr "%(board)s de %(town)s: reuniones desde %(month)s, con sus agendas."
+
 #. %(month)s is a month and year, such as "January 2026".
 #: site/templates/board.html
 #, python-format
@@ -4835,6 +4881,11 @@ msgstr "Próxima reunión: %(when)s"
 #, python-format
 msgid "Next meeting: %(when)s at %(time)s"
 msgstr "Próxima reunión: %(when)s a las %(time)s"
+
+#: site/templates/board.html
+#, python-format
+msgid "Next meeting: %(when)s."
+msgstr "Próxima reunión: %(when)s."
 
 #: site/states/ma/schools.html
 msgid ""
@@ -8125,12 +8176,6 @@ msgstr "Al día. Próximos datos: %(next)s."
 msgctxt "meetings"
 msgid "Upcoming"
 msgstr "Próximas reuniones"
-
-#. %(town)s is the town and %(board)s a board's name, such as "City Council".
-#: site/templates/board.html
-#, python-format
-msgid "Upcoming and past meetings of the %(town)s %(board)s, with agendas."
-msgstr "%(board)s de %(town)s: reuniones próximas y pasadas, con sus agendas."
 
 #. %(town)s is the town and %(state)s its state's abbreviation, such as "MA".
 #: site/pages/meetings/index.html

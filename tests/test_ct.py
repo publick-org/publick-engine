@@ -263,6 +263,8 @@ def test_connecticut_schools_page(ct_site):
 def test_connecticut_budget_page(ct_site):
     budget = (ct_site / "budget" / "index.html").read_text()
     assert "Office of Policy and Management" in budget and "Division of Local Services" not in budget
+    # Searches for the rate name its year, so the title does: the year of the rate the page leads with.
+    assert "<title>Wallingford, CT town budget and FY 2027 mill rate</title>" in budget
     assert "24.57" in budget and "27.47" in budget and "$7,414" in budget and "$204.1M" in budget
     assert "%%" not in budget, "a percent sign doubled in a {% trans %} block"
     assert "Calculated by Publick." in budget and "10,492 single-family homes" in budget
