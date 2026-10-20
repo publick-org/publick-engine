@@ -270,6 +270,73 @@ def test_counts_that_arent_votes():
     assert factcheck.votes_for_against("Paper 200-26 was referred") is None
 
 
+def test_counts_written_with_names_or_in_words_and_figures():
+    # Nashua's roll calls: each count after its names.
+    assert factcheck.votes_for_against("Yea: Alderman Thibeault, Alderman O’Brien, Alderwoman Kelly 7 Nay: 0") == (7, 0)
+    assert factcheck.votes_for_against("Yea: Alderman Thibeault, Alderwoman Kelly 6 Nay: Alderman Johnson 1 MOTION CARRIED") == (6, 1)
+    # Salem's boards: in words, with the figure after.
+    assert factcheck.votes_for_against("The vote is four (4) in favor (Nina Vyedin, Christa McGaha, Stephen Larrick, "
+                                       "and Peter Habib) and one (1) opposed (Ellen Simpson). The motion passes.") == (4, 1)
+    assert factcheck.votes_for_against("The vote is none (0) in favor and five (5) opposed (Christa McGaha). "
+                                       "The motion does not pass.") == (0, 5)
+    # A dollar amount or an address in a roll call isn't its count.
+    assert factcheck.votes_for_against("Yea: Alderman Gregg $1,500 Nay: 0") is None
+
+
+def test_a_motion_held_to_the_next_meeting_is_continued():
+    # Salem's City Council: an appointment held under its rules.
+    doc = ("#404 Appointment of Alphonse Wright to the Food Policy Council The Mayor's Appointment of Alphonse Wright "
+           "of 23 1/2 Broad Street to the Food Policy Council with a term to expire on November 16, 2028, was held "
+           "until the next meeting, under the rules. #405 Appointment of Catrina Meyer")
+    entry = ("Held the mayor's appointment of Alphonse Wright to the Food Policy Council until the next meeting.", "continued",
+             "The Mayor's Appointment of Alphonse Wright of 23 1/2 Broad Street to the Food Policy Council with a term "
+             "to expire on November 16, 2028, was held until the next meeting, under the rules.")
+    assert [(p["entry"], p["kind"]) for p in decisions(entry, doc=doc)["problems"]] == []
+    # Held, without saying until when, isn't continued.
+    held = doc.replace("until the next meeting, under the rules", "under the rules")
+    quote = entry[2].replace("until the next meeting, under the rules", "under the rules")
+    assert [p["kind"] for p in decisions(("Held the appointment.", "continued", quote), doc=held)["problems"]] == ["outcome"]
+
+
+def test_an_item_sent_on_to_the_full_board_is_referred():
+    # Wallingford's Board of Education committees.
+    doc = ("5.1. Proposed Addition of Second Read (New): Bylaw 9222 - Removal of Board Officers. The committee "
+           "discussed it. This Bylaw will move forward to the full board for consent at their next Board of "
+           "Education Meeting.")
+    entry = ("Moved proposed new Bylaw 9222, Removal of Board Officers, forward for consent at the next meeting.", "referred",
+             "Proposed Addition of Second Read (New): Bylaw 9222 - Removal of Board Officers ... This Bylaw will move "
+             "forward to the full board for consent at their next Board of Education Meeting.")
+    assert [(p["entry"], p["kind"]) for p in decisions(entry, doc=doc)["problems"]] == []
+
+
+def test_a_not_in_a_condition_isnt_a_no():
+    # Nashua's Business and Industrial Development Authority: a three-part motion, approved.
+    doc = ("Rhum Bar: A three-part Motion was made by Dawn: 1. Motion to Accept a one-time payment IF it satisfies 100% "
+           "of the owed principal; 2. If not, a counteroffer is to be made to the borrower; 3. if that is not accepted "
+           "by the borrower, proceed with the scheduled payment plan. Motion was seconded by Christine; all in favor; approved.")
+    entry = ("Approved a three-part motion for the Rhum Bar loan: accept a one-time payment if it satisfies 100% of the "
+             "owed principal; if not, make a counteroffer; if that is not accepted, proceed with the payment plan.",
+             "approved", "Rhum Bar: A three-part Motion was made by Dawn: ... Motion was seconded by Christine; all in favor; approved.")
+    assert [(p["entry"], p["kind"]) for p in decisions(entry, doc=doc)["problems"]] == []
+    # Outside a condition, a "not" still says no.
+    assert factcheck.says_no("The board did not approve the payment plan.")
+    assert not factcheck.says_no("If the payment is not accepted, the plan proceeds.")
+
+
+def test_a_figure_of_the_order_a_vote_adopted_is_near_its_quote():
+    # Salem's City Council: the order's total after the vote that adopted it.
+    doc = ("The following order from the Mayor was adopted by a Roll Call Vote of 10-0-1. ORDERED Per MGL Chapter 44 "
+           "Section 64 which allows for a municipality to pay for prior fiscal year invoices. "
+           + "Department Vendor Amount IT Department AT&T FirstNet $ 317.71 " * 6 + "TOTAL: $9117.71")
+    entry = ("Approved paying $9,117.71 in prior-year invoices, 10-0-1.", "approved",
+             "The following order from the Mayor was adopted by a Roll Call Vote of 10-0-1.")
+    assert [(p["entry"], p["kind"]) for p in decisions(entry, doc=doc)["problems"]] == []
+
+
+def test_an_ordinal_run_into_the_next_word_is_a_date():
+    assert (3, 17, None) in factcheck.document_dates("A motion to approve the March 17thmeeting minutes was made")
+
+
 def test_older_summaries_without_evidence_are_checked_as_before():
     record = {"kind": "minutes", "headline": "", "summary": "", "decisions": [text for text, _, _ in RIGHT]}
     assert factcheck.check(record, "minutes", [COUNCIL])["result"] == "ok"
