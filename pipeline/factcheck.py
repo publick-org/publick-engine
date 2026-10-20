@@ -103,8 +103,11 @@ from pipeline import translate
 
 # 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
 # after the quote; vote counts and who moved it, near the quote; the summary's outcome; names with capitals
-# inside, or after a title (translate.names()). 6: the page each decision's quote is on.
-VERSION = 6
+# inside, or after a title (translate.names()). 6: the page each decision's quote is on. 7: roll calls with
+# names before each count, and counts in words and figures; "held until the next meeting" as continued, and
+# "forward to the full board" as referred; a "not" in a condition isn't a no; a decision's figures to the end
+# of its passage; an ordinal run into the next word.
+VERSION = 7
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
@@ -172,9 +175,9 @@ MONTH = r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(
 # "June 4, 2026", "June 4th", "4 June 2026".
 WRITTEN_DATE = re.compile(rf"\b{MONTH}\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(\d{{4}}))?", re.I)
 FIGURE_DATE = re.compile(r"\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\b")
-# A date as documents write it, typos and all: "August, 3 2026", and "July 323\n14, 2026" in minutes
-# that number their lines.
-LOOSE_DATE = re.compile(rf"\b{MONTH}[\s,.]*(?:\d{{3}}\s+)?(\d{{1,2}})(?:st|nd|rd|th)?\b(?:[\s,.]*(?:\d{{3}}\s+)?(\d{{4}}))?", re.I)
+# A date as documents write it, typos and all: "August, 3 2026", "July 323\n14, 2026" in minutes
+# that number their lines, and an ordinal run into the next word ("the March 17thmeeting minutes").
+LOOSE_DATE = re.compile(rf"\b{MONTH}[\s,.]*(?:\d{{3}}\s+)?(\d{{1,2}})(?:st|nd|rd|th|\b)(?:[\s,.]*(?:\d{{3}}\s+)?(\d{{4}}))?", re.I)
 
 
 def month_number(name: str) -> int:
@@ -474,6 +477,16 @@ FAILED = re.compile(r"\b(?:motion|vote|order|it|amendment|petition|resolution|re
 SAYS_NO = re.compile(FAILED.pattern + r"|\bden(?:y|ied|ies|ying)\b|\bdisapprov\w*|\bdeclin(?:e|ed|ing)\b|"
                      r"\b(?:not|never)\s+(?:to\s+)?(?:approv|adopt|accept|grant|pass|carr|recommend|support|allow|issu|deem|"
                      r"endors|award|appoint|confirm|move|proceed)\w*|n't\s+(?:approv|adopt|accept|grant|pass|carr|recommend)\w*", re.I)
+# A clause that's a condition: "if that is not accepted by the borrower, proceed with the payment plan".
+CONDITION = re.compile(r"\b(?:if|unless|should|in\s+case)\b[^.;:,]*$", re.I)
+
+
+def says_no(text: str) -> bool:
+    """Whether a decision or quote says no (SAYS_NO), outside a condition: Nashua's "a three-part motion: accept
+    a one-time payment if it satisfies 100% of the principal; ... if that is not accepted, proceed" was approved."""
+    return any(not CONDITION.search(text[:m.start()]) for m in SAYS_NO.finditer(text))
+
+
 # A decision that says no, in the model's own words, which are about how it ended: "Rejected a motion to
 # pass ...", "Motion to approve the June 4 minutes failed", "voted down a motion to adopt".
 DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed)|voted\s+down|turned\s+down)\b", re.I)
@@ -481,18 +494,30 @@ DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|d
 SAYS = {
     # "Held in the Finance and Property Committee": a committee keeping an item is tabling it.
     "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*|h[eo]ld)\b|on\s+the\s+table", re.I),
-    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)", re.I),
-    "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b", re.I),
+    # "Held until the next meeting, under the rules": Salem's council, an appointment carried to its next meeting.
+    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)|"
+                            r"\bh[eo]ld\b[^.;]{0,150}?\b(?:until|till|to)\s+(?:the\s+|its\s+)?(?:next|following)\s+(?:\w+\s+)?meeting", re.I),
+    # A committee's item sent on to the body it reports to: "will move forward to the full board for consent"
+    # (Wallingford's Board of Education committees), "forwarded to the full council".
+    "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b|"
+                           r"\bforward(?:ed|s|ing)?\s+(?:\w+\s+){0,3}?(?:to\s+the\s+full\b|for\s+(?:consent|approval|action)\b)", re.I),
     "recommended": re.compile(r"\b(?:recommend\w*|favou?rabl\w*)", re.I),
     "withdrawn": re.compile(r"\bwithdr\w*", re.I),
 }
 # A vote's count in the minutes' words: "5-0", "3 in favor, 2 opposed", "Yea: 10 ... Nay: 1",
-# "In Favor: 2 ... In Opposition: 3", "2 yea to 11 nay".
+# "In Favor: 2 ... In Opposition: 3", "2 yea to 11 nay"; a roll call's names before each count, as
+# Nashua's minutes give it ("Yea: Alderman Thibeault, ... Alderwoman Kelly 6 Nay: Alderman Johnson 1");
+# and each count in words and figures, as Salem's boards give it ("four (4) in favor (Nina Vyedin, ...)
+# and one (1) opposed (Ellen Simpson)", "none (0) in favor and five (5) opposed").
 COUNTS = (
     re.compile(r"(\d{1,2})\s+(?:votes?\s+)?(?:yeas?|yeah|ayes?|yes|in\s+favou?r)(?:\s*\([^)]{0,300}\))?\W+(?:and\s+|to\s+|with\s+)?(\d{1,2})\s+"
                r"(?:votes?\s+)?(?:nays?|noes|no|opposed|against|in\s+opposition)\b", re.I),
     re.compile(r"\b(?:yeas?|ayes?|in\s+favou?r)\s*:\s*(\d{1,2})\b.{0,600}?\b(?:nays?|noes|opposed|(?:in\s+)?opposition)\s*:\s*(\d{1,2})\b",
                re.I | re.S),
+    re.compile(r"\b(?:yeas?|ayes?)\s*:[^\d:]{0,400}?(?<![\d,.])(\d{1,2})\s+(?:nays?|noes)\s*:[^\d:]{0,200}?(?<![\d,.])(\d{1,2})(?![\d,.]\d)",
+               re.I | re.S),
+    re.compile(r"\(\s*(\d{1,2})\s*\)\s+(?:votes?\s+)?in\s+favou?r(?:\s*\([^)]{0,300}\))?\W+(?:and\s+|to\s+|with\s+)?[a-z]+\s*"
+               r"\(\s*(\d{1,2})\s*\)\s+(?:votes?\s+)?(?:opposed|against|in\s+opposition)\b", re.I),
 )
 
 
@@ -739,7 +764,9 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
     doc = located.doc
     away = None
     for s, e in places:
-        near = doc[max(0, s - BEFORE):e + AFTER]
+        # To AFTER past the quote, or to the end of its passage: the order a vote adopted, after the vote
+        # (Salem's council: "adopted by a Roll Call Vote of 10-0-1. ... ORDERED ... TOTAL: $9117.71").
+        near = doc[max(0, s - BEFORE):e + max(AFTER, len(passage(doc, e, quote)))]
         found = facts(near)
         missing = {p["what"] for p in check_text(text, near, *found[:3], words, *found[3:]) if p["kind"] != "tally"} - whole
         away = missing if away is None else away & missing
@@ -771,7 +798,7 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
             problems.append({"kind": "outcome", "what": f"{outcome}, but the minutes say the motion didn't carry"})
         elif failed and not against:
             problems.append({"kind": "outcome", "what": f"{outcome}, but the minutes say the motion didn't carry: {failed[:120]}"})
-        elif outcome == "approved" and (SAYS_NO.search(text) or re.search(r"\bden(?:y|ied|ies)\b", quote, re.I)):
+        elif outcome == "approved" and (says_no(text) or re.search(r"\bden(?:y|ied|ies)\b", quote, re.I)):
             problems.append({"kind": "outcome", "what": "approved, but the decision or the minutes say no"})
         if against and not FAILED.search(quote):
             problems.append({"kind": "outcome", "what": f"{outcome}, but the vote was {counted[0]} for and {counted[1]} against"})
