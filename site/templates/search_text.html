@@ -1,0 +1,15 @@
+{# Text for search results' descriptions, for the pages that write their own (meeting.html, board.html). #}
+{% from "macros.html" import ai_summary_short %}
+
+{# When and where a meeting is, in a search result's description: "Wed, Oct 7, 6:00 PM, City Council Committee Room". #}
+{% macro when_where(m) -%}
+{%- set place = m.location_name or (m.address or m.location) | street -%}
+{{ m.date | date("short") | capitalize_first }}{% if m.start_time %}, {{ m.start_time | time }}{% endif %}{% if place %}, {{ place }}{% endif %}
+{%- endmacro %}
+
+{# A search result's description that ends in an AI summary's line, cut to fit limit with the label saying so,
+   "(AI summary)", kept whole after it. how is how the summary was checked (factcheck.how_checked). #}
+{% macro with_ai_label(text, how, limit=155) -%}
+{%- set label = "(" ~ ai_summary_short(how) ~ ")" -%}
+{{ text | fit(limit - (label | length) - 1) }} {{ label }}
+{%- endmacro %}

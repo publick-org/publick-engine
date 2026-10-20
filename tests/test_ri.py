@@ -331,6 +331,7 @@ def ri_site(ri_figures, tmp_path, data_dir, monkeypatch):
 def test_rhode_island_budget_page(ri_site):
     budget = (ri_site / "budget" / "index.html").read_text()
     assert "Division of Municipal Finance" in budget and "Division of Local Services" not in budget
+    assert "<title>South Kingstown, RI town budget and FY 2026 property tax rate</title>" in budget
     assert "$8.94" in budget and "$12.70" in budget and "$11.05" in budget and "$79.2M" in budget
     assert "$2,474" in budget and "$2,597" in budget and "Fiscal year 2026" in budget
     text = re.sub(r"<[^>]+>", "", budget)
