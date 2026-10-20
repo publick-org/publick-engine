@@ -1029,7 +1029,7 @@ class TownStrings:
 def town_kind(config: dict, data_dir: Path) -> str:
     """Whether the site is a city's or a town's, for its wording (pipeline/i18n.py): [town] kind,
     or the Census Bureau's word for the place (data/place.json), or a city."""
-    if config["town"].get("kind"):
+    if config.get("town", {}).get("kind"):
         return config["town"]["kind"]
     path = data_dir / "place.json"
     return json.loads(path.read_text(encoding="utf-8")).get("kind", "city") if path.exists() else "city"

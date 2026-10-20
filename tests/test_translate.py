@@ -565,9 +565,10 @@ def test_remake_below_makes_older_translations_again_and_keeps_them_shown_until_
         assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"], terms) == record
 
 
-def test_tries_are_still_counted_for_each_glossary_whatever_the_prompt_version(tmp_path):
+def test_tries_are_still_counted_for_each_glossary_whatever_the_prompt_version(tmp_path, monkeypatch):
     """An older translation that failed has the tries it had left with this glossary, no more: one
-    that's had them isn't made again because VERSION went up."""
+    that's had them isn't made again because VERSION went up (RETRY_BELOW not raised with it)."""
+    monkeypatch.setattr(translate, "RETRY_BELOW", translate.VERSION - 1)
     config = spanish_town(tmp_path)
     summarize.run(config, FakeAnthropic(review_problems=[{"id": "summary", "problem": "a wrong word"}]), tmp_path,
                   limit=50, now=FETCHED_AT)
@@ -585,6 +586,49 @@ def test_tries_are_still_counted_for_each_glossary_whatever_the_prompt_version(t
     assert all(after[sha]["prompt_version"] == translate.VERSION - 1 for sha in spent)
     assert all(translate.failed(tmp_path, "es", sha, english_of(tmp_path, sha), after[sha]["kind"]) for sha in shas)
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+
+
+def test_a_translation_that_failed_with_a_prompt_older_than_retry_below_has_its_tries_again(tmp_path, monkeypatch):
+    """RETRY_BELOW, raised with a prompt that fixes what made translations fail: one that failed for good
+    with an older prompt is corrected again, with tries of its own, while one that passes stays."""
+    monkeypatch.setattr(translate, "RETRY_BELOW", translate.VERSION)
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    shas = sorted(translations(tmp_path))
+    older(tmp_path)
+    spent = shas[:5]
+    for sha in spent:
+        file = translate.path(tmp_path, "es", sha)
+        file.write_text(json.dumps({**json.loads(file.read_text()), "attempts": translate.ATTEMPTS,
+                                    "review": "summary: a wrong word"}))
+    assert all(translate.failed(tmp_path, "es", sha, english_of(tmp_path, sha), translations(tmp_path)[sha]["kind"])
+               is False for sha in spent)
+    client = FakeAnthropic()
+    assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(spent)
+    after = translations(tmp_path)
+    assert all(after[sha]["attempts"] == 1 and after[sha]["prompt_version"] == translate.VERSION
+               and after[sha]["review"] == "ok" for sha in spent)
+    assert all(after[sha]["prompt_version"] == translate.VERSION - 1 for sha in shas if sha not in spent)
+    # The correction says what was wrong.
+    assert any("a wrong word" in c["messages"][0]["content"] for c in client.calls)
+
+
+def test_the_translator_is_given_the_spanish_of_each_board_the_summary_names(tmp_path):
+    """The meeting's board, and every other name of the town's the English has, as the site writes it:
+    from [strings.es], the engine's own for boards many towns share, or a draft that passes."""
+    config = spanish_town(tmp_path)
+    config["strings"] = {"es": {"City Council": "Concejo Municipal"}}
+    names = translate.town_names(config, tmp_path, "es")
+    assert names["City Council"] == "Concejo Municipal" and names["Conservation Commission"]
+    source = {"headline": "Sent the plan to the Conservation Commission",
+              "summary": "The City Council and the Planning Board heard it. The Commissioner spoke.", "decisions": []}
+    text = translate.board_names(names, "es", "City Council", source)
+    assert text.startswith('The board is "City Council"; in Spanish, "Concejo Municipal".\n')
+    assert f'"Conservation Commission" = "{names["Conservation Commission"]}"' in text
+    assert f'"Planning Board" = "{names["Planning Board"]}"' in text
+    # Only names the summary has, whole, and the meeting's board once.
+    assert text.count("City Council") == 1 and "Board of Health" not in text
+    assert translate.board_names({}, "es", "City Council", source) == ""
 
 
 def test_drafts_from_an_older_prompt_stay_until_remake_below_says_otherwise(tmp_path, monkeypatch):

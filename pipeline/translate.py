@@ -44,7 +44,10 @@ summary changes, when it fails those checks (a glossary change it no longer
 writes as given, say), with ATTEMPTS of its own for each glossary, or when
 it was made with a prompt older than REMAKE_BELOW, which a prompt change
 raises on purpose when what the older prompts made is known to be wrong in
-a way the checks can't see. Raising VERSION alone makes nothing again. While
+a way the checks can't see. Raising VERSION alone makes nothing again; a
+translation that failed for good with a prompt older than RETRY_BELOW, which
+a prompt change raises when it fixes what made translations fail, gets its
+ATTEMPTS again. While
 a translation is made again, the one it replaces stays shown if it passed,
 until a new one passes ("previous"). summarize.py runs the translations within the same budget as the
 summaries, new documents first, and older documents' before the older English
@@ -85,11 +88,16 @@ from pipeline.files import write_atomic
 
 # The translation prompt's version, saved with each translation. Raise it when the prompt changes
 # (tests/test_prompt_versions.py); that alone makes nothing again (current()).
-VERSION = 5
+VERSION = 6
 # Translations made with a prompt version below this are made again, even those that pass the checks:
 # raise it, with VERSION, only when what the older prompts made is known to be wrong in a way the checks
 # can't catch. Each stays shown until its new translation passes.
 REMAKE_BELOW = 0
+# Translations that failed their checks with a prompt version below this get their ATTEMPTS again; those that
+# pass stay. Raise it, with VERSION, when the prompt fixes what made translations fail: 6 gave the translator
+# the Spanish of each board a summary names, where version 5 kept a board's English name, which the review
+# fails as English left in a Spanish sentence.
+RETRY_BELOW = 6
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -116,7 +124,7 @@ Rules:
 - Keep the neutral tone. No words that judge.
 - Short sentences, about an 8th-grade reading level.
 - Keep every name of a person, business, street, address, and place exactly as written, and keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, and order numbers.
-- Board and committee names: use the translations given below when there are any; otherwise keep the English name.
+- Board and committee names: use the translations given below. A board with none given: its natural {language} name a resident would understand ("Planning Board" = "Junta de Planificación"), never its English name.
 - Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."); when it gives none, put the name first and the role after it ("Scott Houseman, presidente del comité"), or use the role without an article, rather than "el presidente" or "la presidenta".
 - Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
@@ -213,6 +221,11 @@ def made_from(found: dict | None, record: dict, kind: str) -> bool:
     return bool(found) and found.get("source_hash") == source_hash(record, kind)
 
 
+def retry_due(found: dict) -> bool:
+    """Whether a saved translation's failed tries don't count: made with a prompt older than RETRY_BELOW."""
+    return (found.get("prompt_version") or 0) < RETRY_BELOW
+
+
 def to_remake(found: dict) -> bool:
     """Whether a saved translation is made again whether or not it passes: its prompt is older than
     REMAKE_BELOW."""
@@ -222,14 +235,16 @@ def to_remake(found: dict) -> bool:
 def current(data_dir: Path, lang: str, sha256: str, record: dict, kind: str, terms: list[dict] = ()) -> dict | None:
     """The saved translation of this English summary when there's no need to make it again,
     whichever prompt version made it (unless it's older than REMAKE_BELOW): it passes the checks as
-    they are now, or it's had its ATTEMPTS with this glossary (terms: the town's, glossary.entries()).
-    One that fails now only because the glossary changed is made again, with tries of its own."""
+    they are now, or it's had its ATTEMPTS with this glossary (terms: the town's, glossary.entries()) and a
+    prompt from RETRY_BELOW on. One that fails now only because the glossary changed, or that failed with
+    an older prompt, is made again, with tries of its own."""
     found = saved(data_dir, lang, sha256)
     if review_due(data_dir, found, record, kind, lang, terms):
         return None
     if made_from(found, record, kind) and not to_remake(found) and (
             passes(data_dir, found, record, kind, lang, terms) or (
-                found.get("attempts", 1) >= ATTEMPTS and found.get("glossary", "") == glossary_key(terms, lang))):
+                found.get("attempts", 1) >= ATTEMPTS and found.get("glossary", "") == glossary_key(terms, lang)
+                and not retry_due(found))):
         return found
     return None
 
@@ -644,10 +659,30 @@ def languages(config: dict) -> list[str]:
     return [lang for lang in config["site"].get("languages", ["en"]) if lang != "en" and lang in LANGUAGE_NAMES]
 
 
-def board_names(config: dict, lang: str, board: str) -> str:
-    """The board's name in the language, from the town's [strings.<language>], for the prompt."""
-    name = config.get("strings", {}).get(lang, {}).get(board)
-    return f'The board is "{board}"; in {LANGUAGE_NAMES[lang]}, "{name}".\n' if name else ""
+def town_names(config: dict, data_dir: Path, lang: str) -> dict[str, str]:
+    """Names in the language as the town's site writes them, by the same rules (build_site.TownStrings):
+    its config's [strings.<language>], else the engine's own for what many towns share
+    (pipeline/common_strings.py), else a draft that passes (drafts())."""
+    from pipeline import common_strings, i18n
+    from pipeline.build_site import town_kind
+    names = drafts(data_dir, lang)
+    with i18n.use(lang, town_kind(config, data_dir)):
+        names.update({text: i18n.gettext(text) for text in common_strings.TEXTS if i18n.translated(text)})
+    names.update(config.get("strings", {}).get(lang, {}))
+    return names
+
+
+def board_names(names: dict[str, str], lang: str, board: str, source: dict) -> str:
+    """For the prompt: the meeting's board in the language, and each other name of the town's (names:
+    town_names()) the English summary has, as the site writes it, so a board isn't left in English."""
+    text = json.dumps(source, ensure_ascii=False)
+    lines = [f'The board is "{board}"; in {LANGUAGE_NAMES[lang]}, "{names[board]}".'] if board in names else []
+    named = sorted((en for en in names if en != board and en != names[en]
+                    and re.search(rf"(?<!\w){re.escape(en)}(?!\w)", text)), key=len, reverse=True)
+    if named:
+        lines.append(f"Names in this summary, as the town's site writes them in {LANGUAGE_NAMES[lang]}:")
+        lines += [f'- "{en}" = "{names[en]}"' for en in named]
+    return "".join(f"{line}\n" for line in lines)
 
 
 def schema(kind: str) -> dict:
@@ -657,13 +692,16 @@ def schema(kind: str) -> dict:
 
 
 def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
-              previous: dict | None = None, problems: str = "", on_response=None) -> tuple[dict, dict]:
+              previous: dict | None = None, problems: str = "", on_response=None,
+              names: dict[str, str] | None = None) -> tuple[dict, dict]:
     """The model's translation of one English summary, and the tokens it used. previous: an
     earlier translation that failed a check, to correct, and problems: what was wrong with it.
-    on_response, if given, is called with the response and its tokens as soon as it's answered."""
+    on_response, if given, is called with the response and its tokens as soon as it's answered.
+    names: the town's names in the language (town_names()); without them, its config's [strings]."""
     source = english(record, kind)
+    names = config.get("strings", {}).get(lang, {}) if names is None else names
     prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
-                           boards=board_names(config, lang, meeting["body"]),
+                           boards=board_names(names, lang, meeting["body"], source),
                            summary=json.dumps(source, ensure_ascii=False, indent=1))
     if previous:
         prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in FIELDS[kind]}, ensure_ascii=False, indent=1),
@@ -706,8 +744,9 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     # Made again because it failed (whichever prompt version made it): corrected, and counted as another try.
     again = made_from(before, record, kind) and not to_remake(before)
     wrong = what_failed(data_dir, before, record, kind, lang, terms) if again else None
-    # A translation made again because the glossary changed has its own tries.
-    retry = again and before.get("glossary", "") == key
+    # A translation made again because the glossary changed, or after failing with a prompt older than
+    # RETRY_BELOW, has its own tries.
+    retry = again and before.get("glossary", "") == key and not retry_due(before)
     # What's shown now, which stays shown until a new translation passes.
     showing = shown(data_dir, lang, doc["sha256"], record, kind, terms)
     # A translation made again in the month the one before it was (a correction, a changed summary) replaces
@@ -717,7 +756,8 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     answered = []
     try:
         result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
-                                  lambda response, usage: answered.append((response, usage)))
+                                  lambda response, usage: answered.append((response, usage)),
+                                  town_names(config, data_dir, lang))
     except Exception:
         if answered and log:
             response, usage = answered[0]
