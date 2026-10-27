@@ -169,6 +169,25 @@ def test_civicclerk_event_named_only_for_its_recurrence():
     assert (event["title"], event["body"]) == ("Peaks Island Council", "Peaks Island Council")
 
 
+def test_civicclerk_event_named_for_an_item_goes_under_its_category_when_the_town_says_so():
+    """Springfield's portal names some events for their item, not their board ("EVERSOURCE - 41 Oakland St."
+    under Board of Public Works); a name that names a listed board keeps it, whatever the category."""
+    def event(id_, name, category):
+        return {"id": id_, "startDateTime": "2026-09-09T18:30:00Z", "publishedFiles": [], "eventName": name,
+                "categoryName": category}
+    data = {"value": [event(1, "EVERSOURCE - 41 Oakland St.", "Board of Public Works"),
+                      event(2, "License Commission Hearing - October 28, 2026", "Traffic Commission"),
+                      event(3, "Special Meeting - Setting the FY27 Tax Rate", "City Council"),
+                      event(4, "EVERSOURCE GAS - King St.", "General"),
+                      event(5, "Finance Subcommittee", "City Council")]}
+    boards = ["Board of Public Works", "City Council", "License Commission", "Traffic Commission"]
+    filed = [e["body"] for e in civicclerk.parse_events(data, PORTAL, boards, {}, by_category=True)]
+    assert filed == ["Board of Public Works", "License Commission", "City Council", "EVERSOURCE GAS",
+                     "Finance Subcommittee"]
+    # Off, as for every other town: the name alone.
+    assert civicclerk.parse_events(data, PORTAL, boards, {})[0]["body"] == "EVERSOURCE"
+
+
 def test_civicclerk_events_url():
     assert (civicclerk.events_url("https://x.api.civicclerk.com/v1/", date(2026, 1, 1))
             == "https://x.api.civicclerk.com/v1/Events?$filter=startDateTime%20ge%202026-01-01&$orderby=startDateTime")

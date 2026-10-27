@@ -5,7 +5,8 @@ Three measures, each for the district and the state: the four-year graduation
 rate, the chronic absenteeism rate, and the share of students in grades 3 to 8
 meeting or exceeding expectations on MCAS in English and math.
 Writes data/schools/schools.json. Run by python -m pipeline.fetch_schools, for
-a town with a [schools] table.
+a town with a [schools] table. In the network, each measure is fetched once for
+every district (refresh, statewide.py) and a town's steps read its rows from there.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 from pipeline.i18n import N_, _
 from pipeline.rhythms import Part, Rhythm, latest_year, on
+from pipeline.states.ma import statewide
 
 STATE_CODE = "00000000"
 YEARS_KEPT = 8
@@ -62,6 +64,17 @@ def query_url(portal: str, dataset: str, district: str, where: str, value: str) 
     return f"{portal}/resource/{dataset}.json?" + urlencode({"$query": soql})
 
 
+def statewide_url(portal: str, dataset: str, where: str, value: str, since: int) -> str:
+    """A measure for every district (codes ending 0000, as the state's own does) from the school year since."""
+    soql = (f"SELECT sy, org_code, {value} WHERE org_code LIKE '%0000' AND stu_grp = 'All Students' "
+            f"AND {where} AND sy >= '{since}' ORDER BY org_code, sy LIMIT 50000")
+    return f"{portal}/resource/{dataset}.json?" + urlencode({"$query": soql})
+
+
+def measure_file(name: str) -> str:
+    return f"dese/{name}.json"
+
+
 def series(rows: list[dict], district: str, value: str) -> list[dict]:
     """[{year, town, state}] as percentages, oldest first, for years the district has."""
     by_year: dict[int, dict] = {}
@@ -84,7 +97,12 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     portal, district = schools["portal"], schools["district_code"]
     measures = {}
     for name, m in MEASURES.items():
-        rows = client.get(query_url(portal, m["dataset"], district, m["where"], m["value"])).json()
+        saved = statewide.read(measure_file(name))
+        if saved and district in saved["rows"]:
+            rows = [{"sy": year, "org_code": code, m["value"]: v}
+                    for code in (district, STATE_CODE) for year, v in saved["rows"].get(code, {}).items()]
+        else:
+            rows = client.get(query_url(portal, m["dataset"], district, m["where"], m["value"])).json()
         years = series(rows, district, m["value"])
         if not years:
             raise FetchError(f"no {name} figures returned")
@@ -97,3 +115,23 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     }
     save_json(data_dir / "schools" / "schools.json", result)
     return {name: m["years"][-1] for name, m in measures.items()}
+
+
+def refresh(state_dir: Path, configs: list[dict], client, now: datetime) -> dict:
+    """The statewide store's copy of each measure (statewide.py): every district's figures, by
+    district code and school year, fetched once for these towns."""
+    portal, fetched = configs[0]["schools"]["portal"], 0
+    for name, m in MEASURES.items():
+        if not statewide.due(state_dir, measure_file(name), now):
+            continue
+        rows = client.get(statewide_url(portal, m["dataset"], m["where"], m["value"], now.year - YEARS_KEPT - 2)).json()
+        by_district: dict[str, dict] = {}
+        for row in rows:
+            if row.get(m["value"]) not in (None, ""):
+                by_district.setdefault(row["org_code"], {})[row["sy"]] = row[m["value"]]
+        if STATE_CODE not in by_district:
+            raise FetchError(f"no statewide {name} figures returned")
+        statewide.save(state_dir, measure_file(name), statewide.dumps(
+            {"dataset_url": f"{portal}/d/{m['dataset']}"}, dict(sorted(by_district.items()))), now)
+        fetched += 1
+    return {"exports": len(MEASURES), "fetched": fetched}

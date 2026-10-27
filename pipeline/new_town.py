@@ -20,10 +20,20 @@ leaves the rest marked for a person:
    confirm, since the issues listing that showed a city's activity now needs a
    login.
 2. Codes. The BLS area (la.area), and the Census place or town derived from
-   it, in any state; in Massachusetts also the DLS name and DOR code and the
-   DESE district (pipeline/states/ma/lookups.py).
-3. Wards. In Massachusetts, MassGIS's 2022 wards and precincts, written as
-   data/static/<town>-precincts-2022.geojson, laid out as Malden's is.
+   it, in any state; then the state's own codes for [finance] and [schools],
+   from its lookups module (pipeline/states/<st>/lookups.py): Massachusetts's
+   DLS name and DOR code and DESE district, Connecticut's OPM code and EdSight
+   district, New Hampshire's DRA and Department of Education names, Maine's
+   MRS name, parcel GEOCODE and single-family land use, Rhode Island's
+   Division of Municipal Finance name and RIDE district, and Vermont's PVR
+   name and Agency of Education codes. A regional district, or an answer the
+   state's sources don't give, is left for a person, with what was found.
+3. Wards. From a statewide layer, where the state has one: MassGIS's 2022
+   wards and precincts in Massachusetts, NH GRANIT's 2022 voting wards in New
+   Hampshire, RIGIS's 2022 voting precincts in Rhode Island, written to
+   data/static/ laid out as the live towns' files are (population from the
+   layer, or from the 2020 census blocks). Elsewhere, the city's own GIS, by
+   hand.
 4. Officials: an empty skeleton. Never filled in from any source: a person
    does that from the city's own pages.
 5. The config, started from the closest live town (the same meeting platform
@@ -74,15 +84,18 @@ from pipeline import agendacenter, civicclerk, civicplus, fetch_place
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
-from pipeline.meeting_names import words
+from pipeline.meeting_names import parse_name, words
 
 # Names Publick, with an address to write to, as BLS asks of automated requests.
 USER_AGENT = "Publick town helper (+https://publick.org; hello@publick.org)"
 # The New England states, by code: the state's name and its FIPS code.
 STATES = {"CT": ("Connecticut", "09"), "MA": ("Massachusetts", "25"), "ME": ("Maine", "23"),
           "NH": ("New Hampshire", "33"), "RI": ("Rhode Island", "44"), "VT": ("Vermont", "50")}
-# States whose own codes and wards the helper looks up. The rest are marked to fill in.
-LOOKUPS = {"MA": "pipeline.states.ma.lookups"}
+# Portal categories that aren't a board: their meetings are named for the board instead.
+CATCH_ALL = {"general", "other", "miscellaneous", "uncategorized", "meetings", "events"}
+# Each state's own codes and wards, as the helper looks them up (pipeline/states/ma/lookups.py says what each
+# module gives). What a state's sources don't answer is marked to fill in.
+LOOKUPS = {state: f"pipeline.states.{state.lower()}.lookups" for state in STATES}
 FILL_IN = "To fill in:"
 
 BLS_AREAS = "https://download.bls.gov/pub/time.series/la/la.area"
@@ -330,9 +343,18 @@ def read_civicclerk(client, api_url: str, today: date, pages: int = 20) -> list[
 
 
 def categories(town: NewTown) -> Counter:
-    """The boards the platforms list meetings under: the Agenda Center's categories, the portal's."""
+    """The boards the platforms list meetings under: the Agenda Center's categories, the portal's. A portal
+    that files meetings under a catch-all category ("General", Springfield's) gives instead the boards those
+    meetings' names name, each named at least twice."""
     found = Counter(r["category"] for r in town.site.get("agenda_center", []))
-    found.update(e.get("categoryName") or e.get("eventCategoryName") or "" for e in town.site.get("civicclerk", {}).get("events", []))
+    named = Counter()
+    for e in town.site.get("civicclerk", {}).get("events", []):
+        category = (e.get("categoryName") or e.get("eventCategoryName") or "").strip()
+        if category.lower() in CATCH_ALL:
+            named[parse_name(e.get("eventName") or "")["body"]] += 1
+        else:
+            found[category] += 1
+    found.update({name: n for name, n in named.items() if n >= 2})
     found.pop("", None)
     return found
 
@@ -578,9 +600,7 @@ def find_codes(town: NewTown, client, network: Path) -> None:
     housing = codes.get("housing")
     if housing:
         check_census(town, client, housing)
-    lookups = LOOKUPS.get(town.state)
-    if lookups:
-        state_codes(town, client, network, import_module(lookups))
+    state_codes(town, client, network, import_module(LOOKUPS[town.state]))
 
 
 def check_census(town: NewTown, client, housing: dict) -> None:
@@ -604,41 +624,33 @@ def check_census(town: NewTown, client, housing: dict) -> None:
 
 
 def state_codes(town: NewTown, client, network: Path, lookups) -> None:
-    """Massachusetts's DLS name and code and DESE district."""
-    dls = lookups.dls_town(town.name, network / "states" / "ma" / "dls")
-    if dls:
-        town.codes["finance"] = {"dls_municipality": dls["dls_municipality"], "dls_code": dls["dls_code"]}
-        town.found(2, "DLS name and DOR code", f"{dls['dls_municipality']}, {dls['dls_code']}", f"states/ma/dls/{dls['file']}")
-    url = lookups.districts_url(town.name)
+    """The state's own codes for [finance] and [schools], as its lookups module finds them."""
     try:
-        rows = client.get(url).json()
-    except (FetchError, ValueError):
-        rows = []
-    district = lookups.district(town.name, dls and dls["dls_code"], rows)
-    if district:
-        town.codes["schools"] = district
-        town.found(2, "DESE district", f"{district['district_code']} ({district['district_name']})", url)
-    elif rows:
-        town.codes["districts"] = rows
+        found = lookups.codes(town.name, client, network)
+    except (FetchError, ValueError, KeyError) as e:
+        town.note(2, f"The {town.state_name} codes could not be looked up ({e}).")
+        return
+    for what, answer, source in found.get("found", []):
+        town.found(2, what, answer, source)
+    for text in found.get("notes", []):
+        town.note(2, text)
+    town.codes["state"] = found
 
 
 # ---- Step 3: wards ----------------------------------------------------------------------
 
 def find_wards(town: NewTown, client) -> None:
-    lookups = LOOKUPS.get(town.state)
-    if not lookups:
-        return
-    lookups = import_module(lookups)
-    url = lookups.wards_url(town.name)
+    lookups = import_module(LOOKUPS[town.state])
     try:
-        made = lookups.ward_file(town.name, client.get(url).json())
-    except (FetchError, ValueError):
+        made = lookups.wards(town.name, client) if hasattr(lookups, "wards") else None
+    except (FetchError, ValueError, KeyError) as e:
+        town.note(3, f"The {town.state_name} ward file could not be made ({e}).")
         made = None
     if made:
-        text, wards = made
-        count = len(json.loads(text)["features"])
-        town.wards = {"file": f"{town.slug}-precincts-2022.geojson", "text": text, "wards": wards, "map": lookups.MASSGIS_MAP}
-        town.found(3, "Wards and precincts", f"{count} precincts" + ("" if wards else ", no wards"), url)
+        count = len(json.loads(made["text"])["features"])
+        town.wards = {**made, "file": f"{town.slug}-{made['name']}.geojson"}
+        town.found(3, "Wards and precincts", f"{count} precincts" + ("" if made["wards"] else ", no wards"),
+                   made["source"])
 
 
 # ---- Step 5: the config -----------------------------------------------------------------
@@ -826,7 +838,7 @@ def config_text(town: NewTown, short: bool = False) -> Config:
 
     c.table("town", name=town.name, state=town.state_name, state_abbr=town.state, official_site=town.url.rstrip("/"))
     if town.wards and not town.wards["wards"]:
-        c.comment(f"{town.name} has no wards: its areas are its voting precincts (MassGIS's 2022 file has no WARD).")
+        c.comment(f"{town.name} has no wards: its areas are its voting precincts ({town.wards['no_wards']}).")
         c.set(areas="precincts")
 
     c.blank()
@@ -940,9 +952,12 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.set(request_delay=3.0)
     c.set(max_event_pages=10 if short else 40)
     if "civicclerk" in site and town_readers(town) == {"civicclerk"}:
-        boards = sorted({e.get("categoryName") for e in site["civicclerk"]["events"] if e.get("categoryName")})
+        boards = sorted(b for b in categories(town) if b.lower() not in CATCH_ALL)
         c.fill_in(5, "check each of the portal's categories below is a public body, named as the city names it, and "
-                  "leave out any that isn't.")
+                  "leave out any that isn't" + (" (those named for the meetings under its catch-all category, "
+                                                "each named at least twice, included)." if any(
+                      (e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in site["civicclerk"]["events"])
+                      else "."))
         c.lines.append("boards = [")
         c.lines += [f"  {toml(b)}," for b in boards]
         c.lines.append("]")
@@ -994,6 +1009,9 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.table("meetings.civicclerk", api_url=cc["api_url"], portal_url=cc["portal_url"])
         c.comment("Meetings, agendas, and minutes are collected from here on.")
         c.set(since=since.isoformat())
+        if any((e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in cc.get("events", [])):
+            c.set("Most of the portal's meetings are under a catch-all category, and some are named for an item, "
+                  "not a board: those go under the board their category names.", board_from_category=True)
     if "archive" in site and "agenda_center" not in site and "civicclerk" not in site:
         c.table("archive", "Minutes from the city's Archive Center. Minutes for meetings on or after minutes_since are "
                 "collected.", index="Archive.aspx", minutes_since=since.isoformat())
@@ -1053,19 +1071,20 @@ def posted_under(rows: list[dict], boards: list[str] = (), town: str = "", most:
 def config_codes(c: Config, town: NewTown) -> None:
     codes, state = town.codes, town.state
     package = f"pipeline/states/{state.lower()}/__init__.py"
-    if "schools" in codes:
-        c.table("schools", "School district figures from the state's education data portal (DESE).", **codes["schools"])
-    else:
-        c.blank()
-        listed = "; ".join(f"{r['dist_code']} {r['dist_name']}" for r in codes.get("districts", []))
-        c.fill_in(2, f"[schools], the town's school district (the keys in the engine's {package})"
-                  + (f": the portal lists {listed}." if listed else "."))
-    if "finance" in codes:
-        c.table("finance", "Tax bill and budget figures (Mass. Division of Local Services). Some DLS reports take the "
-                "name, others the DOR code.", **codes["finance"])
-    else:
-        c.blank()
-        c.fill_in(2, f"[finance], the state's codes for the town (the keys in the engine's {package}).")
+    lookups = import_module(LOOKUPS[state])
+    found = codes.get("state", {})
+    for table, comment, what in (("schools", lookups.SCHOOLS, "the town's school district"),
+                                 ("finance", lookups.FINANCE, "the state's codes for the town")):
+        todo = found.get(f"{table}_todo")
+        if found.get(table):
+            c.table(table, comment, **found[table])
+            if todo:
+                c.fill_in(2, todo)
+        else:
+            c.blank()
+            c.fill_in(2, todo or f"[{table}], {what} (the keys in the engine's {package}).")
+        if found.get(f"{table}_comment"):
+            c.comment(found[f"{table}_comment"])
 
     housing = codes.get("housing")
     h = shared(town, "housing", "bps_region", "bps_prefix", "state_geo", "shi_url", same_state=True)
@@ -1128,10 +1147,12 @@ def config_officials(c: Config, town: NewTown, governing: str) -> None:
               "calendar or its charter.")
     if town.wards:
         if town.wards["wards"]:
-            c.comment(f"The ward file is data/static/{town.wards['file']} (MassGIS).")
-            c.set(wards_file=town.wards["file"], wards_publisher="MassGIS", wards_year="2022", wards_url=town.wards["map"])
+            c.comment(f"The ward file is data/static/{town.wards['file']} ({town.wards['publisher']}).")
+            c.set(wards_file=town.wards["file"], wards_publisher=town.wards["publisher"], wards_year=town.wards["year"],
+                  wards_url=town.wards["map"])
         else:
-            c.comment(f"No wards: data/static/{town.wards['file']} (MassGIS) has the voting precincts, for 311.")
+            c.comment(f"No wards: data/static/{town.wards['file']} ({town.wards['publisher']}) has the voting "
+                      "precincts, for 311.")
     else:
         c.fill_in(3, "wards_file, the town's wards (ADDING-A-TOWN.md, step 3), or none if every seat is elected "
                   "townwide.")
