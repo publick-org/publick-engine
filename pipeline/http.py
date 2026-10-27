@@ -169,6 +169,14 @@ class PoliteClient:
             self._lane_last[lane.path] = time.monotonic()
 
     def get(self, url: str) -> requests.Response:
+        return self._request(url)
+
+    def post_json(self, url: str, body: dict) -> requests.Response:
+        """A POST of a JSON body, as a web service asks for its answer (a SharpSchool site's
+        listing of a folder), spaced and retried as a GET is."""
+        return self._request(url, body)
+
+    def _request(self, url: str, body: dict | None = None) -> requests.Response:
         last_error, asked = None, None
         parts = urlsplit(url)
         host = parts.hostname or ""
@@ -184,7 +192,8 @@ class PoliteClient:
             self._last = time.monotonic()
             self.request_count += 1
             try:
-                response = self.session.get(url, timeout=self.timeout)
+                response = (self.session.get(url, timeout=self.timeout) if body is None
+                            else self.session.post(url, json=body, timeout=self.timeout))
             except requests.RequestException as e:
                 last_error, asked = e, None
                 continue

@@ -74,7 +74,7 @@
 {% block footer_signup %}{% endblock %}
 {% block content %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
-{% set district = m.source in ("drive", "finalsite", "page", "diligent", "opengov", "ical", "schedule") %}
+{% set district = m.source in ("drive", "finalsite", "page", "sharpschool", "diligent", "opengov", "ical", "schedule") %}
 {% set documents_only = m.source == "archive" or district %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>
@@ -243,7 +243,7 @@
 {% set g = m.minutes_gap %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
 {% set source = g.get("source") %}
-{% if source in ("finalsite", "drive", "page") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
+{% if source in ("finalsite", "drive", "page", "sharpschool") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
 {% elif source == "diligent" %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
 {% elif source == "opengov" %}{% set where_url, where = g.url, _("state's Open Meetings portal") %}
 {% elif source == "meetingdocs" %}{% set where_url, where = g.url, _("city's events calendar") %}
