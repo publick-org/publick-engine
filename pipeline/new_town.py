@@ -133,6 +133,8 @@ CIVICPLUS_COLORS = {"#0098f7", "#ff0000", "#12639d", "#cc3333", "#0b5486", "#fef
 MIN_USES = 10
 # WCAG AA for text on white.
 MIN_CONTRAST = 4.5
+# The site's light gray background (--soft in site/static/css/site.css): the footer, a page's contents.
+SOFT = "#f3f5f8"
 
 
 class BrowserCheck(Exception):
@@ -479,22 +481,34 @@ def _rgb(color: str) -> tuple[float, float, float]:
     return tuple(int(color[i:i + 2], 16) / 255 for i in (1, 3, 5))
 
 
-def contrast(color: str) -> float:
-    """The color's contrast ratio with white (WCAG)."""
+def luminance(color: str) -> float:
     def channel(c):
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     r, g, b = (channel(c) for c in _rgb(color))
-    return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(color: str, background: str = "#ffffff") -> float:
+    """The color's contrast ratio with a background, white unless given (WCAG)."""
+    light, dark = sorted((luminance(color), luminance(background)), reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
+def link_contrast(color: str) -> float:
+    """The primary color's contrast where its links are: on white, on the site's light gray (the
+    footer, a page's contents), and on its own light tint (primary_soft, under a button's hover)."""
+    return min(contrast(color, bg) for bg in ("#ffffff", SOFT, tint(color)))
 
 
 def scaled(color: str, factor: float) -> str:
     return "#" + "".join(f"{round(c * factor * 255):02x}" for c in _rgb(color))
 
 
-def darkened(color: str, target: float = MIN_CONTRAST) -> str:
-    """The color, darker by as little as it takes to reach the target contrast with white."""
+def darkened(color: str, target: float = MIN_CONTRAST, measure=contrast) -> str:
+    """The color, darker by as little as it takes to reach the target contrast (with white, or by
+    measure)."""
     factor = 1.0
-    while contrast(scaled(color, factor)) < target and factor > 0:
+    while measure(scaled(color, factor)) < target and factor > 0:
         factor -= 0.01
     return scaled(color, factor)
 
@@ -526,7 +540,8 @@ def pick_colors(counts: Counter) -> tuple[dict, list[str]] | None:
     """[site.colors] from a site's stylesheets, and how each was chosen. The city's colors are its
     most used colorful ones (not CivicPlus's own). The most used and the next most used of a close hue
     are primary (the lighter) and primary_dark (the darker); accent is the most used of another hue,
-    neither too light nor near black. A color under 4.5:1 on white is darkened until it passes."""
+    neither too light nor near black. A color under 4.5:1 on white is darkened until it passes, and
+    primary until it passes on every background its links are on (link_contrast)."""
     colors = [c for c, n in counts.most_common() if n >= MIN_USES and _colorful(c) and c not in CIVICPLUS_COLORS]
     if not colors:
         return None
@@ -549,9 +564,11 @@ def pick_colors(counts: Counter) -> tuple[dict, list[str]] | None:
     for name, color in (("primary", primary), ("primary_dark", dark), ("accent", accent)):
         if not color:
             continue
-        if contrast(color) < MIN_CONTRAST:
-            how.append(f"{name} darkened from {color} ({contrast(color):.1f} to 1) to pass")
-            color = darkened(color)
+        measure = link_contrast if name == "primary" else contrast
+        if measure(color) < MIN_CONTRAST:
+            how.append(f"{name} darkened from {color} ({measure(color):.1f} to 1"
+                       + (" on the site's lightest background" if name == "primary" else "") + ") to pass")
+            color = darkened(color, measure=measure)
         picked[name] = color
     picked = {"primary": picked["primary"], "primary_dark": picked["primary_dark"],
               "primary_soft": tint(picked["primary"]), **({"accent": picked["accent"]} if "accent" in picked else {})}
@@ -872,7 +889,7 @@ def config_text(town: NewTown, short: bool = False) -> Config:
         c.set(**colors)
     else:
         c.blank()
-        c.fill_in(5, f"[site.colors], the most used colors in the {place} website's stylesheet, each 4.5:1 on white.")
+        c.fill_in(5, f"[site.colors], the most used colors in the {place} website's stylesheet, each 4.5:1 on white (primary also on the site's light gray and its own tint).")
 
     c.table("town", name=town.name, state=town.state_name, state_abbr=town.state, official_site=town.url.rstrip("/"))
     if town.wards and not town.wards["wards"]:

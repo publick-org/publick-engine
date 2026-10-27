@@ -369,6 +369,17 @@ def test_colors_from_the_stylesheet(town):
     picked, how = new_town.pick_colors(Counter(counts))
     assert {k: picked[k] for k in chosen} == chosen
     assert all(new_town.contrast(v) >= 4.5 for k, v in picked.items() if k != "primary_soft")
+    assert new_town.link_contrast(picked["primary"]) >= 4.5
+
+
+def test_primary_passes_on_every_background_its_links_are_on():
+    """Medford's blue is 4.6 to 1 on white, but 4.2 on the footer's gray and 4.0 on its own tint:
+    darkened as far as it must be for all three."""
+    picked, how = new_town.pick_colors(Counter({"#197cb7": 96, "#25347a": 13, "#96c13d": 19}))
+    assert picked["primary"] == "#1773aa" and picked["primary_dark"] == "#25347a"
+    assert 4.5 <= new_town.link_contrast(picked["primary"]) < 4.6
+    assert min(new_town.contrast(picked["primary"], bg) for bg in ("#ffffff", new_town.SOFT, picked["primary_soft"])) >= 4.5
+    assert any("primary darkened from #197cb7" in h for h in how)
 
 
 def test_a_color_too_light_is_darkened_until_it_passes():
