@@ -114,7 +114,15 @@
 {% macro city_report_button(config) -%}
 {% if config.seeclickfix is defined and config.seeclickfix.report_url is defined %}
 <div class="actions"><a class="button" href="{{ config.seeclickfix.report_url }}">{{ _("Report a problem to the city") }}</a></div>
+{% elif config.socrata_311 is defined and config.socrata_311.report_url is defined %}
+<div class="actions"><a class="button" href="{{ config.socrata_311.report_url }}">{{ _("Report a problem to the city") }}</a></div>
 {% endif %}
+{%- endmacro %}
+
+{# Where a portal's 311 requests come from ([socrata_311] publisher and domain), and their license if it names one. #}
+{% macro portal_credit(source) -%}
+{% if source.license %}{% trans name=source.name, url=source.url, portal=source.portal, license=source.license, license_url=source.license_url %}Data from {{ name }}'s open data portal, <a href="{{ url }}">{{ portal }}</a>, used under the <a href="{{ license_url }}">{{ license }}</a> license.{% endtrans %}
+{%- else %}{% trans name=source.name, url=source.url, portal=source.portal %}Data from {{ name }}'s open data portal, <a href="{{ url }}">{{ portal }}</a>.{% endtrans %}{% endif %}
 {%- endmacro %}
 
 {# One meeting as a row: time (or date), name, preview, and plain status words. #}

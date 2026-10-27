@@ -33,6 +33,8 @@
 <ul>
   {% if config.seeclickfix is defined %}
   <li>{% trans scf="https://seeclickfix.com", license="https://creativecommons.org/licenses/by-nc-sa/3.0/", methodology="/311/methodology/" %}<strong>311 requests:</strong> <a href="{{ scf }}">SeeClickFix</a>, public requests only, under a <a href="{{ license }}">CC BY-NC-SA 3.0</a> license. <a href="{{ methodology }}">How the 311 numbers work</a>.{% endtrans %}</li>
+  {% elif config.socrata_311 is defined %}
+  <li>{% trans name=source_311.name, url=source_311.url, methodology="/311/methodology/" %}<strong>311 requests:</strong> {{ name }}'s <a href="{{ url }}">open data portal</a>. <a href="{{ methodology }}">How the 311 numbers work</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.meetings is defined and config.meetings.agenda_center is defined and meeting_links.has_calendar %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
@@ -189,6 +191,8 @@
 <ul>
   {% if config.seeclickfix is defined %}
   <li>{% trans license="https://creativecommons.org/licenses/by-nc-sa/3.0/" %}311 requests keep SeeClickFix's <a href="{{ license }}">CC BY-NC-SA 3.0</a> license, which doesn't allow commercial use.{% endtrans %}</li>
+  {% elif config.socrata_311 is defined and source_311.license %}
+  <li>{% trans license=source_311.license, url=source_311.license_url %}311 requests keep the city's open data license, the <a href="{{ url }}">{{ license }}</a>.{% endtrans %}</li>
   {% endif %}
   {% if config.meetings is defined %}
   <li>{{ _("The city's agendas and minutes, and their full text on this site, are public records.") }}</li>

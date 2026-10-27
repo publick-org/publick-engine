@@ -50,6 +50,7 @@ from pipeline import i18n
 from pipeline import fetch_addresses
 from pipeline import officials as officials_mod
 from pipeline import share_cards as share_cards_mod
+from pipeline import source_311
 from pipeline import states
 from pipeline import streets as streets_mod
 from pipeline import structured
@@ -783,6 +784,8 @@ def meeting_links(config: dict) -> dict:
 DOCUMENT_PAGES = {"meetings/decisions/index.html", "meetings/search/index.html"}
 # The glossary's page, for a town whose glossary has terms (pipeline/glossary.py).
 GLOSSARY_PAGE = "meetings/glossary/index.html"
+# The repeat locations' page and map, for a 311 source with map points (pipeline/source_311.py).
+REPEATS_PAGE = "311/repeat-locations/index.html"
 
 
 def doc_text(doc: dict | None) -> str:
@@ -934,13 +937,20 @@ def headline_numbers(config: dict, data_dir: Path, scorecard: dict | None) -> li
         overall = scorecard["overall"]
         # The median leaves out requests never acknowledged, so show how many were.
         change = _("Median, past 12 months")
-        if overall.get("checked"):
-            change += " · " + _("{percent}% of requests were acknowledged").format(
-                percent=round(overall["acknowledged"] / overall["checked"] * 100))
-        numbers.append({
-            "label": _("Time to acknowledge a 311 request"),
-            "value": format_duration(overall["time_to_acknowledge"]["median"]), "href": "/311/#speed", "change": change,
-        })
+        if not source_311.describe(config)["acknowledged"]:
+            # A source without acknowledged times: how long requests took to close.
+            numbers.append({
+                "label": _("Time to close a 311 request"),
+                "value": format_duration(overall["time_to_close"]["median"]), "href": "/311/#speed", "change": change,
+            })
+        else:
+            if overall.get("checked"):
+                change += " · " + _("{percent}% of requests were acknowledged").format(
+                    percent=round(overall["acknowledged"] / overall["checked"] * 100))
+            numbers.append({
+                "label": _("Time to acknowledge a 311 request"),
+                "value": format_duration(overall["time_to_acknowledge"]["median"]), "href": "/311/#speed", "change": change,
+            })
     tax_path = data_dir / "finance" / "tax_bill.json"
     state = states.for_town(config)
     tax = json.loads(tax_path.read_text(encoding="utf-8")) if tax_path.exists() else {}
@@ -1345,7 +1355,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         event=lambda m, url, name, description: structured.event(m, url, name, description, config["town"], site["timezone"]),
         dataset=lambda name, description, url, files, **kw: structured.dataset(
             name, description, url, [base_url + f for f in files], site, config["town"], base_url + "/", **kw),
-        seeclickfix_license=structured.SEECLICKFIX)
+        seeclickfix_license=structured.SEECLICKFIX,
+        # The 311 downloads' license: SeeClickFix's, or the portal's when [socrata_311] names it.
+        license_311=structured.SEECLICKFIX if "seeclickfix" in config else config.get("socrata_311", {}).get("license_url"))
 
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
@@ -1399,7 +1411,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
                   areas=officials_mod.areas(config),
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
-                  has_areas=bool(config.get("seeclickfix", {}).get("precincts_file")),
+                  has_areas=source_311.has_areas(config),
+                  # Where the 311 requests come from, and what it records (acknowledged times, map points, links).
+                  source_311=source_311.describe(config),
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   # The address box's file, its ranges' year, and its page, which the street lookup links.
                   addresses=addresses and {"year": addresses["year"], "url": addresses_url, "page": f"{prefix}/officials/"},
@@ -1457,6 +1471,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if rel.as_posix() in DOCUMENT_PAGES and not documents:
             continue
         if rel.as_posix() == GLOSSARY_PAGE and not terms:
+            continue
+        if rel.as_posix() == REPEATS_PAGE and not (common["source_311"] or {}).get("locations"):
             continue
         url = url_for(rel)
         render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
@@ -1517,7 +1533,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for c in scorecard.get("categories", []):
             render("category.html", f"/311/category/{c['slug']}/", lastmod=today.isoformat(), category=c)
         if english:
-            write_311_csvs(out_dir / "311" / "data", scorecard)
+            write_311_csvs(out_dir / "311" / "data", scorecard, common["source_311"])
     if not english:
         # Every language's pages link the same downloads, PDFs, and feed, written with the English.
         if documents:
@@ -1811,25 +1827,33 @@ def write_csv(path: Path, header: list[str], rows: list[list]) -> None:
         writer.writerows(rows)
 
 
-def write_311_csvs(folder: Path, sc: dict) -> None:
-    """Downloadable tables behind the 311 charts. Durations are in days."""
+def write_311_csvs(folder: Path, sc: dict, source: dict) -> None:
+    """Downloadable tables behind the 311 charts. Durations are in days. What the source doesn't
+    record (acknowledged times, locations, a page for each request) isn't a column."""
     def med(s):
         return s["median"]
-    summary = ["requests", "closed", "still_open", "median_days_to_acknowledge", "median_days_to_close"]
+    acknowledged = source["acknowledged"]
+    summary = ["requests", "closed", "still_open", *["median_days_to_acknowledge"] * acknowledged, "median_days_to_close"]
     def row(x):
-        return [x["received"], x["closed"], x["open"], med(x["time_to_acknowledge"]), med(x["time_to_close"])]
+        return [x["received"], x["closed"], x["open"], *[med(x["time_to_acknowledge"])] * acknowledged, med(x["time_to_close"])]
     write_csv(folder / "monthly.csv", ["month", *summary], [[m["month"], *row(m)] for m in sc["monthly"]])
     if sc["by_ward"]:  # none in a town without wards or precincts
         write_csv(folder / "by-ward.csv", ["ward", "population_2020", "per_1000_residents", *summary],
                   [[w["ward"], w.get("population_2020"), w.get("per_1000_residents"), *row(w)] for w in sc["by_ward"]])
     write_csv(folder / "by-category.csv", ["category", *summary], [[c["category"], *row(c)] for c in sc["categories"]])
-    write_csv(folder / "recent-open.csv", ["id", "submitted", "category", "location", "ward", "url"],
-              [[r["id"], r["created_at"][:10], r["category"], r["address"], r["ward"], r["url"]]
-               for r in sc.get("recent_open", {}).get("requests", [])])
-    write_csv(folder / "repeat-locations.csv",
-              ["location", "category", "ward", "requests", "after_a_close", "still_open", "first", "last", "request_urls"],
-              [[p["address"], p["category"], p["ward"], p["reports"], p["again_after_close"], p["open"], p["first"], p["last"],
-                " ".join(r["url"] for r in p["requests"])] for p in sc.get("repeats", {}).get("places", [])])
+    if source["locations"]:
+        write_csv(folder / "recent-open.csv", ["id", "submitted", "category", "location", "ward", "url"],
+                  [[r["id"], r["created_at"][:10], r["category"], r["address"], r["ward"], r["url"]]
+                   for r in sc.get("recent_open", {}).get("requests", [])])
+    else:
+        write_csv(folder / "recent-open.csv", ["id", "submitted", "category", "type", "ward"],
+                  [[r["id"], r["created_at"][:10], r["category"], r.get("type"), r["ward"]]
+                   for r in sc.get("recent_open", {}).get("requests", [])])
+    if "repeats" in sc:
+        write_csv(folder / "repeat-locations.csv",
+                  ["location", "category", "ward", "requests", "after_a_close", "still_open", "first", "last", "request_urls"],
+                  [[p["address"], p["category"], p["ward"], p["reports"], p["again_after_close"], p["open"], p["first"], p["last"],
+                    " ".join(r["url"] for r in p["requests"])] for p in sc["repeats"]["places"]])
     write_csv(folder / "open-by-age.csv", ["open_for", "requests"], [[b["label"], b["count"]] for b in sc["backlog"]["buckets"]])
     for w in sc.get("wards", []):
         write_csv(folder / f"ward-{w['ward']}.csv", ["category", *summary], [[c["category"], *row(c)] for c in w["by_category"]])

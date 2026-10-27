@@ -110,7 +110,8 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
                        "Fetch the city's meeting documents": "no [meetingdocs_meetings] in the config",
                        "Fetch building permits": "no [permits] in the config",
                        "Fetch 311 requests": "no [seeclickfix] in the config",
-                       "Compute 311 scorecard": "no [seeclickfix] in the config"}
+                       "Fetch 311 requests from an open data portal": "no [socrata_311] in the config",
+                       "Compute 311 scorecard": "no [seeclickfix] or [socrata_311] in the config"}
     assert result["ok"] and not set(skipped) & set(started)
     assert "Move saved documents to storage" in started
     # Minutes linked from Agenda Center and CivicClerk meetings need no [archive].
@@ -119,7 +120,8 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
 
 def test_sources_pick_a_group(fake_steps):
     only_311 = update.run("gloucester", sources="311")["steps"]
-    assert [s["name"] for s in only_311] == ["Fetch 311 requests", "Compute 311 scorecard"]
+    assert [s["name"] for s in only_311] == ["Fetch 311 requests", "Fetch 311 requests from an open data portal",
+                                              "Compute 311 scorecard"]
     meetings = update.run("gloucester", sources="meetings")["steps"]
     assert len(meetings) + len(only_311) == len(update.SOURCES)
     figures = [s["name"] for s in update.run("gloucester", sources="figures")["steps"]]
@@ -154,7 +156,7 @@ def test_the_bucket_keys_go_only_to_the_steps_that_use_them(monkeypatch):
         "Fetch meetings", "Fetch minutes", "Fetch School Committee documents", "Fetch school board meetings",
         "Fetch school board documents", "Fetch Diligent Community meetings",
         "Fetch Open Meetings portal meetings", "Fetch the city's meeting documents", "Summarize agendas", "Move saved documents to storage", "Fetch 311 requests",
-        "Compute 311 scorecard"}
+        "Fetch 311 requests from an open data portal", "Compute 311 scorecard"}
     assert given["Summarize agendas"] == sorted(["ANTHROPIC_API_KEY", *storage])
     assert given["Fetch unemployment"] == ["BLS_API_KEY"]
     assert given["Fetch 311 requests"] == given["Compute 311 scorecard"] == storage
