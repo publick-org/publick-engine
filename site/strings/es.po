@@ -1060,6 +1060,15 @@ msgstr ""
 #: site/templates/meeting.html
 #, python-format
 msgid ""
+"<a href=\"%(url)s\">This meeting on the city's events calendar</a>, where its agendas, minutes "
+"and recordings are posted."
+msgstr ""
+"<a href=\"%(url)s\">Esta reunión en el calendario de eventos de la ciudad</a>, donde se publican "
+"sus agendas, actas y grabaciones."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
 "<a href=\"%(url)s\">This meeting on the state's Open Meetings portal</a>, where every public body"
 " in the state files its notices and minutes."
 msgstr ""
@@ -1119,6 +1128,17 @@ msgid ""
 msgstr ""
 "<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, a partir de las reuniones "
 "publicadas en su <a href=\"%(url)s\">sitio web</a>, desde %(since)s."
+
+#. %(board)s is a board's name, such as "School Committee". %(since)s is a month, such as "January
+#. 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> the city's <a href=\"%(url)s\">events "
+"calendar</a>, where they're posted, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(board)s):</strong> el <a href=\"%(url)s\">calendario de "
+"eventos</a> de la ciudad, donde se publican, desde %(since)s."
 
 #. %(board)s is a board's name, such as "School Committee". %(source)s is who keeps the calendar, such
 #. as "Beverly Public Schools". %(since)s is a month, such as "January 2024".
@@ -1329,6 +1349,28 @@ msgstr ""
 "ciudad, para todas las reuniones que publica, y su <a href=\"%(url)s\">Centro de Agendas</a>, "
 "para las agendas y las actas. Una reunión que aparece en los dos se muestra una sola vez. Se "
 "guarda una copia de cada agenda cuando se publica. Las actas se recogen desde %(since)s."
+
+#. %(since)s is a month, such as "January 2024". Legistar is the name of the city's system for its
+#. council's agendas and minutes.
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(portal)s\">meeting "
+"portal</a> (Legistar). Agendas and minutes are saved when posted, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(portal)s\">portal de reuniones</a> de"
+" la ciudad (Legistar). Las agendas y actas se guardan cuando se publican, desde %(since)s."
+
+#. %(since)s is a month, such as "January 2024". PrimeGov is the name of the city's system for its
+#. boards' agendas and minutes.
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(portal)s\">meeting "
+"portal</a> (PrimeGov). Agendas and minutes are saved when posted, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(portal)s\">portal de reuniones</a> de"
+" la ciudad (PrimeGov). Las agendas y actas se guardan cuando se publican, desde %(since)s."
 
 #. %(since)s is a month, such as "January 2024".
 #: site/pages/about/index.html
@@ -8833,6 +8875,10 @@ msgstr "Centro de Agendas de la ciudad"
 #: pipeline/build_site.py
 msgid "city's Archive Center"
 msgstr "Centro de Archivos de la ciudad"
+
+#: pipeline/build_site.py site/templates/meeting.html
+msgid "city's events calendar"
+msgstr "calendario de eventos de la ciudad"
 
 #: pipeline/build_site.py site/templates/meeting.html
 msgid "city's meeting portal"

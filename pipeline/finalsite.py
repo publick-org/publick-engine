@@ -135,10 +135,16 @@ def is_google_doc(url: str) -> bool:
     return bool(GOOGLE_DOC.match(url))
 
 
+# A file in a Finalsite site's resource manager ("/fs/resource-manager/view/<uuid>"), which
+# redirects to the file itself.
+RESOURCE = re.compile(r"/fs/resource-manager/view/[0-9a-f-]{36}$", re.I)
+
+
 def is_document(url: str) -> bool:
-    """A link to a single file that can be saved: a Google Doc, a Drive file, or a PDF.
-    A Drive folder is never a document."""
-    return bool(file_key(url)) or urlparse(url).path.lower().endswith(".pdf")
+    """A link to a single file that can be saved: a Google Doc, a Drive file, a PDF, or a file in
+    a Finalsite site's resource manager. A Drive folder is never a document."""
+    path = urlparse(url).path
+    return bool(file_key(url)) or path.lower().endswith(".pdf") or bool(RESOURCE.search(path))
 
 
 def download_url(url: str) -> str:

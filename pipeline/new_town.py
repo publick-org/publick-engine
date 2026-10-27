@@ -80,7 +80,7 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import requests
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, fetch_place
+from pipeline import agendacenter, civicclerk, civicplus, fetch_place, legistar, primegov
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
@@ -106,7 +106,7 @@ SEECLICKFIX_PLACES = "https://seeclickfix.com/api/v2/places"
 BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|cf-browser-verification|"
                            r"challenges\.cloudflare\.com|_Incapsula_Resource", re.I)
 # Meeting platforms the engine doesn't read, found by their marks on the city's homepage.
-OTHER_PLATFORMS = {"Govstack": r"govstack", "Granicus (Legistar)": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
+OTHER_PLATFORMS = {"Govstack": r"govstack", "Legistar, without its public API": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
                    "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal',
                    "Diligent Community": r"diligent\.community|diligentoneplatform"}
 # Platforms the engine reads that the helper doesn't set up: a config by hand, from the town named.
@@ -133,6 +133,8 @@ CIVICPLUS_COLORS = {"#0098f7", "#ff0000", "#12639d", "#cc3333", "#0b5486", "#fef
 MIN_USES = 10
 # WCAG AA for text on white.
 MIN_CONTRAST = 4.5
+# The site's light gray background (--soft in site/static/css/site.css): the footer, a page's contents.
+SOFT = "#f3f5f8"
 
 
 class BrowserCheck(Exception):
@@ -246,6 +248,18 @@ def civicclerk_name(page: str, town: NewTown) -> str:
     return linked.group(1).lower() if linked else re.sub(r"[^a-z]", "", town.name.lower()) + town.state.lower()
 
 
+def legistar_name(page: str, town: NewTown) -> str:
+    """The city's Legistar client name: the Legistar site its pages link, or the usual <city><state> ('somervillema')."""
+    linked = re.search(r"https?://([a-z0-9-]+)\.legistar\.com", page, re.I)
+    return linked.group(1).lower() if linked else re.sub(r"[^a-z]", "", town.name.lower()) + town.state.lower()
+
+
+def primegov_name(page: str, town: NewTown) -> str:
+    """The city's PrimeGov name: the portal its pages link, or the usual <city><state> ('worcesterma')."""
+    linked = re.search(r"https?://([a-z0-9-]+)\.primegov\.com", page, re.I)
+    return linked.group(1).lower() if linked else re.sub(r"[^a-z]", "", town.name.lower()) + town.state.lower()
+
+
 def find_platform(town: NewTown, client) -> None:
     """Step 1: the city's meeting platforms, read from its own pages."""
     home = client.get(town.url)
@@ -282,13 +296,27 @@ def find_platform(town: NewTown, client) -> None:
     if events:
         site["civicclerk"] = {"api_url": api_url, "portal_url": portal_url, "events": events}
         town.found(1, "CivicClerk portal", f"{len(events)} meetings in the last year", portal_url)
-    if not any(k in site for k in ("agenda_center", "civicclerk")) and not any(c["chosen"] for c in site.get("calendars", [])):
+    client_name = legistar_name(page, town)
+    events = read_legistar(client, legistar.api_url(client_name), town.today)
+    if events:
+        site["legistar"] = {"client": client_name, "events": events}
+        bodies = len({e.get("EventBodyName") for e in events})
+        town.found(1, "Legistar", f"{len(events)} meetings in the last year, of {bodies} bodies",
+                   legistar.site_url(client_name))
+    client_name = primegov_name(page, town)
+    meetings = read_primegov(client, client_name, town.today)
+    if meetings:
+        site["primegov"] = {"client": client_name, "meetings": meetings}
+        town.found(1, "PrimeGov portal", f"{len(meetings)} meetings in the last year, of "
+                   f"{len({parse_name(m.get('title') or '')['body'] for m in meetings})} boards", primegov.portal_url(client_name))
+    if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov")) and not any(c["chosen"] for c in site.get("calendars", [])):
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
             raise Stop(f"{town.url} has {', '.join(by_hand)}. The engine reads it, but the helper doesn't set it up: "
                        "write [meetings] by hand from that town's config.")
         others = [n for n, mark in OTHER_PLATFORMS.items() if re.search(mark, page, re.I)]
-        what = f"its meetings on {', '.join(others)}" if others else "no Agenda Center, city calendar of meetings, or CivicClerk portal"
+        what = (f"its meetings on {', '.join(others)}" if others
+                else "no Agenda Center, city calendar of meetings, CivicClerk or PrimeGov portal, or Legistar system")
         raise Stop(f"{town.url} has {what}. The engine needs a reader for it first: that's its own piece of work "
                    "(ADDING-A-TOWN.md, step 1).")
 
@@ -342,6 +370,38 @@ def read_civicclerk(client, api_url: str, today: date, pages: int = 20) -> list[
     return events
 
 
+def read_legistar(client, api: str, today: date, pages: int = 5) -> list[dict]:
+    """The Legistar system's meetings of the last year, or none if the city doesn't publish its API."""
+    events = []
+    for page in range(pages):
+        try:
+            data = client.get(legistar.events_url(api, today - timedelta(days=365), page * legistar.PAGE)).json()
+        except (FetchError, ValueError):
+            break
+        if not isinstance(data, list):
+            break
+        events += data
+        if len(data) < legistar.PAGE:
+            break
+    return events
+
+
+def read_primegov(client, name: str, today: date) -> list[dict]:
+    """The portal's meetings of the last year (this year's and last year's archive, and those ahead), or
+    none if the city has no portal."""
+    since = (today - timedelta(days=365)).isoformat()
+    found = []
+    for url in (primegov.archived_url(name, today.year - 1), primegov.archived_url(name, today.year), primegov.upcoming_url(name)):
+        try:
+            data = client.get(url).json()
+        except (FetchError, ValueError):
+            return []
+        if not isinstance(data, list):
+            return []
+        found += [m for m in data if (m.get("dateTime") or "")[:10] >= since]
+    return found
+
+
 def categories(town: NewTown) -> Counter:
     """The boards the platforms list meetings under: the Agenda Center's categories, the portal's. A portal
     that files meetings under a catch-all category ("General", Springfield's) gives instead the boards those
@@ -355,6 +415,8 @@ def categories(town: NewTown) -> Counter:
         else:
             found[category] += 1
     found.update({name: n for name, n in named.items() if n >= 2})
+    found.update(Counter((e.get("EventBodyName") or "").strip() for e in town.site.get("legistar", {}).get("events", [])))
+    found.update(Counter(parse_name(m.get("title") or "")["body"] for m in town.site.get("primegov", {}).get("meetings", [])))
     found.pop("", None)
     return found
 
@@ -377,6 +439,14 @@ def minutes_files(town: NewTown) -> list[dict]:
         files = civicclerk.documents(e, site["civicclerk"]["api_url"])
         if "minutes_url" in files and e["startDateTime"][:10] >= since:
             found.append({"date": e["startDateTime"][:10], "board": e.get("categoryName") or e.get("eventName", ""),
+                          "url": files["minutes_url"]})
+    for e in site.get("legistar", {}).get("events", []):
+        if e.get("EventMinutesFile") and (e.get("EventDate") or "")[:10] >= since:
+            found.append({"date": e["EventDate"][:10], "board": e.get("EventBodyName") or "", "url": e["EventMinutesFile"]})
+    for m in site.get("primegov", {}).get("meetings", []):
+        files = primegov.documents(m, site["primegov"]["client"])
+        if "minutes_url" in files and m["dateTime"][:10] >= since:
+            found.append({"date": m["dateTime"][:10], "board": parse_name(m.get("title") or "")["body"],
                           "url": files["minutes_url"]})
     if not found:
         for c in site.get("archive", []):
@@ -445,22 +515,34 @@ def _rgb(color: str) -> tuple[float, float, float]:
     return tuple(int(color[i:i + 2], 16) / 255 for i in (1, 3, 5))
 
 
-def contrast(color: str) -> float:
-    """The color's contrast ratio with white (WCAG)."""
+def luminance(color: str) -> float:
     def channel(c):
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     r, g, b = (channel(c) for c in _rgb(color))
-    return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(color: str, background: str = "#ffffff") -> float:
+    """The color's contrast ratio with a background, white unless given (WCAG)."""
+    light, dark = sorted((luminance(color), luminance(background)), reverse=True)
+    return (light + 0.05) / (dark + 0.05)
+
+
+def link_contrast(color: str) -> float:
+    """The primary color's contrast where its links are: on white, on the site's light gray (the
+    footer, a page's contents), and on its own light tint (primary_soft, under a button's hover)."""
+    return min(contrast(color, bg) for bg in ("#ffffff", SOFT, tint(color)))
 
 
 def scaled(color: str, factor: float) -> str:
     return "#" + "".join(f"{round(c * factor * 255):02x}" for c in _rgb(color))
 
 
-def darkened(color: str, target: float = MIN_CONTRAST) -> str:
-    """The color, darker by as little as it takes to reach the target contrast with white."""
+def darkened(color: str, target: float = MIN_CONTRAST, measure=contrast) -> str:
+    """The color, darker by as little as it takes to reach the target contrast (with white, or by
+    measure)."""
     factor = 1.0
-    while contrast(scaled(color, factor)) < target and factor > 0:
+    while measure(scaled(color, factor)) < target and factor > 0:
         factor -= 0.01
     return scaled(color, factor)
 
@@ -492,7 +574,8 @@ def pick_colors(counts: Counter) -> tuple[dict, list[str]] | None:
     """[site.colors] from a site's stylesheets, and how each was chosen. The city's colors are its
     most used colorful ones (not CivicPlus's own). The most used and the next most used of a close hue
     are primary (the lighter) and primary_dark (the darker); accent is the most used of another hue,
-    neither too light nor near black. A color under 4.5:1 on white is darkened until it passes."""
+    neither too light nor near black. A color under 4.5:1 on white is darkened until it passes, and
+    primary until it passes on every background its links are on (link_contrast)."""
     colors = [c for c, n in counts.most_common() if n >= MIN_USES and _colorful(c) and c not in CIVICPLUS_COLORS]
     if not colors:
         return None
@@ -515,9 +598,11 @@ def pick_colors(counts: Counter) -> tuple[dict, list[str]] | None:
     for name, color in (("primary", primary), ("primary_dark", dark), ("accent", accent)):
         if not color:
             continue
-        if contrast(color) < MIN_CONTRAST:
-            how.append(f"{name} darkened from {color} ({contrast(color):.1f} to 1) to pass")
-            color = darkened(color)
+        measure = link_contrast if name == "primary" else contrast
+        if measure(color) < MIN_CONTRAST:
+            how.append(f"{name} darkened from {color} ({measure(color):.1f} to 1"
+                       + (" on the site's lightest background" if name == "primary" else "") + ") to pass")
+            color = darkened(color, measure=measure)
         picked[name] = color
     picked = {"primary": picked["primary"], "primary_dark": picked["primary_dark"],
               "primary_soft": tint(picked["primary"]), **({"accent": picked["accent"]} if "accent" in picked else {})}
@@ -671,7 +756,7 @@ def inherited(network: Path, state: str) -> dict:
 def readers(config: dict) -> set[str]:
     """A config's meeting readers: agenda_center, civicplus, civicclerk..."""
     meetings = config.get("meetings", {})
-    return {k for k in ("agenda_center", "civicplus", "civicclerk", "dnn", "file_list") if k in meetings} | (
+    return {k for k in ("agenda_center", "civicplus", "civicclerk", "legistar", "primegov", "dnn", "file_list") if k in meetings} | (
         {"civicplus"} if "calendar_feed" in meetings else set())
 
 
@@ -698,7 +783,11 @@ def town_readers(town: NewTown) -> set[str]:
     site = town.site
     return ({"agenda_center"} if "agenda_center" in site else set()) | (
         {"civicplus"} if any(c["chosen"] for c in site.get("calendars", [])) else set()) | (
-        {"civicclerk"} if "civicclerk" in site else set())
+        {"civicclerk"} if "civicclerk" in site else set()) | ({"legistar"} if "legistar" in site else set()) | ({"primegov"} if "primegov" in site else set())
+
+
+# Meeting systems with an address of their own (not the city website's), which a town on them alone links to.
+PORTALS = {"civicclerk", "legistar", "primegov"}
 
 
 def left_to_fill_in(text: str) -> list[str]:
@@ -834,7 +923,7 @@ def config_text(town: NewTown, short: bool = False) -> Config:
         c.set(**colors)
     else:
         c.blank()
-        c.fill_in(5, f"[site.colors], the most used colors in the {place} website's stylesheet, each 4.5:1 on white.")
+        c.fill_in(5, f"[site.colors], the most used colors in the {place} website's stylesheet, each 4.5:1 on white (primary also on the site's light gray and its own tint).")
 
     c.table("town", name=town.name, state=town.state_name, state_abbr=town.state, official_site=town.url.rstrip("/"))
     if town.wards and not town.wards["wards"]:
@@ -909,7 +998,10 @@ def config_text(town: NewTown, short: bool = False) -> Config:
               + (f" A term the layers define needs only its term, for their definition: {', '.join(defined)}." if defined else ""))
 
     config_codes(c, town)
-    sources = [{"label": f"Meetings ({'Agenda Center' if 'agenda_center' in meetings else 'CivicClerk' if 'civicclerk' in meetings else 'city calendar'})",
+    platform = next((n for k, n in (("agenda_center", "Agenda Center"), ("civicclerk", "CivicClerk"), ("legistar", "Legistar"),
+                                              ("primegov", "PrimeGov"))
+                     if k in meetings), "city calendar")
+    sources = [{"label": f"Meetings ({platform})",
                 "file": "meetings/status.json", "max_days": 2}]
     fr = shared(town, "freshness", "summary_grace_days")
     c.table("freshness", "How often each data source should update. Figures published monthly or yearly are judged by "
@@ -931,13 +1023,20 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         archive_url, archive_name = f"{base}/AgendaCenter", f"{place}'s Agenda Center"
     elif "civicclerk" in site:
         archive_url, archive_name = site["civicclerk"]["portal_url"], f"{place}'s CivicClerk portal"
+    elif "legistar" in site:
+        archive_url, archive_name = legistar.site_url(site["legistar"]["client"]), f"{place}'s Legistar calendar"
+    elif "primegov" in site:
+        archive_url, archive_name = primegov.portal_url(site["primegov"]["client"]), f"{place}'s PrimeGov portal"
     else:
         archive_url, archive_name = f"{base}/Archive.aspx", f"{place}'s Archive Center"
     readers_found = [n for k, n in (("civicplus", f"the {place} calendar"), ("agenda_center", "its Agenda Center"),
-                                    ("civicclerk", "its CivicClerk portal")) if k in town_readers(town)]
+                                    ("civicclerk", "its CivicClerk portal"), ("legistar", "its Legistar system"),
+                                    ("primegov", "its PrimeGov portal"))
+                     if k in town_readers(town)]
+    portal_only = town_readers(town) <= PORTALS
     c.table("meetings", f"Public meetings, from {' and '.join(readers_found)}.",
-            base_url=base if "civicclerk" not in town_readers(town) or "agenda_center" in site else None,
-            calendar_url=site["civicclerk"]["portal_url"] if town_readers(town) == {"civicclerk"} else None,
+            base_url=base if not portal_only else None,
+            calendar_url=archive_url if portal_only else None,
             archive_url=archive_url, archive_name=archive_name,
             governing_body=governing if governing != "City Council" else None)
     if site.get("resets"):
@@ -951,13 +1050,13 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
     else:
         c.set(request_delay=3.0)
     c.set(max_event_pages=10 if short else 40)
-    if "civicclerk" in site and town_readers(town) == {"civicclerk"}:
+    if portal_only:
         boards = sorted(b for b in categories(town) if b.lower() not in CATCH_ALL)
         c.fill_in(5, "check each of the portal's categories below is a public body, named as the city names it, and "
                   "leave out any that isn't" + (" (those named for the meetings under its catch-all category, "
                                                 "each named at least twice, included)." if any(
-                      (e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in site["civicclerk"]["events"])
-                      else "."))
+                      (e.get("categoryName") or "").strip().lower() in CATCH_ALL
+                      for e in site.get("civicclerk", {}).get("events", [])) else "."))
         c.lines.append("boards = [")
         c.lines += [f"  {toml(b)}," for b in boards]
         c.lines.append("]")
@@ -1012,7 +1111,17 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         if any((e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in cc.get("events", [])):
             c.set("Most of the portal's meetings are under a catch-all category, and some are named for an item, "
                   "not a board: those go under the board their category names.", board_from_category=True)
-    if "archive" in site and "agenda_center" not in site and "civicclerk" not in site:
+    if "legistar" in site:
+        c.table("meetings.legistar", client=site["legistar"]["client"])
+        c.comment("Meetings, agendas, and minutes are collected from here on.")
+        c.set(since=since.isoformat())
+    if "primegov" in site:
+        c.table("meetings.primegov", client=site["primegov"]["client"])
+        c.comment("Meetings, agendas, and minutes are collected from here on.")
+        c.set(since=since.isoformat())
+        c.fill_in(5, "include_pattern, the boards to collect: a portal of every board can list hundreds of meetings "
+                  "a year, each summarized.")
+    if "archive" in site and not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov")):
         c.table("archive", "Minutes from the city's Archive Center. Minutes for meetings on or after minutes_since are "
                 "collected.", index="Archive.aspx", minutes_since=since.isoformat())
         c.fill_in(5, "[archive.aliases], the Archive Center's collection names for boards the calendar names otherwise.")

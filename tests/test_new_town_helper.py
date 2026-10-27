@@ -177,6 +177,56 @@ def test_helper_finds_a_civicclerk_portal(tmp_path, network):
     assert "To fill in: budget_documents_url" in text
 
 
+def test_helper_finds_a_legistar_system(tmp_path, network):
+    home = '<html><body><a href="https://somervillema.legistar.com/Calendar.aspx">City Council</a></body></html>'
+    pages = [(r"^https://www\.somervillema\.gov/?$", Page(home, "https://www.somervillema.gov/")),
+             (r"webapi\.legistar\.com/v1/somervillema/events\?", saved("legistar_events.json")),
+             (r"legistar1\.com/.*_M_", saved("legistar_minutes.pdf"))]
+    town = new_town.NewTown("Somerville", "MA", "https://www.somervillema.gov", today=TODAY)
+    out = tmp_path / "somerville-ma"
+    client = FakeClient(pages)
+    assert new_town.run(town, client, network, out, checks=False) == 0
+    config = tomllib.loads((out / "config" / "somerville.toml").read_text())
+    meetings = config["meetings"]
+    assert meetings["legistar"]["client"] == "somervillema"
+    assert meetings["calendar_url"] == "https://somervillema.legistar.com/Calendar.aspx" and "base_url" not in meetings
+    assert {"City Council", "Finance Committee", "Land Use Committee"} <= set(meetings["boards"])
+    assert config["freshness"]["sources"][0]["label"] == "Meetings (Legistar)"
+    # The council's minutes were sampled: Legistar's, with text.
+    assert any("_M_City_Council_" in u for u in client.urls)
+
+
+def test_helper_without_a_legistar_api_says_so(tmp_path, network):
+    home = '<html><body><a href="https://cityx.legistar.com/Calendar.aspx">Agendas</a></body></html>'
+    pages = [(r"^https://www\.cityx\.gov/?$", Page(home, "https://www.cityx.gov/"))]
+    town = new_town.NewTown("Cityx", "MA", "https://www.cityx.gov", today=TODAY)
+    assert new_town.run(town, FakeClient(pages), network, tmp_path / "cityx-ma", checks=False) == 2
+    assert "Legistar, without its public API" in town.stopped
+
+
+def test_helper_finds_a_primegov_portal(tmp_path, network):
+    home = '<html><body><a href="https://worcesterma.primegov.com/public/portal">Meetings</a></body></html>'
+    pages = [(r"^https://www\.worcesterma\.gov/?$", Page(home, "https://www.worcesterma.gov/")),
+             (r"ListArchivedMeetings\?year=2026", saved("primegov_archived_2026.json")),
+             (r"ListArchivedMeetings\?year=2025", Page("[]")),
+             (r"ListUpcomingMeetings", saved("primegov_upcoming.json")),
+             (r"CompiledDocument", saved("legistar_minutes.pdf"))]
+    town = new_town.NewTown("Worcester", "MA", "https://www.worcesterma.gov", today=TODAY)
+    out = tmp_path / "worcester-ma"
+    client = FakeClient(pages)
+    assert new_town.run(town, client, network, out, checks=False) == 0
+    text = (out / "config" / "worcester.toml").read_text()
+    config = tomllib.loads(text)
+    meetings = config["meetings"]
+    assert meetings["primegov"]["client"] == "worcesterma"
+    assert meetings["calendar_url"] == "https://worcesterma.primegov.com/public/portal" and "base_url" not in meetings
+    assert {"City Council", "Zoning Board of Appeals"} <= set(meetings["boards"])
+    assert config["freshness"]["sources"][0]["label"] == "Meetings (PrimeGov)"
+    assert "To fill in: include_pattern" in text
+    # The council's minutes were sampled.
+    assert any("CompiledDocument" in u for u in client.urls)
+
+
 def test_helper_stops_at_a_browser_check(tmp_path, network):
     pages = [(r"beverlyma\.gov", new_town.BrowserCheck(BASE + "/"))]
     town, out, code = beverly(tmp_path, network, pages)
@@ -342,6 +392,17 @@ def test_colors_from_the_stylesheet(town):
     picked, how = new_town.pick_colors(Counter(counts))
     assert {k: picked[k] for k in chosen} == chosen
     assert all(new_town.contrast(v) >= 4.5 for k, v in picked.items() if k != "primary_soft")
+    assert new_town.link_contrast(picked["primary"]) >= 4.5
+
+
+def test_primary_passes_on_every_background_its_links_are_on():
+    """Medford's blue is 4.6 to 1 on white, but 4.2 on the footer's gray and 4.0 on its own tint:
+    darkened as far as it must be for all three."""
+    picked, how = new_town.pick_colors(Counter({"#197cb7": 96, "#25347a": 13, "#96c13d": 19}))
+    assert picked["primary"] == "#1773aa" and picked["primary_dark"] == "#25347a"
+    assert 4.5 <= new_town.link_contrast(picked["primary"]) < 4.6
+    assert min(new_town.contrast(picked["primary"], bg) for bg in ("#ffffff", new_town.SOFT, picked["primary_soft"])) >= 4.5
+    assert any("primary darkened from #197cb7" in h for h in how)
 
 
 def test_a_color_too_light_is_darkened_until_it_passes():

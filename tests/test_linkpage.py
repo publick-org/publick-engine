@@ -11,7 +11,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeLinkPage
 
-from pipeline import build_site, fetch_page_meetings, linkpage
+from pipeline import build_site, fetch_page_meetings, finalsite, linkpage
 from pipeline.fetch_meetings import load_store
 
 NOW = datetime(2026, 10, 12, 7, 0, tzinfo=TZ)
@@ -198,6 +198,52 @@ def test_the_default_kinds_need_the_words():
     settings = {k: v for k, v in waltham().items() if k != "agenda_pattern"}
     special = parsed(settings)[0]["2026-06-10-special-meeting"]
     assert "agenda_url" not in special and special["minutes_url"]
+
+
+# Medford Public Schools' table (Finalsite): a cell of documents has words of its own, which change as
+# its minutes are posted, and its files are in Finalsite's resource manager.
+MEDFORD = "https://www.mps02155.org/about/school-committee/meetings"
+MEDFORD_ROW = ('<tr><td>October 5, 2026</td><td>Regular Meeting</td><td>Agenda and Zoom Link (<a href="https://www.mps02155'
+               '.org/news/agenda">News Post</a>, <a href="/fs/resource-manager/view/f7c06576-7462-44d2-a1bc-7ed8aec34e07">PDF</a>)'
+               '{minutes}</td><td><a href="https://drive.google.com/drive/folders/1IUb0rRVya81vujkVeoeWWa8RlHVmEm7V">Meeting '
+               'Materials</a></td></tr>')
+MEDFORD_PAGE = ('<table><tr><th>Date</th><th>Purpose</th><th>Meeting Agenda &amp; Minutes</th><th>Materials &amp; Presentations'
+                '</th></tr>{row}</table><table><tr><th>Date</th><th>Subcommittee</th><th>Meeting Agenda &amp; Minutes</th>'
+                '<th>Materials &amp; Presentations</th></tr><tr><td>October 15, 2026</td><td>Curriculum &amp; Instruction</td>'
+                '<td>Agenda (<a href="/fs/resource-manager/view/8a3082ab-c8eb-4cbb-9317-5f36204099d4">PDF</a>)</td><td></td>'
+                '</tr></table>')
+MINUTES = (' and <a href="/fs/resource-manager/view/15504832-7c4b-4cbd-8de9-5d0be229bbfc">Meeting Minutes</a>')
+
+
+def medford(minutes: str = "") -> dict:
+    settings = {"body": "School Committee", "agenda_pattern": "^PDF$", "name_columns": ["Purpose", "Subcommittee"],
+                "bodies": {"Curriculum & Instruction": "School Committee Curriculum & Instruction Subcommittee"}}
+    page = MEDFORD_PAGE.format(row=MEDFORD_ROW.format(minutes=minutes))
+    return {m["key"]: m for m in linkpage.meetings(page, MEDFORD, settings)[0]}
+
+
+def test_a_finalsite_resource_is_a_document():
+    assert finalsite.is_document("https://www.mps02155.org/fs/resource-manager/view/f7c06576-7462-44d2-a1bc-7ed8aec34e07")
+    assert not finalsite.is_document("https://www.mps02155.org/fs/resource-manager/")
+
+
+def test_name_columns_name_the_meeting_whatever_the_document_cells_say():
+    before, after = medford(), medford(MINUTES)
+    assert list(before) == list(after) == ["2026-10-05-regular-meeting", "2026-10-15-curriculum-instruction"]
+    meeting = after["2026-10-05-regular-meeting"]
+    assert meeting["name"] == "Regular Meeting" and meeting["body"] == "School Committee"
+    assert meeting["agenda_url"] == "https://www.mps02155.org/fs/resource-manager/view/f7c06576-7462-44d2-a1bc-7ed8aec34e07"
+    assert meeting["minutes_url"].endswith("/15504832-7c4b-4cbd-8de9-5d0be229bbfc")
+    assert "minutes_url" not in before["2026-10-05-regular-meeting"]
+    assert after["2026-10-15-curriculum-instruction"]["body"] == "School Committee Curriculum & Instruction Subcommittee"
+
+
+def test_without_name_columns_the_document_cells_words_are_in_the_name():
+    """Why Medford names its columns: the key would change when the minutes are posted."""
+    settings = {"body": "School Committee", "agenda_pattern": "^PDF$"}
+    keys = [linkpage.meetings(MEDFORD_PAGE.format(row=MEDFORD_ROW.format(minutes=m)), MEDFORD, settings)[0][0]["key"]
+            for m in ("", MINUTES)]
+    assert keys[0] != keys[1]
 
 
 # ---- Collecting -------------------------------------------------------------------------------
