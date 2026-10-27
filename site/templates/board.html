@@ -81,7 +81,7 @@
 <ul class="meeting-list">
   {% for m in b.meetings %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
 </ul>
-{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule", "meetingdocs"]) | list)[:1] %}
+{% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule", "meetingdocs", "sharpschool"]) | list)[:1] %}
 {% set portal = (b.meetings | selectattr("source", "equalto", "diligent") | list)[:1] %}
 {% set opengov = (b.meetings | selectattr("source", "equalto", "opengov") | list)[:1] %}
 {# Translators: %(month)s is a month and year, such as "January 2026". #}

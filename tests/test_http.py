@@ -39,6 +39,17 @@ def test_a_server_error_is_tried_again_and_a_missing_page_isnt(monkeypatch):
     assert e.value.status == 404 and slept == []
 
 
+def test_a_json_post_is_retried_as_a_get_is(monkeypatch):
+    slept, sent = [], []
+    monkeypatch.setattr(http.time, "sleep", slept.append)
+    c = PoliteClient("test", delay=0)
+    answers = iter([500, 200])
+    c.session = SimpleNamespace(post=lambda url, json, timeout: sent.append(json) or SimpleNamespace(
+        status_code=next(answers), headers={}))
+    assert c.post_json("https://example.org/svc", {"parentId": "1"}).status_code == 200
+    assert sent == [{"parentId": "1"}] * 2 and slept == [10] and c.request_count == 2
+
+
 def test_the_longer_of_retry_after_and_the_backoff_is_waited(monkeypatch):
     c, slept = client([(429, {"Retry-After": "45"}), (429, {"Retry-After": "5"}), (200,)], monkeypatch)
     c.get("https://example.org")
