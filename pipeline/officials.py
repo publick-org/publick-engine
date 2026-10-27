@@ -98,7 +98,9 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
             if unknown or not m.get("name") or not m.get("seat"):
                 raise SystemExit(f"Each member of the {body['name']} in {where} needs a name and a seat"
                                  + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
-            # A seat elected by one ward (ward = 3), or by several (wards = [1, 2, 3], a district of wards).
+            # A seat elected by one ward (ward = 3), or by several (wards = [1, 2, 3], a district of wards), or
+            # by a part of the city the ward map doesn't follow (wards = [], Worcester's School Committee districts,
+            # each of precincts from several wards): listed with its body, not under a ward or as citywide.
             if "ward" in m and "wards" in m:
                 raise SystemExit(f"{m['name']} ({body['name']}) in {where} has both ward and wards; use one.")
             seat_wards = [str(w) for w in (m["wards"] if "wards" in m else [m["ward"]] if "ward" in m else [])]
@@ -118,7 +120,7 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
             for ward in linked:
                 by_ward[ward].append({"body": body["name"], "body_id": slugify(body["name"]),
                                       "order": (len(bodies), len(linked)), **member})
-            if not seat_wards:
+            if not seat_wards and "wards" not in m:
                 citywide.append({"body": body["name"], **member})
         board = body.get("board", body["name"])
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board),
