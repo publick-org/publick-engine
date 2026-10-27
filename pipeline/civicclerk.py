@@ -20,7 +20,7 @@ import re
 from datetime import date
 from urllib.parse import quote
 
-from pipeline.meeting_names import parse_name
+from pipeline.meeting_names import find_board, parse_name
 
 
 def events_url(api_url: str, since: date) -> str:
@@ -66,10 +66,23 @@ def address(location: dict | None, states: dict | None = None) -> str:
     return ", ".join(p for p in (place, region) if p)
 
 
+# Words that make a name a public body's ("Finance Subcommittee", "Harbor Commission"), which keeps its own
+# name rather than its category's (parse_events, by_category).
+BODY_WORDS = re.compile(r"\b(?:committee|sub-?committee|commission|commissioners|board|council|authority|"
+                        r"trustees|task force|working group|partnership)\b", re.I)
+
+
 def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, aliases: dict | None = None,
-                 states: dict | None = None, api_url: str | None = None) -> list[dict]:
+                 states: dict | None = None, api_url: str | None = None, by_category: bool = False) -> list[dict]:
     """One page of the Events API as meeting records. With api_url, each record
-    also names its agenda and minutes files, for a town that collects them."""
+    also names its agenda and minutes files, for a town that collects them. With
+    by_category, an event whose name names no listed board, and isn't a body's
+    name (BODY_WORDS), is filed under the board its category names, where it
+    names one ([meetings.civicclerk]
+    board_from_category: a portal whose event names are often an item, not a
+    board, as Springfield's "EVERSOURCE - 41 Oakland St." under Board of Public
+    Works). Off by default: elsewhere a category can be wrong for an event
+    named for a board that isn't listed."""
     events = []
     for e in data.get("value", []):
         if e.get("isDeleted"):
@@ -99,6 +112,10 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
         name = (re.sub(r"^\s*one[ -]time event\s*", "", raw, flags=re.I)
                 or (e.get("categoryName") or "").strip() or raw)
         event.update(parse_name(name, boards, aliases))
+        category = (e.get("categoryName") or "").strip()
+        if (by_category and boards and category and find_board(event["title"], boards, aliases or {}) is None
+                and not BODY_WORDS.search(event["title"])):
+            event["body"] = find_board(category, boards, aliases or {}) or event["body"]
         if api_url:
             event.update(documents(e, api_url))
         events.append(event)
