@@ -296,7 +296,7 @@ def civicclerk_calendar(config: dict) -> Calendar:
         for _ in range(settings.get("max_pages", 200)):
             data = client.get(url).json()
             found += civicclerk.parse_events(data, settings["portal_url"], source.get("boards", []), source.get("aliases", {}),
-                                             states, api_url)
+                                             states, api_url, settings.get("board_from_category", False))
             url = civicclerk.next_page(data)
             if not url:
                 break

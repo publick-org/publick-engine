@@ -449,3 +449,15 @@ def test_committees_posted_under_another_category():
 def test_a_calendar_board_of_one_word_names_none():
     rows = [{"category": "Community Preservation", "title": "Community Preservation Public Input Hearing and Regular Meeting Agenda"}]
     assert new_town.posted_under(rows, ["Public", "Waltham Bio-Safety"], "Waltham") == {}
+
+
+def test_a_catch_all_portal_category_gives_the_boards_its_meetings_name():
+    """Springfield's portal files most meetings under "General": the boards are those the names name."""
+    def event(name, category):
+        return {"eventName": name, "categoryName": category}
+    town = new_town.NewTown("Springfield", "MA", "https://www.springfield-ma.gov", today=TODAY)
+    town.site["civicclerk"] = {"events": [
+        event("Board of Assessors Meeting 4/7/2026", "General"), event("Board of Assessors 4/14/2026", "General"),
+        event("Planning Board", "General"), event("Planning Board - Meeting Postponed", "General"),
+        event("October 7, 2025", "General"), event("Finance Committee", "City Council")]}
+    assert new_town.categories(town) == {"City Council": 1, "Board of Assessors": 2, "Planning Board": 2}
