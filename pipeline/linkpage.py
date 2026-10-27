@@ -142,10 +142,25 @@ def row_name(row: str, headings: list[str], columns: list[str] | None = None) ->
     return tidy(" ".join(parts))
 
 
+# A link whose quotes are escaped (href=\\\"...\\\"): the page's content is HTML inside a JSON
+# string in a script, as on Worcester Public Schools' Apptegy site.
+ESCAPED_LINK = re.compile(r'<a\b[^>]*\bhref=\\+"')
+
+
+def readable(page: str) -> str:
+    """The page's HTML to read: without its scripts and styles, or, for a page whose content is HTML
+    escaped inside a script's JSON, that HTML with its quotes and slashes read back (its scripts kept,
+    since the content is in one)."""
+    if not ESCAPED_LINK.search(page):
+        return re.sub(r"<(script|style)\b.*?</\1>", " ", page, flags=re.S | re.I)
+    page = re.sub(r"<style\b.*?</style>", " ", page, flags=re.S | re.I)
+    return re.sub(r'\\+/', "/", re.sub(r'\\+"', '"', page))
+
+
 def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> list[dict]:
     """Each table row with a link, and each link outside a table row: its date (or None), the
     meeting's name, any time it gives, and its links, in the page's order."""
-    page = re.sub(r"<(script|style)\b.*?</\1>", " ", page, flags=re.S | re.I)
+    page = readable(page)
     found, headings = [], []
     for row in ROW.finditer(page):
         links = links_in(row.group(1), page_url)
