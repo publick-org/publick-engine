@@ -821,6 +821,47 @@ def test_event_says_only_what_the_listing_does():
     assert structured.event({**m, "correction": {"doubtful": True}}, "https://x/", "", "", town, "America/New_York") is None
 
 
+@pytest.mark.parametrize("fields, in_person, online_only", [
+    ({"address": "Hybrid Meeting, Room 24 (Ground Level of City Hall) and Zoom"}, True, False),
+    ({"location": "Zoom/Contois Auditorium"}, True, False),
+    ({"address": "127 Eastern Ave., or via remote participation"}, True, False),
+    ({"address": "Remote via Zoom"}, False, True),
+    ({"location": "Remote Only"}, False, True),
+    ({"address": "Zoom, Gloucester, MA 02452"}, False, True),
+    ({"address": "Zoom-Meeting ID: 842 6601 8826  Passcode: 497458"}, False, True),
+    ({"location": "Remote Only (Zoom): https://us06web.zoom.us/j/83694566706"}, False, True),
+    ({"location": "Virtual Teams Meeting"}, False, True),
+    ({"location_name": "via Zoom", "address": "Zoom, Gloucester, MA 02452"}, False, True),
+    # In person, but not where.
+    ({"location": "Hybrid meeting: in person (no address listed) and by Zoom"}, False, False),
+    ({}, False, False),
+])
+def test_place_kind(fields, in_person, online_only):
+    """A listing or agenda can give how a meeting is held online as its place (#170)."""
+    m = {"location_name": "", "address": "", "location": "", **fields}
+    build_site.place_kind(m, "Gloucester")
+    assert (m["in_person"], m["online_only"]) == (in_person, online_only)
+
+
+def test_an_online_meeting_isnt_attended_in_person(tmp_path):
+    """A meeting whose listing gives "Remote via Zoom" as its place says it's held online, not "Attend in
+    person at Remote via Zoom", and isn't an event at a place for search engines."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    store_path = data / "meetings" / "meetings.json"
+    store = json.loads(store_path.read_text())
+    m = next(m for m in store.values() if m["date"] >= BUILT_AT.date().isoformat() and m.get("status") == "scheduled")
+    m.update(location_name="", address="Remote via Zoom", location="", remote_url=None)
+    store_path.write_text(json.dumps(store))
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    path = next(p for p in (tmp_path / "site" / "meetings").glob(f"{m['date']}-*/index.html") if "Remote via Zoom" in p.read_text())
+    page = path.read_text()
+    assert "It's held online only: Remote via Zoom." in page and "Attend in person" not in page
+    assert not [e for e in structured_data(path) if e.get("@type") == "Event"]
+
+
 def test_structured_data_cannot_end_its_script():
     html = structured.script({"@type": "Thing", "name": "</script><b>&"}, None)
     assert html.count("<script") == 1 and "</script><b>" not in html
