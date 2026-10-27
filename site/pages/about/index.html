@@ -84,6 +84,10 @@
   {# Translators: %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington School District". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=config.diligent_meetings.get("body") or (config.diligent_meetings.bodies.values() | list)[0], source=config.diligent_meetings.source_name, url=config.diligent_meetings.page_url, since=config.diligent_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from its <a href="{{ url }}">Diligent Community portal</a>, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
+  {% if config.meetingdocs_meetings is defined %}
+  {# Translators: %(board)s is a board's name, such as "School Committee". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=config.meetingdocs_meetings.get("body") or (config.meetingdocs_meetings.bodies.values() | list)[0], url=config.meetingdocs_meetings.page_url, since=config.meetingdocs_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">events calendar</a>, where they're posted, from {{ since }} on.{% endtrans %}</li>
+  {% endif %}
   {% if config.opengov_meetings is defined %}
   {# Translators: %(boards)s lists boards, such as "School Committee". %(since)s is a month, such as "January 2024". #}
   <li>{% trans boards=config.opengov_meetings.bodies.values() | join(", "), url="https://opengov.sos.ri.gov/OpenMeetingsPublic/OpenMeetingDashboard?subtopmenuId=201", since=config.opengov_meetings.since | date("month") %}<strong>{{ boards }} meetings, agendas, and minutes:</strong> the Rhode Island Secretary of State's <a href="{{ url }}">Open Meetings portal</a>, where every public body in the state files its notices and minutes, from {{ since }} on.{% endtrans %}</li>
