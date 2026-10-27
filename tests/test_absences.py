@@ -258,6 +258,22 @@ def test_officials_seat_column_only_where_seats_differ(config, data_dir):
     assert not mayor["show_seat"] and council["show_seat"]
 
 
+def test_a_seat_the_ward_map_doesnt_follow_is_neither_by_ward_nor_citywide(config, data_dir):
+    """Worcester's School Committee districts are precincts from several wards: wards = [] lists the seat
+    with its body, not under any ward, and not with the members elected citywide."""
+    import copy
+    from pipeline import officials
+    town = copy.deepcopy(config)
+    town["officials"]["bodies"].append({"name": "School Committee", "url": "https://example.org/sc", "members": [
+        {"name": "Pat District", "seat": "District A", "wards": []},
+        {"name": "Sam At-Large", "seat": "At-large"}]})
+    found = officials.load(town, data_dir)
+    assert [m["name"] for m in found["bodies"][-1]["members"]] == ["Pat District", "Sam At-Large"]
+    assert "Pat District" not in {m["name"] for m in found["citywide"]}
+    assert "Sam At-Large" in {m["name"] for m in found["citywide"]}
+    assert not any(m["name"] == "Pat District" for w in found["wards"] for m in w["members"])
+
+
 def assert_dashes_explained(site):
     """Every page of a built site with a – in a table has a legend for it (site_checks does the same)."""
     import re
