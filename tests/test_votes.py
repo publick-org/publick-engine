@@ -8,6 +8,9 @@ FIXTURES = Path(__file__).parent / "fixtures"
 # Malden's City Council minutes, January 5, 2026: one roll call, its names wrapping onto a
 # second line and its last group on the next page, under the page's running header.
 ROLL_CALLS = (FIXTURES / "legistar_roll_calls.pdf").read_bytes()
+# Malden's City Council minutes, April 21, 2026: votes under the consent agenda and the adjournment,
+# sections with no paper of their own, after papers 229-26 (a guest) and 153-26 (a tabled petition).
+SECTIONS = (FIXTURES / "legistar_sections.pdf").read_bytes()
 COUNCIL = ["Peg Crowe", "Paul Condon", "Amanda Linehan", "Ryan O'Malley", "Ari Taylor", "Stephen Winslow",
            "Chris Simonelli", "Jadeane Sica", "Michelle Luong", "Karen Colón Hayes", "Carey McDonald"]
 
@@ -129,3 +132,23 @@ def test_minutes_whose_text_cant_be_read_have_no_roll_calls(monkeypatch):
         raise ValueError("bad xref table")
     monkeypatch.setattr(pdftext, "lines", unreadable)
     assert votes.roll_calls(ROLL_CALLS, COUNCIL) == []
+
+
+def test_a_vote_under_a_section_with_no_paper_has_no_item():
+    found = votes.roll_calls(SECTIONS, COUNCIL)
+    first, last = found[0], found[-1]
+    assert (first["item"], first["section"]) == (None, "CONSENT AGENDA")
+    assert first["motion"].endswith("that this be approved on the Consent Agenda.")
+    assert (last["item"], last["section"]) == (None, "ADJOURNMENT") and "adjourned" in last["motion"]
+    # Votes on a paper keep it, and its section: a numbered list inside an item isn't a section.
+    assert [(v["item"], v["section"]) for v in found[1:4]] == [
+        ("224-26", "APPOINTMENTS & ELECTIONS"), ("225-26", "APPOINTMENTS & ELECTIONS"), ("226-26", "COMMUNICATIONS")]
+    assert all(v["checked"] for v in found) and len(found) == 21
+
+
+def test_a_section_heading_is_a_numbered_line_in_capitals():
+    assert votes.SECTION.match("12. ADJOURNMENT").group(1) == "ADJOURNMENT"
+    assert votes.SECTION.match("6. CONSENT AGENDA")
+    assert not votes.SECTION.match("1. The elimination of the line items associated with Ward Improvement Funds;")
+    assert not votes.SECTION.match("173-26 Response to Friedman OML March 12")
+
