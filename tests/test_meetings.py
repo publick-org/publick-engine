@@ -137,6 +137,17 @@ def test_run_records_changes_and_keeps_links_stable(data_dir):
     assert arts["history"][0] == {"at": "2026-09-27T12:00:00-04:00", "field": "listed", "old": True, "new": False}
 
 
+def test_a_status_read_again_from_the_same_name_isnt_a_change():
+    """The city's listing names the meeting as before: a status read differently from it is Publick's
+    reading, not the city's change (#170)."""
+    name = "Port Authority Meeting - Special Meeting, in place of the regular meeting that was canceled"
+    meeting = {"posted_title": name, "title": "Port Authority Meeting - Special Meeting", "status": "cancelled"}
+    fetch_meetings.merge(meeting, {"posted_title": name, "title": name, "status": "scheduled"}, "2026-10-28", track=True)
+    assert meeting["status"] == "scheduled" and meeting["title"] == name and "history" not in meeting
+    fetch_meetings.merge(meeting, {"posted_title": "CANCELED - " + name, "status": "cancelled"}, "2026-10-29", track=True)
+    assert [h["field"] for h in meeting["history"]] == ["status"]
+
+
 def test_run_does_not_recheck_past_meetings(config, tmp_path):
     fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
     later = FakeCityClient()

@@ -121,12 +121,19 @@ def record_change(meeting: dict, field: str, old, new, at: str) -> None:
     meeting.setdefault("history", []).append({"at": at, "field": field, "old": old, "new": new})
 
 
+# Fields read from a listing's name (its posted_title).
+READ_FROM_NAME = ("title", "status")
+
+
 def merge(meeting: dict, updates: dict, at: str, track: bool) -> None:
+    # A title or status that changed while the listing's name didn't was read again (by a newer
+    # pipeline/meeting_names.py), not changed by the city, so it isn't in the meeting's history.
+    reread = "posted_title" in updates and updates["posted_title"] == meeting.get("posted_title")
     for field, new in updates.items():
         old = meeting.get(field)
         if field in meeting and old == new:
             continue
-        if track and field in TRACKED_FIELDS and field in meeting:
+        if track and field in TRACKED_FIELDS and field in meeting and not (reread and field in READ_FROM_NAME):
             record_change(meeting, field, old, new, at)
         meeting[field] = new
 

@@ -332,9 +332,11 @@ def numbers(text: str, ordinals: bool = False) -> Counter:
                    if ordinals or not re.match(r"(?:st|nd|rd|th)\b", text[m.end():], re.I))
 
 
-# A number with its scale: "$3 million", "3 millones", "$1.2 billion", "1,2 mil millones".
-SCALES = {"en": [(r"billion|bn\b|B\b", "B"), (r"million|M\b", "M"), (r"thousand|K\b", "K")],
-          "es": [(r"mil\s+millones|millardos?|B\b", "B"), (r"mill[oó]n(?:es)?|M\b", "M"), (r"mil\b|K\b", "K")]}
+# A number with its scale: "$3 million", "3 millones", "$1.2 billion", "1,2 mil millones". A letter that begins an
+# abbreviation isn't one: "1 M.R.S.A. § 405" is title 1 of Maine's statutes.
+SCALES = {"en": [(r"billion|bn\b|B\b(?!\.\w)", "B"), (r"million|M\b(?!\.\w)", "M"), (r"thousand|K\b(?!\.\w)", "K")],
+          "es": [(r"mil\s+millones|millardos?|B\b(?!\.\w)", "B"), (r"mill[oó]n(?:es)?|M\b(?!\.\w)", "M"),
+                 (r"mil\b|K\b(?!\.\w)", "K")]}
 
 
 def scaled(text: str, lang: str) -> Counter:
@@ -369,11 +371,14 @@ IRREGULAR = {"began", "brought", "dealt", "forgiven", "overridden", "overrode", 
              "withheld"}
 # Ordinary words the dictionary lacks that summaries capitalize in names of projects and items
 # ("Geothermal Study", "Riverfront Plan"), which no town has written in lowercase yet.
-NEWER_WORDS = {"coordinator", "daycare", "defibrillator", "forecourt", "geothermal", "microenterprise",
-               "pickleball", "preschool", "riverfront", "roundtable", "victualler", "wastewater", "waterfront", "wellness",
-               "workforce"}
+NEWER_WORDS = {"campground", "coordinator", "cosmetology", "daycare", "defibrillator", "districtwide", "dropout", "epoxy",
+               "forecourt", "geothermal", "healthcare", "microenterprise", "onboarding", "passbook", "pickleball", "preschool",
+               "riverfront", "roundtable", "sitcom", "takeback", "taser", "telematic", "victualler", "wastewater", "waterfront",
+               "wellness", "workforce", "yeah"}
+# Days and months, and the days as a schedule shortens them ("Mon-Fri 8am-6pm").
 WEEKDAYS_MONTHS = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february",
-                   "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"}
+                   "march", "april", "may", "june", "july", "august", "september", "october", "november", "december",
+                   "mon", "tue", "tues", "wed", "thu", "thur", "thurs", "fri", "sat", "sun"}
 
 
 def summary_dirs(data_dir: Path) -> list[Path]:
@@ -413,7 +418,9 @@ def is_word(word: str, also: frozenset = frozenset()) -> bool:
     if w in WEEKDAYS_MONTHS or w in IRREGULAR or w in NEWER_WORDS or w in known or w in also:
         return True
     stems = [w[:-len(end)] + add for end, add in (("s", ""), ("es", ""), ("ies", "y"), ("ied", "y"), ("ed", ""), ("ed", "e"),
-                                                  ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""))
+                                                  ("ing", ""), ("ing", "e"), ("ary", ""), ("ism", ""), ("al", ""),
+                                                  # "Revitalization", "Generalist", "Workmen".
+                                                  ("ization", "ize"), ("ist", ""), ("men", "man"))
              if w.endswith(end)]
     # "Sustainability", "accessibility".
     stems += [w[:-len(end)] + add for end, add in (("ability", "able"), ("ibility", "ible")) if w.endswith(end)]
@@ -421,15 +428,18 @@ def is_word(word: str, also: frozenset = frozenset()) -> bool:
     stems += [stem[:-1] for stem in stems if len(stem) > 2 and stem[-1] == stem[-2]]
     if any(stem in known or stem in also or stem in NEWER_WORDS for stem in stems):
         return True
-    # "Unaudited", "unexpended": "un" before a word of five letters or more.
-    return w.startswith("un") and len(w) >= 7 and is_word(w[2:], also)
+    # "Unaudited", "unexpended": "un" before a word of five letters or more; "Reconfirmation", "Substation":
+    # "re" or "sub" before one of six or more ("Resnick" isn't "snick" again).
+    return any(w.startswith(prefix) and len(w) - len(prefix) >= least and is_word(w[len(prefix):], also)
+               for prefix, least in (("un", 5), ("re", 6), ("sub", 6)))
 
 
 # Abbreviations, with their period, that a translation may write out ("Ch." as "Cap." or "capítulo"):
 # words, not names. Business suffixes (Inc., Corp.) aren't here: a business's name is kept.
-ABBREVIATIONS = {"Art", "Ave", "Blvd", "Ch", "Chap", "Dir", "Est", "Ext", "No", "Rd", "Sec", "Secs", "St", "Vol"}
+ABBREVIATIONS = {"Art", "Ave", "Blvd", "Capt", "Ch", "Chap", "Clr", "Col", "Dir", "Est", "Ext", "Lieut", "Lt", "No", "Rd", "Req",
+                 "Sec", "Secs", "Sgt", "St", "Vol"}
 # Those that are never anyone's name, with or without a period ("Asst City Clerk").
-ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Supt", "Tem",
+ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc", "Rec", "Supt", "Tem", "Temp",
                         "Apr", "Aug", "Dec", "Feb", "Jul", "Jun", "Nov", "Oct"}
 # A name as a summary writes it: a capitalized word ("Houseman"), one with capitals inside ("McCallum",
 # "LeLacheur", "DiStefano", "O'Brien"; not an acronym's plural, "CDs"), one in capitals after a title ("MR.
@@ -437,25 +447,26 @@ ALWAYS_ABBREVIATIONS = {"Admin", "Approx", "Asst", "Dept", "Govt", "Mgr", "Misc"
 # out: "ZBA", "HVAC"), or two or more of them joined by hyphens ("Sanchez-Parkinson").
 INNER_CAPITALS = r"(?:[A-Z][a-z]+[A-Z][a-z]{2,}|[A-Z]['’][A-Z][a-z]{2,})(?:[A-Z][a-z]{2,})*"
 NAME_PART = rf"(?:{INNER_CAPITALS}|[A-Z][a-z]+|[A-Z]+['’][A-Z]{{2,}}|[A-Z]{{3,}})"
-# A name in quotes ("'Lowell Garden of Peace'") is one, but not the rest of "O'Brien" or "D'Angelo".
-NAME = re.compile(rf"(?<![\w-])(?<![A-Z]['’])({NAME_PART}(?:-{NAME_PART})*)(?![\w-])(\.?)")
+# A name in quotes ("'Lowell Garden of Peace'") is one, but not the rest of "O'Brien", "D'Angelo", or "Swap'N'Drop".
+NAME = re.compile(rf"(?<![\w-])(?<![A-Za-z]['’])({NAME_PART}(?:-{NAME_PART})*)(?![\w-])(\.?)")
 # What makes the capitalized word after it a name, ordinary word or not: a title ("Councilor Hall", "Mayor
 # Young", "Dr. Wood"), or "moved by" ("seconded by Rose").
 TITLE_WORDS = r"Councill?ors?|Alderm[ae]n|Alderwom[ae]n|Mayor|Chair(?:man|woman|person)?|Commissioners?"
 TITLED = re.compile(rf"\b(?:{TITLE_WORDS}|(?:Mrs?|Ms|Dr|Rep|Sen)\.|(?:moved|seconded|motion(?:ed)?(?:\s+made)?)\s+by)\s+$", re.I)
 # Words after a title that aren't a name: another title ("seconded by Alderman Barry"), "Mayor Pro Tem",
-# "Councilor At-Large", "Mr. President", and an agenda's headings ("Chair Report", "Commissioner Items").
+# "Councilor At-Large", "Mr. President", and an agenda's headings ("Chair Report", "Commissioner Items",
+# "Commissioner Stipend").
 NOT_TITLED = re.compile(rf"(?:{TITLE_WORDS}|Mrs?|Ms|Dr|Rep|Sen|Chief|Vice|President|Pro|Elect|Emeritus|At|Large|The|And|Of|For|Report|Reports|"
-                        r"Announcements|Items|Roles|Comments|Remarks|Update|Updates|Amendment|Amendments)", re.I)
+                        r"Announcements|Items|Roles|Comments|Remarks|Update|Updates|Amendment|Amendments|Stipend|Stipends)", re.I)
 
 
 def names(text: str, also: frozenset = frozenset()) -> set[str]:
     """The names in an English text (NAME), which a translation keeps as written: capitalized words
     that aren't ordinary English words ("Houseman" is one, "Collector" isn't), with capitals inside
     ("McCallum", "O'Brien"), and any capitalized word after a title or "moved by" ("Councilor Hall",
-    "seconded by Wood", "MR. CARUSO"); hyphenated, when a part is one. also: more ordinary
-    words (town_words()). An abbreviation in ABBREVIATIONS with its period, or in ALWAYS_ABBREVIATIONS,
-    isn't one."""
+    "seconded by Wood", "MR. CARUSO"); hyphenated, when a part that isn't an acronym is one ("LRA-Owned"
+    isn't). also: more ordinary words (town_words()). An abbreviation in ABBREVIATIONS with its period, or
+    in ALWAYS_ABBREVIATIONS, isn't one."""
     found = set()
     for m in NAME.finditer(text or ""):
         word, dot = m.group(1), m.group(2)
@@ -465,15 +476,18 @@ def names(text: str, also: frozenset = frozenset()) -> set[str]:
         if NOT_TITLED.fullmatch(word) is None and TITLED.search(text[max(0, m.start() - 30):m.start()]):
             found.add(word)
         elif word != word.upper() and any(
-                not is_word(re.sub(r"['’]", "", part), also) for part in word.split("-")):
+                not is_word(re.sub(r"['’]", "", part), also) and part != part.upper() for part in word.split("-")):
             found.add(word)
     return found
 
 
 def kept(name: str, text: str) -> bool:
-    """Whether a name is in a text as written, whichever apostrophe it's written with."""
+    """Whether a name is in a text as written, whichever apostrophe it's written with, or all in lowercase
+    when only its first letter is a capital: Spanish writes some so ("Ebola" is "ébola"), but "McCallum"
+    is never "Mccallum"."""
     name, text = name.replace("’", "'"), text.replace("’", "'")
-    return bool(re.search(rf"(?<![\w-])(?<!\w'){re.escape(name)}(?![\w-])", text))
+    forms = [name] + ([name.lower()] if name[1:] == name[1:].lower() else [])
+    return any(re.search(rf"(?<![\w-])(?<!\w'){re.escape(form)}(?![\w-])", text) for form in forms)
 
 
 def plain(text: str) -> str:
@@ -482,21 +496,40 @@ def plain(text: str) -> str:
 
 
 # What a decision says happened, in each language, to catch a translation that turns it round.
-NOT = {"en": re.compile(r"\b(?:not|never)\b|n't\b", re.I), "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
-SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
-                            r"disapprov\w*|declin\w*|against|oppos\w*)\b|n't\b", re.I)}
-APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant\w*|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
-           "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
-DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ial|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*|declin(?:e|ed|es|ing))\b",
+# "No" in English: not, never, and what Spanish writes with a "no" or a "sin": "without permits" and "with no
+# conditions" ("sin permiso", "sin condiciones"), and a "no" with a decision ("took no vote", "no option adopted":
+# "no se votó", "no se adoptó"), but not "voting no" ("en contra") or "no parking" ("prohibido estacionar").
+NOT = {"en": re.compile(r"\b(?:not|never|without|with\s+no)\b|n't\b|"
+                        r"\bno\s+(?:[\w-]+\s+){0,2}?(?:votes?|action|decisions?|motions?)\b|"
+                        r"\bno\s+(?:[\w-]+\s+){1,5}?(?:(?:was|were)\s+)?(?:adopted|approved|voted|taken|made|discussed)\b",
                         re.I),
-        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|deneg\w*|rechaz\w*|desaprob\w*|fracas\w*)", re.I)}
-TABLED = {"en": re.compile(r"\b(?:tabled|tabling|postpon\w*)\b", re.I),
-          "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|archiv\w*|tabl\w*|suspend\w*|sobre la mesa|difiri\w*)",
-                           re.I)}
-# "No" in a translation, but not as a prefix ("no conforme" is nonconforming), and "sin" ("not to exceed": "sin exceder").
+       "es": re.compile(r"\b(?:no|nunca|ni|sin)\b", re.I)}
+SAYS_NO = {"en": re.compile(r"\b(?:not|never|no|none|nothing|without|den(?:y|ied|ies|ial|ying)|reject\w*|fail\w*|defeat\w*|"
+                            r"disapprov\w*|declin\w*|against|oppos\w*|vot\w*\s+down)\b|n't\b", re.I)}
+# Approved: "granted" a permit, not a "grant" of money.
+APPROVE = {"en": re.compile(r"\b(?:approv\w*|adopt\w*|grant(?:ed|ing)|pass(?:ed|es)?|carried|endors\w*|ratif\w*)\b", re.I),
+           "es": re.compile(r"\b(?:aprob\w*|aprueb\w*|adopt\w*|otorg\w*|conced\w*|concedi\w*|ratific\w*)", re.I)}
+# Denied, failed, or voted down ("votaron en contra de una moción", not a member's "voto en contra"); not "declines"
+# in a count ("declines after adding a worker") or a "Negative Determination" ("Determinación Negativa"), but "a
+# denial" ("una negativa").
+DENY = {"en": re.compile(r"\b(?:den(?:y|ied|ies|ials?|ying)|reject\w*|fail(?:ed|s)?|defeat\w*|disapprov\w*|declin(?:e|ed|ing)|"
+                        r"declines(?!\s+(?:in|after|of|since|from)\b)|vot(?:e|ed|es|ing)\s+down|"
+                        r"turn(?:ed|s|ing)?\s+(?:away|down))\b", re.I),
+        "es": re.compile(r"\b(?:neg(?:ó|aron|ada|adas|ado|ados|ar|ación)|nieg\w*|deneg\w*|rechaz\w*|desaprob\w*|"
+                         r"fracas\w*|declin\w*|derrot\w*|vot(?:ó|aron|ar)\s+en\s+contra\s+de\b|(?<=una\s)negativa|"
+                         r"(?<=la\s)negativa)", re.I)}
+# Tabled, postponed, or deferred: a motion or a matter, not "tabling" at an event or "deferred maintenance".
+TABLED = {"en": re.compile(r"\b(?:tabled|tabling\s+(?:of|the|it|a|an|all)|tables\s+(?:the|a|an|all|(?-i:[A-Z]))|to\s+table|"
+                           r"postpon\w*|deferr(?:ed|ing)\s+(?:the|a|an|it|all|action|consideration|until|to)|to\s+defer)\b",
+                           re.I),
+          "es": re.compile(r"\b(?:posterg\w*|aplaz\w*|pospu\w*|pospon\w*|posposici\w*|archiv\w*|tabled\b|suspend\w*|"
+                           r"sobre la mesa|difiri\w*)", re.I)}
+# "No" in a translation, but not as a prefix ("no conforme" is nonconforming, "no pública" non-public), "sin" ("not to
+# exceed": "sin exceder"), and "por falta de quórum" ("without a quorum").
 NOES = {"es": re.compile(r"\bsin\b|\b(?:no|nunca)\b(?!\s+(?:conform|residencial|lucrativ|profesional|elegible|permitid|esencial|"
                          r"emergencia|vinculante|aplicable|incluid|deseable|existente|asignad|binari|reembolsable|exent|"
-                         r"tradicional|oficial|relacionad|municipal|pagad))", re.I)}
+                         r"tradicional|oficial|relacionad|municipal|pagad|públic|public|resident|sindicaliz))|"
+                         r"\bpor\s+falta\s+de\s+qu[oó]rum\b", re.I)}
 # "No" with a decision's verb: "no se aprobó", "no fue aprobada", "no recomendó".
 NO_DECISION = {"es": re.compile(r"\bno\s+(?:se\s+)?(?:(?:fue|fueron)\s+)?(?:aprob|aprueb|adopt|otorg|conced|pas|acept|recomend|vot)",
                                 re.I)}
@@ -506,7 +539,7 @@ UNANIMOUS = {"en": re.compile(r"\bunanim\w*", re.I), "es": re.compile(r"\bun[aá
 def outcome(en: str, tr: str, lang: str) -> str | None:
     """What a translation got wrong about what happened, if anything: a "not" dropped or added,
     approved turned into denied or back, tabled lost, or unanimous changed."""
-    # As many noes (not, never, denied, failed) in each, so one can't stand in for another.
+    # As many noes (not, without, denied, failed) in each, so one can't stand in for another.
     noes_en = len(NOT["en"].findall(en)) + len(DENY["en"].findall(en))
     noes_tr = len(NOES[lang].findall(tr)) + len(DENY[lang].findall(tr))
     if noes_en > noes_tr:
@@ -529,17 +562,20 @@ def outcome(en: str, tr: str, lang: str) -> str | None:
 
 def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
     """The two texts without the English's dates in figures that the translation has too, in
-    figures (month and day in either order) or written out ("23 de septiembre de 2026")."""
+    figures (month and day in either order) or written out ("23 de septiembre de 2026"), or both, one
+    after the other in parentheses ("3 de septiembre de 2026 (9/3/2026)")."""
     for m in DATE.finditer(en):
         month, day, year = int(m.group(1)), int(m.group(2)), m.group(3)
         if not (1 <= month <= 12 and 1 <= day <= 31):
             continue
         full_year = year if not year or len(year) == 4 else "20" + year
         in_figures = rf"\b0?(?:{month}/0?{day}|{day}/0?{month})" + (rf"/(?:{full_year}|{full_year[2:]})" if year else "") + r"\b"
-        found = re.search(in_figures, tr)
-        if not found and lang in MONTHS:
-            written = rf"\b0?{day}\s+de\s+(?:{MONTHS[lang][month - 1]})" + (rf"\s+del?\s+{full_year}" if year else "")
-            found = re.search(written, tr, re.I)
+        forms = [in_figures]
+        if lang in MONTHS:
+            forms.append(rf"\b0?{day}\s+de\s+(?:{MONTHS[lang][month - 1]})" + (rf"\s+del?\s+{full_year}" if year else ""))
+        either = "|".join(f"(?:{f})" for f in forms)
+        found = (re.search(rf"(?:{either})\s*\(\s*(?:{either})\s*\)", tr, re.I) or re.search(in_figures, tr)
+                 or (re.search(forms[1], tr, re.I) if len(forms) > 1 else None))
         if found:
             en = en.replace(m.group(0), " ", 1)
             tr = tr[:found.start()] + " " + tr[found.end():]
@@ -547,25 +583,56 @@ def dates_kept(en: str, tr: str, lang: str) -> tuple[str, str]:
 
 
 # The English's ways of writing what a translation writes out, made the same before comparing:
-# "FY27" is "fiscal year 2027" ("año fiscal 2027"); "not to exceed" is a cap, not a "not";
-# "9:00-11:00 A.M." is two morning times; "1.28.26" is a date in figures.
+# "FY27", "fiscal year 27", and "SY26" are "fiscal year 2027" ("año fiscal 2027", or "27") and "school year
+# 2026" ("año escolar 26"); "August '26" is August 2026; "Q2" and "Quarter Two" are the second quarter
+# ("segundo trimestre"), its number; "not to exceed" is a cap, not a "not"; "9:00-11:00 A.M." is two morning
+# times; "1.28.26" and "1-28-26" are dates in figures.
 FISCAL_YEAR = re.compile(r"\bFY\s?'?(\d{2})\b")
+FISCAL_YEAR_WORDS = re.compile(r"\b(fiscal\s+years?)\s+'?(\d{2})\b", re.I)
+SCHOOL_YEAR = re.compile(r"\bSY\s?'?(\d{2})\b")
+MONTH_YEAR = re.compile(r"\b((?:January|February|March|April|May|June|July|August|September|October|November|December)"
+                        r"|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec)\.?)\s+'(\d{2})\b")
+QUARTER = re.compile(r"\bQ([1-4])\b")
+QUARTER_WORDS = re.compile(r"\b(?:(first|second|third|fourth)[\s-]+quarter|quarter\s+(one|two|three|four))\b", re.I)
+QUARTER_NUMBERS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "one": 1, "two": 2, "three": 3, "four": 4}
+# A quarter in Spanish, "segundo trimestre", or one of several, "del tercer y cuarto trimestre".
+TRIMESTRES = {"primer": 1, "segundo": 2, "tercer": 3, "cuarto": 4}
+QUARTERS = re.compile(r"\b(primer|segundo|tercer|cuarto)o?\b(?=(?:\s*(?:,|y|e|o)\s*(?:primer|segundo|tercer|cuarto)o?\b)*"
+                      r"\s+trimestres?\b)", re.I)
 NOT_TO_EXCEED = re.compile(r"\bnot\s+to\s+exceed\b", re.I)
 TIME_RANGE = re.compile(r"\b(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)\s*([ap])\.?\s?m\b\.?", re.I)
 DOTTED_DATE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})\b")
+DASHED_DATE = re.compile(r"\b(\d{1,2})-(\d{1,2})-(\d{4}|\d{2})\b")
+# A fiscal year the translation keeps in English after it's written out: "año fiscal 2027 (FY27)", which the
+# English may write too ("Fiscal Year 2027 (FY27)").
+FISCAL_YEAR_REPEATED = re.compile(r"\s*\(FY\s?'?\d{2,4}\)")
 
 
 def comparable(en: str, tr: str) -> tuple[str, str]:
     """The English and its translation, each written as the other would write it (above)."""
+    en = FISCAL_YEAR_REPEATED.sub("", en)
     en = FISCAL_YEAR.sub(r"FY 20\1", en)
+    en = FISCAL_YEAR_WORDS.sub(r"\1 20\2", en)
+    en = SCHOOL_YEAR.sub(r"SY 20\1", en)
+    en = MONTH_YEAR.sub(r"\1 20\2", en)
+    en = QUARTER.sub(r"quarter \1", en)
+    en = QUARTER_WORDS.sub(lambda m: f"quarter {QUARTER_NUMBERS[(m.group(1) or m.group(2)).lower()]}", en)
     en = NOT_TO_EXCEED.sub("up to", en)
     en = TIME_RANGE.sub(lambda m: f"{m.group(1)} {m.group(3)}.m.-{m.group(2)} {m.group(3)}.m.", en)
-    en = DOTTED_DATE.sub(r"\1/\2/\3", en)
-    # A translation that writes the fiscal year out and keeps the English after it: "año fiscal 2027 (FY27)".
-    tr = re.sub(r"\s*\(FY\s?'?\d{2,4}\)", "", tr)
+    tr = FISCAL_YEAR_REPEATED.sub("", tr)
     tr = FISCAL_YEAR.sub(r"FY 20\1", tr)
-    tr = re.sub(r"\b(año fiscal)\s+(\d{2})\b", r"\1 20\2", tr, flags=re.I)
+    tr = SCHOOL_YEAR.sub(r"SY 20\1", tr)
+    tr = re.sub(r"\b(años?\s+(?:fiscal(?:es)?|escolar(?:es)?))\s+'?(\d{2})\b", r"\1 20\2", tr, flags=re.I)
+    tr = QUARTERS.sub(lambda m: str(TRIMESTRES[m.group(1).lower()]), tr)
+    en, tr = (DASHED_DATE.sub(r"\1/\2/\3", DOTTED_DATE.sub(r"\1/\2/\3", text)) for text in (en, tr))
     return en, tr
+
+
+def without_repeats(tr: str, en: str) -> str:
+    """A translation without what it gives again in parentheses, as the English writes it: the parentheses
+    whose numbers are all the English's ("capítulos 17 y 1 (Ch. 17 y Ch. 1)"), which add none."""
+    have = set(numbers(en, ordinals=True))
+    return re.sub(r"\([^()]*\d[^()]*\)", lambda m: "" if set(numbers(m.group(0))) <= have else m.group(0), tr)
 
 
 def check(source: dict, translated: dict, kind: str, lang: str = "es", words: frozenset = frozenset(),
@@ -604,7 +671,7 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
             lost = numbers(a) - numbers(b)
             if lost:
                 return f"{where}: {', '.join(sorted(lost))} not in the translation"
-            added = numbers(b) - numbers(a, ordinals=True)
+            added = numbers(without_repeats(b, a)) - numbers(a, ordinals=True)
             if added:
                 return f"{where}: {', '.join(sorted(added))} added in the translation"
             unkept = terms_kept(a, b, lang, terms)
