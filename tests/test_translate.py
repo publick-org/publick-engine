@@ -93,6 +93,11 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     # The review knows the words the translator was told to use, so it doesn't fail them.
     assert "public hearing = audiencia pública" in system(reviews[0])
     assert "Never guess anyone's gender" in system(call) and "levantar la sesión" in system(call)
+    # The translator and the review have the same words for a person whose gender the English doesn't give, so
+    # the review doesn't fail what the translator was told to write.
+    for prompt in (system(call), system(reviews[0])):
+        assert "Cahill, titular de la alcaldía" in prompt and '"Councilor Martel" = "Martel, concejal"' in prompt
+    assert "presidente del comité" not in system(call)
     # The system prompts are the same for every request, so they're cached; nothing else is.
     assert all(c["system"][-1]["cache_control"] == {"type": "ephemeral"} for c in [call, reviews[0]])
     assert "cache_control" not in call
