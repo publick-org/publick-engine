@@ -77,7 +77,8 @@ LAYERS = "defaults"
 
 # Every table a town's config may have (the README's table of them, under "Starting a site for another town").
 TABLES = {"site", "town", "sections", "analytics", "digest", "meetings", "archive", "schedule_meetings", "ical_meetings",
-          "finalsite_meetings", "drive_meetings", "page_meetings", "diligent_meetings", "opengov_meetings", "seeclickfix",
+          "finalsite_meetings", "drive_meetings", "page_meetings", "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
+          "seeclickfix",
           "storage", "summaries", "participation", "glossary", "terms", "schools", "finance", "housing", "labor",
           "permits", "freshness", "officials", "absences", "strings"}
 # Merged into every town, not only one whose own file has the table: wording looked up by key.
@@ -343,13 +344,14 @@ def load_config(town: str) -> dict:
                          "or set PUBLICK_TOWN_DIR, and pass --town or set TOWN.")
     config = read_config(path, NETWORK_DIR)
     # What goes in the state-specific tables ([finance], [schools]) depends on the town's state.
-    from pipeline import diligent, finalsite, ical, linkpage, opengov, schedule, states
+    from pipeline import diligent, finalsite, ical, linkpage, meetingdocs, opengov, schedule, states
     states.check(config)
     # A meeting source's table that can't work fails here, not partway through a run.
     finalsite.check(config)
     linkpage.check(config)
     diligent.check(config)
     opengov.check(config)
+    meetingdocs.check(config)
     ical.check(config)
     schedule.check(config)
     return config
