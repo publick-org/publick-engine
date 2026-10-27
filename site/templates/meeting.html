@@ -138,7 +138,8 @@
 <div class="notice"><p>{% trans %}<strong>This agenda includes a public hearing.</strong> At a public hearing, residents can speak on the matter before the board decides.{% endtrans %}</p></div>
 {% endif %}
 <ul>
-  {% if has_where %}<li>{% trans place=m.location_name or m.address or m.location %}Attend in person at {{ place }}.{% endtrans %}</li>{% endif %}
+  {% if m.in_person %}<li>{% trans place=m.location_name or m.address or m.location %}Attend in person at {{ place }}.{% endtrans %}</li>
+  {% elif m.online_only %}<li>{% trans place=m.location_name or m.address or m.location %}It's held online only: {{ place }}.{% endtrans %}</li>{% endif %}
   {% if m.remote_url %}<li>{% trans url=m.remote_url %}Watch or take part online: <a href="{{ url }}">join by Zoom</a>.{% endtrans %}</li>{% endif %}
   {# Translators: after the city's own instructions for public comment; %(title)s is the page they come from. #}
   {% if part.get("comment") %}<li>{{ part.comment }} {% trans url=part.source_url, title=part.source_title %}Source: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}

@@ -29,6 +29,39 @@ STATUS_WORDS = {
     "postponed": re.compile(r"\bpostponed\b", re.I),
     "rescheduled": re.compile(r"\brescheduled\b", re.I),
 }
+# What a status word in a listing's name stands next to when it labels the meeting: "CANCELED -
+# Committee on Finance", "Policy Committee (Cancelled)", "Licensing Board Agenda POSTPONED to February
+# 26", "Meeting Canceled due to lack of quorum", "This meeting was cancelled."
+LABEL_BEFORE = re.compile(r"(?:^|[-–:(\[*.!|]|\bmeeting|\bthis meeting (?:is|was|has been|will be))$", re.I)
+LABEL_AFTER = re.compile(r"^(?:$|[-–:)\]*!|]|\.\s*$)")
+# Or tells of another meeting: "... in place of the regular meeting that was canceled."
+ANOTHER_MEETING = re.compile(r"\b(?:that|which) (?:was|were|had been|has been)$", re.I)
+
+
+def labels(text: str, match: re.Match) -> bool:
+    """Whether a status word found in a listing's name labels the meeting it names, rather than
+    telling of another one: "Special Meeting. This meeting is the rescheduling of the October 1
+    regular meeting that was canceled due to ..." was held. The word labels it at the start or end of
+    the name, set off by punctuation, after "meeting", or in capitals in a name that isn't; not after
+    "that was"."""
+    before, after = text[:match.start()].rstrip(), text[match.end():].lstrip()
+    if ANOTHER_MEETING.search(before):
+        return False
+    return bool(LABEL_BEFORE.search(before) or LABEL_AFTER.match(after)
+                or (match.group().isupper() and not text.isupper()))
+
+
+def status_of(text: str) -> str:
+    """A meeting's status from its listing's name: the first status word that labels it."""
+    return next((s for s, rx in STATUS_WORDS.items()
+                 if any(labels(text, m) for m in rx.finditer(text))), "scheduled")
+
+
+def without_status(text: str) -> str:
+    """A listing's name without the status words that label its meeting."""
+    for rx in STATUS_WORDS.values():
+        text = rx.sub(lambda m: "" if labels(text, m) else m.group(), text)
+    return text
 
 
 # A date written into a meeting's name, which isn't part of the board's: "Planning Board Meeting,
@@ -68,10 +101,8 @@ def clean_text(value: str | None) -> str:
 def parse_title(title: str) -> dict:
     """Split a calendar title like '6:00 PM Licensing Board Special Meeting'."""
     raw = clean_text(title)
-    status = next((s for s, rx in STATUS_WORDS.items() if rx.search(raw)), "scheduled")
-    name = raw
-    for rx in STATUS_WORDS.values():
-        name = rx.sub("", name)
+    status = status_of(raw)
+    name = without_status(raw)
     name = re.sub(r"^[\s\-–:*]+|[\s\-–:*]+$", "", name)
     name = TIME_SUFFIX.sub("", TIME_PREFIX.sub("", name))
     name = re.sub(r"^[\s\-–:*]+|[\s\-–:*]+$", "", name)
