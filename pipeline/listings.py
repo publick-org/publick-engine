@@ -36,7 +36,7 @@ DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "o
 # the year's dates) first, then the city's document systems, then the board's own website or portal (a
 # school district's, which posts its own board's agendas). The meeting page lists its listings in this
 # order too. Within a source, its listings are in the order it posted them (number()).
-LISTING_ORDER = ("calendar", "ical", "schedule", "agendacenter", "civicclerk", "legistar", "filelist", "archive",
+LISTING_ORDER = ("calendar", "ical", "schedule", "agendacenter", "civicclerk", "legistar", "primegov", "filelist", "archive",
                  "drive", "finalsite", "page", "diligent", "opengov")
 STATUS_ORDER = ("cancelled", "postponed", "rescheduled")
 

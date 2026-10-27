@@ -204,6 +204,29 @@ def test_helper_without_a_legistar_api_says_so(tmp_path, network):
     assert "Legistar, without its public API" in town.stopped
 
 
+def test_helper_finds_a_primegov_portal(tmp_path, network):
+    home = '<html><body><a href="https://worcesterma.primegov.com/public/portal">Meetings</a></body></html>'
+    pages = [(r"^https://www\.worcesterma\.gov/?$", Page(home, "https://www.worcesterma.gov/")),
+             (r"ListArchivedMeetings\?year=2026", saved("primegov_archived_2026.json")),
+             (r"ListArchivedMeetings\?year=2025", Page("[]")),
+             (r"ListUpcomingMeetings", saved("primegov_upcoming.json")),
+             (r"CompiledDocument", saved("legistar_minutes.pdf"))]
+    town = new_town.NewTown("Worcester", "MA", "https://www.worcesterma.gov", today=TODAY)
+    out = tmp_path / "worcester-ma"
+    client = FakeClient(pages)
+    assert new_town.run(town, client, network, out, checks=False) == 0
+    text = (out / "config" / "worcester.toml").read_text()
+    config = tomllib.loads(text)
+    meetings = config["meetings"]
+    assert meetings["primegov"]["client"] == "worcesterma"
+    assert meetings["calendar_url"] == "https://worcesterma.primegov.com/public/portal" and "base_url" not in meetings
+    assert {"City Council", "Zoning Board of Appeals"} <= set(meetings["boards"])
+    assert config["freshness"]["sources"][0]["label"] == "Meetings (PrimeGov)"
+    assert "To fill in: include_pattern" in text
+    # The council's minutes were sampled.
+    assert any("CompiledDocument" in u for u in client.urls)
+
+
 def test_helper_stops_at_a_browser_check(tmp_path, network):
     pages = [(r"beverlyma\.gov", new_town.BrowserCheck(BASE + "/"))]
     town, out, code = beverly(tmp_path, network, pages)

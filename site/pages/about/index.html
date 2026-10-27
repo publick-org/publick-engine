@@ -49,6 +49,9 @@
   {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.legistar is defined %}
   {# Translators: %(since)s is a month, such as "January 2024". Legistar is the name of the city's system for its council's agendas and minutes. #}
   <li>{% trans portal=meeting_links.portal, since=config.meetings.legistar.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ portal }}">meeting portal</a> (Legistar). Agendas and minutes are saved when posted, from {{ since }} on.{% endtrans %}</li>
+  {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.primegov is defined %}
+  {# Translators: %(since)s is a month, such as "January 2024". PrimeGov is the name of the city's system for its boards' agendas and minutes. #}
+  <li>{% trans portal=meeting_links.portal, since=config.meetings.primegov.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ portal }}">meeting portal</a> (PrimeGov). Agendas and minutes are saved when posted, from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
   <li>{% trans calendar=meeting_links.calendar, archive=meeting_links.archive, since=config.archive.minutes_since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a> and <a href="{{ archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>

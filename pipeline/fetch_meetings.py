@@ -13,6 +13,7 @@ ahead), a CivicPlus Agenda Center
 ([meetings.agenda_center], which also saves agendas and lists minutes), a
 CivicClerk portal ([meetings.civicclerk], which also saves agendas), a
 Legistar system's public API ([meetings.legistar], which also saves agendas), a
+PrimeGov portal ([meetings.primegov], which also saves agendas), a
 DotNetNuke city calendar ([meetings.dnn], which also saves agendas linked as
 PDFs named for the meeting's date) and a town website with a meetings calendar
 and one documents page for every board's agendas and minutes
@@ -46,7 +47,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, legistar, schedule
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, legistar, primegov, schedule
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -354,6 +355,38 @@ def legistar_calendar(config: dict) -> Calendar:
     return Calendar("Legistar", events, lambda m: m.get("source") == "legistar", details if documents else None)
 
 
+def primegov_calendar(config: dict) -> Calendar:
+    """Meetings on the city's PrimeGov portal ([meetings.primegov]), through its public API: every
+    board it lists, or those matching include_pattern and exclude_pattern."""
+    source = config["meetings"]
+    settings = source["primegov"]
+    client_name = settings["client"]
+    documents = source.get("documents", True)
+    patterns = {k: settings[f"{k}_pattern"] for k in ("agenda", "minutes") if f"{k}_pattern" in settings}
+
+    def events(client, today, store):
+        # The first run reads every year's past meetings since `since`; later runs this year's (and
+        # last year's while recheck_days, default 60, reach back into it), and the meetings ahead.
+        since = date.fromisoformat(str(settings["since"]))
+        if any(m.get("source") == "primegov" for m in store.values()):
+            since = max(since, today - timedelta(days=settings.get("recheck_days", 60)))
+        data = []
+        for year in range(since.year, today.year + 1):
+            data += client.get(primegov.archived_url(client_name, year)).json()
+        data += client.get(primegov.upcoming_url(client_name)).json()
+        found = {}
+        for e in primegov.parse_meetings(data, client_name, source.get("boards", []), source.get("aliases", {}),
+                                         documents, **patterns):
+            found[e["id"]] = e
+        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        return [e for e in found.values() if since.isoformat() <= e["date"] <= ahead and matches(settings, e["title"])]
+
+    def details(client, meeting, storage, stamp):
+        fetch_agenda(client, meeting, meeting, storage, stamp)
+
+    return Calendar("PrimeGov", events, lambda m: m.get("source") == "primegov", details if documents else None)
+
+
 def dnn_calendar(config: dict) -> Calendar:
     """Meetings on a DotNetNuke city calendar ([meetings.dnn]), month by month."""
     source = config["meetings"]
@@ -473,6 +506,8 @@ def calendars(config: dict) -> list[Calendar]:
         found.append(civicclerk_calendar(config))
     if "legistar" in source:
         found.append(legistar_calendar(config))
+    if "primegov" in source:
+        found.append(primegov_calendar(config))
     if "dnn" in source:
         found.append(dnn_calendar(config))
     if "file_list" in source:
