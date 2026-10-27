@@ -88,7 +88,7 @@ from pipeline.files import write_atomic
 
 # The translation prompt's version, saved with each translation. Raise it when the prompt changes
 # (tests/test_prompt_versions.py); that alone makes nothing again (current()).
-VERSION = 6
+VERSION = 7
 # Translations made with a prompt version below this are made again, even those that pass the checks:
 # raise it, with VERSION, only when what the older prompts made is known to be wrong in a way the checks
 # can't catch. Each stays shown until its new translation passes.
@@ -96,8 +96,11 @@ REMAKE_BELOW = 0
 # Translations that failed their checks with a prompt version below this get their ATTEMPTS again; those that
 # pass stay. Raise it, with VERSION, when the prompt fixes what made translations fail: 6 gave the translator
 # the Spanish of each board a summary names, where version 5 kept a board's English name, which the review
-# fails as English left in a Spanish sentence.
-RETRY_BELOW = 6
+# fails as English left in a Spanish sentence; 7 gave the translator and the review the same words for a person
+# whose gender the English doesn't give, where version 6 told the translator to write "Scott Houseman,
+# presidente del comité", which the review fails as a guessed gender, and the words the review found wrong
+# most often.
+RETRY_BELOW = 7
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude Sonnet 5.5's prices, dollars per million tokens, for a town that doesn't give the model's own.
 DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
@@ -114,8 +117,13 @@ LANGUAGE_NAMES = {"es": "Spanish"}
 # (site/strings/es-guide.md has the full glossary).
 READERS = {"es": """Write plain Spanish as residents of a New England city or town read it every day, most of them Puerto Rican, Dominican, or from elsewhere in Latin America: natural, not formal, not word for word, and not Spain's Spanish. Address no one directly.
 Use these words: meeting = reunión; minutes = actas; agenda = agenda; public hearing = audiencia pública; motion = moción; vote = votación; executive session = sesión ejecutiva; councilor = concejal; fiscal year = año fiscal; property tax = impuesto a la propiedad; budget = presupuesto; building permit = permiso de construcción; ward = distrito.
-Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía.
-Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17, which a Spanish reader takes as 10 July. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
+Words that are easy to get wrong: adjourn = levantar la sesión (never "disolver"); appoint = nombrar, reappoint = volver a nombrar (never "reelegir": an appointment isn't an election); elect = elegir; table a motion = posponer; tabling at an event, and a Tabling Policy = poner mesas informativas, política sobre mesas informativas (not "posponer"); sign (on a building or road) = letrero (a "señal" is a traffic sign); name a street after someone = ponerle a una calle el nombre de alguien; an all-alcoholic beverages license = licencia para todo tipo de bebidas alcohólicas; an underage operative (a minor sent into a business in a compliance check) = un menor que colabora con la policía; an Enforcement Order = orden de cumplimiento (never "orden de ejecución"); a personnel matter = un asunto de personal, but a personal matter = un asunto personal; redevelopment = reurbanización (not "nuevo desarrollo"); a fire department's Private = bombero (not "soldado raso"); withdrawn without prejudice = retirada con la opción de volver a presentarla. Abatement is a tax abatement only when it's about a tax: lead or asbestos abatement = eliminación de plomo, de asbesto; opioid abatement funds = fondos para combatir la crisis de opioides.
+People whose gender the English doesn't give ("Chair Houseman", "the Treasurer", "Mayor Cahill", "Director Bagley", with no he, she, Mr., Ms., or Mrs.): never guess it from a name, and in a sentence write no word that gives one: not "el presidente", "la presidenta", "nuevo Presidente", "del Alcalde", "el director", "tesorero", "secretario", or "fue elegido". Write the office, or what the person does, with the article the sentence needs:
+- the Chair = la presidencia ("the Chair's report" = "el informe de la presidencia", "the Chair will sign" = "la presidencia firmará"); elected Chair = "se eligió a Susan Faloon para presidir el comité"; a new Chair and Vice Chair = "nueva presidencia y vicepresidencia";
+- the Mayor = la alcaldía ("the Mayor's budget" = "el presupuesto de la alcaldía"); Mayor Cahill = "Cahill, titular de la alcaldía";
+- a director, treasurer, clerk, or other official = the office, when the office acts or reports ("the Director's report" = "el informe de la dirección"), or the name, then "a cargo de" and the office ("Treasurer Mulholland" = "Mulholland, a cargo de la tesorería"; "Economic Development Director Jodie Nazaka" = "Jodie Nazaka, a cargo de Desarrollo Económico"); named to a role = "se nombró a Joe Smith para la subdirección de Operaciones".
+Words that are the same for a man or a woman stay as they are: concejal ("Councilor Martel" = "Martel, concejal"), integrante, representante, gerente, agente, asistente. Where the English gives a gender, use it ("Mr. Hall" = "el Sr. Hall"). A role's label on its own, as a list of a board's seats shows it, keeps its generic form ("Presidente").
+Write every date with its month's name ("22 de octubre de 2026", "17 de octubre"), never in figures like 10/17 or 6-2-26, which a Spanish reader takes as 10 July and 6 February. Write a fiscal or school year out: FY27 = año fiscal 2027, SY26-27 = año escolar 2026-27, never "FY" or "SY" in a Spanish sentence. Times as "7:00 p. m.", and numbers and money as the English does ("$1,500", "$3 millones", "4.5%")."""}
 
 SYSTEM = """You translate short summaries of a city government's public meeting agendas and minutes from English into {language}, for residents.
 
@@ -125,7 +133,8 @@ Rules:
 - Short sentences, about an 8th-grade reading level.
 - Keep every name of a person, business, street, address, and place exactly as written, and keep every number: dollar amounts, dates, times, vote counts ("5-0"), and case, application, and order numbers.
 - Board and committee names: use the translations given below. A board with none given: its natural {language} name a resident would understand ("Planning Board" = "Junta de Planificación"), never its English name.
-- Never guess anyone's gender. Use the gender the English gives ("he", "she", "Mr.", "Ms."); when it gives none, put the name first and the role after it ("Scott Houseman, presidente del comité"), or use the role without an article, rather than "el presidente" or "la presidenta".
+- Never guess anyone's gender: write people as the words below say, so a person whose gender the English doesn't give has no word that gives one. Never leave out an article Spanish needs: not "Director presentó datos" or "pidió una opinión a Abogado de la Ciudad".
+- Name a board as the English does: "the board" is "la junta", "the commission" "la comisión", without adding which one. Add no name, title, or detail the English doesn't give, even one you can tell from the meeting.
 - Every word in Spanish except names: no English words left in a Spanish sentence.
 - Return the same fields, and each list with as many entries, in the same order.
 
