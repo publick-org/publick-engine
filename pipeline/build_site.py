@@ -439,6 +439,33 @@ def check_listing(m: dict) -> None:
         m["board_documents_url"], m["documents_url"] = m["documents_url"], None
 
 
+# How a meeting is held online, where a listing or agenda gives it as the meeting's place: "Remote via
+# Zoom", "Virtual Teams Meeting", "Zoom Meeting ID: 885 4930 5733 Passcode: 653109", or a link.
+ONLINE = re.compile(r"https?://\S+|\bmeet\.google\.com\S*|\b(?:zoom|(?:microsoft\s+)?teams|google\s+meet|webex|youtube"
+                    r"|webinar|remote(?:ly)?|virtual(?:ly)?|online)\b", re.I)
+# The rest of such a place that names none: "Held via", "Remote Only", "Hybrid meeting: in person (no
+# address listed)", and the town and state a calendar adds to it ("Zoom, Waltham, MA 02452").
+NO_PLACE_WORDS = frozenset("""a also an and access address at available be business by call conference emergency
+    for held hybrid id in is listed live meeting meetings no not on only or participation passcode person phone
+    pin tbd the to tonight via video web will ct ma me nh ri vt""".split())
+IN_PERSON = re.compile(r"\bin[- ]person\b|\bhybrid\b", re.I)
+
+
+def names_place(text: str, town: str = "") -> bool:
+    """Whether a meeting's given place names somewhere to go: "Room 24 (Ground Level of City Hall) and
+    Zoom" does; "Remote via Zoom", "Zoom, Waltham, MA 02452" and "in person (no address listed)" don't."""
+    rest = re.findall(r"[a-z]+", ONLINE.sub(" ", text).lower())
+    return any(w not in NO_PLACE_WORDS and w not in town.lower().split() for w in rest)
+
+
+def place_kind(m: dict, town: str = "") -> None:
+    """Whether a meeting's place is one to attend in person (m["in_person"]), or says only that it's
+    held online (m["online_only"]): a listing or agenda can give "Remote via Zoom" as its place."""
+    place = m["location_name"] or m["address"] or m["location"]
+    m["in_person"] = bool(place) and names_place(place, town)
+    m["online_only"] = bool(place) and not m["in_person"] and bool(ONLINE.search(place)) and not IN_PERSON.search(place)
+
+
 def from_agenda(m: dict) -> None:
     """Fill in a meeting's time and place from its agenda summary when its listing has neither,
     as an Agenda Center's doesn't. m["from_agenda"] says so, for the page to say where they're from."""
@@ -563,6 +590,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview"] = summarize.cached(data_dir, m["agenda"]["sha256"], "agenda", current=False) if m["agenda"] and summary_model else None
         check_listing(m)
         from_agenda(m)
+        place_kind(m, town)
         m.setdefault("minutes", [])
         m["minutes_doc"] = m["minutes"][-1] if m["minutes"] else None
         m["minutes_summary"] = (

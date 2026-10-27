@@ -772,6 +772,83 @@ def test_what_the_english_writes_short_may_be_written_out():
     assert headline("Declined to sell the land.", "Aprobó vender el terreno.") != "ok"
 
 
+def test_right_translations_the_check_failed_in_october_2026():
+    """False alarms on the network's translations of October 2026, each a right translation, beside a wrong
+    one the check still fails."""
+    def headline(en, es):
+        return translate.check({"headline": en, "summary": "", "decisions": []}, {"headline": es, "summary": "", "decisions": []}, "minutes")
+    # Ordinary words the dictionary lacks, by their stems ("revitalize", "general", "workman", "define",
+    # "station"), newer words, abbreviations, and an ordinary word Spanish writes in lowercase.
+    assert headline("Moved funds from the Roosevelt Park Revitalization Project.",
+                    "Trasladó fondos del Proyecto de Revitalización de Roosevelt Park.") == "ok"
+    assert headline("Modified one HR Generalist position and Workmen's Compensation; Redefined the goal.",
+                    "Cambió un puesto de generalista y la compensación para trabajadores; se redefinió la meta.") == "ok"
+    assert headline("Extension for MECO Substation #1 and a Submerchant Agreement.",
+                    "Extensión para la subestación MECO #1 y un acuerdo de subcomerciante.") == "ok"
+    assert headline("Dropout Prevention, Telematic Equipment, Onboarding, Taser purchase.",
+                    "Prevención de la deserción escolar, equipo telemático, incorporación, compra de pistolas eléctricas.") == "ok"
+    assert headline("Letter from Lt. Col. James Ogonowski (Req. of Clr. Soto); Parks & Rec; Chair Pro Temp.",
+                    "Carta de James Ogonowski, teniente coronel (a petición de Soto); Parques y Recreación; presidente pro tempore.") == "ok"
+    assert headline("Fifteen-minute parking (Mon-Fri 8am-6pm)", "Estacionamiento de quince minutos (de lunes a viernes, 8am-6pm)") == "ok"
+    assert headline("Covered Ebola monitoring.", "Abarcó el monitoreo del ébola.") == "ok"
+    assert headline("Commissioner Stipend", "Estipendio de comisionados") == "ok"
+    assert headline("Reconfirmation of LRA-Owned properties", "Reconfirmación de las propiedades de la LRA") == "ok"
+    assert headline("Reviewed the Swap'N'Drop.", "Revisó el Swap'N'Drop.") == "ok"
+    assert headline("Approved the license, 3 Yeah to 0 Nay.", "Aprobó la licencia: 3 a favor y 0 en contra.") == "ok"
+    # A name is still a name: "Resnick" isn't "re" and "snick", and one lost still fails.
+    assert headline("Councilor Resnick spoke.", "Habló el concejal.") == "headline: Resnick not in the translation"
+    assert headline("Mrs. Ebola spoke.", "Habló la Sra. Ébola.") == "ok"
+    # Dates with dashes, written out or kept in parentheses; school and fiscal years, quarters, a month's year.
+    assert headline("Approved the minutes of the 9-2-26 meeting.", "Aprobó las actas de la reunión del 2 de septiembre de 2026.") == "ok"
+    assert headline("Approved the minutes of the 9-2-26 meeting.", "Aprobó las actas de la reunión del 3 de septiembre de 2026.") != "ok"
+    assert headline("Draft minutes from 9-3-2026.", "Borrador de las actas del 3 de septiembre de 2026 (9-3-2026).") == "ok"
+    assert headline("Approved the 4-7-26 minutes.", "Aprobó las actas del 4-7-26 (7 de abril de 2026).") == "ok"
+    assert headline("Goals for SY26-27 and the SY 26-27 schedule.", "Metas para el año escolar 2026-27 y el calendario del año escolar 26-27.") == "ok"
+    assert headline("A fiscal year 26 update and the Fiscal Year 27 budget.",
+                    "Una actualización del año fiscal 26 y el presupuesto del año fiscal 27.") == "ok"
+    assert headline("Appropriations for Fiscal Year 2027 (FY27).", "Asignaciones para el año fiscal 2027 (FY27).") == "ok"
+    assert headline("Approved the FY '27 budget.", "Aprobó el presupuesto del año fiscal '27.") == "ok"
+    assert headline("At its August '26 meeting.", "En su reunión de agosto de 2026.") == "ok"
+    assert headline("Q2 2026 events and Q3 and Q4 shows.", "Eventos del segundo trimestre de 2026 y espectáculos del tercer y cuarto trimestre.") == "ok"
+    assert headline("Q2 2026 events.", "Eventos del tercer trimestre de 2026.") != "ok"
+    assert headline("Third-quarter numbers and the Quarter Two report.", "Cifras del tercer trimestre y el informe del segundo trimestre.") == "ok"
+    assert headline("Amend 3.10.07(b).", "Enmendar 3.10.07(b).") == "ok"
+    # The English repeated in parentheses adds nothing; a number that isn't the English's still does.
+    assert headline("Tabled: amendments for Ch 17 and Ch 1", "Pospuesto: enmiendas a los capítulos 17 y 1 (Ch. 17 y Ch. 1)") == "ok"
+    assert headline("Tabled: amendments for Ch 17 and Ch 1", "Pospuesto: enmiendas a los capítulos 17 y 1 (Ch. 18)") != "ok"
+    # Title 1 of Maine's statutes isn't 1 million; $3 M still is $3 million.
+    assert headline("Executive session under 1 M.R.S.A. § 405(6)(A).",
+                    "Sesión ejecutiva según 1 Estatutos Revisados Anotados de Maine (M.R.S.A.) § 405(6)(A).") == "ok"
+    assert headline("Approved $3 M.", "Aprobó $3.") != "ok"
+    # What Spanish writes with "no" or "sin", and denied, voted down, or tabled in other words.
+    assert headline("Reviewed signs installed without permits; approved with no conditions.",
+                    "Revisó letreros instalados sin permiso; aprobó sin condiciones.") == "ok"
+    assert headline("Took no vote to move it to a hearing.", "No se votó para pasarla a una audiencia.") == "ok"
+    assert headline("No changes to the ordinance were voted on.", "No se votaron cambios a la ordenanza.") == "ok"
+    assert headline("No votes taken without a quorum.", "No se tomaron votaciones por falta de quórum.") == "ok"
+    assert headline("Approved, 4-1, with Mr. Gross voting no.", "Aprobó, 4-1, con el voto en contra del Sr. Gross.") == "ok"
+    assert headline("Approved a no-parking sign and No Trespass Orders.", "Aprobó un letrero de prohibido estacionar y órdenes de prohibición de entrada.") == "ok"
+    assert headline("Docket No. 2023-029", "Expediente n.º 2023-029") == "ok"
+    assert headline("Zoning Board denies the second ADU permit.", "La junta niega el segundo permiso de ADU.") == "ok"
+    assert headline("Approved abatements with no denials.", "Aprobó reducciones, sin rechazos.") == "ok"
+    assert headline("Heard an appeal of an administrative denial.", "Escuchó una apelación de una negativa administrativa.") == "ok"
+    assert headline("Issued a Negative 3 Determination.", "Emitió una Determinación Negativa 3.") == "ok"
+    assert headline("Voted down a motion to rescind the transfer.", "Votaron en contra de una moción para revocar la transferencia.") == "ok"
+    assert headline("Voted down a motion on voter legislation.", "Una moción sobre legislación de votantes fue derrotada.") == "ok"
+    assert headline("Voted down a motion on voter legislation.", "Aprobó una moción sobre legislación de votantes.") != "ok"
+    assert headline("Said it has not turned away a request.", "Dijo que no ha rechazado ninguna solicitud.") == "ok"
+    assert headline("Data show declines after adding a worker; took no formal action.",
+                    "Los datos muestran una disminución después de agregar un trabajador; no tomó ninguna medida formal.") == "ok"
+    assert headline("Planned voter registration tabling at events.", "Planeó mesas informativas para inscribir votantes en eventos.") == "ok"
+    assert headline("Approved indefinite postponement of O-26-020.", "Aprobó la posposición indefinida de O-26-020.") == "ok"
+    assert headline("Deferred the vote on adopting the draft.", "Aplazó la votación sobre la adopción del borrador.") == "ok"
+    assert headline("Deferred the vote on adopting the draft.", "Aprobó la adopción del borrador.") != "ok"
+    assert headline("Tables the Artisan Market program; revises grant guidelines.",
+                    "Pospone el programa Artisan Market; revisa las pautas de subvenciones.") == "ok"
+    assert headline("Reviewed the grant report and a 2027 assignments table.", "Revisó el informe de la subvención y una tabla de asignaciones para 2027.") == "ok"
+    assert headline("Approved FY26 Deferred Maintenance.", "Aprobó el mantenimiento diferido del año fiscal 2026.") == "ok"
+
+
 def test_a_town_s_ordinary_words_are_whole_words_from_every_town(tmp_path):
     """"Bryan" doesn't make "ryan" an ordinary word, so a Ryan is still checked; a word another town
     of the network writes in lowercase is ordinary everywhere."""

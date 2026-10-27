@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from pipeline.civicplus import STATUS_WORDS, board_part, clean_text
+from pipeline.civicplus import board_part, clean_text, status_of, without_status
 
 # What a meeting is, as opposed to who is meeting: "Planning Board Public Hearings".
 KIND_SUFFIX = re.compile(r"\s+(?:(?:regular|business|organizational)\s+)?"
@@ -44,9 +44,8 @@ def parse_name(raw: str, boards: list[str] | None = None, aliases: dict | None =
     meeting of it."""
     aliases = aliases or {}
     title = clean_text(raw)
-    status = next((s for s, rx in STATUS_WORDS.items() if rx.search(title)), "scheduled")
-    for rx in STATUS_WORDS.values():
-        title = rx.sub("", title)
+    status = status_of(title)
+    title = without_status(title)
     title = re.sub(r"\s{2,}", " ", re.sub(r"^[\s\-–:*]+|[\s\-–:*]+$", "", title))
 
     body = find_board(title, boards or [], aliases)
