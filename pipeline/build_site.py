@@ -40,6 +40,8 @@ from pipeline import glossary
 from pipeline import common_strings
 from pipeline import digest
 from pipeline import dnn
+from pipeline import legistar
+from pipeline import primegov
 from pipeline import factcheck
 from pipeline import listings
 from pipeline import meeting_names
@@ -414,10 +416,11 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
-LISTINGS = {"civicclerk": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
+LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's meeting portal"),
+            "primegov": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
             "finalsite": N_("school district's website"), "ical": N_("school district's website"),
             "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
-            "opengov": N_("state's Open Meetings portal"),
+            "opengov": N_("state's Open Meetings portal"), "meetingdocs": N_("city's events calendar"),
             "schedule": N_("published schedule")}
 CALENDAR = N_("city calendar")
 
@@ -754,7 +757,9 @@ def meeting_links(config: dict) -> dict:
     base = m.get("base_url", "").rstrip("/")
     return {
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
-        "portal": m.get("civicclerk", {}).get("portal_url"),
+        "portal": m.get("civicclerk", {}).get("portal_url") or (
+            m["legistar"].get("site_url") or legistar.site_url(m["legistar"]["client"]) if "legistar" in m else None) or (
+            primegov.portal_url(m["primegov"]["client"]) if "primegov" in m else None),
         "archive": m.get("archive_url") or (f"{base}/Archive.aspx" if base else None),
         "archive_name": m.get("archive_name", _("city's Archive Center")),
         "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
@@ -767,7 +772,7 @@ def meeting_links(config: dict) -> dict:
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
-                              "ical_meetings")
+                              "meetingdocs_meetings", "ical_meetings")
                     if t in config]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),

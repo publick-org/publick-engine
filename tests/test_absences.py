@@ -103,8 +103,8 @@ def test_a_meeting_in_two_sources_awaits_minutes_on_the_boards_own_website(first
 
 
 def test_minutes_source_order_is_documented():
-    assert absences.MINUTES_ORDER == ("finalsite", "drive", "page", "diligent", "opengov",
-                                      "agendacenter", "civicclerk", "filelist", "archive")
+    assert absences.MINUTES_ORDER == ("finalsite", "drive", "page", "diligent", "opengov", "meetingdocs",
+                                      "agendacenter", "civicclerk", "legistar", "primegov", "filelist", "archive")
 
 
 def test_a_source_that_doesnt_collect_minutes_from_the_meetings_date_yet_is_passed_over():
@@ -256,6 +256,22 @@ def test_officials_seat_column_only_where_seats_differ(config, data_dir):
     assert not officials.load(same, data_dir)["bodies"][1]["show_seat"]
     mayor, council = officials.load(config, data_dir)["bodies"][:2]
     assert not mayor["show_seat"] and council["show_seat"]
+
+
+def test_a_seat_the_ward_map_doesnt_follow_is_neither_by_ward_nor_citywide(config, data_dir):
+    """Worcester's School Committee districts are precincts from several wards: wards = [] lists the seat
+    with its body, not under any ward, and not with the members elected citywide."""
+    import copy
+    from pipeline import officials
+    town = copy.deepcopy(config)
+    town["officials"]["bodies"].append({"name": "School Committee", "url": "https://example.org/sc", "members": [
+        {"name": "Pat District", "seat": "District A", "wards": []},
+        {"name": "Sam At-Large", "seat": "At-large"}]})
+    found = officials.load(town, data_dir)
+    assert [m["name"] for m in found["bodies"][-1]["members"]] == ["Pat District", "Sam At-Large"]
+    assert "Pat District" not in {m["name"] for m in found["citywide"]}
+    assert "Sam At-Large" in {m["name"] for m in found["citywide"]}
+    assert not any(m["name"] == "Pat District" for w in found["wards"] for m in w["members"])
 
 
 def assert_dashes_explained(site):

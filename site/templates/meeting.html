@@ -246,8 +246,9 @@
 {% if source in ("finalsite", "drive", "page") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
 {% elif source == "diligent" %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
 {% elif source == "opengov" %}{% set where_url, where = g.url, _("state's Open Meetings portal") %}
+{% elif source == "meetingdocs" %}{% set where_url, where = g.url, _("city's events calendar") %}
 {% elif source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
-{% elif source == "civicclerk" %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
+{% elif source in ("civicclerk", "legistar", "primegov") %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
 {% elif source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
 {% else %}{% set where_url, where = meeting_links.archive, meeting_links.archive_name %}{% endif %}
 {% if g.reason == "not_posted" %}
@@ -381,6 +382,8 @@
 <p>{% trans url=m.minutes_doc.source_url, town=town.name %}This meeting is known from its <a href="{{ url }}">minutes in the City of {{ town }} Archive Center</a>.{% endtrans %} {{ recorded }}</p>
 {% elif m.source == "opengov" %}
 <p>{% trans url=m.source_url %}<a href="{{ url }}">This meeting on the state's Open Meetings portal</a>, where every public body in the state files its notices and minutes.{% endtrans %} {{ recorded }}</p>
+{% elif m.source == "meetingdocs" %}
+<p>{% trans url=m.source_url %}<a href="{{ url }}">This meeting on the city's events calendar</a>, where its agendas, minutes and recordings are posted.{% endtrans %} {{ recorded }}</p>
 {% elif m.source == "diligent" %}
 {# Translators: %(name)s is a school district, such as "Burlington School District". #}
 <p>{% trans url=m.source_url, name=m.source_name %}<a href="{{ url }}">This meeting on the {{ name }} meeting portal</a> (Diligent Community).{% endtrans %} {{ recorded }}</p>

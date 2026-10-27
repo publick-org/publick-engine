@@ -46,6 +46,12 @@
   {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.civicclerk is defined %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
   <li>{% trans calendar=meeting_links.calendar, portal=meeting_links.portal, since=config.meetings.civicclerk.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a> and its <a href="{{ portal }}">meeting portal</a> (CivicClerk). Agendas and minutes of the meetings on the portal are saved when posted, from {{ since }} on; other meetings link to their agendas where the city posts them.{% endtrans %}</li>
+  {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.legistar is defined %}
+  {# Translators: %(since)s is a month, such as "January 2024". Legistar is the name of the city's system for its council's agendas and minutes. #}
+  <li>{% trans portal=meeting_links.portal, since=config.meetings.legistar.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ portal }}">meeting portal</a> (Legistar). Agendas and minutes are saved when posted, from {{ since }} on.{% endtrans %}</li>
+  {% elif config.meetings is defined and meeting_links.documents and config.archive is not defined and config.meetings.primegov is defined %}
+  {# Translators: %(since)s is a month, such as "January 2024". PrimeGov is the name of the city's system for its boards' agendas and minutes. #}
+  <li>{% trans portal=meeting_links.portal, since=config.meetings.primegov.since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ portal }}">meeting portal</a> (PrimeGov). Agendas and minutes are saved when posted, from {{ since }} on.{% endtrans %}</li>
   {% elif config.meetings is defined and meeting_links.documents %}
   {# Translators: %(since)s is a month, such as "January 2024". #}
   <li>{% trans calendar=meeting_links.calendar, archive=meeting_links.archive, since=config.archive.minutes_since | date("month") %}<strong>Meetings, agendas, and minutes:</strong> the city's <a href="{{ calendar }}">calendar</a> and <a href="{{ archive }}">Archive Center</a>. Copies are saved when posted. Minutes are collected from {{ since }} on.{% endtrans %}</li>
@@ -77,6 +83,10 @@
   {% if config.diligent_meetings is defined %}
   {# Translators: %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington School District". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=config.diligent_meetings.get("body") or (config.diligent_meetings.bodies.values() | list)[0], source=config.diligent_meetings.source_name, url=config.diligent_meetings.page_url, since=config.diligent_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from its <a href="{{ url }}">Diligent Community portal</a>, from {{ since }} on.{% endtrans %}</li>
+  {% endif %}
+  {% if config.meetingdocs_meetings is defined %}
+  {# Translators: %(board)s is a board's name, such as "School Committee". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=config.meetingdocs_meetings.get("body") or (config.meetingdocs_meetings.bodies.values() | list)[0], url=config.meetingdocs_meetings.page_url, since=config.meetingdocs_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">events calendar</a>, where they're posted, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
   {% if config.opengov_meetings is defined %}
   {# Translators: %(boards)s lists boards, such as "School Committee". %(since)s is a month, such as "January 2024". #}
