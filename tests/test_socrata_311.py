@@ -312,3 +312,35 @@ def test_a_portal_towns_311_pages(config, data, tmp_path, monkeypatch):
 
     spanish = (out / "es" / "311" / "index.html").read_text()
     assert "Sin distrito registrado" in spanish and "Tiempo típico de cierre" in spanish and "confirm" not in spanish
+
+
+def test_closed_requests_older_than_the_pages_show_are_dropped(config, data):
+    """A closed request created before the monthly chart's first month, and closed over 30 days ago,
+    is dropped as the requests are saved; the scorecard is the same as from every request."""
+    later = datetime(2028, 3, 15, 12, 0, tzinfo=TZ)
+    rows = socrata_rows()
+    # One old request closed only last week: it was open a week ago, so it's kept for now.
+    recent_close = next(r for r in rows if r["classification"] == "Service" and r["date_created"] < "2026-04-01"
+                        and r["most_recent_status"] == "Closed")
+    recent_close.update(most_recent_status_date="2028-03-10 09:00:00", **{":updated_at": "2028-03-10T10:04:00.000Z"})
+    everything = data / "everything"
+    shutil.copytree(data, everything)
+    fetch_socrata_311.run(config, FakeSocrata(rows), everything, now=later, max_pages=0)
+    fetch_socrata_311.run(config, FakeSocrata(rows), data, now=later)
+    store, start = load(data), compute_311.chart_start(later).date().isoformat()
+    dropped = [r for r in SERVICE if r["id"] not in store]
+    assert dropped and json.loads((data / "311" / "status.json").read_text())["pruned"] == len(dropped)
+    assert all(r["date_created"] < start and r["most_recent_status"] == "Closed" for r in dropped)
+    assert recent_close["id"] in store
+    # Old requests still open are kept, however old.
+    assert all(r["id"] in store for r in SERVICE if r["most_recent_status"] != "Closed")
+
+    # Every request, read without pruning, against the requests kept: the same scorecard.
+    unpruned = {r["id"]: socrata.parse_row(r, socrata.fields(config["socrata_311"]), {"Closed"}, TZ) for r in rows
+                if r["classification"] == "Service"}
+    compute_311.save_json(everything / "311" / "requests.json", unpruned)
+    full = compute_311.compute(config, everything, now=later)
+    kept = compute_311.compute(config, data, now=later)
+    for card in (full, kept):
+        card.pop("requests_recorded"), card.pop("fetched_at")
+    assert kept == full and kept["data_since"] == max("2025-01-01", start)

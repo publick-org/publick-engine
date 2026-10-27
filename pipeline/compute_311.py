@@ -40,6 +40,12 @@ BACKLOG_BUCKETS = [(7, N_("Under 1 week")), (30, N_("1 week to 1 month")), (90, 
 NO_UPDATE_DAYS = 365
 
 
+def chart_start(now: datetime) -> datetime:
+    """The first month the monthly chart shows, about two years back. A portal's closed requests
+    from before it are dropped from the saved requests (pipeline/fetch_socrata_311.py prune)."""
+    return (now.replace(day=1) - timedelta(days=700)).replace(day=1)
+
+
 def ward_order(ward: str) -> tuple:
     """Wards in number order (2 before 10), with requests outside every ward last."""
     return (ward == "outside", int(ward) if ward.isdigit() else float("inf"), ward)
@@ -309,7 +315,7 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
             by_ward[r.get("ward") or "outside"].append(r)
 
     monthly = defaultdict(list)
-    first_month = (now.replace(day=1) - timedelta(days=700)).replace(day=1)
+    first_month = chart_start(now)
     for r in records:
         created = parse(r["created_at"])
         if created >= first_month:
@@ -317,6 +323,11 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
 
     open_records = [r for r in records if r["status"] == "open"]
     earliest = min((r["created_at"] for r in records), default=None)
+    if source["table"] == "socrata_311" and earliest:
+        # Closed requests from before the chart are dropped as they're saved, so the record is whole
+        # from the later of since and the chart's first month (older requests still open are kept).
+        whole = max(f"{settings['since']}-01", chart_start(now).date().isoformat())
+        earliest = max(earliest, whole)
     # Repeat locations need map points; a source without them has only the recent open requests' days.
     rep = settings["repeats"] if source["locations"] else {"recent_open_days": settings.get("recent_open_days", 30)}
     backlog_now = backlog(open_records, now, link_base, town, areas=areas)

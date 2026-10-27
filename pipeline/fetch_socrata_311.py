@@ -17,7 +17,10 @@ A request is open or closed by its most recent status; a closed request's
 status date is when it was closed. The ward is the city's own, from the row:
 nothing is looked up in a ward file. The portal has no address, map point or
 acknowledged time, so the 311 pages leave those out (pipeline/source_311.py).
-A request deleted from the portal stays as it was last read.
+A request deleted from the portal stays as it was last read. Closed requests
+older than the pages show (created before the monthly chart's first month, about
+two years back, and closed over 30 days ago) are dropped, so the saved requests
+stay about two years' worth however long the town has run (prune).
 
 Writes data/311/requests.json, data/311/sync.json (the cursor and any backfill
 left), and data/311/status.json, as pipeline/fetch_311.py does for SeeClickFix,
@@ -30,12 +33,13 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 from pipeline import bucket_data, socrata
+from pipeline.compute_311 import chart_start
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_311 import iso, load_state, load_store, save, save_json, store_dir
 from pipeline.http import FetchError, HostLimiter, PoliteClient
@@ -46,6 +50,9 @@ PAGE_SIZE = 1000
 MAX_PAGES = 60
 # Pages between saves while a long read goes on, so a stopped run keeps most of what it read.
 CHECKPOINT_PAGES = 20
+# Days a closed request is kept after it closed, whenever it was created: the 311 page compares
+# today's open requests with a week ago's.
+KEEP_CLOSED_DAYS = 30
 
 
 class Portal:
@@ -107,6 +114,21 @@ def merge(store: dict, rows: list[dict], portal: Portal, tz: ZoneInfo, stamp: st
     return new, changed
 
 
+def prune(store: dict, now: datetime) -> int:
+    """Drop the closed requests the pages no longer show: created before the monthly chart's first
+    month (compute_311.chart_start, about two years back) and closed more than KEEP_CLOSED_DAYS ago.
+    Requests still open are kept however old, for the backlog. A dropped request the city changes
+    again is read again, as any changed row is. Returns how many were dropped."""
+    created_before = chart_start(now).replace(hour=0, minute=0, second=0, microsecond=0)
+    closed_before = now - timedelta(days=KEEP_CLOSED_DAYS)
+    old = [rid for rid, r in store.items() if r["status"] == "closed" and r.get("created_at") and r.get("updated_at")
+           and datetime.fromisoformat(r["created_at"]) < created_before
+           and datetime.fromisoformat(r["updated_at"]) < closed_before]
+    for rid in old:
+        del store[rid]
+    return len(old)
+
+
 def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_pages: int | None = None) -> dict:
     settings = config["socrata_311"]
     tz = ZoneInfo(config["site"]["timezone"])
@@ -163,6 +185,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_p
     except FetchError as e:
         # What was read is saved below, with the cursor at its last row; the step fails.
         errors.append(str(e))
+    pruned = prune(store, now)
     save(config, data_dir, store, state)
 
     caught_up = bool(state.get("caught_up")) and not state.get("backfill") and not errors
@@ -178,6 +201,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_p
         "rows_read": read,
         "new": new,
         "changed": changed,
+        "pruned": pruned,
         "pages": portal.pages,
         "requests_made": getattr(client, "request_count", None),
         "seconds": round(time.monotonic() - started, 1),
