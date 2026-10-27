@@ -1,7 +1,8 @@
 """Massachusetts housing figures, added to the housing page by pipeline.fetch_housing.
 
 - The share of year-round homes on the state's Subsidized Housing Inventory
-  (Chapter 40B), from the state's PDF, when [housing] has shi_url.
+  (Chapter 40B), from the state's PDF, when [housing] has shi_url. In the
+  network, the PDF is read once for every town (refresh, statewide.py).
 - Residential parcels by type, from the Mass. Division of Local Services, when
   the town has a [finance] table.
 """
@@ -17,6 +18,7 @@ from pypdf import PdfReader
 
 from pipeline.http import FetchError, PoliteClient
 from pipeline.i18n import N_
+from pipeline.states.ma import statewide
 from pipeline.states.ma.dls import REPORT_URL, table
 
 # The housing.json keys these add.
@@ -56,31 +58,63 @@ def pdf_text(pdf: bytes) -> str:
     return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(pdf)).pages)
 
 
-def parse_shi(text: str, town: str) -> dict:
-    """The town's row of the inventory: year-round homes, development units, SHI units, percent."""
+# One municipality's row: name, Muni_ID (its DOR code), year-round homes, development units, SHI units, percent.
+SHI_ROW = re.compile(r"^([A-Z][A-Za-z.' -]*?) (\d+) ([\d,]+) ([\d,]+) ([\d,]+) ([\d.]+)%", re.M)
+# The inventory as the statewide store keeps it (statewide.py).
+SHI_FILE = "shi.json"
+
+
+def parse_inventory(text: str) -> dict:
+    """Every municipality's row of the inventory, by name as the PDF lists it."""
     as_of = re.search(r"as of ([A-Z][a-z]+ \d{1,2}, \d{4})", text)
-    row = re.search(rf"^{re.escape(town)} \d+ ([\d,]+) ([\d,]+) ([\d,]+) ([\d.]+)%", text, re.M)
-    if not row or not as_of:
-        raise FetchError(f"{town} not found in the Subsidized Housing Inventory")
-    as_of_date = datetime.strptime(as_of.group(1), "%B %d, %Y").date().isoformat()
+    rows = {m.group(1): {"year_round_homes": int(m.group(3).replace(",", "")),
+                         "development_units": int(m.group(4).replace(",", "")),
+                         "shi_units": int(m.group(5).replace(",", "")),
+                         "percent": float(m.group(6))}
+            for m in SHI_ROW.finditer(text)}
+    if not rows or not as_of:
+        raise FetchError("the Subsidized Housing Inventory's rows could not be read")
     census = re.search(r"(\d{4}) Census", text)
-    return {
-        "as_of": as_of_date,
-        "census_year": int(census.group(1)) if census else None,
-        "year_round_homes": int(row.group(1).replace(",", "")),
-        "development_units": int(row.group(2).replace(",", "")),
-        "shi_units": int(row.group(3).replace(",", "")),
-        "percent": float(row.group(4)),
-        "goal_percent": 10,
-    }
+    return {"as_of": datetime.strptime(as_of.group(1), "%B %d, %Y").date().isoformat(),
+            "census_year": int(census.group(1)) if census else None, "rows": rows}
+
+
+def town_row(inventory: dict, town: str) -> dict:
+    """The town's figures from the inventory: year-round homes, development units, SHI units, percent."""
+    row = inventory["rows"].get(town)
+    if not row:
+        raise FetchError(f"{town} not found in the Subsidized Housing Inventory")
+    return {"as_of": inventory["as_of"], "census_year": inventory["census_year"], **row, "goal_percent": 10}
+
+
+def parse_shi(text: str, town: str) -> dict:
+    return town_row(parse_inventory(text), town)
+
+
+def fetch_inventory(client, url: str) -> dict:
+    response = client.get(url)
+    if not response.content.startswith(b"%PDF"):
+        raise FetchError("the Subsidized Housing Inventory link did not return a PDF")
+    return parse_inventory(pdf_text(response.content))
 
 
 def shi(client, config: dict) -> dict:
+    """The town's row, from the statewide store when it has the town, else from the PDF itself."""
     h = config["housing"]
-    response = client.get(h["shi_url"])
-    if not response.content.startswith(b"%PDF"):
-        raise FetchError("the Subsidized Housing Inventory link did not return a PDF")
-    return {**parse_shi(pdf_text(response.content), h["shi_name"]), "source_url": SHI_PAGE}
+    saved = statewide.read(SHI_FILE)
+    inventory = saved if saved and h["shi_name"] in saved["rows"] else fetch_inventory(client, h["shi_url"])
+    return {**town_row(inventory, h["shi_name"]), "source_url": SHI_PAGE}
+
+
+def refresh(state_dir, configs: list[dict], _client, now: datetime) -> dict:
+    """The statewide store's copy of the inventory (statewide.py), fetched once for these towns. mass.gov
+    refuses the network's own User-Agent, so the PDF is asked for as a town's request is (client())."""
+    if not statewide.due(state_dir, SHI_FILE, now):
+        return {"exports": 1, "fetched": 0}
+    inventory = fetch_inventory(client(configs[0]), configs[0]["housing"]["shi_url"])
+    statewide.save(state_dir, SHI_FILE, statewide.dumps({k: v for k, v in inventory.items() if k != "rows"},
+                                                        inventory["rows"]), now)
+    return {"exports": 1, "fetched": 1}
 
 
 # ---- Parcels by type ----

@@ -55,8 +55,9 @@ ledger is made, against the costs its summary and translation files record
 nothing, and fails if a town has one.
 
 states fetches the statewide sources the network's towns use, once per state
-for all of them, into states/ (for Massachusetts, the DLS exports: see
-pipeline/states/ma/dls.py); each town's steps read their rows from there. A
+for all of them, into states/ (for Massachusetts, the DLS exports, the
+Subsidized Housing Inventory, and DESE's school figures: see
+pipeline/states/ma/statewide.py); each town's steps read their rows from there. A
 state's statewide checks that keep failing are listed by behind.
 
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
@@ -102,8 +103,8 @@ TOWNS = "towns"
 # variable that tells a town's steps where they are (pipeline.states.ma.dls.STORE_ENV).
 STATES = "states"
 STATE_DIR_ENV = "PUBLICK_STATE_DIR"
-# The states with statewide sources, and the module that fetches them (refresh(state_dir, configs, client)).
-STATEWIDE = {"MA": "pipeline.states.ma.dls"}
+# The states with statewide sources, and the module that fetches them (refresh(state_dir, configs, client, now)).
+STATEWIDE = {"MA": "pipeline.states.ma.statewide"}
 # A state's statewide checks count as failing, in the daily alert, after this many in a row.
 STATE_FAILURES = 3
 # A change to the engine version, the workflows, or the network's layer (defaults/network.toml) rebuilds every
@@ -523,7 +524,7 @@ def refresh_states(root: Path, now: datetime | None = None) -> dict:
     configs = [town_config(root, name) for name in town_dirs(root)]
     results = {}
     for code, module_name in STATEWIDE.items():
-        towns = [c for c in configs if c.get("town", {}).get("state_abbr", "").upper() == code and "finance" in c]
+        towns = [c for c in configs if c.get("town", {}).get("state_abbr", "").upper() == code]
         if not towns:
             continue
         module = import_module(module_name)
