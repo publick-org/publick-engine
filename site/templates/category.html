@@ -18,7 +18,9 @@
 <ul class="stats">
   <li class="stat"><div><span class="stat-label">{{ _("Requests") }}</span><span class="stat-value">{{ c.received | number }}</span></div></li>
   <li class="stat"><div><span class="stat-label">{{ _("Still open") }}</span><span class="stat-value">{{ c.open | number }}</span></div></li>
+  {% if source_311.acknowledged %}
   <li class="stat"><div><span class="stat-label">{{ _("Typical time to acknowledge") }}</span><span class="stat-value{% if c.time_to_acknowledge.median is none %} stat-value-text{% endif %}">{{ c.time_to_acknowledge.median | duration }}</span><span class="stat-change">{% trans num=c.acknowledged | number %}Median of {{ num }} acknowledged{% endtrans %}</span></div></li>
+  {% endif %}
   <li class="stat"><div><span class="stat-label">{{ _("Typical time to close") }}</span><span class="stat-value{% if c.time_to_close.median is none %} stat-value-text{% endif %}">{{ c.time_to_close.median | duration }}</span><span class="stat-change">{% trans num=c.closed | number %}Median of {{ num }} closed{% endtrans %}{% if c.time_to_close.p90 %} · {% trans p90=c.time_to_close.p90 | duration %}1 in 10 over {{ p90 }}{% endtrans %}{% endif %}</span></div></li>
 </ul>
 
@@ -42,7 +44,7 @@
 {% if has_areas %}
 <h2 id="wards">{% if areas == "precincts" %}{{ _("By precinct") }}{% elif areas == "districts" %}{{ _("By district") }}{% else %}{{ _("By ward") }}{% endif %}</h2>
 {% set rows = [] %}
-{% for w in c.by_ward %}{% set ignored = rows.append({"label": area(w.ward) if w.ward != "outside" else _("Outside"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
+{% for w in c.by_ward %}{% set ignored = rows.append({"label": area(w.ward) if w.ward != "outside" else _("Outside") if source_311.locations else _("No ward recorded"), "value": w.received, "text": w.received | number, "href": ("/311/ward/" ~ w.ward ~ "/") if w.ward != "outside" else None}) %}{% endfor %}
 {{ bars(rows, _("%(category)s requests by precinct", category=c.category) if areas == "precincts" else _("%(category)s requests by district", category=c.category) if areas == "districts" else _("%(category)s requests by ward", category=c.category)) }}
 {{ chart_links("wards", "/311/data/category-" ~ c.slug ~ ".csv") }}
 {% endif %}
@@ -50,7 +52,7 @@
 {% if c.oldest %}
 <h2 id="longest-open">{% trans category=c.category %}Longest-open {{ category }} requests{% endtrans %}</h2>
 <ol class="plain-list">
-  {% for r in c.oldest %}<li><a href="{{ r.url }}">{{ r.address or _("No street address") }}</a><span class="item-detail">{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
+  {% for r in c.oldest %}<li>{% if source_311.locations %}<a href="{{ r.url }}">{{ r.address or _("No street address") }}</a>{% else %}{{ r.get("type") or r.category }}{% endif %}<span class="item-detail">{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
 <p class="source-note"><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a>.</p>
