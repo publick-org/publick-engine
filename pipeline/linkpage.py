@@ -123,20 +123,26 @@ def tidy(value: str) -> str:
     return re.sub(r"\s{2,}", " ", value).strip()
 
 
-def row_name(row: str, headings: list[str]) -> str:
+def row_name(row: str, headings: list[str], columns: list[str] | None = None) -> str:
     """A table row's meeting name: its cells without the date, their links' labels, and any cell
-    that only repeats its column's heading (a cell with nothing posted yet)."""
+    that only repeats its column's heading (a cell with nothing posted yet). With columns (headings,
+    [page_meetings] name_columns), only those columns' cells: a page whose document cells have words
+    of their own ("Agenda and Zoom Link (News Post, PDF) and Meeting Minutes", Medford's), which
+    change as documents are posted."""
     parts = []
+    wanted = {words(c) for c in columns or []}
     for i, cell in enumerate(CELL.findall(row)):
+        heading = headings[i] if i < len(headings) else ""
+        if wanted and words(heading) not in wanted:
+            continue
         value = text(LINK.sub(" ", cell))
         value = text(without(value, find_date(value)))
-        heading = headings[i] if i < len(headings) else ""
         if value and words(value) != words(heading):
             parts.append(value)
     return tidy(" ".join(parts))
 
 
-def entries(page: str, page_url: str) -> list[dict]:
+def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> list[dict]:
     """Each table row with a link, and each link outside a table row: its date (or None), the
     meeting's name, any time it gives, and its links, in the page's order."""
     page = re.sub(r"<(script|style)\b.*?</\1>", " ", page, flags=re.S | re.I)
@@ -152,7 +158,7 @@ def entries(page: str, page_url: str) -> list[dict]:
         raw = text(row.group(1))
         day = find_date(raw)
         found.append({"start": row.start(), "date": date_value(day) if day else None,
-                      "name": row_name(row.group(1), headings), "time": time_of(without(raw, day)),
+                      "name": row_name(row.group(1), headings, name_columns), "time": time_of(without(raw, day)),
                       "links": links, "raw": raw})
     outside = ROW.sub(lambda m: " " * len(m.group(0)), page)
     heading, buffer = None, []
@@ -249,7 +255,7 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None)
     exclude = settings.get("exclude_pattern")
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
     grouped, unrecognized = {}, []
-    for entry in entries(page, page_url):
+    for entry in entries(page, page_url, settings.get("name_columns")):
         links = [link for link in entry["links"] if not (exclude and re.search(exclude, link["text"], re.I))]
         documents = [link for link in links if finalsite.is_document(link["url"]) or finalsite.recording(link["url"])]
         if not documents:
