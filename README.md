@@ -484,6 +484,7 @@ api_url = "https://manchesternh.api.civicclerk.com/v1"
 portal_url = "https://manchesternh.portal.civicclerk.com"
 since = "2026-01-01"   # the first run collects meetings from here; later runs re-read the last 60 days (recheck_days) and ahead
 # days_ahead = 90      # how far ahead meetings are listed; one recorded further out with no documents is forgotten until it's in range
+# board_from_category = true  # an event whose name names no listed board goes under the board its category names (Springfield)
 
 # A DotNetNuke city calendar: the month view's address, and the module number in its event links.
 [meetings.dnn]

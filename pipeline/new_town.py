@@ -84,13 +84,15 @@ from pipeline import agendacenter, civicclerk, civicplus, fetch_place
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
-from pipeline.meeting_names import words
+from pipeline.meeting_names import parse_name, words
 
 # Names Publick, with an address to write to, as BLS asks of automated requests.
 USER_AGENT = "Publick town helper (+https://publick.org; hello@publick.org)"
 # The New England states, by code: the state's name and its FIPS code.
 STATES = {"CT": ("Connecticut", "09"), "MA": ("Massachusetts", "25"), "ME": ("Maine", "23"),
           "NH": ("New Hampshire", "33"), "RI": ("Rhode Island", "44"), "VT": ("Vermont", "50")}
+# Portal categories that aren't a board: their meetings are named for the board instead.
+CATCH_ALL = {"general", "other", "miscellaneous", "uncategorized", "meetings", "events"}
 # Each state's own codes and wards, as the helper looks them up (pipeline/states/ma/lookups.py says what each
 # module gives). What a state's sources don't answer is marked to fill in.
 LOOKUPS = {state: f"pipeline.states.{state.lower()}.lookups" for state in STATES}
@@ -341,9 +343,18 @@ def read_civicclerk(client, api_url: str, today: date, pages: int = 20) -> list[
 
 
 def categories(town: NewTown) -> Counter:
-    """The boards the platforms list meetings under: the Agenda Center's categories, the portal's."""
+    """The boards the platforms list meetings under: the Agenda Center's categories, the portal's. A portal
+    that files meetings under a catch-all category ("General", Springfield's) gives instead the boards those
+    meetings' names name, each named at least twice."""
     found = Counter(r["category"] for r in town.site.get("agenda_center", []))
-    found.update(e.get("categoryName") or e.get("eventCategoryName") or "" for e in town.site.get("civicclerk", {}).get("events", []))
+    named = Counter()
+    for e in town.site.get("civicclerk", {}).get("events", []):
+        category = (e.get("categoryName") or e.get("eventCategoryName") or "").strip()
+        if category.lower() in CATCH_ALL:
+            named[parse_name(e.get("eventName") or "")["body"]] += 1
+        else:
+            found[category] += 1
+    found.update({name: n for name, n in named.items() if n >= 2})
     found.pop("", None)
     return found
 
@@ -941,9 +952,12 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.set(request_delay=3.0)
     c.set(max_event_pages=10 if short else 40)
     if "civicclerk" in site and town_readers(town) == {"civicclerk"}:
-        boards = sorted({e.get("categoryName") for e in site["civicclerk"]["events"] if e.get("categoryName")})
+        boards = sorted(b for b in categories(town) if b.lower() not in CATCH_ALL)
         c.fill_in(5, "check each of the portal's categories below is a public body, named as the city names it, and "
-                  "leave out any that isn't.")
+                  "leave out any that isn't" + (" (those named for the meetings under its catch-all category, "
+                                                "each named at least twice, included)." if any(
+                      (e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in site["civicclerk"]["events"])
+                      else "."))
         c.lines.append("boards = [")
         c.lines += [f"  {toml(b)}," for b in boards]
         c.lines.append("]")
@@ -995,6 +1009,9 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.table("meetings.civicclerk", api_url=cc["api_url"], portal_url=cc["portal_url"])
         c.comment("Meetings, agendas, and minutes are collected from here on.")
         c.set(since=since.isoformat())
+        if any((e.get("categoryName") or "").strip().lower() in CATCH_ALL for e in cc.get("events", [])):
+            c.set("Most of the portal's meetings are under a catch-all category, and some are named for an item, "
+                  "not a board: those go under the board their category names.", board_from_category=True)
     if "archive" in site and "agenda_center" not in site and "civicclerk" not in site:
         c.table("archive", "Minutes from the city's Archive Center. Minutes for meetings on or after minutes_since are "
                 "collected.", index="Archive.aspx", minutes_since=since.isoformat())
