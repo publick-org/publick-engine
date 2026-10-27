@@ -130,8 +130,8 @@ pipeline/                   Python package
                             states/nh/ New Hampshire (DRA, Department of Education, NH GRANIT), states/ct/
                             Connecticut (OPM on data.ct.gov, EdSight), states/vt/ Vermont (PVR, VCGI, AOE),
                             states/me/ Maine (MRS, Maine GeoLibrary, ESSA Dashboard), states/ri/ Rhode Island
-                            (Division of Municipal Finance, RIDE); states/ma/dls.py can fetch each DLS report once
-                            for every town (a network's states/)
+                            (Division of Municipal Finance, RIDE); states/ma/statewide.py fetches the DLS reports,
+                            the Subsidized Housing Inventory, and DESE's figures once for every town (a network's states/)
   fetch_labor.py            Unemployment rate (BLS LAUS) -> data/labor/
   fetch_place.py            Whether the town is a city or a town by law (Census TIGERweb) -> data/place.json, once;
                             the site's wording says "the city" or "the town" to match (i18n.py)
@@ -808,7 +808,7 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Documents bucket | R2 bucket `publick-documents` at `https://files.publick.org`, `prefix = "<town>-<state>"` |
 | Email | `<town>-<state>@publick.org` for each town and `hello@publick.org`, forwarded by Cloudflare Email Routing |
 | Page views | One GoatCounter site, `publick`, for every town, each with `prefix = "<town>-<state>"` |
-| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share a monthly budget, with a floor per town; summaries go as one batch a town, at half the price. Massachusetts's DLS reports are fetched once for every town, into the network repository's `states/ma/` |
+| Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share a monthly budget, with a floor per town; summaries go as one batch a town, at half the price. Massachusetts's DLS reports, Subsidized Housing Inventory, and DESE school figures are fetched once for every town, into the network repository's `states/ma/` |
 | Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker, after checking every page of the canaries (`network.py canaries`) and a sample of the rest; a failure runs once more, and a few towns that still fail are held back rather than every town. The network pins the exact release in its `engine-version`, and deploys the Workers when their code changes |
 | Weekly digest | Emailed through Buttondown, one newsletter with a tag per town and language; sent by the scheduler Worker on Sunday evenings to the towns in its `DIGEST_TOWNS` |
 | Alerts | GitHub issues: "Towns need attention", kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; "The weekly digest didn't send"; a site that doesn't load, opened by the scheduler's hourly check; and "Towns held back by engine vX", opened by an engine move |

@@ -1,5 +1,6 @@
-"""The Massachusetts DLS exports fetched once for every town (pipeline/states/ma/dls.py), and the
-network's statewide step (pipeline.network states)."""
+"""The Massachusetts DLS exports fetched once for every town (pipeline/states/ma/dls.py), the Subsidized
+Housing Inventory and DESE's school figures likewise (pipeline/states/ma/statewide.py), and the network's
+statewide step (pipeline.network states)."""
 
 import json
 from datetime import datetime, timedelta
@@ -8,13 +9,13 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from conftest import FIXTURES
-from fakes import FakeBudgetDLS, FakeResponse
+from fakes import FakeBudgetDLS, FakeDESE, FakeHousing, FakeResponse, shi_pdf_text
 from test_network import make_root
 
 from pipeline import network
 from pipeline.config import load_config
 from pipeline.http import FetchError
-from pipeline.states.ma import budget, dls, housing, tax_bill
+from pipeline.states.ma import budget, dls, housing, schools, statewide, tax_bill
 
 NOW = datetime(2026, 9, 26, 12, tzinfo=ZoneInfo("America/New_York"))
 TOWN_PARAMS = ("iclMuni", "iclMuni2")
@@ -167,3 +168,73 @@ def test_town_steps_are_told_where_the_states_are(tmp_path):
     (root / "states").mkdir()
     assert network.town_env(root, "salem-ma")[network.STATE_DIR_ENV] == str(root / "states")
     assert network.STATE_DIR_ENV == dls.STORE_ENV
+
+
+# ---- The Subsidized Housing Inventory and DESE's school figures ----
+
+def test_the_inventory_is_read_once_for_every_town(tmp_path, monkeypatch):
+    monkeypatch.setattr(housing, "pdf_text", shi_pdf_text)
+    client = FakeHousing()
+    monkeypatch.setattr(housing, "client", lambda config: client)
+    towns = [gloucester(), {**gloucester(), "slug": "another"}]
+    assert housing.refresh(tmp_path, towns, NoRequests(), NOW) == {"exports": 1, "fetched": 1}
+    assert len(client.urls) == 1
+    saved = json.loads((tmp_path / "ma" / housing.SHI_FILE).read_text())
+    assert saved["as_of"] == "2025-09-30" and saved["rows"]["Gloucester"]["shi_units"] == 1117
+    # Within the week, nothing is asked for again.
+    assert housing.refresh(tmp_path, towns, NoRequests(), NOW + timedelta(days=6))["fetched"] == 0
+    assert housing.refresh(tmp_path, towns, NoRequests(), NOW + timedelta(days=8))["fetched"] == 1
+
+
+def test_a_town_reads_its_inventory_row_from_the_store(tmp_path, monkeypatch):
+    monkeypatch.setattr(housing, "pdf_text", shi_pdf_text)
+    monkeypatch.setattr(housing, "client", lambda config: FakeHousing())
+    housing.refresh(tmp_path, [gloucester()], NoRequests(), NOW)
+    monkeypatch.setenv(dls.STORE_ENV, str(tmp_path))
+    found = housing.shi(NoRequests(), gloucester())
+    assert found == housing.shi(FakeHousing(), {**gloucester()}) and found["percent"] == 8.04
+    # A town the saved inventory doesn't list asks for the PDF itself.
+    (tmp_path / "ma" / housing.SHI_FILE).write_text(statewide.dumps({"as_of": "2025-09-30", "census_year": 2020}, {}))
+    client = FakeHousing()
+    assert housing.shi(client, gloucester())["percent"] == 8.04 and len(client.urls) == 1
+
+
+def test_school_figures_are_fetched_once_for_every_district(tmp_path, monkeypatch):
+    client = FakeDESE()
+    towns = [gloucester(), {**gloucester(), "slug": "another"}]
+    assert schools.refresh(tmp_path, towns, client, NOW) == {"exports": 4, "fetched": 4}
+    assert len(client.urls) == 4 and all("LIKE" in u for u in client.urls)
+    assert schools.refresh(tmp_path, towns, NoRequests(), NOW + timedelta(days=1))["fetched"] == 0
+
+    # A town's figures from the store are the ones it would have fetched itself, with no request.
+    district = gloucester()["schools"]["district_code"]
+    assert district in json.loads((tmp_path / "ma" / "dese" / "graduation.json").read_text())["rows"]
+    schools.run(gloucester(), FakeDESE(), tmp_path / "direct", now=NOW)
+    monkeypatch.setenv(dls.STORE_ENV, str(tmp_path))
+    schools.run(gloucester(), NoRequests(), tmp_path / "stored", now=NOW)
+    direct, stored = (json.loads((tmp_path / d / "schools" / "schools.json").read_text())["measures"]
+                      for d in ("direct", "stored"))
+    assert stored == direct
+
+    # A district the store doesn't have is asked for directly.
+    other = {**gloucester(), "schools": {**gloucester()["schools"], "district_code": "01650000"}}
+    client = FakeDESE()
+    with pytest.raises(FetchError):  # the stand-in has only Gloucester's figures
+        schools.run(other, client, tmp_path / "other", now=NOW)
+    assert client.urls and "01650000" in client.urls[0]
+
+
+def test_one_failing_source_does_not_stop_the_others(tmp_path, monkeypatch):
+    monkeypatch.setattr(dls, "refresh", lambda state_dir, configs, client, now: {"exports": 3, "fetched": 0})
+    monkeypatch.setattr(housing, "refresh", lambda *a: (_ for _ in ()).throw(FetchError("HTTP 403")))
+    asked = []
+    monkeypatch.setattr(schools, "refresh", lambda state_dir, configs, client, now: asked.append(1) or
+                        {"exports": 4, "fetched": 4})
+    with pytest.raises(FetchError, match="Subsidized Housing Inventory: HTTP 403"):
+        statewide.refresh(tmp_path, [gloucester()], NoRequests(), NOW)
+    assert asked == [1]
+    monkeypatch.setattr(housing, "refresh", lambda state_dir, configs, client, now: {"exports": 1, "fetched": 0})
+    assert statewide.refresh(tmp_path, [gloucester()], NoRequests(), NOW) == {"exports": 8, "fetched": 4}
+    # A town without the source's table isn't given to it.
+    bare = {k: v for k, v in gloucester().items() if k not in ("finance", "schools", "housing")}
+    assert statewide.refresh(tmp_path, [bare], NoRequests(), NOW) == {"exports": 0, "fetched": 0}
