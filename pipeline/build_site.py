@@ -421,6 +421,7 @@ LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's me
             "finalsite": N_("school district's website"), "ical": N_("school district's website"),
             "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
             "opengov": N_("state's Open Meetings portal"), "meetingdocs": N_("city's events calendar"),
+            "sharpschool": N_("school district's website"),
             "schedule": N_("published schedule")}
 CALENDAR = N_("city calendar")
 
@@ -772,7 +773,7 @@ def meeting_links(config: dict) -> dict:
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
-                              "meetingdocs_meetings", "ical_meetings")
+                              "meetingdocs_meetings", "sharpschool_meetings", "ical_meetings")
                     if t in config]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),

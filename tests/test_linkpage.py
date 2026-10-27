@@ -246,6 +246,29 @@ def test_without_name_columns_the_document_cells_words_are_in_the_name():
     assert keys[0] != keys[1]
 
 
+# Worcester Public Schools' page (Apptegy): its table is HTML escaped inside the JSON of a script, the
+# page's own scripts kept, trimmed to three meetings.
+WORCESTER = "https://www.worcesterschools.org/o/wps/page/agenda-and-minutes"
+
+
+def test_a_table_escaped_inside_a_scripts_json():
+    page = (FIXTURES / "linkpage_worcester.html").read_text()
+    assert linkpage.ESCAPED_LINK.search(page)
+    found = {m["key"]: m for m in linkpage.meetings(page, WORCESTER, {"body": "School Committee",
+                                                                       "name_columns": ["Date"]})[0]}
+    assert list(found) == ["2026-01-02-meeting", "2026-01-08-meeting", "2026-01-22-meeting"]
+    meeting = found["2026-01-02-meeting"]
+    assert meeting["body"] == "School Committee"
+    assert meeting["agenda_url"] == "https://drive.google.com/file/d/11mo4mv7ef6bFEC7nWAeudXFP-gp2Hb3Y/view?usp=sharing"
+    assert meeting["minutes_url"].startswith("https://drive.google.com/file/d/")
+    assert meeting["video_id"] == "Te7u7yEDeCE"
+
+
+def test_a_page_without_escaped_links_drops_its_scripts():
+    page = '<script>var x = "<a href=\\"/a.pdf\\">October 5, 2026 Agenda</a>";</script><p>No meetings.</p>'
+    assert linkpage.entries(page.replace('\\"', '"'), WORCESTER) == []
+
+
 # ---- Collecting -------------------------------------------------------------------------------
 
 def test_first_run_records_meetings_and_saves_documents(district, tmp_path):
