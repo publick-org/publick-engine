@@ -38,7 +38,8 @@ from pipeline import pdftext
 from pipeline.officials import slugify
 
 # Bump when the reading rules change, so minutes are read again.
-VERSION = 1
+# 2: a numbered section heading ends the item before it (a consent agenda's or adjournment's vote has no paper).
+VERSION = 2
 
 LABELS = ("Yea", "Nay", "Abstain", "Recused", "Absent", "Present", "Excused", "Non-Voting")
 GROUP = re.compile(r"^(%s)\s*:\s*(\d+)\s*-\s*(.*)$" % "|".join(LABELS))
@@ -46,6 +47,9 @@ GROUP = re.compile(r"^(%s)\s*:\s*(\d+)\s*-\s*(.*)$" % "|".join(LABELS))
 MOTION = re.compile(r"A motion was made by\b.*?(?:(?<!\b(?:Mr|Ms|Dr|St|No))(?<!\bMrs|\bAve)\.(?=\s+[A-Z])|$)")
 OUTCOME = re.compile(r"The motion (carried|failed|passed)\b[^.:]*?\bvote\s*[.:]?", re.I)
 ITEM = re.compile(r"^(\d{1,4}-\d{2})\b")
+# A numbered section of the meeting, in capitals: "6. CONSENT AGENDA", "12. ADJOURNMENT". Not a numbered
+# list inside an item ("1. The elimination of ..."), which isn't in capitals.
+SECTION = re.compile(r"^\d{1,2}\.\s+([A-Z][^a-z]*)$")
 SENTENCE = re.compile(r"[^.]*\.")
 
 
@@ -109,9 +113,13 @@ def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
     for r in rows:
         r["text"] = r["text"].strip()
 
-    votes, item, before, i = [], None, [], 0
+    votes, item, section, before, i = [], None, None, [], 0
     while i < len(rows):
         text = rows[i]["text"]
+        # A vote belongs to the paper it follows, within its section: one under a section with no paper of
+        # its own before it (the consent agenda, adjournment) has none, never the last section's.
+        if SECTION.match(text):
+            item, section, before = None, SECTION.match(text).group(1).strip(), []
         if ITEM.match(text):
             item, before = ITEM.match(text).group(1), []
         if not GROUP.match(text):
@@ -149,6 +157,7 @@ def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
         notes = SENTENCE.findall(context[outcome.end():]) if outcome else []
         votes.append(check({
             "item": item,
+            "section": section,
             "motion": motion.group(0).strip() if motion else None,
             "outcome": outcome.group(0).strip() if outcome else None,
             "result": outcome.group(1).lower() if outcome else None,
@@ -215,7 +224,7 @@ def report(config: dict, data_dir: Path) -> str:
         for v in record["votes"]:
             total += 1
             checked += v["checked"]
-            out.append(f"  {v['item'] or '(no item number)'}: {v['motion'] or '(motion not found)'}")
+            out.append(f"  {v['item'] or v.get('section') or '(no item number)'}: {v['motion'] or '(motion not found)'}")
             out.append(f"    {v['outcome'] or '(outcome not found)'}")
             out.extend(f"    {line}" for line in v["quote"].splitlines())
             if v["checked"]:
