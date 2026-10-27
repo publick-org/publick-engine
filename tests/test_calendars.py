@@ -87,6 +87,29 @@ def test_parse_name_keeps_the_calendar_title():
     assert parse_name("CANCELED - Planning Board Business Meeting", BOARDS)["title"] == "Planning Board Business Meeting"
 
 
+@pytest.mark.parametrize("name, status", [
+    ("Policy Committee (Cancelled)", "cancelled"),
+    ("Canceled due to weather: Policy Committee", "cancelled"),
+    ("1/22 CPC Meeting CANCELLED", "cancelled"),
+    ("Public Art Commission Meeting Agenda - June 16, 2026 Meeting Canceled due to technical issue", "cancelled"),
+    ("Agenda for Salem Housing Authority Regular Board of Directors Meeting, August 12, 2026. Meeting Cancelled.",
+     "cancelled"),
+    ("Licensing Board Agenda POSTPONED to February 26, 2026", "postponed"),
+    ("Licensing Board Meeting Agenda 5/28/2026 - Rescheduled from 5/26/26.", "rescheduled"),
+    # A status word telling of another meeting: this one was held (Salem, 2026-10-15).
+    ("Salem Harbor Port Authority Meeting - Special Meeting. This meeting is the rescheduling of the October 1, 2026 "
+     "regular meeting that was canceled due to early closing of the City of Salem for the Haunted Happenings Parade.",
+     "scheduled"),
+])
+def test_parse_name_status_labels_the_meeting(name, status):
+    assert parse_name(name)["status"] == status
+
+
+def test_parse_name_keeps_a_status_word_that_doesnt_label_the_meeting():
+    parsed = parse_name("Port Authority Meeting - Special Meeting. Held in place of the regular meeting that was canceled.")
+    assert parsed["status"] == "scheduled" and parsed["title"].endswith("the regular meeting that was canceled.")
+
+
 @pytest.mark.parametrize("name, body, special, kind, more", [
     ("Planning Board Meeting", "Planning Board", False, None, False),
     ("Ordinances & Administration Meeting", "City Council Ordinances & Administration Committee", False, None, False),

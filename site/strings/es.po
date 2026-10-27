@@ -4032,6 +4032,11 @@ msgstr ""
 msgid "It was adopted on <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Se aprobó el <time datetime=\"%(iso)s\">%(when)s</time>."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "It's held online only: %(place)s."
+msgstr "Se realiza solo en línea: %(place)s."
+
 #: site/pages/data/index.html
 msgid "Its AI summary, or null when there isn't one yet:"
 msgstr "Su resumen hecho con IA, o null si todavía no hay uno:"

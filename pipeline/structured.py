@@ -74,7 +74,8 @@ def event(m: dict, url: str, name, description, town: dict, timezone: str) -> di
     place = m["address"] or m["location"]
     where = m["location_name"] or place
     locations = []
-    if where:
+    # Not a place that says only how it's held online ("Remote via Zoom"; build_site.place_kind).
+    if where and m.get("in_person", True):
         locations.append({"@type": "Place", "name": where, "address": {
             "@type": "PostalAddress", "streetAddress": place or where, "addressLocality": town["name"],
             "addressRegion": town["state_abbr"], "addressCountry": "US"}})
