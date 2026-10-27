@@ -1341,6 +1341,17 @@ msgstr ""
 "<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(portal)s\">portal de reuniones</a> de"
 " la ciudad (Legistar). Las agendas y actas se guardan cuando se publican, desde %(since)s."
 
+#. %(since)s is a month, such as "January 2024". PrimeGov is the name of the city's system for its
+#. boards' agendas and minutes.
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(portal)s\">meeting "
+"portal</a> (PrimeGov). Agendas and minutes are saved when posted, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(portal)s\">portal de reuniones</a> de"
+" la ciudad (PrimeGov). Las agendas y actas se guardan cuando se publican, desde %(since)s."
+
 #. %(since)s is a month, such as "January 2024".
 #: site/pages/about/index.html
 #, python-format

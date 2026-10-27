@@ -41,6 +41,7 @@ from pipeline import common_strings
 from pipeline import digest
 from pipeline import dnn
 from pipeline import legistar
+from pipeline import primegov
 from pipeline import factcheck
 from pipeline import listings
 from pipeline import meeting_names
@@ -415,7 +416,8 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 
 
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
-LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
+LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's meeting portal"),
+            "primegov": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
             "finalsite": N_("school district's website"), "ical": N_("school district's website"),
             "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
             "opengov": N_("state's Open Meetings portal"),
@@ -756,7 +758,8 @@ def meeting_links(config: dict) -> dict:
     return {
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
         "portal": m.get("civicclerk", {}).get("portal_url") or (
-            m["legistar"].get("site_url") or legistar.site_url(m["legistar"]["client"]) if "legistar" in m else None),
+            m["legistar"].get("site_url") or legistar.site_url(m["legistar"]["client"]) if "legistar" in m else None) or (
+            primegov.portal_url(m["primegov"]["client"]) if "primegov" in m else None),
         "archive": m.get("archive_url") or (f"{base}/Archive.aspx" if base else None),
         "archive_name": m.get("archive_name", _("city's Archive Center")),
         "notify": m.get("notify_url") or (f"{base}/list.aspx" if base else None),
