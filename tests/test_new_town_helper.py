@@ -170,8 +170,11 @@ def test_helper_finds_a_civicclerk_portal(tmp_path, network):
     assert config["meetings"]["civicclerk"]["api_url"] == "https://manchesternh.api.civicclerk.com/v1"
     assert config["meetings"]["governing_body"] == "Board of Mayor and Aldermen"
     assert "Board of Mayor and Aldermen" in config["meetings"]["boards"]
-    # New Hampshire's own codes wait for its lookups: marked, not guessed.
-    assert "finance" not in config and "schools" not in config
+    # New Hampshire's own codes, from the state's files saved in the engine.
+    assert config["finance"] == {"dra_municipality": "Manchester"}
+    assert config["schools"] == {"doe_district": "Manchester", "district_name": "Manchester School District"}
+    text = (out / "config" / "manchester.toml").read_text()
+    assert "To fill in: budget_documents_url" in text
 
 
 def test_helper_stops_at_a_browser_check(tmp_path, network):

@@ -1,6 +1,11 @@
 """Massachusetts's answers for a new town (pipeline/new_town.py): the DLS name and
 DOR code, the DESE district, and the ward and precinct file.
 
+Every state's lookups module gives the helper the same things: FINANCE and
+SCHOOLS, the comments above those tables in the config; codes(name, client,
+network), what the state's sources say of the town (see codes() below); and,
+where the state publishes every town's wards or precincts, wards(name, client).
+
 - The DLS name and DOR code ([finance]) from the network's copy of DLS's
   reports (states/ma/dls/ in the network repository), the town's row in the
   newest average tax bill report ("DOR Code": "030", "Municipality": "Beverly").
@@ -22,12 +27,46 @@ import json
 from pathlib import Path
 from urllib.parse import urlencode
 
+from pipeline.http import FetchError
+
 DESE_PORTAL = "https://educationtocareer.data.mass.gov"
 DESE_DISTRICTS = f"{DESE_PORTAL}/resource/n2xa-p822.json"
 MASSGIS = "https://arcgisserver.digital.mass.gov/arcgisserver/rest/services/AGOL/WardsPrecincts2022"
 # The file's own address, as every town's ward file names its source.
 MASSGIS_SOURCE = f"MassGIS, Wards and Precincts (2022), {MASSGIS}/FeatureServer/0"
 MASSGIS_MAP = "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a"
+
+FINANCE = "Tax bill and budget figures (Mass. Division of Local Services). Some DLS reports take the name, others the DOR code."
+SCHOOLS = "School district figures from the state's education data portal (DESE)."
+
+
+def codes(name: str, client, network: Path) -> dict:
+    """What the state's sources say of the town, for the config's [finance] and [schools]:
+
+    finance, schools: each table's keys, or None when not found;
+    finance_todo, schools_todo: what's left for a person in that table (a "To fill in" comment), if anything;
+    finance_comment: a comment under [finance], if any;
+    found: (what, answer, source) for the report; notes: anything else a person should know."""
+    out = {"found": [], "notes": []}
+    dls = dls_town(name, network / "states" / "ma" / "dls")
+    if dls:
+        out["finance"] = {"dls_municipality": dls["dls_municipality"], "dls_code": dls["dls_code"]}
+        out["found"].append(("DLS name and DOR code", f"{dls['dls_municipality']}, {dls['dls_code']}",
+                             f"states/ma/dls/{dls['file']}"))
+    url = districts_url(name)
+    try:
+        rows = client.get(url).json()
+    except (FetchError, ValueError):
+        rows = []
+    found = district(name, dls and dls["dls_code"], rows)
+    if found:
+        out["schools"] = found
+        out["found"].append(("DESE district", f"{found['district_code']} ({found['district_name']})", url))
+    elif rows:
+        listed = "; ".join(f"{r['dist_code']} {r['dist_name']}" for r in rows)
+        out["schools_todo"] = ("[schools], the town's school district (the keys in the engine's "
+                               f"pipeline/states/ma/__init__.py): the portal lists {listed}.")
+    return out
 
 
 def dls_town(name: str, dls_dir: Path) -> dict | None:
@@ -97,3 +136,18 @@ def ward_file(name: str, data: dict) -> tuple[str, bool] | None:
     text = json.dumps({"type": "FeatureCollection", "name": title, "source": MASSGIS_SOURCE, "features": out},
                       separators=(",", ":"))
     return text, wards
+
+
+def wards(name: str, client) -> dict | None:
+    """The town's ward and precinct file from MassGIS, or None if it has none for the town."""
+    url = wards_url(name)
+    try:
+        made = ward_file(name, client.get(url).json())
+    except (FetchError, ValueError):
+        return None
+    if not made:
+        return None
+    text, has_wards = made
+    return {"name": "precincts-2022", "text": text, "wards": has_wards, "map": MASSGIS_MAP, "source": url,
+            "publisher": "MassGIS", "year": "2022",
+            "no_wards": "MassGIS's 2022 file has no WARD"}
