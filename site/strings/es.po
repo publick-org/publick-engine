@@ -1330,6 +1330,17 @@ msgstr ""
 "para las agendas y las actas. Una reunión que aparece en los dos se muestra una sola vez. Se "
 "guarda una copia de cada agenda cuando se publica. Las actas se recogen desde %(since)s."
 
+#. %(since)s is a month, such as "January 2024". Legistar is the name of the city's system for its
+#. council's agendas and minutes.
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(portal)s\">meeting "
+"portal</a> (Legistar). Agendas and minutes are saved when posted, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(portal)s\">portal de reuniones</a> de"
+" la ciudad (Legistar). Las agendas y actas se guardan cuando se publican, desde %(since)s."
+
 #. %(since)s is a month, such as "January 2024".
 #: site/pages/about/index.html
 #, python-format

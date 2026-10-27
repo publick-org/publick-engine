@@ -63,7 +63,7 @@ SITES = ("SITES_ENDPOINT", "SITES_BUCKET", "SITES_ACCESS_KEY_ID", "SITES_SECRET_
 
 SOURCES = [
     Source("Fetch meetings", "pipeline.fetch_meetings", "meetings", secrets=STORAGE, table="meetings"),
-    # Minutes from the Archive Center ([archive]), or linked from Agenda Center, CivicClerk and file list
+    # Minutes from the Archive Center ([archive]), or linked from Agenda Center, CivicClerk, Legistar and file list
     # meetings ([meetings]); the step does nothing for a town with none of them.
     Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", secrets=STORAGE, table="meetings"),
     Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", secrets=STORAGE,

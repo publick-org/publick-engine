@@ -104,7 +104,7 @@ def test_a_meeting_in_two_sources_awaits_minutes_on_the_boards_own_website(first
 
 def test_minutes_source_order_is_documented():
     assert absences.MINUTES_ORDER == ("finalsite", "drive", "page", "diligent", "opengov",
-                                      "agendacenter", "civicclerk", "filelist", "archive")
+                                      "agendacenter", "civicclerk", "legistar", "filelist", "archive")
 
 
 def test_a_source_that_doesnt_collect_minutes_from_the_meetings_date_yet_is_passed_over():
