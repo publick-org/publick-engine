@@ -149,8 +149,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_p
                          "(data/311/requests.json, or its bucket's copy)")
     state = load_state(data_dir) or {"cursor": None, "since": since, "backfill": None}
     if since < state["since"]:
-        # since moved earlier: the months between, read once by id.
-        state = {**state, "since": since, "backfill": {"start": since, "end": state["since"], "after": None}}
+        # since moved earlier: the months between, read once by id, with any months still to be read from an
+        # earlier move (read again from the start).
+        end = (state.get("backfill") or {}).get("end", state["since"])
+        state = {**state, "since": since, "backfill": {"start": since, "end": end, "after": None}}
 
     new = changed = read = 0
     errors = []
@@ -190,7 +192,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_p
 
     caught_up = bool(state.get("caught_up")) and not state.get("backfill") and not errors
     summary = {
-        "updated_at": stamp,
+        # When the requests were last read without an error (the 311 pages' "updated" time, and the freshness
+        # check's): a run that fails keeps the last one's, and says when it ran in checked_at.
+        "updated_at": status.get("updated_at") if errors else stamp,
+        "checked_at": stamp,
         # Every change the portal made before it is saved.
         "cursor": state["cursor"],
         # When the portal last changed a row the town keeps, once every change is read: what says

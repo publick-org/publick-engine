@@ -5,7 +5,7 @@ import copy
 import json
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -140,6 +140,8 @@ def test_a_failed_read_keeps_what_was_read_and_fails_the_step(config, data, monk
     assert len(load(data)) == 40
     status = json.loads((data / "311" / "status.json").read_text())
     assert status["errors"] and not status["caught_up"]
+    # A failed run isn't an update: the first one has none yet.
+    assert status["updated_at"] is None and status["checked_at"] == NOW.isoformat(timespec="seconds")
     # The next run goes on from the last row saved.
     assert fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW)["new"] == len(SERVICE) - 40
 
@@ -158,6 +160,31 @@ def test_an_earlier_first_month_reads_the_months_between_once(config, data):
     assert "date_created+%3C+%272026-01-01%27" in backfill and "%24order=id" in backfill
     # Read once: the next run reads only what changed.
     assert fetch_socrata_311.run(config, client, data, now=NOW)["rows_read"] == 0
+
+
+def test_a_failed_run_keeps_the_last_update_time(config, data):
+    fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW)
+    later = NOW + timedelta(days=5)
+    with pytest.raises(FetchError):
+        fetch_socrata_311.run(config, FakeSocrata(failing=True), data, now=later)
+    status = json.loads((data / "311" / "status.json").read_text())
+    assert status["updated_at"] == NOW.isoformat(timespec="seconds") and status["checked_at"] == later.isoformat(timespec="seconds")
+
+
+def test_moving_the_first_month_again_before_the_months_between_are_read(config, data, monkeypatch):
+    monkeypatch.setattr(fetch_socrata_311, "PAGE_SIZE", 2)
+    config["socrata_311"]["since"] = "2026-04"
+    fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW)
+    # Moved earlier; only part of the months between are read this run.
+    config["socrata_311"]["since"] = "2026-01"
+    fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW, max_pages=2)
+    # Moved earlier again before they're done: those months are still read.
+    config["socrata_311"]["since"] = "2025-01"
+    for _ in range(200):
+        fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW)
+        if json.loads((data / "311" / "sync.json").read_text())["backfill"] is None:
+            break
+    assert set(load(data)) == {r["id"] for r in SERVICE}
 
 
 def test_missing_saved_requests_stop_the_run(config, data):
