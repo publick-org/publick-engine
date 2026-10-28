@@ -31,7 +31,7 @@ from pathlib import Path
 
 import requests
 
-from pipeline import documents
+from pipeline import documents, source_311
 from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
@@ -42,7 +42,7 @@ CACHE_CONTROL = "no-store"
 
 
 def enabled(config: dict) -> bool:
-    return "storage" in config and "seeclickfix" in config and not os.environ.get("DOCUMENTS_LOCAL")
+    return "storage" in config and source_311.table(config) is not None and not os.environ.get("DOCUMENTS_LOCAL")
 
 
 def key(config: dict, name: str) -> str:

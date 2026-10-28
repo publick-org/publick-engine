@@ -373,6 +373,15 @@ msgstr ""
 "año: ni cambio de estado, ni comentario, ni edición. SeeClickFix no muestra si se resolvieron y "
 "nunca se cerraron, o si nunca se atendieron."
 
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"%(num)s of the %(open)s open requests haven't changed status in over a year. The city's data "
+"doesn't show whether these were fixed and never closed, or never handled."
+msgstr ""
+"%(num)s de las %(open)s solicitudes abiertas no han cambiado de estado en más de un año. Los "
+"datos de la ciudad no muestran si se resolvieron y nunca se cerraron, o si nunca se atendieron."
+
 #: site/templates/ward.html
 #, python-format
 msgid "%(num)s per 1,000 residents"
@@ -980,6 +989,13 @@ msgstr ""
 "Las solicitudes al 311 mantienen la licencia <a href=\"%(license)s\">CC BY-NC-SA 3.0</a> de "
 "SeeClickFix, que no permite el uso comercial."
 
+#: site/pages/about/index.html
+#, python-format
+msgid "311 requests keep the city's open data license, the <a href=\"%(url)s\">%(license)s</a>."
+msgstr ""
+"Las solicitudes al 311 mantienen la licencia de datos abiertos de la ciudad, la <a "
+"href=\"%(url)s\">%(license)s</a>."
+
 #: site/templates/ward.html
 #, python-format
 msgid "311 requests placed in District %(ward)s over the past 12 months."
@@ -1173,6 +1189,15 @@ msgstr ""
 "<strong>Reuniones, agendas y actas (%(boards)s):</strong> el <a href=\"%(url)s\">portal de "
 "Reuniones Abiertas</a> de la Secretaría de Estado de Rhode Island, donde cada organismo público "
 "del estado presenta sus avisos y actas, desde %(since)s."
+
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>311 requests:</strong> %(name)s's <a href=\"%(url)s\">open data portal</a>. <a "
+"href=\"%(methodology)s\">How the 311 numbers work</a>."
+msgstr ""
+"<strong>Solicitudes al 311:</strong> el <a href=\"%(url)s\">portal de datos abiertos</a> de la "
+"ciudad (%(name)s). <a href=\"%(methodology)s\">Cómo funcionan los números del 311</a>."
 
 #: site/pages/about/index.html
 #, python-format
@@ -2026,6 +2051,16 @@ msgstr ""
 " edición) fue hace más de un año. Algunas pueden haberse resuelto sin que nadie las cerrara; "
 "otras quizás nunca se atendieron. Los datos no dicen cuáles. Siguen contando como abiertas."
 
+#: site/pages/311/methodology/index.html
+msgid ""
+"An open request whose status hasn't changed in more than a year. Some may have been fixed and "
+"never closed; others may never have been handled. The data doesn't show which. They still count "
+"as open."
+msgstr ""
+"Una solicitud abierta cuyo estado no ha cambiado en más de un año. Algunas pueden haberse "
+"resuelto sin que nadie las cerrara; otras quizás nunca se atendieron. Los datos no dicen cuáles. "
+"Siguen contando como abiertas."
+
 #: site/pages/311/index.html
 #, python-format
 msgid "Another %(num)s were closed without being acknowledged first."
@@ -2062,6 +2097,14 @@ msgid ""
 msgstr ""
 "Al %(when)s, %(units)s de las %(homes)s viviendas de uso todo el año de %(town)s estaban en la "
 "lista: <strong>%(percent)s%%</strong>."
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"As the city records it with each request. Requests with no ward recorded count in the city's "
+"totals, not in any ward's."
+msgstr ""
+"Como lo registra la ciudad con cada solicitud. Las solicitudes sin distrito registrado cuentan en"
+" los totales de la ciudad, no en los de ningún distrito."
 
 #: site/pages/meetings/glossary/index.html
 #, python-format
@@ -2724,6 +2767,20 @@ msgstr "El DESE actualiza cada cifra una vez al año."
 msgid "Data"
 msgstr "Datos"
 
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"Data from %(name)s's open data portal, <a href=\"%(url)s\">%(portal)s</a>, used under the <a "
+"href=\"%(license_url)s\">%(license)s</a> license."
+msgstr ""
+"Datos del portal de datos abiertos de la ciudad, <a href=\"%(url)s\">%(portal)s</a> (%(name)s), "
+"usados bajo la licencia <a href=\"%(license_url)s\">%(license)s</a>."
+
+#: site/templates/macros.html
+#, python-format
+msgid "Data from %(name)s's open data portal, <a href=\"%(url)s\">%(portal)s</a>."
+msgstr "Datos del portal de datos abiertos de la ciudad, <a href=\"%(url)s\">%(portal)s</a> (%(name)s)."
+
 #: site/pages/311/methodology/index.html
 msgid ""
 "Data from <a href=\"https://seeclickfix.com\">seeclickfix.com</a> under <a "
@@ -2950,6 +3007,16 @@ msgstr ""
 "Cada tasa es el impuesto a la propiedad en dólares por cada $1,000 de valor tasado. Rhode Island "
 "permite cobrar tasas distintas a las viviendas, a los negocios y al equipo de los negocios "
 "(propiedad personal), dentro de los límites que fija la ley estatal."
+
+#. %(closed)s is the city's own name for a closed status, in English, such as "Closed".
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
+"Each request has the status the city last gave it. A request whose status is %(closed)s counts as"
+" closed; any other status counts as open."
+msgstr ""
+"Cada solicitud tiene el último estado que le dio la ciudad. Una solicitud con el estado "
+"%(closed)s cuenta como cerrada; cualquier otro estado cuenta como abierta."
 
 #. "Behind" is the status the table below shows for such a source.
 #: site/pages/about/index.html
@@ -3227,6 +3294,11 @@ msgstr ""
 "Todas las solicitudes públicas desde %(since)s, más las más antiguas que siguen abiertas, "
 "revisadas a diario."
 
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid "Every request since %(since)s, checked daily."
+msgstr "Todas las solicitudes desde %(since)s, revisadas a diario."
+
 #: site/pages/about/index.html
 msgid ""
 "Every summary is then checked against the city's document by a program, without AI: each number, "
@@ -3253,6 +3325,15 @@ msgid "Everything comes from public requests on SeeClickFix, the city's service 
 msgstr ""
 "Todo viene de las solicitudes públicas en SeeClickFix, el sistema de solicitudes de servicio de "
 "la ciudad."
+
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
+"Everything comes from the 311 requests %(name)s publishes on its open data portal, <a "
+"href=\"%(url)s\">%(portal)s</a>."
+msgstr ""
+"Todo viene de las solicitudes al 311 que la ciudad publica en su portal de datos abiertos, <a "
+"href=\"%(url)s\">%(portal)s</a> (%(name)s)."
 
 #: pipeline/states/ct/budget.py
 msgid "Everything else"
@@ -3413,6 +3494,14 @@ msgid "For each one: category, location, and when it was submitted, acknowledged
 msgstr ""
 "De cada una: la categoría, la ubicación y cuándo se envió, se confirmó, se cerró o se volvió a "
 "abrir."
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"For each one: category, type, ward, when it was submitted, and its latest status and when it was "
+"set."
+msgstr ""
+"De cada una: la categoría, el tipo, el distrito, cuándo se envió, y su estado más reciente y "
+"cuándo se le dio."
 
 #: site/pages/data/index.html
 msgid "For minutes, false when the city filed another document as the minutes."
@@ -3744,6 +3833,15 @@ msgstr "Viviendas existentes"
 msgid "How %(site)s collects %(town)s's 311 requests from SeeClickFix and calculates each number."
 msgstr "Cómo %(site)s recopila las solicitudes al 311 de %(town)s desde SeeClickFix y calcula cada número."
 
+#: site/pages/311/methodology/index.html
+#, python-format
+msgid ""
+"How %(site)s collects %(town)s's 311 requests from the city's open data portal and calculates "
+"each number."
+msgstr ""
+"Cómo %(site)s recopila las solicitudes al 311 de %(town)s desde el portal de datos abiertos de la"
+" ciudad y calcula cada número."
+
 #: pipeline/common_strings.py
 msgid "How fast the city responds to service requests, by category and ward."
 msgstr "Qué tan rápido responde la ciudad a las solicitudes de servicio, por categoría y por distrito."
@@ -3788,6 +3886,24 @@ msgstr ""
 "Qué tan rápido la Ciudad de %(town)s confirma y cierra las solicitudes de servicios públicos, y "
 "cuántas siguen abiertas, por categoría."
 
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How quickly the City of %(town)s closes public service requests, and how many are still open, by "
+"category and ward."
+msgstr ""
+"Qué tan rápido la Ciudad de %(town)s cierra las solicitudes de servicios públicos, y cuántas "
+"siguen abiertas, por categoría y distrito."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How quickly the City of %(town)s closes public service requests, and how many are still open, by "
+"category."
+msgstr ""
+"Qué tan rápido la Ciudad de %(town)s cierra las solicitudes de servicios públicos, y cuántas "
+"siguen abiertas, por categoría."
+
 #: site/pages/311/repeat-locations/index.html
 msgid "How repeat locations are found"
 msgstr "Cómo se identifican los lugares con solicitudes repetidas"
@@ -3804,6 +3920,15 @@ msgstr "Cómo funcionan los números del 311"
 #, python-format
 msgid "How the City of %(town)s responds to public service requests on SeeClickFix."
 msgstr "Cómo responde la Ciudad de %(town)s a las solicitudes de servicios públicos en SeeClickFix."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"How the City of %(town)s responds to the public service requests it publishes on its open data "
+"portal."
+msgstr ""
+"Cómo responde la Ciudad de %(town)s a las solicitudes de servicios públicos que publica en su "
+"portal de datos abiertos."
 
 #: site/pages/index.html
 msgid "How the city is doing"
@@ -4061,6 +4186,16 @@ msgid ""
 msgstr ""
 "En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
 "típico, o, para las solicitudes fuera de los distritos, que no hay población con la que contar "
+"por cada 1,000 residentes."
+
+#: site/pages/311/index.html
+#, python-format
+msgid ""
+"In the tables, – means fewer than %(min)s requests, too few for a typical time, or, for requests "
+"with no ward recorded, no population to count per 1,000 residents."
+msgstr ""
+"En las tablas, – significa menos de %(min)s solicitudes, muy pocas para calcular un tiempo "
+"típico, o, para las solicitudes sin distrito registrado, que no hay población con la que contar "
 "por cada 1,000 residentes."
 
 #: site/pages/311/index.html
@@ -5089,6 +5224,10 @@ msgstr "Por ahora no hay reuniones próximas."
 msgid "No update in over a year"
 msgstr "Sin actualizar en más de un año"
 
+#: site/pages/311/index.html site/templates/category.html
+msgid "No ward recorded"
+msgstr "Sin distrito registrado"
+
 #. the street lookup's messages; keep each {name} as it is.
 #: site/pages/streets/index.html
 msgid "None found."
@@ -5114,6 +5253,10 @@ msgid ""
 msgstr ""
 "No está clara: el %(listing)s dice %(time)s, lo que probablemente es un error. Revise la agenda o"
 " consulte con la junta."
+
+#: site/pages/311/methodology/index.html
+msgid "Not collected: descriptions or who submitted it."
+msgstr "No se recopilan: las descripciones ni quién envió la solicitud."
 
 #: site/pages/311/methodology/index.html
 msgid "Not collected: descriptions, photos, or who submitted it."
@@ -5683,6 +5826,11 @@ msgstr "Las cifras de los meses recientes cambiarán a medida que se cierren sol
 #: site/pages/index.html
 msgid "Recently decided"
 msgstr "Decisiones recientes"
+
+#: site/pages/311/index.html
+#, python-format
+msgid "Recorded back to %(since)s."
+msgstr "Registradas desde el %(since)s."
 
 #: site/templates/meeting.html
 #, python-format
@@ -6938,6 +7086,14 @@ msgstr ""
 
 #: site/pages/311/methodology/index.html
 msgid ""
+"Submission to the date of the request's closed status. Requests still open are left out, so the "
+"typical time to close is for closed requests only."
+msgstr ""
+"Del envío a la fecha del estado de cierre de la solicitud. Las solicitudes que siguen abiertas no"
+" se incluyen, así que el tiempo típico de cierre es solo de las solicitudes cerradas."
+
+#: site/pages/311/methodology/index.html
+msgid ""
 "Submission to the latest close. If a request was archived without a close time, the archive time "
 "is used. Requests still open are left out, so the typical time to close is for closed requests "
 "only."
@@ -7424,6 +7580,14 @@ msgid "The city's budget for fiscal year %(year)s, by what it pays for, as adopt
 msgstr ""
 "El presupuesto de la ciudad para el año fiscal %(year)s, según en qué se gasta, tal como se "
 "aprobó."
+
+#: site/pages/311/methodology/index.html
+msgid ""
+"The city's data has no address, map location, or time a request was acknowledged, so this site "
+"has no maps, repeat locations, or time to acknowledge."
+msgstr ""
+"Los datos de la ciudad no tienen dirección, ubicación en el mapa ni la hora en que se confirmó "
+"una solicitud, así que este sitio no tiene mapas, lugares repetidos ni tiempo de confirmación."
 
 #: site/templates/meeting.html
 #, python-format
@@ -8085,6 +8249,10 @@ msgstr "Tiempo para confirmar una solicitud al 311"
 msgid "Time to close"
 msgstr "Tiempo de cierre"
 
+#: pipeline/build_site.py
+msgid "Time to close a 311 request"
+msgstr "Tiempo para cerrar una solicitud al 311"
+
 #: site/pages/311/index.html
 #, python-format
 msgid "Time to close counts only the %(closed)s closed requests. The %(open)s still open are left out."
@@ -8365,6 +8533,14 @@ msgstr "Distrito {ward}"
 #: site/templates/ward.html
 msgid "Wards"
 msgstr "Distritos"
+
+#: site/templates/ward.html
+msgid ""
+"Wards as the city records them with each request. Differences between wards reflect how often "
+"residents report problems as well as how the city responds."
+msgstr ""
+"Los distritos son los que registra la ciudad con cada solicitud. Las diferencias entre distritos "
+"reflejan con qué frecuencia los residentes informan problemas y también cómo responde la ciudad."
 
 #: site/templates/ward.html
 #, python-format

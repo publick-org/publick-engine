@@ -703,3 +703,80 @@ class FakePrivateBucket:
         import json
         return [json.loads(line) for k in sorted(self.objects) if k.startswith(prefix) and k.endswith(".jsonl")
                 for line in self.objects[k].decode().splitlines()]
+
+
+class JSONResponse:
+    def __init__(self, data):
+        self.data = data
+
+    def json(self):
+        return self.data
+
+
+def socrata_rows() -> list[dict]:
+    """Real rows of Somerville's 311 dataset (4pyi-uqq6), as the reader selects them: service
+    requests from June 2025 to October 2026, with some calls for information and feedback."""
+    import json
+    return json.loads((FIXTURES / "socrata_311_rows.json").read_text())
+
+
+class FakeSocrata:
+    """A Socrata portal serving rows (socrata_rows() by default) to SoQL queries: the $where the
+    reader writes (comparisons, AND, OR, in (...)), $order and $limit. A number-like value
+    compares as a number, as the dataset's numeric id does. A test changes rows between runs, or
+    while a run reads (on_page, called before each page), as the city's daily load would."""
+
+    def __init__(self, rows=None, on_page=None, failing=False):
+        self.rows = rows if rows is not None else socrata_rows()
+        self.on_page = on_page
+        self.failing = failing
+        self.urls = []
+        self.request_count = 0
+
+    @staticmethod
+    def value(v):
+        return int(v) if isinstance(v, str) and v.isdigit() else v
+
+    def matches(self, row: dict, where: str) -> bool:
+        import re
+
+        class Column:
+            def __init__(self, v):
+                self.v = FakeSocrata.value(v)
+
+            def compare(self, other, op):
+                other = FakeSocrata.value(other)
+                return self.v is not None and op(self.v, other)
+
+            def __eq__(self, o): return self.compare(o, lambda a, b: a == b)
+            def __gt__(self, o): return self.compare(o, lambda a, b: a > b)
+            def __ge__(self, o): return self.compare(o, lambda a, b: a >= b)
+            def __lt__(self, o): return self.compare(o, lambda a, b: a < b)
+            def __hash__(self): return hash(self.v)
+
+        def code(part: str) -> str:
+            """SoQL outside its string literals, as Python: each column a Column."""
+            part = re.sub(r"(?<![<>!=])=(?!=)", "==", part).replace(" AND ", " and ").replace(" OR ", " or ")
+            return re.sub(r":?\b[a-z_][a-z0-9_]*\b",
+                          lambda m: m.group(0) if m.group(0) in ("in", "and", "or") else f"col({m.group(0)!r})", part)
+
+        parts = re.split(r"('(?:[^']|'')*')", where)
+        expr = "".join(part if part.startswith("'") else code(part) for part in parts)
+        # A list of one is a tuple of one.
+        expr = re.sub(r"\bin \(([^)]*)\)", r"in (\1,)", expr)
+        return eval(expr, {"col": lambda name: Column(row.get(name))})
+
+    def get(self, url):
+        from urllib.parse import parse_qs, urlsplit
+        self.urls.append(url)
+        self.request_count += 1
+        if self.on_page:
+            self.on_page(self)
+        if self.failing:
+            from pipeline.http import FetchError
+            raise FetchError("data.example.gov: HTTP 503", 503)
+        query = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
+        rows = [r for r in self.rows if self.matches(r, query["$where"])]
+        keys = [k.strip() for k in query["$order"].split(",")]
+        rows.sort(key=lambda r: tuple(self.value(r.get(k)) for k in keys))
+        return JSONResponse(rows[:int(query["$limit"])])
