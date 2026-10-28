@@ -1,7 +1,10 @@
 """Compute 311 scorecard metrics from data/311/requests.json.
 
 Writes data/311/scorecard.json, which the site reads. Definitions are
-documented on the site's 311 methodology page; keep the two in sync.
+documented on the site's 311 methodology page; keep the two in sync. The
+requests come from SeeClickFix or a city's open data portal
+(pipeline/source_311.py); what a source doesn't record (acknowledged times, map
+points, a page for each request) is left out of the scorecard, not shown empty.
 
 Usage:
     python -m pipeline.compute_311 [--town gloucester]
@@ -18,7 +21,7 @@ from pathlib import Path
 from statistics import median, quantiles
 from zoneinfo import ZoneInfo
 
-from pipeline import bucket_data
+from pipeline import bucket_data, source_311
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.fetch_311 import load_store, save_json, store_dir, tag_wards
 from pipeline.fetch_meetings import slugify
@@ -35,6 +38,12 @@ BACKLOG_BUCKETS = [(7, N_("Under 1 week")), (30, N_("1 week to 1 month")), (90, 
 # separately: the data can't show whether they were fixed and never closed,
 # or never handled.
 NO_UPDATE_DAYS = 365
+
+
+def chart_start(now: datetime) -> datetime:
+    """The first month the monthly chart shows, about two years back. A portal's closed requests
+    from before it are dropped from the saved requests (pipeline/fetch_socrata_311.py prune)."""
+    return (now.replace(day=1) - timedelta(days=700)).replace(day=1)
 
 
 def ward_order(ward: str) -> tuple:
@@ -111,16 +120,27 @@ def open_at(record: dict, when: datetime) -> bool:
 
 
 def shown_address(r: dict, town: str) -> str:
-    """A request's address as the site shows it: to the block for a sensitive category."""
-    return (block_address if r.get("sensitive") else street_address)(r["address"], town)
+    """A request's address as the site shows it: to the block for a sensitive category. A source
+    without addresses has none."""
+    return (block_address if r.get("sensitive") else street_address)(r.get("address") or "", town)
 
 
-def oldest_open(records: list[dict], now: datetime, link_base: str, town: str, n: int = 10) -> list[dict]:
+def link(link_base: str | None, r: dict) -> str | None:
+    """A request's public page, for a source that has one."""
+    return f"{link_base}/{r['id']}" if link_base else None
+
+
+def kind(r: dict) -> dict:
+    """A request's type within its category, for a source that records one."""
+    return {"type": r["type"]} if r.get("type") else {}
+
+
+def oldest_open(records: list[dict], now: datetime, link_base: str | None, town: str, n: int = 10) -> list[dict]:
     """Longest-open requests."""
     return [{
-        "id": r["id"], "category": r["category"], "address": shown_address(r, town), "ward": r.get("ward"),
+        "id": r["id"], "category": r["category"], **kind(r), "address": shown_address(r, town), "ward": r.get("ward"),
         "created_at": r["created_at"], "age_days": round(days_between(parse(r["created_at"]), now), 1),
-        "url": f"{link_base}/{r['id']}",
+        "url": link(link_base, r),
     } for r in sorted(records, key=lambda r: r["created_at"])[:n]]
 
 
@@ -151,7 +171,7 @@ def no_update(open_records: list[dict], now: datetime, areas: bool = True) -> di
             "by_ward": counts(lambda r: r.get("ward") or "outside") if areas else []}
 
 
-def backlog(open_records: list[dict], now: datetime, link_base: str, town: str, areas: bool = True) -> dict:
+def backlog(open_records: list[dict], now: datetime, link_base: str | None, town: str, areas: bool = True) -> dict:
     buckets = [{"label": label, "max_days": limit, "count": 0} for limit, label in BACKLOG_BUCKETS]
     for r in open_records:
         age = days_between(parse(r["created_at"]), now)
@@ -248,14 +268,14 @@ def repeat_locations(records: list[dict], radius_m: float, window_days: int, lin
     return places
 
 
-def recent_open(records: list[dict], now: datetime, days: int, link_base: str, town: str) -> list[dict]:
+def recent_open(records: list[dict], now: datetime, days: int, link_base: str | None, town: str) -> list[dict]:
     """Open requests submitted in the last few days, newest first. Map points where known."""
     since = now - timedelta(days=days)
     rs = [r for r in records if r["status"] == "open" and parse(r["created_at"]) >= since]
     return [{
-        "id": r["id"], "category": r["category"], "address": shown_address(r, town),
+        "id": r["id"], "category": r["category"], **kind(r), "address": shown_address(r, town),
         "ward": r.get("ward"), "created_at": r["created_at"], **(point(r) if mappable([r]) else {}),
-        "url": f"{link_base}/{r['id']}",
+        "url": link(link_base, r),
     } for r in sorted(rs, key=lambda r: r["created_at"], reverse=True)]
 
 
@@ -264,33 +284,38 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     now = now or datetime.now(tz)
     store = load_store(data_dir)
     records = [r for r in store.values() if not r.get("removed") and r.get("created_at")]
+    source = source_311.describe(config)
+    settings = source["settings"]
     # A town with no wards or precincts (no precincts_file) has no areas: its pages leave them out.
-    areas_file = config["seeclickfix"].get("precincts_file")
-    if areas_file:
-        tag_wards(store, PrecinctLookup(data_dir / "static" / areas_file))
+    # A portal's requests carry the city's own ward, and need no lookup.
+    areas = source["areas"]
+    precincts_file = settings.get("precincts_file") if source["table"] == "seeclickfix" else None
+    if precincts_file:
+        tag_wards(store, PrecinctLookup(data_dir / "static" / precincts_file))
     # After the wards, which are found from the exact map point. Not saved: requests.json keeps what
     # SeeClickFix lists, and only what's shown is cut to the block.
-    extra = config["seeclickfix"].get("sensitive_categories", [])
+    extra = settings.get("sensitive_categories", [])
     for r in records:
         r["sensitive"] = sensitive(r["category"], extra)
     population = defaultdict(int)
-    for f in json.loads((data_dir / "static" / areas_file).read_text())["features"] if areas_file else []:
-        population[f["properties"]["ward"]] += f["properties"]["population_2020"]
+    population_file = source_311.population_file(config)
+    for f in json.loads((data_dir / "static" / population_file).read_text())["features"] if population_file else []:
+        population[str(f["properties"]["ward"])] += f["properties"]["population_2020"]
 
     window_start = now - timedelta(days=365)
     in_window = [r for r in records if parse(r["created_at"]) >= window_start]
-    link_base = "https://seeclickfix.com/issues"
+    link_base = "https://seeclickfix.com/issues" if source["links"] else None
     town = config["town"]["name"]
 
     by_category = defaultdict(list)
     by_ward = defaultdict(list)
     for r in in_window:
         by_category[r["category"]].append(r)
-        if areas_file:
+        if areas:
             by_ward[r.get("ward") or "outside"].append(r)
 
     monthly = defaultdict(list)
-    first_month = (now.replace(day=1) - timedelta(days=700)).replace(day=1)
+    first_month = chart_start(now)
     for r in records:
         created = parse(r["created_at"])
         if created >= first_month:
@@ -298,8 +323,14 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
 
     open_records = [r for r in records if r["status"] == "open"]
     earliest = min((r["created_at"] for r in records), default=None)
-    rep = config["seeclickfix"]["repeats"]
-    backlog_now = backlog(open_records, now, link_base, town, areas=bool(areas_file))
+    if source["table"] == "socrata_311" and earliest:
+        # Closed requests from before the chart are dropped as they're saved, so the record is whole
+        # from the later of since and the chart's first month (older requests still open are kept).
+        whole = max(f"{settings['since']}-01", chart_start(now).date().isoformat())
+        earliest = max(earliest, whole)
+    # Repeat locations need map points; a source without them has only the recent open requests' days.
+    rep = settings["repeats"] if source["locations"] else {"recent_open_days": settings.get("recent_open_days", 30)}
+    backlog_now = backlog(open_records, now, link_base, town, areas=areas)
     backlog_now["open_week_ago"] = sum(open_at(r, now - timedelta(days=7)) for r in records)
 
     # Detail for the per-category and per-ward pages: past 12 months.
@@ -307,7 +338,7 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     categories = []
     for c, rs in sorted(by_category.items(), key=lambda x: (-len(x[1]), x[0])):
         wards = defaultdict(list)
-        for r in rs if areas_file else []:
+        for r in rs if areas else []:
             wards[r.get("ward") or "outside"].append(r)
         categories.append({
             "category": c, "slug": slugify(c), **summarize(rs),
@@ -330,11 +361,11 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
 
     on_map_window = [r for r in mappable(records) if parse(r["created_at"]) >= window_start]
 
-    # When SeeClickFix was last read: what the 311 page dates itself by, so a fetch that failed
+    # When the source was last read: what the 311 page dates itself by, so a fetch that failed
     # doesn't show as "Updated" today just because the numbers were worked out again.
     status = store_dir(data_dir) / "status.json"
     fetched_at = json.loads(status.read_text()).get("updated_at") if status.exists() else None
-    return {
+    card = {
         "generated_at": now.isoformat(timespec="seconds"),
         "fetched_at": fetched_at or now.isoformat(timespec="seconds"),
         "window": {"start": window_start.date().isoformat(), "end": now.date().isoformat(), "days": 365},
@@ -360,11 +391,13 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
         ],
         "categories": categories,
         "wards": wards_detail,
-        "repeats": {"radius_m": rep["radius_m"], "window_days": rep["window_days"],
-                    "places": repeat_locations(on_map_window, rep["radius_m"], rep["window_days"], link_base, town)},
         "recent_open": {"days": rep["recent_open_days"],
                         "requests": recent_open(records, now, rep["recent_open_days"], link_base, town)},
     }
+    if source["locations"]:
+        card["repeats"] = {"radius_m": rep["radius_m"], "window_days": rep["window_days"],
+                           "places": repeat_locations(on_map_window, rep["radius_m"], rep["window_days"], link_base, town)}
+    return card
 
 
 def main() -> None:
@@ -373,7 +406,8 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     args = parser.parse_args()
     config = load_config(args.town)
-    if not configured(config, "seeclickfix"):
+    if not source_311.table(config):
+        configured(config, "seeclickfix")
         return
     # A town that keeps its 311 files in its bucket (pipeline/bucket_data.py): read, and saved back.
     bucket_data.pull(config, args.data)

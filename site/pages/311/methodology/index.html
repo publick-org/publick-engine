@@ -1,16 +1,18 @@
 {% extends "base.html" %}
+{% from "macros.html" import portal_credit %}
 {% block title %}{{ _("How the 311 numbers work") }}{% endblock %}
-{% block description %}{% trans site=site.name, town=town.name %}How {{ site }} collects {{ town }}'s 311 requests from SeeClickFix and calculates each number.{% endtrans %}{% endblock %}
+{% block description %}{% if source_311.table == "seeclickfix" %}{% trans site=site.name, town=town.name %}How {{ site }} collects {{ town }}'s 311 requests from SeeClickFix and calculates each number.{% endtrans %}{% else %}{% trans site=site.name, town=town.name %}How {{ site }} collects {{ town }}'s 311 requests from the city's open data portal and calculates each number.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/311/">{{ _("311 Requests") }}</a></li></ol></nav>
 <h1>{{ _("How the 311 numbers work") }}</h1>
+{% if source_311.table == "seeclickfix" %}
 <p class="lede">{{ _("Everything comes from public requests on SeeClickFix, the city's service request system.") }}</p>
 
 <h2 id="collection">{{ _("What's collected") }}</h2>
 <ul>
-  <li>{% trans since=(config.seeclickfix.history_since ~ "-01") | date("month") %}Every public request since {{ since }}, plus older ones still open, checked daily.{% endtrans %}</li>
-  {% if config.seeclickfix.scope_note is defined %}
-  <li>{{ config.seeclickfix.scope_note }}</li>
+  <li>{% trans since=(source_311.settings.history_since ~ "-01") | date("month") %}Every public request since {{ since }}, plus older ones still open, checked daily.{% endtrans %}</li>
+  {% if source_311.settings.scope_note is defined %}
+  <li>{{ source_311.settings.scope_note }}</li>
   {% endif %}
   <li>{{ _("For each one: category, location, and when it was submitted, acknowledged, closed, or reopened.") }}</li>
   <li>{{ _("Not collected: descriptions, photos, or who submitted it.") }}</li>
@@ -47,7 +49,7 @@
 <h2 id="locations">{{ _("Maps and locations") }}</h2>
 <dl class="defs">
   <dt>{{ _("Locations shown") }}</dt><dd>{{ _("Addresses, intersections, and landmarks are shown as they appear on SeeClickFix. Every public request can appear on the maps and lists, in every category. Requests without a map location are listed but not mapped.") }} {{ _("In categories that point at a person or a household (homeless encampments, health and police complaints, noise, problem properties, smoke detector and lost pet requests), an address is shown only to its block, such as \"200–299 Main Street\", and the map places the request to about 100 meters.") }}</dd>
-  <dt>{{ _("Repeat location") }}</dt><dd>{% trans meters=config.seeclickfix.repeats.radius_m, days=config.seeclickfix.repeats.window_days %}Requests in the same category within {{ meters }} meters and {{ days }} days of each other, in a chain, count as one place. A place is listed when a request there came in after an earlier request at that place was closed. Past 12 months.{% endtrans %}</dd>
+  <dt>{{ _("Repeat location") }}</dt><dd>{% trans meters=source_311.settings.repeats.radius_m, days=source_311.settings.repeats.window_days %}Requests in the same category within {{ meters }} meters and {{ days }} days of each other, in a chain, count as one place. A place is listed when a request there came in after an earlier request at that place was closed. Past 12 months.{% endtrans %}</dd>
   <dt>{{ _("Map") }}</dt><dd>{% trans %}Points are placed within about 10 meters. Map data from <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>. Every place on a map is also listed on the page.{% endtrans %}</dd>
 </dl>
 
@@ -62,4 +64,46 @@
 </ul>
 
 <p class="source-note">{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a> under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a>.{% endtrans %} {% trans url=site.repo_url %}The data and code are in the <a href="{{ url }}">public repository</a>.{% endtrans %}</p>
+{% else %}
+{# A city's open data portal ([socrata_311]): no acknowledged times, addresses or map points. #}
+{% set settings = source_311.settings %}
+<p class="lede">{% trans name=source_311.name, url=source_311.url, portal=source_311.portal %}Everything comes from the 311 requests {{ name }} publishes on its open data portal, <a href="{{ url }}">{{ portal }}</a>.{% endtrans %}</p>
+
+<h2 id="collection">{{ _("What's collected") }}</h2>
+<ul>
+  <li>{% trans since=(settings.since ~ "-01") | date("month") %}Every request since {{ since }}, checked daily.{% endtrans %}</li>
+  {% if settings.scope_note is defined %}
+  <li>{{ settings.scope_note }}</li>
+  {% endif %}
+  <li>{{ _("For each one: category, type, ward, when it was submitted, and its latest status and when it was set.") }}</li>
+  <li>{{ _("The city's data has no address, map location, or time a request was acknowledged, so this site has no maps, repeat locations, or time to acknowledge.") }}</li>
+  <li>{{ _("Not collected: descriptions or who submitted it.") }}</li>
+</ul>
+
+<h2 id="statuses">{{ _("Statuses") }}</h2>
+{# Translators: %(closed)s is the city's own name for a closed status, in English, such as "Closed". #}
+<p>{% trans closed=settings.closed_statuses | default(["Closed"]) | join(", ") %}Each request has the status the city last gave it. A request whose status is {{ closed }} counts as closed; any other status counts as open.{% endtrans %}</p>
+
+<h2 id="measures">{{ _("Measures") }}</h2>
+<dl class="defs">
+  <dt>{{ _("Time to close") }}</dt><dd>{{ _("Submission to the date of the request's closed status. Requests still open are left out, so the typical time to close is for closed requests only.") }}</dd>
+  <dt>{{ _("No update in over a year") }}</dt><dd>{{ _("An open request whose status hasn't changed in more than a year. Some may have been fixed and never closed; others may never have been handled. The data doesn't show which. They still count as open.") }}</dd>
+  <dt>{{ _("Typical (median)") }}</dt><dd>{{ _("Half took less time, half took more. Unlike an average, a few very old requests don't skew it.") }}</dd>
+  <dt>{{ _("1 in 10 took over") }}</dt><dd>{{ _("The 90th percentile: how long the slowest requests take.") }}</dd>
+  {% if has_areas %}
+  <dt>{{ _("Ward") }}</dt><dd>{{ _("As the city records it with each request. Requests with no ward recorded count in the city's totals, not in any ward's.") }}</dd>
+  <dt>{{ _("Per 1,000 residents") }}</dt><dd>{{ _("Requests divided by the ward's 2020 census population, times 1,000. Ward populations come from the census, so they differ slightly from the state's newer citywide estimate used on the budget page.") }}</dd>
+  {% endif %}
+</dl>
+
+<h2 id="limits">{{ _("Keep in mind") }}</h2>
+<ul>
+  <li>{{ _("A closed request isn't always a fixed problem. Duplicates and requests outside the city's responsibility also get closed.") }}</li>
+  {% if has_areas %}<li>{{ _("Ward differences reflect how often people report problems, not only how the city responds.") }}</li>{% endif %}
+  <li>{{ _("Recent months will change as requests close.") }}</li>
+  <li>{{ _("Numbers based on fewer than 5 requests aren't shown.") }}</li>
+</ul>
+
+<p class="source-note">{{ portal_credit(source_311) }} {% trans url=site.repo_url %}The data and code are in the <a href="{{ url }}">public repository</a>.{% endtrans %}</p>
+{% endif %}
 {% endblock %}

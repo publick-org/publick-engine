@@ -1,24 +1,28 @@
 {% extends "base.html" %}
-{% from "macros.html" import city_report_button %}
+{% from "macros.html" import city_report_button, portal_credit %}
 {% from "macros.html" import area with context %}
 {% from "charts.html" import month_columns, bars, chart_links, map_figure, map_assets %}
 {% block title %}{{ _("311 Requests") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} 311 requests and response times{% endtrans %}{% endblock %}
-{% block description %}{% if not has_areas %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category.{% endtrans %}{% elif areas == "precincts" %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and voting precinct.{% endtrans %}{% elif areas == "districts" %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and district.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endif %}{% endblock %}
+{% block description %}{% if not source_311.acknowledged %}{% if not has_areas %}{% trans town=town.name %}How quickly the City of {{ town }} closes public service requests, and how many are still open, by category.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} closes public service requests, and how many are still open, by category and ward.{% endtrans %}{% endif %}{% elif not has_areas %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category.{% endtrans %}{% elif areas == "precincts" %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and voting precinct.{% endtrans %}{% elif areas == "districts" %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and district.{% endtrans %}{% else %}{% trans town=town.name %}How quickly the City of {{ town }} acknowledges and closes public service requests, how many are still open, by category and ward.{% endtrans %}{% endif %}{% endblock %}
 {% set sc = scorecard %}
 {# The downloads as a dataset for dataset search, once, on the English page. #}
-{% block structured_data %}{% if lang == "en" and sc and sc.monthly %}{{ structured(dataset(town.name ~ " 311 requests", self.description(), canonical_url,
+{% block structured_data %}{% if lang == "en" and sc and sc.monthly and license_311 %}{{ structured(dataset(town.name ~ " 311 requests", self.description(), canonical_url,
   ["/311/data/monthly.csv"] + (["/311/data/by-ward.csv"] if has_areas else []) + ["/311/data/by-category.csv", "/311/data/open-by-age.csv",
-   "/311/data/recent-open.csv", "/311/data/repeat-locations.csv"], license=seeclickfix_license,
+   "/311/data/recent-open.csv"] + (["/311/data/repeat-locations.csv"] if source_311.locations else []), license=license_311,
   start=sc.monthly[0].month, end=sc.monthly[-1].month)) }}{% endif %}{% endblock %}
-{% block head %}{% if scorecard %}{{ map_assets() }}{% endif %}{% endblock %}
+{% block head %}{% if scorecard and source_311.locations %}{{ map_assets() }}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("311 Requests") }}</h1>
+  {% if source_311.table == "seeclickfix" %}
   <p class="lede">{% trans town=town.name %}How the City of {{ town }} responds to public service requests on SeeClickFix.{% endtrans %}</p>
-  {% if config.seeclickfix.scope_note is defined %}
-  <p>{{ config.seeclickfix.scope_note }}</p>
+  {% else %}
+  <p class="lede">{% trans town=town.name %}How the City of {{ town }} responds to the public service requests it publishes on its open data portal.{% endtrans %}</p>
+  {% endif %}
+  {% if source_311.settings.scope_note is defined %}
+  <p>{{ source_311.settings.scope_note }}</p>
   {% endif %}
   {% if sc %}
   <p class="source-note">{% trans iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
@@ -39,6 +43,7 @@
     <span class="stat-change">{{ change(b.open - b.get("open_week_ago", b.open), _("last week")) }}</span>
     {% if b.get("no_update", {}).get("count") %}<span class="stat-change"><a href="#no-update">{% trans num=b.no_update.count | number %}{{ num }} with no update in over a year{% endtrans %}</a></span>{% endif %}
   </div></li>
+  {% if source_311.acknowledged %}
   <li class="stat" id="speed"><div>
     <span class="stat-label">{{ _("Typical time to acknowledge") }}</span>
     {% if o.time_to_acknowledge.median is none and o.checked < o.received %}
@@ -47,7 +52,9 @@
     <span class="stat-value">{{ o.time_to_acknowledge.median | duration }}</span><span class="stat-change">{{ _("Median of acknowledged requests") }}</span>
     {% endif %}
   </div></li>
-  <li class="stat"><div>
+  {% endif %}
+  {# Without acknowledged times, the time to close is how fast the city responds. #}
+  <li class="stat"{% if not source_311.acknowledged %} id="speed"{% endif %}><div>
     <span class="stat-label">{{ _("Typical time to close") }}</span>
     <span class="stat-value">{{ o.time_to_close.median | duration }}</span>
     <span class="stat-change">{{ _("Median of closed requests") }} · {% trans p90=o.time_to_close.p90 | duration %}1 in 10 took over {{ p90 }}{% endtrans %}</span>
@@ -64,11 +71,15 @@
   <li>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</li>
   {% if o.checked < o.received %}<li>{% trans checked=o.checked | number, received=o.received | number %}Acknowledgment times are known for {{ checked }} of {{ received }} requests so far. The rest are being looked up.{% endtrans %}</li>{% endif %}
 </ul>
+{% elif not source_311.acknowledged %}
+<ul class="small plain-list">
+  <li>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</li>
+</ul>
 {% endif %}
 
 {# ---- Monthly ---- #}
 {% set months = sc.monthly %}
-{% set noted_list = config.seeclickfix.annotations | default([]) | selectattr("month", "in", months | map(attribute="month") | list) | list %}
+{% set noted_list = source_311.settings.annotations | default([]) | selectattr("month", "in", months | map(attribute="month") | list) | list %}
 {% set noted = noted_list | map(attribute="month") | list %}
 <h2 id="monthly">{{ _("Requests by month") }}</h2>
 {{ month_columns(months, _("Requests by month"), noted) }}
@@ -103,10 +114,10 @@
   <summary>{{ _("See as a table") }}</summary>
   <div class="table-wrap">
   <table class="data-table">
-    <thead><tr><th scope="col">{% if areas == "precincts" %}{{ _("Precinct") }}{% elif areas == "districts" %}{{ _("District") }}{% else %}{{ _("Ward") }}{% endif %}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num">{{ _("Per 1,000") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th><th scope="col" class="num wide">{{ _("Typical acknowledge") }}</th><th scope="col" class="num">{{ _("Typical close") }}</th></tr></thead>
+    <thead><tr><th scope="col">{% if areas == "precincts" %}{{ _("Precinct") }}{% elif areas == "districts" %}{{ _("District") }}{% else %}{{ _("Ward") }}{% endif %}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num">{{ _("Per 1,000") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th>{% if source_311.acknowledged %}<th scope="col" class="num wide">{{ _("Typical acknowledge") }}</th>{% endif %}<th scope="col" class="num">{{ _("Typical close") }}</th></tr></thead>
     <tbody>
     {% for w in sc.by_ward %}
-      <tr><th scope="row">{% if w.ward == "outside" %}{% if areas == "precincts" %}{{ _("Outside precincts") }}{% elif areas == "districts" %}{{ _("Outside districts") }}{% else %}{{ _("Outside wards") }}{% endif %}{% else %}<a href="/311/ward/{{ w.ward }}/">{{ area(w.ward) }}</a>{% endif %}</th><td class="num">{{ w.received | number }}</td><td class="num">{{ w.per_1000_residents | number }}</td><td class="num wide">{{ w.open | number }}</td><td class="num wide">{{ w.time_to_acknowledge.median | duration_cell }}</td><td class="num">{{ w.time_to_close.median | duration_cell }}</td></tr>
+      <tr><th scope="row">{% if w.ward == "outside" %}{% if not source_311.locations %}{{ _("No ward recorded") }}{% elif areas == "precincts" %}{{ _("Outside precincts") }}{% elif areas == "districts" %}{{ _("Outside districts") }}{% else %}{{ _("Outside wards") }}{% endif %}{% else %}<a href="/311/ward/{{ w.ward }}/">{{ area(w.ward) }}</a>{% endif %}</th><td class="num">{{ w.received | number }}</td><td class="num">{{ w.per_1000_residents | number }}</td><td class="num wide">{{ w.open | number }}</td>{% if source_311.acknowledged %}<td class="num wide">{{ w.time_to_acknowledge.median | duration_cell }}</td>{% endif %}<td class="num">{{ w.time_to_close.median | duration_cell }}</td></tr>
     {% endfor %}
     </tbody>
   </table>
@@ -120,10 +131,10 @@
 <p class="small">{{ _("Past 12 months. \"Typical\" means the median: half took less time, half took more.") }}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">{{ _("Category") }}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th><th scope="col" class="num wide">{{ _("Typical acknowledge") }}</th><th scope="col" class="num">{{ _("Typical close") }}</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Category") }}</th><th scope="col" class="num">{{ _("Requests") }}</th><th scope="col" class="num wide">{{ _("Still open") }}</th>{% if source_311.acknowledged %}<th scope="col" class="num wide">{{ _("Typical acknowledge") }}</th>{% endif %}<th scope="col" class="num">{{ _("Typical close") }}</th></tr></thead>
   <tbody>
   {% for c in sc.categories[:10] %}
-    <tr><th scope="row"><a href="/311/category/{{ c.slug }}/">{{ c.category }}</a></th><td class="num">{{ c.received | number }}</td><td class="num wide">{{ c.open | number }}</td><td class="num wide">{{ c.time_to_acknowledge.median | duration_cell }}</td><td class="num">{{ c.time_to_close.median | duration_cell }}</td></tr>
+    <tr><th scope="row"><a href="/311/category/{{ c.slug }}/">{{ c.category }}</a></th><td class="num">{{ c.received | number }}</td><td class="num wide">{{ c.open | number }}</td>{% if source_311.acknowledged %}<td class="num wide">{{ c.time_to_acknowledge.median | duration_cell }}</td>{% endif %}<td class="num">{{ c.time_to_close.median | duration_cell }}</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -156,7 +167,11 @@
 {% set nu = b.get("no_update") %}
 {% if nu and nu.count %}
 <h3 id="no-update">{{ _("No update in over a year") }}</h3>
+{% if source_311.table == "seeclickfix" %}
 <p>{% trans num=nu.count | number, open=b.open | number %}{{ num }} of the {{ open }} open requests haven't been updated on SeeClickFix in over a year: no status change, comment, or edit. SeeClickFix doesn't show whether these were fixed and never closed, or never handled.{% endtrans %}</p>
+{% else %}
+<p>{% trans num=nu.count | number, open=b.open | number %}{{ num }} of the {{ open }} open requests haven't changed status in over a year. The city's data doesn't show whether these were fixed and never closed, or never handled.{% endtrans %}</p>
+{% endif %}
 <details class="expand">
   <summary>{% if not has_areas %}{{ _("By category") }}{% elif areas == "precincts" %}{{ _("By category and precinct") }}{% elif areas == "districts" %}{{ _("By category and district") }}{% else %}{{ _("By category and ward") }}{% endif %}</summary>
   <div class="table-wrap">
@@ -174,7 +189,7 @@
     <caption>{% if areas == "precincts" %}{{ _("Open requests with no update in over a year, by precinct") }}{% elif areas == "districts" %}{{ _("Open requests with no update in over a year, by district") }}{% else %}{{ _("Open requests with no update in over a year, by ward") }}{% endif %}</caption>
     <thead><tr><th scope="col">{% if areas == "precincts" %}{{ _("Precinct") }}{% elif areas == "districts" %}{{ _("District") }}{% else %}{{ _("Ward") }}{% endif %}</th><th scope="col" class="num">{{ _("Requests") }}</th></tr></thead>
     <tbody>
-    {% for w in nu.by_ward %}<tr><th scope="row">{% if w.name == "outside" %}{% if areas == "precincts" %}{{ _("Outside precincts") }}{% elif areas == "districts" %}{{ _("Outside districts") }}{% else %}{{ _("Outside wards") }}{% endif %}{% else %}{{ area(w.name) }}{% endif %}</th><td class="num">{{ w.count | number }}</td></tr>{% endfor %}
+    {% for w in nu.by_ward %}<tr><th scope="row">{% if w.name == "outside" %}{% if not source_311.locations %}{{ _("No ward recorded") }}{% elif areas == "precincts" %}{{ _("Outside precincts") }}{% elif areas == "districts" %}{{ _("Outside districts") }}{% else %}{{ _("Outside wards") }}{% endif %}{% else %}{{ area(w.name) }}{% endif %}</th><td class="num">{{ w.count | number }}</td></tr>{% endfor %}
     </tbody>
   </table>
   </div>
@@ -185,14 +200,28 @@
 <h3 id="longest-open">{{ _("Longest-open requests") }}</h3>
 <ol class="plain-list">
   {% for r in b.oldest %}
+  {% if source_311.locations %}
   <li><a href="{{ r.url }}">{{ r.category }}</a><span class="item-detail">{{ r.address or _("No street address") }}{% if r.ward %} · {{ area(r.ward) }}{% endif %} · {% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>
+  {% else %}
+  <li>{{ r.category }}<span class="item-detail">{% if r.get("type") %}{{ r.type }} · {% endif %}{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>
+  {% endif %}
   {% endfor %}
 </ol>
 
 {# ---- Newest open ---- #}
 {% set recent = sc.get("recent_open", {"days": 30, "requests": []}) %}
 <h2 id="recent">{% trans days=recent.days %}Opened in the past {{ days }} days{% endtrans %}</h2>
-{% if recent.requests %}
+{% if recent.requests and not source_311.locations %}
+<p>{% trans count=recent.requests | length, num=recent.requests | length | number, days=recent.days %}{{ num }} request from the past {{ days }} days is still open.{% pluralize %}{{ num }} requests from the past {{ days }} days are still open.{% endtrans %}</p>
+<details class="expand">
+  <summary>{{ _("See as a list") }}</summary>
+  <ol class="plain-list">
+    {% for r in recent.requests %}
+    <li>{{ r.category }}<span class="item-detail">{% if r.get("type") %}{{ r.type }} · {% endif %}{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Submitted <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>
+    {% endfor %}
+  </ol>
+</details>
+{% elif recent.requests %}
 {% set unmapped = recent.requests | length - map_points.recent | length %}
 <p>{% trans count=recent.requests | length, num=recent.requests | length | number, days=recent.days %}{{ num }} request from the past {{ days }} days is still open.{% pluralize %}{{ num }} requests from the past {{ days }} days are still open.{% endtrans %}{% if unmapped %} {% trans count=unmapped, num=unmapped | number %}{{ num }} has no map location and is only in the list.{% pluralize %}{{ num }} have no map location and are only in the list.{% endtrans %}{% endif %}</p>
 {{ map_figure("recent", map_points.recent, _("Map of open requests from the past %(days)s days. The same requests are listed below.", days=recent.days)) }}
@@ -209,7 +238,8 @@
 {% endif %}
 {{ chart_links("recent", "/311/data/recent-open.csv") }}
 
-{# ---- Repeat locations ---- #}
+{# ---- Repeat locations, for a source with map points ---- #}
+{% if source_311.locations %}
 {% set places = sc.get("repeats", {"places": []}).places %}
 <h2 id="repeats">{{ _("Repeat locations") }}</h2>
 <p>{% trans count=places | length, num=places | length | number %}{{ num }} place had a problem reported again after an earlier request there was closed, in the past 12 months.{% pluralize %}{{ num }} places had a problem reported again after an earlier request there was closed, in the past 12 months.{% endtrans %}</p>
@@ -223,8 +253,9 @@
 <ul class="link-row">
   <li><a href="/311/repeat-locations/">{{ _("All repeat locations") }}</a></li>
 </ul>
+{% endif %}
 
-<p class="source-note">{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
-recorded back to {{ since }}.{% endtrans %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% if not has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time.{% endtrans %}{% elif areas == "precincts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the precincts, no population to count per 1,000 residents.{% endtrans %}{% elif areas == "districts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the districts, no population to count per 1,000 residents.{% endtrans %}{% else %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}{% endif %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
+<p class="source-note">{% if source_311.table != "seeclickfix" %}{{ portal_credit(source_311) }} {% trans since=sc.data_since | date("plain") %}Recorded back to {{ since }}.{% endtrans %}{% else %}{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
+recorded back to {{ since }}.{% endtrans %}{% endif %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% if not source_311.locations and has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests with no ward recorded, no population to count per 1,000 residents.{% endtrans %}{% elif not has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time.{% endtrans %}{% elif areas == "precincts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the precincts, no population to count per 1,000 residents.{% endtrans %}{% elif areas == "districts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the districts, no population to count per 1,000 residents.{% endtrans %}{% else %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}{% endif %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endif %}
 {% endblock %}

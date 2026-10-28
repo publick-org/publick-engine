@@ -195,8 +195,9 @@ STATE_SECTIONS = {"budget": "budget", "schools": "schools"}
 def not_covered(config: dict, state) -> list[dict]:
     """The sections this town's site doesn't have, and why, for the About page: {"section": slug,
     "reason": ..., "note": the town's own sentence ([absences] <slug> in its config) or None}.
-    The reason is "no_311" (311 comes only from SeeClickFix), "state" (the engine has no source of
-    this kind for the town's state yet), or "not_added" (the town's config doesn't list it)."""
+    The reason is "no_311" (311 comes only from SeeClickFix or a city's open data portal), "state" (the
+    engine has no source of this kind for the town's state yet), or "not_added" (the town's config
+    doesn't list it)."""
     notes = config.get("absences", {})
     unknown = set(notes) - set(SECTIONS)
     if unknown:

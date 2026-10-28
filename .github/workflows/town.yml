@@ -219,6 +219,15 @@ jobs:
           STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
           STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
+      # A town's 311 requests from its Socrata open data portal, instead of SeeClickFix.
+      - name: Fetch 311 requests from an open data portal
+        if: inputs.sources != 'meetings'
+        continue-on-error: true
+        run: python -m pipeline.fetch_socrata_311 --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+
       - name: Compute 311 scorecard
         if: inputs.sources != 'meetings'
         run: python -m pipeline.compute_311 --town "$TOWN"

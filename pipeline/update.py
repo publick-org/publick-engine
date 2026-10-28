@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline import cost_log, rhythms
+from pipeline import cost_log, rhythms, source_311
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 
 
@@ -48,8 +48,12 @@ class Source:
     required: bool = False
     # Keys only this step is given. Every other step runs without them.
     secrets: tuple[str, ...] = ()
-    # The config table the step reads. A town without it skips the step without starting it.
-    table: str | None = None
+    # The config table the step reads, or the tables of which it reads whichever the town has. A town
+    # without it skips the step without starting it.
+    table: str | tuple[str, ...] | None = None
+
+    def tables(self) -> tuple[str, ...]:
+        return (self.table,) if isinstance(self.table, str) else self.table or ()
 
 
 # The document bucket's keys (pipeline/documents.py), for the steps that save or read agendas and minutes,
@@ -95,8 +99,11 @@ SOURCES = [
     Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",), secrets=STORAGE),
     Source("Fetch 311 requests", "pipeline.fetch_311", "311", secrets=STORAGE, table="seeclickfix"),
+    # A town's 311 requests from its Socrata open data portal, instead of SeeClickFix.
+    Source("Fetch 311 requests from an open data portal", "pipeline.fetch_socrata_311", "311", secrets=STORAGE,
+           table="socrata_311"),
     Source("Compute 311 scorecard", "pipeline.compute_311", "311", required=True, secrets=STORAGE,
-           table="seeclickfix"),
+           table=source_311.TABLES),
 ]
 
 GROUPS = {"all": ("meetings", "figures", "311"), "meetings": ("meetings", "figures"), "figures": ("figures",),
@@ -135,10 +142,10 @@ def run(town: str, sources: str = "all", timeout: float | None = None, config: d
     for source in (s for s in SOURCES if s.group in GROUPS[sources]):
         rhythm = by_step.get(source.name)
         cadence = rhythm.cadence if rhythm else "continuous"
-        if config is not None and source.table and source.table not in config:
+        if config is not None and source.tables() and not any(t in config for t in source.tables()):
             # The town doesn't have this source (most towns have no 311, permits file, or Drive folders).
-            steps.append({"name": source.name, "ok": True, "required": source.required, "error": None,
-                          "seconds": 0, "cadence": cadence, "skipped": f"no [{source.table}] in the config"})
+            steps.append({"name": source.name, "ok": True, "required": source.required, "error": None, "seconds": 0,
+                          "cadence": cadence, "skipped": f"no {' or '.join(f'[{t}]' for t in source.tables())} in the config"})
             continue
         if rhythm and data_dir is not None and not force:
             due, why = rhythms.due(rhythm, data_dir, now)
