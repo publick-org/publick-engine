@@ -31,6 +31,7 @@ def kind(name):
 PROMPTS = {
     "summary of an agenda (summarize.KINDS)": lambda: kind("agenda"),
     "summary of minutes (summarize.KINDS)": lambda: kind("minutes"),
+    "summary of a recording's transcript (summarize.KINDS)": lambda: kind("recording"),
     "transcription (summarize.TRANSCRIBE)": lambda: (
         summarize.TRANSCRIBE["version"],
         fingerprint(summarize.TRANSCRIBE["system"], summarize.TRANSCRIBE["prompt"], summarize.TRANSCRIBE["schema"])),
@@ -46,6 +47,7 @@ PROMPTS = {
 PINNED = {
     "summary of an agenda (summarize.KINDS)": (5, "22ed04a0cc5534fe"),
     "summary of minutes (summarize.KINDS)": (4, "1cbeee13a57af57b"),
+    "summary of a recording's transcript (summarize.KINDS)": (1, "8c6a4d759d7c30ae"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
     "translation (translate.VERSION)": (7, "ce0bd075573fb358"),
     # The town's glossary added to the drafting prompt (2026-10-16) without a bump: it only adds words, and

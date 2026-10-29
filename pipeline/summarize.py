@@ -73,6 +73,7 @@ import io
 import json
 import math
 import os
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -81,7 +82,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import cost_log, factcheck, glossary, listings, pdftext, translate, votes
+from pipeline import cost_log, factcheck, glossary, listings, pdftext, transcribe, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -213,7 +214,58 @@ Return:
             "additionalProperties": False,
         },
     },
+    "recording": {
+        # A meeting summarized from the machine transcript of its recording (pipeline/recordings.py), the day
+        # after, until its minutes come and are summarized instead. Its decisions as the minutes' are, each
+        # with the transcript's own words for it, checked against the transcript (pipeline/factcheck.py).
+        "version": 1,
+        "folder": "transcripts",
+        # The document is text (the transcript), not a PDF.
+        "text": True,
+        # A four-hour meeting's transcript is about 60,000 tokens; its summary, a fraction of what's left.
+        "max_tokens": 32000,
+        "system": "You summarize public meetings of a city government for residents, from a machine transcript of the meeting's recording. The transcript doesn't say who is speaking, and it mishears some words, names most of all.\n\n"
+                  + SUMMARY_RULES + """
+- Report decisions only where the transcript records how they ended: a vote announced, or the chair saying a motion carried or failed. Give the vote count when it is announced or a roll call is read. Never say how a named member voted.
+- Use the meeting's own verb for each outcome (approved, recommended, referred, continued, tabled, denied). A vote to recommend is not an approval.
+- A motion that failed was not approved, whatever it proposed: report it as failed.
+- Do not say which member said or argued what: the transcript does not show reliably who is speaking. Do not name members of the public.
+- Spell a member's name as the list of members gives it where the transcript mishears it; other names as the transcript has them.""",
+        "prompt": """This is a machine transcript of the recording of: {title}, {date}. Each paragraph starts with its time in the recording, in brackets.{members}
+
+Return:
+- headline: one sentence of at most 25 words on what the meeting decided, or what it discussed if it decided nothing. Lead with the decisions residents are most likely to look for, named as they would search for them: projects and developments, with their street addresses or names; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Put routine decisions after these, or leave them out. Start with the outcome itself, not with who met. Do not mention the board, the date, the time, or the place.
+- summary: 1 to 3 short sentences on what the meeting covered and what was decided. Do not repeat the board's name, the date, the time, or the place.
+- decisions: each motion or vote whose result the transcript records, in order. Skip procedural motions such as adjourning, accepting the agenda, or approving minutes. For each:
+  - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 7-3" or "Referred ... to the Finance Subcommittee").
+  - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other.
+  - quote: the transcript's own words that record this decision, copied exactly, character for character, without the times in brackets: the motion and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the transcript's words.
+- discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed and the views raised, without saying who raised them. An empty list if there was little discussion.""",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "headline": {"type": "string"},
+                "summary": {"type": "string"},
+                "decisions": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": {
+                        "decision": {"type": "string"},
+                        "outcome": {"type": "string", "enum": list(factcheck.OUTCOMES)},
+                        "quote": {"type": "string"},
+                    },
+                    "required": ["decision", "outcome", "quote"],
+                    "additionalProperties": False,
+                }},
+                "discussion": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["headline", "summary", "decisions", "discussion"],
+            "additionalProperties": False,
+        },
+    },
 }
+
+# The kinds of document a meeting has, and the field of its record that lists them.
+DOCUMENT_FIELDS = (("agenda", "agendas"), ("minutes", "minutes"), ("recording", "transcripts"))
 
 # Readable text by the model, for a document whose own text can't be used:
 # a few pages a request, so no response is cut off however long the document.
@@ -252,7 +304,9 @@ TOO_LONG = "summary-too-long.json"
 # minutes up to about 1,200 a page (30 pages, 36,849). Erring high: a document that waits goes on a
 # run with more room, while one that overshoots is paid for anyway.
 ESTIMATE = {"input_fixed": 1500, "input_per_page": 3000,
-            "output": {"agenda": (2500, 0), "minutes": (2000, 1200)}}
+            "output": {"agenda": (2500, 0), "minutes": (2000, 1200), "recording": (3000, 300)}}
+# A transcript is counted in pages of this many characters (about 3,000 tokens of English, ESTIMATE's page).
+TEXT_PAGE_CHARS = 12000
 # The API takes requests up to 32 MB, and base64 makes a PDF a third larger.
 MAX_BYTES = 22_000_000
 
@@ -381,8 +435,8 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
     after since ([summaries] since; None for all). model is the one a run sends: a document given up
     on (MAX_TRIES) with it isn't waiting, while one given up on with another model is tried again.
 
-    Order: agendas for upcoming meetings, then minutes (newest meeting first),
-    then agendas for past meetings."""
+    Order: agendas for upcoming meetings, then minutes and recordings' transcripts (newest meeting
+    first), then agendas for past meetings."""
     # A meeting listed in more than one place is summarized once, from its current agenda.
     store, _ = listings.read(data_dir)
     todo, seen = [], set()
@@ -390,8 +444,9 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
         # Older meetings keep their records and documents, without a summary.
         if since and meeting["date"] < since:
             continue
-        for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
-            if not meeting.get(field):
+        for kind, field in DOCUMENT_FIELDS:
+            # A recording is summarized only until the minutes come.
+            if not meeting.get(field) or (kind == "recording" and meeting.get("minutes")):
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
@@ -407,7 +462,7 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
             todo.append((kind, meeting, doc))
     date = lambda t: t[1]["date"]
     upcoming = sorted((t for t in todo if t[0] == "agenda" and date(t) >= today), key=date)
-    minutes = sorted((t for t in todo if t[0] == "minutes"), key=date, reverse=True)
+    minutes = sorted((t for t in todo if t[0] in ("minutes", "recording")), key=date, reverse=True)
     past = sorted((t for t in todo if t[0] == "agenda" and date(t) < today), key=date, reverse=True)
     return upcoming + minutes + past
 
@@ -581,10 +636,36 @@ def page_count(pdf: bytes) -> int | None:
         return None
 
 
-def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None) -> dict:
+def document(storage, kind: str, doc: dict) -> bytes:
+    """A document as it's summarized: its PDF, or a recording's transcript, each part's in order for a meeting
+    recorded in parts (pipeline/recordings.py)."""
+    folder = KINDS[kind]["folder"]
+    if not doc.get("parts"):
+        return storage.get(folder, doc["file"])
+    return "\n".join(f"Part {i}: {part.get('title') or ''}\n" + storage.get(folder, part["file"]).decode("utf-8")
+                     for i, part in enumerate(doc["parts"], 1)).encode("utf-8")
+
+
+def length(kind: str, content: bytes) -> int | None:
+    """A document's length in pages: a PDF's, or a transcript's in pages of TEXT_PAGE_CHARS."""
+    if KINDS[kind].get("text"):
+        return -(-len(content.decode("utf-8")) // TEXT_PAGE_CHARS)
+    return page_count(content)
+
+
+def members_note(members: list[str] | None) -> str:
+    """The board's members, for a transcript's summary to spell their names as the town does."""
+    return f"\n\nThe board's members: {', '.join(members)}." if members else ""
+
+
+def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None,
+                    members: list[str] | None = None) -> dict:
     """The request for a document's summary: as a run sends it, or as one request of a batch
-    (pipeline/evaluate_batch.py). Without an effort, the model's default."""
+    (pipeline/evaluate_batch.py). Without an effort, the model's default. A recording's transcript is
+    sent as text, with the board's members (votes.members_for()), whose names it mishears."""
     spec = KINDS[kind]
+    source = ({"type": "text", "media_type": "text/plain", "data": pdf.decode("utf-8")} if spec.get("text") else
+              {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(pdf).decode("ascii")})
     return {
         "model": model,
         "max_tokens": spec["max_tokens"],
@@ -592,9 +673,8 @@ def summary_request(model: str, kind: str, pdf: bytes, title: str, date: str, ef
         "messages": [{
             "role": "user",
             "content": [
-                {"type": "document", "source": {"type": "base64", "media_type": "application/pdf",
-                                                "data": base64.standard_b64encode(pdf).decode("ascii")}},
-                {"type": "text", "text": spec["prompt"].format(title=title, date=date)},
+                {"type": "document", "source": source},
+                {"type": "text", "text": spec["prompt"].format(title=title, date=date, members=members_note(members))},
             ],
         }],
         "output_config": {**({"effort": effort} if effort else {}),
@@ -619,11 +699,12 @@ def summary_result(response) -> tuple[dict, dict]:
     return json.loads(text), usage
 
 
-def send_summary(client, model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None):
+def send_summary(client, model: str, kind: str, pdf: bytes, title: str, date: str, effort: str | None = None,
+                 members: list[str] | None = None):
     """The model's response to a document's summary request. Without an effort ([summaries] effort), the
     model's default."""
     # Streaming avoids HTTP timeouts on long transcripts.
-    with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort)) as stream:
+    with client.messages.stream(**summary_request(model, kind, pdf, title, date, effort, members)) as stream:
         return stream.get_final_message()
 
 
@@ -715,13 +796,14 @@ def save_record(data_dir: Path, sha256: str, record: dict) -> None:
 
 
 def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
-    """(kind, meeting, document, saved record) for each meeting's latest agenda and minutes
-    that have a summary, newest meeting first."""
+    """(kind, meeting, document, saved record) for each meeting's latest agenda and minutes, and its
+    recording's transcript until the minutes come, that have a summary, newest meeting first."""
     store, _ = listings.read(data_dir)
     out, seen = [], set()
     for meeting in store.values():
-        for kind, field in (("agenda", "agendas"), ("minutes", "minutes")):
-            if not meeting.get(field):
+        for kind, field in DOCUMENT_FIELDS:
+            # A recording's summary is shown only until the minutes come: not translated or checked after.
+            if not meeting.get(field) or (kind == "recording" and meeting.get("minutes")):
                 continue
             doc = meeting[field][-1]
             if doc["sha256"] in seen:
@@ -819,16 +901,30 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
         # A scan's transcription, kept: the document's own text still replaces it where it can be used.
         **kept_transcription(data_dir, doc["sha256"]),
     }
-    record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
-    if record.get("is_minutes") is not False:
-        # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
-        words |= translate.summary_words(record)
-        record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+    if KINDS[kind].get("text"):
+        # A recording's transcript: no roll calls are read from it (pipeline/votes.py reads the minutes').
+        record = check_recording(config, meeting, record, pdf, words)
+    else:
+        record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
+        if record.get("is_minutes") is not False:
+            # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
+            words |= translate.summary_words(record)
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
     # Logged before its file is written: a run stopped between the two has paid for it, and the next run
     # makes it again (the log counts the first as replaced).
     new = log.add("summary", key, paid, doc=doc["sha256"], model=settings["model"], usage=usage)
     save_record(data_dir, doc["sha256"], record)
     return new
+
+
+def check_recording(config: dict, meeting: dict, record: dict, transcript: bytes, words) -> dict:
+    """A recording's summary with its fact check against the transcript, without its times
+    (pipeline/factcheck.py). The board's members' names, which the summary spells from their list where the
+    transcript mishears them, are taken as words, not checked as names."""
+    members = {w.lower() for name in votes.members_for(config, meeting["body"]) for w in re.findall(r"[\w'’-]+", name)}
+    text = transcribe.untimed(transcript.decode("utf-8"))
+    taken = frozenset(set(words) | translate.summary_words(record) | members)
+    return {**record, "transcript_source": "recording", "fact_check": factcheck.check(record, "recording", [text], taken)}
 
 
 def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:
@@ -880,7 +976,7 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
     run that collects it goes on from there."""
     created = client.messages.batches.create(requests=[
         {"custom_id": f"doc-{i}", "params": summary_request(settings["model"], kind, pdf, meeting["title"], meeting["date"],
-                                                            settings.get("effort"))}
+                                                            settings.get("effort"), meeting.get("members"))}
         for i, (kind, meeting, doc, pdf) in enumerate(queued)])
     pending = {
         "id": created.id, "sent_at": sent_at.isoformat(timespec="seconds"), "model": settings["model"],
@@ -888,7 +984,7 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
         "prices": {k: settings[k] for k in PRICES + ("long_prompt_tokens",) if settings.get(k) is not None},
         "documents": [{"custom_id": f"doc-{i}", "kind": kind, "older": doc["sha256"] in older,
                        "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
-                       "doc": {k: doc[k] for k in ("id", "sha256", "file", "source_url")}}
+                       "doc": {k: doc[k] for k in ("id", "sha256", "file", "source_url", "parts") if k in doc}}
                       for i, (kind, meeting, doc, _) in enumerate(queued)],
     }
     write_atomic(cost_log.ignored(data_dir) / BATCH_SPENT, json.dumps(
@@ -986,7 +1082,7 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
             continue
         paid = cost(usage, prices)
         try:
-            pdf = storage.get(KINDS[kind]["folder"], doc["file"])
+            pdf = document(storage, kind, doc)
         except FetchError as e:
             # Paid for, but it can't be saved without its document's text and check: made again later.
             failed(paid, usage)
@@ -1164,7 +1260,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         nonlocal spent, spent_backlog, done, failed
         try:
             response = send_summary(client, settings["model"], kind, pdf, meeting["title"], meeting["date"],
-                                    settings.get("effort"))
+                                    settings.get("effort"), meeting.get("members"))
         except Exception as e:  # one bad document must not stop the rest
             failed += 1
             if out_of_credit(e):
@@ -1224,12 +1320,15 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             stopped = "older documents wait: this run's share for them is spent"
             break
         try:
-            pdf = storage.get(KINDS[kind]["folder"], doc["file"])
+            pdf = document(storage, kind, doc)
         except FetchError as e:
             failed += 1
             errors.append(f"{kind} {doc['id']}: {e}")
             continue
-        pages = page_count(pdf)
+        if KINDS[kind].get("text"):
+            # A transcript's names are spelled from the board's list of members.
+            meeting = {**meeting, "members": votes.members_for(config, meeting["body"])}
+        pages = length(kind, pdf)
         if pages and pages > MAX_PAGES:
             # Said once: from the next run it's left out of what's waiting, and its page says why.
             record_too_long(data_dir, doc["sha256"], pages)
@@ -1288,6 +1387,18 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     for kind, meeting, doc, record in later:
         if laid_out >= TEXT_PER_RUN:
             break
+        if KINDS[kind].get("text"):
+            # A recording's summary has no text of its own to lay out: only its check is made again, when it changes.
+            if factcheck.current(record):
+                continue
+            try:
+                save_record(data_dir, doc["sha256"], check_recording(config, meeting, record, document(storage, kind, doc),
+                                                                     words))
+            except Exception as e:  # free, and tried again next run; the rest go on
+                errors.append(f"{kind} {doc['id']}: its transcript couldn't be read ({e})")
+                continue
+            laid_out += 1
+            continue
         members = votes.members_for(config, meeting["body"])
         text_current = record.get("text_version") == pdftext.VERSION
         if text_current and votes.current(record, members) and factcheck.current(record):

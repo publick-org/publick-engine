@@ -186,6 +186,15 @@ class FakeAnthropic:
         "decisions": [{"decision": "Approved the site plan for 12 Main St, 5-0", "outcome": "approved",
                        "quote": "Motion to approve the site plan for 12 Main St. Motion carried 5-0."}],
     }
+    # A summary of a meeting's recording, from tests/test_recording_summaries.py's transcript.
+    RECORDING = {
+        "headline": "Approved $1.5 million for the Fire Department, 10-0.",
+        "summary": "The council approved a supplemental appropriation for the Fire Department.",
+        "decisions": [{"decision": "Approved a $1.5 million supplemental appropriation for the Fire Department, 10-0",
+                       "outcome": "approved",
+                       "quote": "the supplemental appropriation of $1.5 million for the fire department. The motion passes 10 to 0"}],
+        "discussion": ["Residents asked the council to keep the Flock camera pause in place."],
+    }
 
     def __init__(self, stop_reason: str = "end_turn", preview: dict | None = None, translation_drops_numbers: bool = False,
                  review_problems: list[dict] | None = None, batch_polls: int | None = 1,
@@ -210,6 +219,8 @@ class FakeAnthropic:
             properties = kwargs["output_config"]["format"]["schema"]["properties"]
             if set(properties) == {"transcript"}:
                 payload = FakeAnthropic.TRANSCRIPT
+            elif "discussion" in properties:
+                payload = FakeAnthropic.RECORDING
             elif "decisions" in properties:
                 payload = FakeAnthropic.MINUTES
             else:
