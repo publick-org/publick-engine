@@ -45,6 +45,8 @@ MAX_TRIES = recordings.MAX_TRIES
 # Reading the audio, counted against the run's hours as a share of the recording's length (a four-hour
 # meeting's took 7.6 minutes).
 DOWNLOAD_SHARE = 1 / 20
+# How much faster than real time Gemini is counted on to transcribe a YouTube video, a part at a time.
+YOUTUBE_SPEED = 10
 # Counted for a recording whose platform doesn't give its length, until its audio is read.
 UNKNOWN_SECONDS = 3 * 3600
 
@@ -99,20 +101,39 @@ def to_transcribe(store: dict, meetings: dict, since: str) -> list[dict]:
 
 
 def likely_seconds(recording: dict) -> float:
-    """How long the recording is likely to take to read and transcribe."""
+    """How long the recording is likely to take to read and transcribe: by Whisper here, or by Gemini (a
+    fraction of that, YOUTUBE_SPEED)."""
     length = recording.get("seconds") or UNKNOWN_SECONDS
+    if recording.get("platform") in recordings.BACKUP:
+        return length / YOUTUBE_SPEED
     return length / transcribe.SPEED + length * DOWNLOAD_SHARE
 
 
 def transcribe_one(config: dict, client, recording: dict, storage, model, user_agent: str, stamp: str,
                    transcriber=transcribe.run) -> bool:
     """Read and transcribe one recording, keep its audio and transcript, and record the transcript. False,
-    and nothing done, when its platform has no audio for it yet (still being processed)."""
+    and nothing done, when its platform has no audio for it yet (still being processed). model is Whisper's,
+    or a function that loads it, called only for a recording Whisper transcribes."""
     source = config["recordings"]["sources"][recording["source"]]
-    media = recordings.platform(source["platform"]).media(client, source, recording)
+    module = recordings.platform(source["platform"])
+    name = recording["id"]
+    if hasattr(module, "transcript"):
+        # A platform that makes its own (YouTube's, by Gemini).
+        made = module.transcript(client, source, recording)
+        if not made:
+            return False
+        words = made[0].encode("utf-8")
+        storage.put(recordings.TRANSCRIPT_FOLDER, f"{name}.txt", words)
+        recording["transcript"] = {
+            "file": f"{name}.txt", "sha256": hashlib.sha256(words).hexdigest(), "bytes": len(words),
+            "words": transcribe.word_count(made[0]), "seconds": recording.get("seconds"), "transcribed_at": stamp,
+            **made[1]}
+        recording.pop("error", None)
+        return True
+    media = module.media(client, source, recording)
     if not media:
         return False
-    name = recording["id"]
+    model = model() if callable(model) else model
     with tempfile.TemporaryDirectory() as tmp:
         folder = Path(tmp)
         took = transcriber(model, media, folder, name, user_agent)
@@ -152,9 +173,14 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, hours
         if hours is not None and clock() - started + likely_seconds(recording) > hours * 3600:
             waiting.append(recording["id"])
             continue
-        try:
+        def whisper():
+            """Whisper's model, loaded once, when the first recording that needs it comes."""
+            nonlocal model
             model = model or load_model()
-            if transcribe_one(config, client, recording, storage, model, config["site"]["user_agent"], stamp,
+            return model
+
+        try:
+            if transcribe_one(config, client, recording, storage, whisper, config["site"]["user_agent"], stamp,
                               transcriber):
                 done.append(recording["id"])
             else:

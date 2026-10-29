@@ -38,7 +38,7 @@ listings.read() gives each meeting its recordings and its transcript
 (attach()), as it gives its agendas and minutes.
 
 A meeting is transcribed once, from its first recording found; a later one
-is skipped. A meeting recorded in parts (one video each, "Part 1", "Part 2")
+is skipped. YouTube (BACKUP) is read only for a meeting no other platform has. A meeting recorded in parts (one video each, "Part 1", "Part 2")
 is transcribed from every part on the same platform, and its transcript is
 their transcripts in order, once each is made; a part found later makes it a
 new document, summarized again. A meeting whose minutes came first isn't
@@ -64,14 +64,20 @@ STATUS_FILE = "recordings_status.json"
 #   "id", "platform", "board", "date", "title", "url" (its page), and where known "seconds" (its length),
 #   "listing" (the meeting record it's posted with) and whatever media() needs;
 # - media(client, source, recording): where its audio is read from ({"url", "headers"}), or None if
-#   the platform has none for it yet.
+#   the platform has none for it yet;
+# - and, for a platform whose recordings can't be downloaded, transcript(client, source, recording): the
+#   transcript made some other way, and how, or None while it can't be made yet (pipeline/youtube.py).
 PLATFORMS = {
     "telvue": "pipeline.telvue",
     "cablecast": "pipeline.cablecast",
     "castus": "pipeline.castus",
     "civicclerk": "pipeline.civicclerk_media",
     "internet_archive": "pipeline.internet_archive",
+    "youtube": "pipeline.youtube",
 }
+# Platforms read only for a meeting the others don't have: YouTube, whose videos Gemini transcribes
+# (pipeline/youtube.py), is the backup to the town's or its station's own.
+BACKUP = ("youtube",)
 MAX_AGE_DAYS = 14
 # The folders of the documents bucket a recording's files are kept in (pipeline/documents.py).
 AUDIO_FOLDER, TRANSCRIPT_FOLDER = "recordings", "transcripts"
@@ -233,15 +239,19 @@ def usable(recording: dict) -> bool:
 
 
 def chosen(group: list[dict]) -> list[dict]:
-    """Of one meeting's recordings, those its transcript is made from: its first one found that can be
-    read, and where that's one part of several ("Part 2"), every part from the same source, in order."""
+    """Of one meeting's recordings, those its transcript is made from: the one it was transcribed from, or
+    else its first one found that can be read, not a backup platform's (BACKUP) unless no other has it; and
+    where that's one part of several ("Part 2"), every part from the same source, in order."""
     group = sorted(group, key=lambda r: (r.get("found_at", ""), r["id"]))
-    first = next((r for r in group if usable(r)), None)
+    readable = [r for r in group if r.get("transcript") or usable(r)]
+    done = [r for r in readable if r.get("transcript")]
+    own = [r for r in readable if r["platform"] not in BACKUP]
+    first = (done or own or readable or [None])[0]
     if first is None:
         return []
     if not first.get("part"):
         return [first]
-    parts = [r for r in group if r.get("source") == first.get("source") and r.get("part") and usable(r)]
+    parts = [r for r in readable if r.get("source") == first.get("source") and r.get("part")]
     return sorted(parts, key=lambda r: (r["part"], r["id"]))
 
 
