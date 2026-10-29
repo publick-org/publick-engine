@@ -176,6 +176,13 @@ msgid_plural "%(count)s decisions aren't shown: they couldn't be matched to the 
 msgstr[0] "%(count)s decisión no aparece: no se pudo comprobar con las actas."
 msgstr[1] "%(count)s decisiones no aparecen: no se pudieron comprobar con las actas."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "%(count)s item isn't shown: it couldn't be matched to the transcript."
+msgid_plural "%(count)s items aren't shown: they couldn't be matched to the transcript."
+msgstr[0] "%(count)s elemento no aparece: no se pudo comprobar con la transcripción."
+msgstr[1] "%(count)s elementos no aparecen: no se pudieron comprobar con la transcripción."
+
 #. %(count)s is how many meetings an issue of the digest lists.
 #: site/templates/digest_index.html
 #, python-format
@@ -844,6 +851,10 @@ msgid "(AI summary of the agenda. Check the original.)"
 msgstr "(Resumen de la agenda hecho con IA. Revise el original.)"
 
 #: pipeline/build_site.py
+msgid "(AI summary of the meeting's recording. The minutes will follow.)"
+msgstr "(Resumen de la grabación de la reunión hecho con IA. Las actas vendrán después.)"
+
+#: pipeline/build_site.py
 msgid "(AI summary of the minutes. Check the original.)"
 msgstr "(Resumen de las actas hecho con IA. Revise el original.)"
 
@@ -1034,6 +1045,11 @@ msgstr "<a href=\"%(url)s\">%(title)s</a>, en el %(listing)s"
 #, python-format
 msgid "<a href=\"%(url)s\">How we know</a>."
 msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">Machine transcript</a>, as made, not corrected"
+msgstr "<a href=\"%(url)s\">Transcripción automática</a>, tal como salió, sin corregir"
 
 #. %(where)s is where the minutes were posted, such as "the city website".
 #: site/templates/meeting.html
@@ -1755,6 +1771,10 @@ msgid "AI summary"
 msgstr "Resumen hecho con IA"
 
 #: site/templates/macros.html
+msgid "AI summary of the recording, checked against its transcript"
+msgstr "Resumen de la grabación hecho con IA, verificado con su transcripción"
+
+#: site/templates/macros.html
 msgid "AI summary, checked against an AI transcription"
 msgstr "Resumen hecho con IA, verificado con una transcripción hecha con IA"
 
@@ -2473,6 +2493,14 @@ msgstr "Verificado con el PDF de la ciudad"
 msgid "Checked against the city's PDF."
 msgstr "Verificado con el PDF de la ciudad."
 
+#: pipeline/build_site.py site/templates/macros.html
+msgid "Checked against the recording's transcript"
+msgstr "Verificado con la transcripción de la grabación"
+
+#: site/templates/macros.html
+msgid "Checked against the transcript."
+msgstr "Verificado con la transcripción."
+
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
 #: site/states/ri/schools.html site/states/vt/schools.html
 msgid "Chronic absenteeism"
@@ -2837,6 +2865,10 @@ msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes
 msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
 " actas antes de basarse en una."
+
+#: site/templates/meeting.html
+msgid "Decisions heard in the recording"
+msgstr "Decisiones que se oyen en la grabación"
 
 #: site/templates/meeting.html
 msgid "Decisions recorded"
@@ -3656,6 +3688,14 @@ msgid ""
 msgstr ""
 "De las actas más recientes que ha publicado la ciudad. Las actas salen después de que una junta "
 "las aprueba, por lo general unas semanas después de la reunión."
+
+#: site/templates/meeting.html
+msgid ""
+"From the meeting's recording. The official minutes come later, and their summary will replace "
+"this one."
+msgstr ""
+"De la grabación de la reunión. Las actas oficiales llegan después, y su resumen reemplazará a "
+"este."
 
 #: site/templates/meeting.html
 msgid "From the posted agenda, as read by AI. The agenda is the official notice; check it before you go."
@@ -5832,6 +5872,10 @@ msgstr "Decisiones recientes"
 msgid "Recorded back to %(since)s."
 msgstr "Registradas desde el %(since)s."
 
+#: pipeline/build_site.py
+msgid "Recording"
+msgstr "Grabación"
+
 #: site/templates/meeting.html
 #, python-format
 msgid "Recordings of %(body)s meetings: <a href=\"%(url)s\">%(title)s</a>."
@@ -7144,6 +7188,15 @@ msgstr "Resumen de %(network)s (%(domain)s), hecho con IA a partir de la agenda 
 #, python-format
 msgid "Summary by %(network)s, AI-generated from the city's agenda."
 msgstr "Resumen de %(network)s, hecho con IA a partir de la agenda de la ciudad."
+
+#: site/templates/macros.html
+#, python-format
+msgid ""
+"Summary written by AI from a machine transcript of the <a href=\"%(url)s\">meeting's "
+"recording</a>, which can mishear words and names."
+msgstr ""
+"Resumen escrito con inteligencia artificial (IA) a partir de una transcripción automática de la "
+"<a href=\"%(url)s\">grabación de la reunión</a>, que puede entender mal palabras y nombres."
 
 #: site/templates/macros.html
 #, python-format
@@ -8627,6 +8680,10 @@ msgid ""
 "it."
 msgstr ""
 
+#: site/templates/meeting.html
+msgid "What happened, from the recording"
+msgstr "Qué pasó, según la grabación"
+
 #: site/pages/data/index.html
 msgid "What it holds"
 msgstr "Qué contiene"
@@ -8728,6 +8785,10 @@ msgstr "Lo que este sitio no incluye"
 #: site/templates/meeting.html
 msgid "What was decided"
 msgstr "Qué se decidió"
+
+#: site/templates/meeting.html
+msgid "What was discussed"
+msgstr "Qué se habló"
 
 #: site/pages/about/index.html
 msgid "What you search for, and which street you look up, is never recorded."
@@ -9277,6 +9338,11 @@ msgstr "{board}: agenda del {date}"
 msgid "{board}: minutes of {date}"
 msgstr "{board}: actas del {date}"
 
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{board}: what happened on {date}"
+msgstr "{board}: qué pasó el {date}"
+
 #. a place on the map of repeated problems, such as "Potholes. 3 requests, 2 after an earlier one was
 #. closed."
 #: pipeline/build_site.py
@@ -9296,6 +9362,12 @@ msgstr "{days} días"
 #, python-brace-format
 msgid "{first} and {last}"
 msgstr "{first} y {last}"
+
+#. a recording's length, such as "3 h 19 min".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{h} h {m} min"
+msgstr "{h} h {m} min"
 
 #. which of a board's meetings on one day, such as "1 of 2".
 #: pipeline/build_site.py
@@ -9348,6 +9420,12 @@ msgstr "{day} {month} {year}"
 #, python-brace-format
 msgid "{month} {year}"
 msgstr "{month} de {year}"
+
+#. a recording's length, such as "45 min".
+#: pipeline/build_site.py
+#, python-brace-format
+msgid "{m} min"
+msgstr "{m} min"
 
 #: site/pages/streets/index.html
 #, python-brace-format
