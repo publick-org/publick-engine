@@ -39,6 +39,7 @@
 <p style="margin:18px 0 0;font-size:17px;">
 {%- if issue.meetings %}{# Translators: the start of the weekly digest's email; %(count)s is how many meetings it lists. #}{% trans count=issue.meetings | length %}{{ count }} meeting this week.{% pluralize %}{{ count }} meetings this week.{% endtrans %}{% else %}{{ _("No meetings are listed for this week.") }}{% endif %}
 {%- if issue.minutes %} {# Translators: in the weekly digest's email; %(count)s is how many meetings' minutes it lists. #}{% trans count=issue.minutes | length %}Minutes from {{ count }} meeting, with what it decided.{% pluralize %}Minutes from {{ count }} meetings, with what they decided.{% endtrans %}{% endif -%}
+{%- if issue.recorded %} {# Translators: in the weekly digest's email; %(count)s is how many meetings it lists from their recordings. #}{% trans count=issue.recorded | length %}What {{ count }} meeting decided, from its recording.{% pluralize %}What {{ count }} meetings decided, from their recordings.{% endtrans %}{% endif -%}
 </p>
 {% if meetings.calendar_behind and issue.end >= today %}
 <p style="margin:16px 0 0;padding:10px 14px;background:#fff3d1;border-left:4px solid #b88300;color:#5c3d00;font-size:15px;">{% if meetings.calendar_behind.since %}{% trans when=meetings.calendar_behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}</p>
@@ -81,6 +82,22 @@
 {% endif %}
 {% endfor %}
 {% if issue.minutes | length > shown %}<p style="margin:18px 0 0;font-size:15px;"><a href="{{ issue_url }}" style="{{ link }}">{% trans count=issue.minutes | length - shown %}Minutes from {{ count }} more meeting on the site{% pluralize %}Minutes from {{ count }} more meetings on the site{% endtrans %}</a></p>{% endif %}
+{% endif %}
+{% if issue.recorded %}
+<h2 style="{{ h2 }}">{{ _("From meetings' recordings") }}</h2>
+<p style="{{ note }}font-style:italic;">{{ _("These are written by AI from a machine transcript of each meeting's recording. The minutes are the official record.") }}</p>
+{% for m in issue.recorded[:shown] %}
+{% set source = m.minutes_summary if m.decisions_from == "minutes" else m.recording_summary %}
+<p style="margin:18px 0 0;"><a href="{{ site_url }}{{ m.url }}{{ q }}" style="{{ link }}">{{ name(m) }}</a><span style="color:#545c65;"> · {{ m.date | date("mon_day_year") }}</span></p>
+{% if m.decisions.decided %}
+<ul style="margin:4px 0 0;padding-left:20px;">
+  {% for d in m.decisions.decided[:5] %}<li style="margin:3px 0;">{{ d | decision }}{{ cite(m.minutes_doc, d, cite_style, site_url) }}</li>{% endfor %}
+</ul>
+<p style="margin:2px 0 0;font-size:14px;color:#545c65;">{{ checked_short(how_checked(source, m.decisions_from)) }}</p>
+{% elif m.preview_line %}<p style="margin:2px 0 0;">{{ m.preview_line }} <span style="font-size:14px;color:#545c65;">({{ checked_short(m.preview_checked) }})</span></p>{% endif %}
+{% if m.recordings %}<p style="margin:2px 0 0;font-size:14px;"><a href="{{ m.recordings[0].url }}" style="color:{{ palette.primary }};">{{ _("Watch the recording") }}</a></p>{% endif %}
+{% endfor %}
+{% if issue.recorded | length > shown %}<p style="margin:18px 0 0;font-size:15px;"><a href="{{ issue_url }}#recorded" style="{{ link }}">{% trans count=issue.recorded | length - shown %}{{ count }} more meeting on the site{% pluralize %}{{ count }} more meetings on the site{% endtrans %}</a></p>{% endif %}
 {% endif %}
 {# The site, and whose it isn't, as every page's footer says. #}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:32px;border-top:1px solid #d6dbe1;">
