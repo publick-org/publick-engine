@@ -16,9 +16,7 @@ allows (FPS).
 The request is the Interactions API's (POST /v1beta/interactions, the key in
 x-goog-api-key), with the video as {"type": "video", "uri": <its link>} and
 store false, so Google keeps no copy of the conversation. The API key is
-GEMINI_API_KEY. On the API's free tier, at most 8 hours of YouTube video can
-be read a day, and what's sent may be used to improve Google's products;
-these are public meetings' public videos.
+GEMINI_API_KEY.
 """
 
 from __future__ import annotations
