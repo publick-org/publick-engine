@@ -98,11 +98,15 @@ def sundays(since: date, today: date) -> list[date]:
 def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: ZoneInfo) -> list[dict]:
     """The digest's issues, newest first. meetings are every meeting (build_site.load_meetings),
     in date order; tracking_since is when the site first saw any of them. Minutes collected on
-    that first day are the town's history, read all at once, and are left out."""
+    that first day are the town's history, read all at once, and are left out. Each issue also has
+    the meetings summarized from their recordings that week, before their minutes ("recorded")."""
     if not tracking_since:
         return []
     since = datetime.fromisoformat(tracking_since).astimezone(tz).date()
     minutes_day = minutes_posted(meetings, tracking_since, tz)
+    # The day each meeting's recording was transcribed, for one with a summary from it.
+    recording_day = {id(m): first_collected([m["transcript_doc"]], tz)
+                     if m.get("recording_summary") and m.get("transcript_doc") else None for m in meetings}
     found = []
     for sunday in sundays(since, today):
         monday = sunday + timedelta(days=1)
@@ -110,14 +114,19 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
         minutes = [m for m in meetings
                    if minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
-        if not week and not minutes:
+        # Meetings summarized from their recordings, transcribed that week, whose minutes hadn't come by its end.
+        recorded = [m for m in meetings
+                    if recording_day[id(m)] and sunday - timedelta(days=6) <= recording_day[id(m)] <= sunday
+                    and not (minutes_day[id(m)] and minutes_day[id(m)] <= sunday)
+                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
+        if not week and not minutes and not recorded:
             continue
         found.append({
             "sunday": sunday.isoformat(), "monday": monday.isoformat(), "end": (sunday + timedelta(days=7)).isoformat(),
             "minutes_from": (sunday - timedelta(days=6)).isoformat(),
             "url": f"/digest/{monday.isoformat()}/",
             "send_at": datetime.combine(sunday, SEND_TIME, tz),
-            "meetings": week, "minutes": minutes,
+            "meetings": week, "minutes": minutes, "recorded": recorded,
             # The week's meetings by day, for the page.
             "days": [(day, [m for m in week if m["date"] == day]) for day in sorted({m["date"] for m in week})],
         })

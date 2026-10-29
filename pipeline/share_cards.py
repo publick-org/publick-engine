@@ -37,13 +37,16 @@ def card(m: dict, today: date, domain: str, when: str) -> dict | None:
     and time as its page writes them."""
     if m["date"] < (today - timedelta(days=CARD_DAYS)).isoformat():
         return None
-    ms, pv = m.get("minutes_summary"), m.get("preview")
+    ms, pv, rs = m.get("minutes_summary"), m.get("preview"), m.get("recording_summary")
     ms = ms if ms and ms.get("is_minutes", True) and ms.get("headline") else None
     pv = pv if pv and pv.get("headline") else None
+    rs = rs if rs and rs.get("headline") else None
     if m["status"] in STATUS:
         kicker, headline, foot = STATUS[m["status"]], "", domain
     elif ms:
         kicker, headline, foot = "What was decided", ms["headline"], f"AI summary of the minutes · {domain}"
+    elif rs:
+        kicker, headline, foot = "What happened", rs["headline"], f"AI summary of the recording · {domain}"
     elif pv:
         kicker, headline, foot = "On the agenda", pv["headline"], f"AI summary of the agenda · {domain}"
     else:

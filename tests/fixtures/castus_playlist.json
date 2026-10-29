@@ -1,0 +1,511 @@
+{
+ "_id": "6890e4d591f70219be5af006",
+ "name": "Medford City Council",
+ "videos": [
+  {
+   "_id": "6ae2605584f38f000225131c",
+   "date": "2026-10-28T20:51:32.483Z",
+   "original_date": "2026-10-28T20:51:32.483Z",
+   "search": [
+    "c9ae60f1-d5ef-4528-85b4-30b73ab939f5",
+    "11128.384000",
+    "720",
+    "video/quicktime",
+    "1793220677000000",
+    "City Council 10/27/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-28T20:51:32.487Z",
+   "size": 878076398,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "c9ae60f1-d5ef-4528-85b4-30b73ab939f5",
+    "duration": "11128.384000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1793220677000000",
+    "title": "City Council 10/27/26",
+    "program": "Medford City Council",
+    "filename": "City Council 10/27/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 4,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-28T21:25:10.575Z",
+   "lastModified": "2026-10-28T21:25:10.588Z",
+   "sort": 0
+  },
+  {
+   "_id": "6adb84f7488dc70002d3fe54",
+   "date": "2026-10-23T16:01:57.920Z",
+   "original_date": "2026-10-23T16:01:57.920Z",
+   "search": [
+    "39441480-4f2f-4e15-93df-0306e5f1691a",
+    "5118.187000",
+    "720",
+    "video/quicktime",
+    "1792771309000000",
+    "City Council Public Works and Facilities Committee 10/21/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-23T16:01:57.924Z",
+   "size": 489834994,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "39441480-4f2f-4e15-93df-0306e5f1691a",
+    "duration": "5118.187000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1792771309000000",
+    "title": "City Council Public Works and Facilities Committee 10/21/26",
+    "program": "Medford City Council",
+    "filename": "City Council Public Works and Facilities Committee 10/21/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 9,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-23T16:30:17.618Z",
+   "lastModified": "2026-10-23T16:30:17.630Z",
+   "documents": [
+    "6adbab5719037581193d7c32"
+   ],
+   "sort": 1
+  },
+  {
+   "_id": "6adaad3b50cbab0002a3fbcb",
+   "date": "2026-10-23T00:41:30.105Z",
+   "original_date": "2026-10-23T00:41:30.105Z",
+   "search": [
+    "754faaa1-bb12-442a-ba02-899a59fb0f52",
+    "1487.958000",
+    "720",
+    "video/quicktime",
+    "1792716084000000",
+    "City Council Special Meeting 10/21/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-23T00:41:30.108Z",
+   "size": 142291898,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "754faaa1-bb12-442a-ba02-899a59fb0f52",
+    "duration": "1487.958000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1792716084000000",
+    "title": "City Council Special Meeting 10/21/26",
+    "program": "Medford City Council",
+    "filename": "City Council Special Meeting 10/21/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 32,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-23T00:50:44.722Z",
+   "lastModified": "2026-10-23T00:50:44.735Z",
+   "documents": [
+    "6adbab502092b98a5001617e"
+   ],
+   "sort": 2
+  },
+  {
+   "_id": "6ad931f2cef4bb000275c774",
+   "date": "2026-10-21T21:43:13.549Z",
+   "original_date": "2026-10-21T21:43:13.549Z",
+   "search": [
+    "523374c0-96ca-44a4-b3e0-417a4db05646",
+    "3865.707000",
+    "720",
+    "video/quicktime",
+    "1792618986000000",
+    "City Council Ward 5 Meeting 10/20/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-21T21:43:13.553Z",
+   "size": 441625405,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "523374c0-96ca-44a4-b3e0-417a4db05646",
+    "duration": "3865.707000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1792618986000000",
+    "title": "City Council Ward 5 Meeting 10/20/26",
+    "program": "Medford City Council",
+    "filename": "City Council Ward 5 Meeting 10/20/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 27,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-21T21:59:28.376Z",
+   "lastModified": "2026-10-21T21:59:28.388Z",
+   "sort": 3
+  },
+  {
+   "_id": "6ad01e531b60c80002c1070f",
+   "date": "2026-10-15T00:29:06.750Z",
+   "original_date": "2026-10-15T00:29:06.750Z",
+   "search": [
+    "bd24f89b-a18f-4e29-aaff-fd36a28dc254",
+    "14235.776000",
+    "720",
+    "video/quicktime",
+    "1792024129000000",
+    "City Council 10/13/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-15T00:29:06.754Z",
+   "size": 1161189447,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "bd24f89b-a18f-4e29-aaff-fd36a28dc254",
+    "duration": "14235.776000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1792024129000000",
+    "title": "City Council 10/13/26",
+    "program": "Medford City Council",
+    "filename": "City Council 10/13/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 56,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-15T01:27:23.419Z",
+   "lastModified": "2026-10-15T01:27:23.429Z",
+   "documents": [
+    "6ad104fa119cf48637834dd1"
+   ],
+   "sort": 4
+  },
+  {
+   "_id": "6ac7d205601e130002972844",
+   "date": "2026-10-08T17:22:43.598Z",
+   "original_date": "2026-10-08T17:22:43.598Z",
+   "search": [
+    "ac68cc25-fa61-4ba8-93bd-1298d9c545d9",
+    "3387.926000",
+    "720",
+    "video/quicktime",
+    "1791480318000000",
+    "City Council Resident Services and Public Engagement Committee 10/07/26",
+    "Medford City Council",
+    null
+   ],
+   "parent": "root",
+   "access": "open",
+   "likes": 0,
+   "dislikes": 0,
+   "featured": false,
+   "featuredDate": "2026-10-08T17:22:43.602Z",
+   "size": 210480240,
+   "switches": {
+    "comments": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    },
+    "date": {
+     "options": [
+      "original date",
+      "modified date",
+      "custom date"
+     ],
+     "selected": "original date"
+    },
+    "downloadeble": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "enabled"
+    },
+    "hideViews": {
+     "options": [
+      "enabled",
+      "disabled"
+     ],
+     "selected": "disabled"
+    }
+   },
+   "watchPrice": 0,
+   "downloadPrice": 0,
+   "downloadBuys": [],
+   "watchBuys": [],
+   "captioned": false,
+   "translations": [],
+   "transcoding": false,
+   "transcoded": true,
+   "metadata": {
+    "guid": "ac68cc25-fa61-4ba8-93bd-1298d9c545d9",
+    "duration": "3387.926000",
+    "hd": "720",
+    "file type": "video/quicktime",
+    "upload time": "1791480318000000",
+    "title": "City Council Resident Services and Public Engagement Committee 10/07/26",
+    "program": "Medford City Council",
+    "filename": "City Council Resident Services and Public Engagement Committee 10/07/26"
+   },
+   "user": "65aaf7ac239d4e0df91594c3",
+   "comments": [],
+   "views": 9,
+   "agenda": [],
+   "sapAudioTracks": [],
+   "__v": 0,
+   "captions": {},
+   "customDate": "2026-10-08T17:38:46.799Z",
+   "lastModified": "2026-10-08T17:38:46.809Z",
+   "documents": [
+    "6ace6e226bd992669b9278ef"
+   ],
+   "sort": 5
+  }
+ ],
+ "access": "open",
+ "featured": false,
+ "date": "2026-10-28T21:25:10.575Z",
+ "user": "65aaf7ac239d4e0df91594c3",
+ "index": 31,
+ "__v": 0,
+ "_fixture_note": "trimmed: first 6 of 416 videos"
+}

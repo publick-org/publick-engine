@@ -110,7 +110,8 @@ DEFAULT_EFFORT = "low"
 MAX_TOKENS = 16000
 
 # The fields of each kind of summary that are shown, and so translated.
-FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
+FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
+          "recording": ("headline", "summary", "decisions", "discussion")}
 
 LANGUAGE_NAMES = {"es": "Spanish"}
 # Each language's readers, and the words the sites use for what summaries talk about
@@ -204,7 +205,7 @@ def path(data_dir: Path, lang: str, sha256: str) -> Path:
 
 def english(record: dict, kind: str) -> dict:
     """The parts of an English summary that are shown, and so translated."""
-    return {field: record.get(field) or ([] if field in ("items", "decisions") else "") for field in FIELDS[kind]}
+    return {field: record.get(field) or ([] if field in ("items", "decisions", "discussion") else "") for field in FIELDS[kind]}
 
 
 def source_hash(record: dict, kind: str) -> str:
@@ -414,7 +415,7 @@ def town_words(data_dir: Path | None) -> frozenset:
 def summary_words(record: dict) -> set[str]:
     """One summary's words in lowercase, as town_words() counts them."""
     words: set[str] = set()
-    for field in ("headline", "summary", "items", "decisions"):
+    for field in ("headline", "summary", "items", "decisions", "discussion"):
         value = record.get(field) or ""
         for text in value if isinstance(value, list) else [value]:
             words.update(re.findall(r"\b[a-z]+\b", text))
@@ -762,7 +763,7 @@ def board_names(names: dict[str, str], lang: str, board: str, source: dict) -> s
 
 
 def schema(kind: str) -> dict:
-    props = {field: ({"type": "array", "items": {"type": "string"}} if field in ("items", "decisions") else {"type": "string"})
+    props = {field: ({"type": "array", "items": {"type": "string"}} if field in ("items", "decisions", "discussion") else {"type": "string"})
              for field in FIELDS[kind]}
     return {"type": "object", "properties": props, "required": list(FIELDS[kind]), "additionalProperties": False}
 
