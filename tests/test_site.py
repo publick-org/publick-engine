@@ -383,7 +383,7 @@ def test_decisions_page_and_csv(site_dir):
     page = (site_dir / "meetings" / "decisions" / "index.html").read_text()
     assert "<h1>Decisions</h1>" in page
     rows = list(csv.reader((site_dir / "meetings" / "data" / "decisions.csv").open()))
-    assert rows[0] == ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"]
+    assert rows[0] == ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url", "source", "recording_url"]
     assert {r[2] for r in rows[1:]} <= {"decided", "recommended", "procedural"}
     home = (site_dir / "index.html").read_text()
     assert ('href="/meetings/decisions/"' in home) == (len(rows) > 1)

@@ -653,10 +653,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"], terms or ()), pv_raw, "agenda")
         m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"], terms or ()),
                                                ms_raw, "minutes")
+        # The recording's summary is shown whole until the minutes' is, then only what was discussed.
         rs_raw = m["recording_summary"]
-        if ms_raw and ms_raw.get("is_minutes", True):
-            # The minutes' summary replaces the recording's.
-            rs_raw = None
         m["recording_summary"] = factcheck.shown(in_language(data_dir, rs_raw, "recording", m["transcript_doc"], terms or ()),
                                                  rs_raw, "recording")
         english["recording_summary"] = factcheck.shown(rs_raw, rs_raw, "recording")
@@ -665,13 +663,23 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             # Each with the page of the minutes it was found on, where it's known, for the pages to cite.
             cited = ms.get("decision_pages") or [[None, None]] * len(ms["decisions"])
             ms["decisions"] = [Decision(d, page, q) for d, (page, q) in zip(ms["decisions"], cited)]
+        # The meeting's decisions, for the decisions page and the digest: the minutes', or until they're summarized,
+        # those heard in the recording ("decisions_from").
+        m["decisions_from"] = None
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
         if ms_en and ms_en.get("is_minutes", True):
+            m["decisions_from"] = "minutes"
             for d, shown in zip(ms_en.get("decisions", []), ms.get("decisions", [])):
                 sorted_decisions[decision_kind(d)].append(shown)
+        elif english["recording_summary"] and m["status"] != "cancelled":
+            m["decisions_from"] = "recording"
+            rs_en, rs = english["recording_summary"], m["recording_summary"]
+            for d, shown in zip(rs_en.get("decisions", []), rs.get("decisions", [])):
+                sorted_decisions[decision_kind(d)].append(Decision(shown, None, None))
         m["decisions"] = sorted_decisions
         # Whether the decisions are shown in English on another language's page.
-        m["decisions_english"] = bool(ms and ms.get("english"))
+        source = ms if m["decisions_from"] == "minutes" else m["recording_summary"] if m["decisions_from"] else None
+        m["decisions_english"] = bool(source and source.get("english"))
         pv_en = english["preview"]
         m["public_hearing"] = bool(pv_en) and bool(PUBLIC_HEARING.search(
             " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
@@ -1556,8 +1564,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for outcome in ("thanks", "problem"):
             render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if documents and english:
-        write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url"],
-                  [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"]]
+        # "source": where the decision was read, the minutes or, until they're summarized, the meeting's recording.
+        write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url",
+                                                                     "source", "recording_url"],
+                  [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"] if m["decisions_from"] == "minutes" else "",
+                    m["decisions_from"], m["recordings"][0]["url"] if m["recordings"] else ""]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
     if english and "meetings" in config:
         # The open data export, described on the Data page (/data/).

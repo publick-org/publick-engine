@@ -215,6 +215,13 @@ msgid_plural "%(count)s more decisions on the meeting's page"
 msgstr[0] ""
 msgstr[1] ""
 
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s more meeting on the site"
+msgid_plural "%(count)s more meetings on the site"
+msgstr[0] "%(count)s reunión más en el sitio"
+msgstr[1] "%(count)s reuniones más en el sitio"
+
 #. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -331,8 +338,6 @@ msgstr "portal de reuniones de %(name)s"
 msgid "%(name)s website"
 msgstr "sitio web de %(name)s"
 
-#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
-#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 #, python-format
 msgid "%(name)s – %(when)s, meeting %(part)s"
@@ -1699,6 +1704,14 @@ msgid ""
 msgstr ""
 "El texto de un documento se agrega después de leerlo, por lo general la mañana después de que se "
 "publica. Es posible que no se lean algunas páginas escaneadas."
+
+#: site/pages/meetings/decisions/index.html
+msgid ""
+"A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording,"
+" until its minutes replace them."
+msgstr ""
+"Una reunión cuyas actas aún no han llegado puede aparecer con las decisiones que se oyen en su "
+"grabación, hasta que sus actas las reemplacen."
 
 #. The median rent above is a month's. %(years)s is the survey's years, such as "2020–2024".
 #: site/pages/housing/index.html
@@ -3594,6 +3607,10 @@ msgctxt "weekday"
 msgid "Friday"
 msgstr "viernes"
 
+#: site/templates/digest.html site/templates/digest_email.html
+msgid "From meetings' recordings"
+msgstr "De las grabaciones de las reuniones"
+
 #: site/pages/meetings/decisions/index.html
 #, python-format
 msgid ""
@@ -3683,12 +3700,23 @@ msgstr "Del PDF de la ciudad, palabra por palabra."
 
 #: site/pages/index.html
 msgid ""
+"From the latest minutes the city has posted, and from meetings' recordings until their minutes "
+"come. Minutes come out after a board approves them, usually a few weeks after the meeting."
+msgstr ""
+"De las últimas actas que publicó la ciudad, y de las grabaciones de las reuniones hasta que "
+"lleguen sus actas. Las actas salen después de que una junta las aprueba, por lo general unas "
+"semanas después de la reunión."
+
+#: site/pages/index.html
+msgid ""
 "From the latest minutes the city has posted. Minutes come out after a board approves them, "
 "usually a few weeks after the meeting."
 msgstr ""
 "De las actas más recientes que ha publicado la ciudad. Las actas salen después de que una junta "
 "las aprueba, por lo general unas semanas después de la reunión."
 
+#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
+#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 msgid ""
 "From the meeting's recording. The official minutes come later, and their summary will replace "
@@ -3698,10 +3726,20 @@ msgstr ""
 "este."
 
 #: site/templates/meeting.html
+msgid "From the meeting's recording: the debate and public comment, which the minutes don't give in full."
+msgstr ""
+"De la grabación de la reunión: el debate y los comentarios del público, que las actas no recogen "
+"completos."
+
+#: site/templates/meeting.html
 msgid "From the posted agenda, as read by AI. The agenda is the official notice; check it before you go."
 msgstr ""
 "Datos tomados de la agenda publicada, leída por inteligencia artificial (IA). La agenda es el "
 "aviso oficial; revísela antes de ir."
+
+#: site/pages/meetings/decisions/index.html site/templates/macros.html
+msgid "From the recording"
+msgstr "De la grabación"
 
 #: site/states/ma/budget.html
 #, python-format
@@ -4793,6 +4831,16 @@ msgstr "%(board)s de %(town)s: reuniones desde %(month)s, con sus agendas."
 #, python-format
 msgid "Meetings recorded here start in %(month)s."
 msgstr "Las reuniones registradas aquí empiezan en %(month)s."
+
+#. %(start)s and %(end)s are dates, such as "October 5, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid ""
+"Meetings this site summarized from their recordings from %(start)s, to %(end)s, before their "
+"minutes came."
+msgstr ""
+"Reuniones que este sitio resumió a partir de sus grabaciones del %(start)s al %(end)s, antes de "
+"que llegaran sus actas."
 
 #: site/pages/data/index.html
 msgid "Meetings, summaries, and decisions"
@@ -8084,6 +8132,14 @@ msgstr ""
 "El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
 "oficina."
 
+#: site/templates/digest.html site/templates/digest_email.html
+msgid ""
+"These are written by AI from a machine transcript of each meeting's recording. The minutes are "
+"the official record."
+msgstr ""
+"Esto lo escribe la IA a partir de una transcripción automática de la grabación de cada reunión. "
+"Las actas son el registro oficial."
+
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
 #, python-format
@@ -8615,6 +8671,10 @@ msgstr "Véala en <a href=\"%(url)s\">YouTube</a>."
 msgid "Watch or take part online: <a href=\"%(url)s\">join by Zoom</a>."
 msgstr "Vea o participe en línea: <a href=\"%(url)s\">únase por Zoom</a>."
 
+#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
+msgid "Watch the recording"
+msgstr "Ver la grabación"
+
 #: site/pages/about/index.html
 msgid "We count visits so we know which pages are useful. That's all."
 msgstr "Contamos las visitas para saber qué páginas son útiles. Nada más."
@@ -8660,6 +8720,14 @@ msgstr "Resumen semanal"
 msgid "Weekly digest · Week of %(when)s"
 msgstr ""
 
+#. in the weekly digest's email; %(count)s is how many meetings it lists from their recordings.
+#: site/templates/digest_email.html
+#, python-format
+msgid "What %(count)s meeting decided, from its recording."
+msgid_plural "What %(count)s meetings decided, from their recordings."
+msgstr[0] "Lo que decidió %(count)s reunión, según su grabación."
+msgstr[1] "Lo que decidieron %(count)s reuniones, según sus grabaciones."
+
 #: site/pages/data/index.html
 #, python-format
 msgid ""
@@ -8679,10 +8747,6 @@ msgid ""
 "What each meeting decided is written by AI from its minutes. Check the minutes before relying on "
 "it."
 msgstr ""
-
-#: site/templates/meeting.html
-msgid "What happened, from the recording"
-msgstr "Qué pasó, según la grabación"
 
 #: site/pages/data/index.html
 msgid "What it holds"

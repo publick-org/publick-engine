@@ -148,7 +148,7 @@
     {% if show_date and not posted %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
     {# The line above is written by AI, so say so where it's shown; the meeting's page says how it was checked. #}
     {% if preview and m.preview_line %}{% set __ = meta.append(ai_summary_short(m.preview_checked)) %}{% endif %}
-    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
+    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.get("decisions_from") == "recording" %}{% set __ = meta.append(_("From the recording")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
     {# On the home page's "Recently decided", a committee's recommendations aren't final until the governing body votes. #}
     {% if posted and m.get("decisions") and m.decisions.recommended and not m.decisions.decided %}{% set __ = meta.append(_("Committee recommendation")) %}{% endif %}
     {% if m.remote_url and m.date >= today %}{% set __ = meta.append(_("Online option")) %}{% endif %}

@@ -73,7 +73,11 @@
   <h2 id="decided">{{ _("Recently decided") }}</h2>
   <a href="/meetings/decisions/">{{ _("All decisions") }}</a>
 </div>
+{% if meetings.decided[:3] | selectattr("decisions_from", "equalto", "recording") | list %}
+<p class="small">{{ _("From the latest minutes the city has posted, and from meetings' recordings until their minutes come. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
+{% else %}
 <p class="small">{{ _("From the latest minutes the city has posted. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>
+{% endif %}
 <ul class="meeting-list">
   {% for m in meetings.decided[:3] %}{{ meeting_item(m, show_date=true, posted=true) }}{% endfor %}
 </ul>
