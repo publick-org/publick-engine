@@ -259,7 +259,8 @@ METHUEN_SCHOOLS = {"platform": "youtube", "channel": "UCez3QQIzOP9up4JK-B08L5g",
 
 def test_youtube_finds_videos_in_the_feed_and_their_lengths(monkeypatch):
     from fakes import FakeResponse
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     client = SimpleNamespace(get=lambda url: FakeResponse((FIXTURES / "youtube_feed.xml").read_bytes()))
     get = FakeHTTP((200, {"items": [
         {"id": "4DvgJgx_Q6U", "snippet": {"liveBroadcastContent": "none"}, "contentDetails": {"duration": "PT2H41M7S"}}]}))
@@ -268,12 +269,13 @@ def test_youtube_finds_videos_in_the_feed_and_their_lengths(monkeypatch):
     assert found[0]["url"] == "https://www.youtube.com/watch?v=4DvgJgx_Q6U"
     # The key goes in a header, never in the address.
     url, kwargs = get.calls[0]
-    assert url == youtube.VIDEOS and "test-key" not in json.dumps(kwargs["params"])
+    assert url == "https://youtube.googleapis.com/youtube/v3/videos" and "test-key" not in json.dumps(kwargs["params"])
     assert kwargs["headers"] == {"x-goog-api-key": "test-key"}
 
 
 def test_youtube_without_a_key_finds_videos_that_wait(monkeypatch):
     from fakes import FakeResponse
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     client = SimpleNamespace(get=lambda url: FakeResponse((FIXTURES / "youtube_feed.xml").read_bytes()))
     found = youtube.find(client, METHUEN_SCHOOLS, "2026-09-01", "America/New_York", get=lambda *a, **k: pytest.fail())
@@ -308,8 +310,9 @@ def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
     first, second = (kwargs["json"] for _, kwargs in post.calls)
     video = first["input"][0]
     assert video["uri"] == "https://www.youtube.com/watch?v=abc"
-    assert video["processing"] == {"type": "static", "start_offset": 0, "end_offset": 1200, "fps": gemini.FPS}
-    assert second["input"][0]["processing"]["start_offset"] == 1200 and second["input"][0]["processing"]["end_offset"] == 1500
+    # The API takes the offsets as strings of seconds; a number is refused (400, "Invalid input at 'input[0].processing'").
+    assert video["processing"] == {"type": "static", "start_offset": "0s", "end_offset": "1200s", "fps": gemini.FPS}
+    assert second["input"][0]["processing"]["start_offset"] == "1200s" and second["input"][0]["processing"]["end_offset"] == "1500s"
     assert first["store"] is False
     assert "from 0:20:00 to 0:25:00" in second["input"][1]["text"]
     assert post.calls[0][1]["headers"]["x-goog-api-key"] == "test-key"

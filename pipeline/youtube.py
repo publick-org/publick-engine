@@ -9,14 +9,16 @@ robots), so:
   (/feeds/videos.xml?channel_id= or ?playlist_id=), its latest 15, each with
   its title, which names the board and the meeting's date.
 - Each video's length, and whether it's still a live stream (or one yet to
-  start), come from the YouTube Data API (videos.list), with the same Google
-  API key as Gemini's (GEMINI_API_KEY, which must be allowed the YouTube Data
-  API v3), sent in a header, never in an address a log could show.
+  start), come from the YouTube Data API (videos.list, at
+  youtube.googleapis.com), with a Google API key of its own
+  (YOUTUBE_API_KEY): Gemini's keys are bound to a service account, and such
+  a key can't be allowed the YouTube Data API. The key is sent in a header,
+  never in an address a log could show.
 - The transcript is Gemini's, from the video's public link
   (pipeline/gemini.py): this platform makes its own, rather than giving
   ffmpeg and Whisper an address to read.
 
-Without the key, videos are found and matched, and wait to be transcribed.
+Without either key, videos are found and matched, and wait to be transcribed.
 
   [[recordings.sources]]
   platform = "youtube"
@@ -26,6 +28,7 @@ Without the key, videos are found and matched, and wait to be transcribed.
 
 from __future__ import annotations
 
+import os
 import re
 import xml.etree.ElementTree as ET
 
@@ -36,9 +39,14 @@ from pipeline.http import FetchError
 
 PLATFORM = "youtube"
 FEED = "https://www.youtube.com/feeds/videos.xml"
-VIDEOS = "https://www.googleapis.com/youtube/v3/videos"
+VIDEOS = "https://youtube.googleapis.com/youtube/v3/videos"
+KEY_ENV = "YOUTUBE_API_KEY"
 NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
 DURATION = re.compile(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$")
+
+
+def api_key() -> str | None:
+    return os.environ.get(KEY_ENV) or None
 
 
 def check(source: dict, where: str) -> None:
@@ -95,7 +103,7 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
 
 def find(client, source: dict, since: str, timezone: str, get=requests.get) -> list[dict]:
     found = [f for f in parse(client.get(feed_url(source)).content, source) if f["date"] >= since]
-    key = gemini.api_key()
+    key = api_key()
     if found and key:
         lengths = details([f["video_id"] for f in found], key, get)
         for f in found:

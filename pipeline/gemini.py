@@ -9,8 +9,9 @@ transcript as any recording's is (pipeline/summarize.py).
 A meeting runs for hours, and its transcript is longer than one response can
 be, so the video is asked for CLIP_SECONDS at a time (the request's
 start_offset and end_offset, in seconds), each part's paragraphs with their
-time in the video. The picture isn't needed: it's sampled as rarely as the
-API allows (FPS).
+time in the video. The offsets are strings of seconds ("1200s"), as the API
+takes them. The picture isn't needed: it's sampled as rarely as the API
+allows (FPS).
 
 The request is the Interactions API's (POST /v1beta/interactions, the key in
 x-goog-api-key), with the video as {"type": "video", "uri": <its link>} and
@@ -64,7 +65,7 @@ def request(video_id: str, start: int, end: int, title: str, date: str, model: s
         "store": False,
         "input": [
             {"type": "video", "uri": video_url(video_id),
-             "processing": {"type": "static", "start_offset": start, "end_offset": end, "fps": FPS}},
+             "processing": {"type": "static", "start_offset": f"{start}s", "end_offset": f"{end}s", "fps": FPS}},
             {"type": "text", "text": PROMPT.format(title=title, date=date, start=stamp(start), end=stamp(end))},
         ],
         "generation_config": {"max_output_tokens": MAX_OUTPUT_TOKENS, "temperature": 0},
