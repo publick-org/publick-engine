@@ -1,0 +1,3 @@
+# What pipeline.fetch_recordings needs besides requirements.txt: Whisper, to transcribe meetings' recordings
+# (pipeline/transcribe.py), with ffmpeg installed apart. Only the step that transcribes installs these.
+faster-whisper==1.2.1
