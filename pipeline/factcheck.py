@@ -112,7 +112,10 @@ VERSION = 7
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
 
-FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions")}
+FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
+          "recording": ("headline", "summary", "decisions", "discussion")}
+# The kinds whose decisions come with a quote of their document and an outcome (decision_evidence).
+QUOTED = ("minutes", "recording")
 
 # A page with less text than this is taken to be an image (a scanned page).
 PAGE_MIN_CHARS = 40
@@ -370,9 +373,16 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
 
 def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset()) -> dict:
     """The fact check of a summary against its document's text, page by page (None for a PDF
-    with no text at all). A scan is checked against the model's transcription, if it has one."""
+    with no text at all). A scan is checked against the model's transcription, if it has one. A
+    recording's summary is checked against its machine transcript (pages: the transcript, whole), as
+    strictly as a PDF's against its text: what isn't in the transcript isn't shown."""
     texted = [p for p in pages or [] if len(p.strip()) >= PAGE_MIN_CHARS]
-    if pages and len(texted) == len(pages):
+    if kind == "recording":
+        source, doc = "recording", "\n".join(pages or [])
+        pages = None
+        if not doc.strip():
+            return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
+    elif pages and len(texted) == len(pages):
         source, doc = "pdf", "\n".join(pages)
     elif texted:
         source, doc = "partial", "\n".join(pages)
@@ -384,12 +394,12 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     found = facts(doc)
     problems = []
     for field in FIELDS[kind]:
-        entries = record.get(field) or ([] if field in ("items", "decisions") else "")
+        entries = record.get(field) or ([] if field in ("items", "decisions", "discussion") else "")
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
             for p in check_text(text, doc, *found[:3], words, *found[3:]):
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
     on_page = None
-    if kind == "minutes" and "decision_evidence" in record:
+    if kind in QUOTED and "decision_evidence" in record:
         located = Located(doc)
         at = page_at(pages, record.get("transcript_pages"))
         on_page = [decision_page(located, (evidence or {}).get("quote"), at)
@@ -408,7 +418,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED]
-    result = "ok" if not hard else ("failed" if source == "pdf" else "weak")
+    result = "ok" if not hard else ("failed" if source in ("pdf", "recording") else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems,
             **({"pages": on_page} if on_page is not None else {})}
 
@@ -1011,7 +1021,7 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
 
 # How a summary was checked, as its page says (how_checked()): against the PDF's own text, against
 # it where its pages have text, against the model's transcription of a scan, or not at all.
-HOW_CHECKED = ("pdf", "partial", "ai", "none")
+HOW_CHECKED = ("pdf", "partial", "ai", "recording", "none")
 # Minutes summarized before this version of the prompt have no quote or outcome for their decisions,
 # so none of them is anchored in the minutes (the decision_evidence checks in check()).
 ANCHORED_SINCE = 3
@@ -1019,7 +1029,7 @@ ANCHORED_SINCE = 3
 
 def how_checked(record: dict | None, kind: str | None = None) -> str | None:
     """How a summary was checked against its document, from what its record already holds, for the
-    line each summary carries: "pdf", "partial", "ai", or "none" (no check saved, a scan with no text
+    line each summary carries: "pdf", "partial", "ai", "recording" (its recording's transcript), or "none" (no check saved, a scan with no text
     or transcription to check against, or minutes from before ANCHORED_SINCE). None for no summary, and for
     a document filed as minutes that isn't any, whose summary isn't shown."""
     if not record or record.get("is_minutes") is False:
@@ -1029,7 +1039,7 @@ def how_checked(record: dict | None, kind: str | None = None) -> str | None:
     if kind == "minutes" and (record.get("prompt_version") or 0) < ANCHORED_SINCE:
         return "none"
     source = fc.get("source")
-    return source if source in ("pdf", "partial", "ai") else "none"
+    return source if source in HOW_CHECKED else "none"
 
 
 def kind_of(record: dict) -> str:

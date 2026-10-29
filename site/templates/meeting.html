@@ -18,6 +18,43 @@
 {%- else %}{{ board }}{% endif %}
 {%- endmacro %}
 {# Translators: a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
+{# The summary of a meeting's recording: primary, before the minutes' summary (its decisions and what was discussed);
+   otherwise, under the minutes', what was discussed. #}
+{% macro recording_part(rs, primary, report_url, english_url) -%}
+{% if primary %}
+<p class="small">{{ _("From the meeting's recording. The official minutes come later, and their summary will replace this one.") }}</p>
+{% if rs.summary %}<p{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
+{% if rs.decisions %}
+<h3>{{ _("Decisions heard in the recording") }}</h3>
+<ul{{ english_attr(rs) }}>
+  {% for d in rs.decisions %}<li>{{ gloss(d, rs.get("english")) }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+{% if rs.get("discussion") %}
+<h3 id="discussed">{{ _("What was discussed") }}</h3>
+{% if not primary %}<p class="small">{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endif %}
+<ul{{ english_attr(rs) }}>
+  {% for d in rs.discussion %}<li>{{ gloss(d, rs.get("english")) }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% if primary or rs.get("discussion") %}
+{% if rs.get("not_shown") %}
+{# Something the transcript doesn't have (pipeline/factcheck.py) isn't shown. #}
+<p class="small">{% trans count=rs.not_shown %}{{ count }} item isn't shown: it couldn't be matched to the transcript.{% pluralize %}{{ count }} items aren't shown: they couldn't be matched to the transcript.{% endtrans %}</p>
+{% endif %}
+{% if rs.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif rs.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, report_url, none, english_url, rs) }}
+<ul>
+  {% for r in m.recordings %}<li><a href="{{ r.url }}">{{ r.title }}</a>{% if r.seconds %} ({{ r.seconds | runtime }}){% endif %}</li>{% endfor %}
+  {% for part in m.transcript_doc.get("parts") or [m.transcript_doc] %}
+  <li>{% trans url=document_url('transcripts', part.file) %}<a href="{{ url }}">Machine transcript</a>, as made, not corrected{% endtrans %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}
+
 {% macro meeting_name(name, when) %}{% if m.day_part %}{% trans name=name, when=when, part=m.day_part %}{{ name }} – {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ name }} – {{ when }}, {{ m.start_time | time }}{% else %}{{ name }} – {{ when }}{% endif %}{% endmacro %}
 {# The page's name, as its heading and wherever it's shared: "City Council Ordinances & Administration Committee – Oct 19, 2026".
    The town is in the site's name above it. The board's name is the one alone, in this language; the breadcrumb has its English name too. #}
@@ -42,15 +79,18 @@
 {% block description %}
 {% set ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes", True) and not m.minutes_summary.get("english") else none %}
 {% set pv = m.preview if m.preview and not m.preview.get("english") else none %}
+{% set rs = m.recording_summary if m.recording_summary and not m.recording_summary.get("english") else none %}
 {% set upcoming = m.date >= built_at.date().isoformat() and m.status == "scheduled" %}
 {% set decided = (m.decisions.decided or m.decisions.recommended) if ms else [] %}
 {% set agenda_items = pv["items"] if pv and pv.get("items") else [] %}
 {% macro listed(entries) %}{% for e in entries %}{{ e.rstrip(".") }}{% if not loop.last %}; {% endif %}{% endfor %}.{% endmacro %}
 {% set from_minutes = ms and (decided or ms.get("headline")) %}
-{% set from_agenda = not from_minutes and pv and (agenda_items or pv.get("headline")) %}
+{% set from_recording = not from_minutes and rs and rs.get("headline") %}
+{% set from_agenda = not from_minutes and not from_recording and pv and (agenda_items or pv.get("headline")) %}
 {% set text %}
 {% if upcoming %}{{ when_where(m) }}. {% endif %}
 {%- if from_minutes %}{{ listed(decided) if decided else ms.headline }}
+{%- elif from_recording %}{{ rs.headline }}
 {%- elif from_agenda %}{{ pv.headline or listed(agenda_items) }}
 {%- elif upcoming %}{{ _("How to attend, and the agenda.") }}
 {%- else %}
@@ -65,6 +105,7 @@
 {% endif %}
 {% endset %}
 {%- if from_minutes %}{{ with_ai_label(text, how_checked(ms, "minutes")) }}
+{%- elif from_recording %}{{ with_ai_label(text, how_checked(rs, "recording")) }}
 {%- elif from_agenda %}{{ with_ai_label(text, how_checked(pv, "agenda")) }}
 {%- else %}{{ text | fit(155) }}{% endif %}{% endblock %}
 {# For search engines, the meeting's name says the town, unless its board's does: "City Council, Gloucester – Oct 19, 2026". #}
@@ -102,9 +143,12 @@
   </div>
   {% endif %}
   {% set upcoming = m.date >= built_at.date().isoformat() %}
-  {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc or m.documents_url %}
+  {% set watch = m.recordings[0].url if m.recordings and m.status != "cancelled" else none %}
+  {% if (m.remote_url and upcoming) or m.agenda or m.minutes_doc or m.documents_url or watch %}
   <div class="actions">
     {% if m.remote_url and upcoming %}<a class="button button-primary" href="{{ m.remote_url }}">{{ _("Join online (Zoom)") }}</a>{% endif %}
+    {# The meeting's recording on the station's or the city's own video site (pipeline/recordings.py). #}
+    {% if watch %}<a class="button" href="{{ watch }}">{{ _("Watch the recording") }}</a>{% endif %}
     {% if m.minutes_doc %}<a class="button" href="{{ document_url('minutes', m.minutes_doc.file) if m.minutes_doc.get('converted_from') else m.minutes_doc.source_url }}">{{ _("Minutes (PDF)") }}</a>{% endif %}
     {% if m.agenda %}<a class="button" href="{{ m.agenda.source_url }}">{{ _("Agenda (PDF)") }}</a>
     {% elif m.documents_url %}<a class="button" href="{{ m.documents_url }}">{{ _("Agenda and minutes") if m.source == "civicclerk" and not upcoming else _("Agenda") }}</a>{% endif %}
@@ -155,7 +199,16 @@
 <p>{% trans body=m.body, url=part.video_url, title=part.video_title %}Recordings of {{ body }} meetings: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</p>
 {% endif %}
 
+{# The summary of the meeting's recording (pipeline/recordings.py), in "What was decided": before the minutes' summary,
+   the whole of it; after, what was discussed, which the minutes don't give. #}
+{% set rs = m.recording_summary if m.status != "cancelled" else none %}
+{% set from_recording = rs and not (m.minutes_summary and m.minutes_summary.get("is_minutes") != false) %}
+
 {% if not meeting_links.documents %}
+{% if from_recording %}
+<h2 id="minutes">{{ _("What was decided") }}</h2>
+{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}
+{% endif %}
 {# A town that doesn't collect agendas and minutes yet links to where the city posts them. #}
 <h2 id="agenda">{{ _("Agenda and minutes") }}</h2>
 {% if m.documents_url and m.source == "civicclerk" %}
@@ -176,6 +229,7 @@
 {% if m.minutes_doc %}
 {% set ms = m.minutes_summary %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
+{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
 {% if ms %}
 {% if ms.get("is_minutes") == false %}
 <p>{% if "agenda" in ms.summary.lower() %}
@@ -238,10 +292,13 @@
   {% endfor %}
 </ul>
 {% endif %}
-{% elif m.minutes_gap %}
+{% if rs and not from_recording %}{{ recording_part(rs, false, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
+{% elif m.minutes_gap or from_recording %}
+<h2 id="minutes">{{ _("What was decided") }}</h2>
+{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
+{% if m.minutes_gap %}
 {# Why there are no minutes (pipeline/absences.py). A meeting that wasn't held has none to wait for, and says nothing. #}
 {% set g = m.minutes_gap %}
-<h2 id="minutes">{{ _("What was decided") }}</h2>
 {% set source = g.get("source") %}
 {% if source in ("finalsite", "drive", "page", "sharpschool") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
 {% elif source == "diligent" %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
@@ -264,6 +321,7 @@
 <p>{% trans url=where_url, where=where %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">{{ where }}</a>.{% endtrans %}</p>
 {% else %}
 <p>{% trans url=town.get("official_site") or meeting_links.calendar %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+{% endif %}
 {% endif %}
 {% endif %}
 

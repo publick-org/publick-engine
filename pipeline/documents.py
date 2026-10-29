@@ -42,6 +42,9 @@ from pipeline.files import write_atomic
 from pipeline.http import FetchError
 
 FOLDERS = ("agendas", "minutes")
+# What each kind of file is served as: the documents are PDFs; a meeting's recording is kept as its audio
+# and its transcript (pipeline/recordings.py).
+CONTENT_TYPES = {".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8", ".ogg": "audio/ogg"}
 # A saved file never changes: a changed agenda is a new document with a new id.
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 
@@ -89,7 +92,7 @@ class BucketDocuments(LocalDocuments):
     def put(self, folder: str, name: str, content: bytes) -> None:
         try:
             self.client.put_object(Bucket=self.bucket, Key=self.key(folder, name), Body=content,
-                                   ContentType="application/pdf", CacheControl=CACHE_CONTROL)
+                                   ContentType=content_type(name), CacheControl=CACHE_CONTROL)
         except Exception as e:  # botocore errors; the caller moves on to the next document
             raise FetchError(f"storage: could not save {folder}/{name}: {e}") from e
 
@@ -112,6 +115,10 @@ class BucketDocuments(LocalDocuments):
             return self.client.head_object(Bucket=self.bucket, Key=self.key(folder, name))["ContentLength"]
         except Exception:
             return None
+
+
+def content_type(name: str) -> str:
+    return CONTENT_TYPES.get(Path(name).suffix.lower(), "application/octet-stream")
 
 
 def make_client(settings: dict):

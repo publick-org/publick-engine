@@ -1,0 +1,396 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 478,
+  "params": {
+   "query": "collection:cctvvt",
+   "qin": "collection:cctvvt",
+   "fields": "identifier,title,date,publicdate,addeddate,subject,creator,collection,mediatype,description",
+   "wt": "json",
+   "sort": "publicdate desc",
+   "rows": "30",
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 9281,
+  "start": 0,
+  "docs": [
+   {
+    "addeddate": "2026-10-29T08:37:01Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-26T00:00:00Z",
+    "description": "From the Burlington History and Culture Center: On Sunday, October 18th, \u201cThe Grave Side of Halloween\u201d will begin at 10:30am with a tour of Elmwood Cemetery by ",
+    "identifier": "cctv17vt-Burlington_History_and_Culture_Center_-_The_Grave_Side_of_Halloween_-_Elmw-hcvDdPCczkA",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:37:01Z",
+    "title": "Burlington History and Culture Center: The Grave Side of Halloween - Elmwood Cemetery Tour"
+   },
+   {
+    "addeddate": "2026-10-29T08:36:08Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-27T00:00:00Z",
+    "description": "Agenda: https://burlingtonvt.portal.civicclerk.com/event/10093/files/agenda/21430 https://linktr.ee/townmeetingtv 00:00:00 Call to Order/Agenda 00:00:56 Mayor -",
+    "identifier": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:36:08Z",
+    "title": "Burlington City Council - 10/26/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:35:42Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-26T00:00:00Z",
+    "description": "From the Burlington History and Culture Center: On Sunday, October 18th, \u201cThe Grave Side of Halloween\u201d will begin at 10:30am with a tour of Elmwood Cemetery by ",
+    "identifier": "cctv17vt-Burlington_History_and_Culture_Center_-_The_Grave_Side_of_Halloween_-_Iron-gwqypdCPAjo",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:35:42Z",
+    "title": "Burlington History and Culture Center: The Grave Side of Halloween - Iron Grave Markers in Vermont"
+   },
+   {
+    "addeddate": "2026-10-29T08:32:34Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-27T00:00:00Z",
+    "description": "https://linktr.ee/townmeetingtv 00:00:00 Introductions 00:02:11 Opening Statements 00:06:54 Committee Assignments 00:12:44 Working Legislation 00:19:20 Budget &",
+    "identifier": "cctv17vt-Elections_-_State_Senator_Chittenden-Central_District_Three_Seats_Candidat-blDxgOnn5cM",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:32:34Z",
+    "title": "Elections: State Senator Chittenden-Central District (Three Seats) Candidate Forum - 10/26/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:32:33Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-27T00:00:00Z",
+    "description": "https://linktr.ee/townmeetingtv Town Meeting TV is a free speech forum and the ideas expressed do not necessarily reflect the views of the Town Meeting TV Trust",
+    "identifier": "cctv17vt-SHEnanigans_-_10_26_2026-NtjoIhG4jAg",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:32:33Z",
+    "title": "SHEnanigans - 10/26/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:31:36Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-27T00:00:00Z",
+    "description": "Agenda: https://burlingtonvt.portal.civicclerk.com/event/10104/files/agenda/21421 https://linktr.ee/townmeetingtv 00:00:00 Call to Order/Agenda 00:00:32 Public ",
+    "identifier": "cctv17vt-Burlington_Board_of_Finance_-_10_26_2026-WU5OPiPqcWM",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:31:36Z",
+    "title": "Burlington Board of Finance - 10/26/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:30:43Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-25T00:00:00Z",
+    "description": "https://linktr.ee/townmeetingtv 00:00:00 Call to Order/Introductions 00:11:01 Public Forum 00:25:20 The Worldbuilding Power of Zines 01:17:21 Overdose Preventio",
+    "identifier": "cctv17vt-Ward_8_Neighborhood_Planning_Assembly_-_October_21_2026-YRI1hzANcOs",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:30:43Z",
+    "title": "Ward 8 Neighborhood Planning Assembly - October 21, 2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:29:55Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-26T00:00:00Z",
+    "description": "From Burlington School Commissioners' Corner: Guest host Dr. Matt Price, UVM Professor\u00a0of Psychological Science, hosts a conversation with Representative Angela",
+    "identifier": "cctv17vt-Burlington_School_Commissioners_Corner_-_Education_Screens_and_Child_Devel-jMJDD7NVE0w",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:29:55Z",
+    "title": "Burlington School Commissioners' Corner: Education, Screens and Child Development"
+   },
+   {
+    "addeddate": "2026-10-29T08:28:42Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "Neighborhood Media Interns head to Integrated Arts Academy and ask neighbors about community art and why they are gathering to celebrate. 5/16/2026 https://link",
+    "identifier": "cctv17vt-Neighborhood_Media_Internship_Program_-_Art_Night_at_Integrated_Arts_Acade-E6PIeFr0B-k",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:28:42Z",
+    "title": "Neighborhood Media Internship Program: Art Night at Integrated Arts Academy"
+   },
+   {
+    "addeddate": "2026-10-29T08:26:20Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "https://linktr.ee/townmeetingtv Town Meeting TV is a free speech forum and the ideas expressed do not necessarily reflect the views of the Town Meeting TV Trust",
+    "identifier": "cctv17vt-Preservation_Burlington_-_10_22_2026-lrkFWNe83j4",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:26:20Z",
+    "title": "Preservation Burlington - 10/22/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:25:34Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "Presented by Alex Zakaras, PhD, Elliott A. Brown Green and Gold Professor of Law, Politics, and Political Behavior, UVM. For more information visit: eeevermont.",
+    "identifier": "cctv17vt-Education_and_Enrichment_for_Everyone_-_Freedom_for_All_-_What_a_Liberal_S-3CUtQf3wEnI",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:25:34Z",
+    "title": "Education and Enrichment for Everyone: Freedom for All - What a Liberal Society Could Be"
+   },
+   {
+    "addeddate": "2026-10-29T08:25:33Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-26T00:00:00Z",
+    "description": "From Andrea Marion: If being mindful is paying attention to the present moment without judgement, then how is it possible not to judge? The human mind is tasked",
+    "identifier": "cctv17vt-Community_Mindfulness_-_What_s_Up_with_Mindfulness_and_Judgements-EoQtq2s1JvA",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:25:33Z",
+    "title": "Community Mindfulness: What's Up with Mindfulness and Judgements?"
+   },
+   {
+    "addeddate": "2026-10-29T08:25:30Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "From Ethan Allen Homestead: Presented by Don Stevens, Chief of the Nulhegan Band of the Coosuk Abenaki Nation & President of Abenaki Helping Abenaki, and Diane ",
+    "identifier": "cctv17vt-Ethan_Allen_Homestead_Enrichment_Program_-_Capturing_Indigenous_History_Th-Ok-9R2rlLB4",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:25:30Z",
+    "title": "Ethan Allen Homestead Enrichment Program: Capturing Indigenous History Through 3D Scanning"
+   },
+   {
+    "addeddate": "2026-10-29T08:25:29Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "From the Champlain Housing Trust (CHT) and the Office of Senator Welch: Champlain Housing Trust will be joined by US Senator Peter Welch, Burlington Mayor Emma ",
+    "identifier": "cctv17vt-Champlain_Housing_Trust_-_Groundbreaking_for_Shale_Beach_in_Burlington-VPILT2fZlkM",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:25:29Z",
+    "title": "Champlain Housing Trust: Groundbreaking for Shale Beach in Burlington"
+   },
+   {
+    "addeddate": "2026-10-29T08:24:37Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "From the Janoo for Governor Campaign: October 22nd, 2026 \u2014 U.S. Senator Bernie Sanders (I-VT) joined Democratic candidate for governor Amanda Janoo on Thursday ",
+    "identifier": "cctv17vt-Amanda_Janoo_-_Healthcare_Press_Conference_with_Senator_Bernie_Sanders-fHcTkQE26wE",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:24:37Z",
+    "title": "Amanda Janoo: Healthcare Press Conference with Senator Bernie Sanders"
+   },
+   {
+    "addeddate": "2026-10-29T08:24:37Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "Host Lydia Diamond discusses the upcoming Burlington bingo fundraiser, presented by the Fight for Kids foundation. The event is happening on October 31, 2026, a",
+    "identifier": "cctv17vt-Tea_Talks_-_Charity_Bingo-tm90kv4MN3M",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:24:37Z",
+    "title": "Tea Talks: Charity Bingo"
+   },
+   {
+    "addeddate": "2026-10-29T08:23:46Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "Call to Order, 00:00:00 Agenda, 00:00:25 Public Comment, 00:00:44 Minutes, 00:01:02 FY27-30 Transportation Improvement Program, 00:07:08 TIP Amendment Policy Up",
+    "identifier": "cctv17vt-Chittenden_County_Regional_Planning_Commission_-_10_21_2026-yZjUATk0ANM",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:23:46Z",
+    "title": "Chittenden County Regional Planning Commission - 10/21/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:23:46Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "From Harmony\u00a0Edosomwan: In this episode of Cooking in Harmony, Harmony cooks guacamole and Hocus Pocus punch. Halloween Dinner Party Tickets: www.harmonyskitche",
+    "identifier": "cctv17vt-Cooking_in_Harmony_-_Spirits_Spice_Everything_Nice-tZRqhgTg7kY",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:23:46Z",
+    "title": "Cooking in Harmony: Spirits, Spice & Everything Nice"
+   },
+   {
+    "addeddate": "2026-10-29T08:23:44Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "From Paul Ferraro: In this episode of JobTalk Vermont, host Paul Ferraro gives you a practical look at one\u00a0of the most important steps in any job search: prepar",
+    "identifier": "cctv17vt-JobTalk_Vermont_-_Make_It_Happen_Hot_Jobs_One-Stop_Events_-_Power_of_Exper-aUnFI9MBe5w",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:23:44Z",
+    "title": "JobTalk Vermont: Make It Happen \u2013 Hot Jobs \u2013 One-Stop Events - Power of Experience - Part 2"
+   },
+   {
+    "addeddate": "2026-10-29T08:22:50Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-23T00:00:00Z",
+    "description": "ZP-26-432 - 28 Janet Circle, 00:00:00 ZP-26-334 - 179 Queen City Park Road, 00:29:30 ZP-26-455 - 451 Appletree Point Road, 00:30:31 https://linktr.ee/townmeetin",
+    "identifier": "cctv17vt-Burlington_Development_Review_Board_-_10_20_2026-pf5gLQQMKIA",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:22:50Z",
+    "title": "Burlington Development Review Board - 10/20/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:21:53Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "https://linktr.ee/townmeetingtv This video belongs to http://www.cctv.org and published with permission under Creative Commons License CCTV Center for Media & D",
+    "identifier": "cctv17vt-Elections_-_Essex_Ballot_Items_Presentation_-_10_21_2026-fFdDmPQIIS4",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:21:53Z",
+    "title": "Elections: Essex Ballot Items Presentation - 10/21/2026"
+   },
+   {
+    "addeddate": "2026-10-29T08:21:09Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "From the organizers: For over a year, millions of us have come together to declare that America has no kings. We made our voices heard in the streets, and we ma",
+    "identifier": "cctv17vt-No_Kings_Day_National_Day_of_Protest_-_No_Kings_-_Vote_Early_Protest_in_Bu-FxEJPPn6tGQ",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:21:09Z",
+    "title": "No Kings Day National Day of Protest: No Kings - Vote Early Protest in Burlington"
+   },
+   {
+    "addeddate": "2026-10-29T08:20:16Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "From the organizers: For over a year, millions of us have come together to declare that America has no kings. We made our voices heard in the streets, and we ma",
+    "identifier": "cctv17vt-No_Kings_Day_National_Day_of_Protest_-_No_Kings_-_Vote_Early_Protest_in_Wi-_x2PmpDZSWs",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:20:16Z",
+    "title": "No Kings Day National Day of Protest: No Kings - Vote Early Protest in Winooski"
+   },
+   {
+    "addeddate": "2026-10-29T08:20:15Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "Host Mariah Riggs interviews Heidi Swevens. Heidi is the owner of Swevs, spiritual companionship, creativity and consulting. For more information visit: www.hei",
+    "identifier": "cctv17vt-On_the_Waterfront_-_Heidi_Swevens-AaYxQSpS1xM",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:20:15Z",
+    "title": "On the Waterfront: Heidi Swevens"
+   },
+   {
+    "addeddate": "2026-10-29T08:19:21Z",
+    "collection": [
+     "cctvvt",
+     "community_media",
+     "newsandpublicaffairs"
+    ],
+    "creator": "CCTV17",
+    "date": "2026-10-22T00:00:00Z",
+    "description": "From Paul Ferraro: In this episode of JobTalk Vermont, host Paul Ferraro sits down with Mark Millward,\u00a0Grants and Information Director for Associates for Traini",
+    "identifier": "cctv17vt-JobTalk_Vermont_-_Partner_Spotlight_-_A4TD_and_the_Power_of_Experience_-_P-vsmj4pP6AL8",
+    "mediatype": "movies",
+    "publicdate": "2026-10-29T08:19:21Z",
+    "title": "JobTalk Vermont: Partner Spotlight - A4TD and the Power of Experience - Part 1"
+   }
+  ]
+ }
+}

@@ -41,19 +41,21 @@
    city's PDF". #}
 {% macro checked_short(how) -%}
 {%- if how == "pdf" %}{{ _("Checked against the city's PDF") }}{% elif how == "partial" %}{{ _("Partly checked against the city's PDF") }}
-{%- elif how == "ai" %}{{ _("Checked against an AI transcription") }}{% elif how %}{{ _("Not checked") }}{% endif -%}
+{%- elif how == "ai" %}{{ _("Checked against an AI transcription") }}{% elif how == "recording" %}{{ _("Checked against the recording's transcript") }}
+{%- elif how %}{{ _("Not checked") }}{% endif -%}
 {%- endmacro %}
 
 {# "AI summary", where a list shows a summary's line, with how it was checked (how, factcheck.how_checked). #}
 {% macro ai_summary_label(how) -%}
 {%- if how == "pdf" %}{{ _("AI summary, checked against the city's PDF") }}{% elif how == "partial" %}{{ _("AI summary, partly checked against the city's PDF") }}
-{%- elif how == "ai" %}{{ _("AI summary, checked against an AI transcription") }}{% elif how %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
+{%- elif how == "ai" %}{{ _("AI summary, checked against an AI transcription") }}{% elif how == "recording" %}{{ _("AI summary of the recording, checked against its transcript") }}
+{%- elif how %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
 {%- endmacro %}
 
 {# The same, in a list of meetings: that the line is AI's, and a warning when it wasn't checked; the meeting's page
    says how it was. #}
 {% macro ai_summary_short(how) -%}
-{%- if how and how not in ["pdf", "partial", "ai"] %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
+{%- if how and how not in ["pdf", "partial", "ai", "recording"] %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
 {%- endmacro %}
 
 {# The credit under AI-written text, in one paragraph: what it was written from, how it was checked
@@ -64,15 +66,17 @@
 {%- set how = how_checked(record, doc_label) if record else none -%}
 <div class="credit"{% if how %} data-checked="{{ how }}"{% endif %}>
   <p>
-  {%- if how and how not in ("pdf", "partial", "ai") %}<strong>{{ _("Not checked.") }}</strong> {% if doc_label == "minutes" and (record.get("fact_check") or {}).get("source") in ("pdf", "partial", "ai") %}{{ _("This summary is older than the check that matches each decision to the minutes' own words.") }}{% else %}{{ _("This summary hasn't been compared with the city's document.") }}{% endif %} {% endif %}
+  {%- if how and how not in ("pdf", "partial", "ai", "recording") %}<strong>{{ _("Not checked.") }}</strong> {% if doc_label == "minutes" and (record.get("fact_check") or {}).get("source") in ("pdf", "partial", "ai") %}{{ _("This summary is older than the check that matches each decision to the minutes' own words.") }}{% else %}{{ _("This summary hasn't been compared with the city's document.") }}{% endif %} {% endif %}
   {#- Translators: %(by)s is who posted the document, such as a school district's name. -#}
   {%- if posted_by and doc_label == "minutes" %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">minutes posted by {{ by }}</a>.{% endtrans %}
   {%- elif posted_by %}{% trans by=posted_by %}Summary written by AI from the <a href="{{ url }}">agenda posted by {{ by }}</a>.{% endtrans %}
   {%- elif doc_label == "minutes" %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's minutes</a>.{% endtrans %}
+  {%- elif doc_label == "recording" %}{% trans %}Summary written by AI from a machine transcript of the <a href="{{ url }}">meeting's recording</a>, which can mishear words and names.{% endtrans %}
   {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %}
   {%- if how == "pdf" %} {{ _("Checked against the city's PDF.") }}
   {%- elif how == "partial" %} {{ _("Partly checked against the city's PDF.") }}
-  {%- elif how == "ai" %} {{ _("Checked against an AI transcription.") }} {{ _("Both come from AI, so they can share a mistake.") }}{% endif %}
+  {%- elif how == "ai" %} {{ _("Checked against an AI transcription.") }} {{ _("Both come from AI, so they can share a mistake.") }}
+  {%- elif how == "recording" %} {{ _("Checked against the transcript.") }}{% endif %}
   {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %}
   {{ _("Check the original before relying on it.") }} <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
   {{ report_button(report_url, _("Report an error in this summary")) }}
@@ -144,7 +148,7 @@
     {% if show_date and not posted %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
     {# The line above is written by AI, so say so where it's shown; the meeting's page says how it was checked. #}
     {% if preview and m.preview_line %}{% set __ = meta.append(ai_summary_short(m.preview_checked)) %}{% endif %}
-    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
+    {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.get("decisions_from") == "recording" %}{% set __ = meta.append(_("From the recording")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
     {# On the home page's "Recently decided", a committee's recommendations aren't final until the governing body votes. #}
     {% if posted and m.get("decisions") and m.decisions.recommended and not m.decisions.decided %}{% set __ = meta.append(_("Committee recommendation")) %}{% endif %}
     {% if m.remote_url and m.date >= today %}{% set __ = meta.append(_("Online option")) %}{% endif %}

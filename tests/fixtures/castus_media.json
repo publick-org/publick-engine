@@ -1,0 +1,10 @@
+{
+ "response": {
+  "success": true,
+  "message": "",
+  "code": 200,
+  "payload": {
+   "data": "https://dlttx48mxf9m3.cloudfront.net/outputs/6ad8d491b2610c0002277ecf/Default/HLS/out.m3u8"
+  }
+ }
+}

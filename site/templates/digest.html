@@ -56,6 +56,33 @@
 </ul>
 {% endif %}
 
+{% if issue.recorded %}
+<h2 id="recorded">{{ _("From meetings' recordings") }}</h2>
+{# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
+<p>{% trans start=issue.minutes_from | date("plain"), end=issue.sunday | date("plain") %}Meetings this site summarized from their recordings from {{ start }}, to {{ end }}, before their minutes came.{% endtrans %}</p>
+<div class="credit">
+  <p>{{ _("These are written by AI from a machine transcript of each meeting's recording. The minutes are the official record.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+</div>
+{% from "macros.html" import cite %}
+<ul class="decision-list">
+  {% for m in issue.recorded %}
+  {% set source = m.minutes_summary if m.decisions_from == "minutes" else m.recording_summary %}
+  <li class="decision-meeting">
+    <p><a href="{{ m.url }}">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time>{% if m.recordings %} · <a href="{{ m.recordings[0].url }}">{{ _("Watch the recording") }}</a>{% endif %}</p>
+    {% if m.decisions.decided %}
+    <ul>
+      {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
+    </ul>
+    {% if m.decisions.decided | length > 5 %}<p class="small"><a href="{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
+    <p class="small checked" data-checked="{{ how_checked(source, m.decisions_from) }}">{{ checked_short(how_checked(source, m.decisions_from)) }}</p>
+    {% elif m.preview_line %}
+    <p>{{ m.preview_line }} <span class="small">({{ ai_summary_label(m.preview_checked) }})</span></p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
 {% if digest_signup %}<p><a href="/digest/#signup">{{ _("Get the weekly digest by email") }}</a></p>{% endif %}
 {{ report_button(report_link(page_url, "Weekly digest"), _("Report an error in this digest")) }}
 {% endblock %}
