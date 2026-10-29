@@ -175,6 +175,16 @@ def format_bytes(n: int) -> str:
     return f"{n / 1024:.0f} KB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.1f} MB"
 
 
+def format_length(seconds: float) -> str:
+    """How long a recording runs: "3 h 19 min", or "45 min"."""
+    minutes = round(seconds / 60)
+    if minutes < 60:
+        # Translators: a recording's length, such as "45 min".
+        return _("{m} min").format(m=minutes)
+    # Translators: a recording's length, such as "3 h 19 min".
+    return _("{h} h {m} min").format(h=minutes // 60, m=minutes % 60)
+
+
 def format_duration(days: float | None) -> str:
     if days is None:
         return _("Not enough data")
@@ -408,9 +418,10 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
     that mean different things elsewhere.
     """
     texts = []
-    for doc in (meeting.get("preview"), meeting.get("minutes_summary")):
+    for doc in (meeting.get("preview"), meeting.get("minutes_summary"), meeting.get("recording_summary")):
         if doc:
-            texts += [doc.get("summary") or "", doc_text(doc), *doc.get("items", []), *doc.get("decisions", [])]
+            texts += [doc.get("summary") or "", doc_text(doc), *doc.get("items", []), *doc.get("decisions", []),
+                      *doc.get("discussion", [])]
     text = "\n".join(texts)
     return [e for e in entries
             if not (e.get("bodies") and meeting["body"] not in e["bodies"]) and glossary.found(e, text)]
@@ -536,7 +547,7 @@ def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str
     return problems
 
 
-WITHHELD_KINDS = ("agenda", "minutes")
+WITHHELD_KINDS = ("agenda", "minutes", "recording")
 
 
 def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[str, str]]:
@@ -545,12 +556,12 @@ def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[
     a correction does, by `board` and `date` or its record's `meeting` id, and `kind`, "agenda" or
     "minutes". Returns (meeting id, kind) pairs. An entry that names no meeting, or more than one,
     stops the build, so a typo can't leave a summary up that was meant to come down: a pull
-    request's run fails before it merges."""
+    request's run fails before it merges. A recording's summary (its kind "recording") is taken down the same way."""
     found = set()
     for w in withheld:
         what = f"{w.get('board', w.get('meeting'))} {w.get('date', '')} {w.get('kind', '')}".strip()
         if w.get("kind") not in WITHHELD_KINDS:
-            raise SystemExit(f"[[summaries.withheld]] {what}: kind must be \"agenda\" or \"minutes\".")
+            raise SystemExit(f"[[summaries.withheld]] {what}: kind must be \"agenda\", \"minutes\" or \"recording\".")
         matches = [m for m in meetings
                    if w.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
                    or (m["date"] == str(w.get("date")) and words(m["body"]) == words(w.get("board", "")))]
@@ -602,9 +613,18 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             summarize.cached(data_dir, m["minutes_doc"]["sha256"], "minutes", current=False)
             if m["minutes_doc"] and summary_model else None
         )
+        # The summary of the meeting's recording (pipeline/recordings.py), shown until the minutes' is.
+        m.setdefault("recordings", [])
+        m["transcript_doc"] = (m.get("transcripts") or [None])[-1]
+        m["recording_summary"] = (
+            summarize.cached(data_dir, m["transcript_doc"]["sha256"], "recording", current=False)
+            if m["transcript_doc"] and summary_model else None
+        )
         # A summary taken down by hand isn't shown anywhere: not on its page, in lists, the feed,
         # the digest, search, or the decisions; the page says it was taken down.
         m["withheld"] = {kind: (m["id"], kind) in taken_down for kind in WITHHELD_KINDS}
+        if m["withheld"]["recording"]:
+            m["recording_summary"] = None
         if m["withheld"]["agenda"]:
             m["preview"] = None
         if m["withheld"]["minutes"]:
@@ -633,6 +653,13 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"], terms or ()), pv_raw, "agenda")
         m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"], terms or ()),
                                                ms_raw, "minutes")
+        rs_raw = m["recording_summary"]
+        if ms_raw and ms_raw.get("is_minutes", True):
+            # The minutes' summary replaces the recording's.
+            rs_raw = None
+        m["recording_summary"] = factcheck.shown(in_language(data_dir, rs_raw, "recording", m["transcript_doc"], terms or ()),
+                                                 rs_raw, "recording")
+        english["recording_summary"] = factcheck.shown(rs_raw, rs_raw, "recording")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         if ms and ms.get("decisions"):
             # Each with the page of the minutes it was found on, where it's known, for the pages to cite.
@@ -714,7 +741,8 @@ def meeting_lastmod(m: dict, today: date) -> str:
     a document posted, the listing changed, a summary written or a correction checked, or the
     meeting day itself, when the page starts speaking of it as past. Never after today."""
     stamps = [m["first_seen"], *(d["fetched_at"] for d in m["agendas"] + m["minutes"]), *(h["at"] for h in m["history"]),
-              *((s or {}).get(at) or "" for s in (m["preview"], m["minutes_summary"]) for at in ("generated_at", "translated_at")),
+              *((s or {}).get(at) or "" for s in (m["preview"], m["minutes_summary"], m.get("recording_summary"))
+                for at in ("generated_at", "translated_at")),
               (m["correction"] or {}).get("checked") or ""]
     if m["date"] <= today.isoformat():
         stamps.append(m["date"])
@@ -813,6 +841,11 @@ def search_index(meetings: list[dict], prefix: str = "") -> list[dict]:
         if ms:
             docs.append({"kind": _("Minutes") if ms.get("is_minutes", True) else _("Agenda"),
                          "text": plain_text(doc_text(ms))})
+        rs = m["recording_summary"]
+        if rs:
+            docs.append({"kind": _("Recording"), "text": "\n".join(
+                line for f in translate.FIELDS["recording"] for line in ([rs[f]] if isinstance(rs.get(f), str) else rs.get(f) or [])
+                if line)})
         # Another language's search also finds the meeting by its translated summaries.
         for kind, record in (("agenda", m["preview"]), ("minutes", m["minutes_summary"])):
             if record and record.get("translated"):
@@ -865,10 +898,13 @@ def clip(text: str, limit: int = 140) -> str:
 
 
 def preview_source(meeting: dict) -> tuple[dict | None, str | None]:
-    """The summary preview_line() takes its line from, and its kind: the minutes', or else the agenda's."""
-    minutes, agenda = meeting.get("minutes_summary"), meeting.get("preview")
+    """The summary preview_line() takes its line from, and its kind: the minutes', or else the recording's,
+    or else the agenda's."""
+    minutes, agenda, recording = meeting.get("minutes_summary"), meeting.get("preview"), meeting.get("recording_summary")
     if minutes and minutes.get("is_minutes", True) and (minutes.get("headline") or minutes.get("decisions")):
         return minutes, "minutes"
+    if recording and recording.get("headline"):
+        return recording, "recording"
     if agenda and (agenda.get("headline") or agenda.get("items")):
         return agenda, "agenda"
     return None, None
@@ -878,7 +914,9 @@ def preview_line(meeting: dict) -> str | None:
     """One line for meeting lists: what the meeting is about, never the board,
     date, or time (those are already shown). Prefers the AI headline; older
     summaries without one fall back to their own items or decisions."""
-    minutes, agenda = meeting.get("minutes_summary"), meeting.get("preview")
+    minutes, agenda, recording = meeting.get("minutes_summary"), meeting.get("preview"), meeting.get("recording_summary")
+    if recording and recording.get("headline") and not (minutes and minutes.get("is_minutes", True)):
+        return in_english(recording["headline"]) if recording.get("english") else recording["headline"]
     if minutes and minutes.get("is_minutes", True):
         if minutes.get("headline"):
             return in_english(minutes["headline"]) if minutes.get("english") else minutes["headline"]
@@ -1314,7 +1352,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # A {% trans %} block's lines are joined with single spaces, as the browser shows them.
     env.policies["ext.i18n.trimmed"] = True
     env.filters.update(date=format_date, time=format_time, filesize=format_bytes, timestamp=format_timestamp,
-                       duration=format_duration, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
+                       duration=format_duration, runtime=format_length, number=format_number, money=format_money, month=format_month, month_long=format_month_long,
                        markdown=lambda t: in_english_block(render_markdown(t)), duration_cell=format_duration_cell,
                        street=lambda a: short_address(a, config["town"]["name"]),
                        model_name=model_name, capitalize_first=capitalize_first,
@@ -1554,7 +1592,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   [[y["year"], y["units"], *y["by_size"].values(), y["estimated"]] for y in housing["permits"]["years"]])
 
     if documents:
-        for folder in ("agendas", "minutes"):
+        # A town with a bucket keeps them there (pipeline/documents.py), and recordings' transcripts always.
+        for folder in ("agendas", "minutes", "transcripts"):
             src = data_dir / "meetings" / folder
             if src.exists():
                 shutil.copytree(src, out_dir / "meetings" / folder)
@@ -1685,7 +1724,8 @@ def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:
 def checked_short(how: str | None) -> str:
     """How a summary was checked (factcheck.how_checked), in a few words, as macros.html's checked_short says it."""
     return {"pdf": _("Checked against the city's PDF"), "partial": _("Partly checked against the city's PDF"),
-            "ai": _("Checked against an AI transcription")}.get(how, _("Not checked"))
+            "ai": _("Checked against an AI transcription"),
+            "recording": _("Checked against the recording's transcript")}.get(how, _("Not checked"))
 
 
 def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, built_at: datetime, limit: int = 50) -> None:
@@ -1700,6 +1740,13 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
             credit = _("(AI summary of the agenda. Check the original.)") + " " + checked_short(factcheck.how_checked(m["preview"], "agenda")) + "."
             items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
                           summary + " " + credit if summary else _("Agenda posted.")))
+        rs = m["recording_summary"]
+        if rs and (rs.get("headline") or rs.get("summary")):
+            summary = rs.get("headline") or rs.get("summary")
+            credit = _("(AI summary of the meeting's recording. The minutes will follow.)") + " " + checked_short(
+                factcheck.how_checked(rs, "recording")) + "."
+            items.append((m["transcript_doc"]["fetched_at"], "recording",
+                          _("{board}: what happened on {date}").format(board=m["body"], date=when), m, summary + " " + credit))
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
             summary = ms.get("headline") or ms.get("summary")
