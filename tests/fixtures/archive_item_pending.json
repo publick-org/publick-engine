@@ -1,0 +1,151 @@
+{
+ "created": 1793278846,
+ "d1": "ia601600.us.archive.org",
+ "d2": "ia801600.us.archive.org",
+ "dir": "/33/items/cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4",
+ "files": [
+  {
+   "name": "Burlington_City_Council_-_10_26_2026-gvXqokBy5k4.HD.mov",
+   "source": "original",
+   "mtime": "1793262914",
+   "size": "3879393233",
+   "md5": "0851376162ac2e0a4c61e852069fcf97",
+   "crc32": "26249dd1",
+   "sha1": "4ae18cb9288716da2349ffe46a576cdb5aff0bdd",
+   "format": "h.264 HD",
+   "length": "22748",
+   "width": "1920",
+   "height": "1080"
+  },
+  {
+   "name": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4_archive.torrent",
+   "source": "metadata",
+   "btih": "2ab5fa2db05704103f9f67034acf6252c4b0605c",
+   "mtime": "1793263187",
+   "size": "39299",
+   "md5": "7fff678b92c1ccb708883e73cd49bc8a",
+   "crc32": "430bf757",
+   "sha1": "11a52912100900af8fee16ef8cfbe651d97c1582",
+   "format": "Archive BitTorrent"
+  },
+  {
+   "name": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4_files.xml",
+   "source": "original",
+   "format": "Metadata",
+   "md5": "c4663f689c4f3205e7e4a5326a5699d1",
+   "summation": "md5"
+  },
+  {
+   "name": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4_meta.sqlite",
+   "source": "original",
+   "mtime": "1793263077",
+   "size": "28672",
+   "md5": "acbe46cedcba7e4ddea11ac51c3a4025",
+   "crc32": "966e909d",
+   "sha1": "dcc0e97c5eedf4fd5ab76a92f13aeeed07f750ef",
+   "format": "Metadata"
+  },
+  {
+   "name": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4_meta.xml",
+   "source": "original",
+   "mtime": "1793263108",
+   "size": "3401",
+   "md5": "a6fbe24c9ac964ab343850ccd22ae4bd",
+   "crc32": "2eac1932",
+   "sha1": "44e7d24daaeec340c2dc025b36551e3b889d6b5e",
+   "format": "Metadata"
+  }
+ ],
+ "files_count": 5,
+ "item_last_updated": 1793263187,
+ "item_size": 3879464605,
+ "metadata": {
+  "identifier": "cctv17vt-Burlington_City_Council_-_10_26_2026-gvXqokBy5k4",
+  "collection": [
+   "cctvvt",
+   "community_media",
+   "newsandpublicaffairs"
+  ],
+  "creator": "CCTV17",
+  "date": "2026-10-27",
+  "description": "Agenda: https://burlingtonvt.portal.civicclerk.com/event/10093/files/agenda/21430<br /><br />https://linktr.ee/townmeetingtv<br /><br /> 00:00:00 Call to Order/Agenda<br /> 00:00:56 Mayor - General City Affairs<br /> 00:21:18 Board of Civil Authority<br /> 00:22:18 Local Control Commission<br /> 00:23:35 Public Forum<br /> 02:10:14 Honoring Andrew Champagne<br /> 02:28:06 Public Forum (Continued)<br /> 02:31:00 Committee Reports<br /> 02:40:15 Consent Agenda<br /> 02:40:45 Permit Application Muddy Waters<br /> 02:41:34 New Assistant City Attorney Chloe Vickers<br /> 02:51:24 planBTV New North End<br /> 03:21:33 2027 Annual City Meeting - Non-Citizen Voter Protections<br /> 03:35:06 2027 Annual City Meeting - Modernizing City Government<br /> 04:11:32 BCO Chapter 21 - Trespass on City Property<br /> 04:18:11 Burlington Forward Update<br /> 05:56:46 Break   <br /> 06:07:18 Burlington Forward Update (Continued)<br /><br />This video belongs to http://www.cctv.org and published with permission under Creative Commons License CCTV Center for Media & Democracy Programming is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.",
+  "duration": "22748",
+  "language": "English",
+  "licenseurl": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "mediatype": "movies",
+  "runtime": "06:19:08",
+  "series": "Burlington City Council",
+  "subject": [
+   "Vermont",
+   "Burlington",
+   "CHANNEL 17 - TOWN MEETING TV",
+   "CCTV17",
+   "Government Access TV",
+   "Community Media",
+   "PEG",
+   "Youtube",
+   "community media",
+   "municipal meetings",
+   "local media",
+   "local government",
+   "elections",
+   "democracy",
+   "free speech",
+   "Government Meeting",
+   "Burlington City Council",
+   "2026"
+  ],
+  "title": "Burlington City Council - 10/26/2026",
+  "year": "2026",
+  "youtube-height": "1080",
+  "youtube-id": "gvXqokBy5k4",
+  "youtube-n-entries": "4685",
+  "youtube-playlist": "Town Meeting TV - Live",
+  "youtube-playlist-index": "13",
+  "youtube-uploader": "Town Meeting TV",
+  "youtube-uploader-id": "@townmeetingtv",
+  "youtube-view-count": "743",
+  "youtube-webpage-url": "https://www.youtube.com/watch?v=gvXqokBy5k4",
+  "youtube-width": "1920",
+  "uploader": "uploader@example.org",
+  "collection_added": [
+   "community_media",
+   "newsandpublicaffairs"
+  ],
+  "publicdate": "2026-10-29 08:36:08",
+  "addeddate": "2026-10-29 08:36:08"
+ },
+ "pending_tasks": true,
+ "server": "ia601600.us.archive.org",
+ "servers_unavailable": true,
+ "tasks": [
+  {
+   "task_id": 5736103340,
+   "cmd": "derive.php",
+   "priority": -6,
+   "wait_admin": 0,
+   "color": "green",
+   "status": "queued"
+  },
+  {
+   "task_id": 5736277171,
+   "cmd": "archive.php",
+   "priority": -5,
+   "wait_admin": 0,
+   "color": "green",
+   "status": "queued"
+  },
+  {
+   "task_id": 5736277306,
+   "cmd": "archive.php",
+   "priority": -5,
+   "wait_admin": 0,
+   "color": "green",
+   "status": "queued"
+  }
+ ],
+ "uniq": 1111761297,
+ "workable_servers": [
+  "ia601600.us.archive.org"
+ ]
+}

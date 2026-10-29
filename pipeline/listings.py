@@ -27,7 +27,7 @@ import json
 import re
 from pathlib import Path
 
-from pipeline import identity
+from pipeline import identity, recordings
 
 # Listings that give a meeting's time and place, before ones that give only its documents.
 DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "opengov", "meetingdocs", "sharpschool", "archive")
@@ -146,10 +146,13 @@ def combined(store: dict, listing_of=lambda m: m.get("source", "calendar"), ledg
 
 
 def read(data_dir: Path, listing_of=lambda m: m.get("source", "calendar"), town: str = "") -> tuple[dict, dict]:
-    """combined() of the town's meetings as saved, with their kept identities."""
+    """combined() of the town's meetings as saved, with their kept identities, and their recordings and
+    transcripts (pipeline/recordings.py)."""
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    return combined(store, listing_of, identity.load(data_dir), town)
+    meetings, moved = combined(store, listing_of, identity.load(data_dir), town)
+    recordings.attach(meetings, data_dir, moved)
+    return meetings, moved
 
 
 def main() -> int:
