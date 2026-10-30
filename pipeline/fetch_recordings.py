@@ -119,7 +119,7 @@ def transcribe_one(config: dict, client, recording: dict, storage, model, user_a
     name = recording["id"]
     if hasattr(module, "transcript"):
         # A platform that makes its own (YouTube's, by Gemini).
-        made = module.transcript(client, source, recording)
+        made = module.transcript(client, source, recording, storage)
         if not made:
             return False
         words = made[0].encode("utf-8")

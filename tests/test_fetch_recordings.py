@@ -281,7 +281,7 @@ class FakeTranscribingPlatform(FakePlatform):
     def media(self, client, source, recording):
         return None
 
-    def transcript(self, client, source, recording):
+    def transcript(self, client, source, recording, storage=None):
         return ("[0:00:05] Made elsewhere.\n", {"model": "gemini-x", "usage": {"requests": 1}}) if self.ready else None
 
 
