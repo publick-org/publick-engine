@@ -367,6 +367,13 @@ def test_gemini_reads_minutes_past_an_hour_and_drops_no_speech():
     assert gemini.paragraphs(text, 4800, 6000) == [(5050.0, "Roll call, please."), (5070.0, "Motion carries.")]
 
 
+def test_gemini_paragraphs_start_at_times_inside_a_line():
+    # gemini-3.8-flash wrote a 20-minute part as one line, with its paragraphs' times inline.
+    text = "[0:00:02] Come to order. Pledge of Allegiance. [0:00:59] Roll call, Mr. Clerk. 11 present. [0:05:00] Moment of silence."
+    assert gemini.paragraphs(text, 0, 1200) == [(2.0, "Come to order. Pledge of Allegiance."),
+                                                (59.0, "Roll call, Mr. Clerk. 11 present."), (300.0, "Moment of silence.")]
+
+
 def test_a_youtube_transcript_goes_on_from_the_parts_already_answered(monkeypatch, tmp_path):
     from pipeline.documents import LocalDocuments
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
