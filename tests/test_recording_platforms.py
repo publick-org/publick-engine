@@ -301,8 +301,8 @@ def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
         # The second part's times, given from its own start: moved to the recording's.
         (200, interaction("[0:01:10] The motion carries 5 to 0.\nThe meeting is adjourned.")),
     )
-    text, made = youtube.transcript(None, METHUEN_SCHOOLS, {"video_id": "abc", "seconds": 1500, "title": "School Committee",
-                                                            "date": "2026-10-26"}, post=post)
+    text, made = youtube.transcript(None, METHUEN_SCHOOLS, {"id": "youtube-abc", "video_id": "abc", "seconds": 1500,
+                                                            "title": "School Committee", "date": "2026-10-26"}, post=post)
     assert text == ("[0:00:05] Good evening. The committee will come to order.\n"
                     "[0:12:40] Motion to approve the budget.\n"
                     "[0:21:10] The motion carries 5 to 0. The meeting is adjourned.\n")
@@ -320,11 +320,78 @@ def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
 
 def test_gemini_errors_are_a_failed_try():
     from pipeline.http import FetchError
-    post = FakeHTTP((429, {"error": {"message": "quota"}}))
-    with pytest.raises(FetchError, match="HTTP 429"):
-        gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k")
+    waits = []
+    # The day's requests used up: not asked again.
+    post = FakeHTTP((429, {"error": {"message": "Rate limit exceeded: requests per day"}}))
+    with pytest.raises(gemini.Unavailable, match="HTTP 429"):
+        gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert len(post.calls) == 1 and waits == []
+    # A request the API refuses (400) isn't asked again either.
+    with pytest.raises(FetchError, match="HTTP 400"):
+        gemini.transcribe(FakeHTTP((400, {"error": {"message": "Invalid input"}})), "abc", 600, "x", "2026-10-26", "k",
+                          sleep=waits.append)
+    # Busy every time: asked once and again after each wait, then unavailable for now.
+    post = FakeHTTP(*[(503, {"error": {"message": "high demand"}})] * 4)
+    with pytest.raises(gemini.Unavailable, match="HTTP 503"):
+        gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert len(post.calls) == 4 and waits == list(gemini.RETRY_WAITS)
+    # Answered with nothing every time.
+    with pytest.raises(transcribe.TranscribeError, match="answered a part with nothing"):
+        gemini.transcribe(FakeHTTP(*[(200, interaction("\n"))] * 4), "abc", 600, "x", "2026-10-26", "k", sleep=lambda s: None)
+    # A meeting with no speech at all.
     with pytest.raises(transcribe.TranscribeError, match="heard nothing"):
-        gemini.transcribe(FakeHTTP((200, interaction(""))), "abc", 600, "x", "2026-10-26", "k")
+        gemini.transcribe(FakeHTTP((200, interaction("[no speech]"))), "abc", 600, "x", "2026-10-26", "k")
+
+
+def test_gemini_asks_again_while_busy_or_answering_nothing():
+    waits = []
+    post = FakeHTTP((503, {"error": {"message": "high demand"}}), (429, {"error": {"message": "too many requests a minute"}}),
+                    (200, interaction("\n")), (200, interaction("[0:00:05] Good evening.")))
+    text, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert text == "[0:00:05] Good evening.\n" and len(post.calls) == 4 and waits == list(gemini.RETRY_WAITS)
+    assert usage["requests"] == 1
+
+
+def test_gemini_asks_for_little_thinking_and_counts_its_thoughts():
+    answer = interaction("[0:00:05] Good evening.")
+    answer["usage"]["total_thought_tokens"] = 300
+    post = FakeHTTP((200, answer))
+    _, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k")
+    assert post.calls[0][1]["json"]["generation_config"]["thinking_level"] == "low"
+    # Thoughts are billed as output.
+    assert usage == {"requests": 1, "input_tokens": 1000, "output_tokens": 800}
+
+
+def test_gemini_reads_minutes_past_an_hour_and_drops_no_speech():
+    text = "[84:10] Roll call, please.\n[1:24:30] Motion carries.\n[no speech]\n[1:25:00] [inaudible]"
+    assert gemini.paragraphs(text, 4800, 6000) == [(5050.0, "Roll call, please."), (5070.0, "Motion carries.")]
+
+
+def test_a_youtube_transcript_goes_on_from_the_parts_already_answered(monkeypatch, tmp_path):
+    from pipeline.documents import LocalDocuments
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    storage = LocalDocuments(tmp_path)
+    video = {"id": "youtube-abc", "video_id": "abc", "seconds": 3000, "title": "School Committee", "date": "2026-10-26"}
+    # The first part is answered; then the day's requests run out: the video waits, and no try is counted.
+    post = FakeHTTP((200, interaction("[0:00:05] Good evening.")),
+                    (429, {"error": {"message": "Rate limit exceeded: requests per day"}}))
+    assert youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post) is None
+    kept = json.loads((tmp_path / "meetings" / "transcripts" / "youtube-abc.parts.json").read_text())
+    assert kept["parts"] == {"0": ["[0:00:05] Good evening."]} and kept["usage"]["requests"] == 1
+    # The next run asks only for the parts still missing.
+    post = FakeHTTP((200, interaction("[0:20:10] Motion to adjourn.")), (200, interaction("[0:40:00] So voted.")))
+    text, made = youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post)
+    assert text == "[0:00:05] Good evening.\n[0:20:10] Motion to adjourn.\n[0:40:00] So voted.\n"
+    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["1200s", "2400s"]
+    assert made["usage"] == {"requests": 3, "input_tokens": 3000, "output_tokens": 1500}
+
+
+def test_parts_from_another_model_are_asked_for_again():
+    done = {"model": "gemini-old", "clip": gemini.CLIP_SECONDS, "parts": {"0": ["[0:00:05] Old."]},
+            "usage": {"requests": 1, "input_tokens": 1, "output_tokens": 1}}
+    text, usage = gemini.transcribe(FakeHTTP((200, interaction("[0:00:05] New."))), "abc", 600, "x", "2026-10-26", "k",
+                                    done=done)
+    assert text == "[0:00:05] New.\n" and usage["requests"] == 1
 
 
 def test_youtube_is_the_backup():

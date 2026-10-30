@@ -16,7 +16,12 @@ robots), so:
   never in an address a log could show.
 - The transcript is Gemini's, from the video's public link
   (pipeline/gemini.py): this platform makes its own, rather than giving
-  ffmpeg and Whisper an address to read.
+  ffmpeg and Whisper an address to read. It's asked for a part at a time,
+  and the parts answered are kept in the documents bucket
+  (transcripts/<id>.parts.json) until the last is: a try stopped by an
+  error, or by Gemini being unavailable, goes on from there. Gemini
+  unavailable (the day's requests used up, or busy through every retry)
+  isn't a failed try; the video waits for the next run.
 
 Without either key, videos are found and matched, and wait to be transcribed.
 
@@ -28,6 +33,7 @@ Without either key, videos are found and matched, and wait to be transcribed.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -116,13 +122,30 @@ def media(client, source: dict, recording: dict) -> dict | None:
     return None
 
 
-def transcript(client, source: dict, recording: dict, post=requests.post) -> tuple[str, dict] | None:
-    """The video's transcript and how it was made, or None while it can't be made yet: no key, still live, or
-    its length not known."""
+def transcript(client, source: dict, recording: dict, storage=None, post=requests.post) -> tuple[str, dict] | None:
+    """The video's transcript and how it was made, or None while it can't be made yet: no key, still live, its
+    length not known, or Gemini unavailable for now (the day's requests used up, or busy). The parts answered
+    so far are kept in storage (transcripts/<id>.parts.json), so a try cut short goes on from where it
+    stopped."""
     key = gemini.api_key()
     if not key or not recording.get("seconds"):
         return None
     model = source.get("model", gemini.MODEL)
-    text, usage = gemini.transcribe(post, recording["video_id"], int(recording["seconds"]), recording["title"],
-                                    recording["date"], key, model)
+    parts = f"{recording['id']}.parts.json"
+    done = None
+    if storage is not None:
+        try:
+            done = json.loads(storage.get(recordings.TRANSCRIPT_FOLDER, parts))
+        except (OSError, FetchError, ValueError):
+            pass
+
+    def keep(done: dict) -> None:
+        if storage is not None:
+            storage.put(recordings.TRANSCRIPT_FOLDER, parts, json.dumps(done).encode("utf-8"))
+
+    try:
+        text, usage = gemini.transcribe(post, recording["video_id"], int(recording["seconds"]), recording["title"],
+                                        recording["date"], key, model, done=done, keep=keep)
+    except gemini.Unavailable:
+        return None
     return text, {"model": model, "usage": usage}
