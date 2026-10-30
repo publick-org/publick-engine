@@ -64,6 +64,8 @@ If nothing is said in this part, write only [no speech]."""
 
 # [h:mm:ss], or [m:ss] with the minutes past 59 ([84:10]) as the model sometimes writes them.
 LINE = re.compile(r"^\s*\[(\d{1,3}):(\d{2})(?::(\d{2}))?\]\s*(.*)$")
+# A time inside a line: gemini-3.8-flash has written a whole part as one line, its paragraphs' times inline.
+INLINE = re.compile(r"[ \t]*(\[\d{1,3}:\d{2}(?::\d{2})?\])")
 
 
 def api_key() -> str | None:
@@ -100,9 +102,9 @@ def output_text(response: dict) -> str:
 def paragraphs(text: str, start: int, end: int) -> list[tuple[float, str]]:
     """The part's paragraphs, each with its time in the whole recording. A time the model gave from the start of
     the part, not of the recording, is moved to the recording's; a line without a time joins the paragraph
-    before it."""
+    before it, and a time inside a line starts a paragraph."""
     found = []
-    for line in text.splitlines():
+    for line in INLINE.sub(r"\n\1", text).splitlines():
         m = LINE.match(line)
         if m:
             h, mnt, s = (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m.group(3) else (0, int(m.group(1)), int(m.group(2)))
