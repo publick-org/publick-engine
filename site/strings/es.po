@@ -2387,6 +2387,10 @@ msgstr "Por categoría y distrito"
 msgid "By district"
 msgstr "Por distrito"
 
+#: site/pages/meetings/decisions/index.html
+msgid "By meeting"
+msgstr "Por reunión"
+
 #: site/templates/category.html
 msgid "By precinct"
 msgstr "Por precinto"
@@ -4799,6 +4803,10 @@ msgstr "Alquiler mediano, al mes"
 msgid "Median, past 12 months"
 msgstr "Mediana, últimos 12 meses"
 
+#: site/templates/meeting.html
+msgid "Meeting details"
+msgstr "Detalles de la reunión"
+
 #: pipeline/freshness.py
 msgid "Meeting summaries"
 msgstr "Resúmenes de reuniones"
@@ -5852,6 +5860,10 @@ msgstr ""
 "Las solicitudes privadas y las órdenes de trabajo internas no son públicas, así que no se "
 "cuentan. Las solicitudes que luego se borran o se hacen privadas se quitan."
 
+#: site/pages/meetings/decisions/index.html
+msgid "Procedural steps"
+msgstr "Pasos de procedimiento"
+
 #: site/pages/housing/index.html
 #, python-format
 msgid ""
@@ -5973,6 +5985,10 @@ msgstr ""
 #: site/states/ct/budget.html
 msgid "Real estate"
 msgstr "Bienes raíces"
+
+#: site/pages/meetings/index.html
+msgid "Recent"
+msgstr "Recientes"
 
 #: site/pages/311/methodology/index.html
 msgid "Recent months will change as requests close."
@@ -6502,6 +6518,20 @@ msgid "Show %(count)s more meeting this week"
 msgid_plural "Show %(count)s more meetings this week"
 msgstr[0] "Ver %(count)s reunión más de esta semana"
 msgstr[1] "Ver %(count)s reuniones más de esta semana"
+
+#: site/pages/meetings/decisions/index.html
+#, python-format
+msgid "Show its %(num)s decision"
+msgid_plural "Show its %(num)s decisions"
+msgstr[0] "Mostrar su decisión (%(num)s)"
+msgstr[1] "Mostrar sus %(num)s decisiones"
+
+#: site/templates/macros.html
+#, python-format
+msgid "Show the %(count)s vote in order"
+msgid_plural "Show all %(count)s votes in order"
+msgstr[0] "Mostrar la votación (%(count)s) en orden"
+msgstr[1] "Mostrar las %(count)s votaciones en orden"
 
 #: site/templates/meeting.html
 #, python-format
@@ -8026,6 +8056,10 @@ msgstr "La licencia, y dónde están sus condiciones."
 #: site/templates/digest_email.html
 msgid "The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it."
 msgstr ""
+
+#: site/pages/meetings/decisions/index.html
+msgid "The main decisions"
+msgstr "Las decisiones principales"
 
 #: site/states/ma/budget.html
 msgid "The maximum allowable levy is the Proposition 2½ levy limit plus voter-approved debt exclusions."

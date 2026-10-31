@@ -866,6 +866,9 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "later": [m for m in upcoming if m["date"] >= week_end and not m["agenda"] and not m["preview"]
                   and not m.get("documents_url")],
         "past": past,
+        # The meetings page's "Recent": the last two weeks' meetings that were held, newest first, with what each decided.
+        "recent": [m for m in past if m["date"] >= (today - timedelta(days=14)).isoformat()
+                   and m["status"] not in ("cancelled", "postponed")][:8],
         "decided": decided,
         "boards": board_list,
         "status": status,

@@ -9,15 +9,17 @@
 {% block head %}<script src="{{ "/static/js/decisions.js" | versioned }}" defer></script>{% endblock %}
 {% block structured_data %}{% if lang == "en" and meetings.decided %}{{ structured(dataset(town.name ~ " decisions from meeting minutes", self.description(),
   canonical_url, ["/meetings/data/decisions.csv"], start=meetings.decided[-1].date, end=meetings.decided[0].date)) }}{% endif %}{% endblock %}
-{% from "macros.html" import cite, decision_rows, topic_name %}
+{% from "macros.html" import cite, decision_rows, topic_name, outcome_word %}
 {# A meeting's decisions: those residents look for, by their titles, and the routine ones folded, where the summary
    says which are which (main_and_routine); otherwise the first few, and the rest folded. #}
-{% macro decision_list(m, items, shown, fmt="decision", english=false, terms=none) -%}
+{% macro decision_list(m, items, shown, fmt="decision", english=false, terms=none, fold=true) -%}
 {% set groups = main_and_routine(items) %}
-{% set first = groups[0] if groups[1] else items[:shown] %}
-{% set rest = groups[1] if groups[1] else items[shown:] %}
+{% set first = groups[0] if groups[1] or not fold else items[:shown] %}
+{% set rest = groups[1] if groups[1] or not fold else items[shown:] %}
 {{ decision_rows(m.minutes_doc, first, english, terms, fmt, titled=true) }}
-{% if rest %}
+{% if rest and not fold %}
+{{ decision_rows(m.minutes_doc, rest, english, terms, fmt) }}
+{% elif rest %}
 <details class="expand">
   <summary>{% if fmt == "recommendation" %}
   {# Translators: the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more. #}
@@ -54,6 +56,20 @@
   <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {{ report_button(report_link(page_url, "Decisions page"), _("Report an error in a decision")) }}
 </div>
+{# The main decisions of the latest two months, by their titles (Decision.main, Decision.title), newest first: what
+   residents are most likely to look for, before every meeting's own. #}
+{% set mains = [] %}
+{% for month, items in group_by(meetings.decided, "month")[:2] %}{% for m in items %}{% for d in m.decisions.decided %}{% if d.main is defined and d.main and d.title %}{% set __ = mains.append((m, d)) %}{% endif %}{% endfor %}{% endfor %}{% endfor %}
+{% if mains %}
+<h2 id="main">{{ _("The main decisions") }}</h2>
+<ul class="decision-rows main-decisions">
+  {% for m, d in mains %}
+  <li{% if d.topic %} data-topic="{{ d.topic }}"{% endif %}><span class="outcome">{{ outcome_word(d.outcome) }}{% if d.tally %} <span class="tally">{{ d.tally }}</span>{% endif %}</span>
+    <span class="decision-text"><strong class="decision-title"{% if m.decisions_english %} lang="en"{% endif %}>{{ d.title }}</strong> <span class="decision-detail"><a href="{{ m.url }}#minutes">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time></span></span></li>
+  {% endfor %}
+</ul>
+<h2 id="by-meeting">{{ _("By meeting") }}</h2>
+{% endif %}
 {# The latest two months in full; each earlier one folded under its name, with how many meetings it has, so the page
    stays short however many months it has. #}
 {% for month, items in group_by(meetings.decided, "month") %}
@@ -74,21 +90,34 @@
     {% else %}
     <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time> · <a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes") }}</a> · {{ checked_short(how_checked(m.minutes_summary, "minutes")) }}</p>
     {% endif %}
+    {# A meeting whose summary says which decisions are main is one line, what it decided, with its decisions a tap
+       away: its main ones are above. Otherwise its first few decisions are shown, the rest folded. #}
+    {% set labeled = (ds.decided + ds.recommended) | selectattr("main", "sameas", true) | list %}
+    {% set n = ds.decided | length + ds.recommended | length + ds.procedural | length %}
+    {% if labeled and m.preview_line %}
+    <p class="meeting-headline">{{ m.preview_line }}</p>
+    <details class="expand meeting-decisions">
+      <summary>{% trans count=n, num=n | number %}Show its {{ num }} decision{% pluralize %}Show its {{ num }} decisions{% endtrans %}</summary>
+    {% endif %}
     {% if ds.decided %}
     {# Each term's first use on the page linked to the glossary, of the terms this meeting's board uses. #}
     {% set terms = gloss.for_meeting(m) %}
-    {{ decision_list(m, ds.decided, 5, english=m.decisions_english, terms=terms) }}
+    {{ decision_list(m, ds.decided, 5, english=m.decisions_english, terms=terms, fold=not labeled) }}
     {% endif %}
     {% if ds.recommended %}
     <p class="decision-label">{{ _("Committee recommendations to the City Council") }}</p>
-    {{ decision_list(m, ds.recommended, 3 if ds.decided else 5, "recommendation", m.decisions_english, gloss.for_meeting(m)) }}
+    {{ decision_list(m, ds.recommended, 3 if ds.decided else 5, "recommendation", m.decisions_english, gloss.for_meeting(m), fold=not labeled) }}
     {% endif %}
-    {% if ds.procedural %}
+    {% if ds.procedural and labeled %}
+    <p class="decision-label">{{ _("Procedural steps") }}</p>
+    {{ decision_rows(m.minutes_doc, ds.procedural, m.decisions_english) }}
+    {% elif ds.procedural %}
     <details class="expand">
       <summary>{% trans count=ds.procedural | length, num=ds.procedural | length | number %}{{ num }} procedural step: minutes, continuances, referrals{% pluralize %}{{ num }} procedural steps: minutes, continuances, referrals{% endtrans %}</summary>
       {{ decision_rows(m.minutes_doc, ds.procedural, m.decisions_english) }}
     </details>
     {% endif %}
+    {% if labeled and m.preview_line %}</details>{% endif %}
   </li>
   {% endfor %}
 </ul>
