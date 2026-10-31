@@ -203,9 +203,19 @@ def path(data_dir: Path, lang: str, sha256: str) -> Path:
     return data_dir / "summaries" / lang / f"{sha256}.json"
 
 
+# Lists of a summary: translated entry by entry.
+LISTS = ("items", "decisions", "discussion", "decision_titles")
+
+
+def fields(kind: str, record: dict | None = None) -> tuple:
+    """The parts of a summary of this kind that are translated: FIELDS, and its decisions' titles where it has
+    them (summarize.DECISION_LABELS), so a summary made before them is translated as it was."""
+    return FIELDS[kind] + (("decision_titles",) if kind != "agenda" and (record or {}).get("decision_titles") else ())
+
+
 def english(record: dict, kind: str) -> dict:
     """The parts of an English summary that are shown, and so translated."""
-    return {field: record.get(field) or ([] if field in ("items", "decisions", "discussion") else "") for field in FIELDS[kind]}
+    return {field: record.get(field) or ([] if field in LISTS else "") for field in fields(kind, record)}
 
 
 def source_hash(record: dict, kind: str) -> str:
@@ -294,7 +304,7 @@ PREVIOUS = ("source_hash", "check", "review", "model", "prompt_version", "glossa
 
 
 def previous_of(found: dict, kind: str) -> dict:
-    return {key: found[key] for key in (*FIELDS[kind], *PREVIOUS) if key in found}
+    return {key: found[key] for key in (*FIELDS[kind], "decision_titles", *PREVIOUS) if key in found}
 
 
 def what_failed(data_dir: Path, found: dict, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> str | None:
@@ -654,7 +664,7 @@ def check(source: dict, translated: dict, kind: str, lang: str = "es", words: fr
     glossary's words are ordinary too), what happened turned round (outcome()), or a term of the
     town's glossary (terms: glossary.entries()) not written as it gives it (terms_kept())."""
     words = words | glossary_words(terms)
-    for field in FIELDS[kind]:
+    for field in source:
         en, tr = source[field], translated.get(field)
         if isinstance(en, list):
             if not isinstance(tr, list) or len(tr) != len(en):
@@ -762,10 +772,12 @@ def board_names(names: dict[str, str], lang: str, board: str, source: dict) -> s
     return "".join(f"{line}\n" for line in lines)
 
 
-def schema(kind: str) -> dict:
-    props = {field: ({"type": "array", "items": {"type": "string"}} if field in ("items", "decisions", "discussion") else {"type": "string"})
-             for field in FIELDS[kind]}
-    return {"type": "object", "properties": props, "required": list(FIELDS[kind]), "additionalProperties": False}
+def schema(kind: str, names: tuple | None = None) -> dict:
+    """What the model returns: the summary's translated parts (names, or FIELDS)."""
+    names = names or FIELDS[kind]
+    props = {field: ({"type": "array", "items": {"type": "string"}} if field in LISTS else {"type": "string"})
+             for field in names}
+    return {"type": "object", "properties": props, "required": list(names), "additionalProperties": False}
 
 
 def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
@@ -781,7 +793,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
                            boards=board_names(names, lang, meeting["body"], source),
                            summary=json.dumps(source, ensure_ascii=False, indent=1))
     if previous:
-        prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in FIELDS[kind]}, ensure_ascii=False, indent=1),
+        prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in source}, ensure_ascii=False, indent=1),
                                  problems=problems)
     response = client.messages.create(
         model=settings(config)["model"],
@@ -789,7 +801,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
         system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
                                     glossary=glossary_text(glossary.entries(config), lang))),
         messages=[{"role": "user", "content": prompt}],
-        output_config=output_config(config, schema(kind)),
+        output_config=output_config(config, schema(kind, tuple(source))),
     )
     usage = usage_of(response)
     if on_response:
@@ -848,11 +860,11 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     checked = check(source, result, kind, lang, town_words(data_dir), terms)
     reviewed, review_cost = "not reviewed: the check failed", 0.0
     if checked == "ok":
-        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in FIELDS[kind]],
+        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in source],
                                                cost, log, doc["sha256"])
         reviewed = "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok"
     out = {
-        **{field: result.get(field) for field in FIELDS[kind]},
+        **{field: result.get(field) for field in source},
         "language": lang,
         "kind": kind,
         "source_sha256": doc["sha256"],
@@ -881,7 +893,7 @@ def review_again(client, config: dict, data_dir: Path, lang: str, kind: str, doc
     or why it couldn't be made, again), one more review_retries, and what it cost; a translation saved
     earlier in the same month carries what that one cost (replaced_cost), as make() does."""
     source = english(record, kind)
-    problems, paid = review_meaning(client, config, lang, [(f, source[f], before.get(f)) for f in FIELDS[kind]],
+    problems, paid = review_meaning(client, config, lang, [(f, source[f], before.get(f)) for f in source],
                                     cost, log, doc["sha256"])
     earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
                if before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)

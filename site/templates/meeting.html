@@ -33,7 +33,7 @@
 <h3 id="discussed">{{ _("What was discussed") }}</h3>
 {% if not primary %}<p class="small">{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endif %}
 <div class="discussion"{{ english_attr(rs) }}>
-  {% for d in rs.discussion %}<p>{{ gloss(d, rs.get("english")) }}</p>{% endfor %}
+  {% for d in rs.discussion %}{% set parts = discussion_parts(d) %}<p>{% if parts[0] %}<strong>{{ parts[0] }}.</strong> {% endif %}{{ gloss(parts[1], rs.get("english")) }}</p>{% endfor %}
 </div>
 {% endif %}
 {% if primary or rs.get("discussion") %}
