@@ -4,6 +4,7 @@ was discussed; after, what was discussed, under the minutes'. And a link to the 
 import copy
 import hashlib
 import json
+import re
 import shutil
 
 import pytest
@@ -68,17 +69,19 @@ def test_before_the_minutes_the_recording_is_what_was_decided(built):
     assert "From the meeting&#39;s recording. The official minutes come later" in decided or \
         "From the meeting's recording. The official minutes come later" in decided
     assert "Decisions heard in the recording" in decided
-    assert "Approved a $1.5 million supplemental appropriation for the Fire Department, 10-0" in decided
+    # Each decision a row: its outcome and the vote count it ends with beside it, then the decision without the count.
+    assert re.search(r'<span class="outcome">Approved <span class="tally">10–0</span></span>\s*'
+                     r'<span class="decision-text">A \$1.5 million supplemental appropriation for the Fire Department\.<', decided)
     assert "Residents asked the council to keep the Flock camera pause in place." in decided
     assert "Checked against the transcript." in decided
-    assert "Machine transcript</a>, as made, not corrected" in decided
-    assert "(1 h 13 min)" in decided
-    # A button to the recording, beside the documents'.
-    actions = section(page, '<div class="actions">', "</div>")
-    assert 'button" href="https://videoplayer.telvue.com/player/x/media/1"' in actions and "Watch the recording" in actions
+    # The recording, its length, and its machine transcript, in the line of links under the date.
+    links = section(page, '<p class="doc-links">', "</p>")
+    assert 'href="https://videoplayer.telvue.com/player/x/media/1"' in links and "Recording" in links
+    assert '<span class="runtime">(1 h 13 min)</span>' in links
+    assert ">Machine transcript</a>" in links and "telvue-1.txt" in links
     assert (out / "meetings" / "transcripts" / "telvue-1.txt").read_text() == f"{TRANSCRIPT}1"
     es = (out / "es" / "meetings" / before["slug"] / "index.html").read_text()
-    assert "Decisiones que se oyen en la grabación" in es and "Ver la grabación" in es
+    assert "Decisiones que se oyen en la grabación" in es and "Grabación" in es[es.index('<p class="doc-links">'):] and ">Aprobado <span" in es
 
 
 def test_after_the_minutes_what_was_discussed_stays_under_them(built):
@@ -91,8 +94,8 @@ def test_after_the_minutes_what_was_discussed_stays_under_them(built):
     # What was discussed, after the minutes'.
     assert decided.index("Decisions recorded") < decided.index('<h3 id="discussed">What was discussed</h3>')
     assert "Residents asked the council to keep the Flock camera pause in place." in decided
-    actions = section(page, '<div class="actions">', "</div>")
-    assert 'href="https://videoplayer.telvue.com/player/x/media/2"' in actions and "Watch the recording" in actions
+    links = section(page, '<p class="doc-links">', "</p>")
+    assert 'href="https://videoplayer.telvue.com/player/x/media/2"' in links and "Recording" in links
 
 
 def test_the_decisions_page_lists_a_recordings_decisions_until_the_minutes(built):
@@ -102,7 +105,7 @@ def test_the_decisions_page_lists_a_recordings_decisions_until_the_minutes(built
     entry = entry[:entry.index("</li>\n  \n  <li") if "</li>\n  \n  <li" in entry else len(entry)]
     assert 'href="https://videoplayer.telvue.com/player/x/media/1"' in entry and "From the recording" in entry
     assert "Checked against the recording&#39;s transcript" in entry or "Checked against the recording's transcript" in entry
-    assert "supplemental appropriation for the Fire Department, 10-0" in entry
+    assert "supplemental appropriation for the Fire Department." in entry and '<span class="tally">10–0</span>' in entry
     rows = (out / "meetings" / "data" / "decisions.csv").read_text().splitlines()
     assert rows[0] == "meeting_date,board,kind,decision,meeting_url,minutes_url,source,recording_url"
     assert any("Fire Department" in r and r.endswith(",recording,https://videoplayer.telvue.com/player/x/media/1") for r in rows)

@@ -1078,7 +1078,7 @@ def test_decisions_fold_earlier_months(site_dir):
 
 def test_a_long_agenda_shows_its_first_items(tmp_path):
     """An agenda's items past ten are a tap away: the first eight, then "Show N more items"; ten or fewer are all
-    shown."""
+    shown. After a meeting whose decisions are shown, all of them are a tap away."""
     import shutil
     from conftest import BUILT_AT, DATA_DIR
     data = tmp_path / "data"
@@ -1086,17 +1086,22 @@ def test_a_long_agenda_shows_its_first_items(tmp_path):
     long = None
     for path in sorted((data / "summaries").glob("*.json")):
         rec = json.loads(path.read_text())
-        if rec.get("kind") == "agenda" and rec.get("items") and not long:
+        if rec.get("kind") == "agenda" and rec.get("items"):
             rec["items"] = [f"Item number {n}" for n in range(1, 13)]
             path.write_text(json.dumps(rec))
             long = True
+    assert long
     build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
     pages = [p.read_text() for p in (tmp_path / "site" / "meetings").glob("20*/index.html") if "Item number 12" in p.read_text()]
-    assert pages
-    page = pages[0]
-    shown, rest = page.split('<details class="expand more-items">')
+    undecided = [p for p in pages if 'class="decision-rows"' not in p]
+    decided = [p for p in pages if 'class="decision-rows"' in p]
+    assert undecided and decided
+    shown, rest = undecided[0].split('<details class="expand more-items">')
     assert "Item number 8<" in shown and "Item number 9<" not in shown
     assert "<summary>Show 4 more items</summary>" in rest and "Item number 9<" in rest and "Item number 12<" in rest
+    shown, rest = decided[0].split('<details class="expand more-items">')
+    assert "Item number 1<" not in shown
+    assert "<summary>Show the agenda's 12 items</summary>" in rest and "Item number 1<" in rest and "Item number 12<" in rest
 
 
 def test_dates_this_year_leave_out_the_year():
