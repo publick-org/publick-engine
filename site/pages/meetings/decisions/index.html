@@ -8,11 +8,9 @@
 {# The download as a dataset for dataset search, once, on the English page. #}
 {% block structured_data %}{% if lang == "en" and meetings.decided %}{{ structured(dataset(town.name ~ " decisions from meeting minutes", self.description(),
   canonical_url, ["/meetings/data/decisions.csv"], start=meetings.decided[-1].date, end=meetings.decided[0].date)) }}{% endif %}{% endblock %}
-{% from "macros.html" import cite %}
+{% from "macros.html" import cite, decision_rows %}
 {% macro decision_list(m, items, shown, fmt="decision", english=false, terms=none) -%}
-<ul{% if english %} lang="en"{% endif %}>
-  {% for d in items[:shown] %}<li>{{ terms((d | recommendation) if fmt == "recommendation" else (d | decision), english) }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
-</ul>
+{{ decision_rows(m.minutes_doc, items[:shown], english, terms, fmt) }}
 {% if items | length > shown %}
 <details class="expand">
   <summary>{% if fmt == "recommendation" %}
@@ -22,9 +20,7 @@
   {# Translators: the label that shows a meeting's other decisions; %(count)s is how many, 1 or more. #}
   {% trans count=items | length - shown %}{{ count }} more decision{% pluralize %}{{ count }} more decisions{% endtrans %}
   {% endif %}</summary>
-  <ul{% if english %} lang="en"{% endif %}>
-    {% for d in items[shown:] %}<li>{{ terms((d | recommendation) if fmt == "recommendation" else (d | decision), english) }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
-  </ul>
+  {{ decision_rows(m.minutes_doc, items[shown:], english, terms, fmt) }}
 </details>
 {% endif %}
 {%- endmacro %}
@@ -75,9 +71,7 @@
     {% if ds.procedural %}
     <details class="expand">
       <summary>{% trans count=ds.procedural | length, num=ds.procedural | length | number %}{{ num }} procedural step: minutes, continuances, referrals{% pluralize %}{{ num }} procedural steps: minutes, continuances, referrals{% endtrans %}</summary>
-      <ul>
-        {% for d in ds.procedural %}<li>{{ d }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
-      </ul>
+      {{ decision_rows(m.minutes_doc, ds.procedural, m.decisions_english) }}
     </details>
     {% endif %}
   </li>

@@ -359,12 +359,89 @@ def tidy_recommendation(text: str) -> str:
 
 class Decision(str):
     """A decision's text as shown, with the page of the minutes its quote was found on and the quote
-    (factcheck.shown()'s "decision_pages"), or None for each."""
+    (factcheck.shown()'s "decision_pages"), or None for each; its outcome (factcheck.OUTCOMES, or None
+    where it isn't known); and its vote count where the text ends with one ("7–0"), with the text
+    before it ("body"), for the pages to say the outcome and the count beside the decision."""
 
-    def __new__(cls, text: str, page: int | None = None, quote: str | None = None):
+    def __new__(cls, text: str, page: int | None = None, quote: str | None = None, outcome: str | None = None):
         decision = super().__new__(cls, text)
-        decision.page, decision.quote = page, quote
+        decision.page, decision.quote, decision.outcome = page, quote, outcome
+        decision.body, decision.tally = split_tally(text)
         return decision
+
+
+# A vote count at the end of a decision: "…, 7-0." or "… (3–0)". Two counts of at most two digits that
+# add up to no more than a board's seats, so a paper number ("26-142") or a date isn't taken for one.
+TALLY_END = re.compile(r"(?:,\s*|\s+)\(?(\d{1,2})[-–](\d{1,2})\)?\.?$")
+MAX_SEATS = 30
+
+
+def split_tally(text: str) -> tuple[str, str | None]:
+    """A decision's text without the vote count it ends with, and the count ("7–0"); or the text and None."""
+    match = TALLY_END.search(text)
+    if not match or int(match.group(1)) + int(match.group(2)) > MAX_SEATS:
+        return text, None
+    body = text[:match.start()].rstrip(" ,;")
+    if not body:
+        return text, None
+    return (body if body[-1] in ".!?" else body + "."), f"{match.group(1)}–{match.group(2)}"
+
+
+# The verb a decision in English starts with, for each outcome: said once, beside it, it's left off the text
+# ("Approved | The Comcast grant of location …").
+OUTCOME_VERBS = {"approved": "Approved", "denied": "Denied", "tabled": "Tabled", "continued": "Continued",
+                 "referred": "Referred", "recommended": "Recommended", "withdrawn": "Withdrew"}
+
+
+def without_outcome_verb(text: str, outcome: str | None, english: bool = False) -> str:
+    """A decision in English without the verb its outcome, said beside it, already says; any other text as it is.
+    english: the text is in English on another language's page."""
+    verb = OUTCOME_VERBS.get(outcome or "")
+    if not verb or not (english or i18n.language() == "en") or not text.startswith(verb + " "):
+        return text
+    rest = text[len(verb) + 1:]
+    return rest[:1].upper() + rest[1:]
+
+
+# A decision's outcome read from its first words, for one summarized before summaries gave each decision's
+# outcome (decision_evidence): the English decision, which leads with its verb ("Approved …", "Tabled …").
+OUTCOME_LEADS = [(re.compile(p, re.I), outcome) for p, outcome in (
+    (r"^(?:voted (?:\d+[-–]\d+ |unanimously )?to )?(?:approv|adopt|passed|accept|grant|authoriz|award|appoint"
+     r"|reappoint|confirm|elect|ratif|ordain|enact)", "approved"),
+    (r"^(?:voted (?:\d+[-–]\d+ )?)?(?:not to approve|denied|rejected|failed|defeated)", "denied"),
+    (r"^(?:voted (?:\d+[-–]\d+ )?to )?(?:tabled|table|postponed)", "tabled"),
+    (r"^(?:voted (?:\d+[-–]\d+ )?to )?continu", "continued"),
+    (r"^(?:voted (?:\d+[-–]\d+ )?to )?refer", "referred"),
+    (r"^withdr[ae]w", "withdrawn"),
+)]
+
+
+def outcome_from_text(english: str) -> str | None:
+    """A decision's outcome from its English text's first words, or None where they don't say one plainly."""
+    if decision_kind(english) == "recommended":
+        return "recommended"
+    return next((outcome for pattern, outcome in OUTCOME_LEADS if pattern.search(english.strip())), None)
+
+
+def decisions_shown(shown: dict, english: dict | None, raw: dict | None) -> list[Decision]:
+    """A summary's decisions as shown (shown: factcheck.shown()'s), each a Decision with its page and quote,
+    and its outcome: the summary's own (decision_evidence), as the fact check leaves it, or read from the
+    English decision where the summary doesn't give one."""
+    texts = shown["decisions"]
+    cited = shown.get("decision_pages") or [[None, None]] * len(texts)
+    outcomes = shown.get("decision_outcomes")
+    evidence = (raw or {}).get("decision_evidence") or []
+    if outcomes is None and raw and not raw.get("fact_check") and len(evidence) == len(texts):
+        outcomes = [(e or {}).get("outcome") for e in evidence]
+    in_english = (english or {}).get("decisions") or []
+    if len(in_english) != len(texts):
+        in_english = [None] * len(texts)
+    if not outcomes or len(outcomes) != len(texts):
+        # None from the summary is one the fact check questioned, and stays unsaid; read from the text only
+        # where the summary gives no outcomes.
+        outcomes = [outcome_from_text(en) if en else None for en in in_english]
+    return [Decision(text, page, quote, outcome if outcome in factcheck.OUTCOMES else None)
+            for text, (page, quote), outcome in zip(texts, cited, outcomes)]
 
 
 # Hosts whose links open a viewer, not the PDF itself, so a link to a page (#page=3) does nothing there.
@@ -659,10 +736,11 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
                                                  rs_raw, "recording")
         english["recording_summary"] = factcheck.shown(rs_raw, rs_raw, "recording")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
-        if ms and ms.get("decisions"):
-            # Each with the page of the minutes it was found on, where it's known, for the pages to cite.
-            cited = ms.get("decision_pages") or [[None, None]] * len(ms["decisions"])
-            ms["decisions"] = [Decision(d, page, q) for d, (page, q) in zip(ms["decisions"], cited)]
+        # Each decision with the page of the minutes it was found on, where it's known, for the pages to cite,
+        # and its outcome, for them to say beside it.
+        for shown, en, raw in ((ms, ms_en, ms_raw), (m["recording_summary"], english["recording_summary"], rs_raw)):
+            if shown and shown.get("decisions"):
+                shown["decisions"] = decisions_shown(shown, en, raw)
         # The meeting's decisions, for the decisions page and the digest: the minutes', or until they're summarized,
         # those heard in the recording ("decisions_from").
         m["decisions_from"] = None
@@ -675,7 +753,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m["decisions_from"] = "recording"
             rs_en, rs = english["recording_summary"], m["recording_summary"]
             for d, shown in zip(rs_en.get("decisions", []), rs.get("decisions", [])):
-                sorted_decisions[decision_kind(d)].append(Decision(shown, None, None))
+                sorted_decisions[decision_kind(d)].append(shown)
         m["decisions"] = sorted_decisions
         # Whether the decisions are shown in English on another language's page.
         source = ms if m["decisions_from"] == "minutes" else m["recording_summary"] if m["decisions_from"] else None
@@ -736,6 +814,10 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         "all": meetings,
         "upcoming": upcoming,
         "this_week": [m for m in upcoming if m["date"] < week_end],
+        # On the meetings page, a meeting after this week with no agenda yet is one short line, under "Later";
+        # the rest are listed by day.
+        "later": [m for m in upcoming if m["date"] >= week_end and not m["agenda"] and not m["preview"]
+                  and not m.get("documents_url")],
         "past": past,
         "decided": decided,
         "boards": board_list,
@@ -1367,6 +1449,10 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
                        recommendation=lambda t: decision_text(tidy_recommendation(t)))
     env.globals["english_attr"] = english_attr
+    # A decision's text and the vote count it ends with, for the count to be said beside it (macros.html decision_rows).
+    env.globals["split_tally"] = split_tally
+    env.globals["without_outcome_verb"] = without_outcome_verb
+    env.globals["tidy_recommendation"] = tidy_recommendation
     env.globals["how_checked"] = factcheck.how_checked
     env.filters["english"] = in_english
     # Text for a search result's description: one line, plain, at most limit characters (clip).

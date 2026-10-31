@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, search_form %}
+{% from "macros.html" import calendar_behind_note, day_group, search_form, meeting_flags %}
 {% block title %}{{ _("Meetings") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} public meetings and agendas{% endtrans %}{% endblock %}
@@ -16,7 +16,17 @@
 <h2 id="upcoming">{{ pgettext("meetings", "Upcoming") }}</h2>
 {% if meetings.calendar_behind %}{{ calendar_behind_note(meetings.calendar_behind, meeting_links) }}{% endif %}
 {% if meetings.upcoming %}
-{% for day, items in group_by(meetings.upcoming, "date") %}{{ day_group(day, items) }}{% endfor %}
+{% set later = meetings.later %}
+{% for day, items in group_by(meetings.upcoming | reject("in", later) | list, "date") %}{{ day_group(day, items) }}{% endfor %}
+{% if later %}
+{# Meetings after this week with no agenda yet: one short line each, the date, the time, and the board. #}
+<h3 id="later">{{ _("Later, no agenda yet") }}</h3>
+<ul class="later-list">
+  {% for m in later %}
+  <li><time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time><span class="later-time">{% if m.start_time %}{{ m.start_time | time }}{% else %}{{ _("Time TBA") }}{% endif %}</span><a href="{{ m.url }}">{{ m.body if not m.get("same_day") else m.title }}</a>{% set flags = meeting_flags(m) %}{% if flags %} <span class="meeting-meta">{{ flags }}</span>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
 {% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No upcoming meetings are listed on the city calendar right now.") }}{% else %}{{ _("No upcoming meetings are listed right now.") }}{% endif %}</p>
 {% endif %}
@@ -31,7 +41,7 @@
 {#- Translators: %(name)s is the city's page of every board's documents, such as "town's Minutes & Agendas page". #}
 {%- if meeting_links.documents_page %} {% trans url=meeting_links.documents_page, name=meeting_links.archive_name %}Agendas and minutes from the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}{% endif %}
 {#- Translators: %(name)s is a school district, such as "Wallingford Public Schools". #}
-{%- for school in meeting_links.schools %} {% trans url=school.url, name=school.name %}School board meetings from the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}{% endfor %}
+{%- for school in meeting_links.schools | unique(attribute="name") %} {% trans url=school.url, name=school.name %}School board meetings from the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}{% endfor %}
  {{ _("Community events are left out.") }}{% if meetings.status %} {% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}</p>
 
 {% endblock %}

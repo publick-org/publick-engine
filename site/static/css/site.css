@@ -142,17 +142,14 @@ main { display: block; padding: 1rem 0 3rem; }
   padding: 0.75rem 1rem; border-left: 4px solid var(--warn-line);
   background: var(--warn-bg); color: var(--warn-text);
 }
-.credit { margin: 1.25rem 0; padding-left: 0.75rem; border-left: 3px solid var(--line); color: var(--muted); font-size: 0.875rem; }
+/* The note under an AI summary: one quiet paragraph, with the way to report an error as a plain link. */
+.credit { margin: 1.25rem 0; color: var(--muted); font-size: 0.875rem; }
 /* The credit line the About page asks reusers to copy. */
 .credit-example { margin: 0.75rem 0 1rem; padding: 0.6rem 0.9rem; border-left: 3px solid var(--line-strong); background: var(--soft); }
 .credit-example p { margin: 0; }
 .credit p { margin: 0; }
-.report-link {
-  display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.75rem; margin-top: 0.5rem; padding: 0 0.85rem;
-  border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink); font-size: 0.875rem; font-weight: 600; text-decoration: none;
-}
-.report-link svg { color: var(--accent); flex: none; }
-.report-link:hover { border-color: var(--accent); color: var(--accent); text-decoration: underline; }
+.report-link { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 2.75rem; color: var(--primary); font-size: 0.875rem; }
+.report-link svg { color: var(--muted); flex: none; }
 .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; margin: 2.25rem 0 0.5rem; }
 .section-head h2 { margin: 0; }
 .link-row { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0.6rem 0 0; padding: 0; list-style: none; font-size: 0.9rem; }
@@ -294,6 +291,30 @@ main .decision-list > li { max-width: none; margin: 0; }
 .decision-meeting details.expand { margin-top: 0.5rem; border-top: 0; padding: 0; }
 /* A decision's page in its minutes, after it ("p. 3", macros.html cite): kept on one line. */
 .cite { font-size: 0.875em; white-space: nowrap; }
+
+/* A meeting's decisions, one a row: the outcome and vote count in a narrow column, then the decision (macros.html
+   decision_rows), like the time column of a list of meetings. */
+.decision-rows { margin: 0.4rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.1rem 1rem; max-width: 46rem; margin: 0; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+.decision-rows .outcome { font-weight: 600; font-size: 0.9375rem; }
+.decision-rows .tally { font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.decision-text { min-width: 0; }
+.decision-meeting .decision-rows { padding-left: 0; }
+@media (max-width: 30rem) {
+  main .decision-rows > li { grid-template-columns: 1fr; }
+  .decision-rows .outcome:empty { display: none; }
+}
+/* A meeting's documents under its date: one line of links (meeting.html). */
+.doc-links { margin: 0.4rem 0 0; font-size: 0.9375rem; }
+/* Meetings after this week with no agenda yet, one short line each (meetings/index.html). */
+.later-list { margin: 0.25rem 0 0; padding: 0; list-style: none; font-size: 0.9375rem; }
+main .later-list > li { display: grid; grid-template-columns: 5.5rem 5.5rem 1fr; gap: 0 0.75rem; margin: 0; padding: 0.3rem 0; align-items: baseline; }
+.later-list time, .later-time { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+@media (max-width: 30rem) { main .later-list > li { grid-template-columns: 4.5rem 1fr; } .later-time { grid-column: 2; grid-row: 2; font-size: 0.875rem; } }
+.doc-links .sep, .doc-links .runtime { color: var(--muted); }
+/* A summary's opening paragraph, and the debate heard in a recording. */
+p.summary { font-size: 1.125rem; line-height: 1.55; }
+.discussion p { margin: 0 0 0.75rem; }
 .decision-label { margin: 0.9rem 0 0.2rem; color: var(--ink-soft); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 
 .board-list { margin: 0; padding: 0; list-style: none; columns: 1; }
