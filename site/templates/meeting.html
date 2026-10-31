@@ -145,7 +145,7 @@
   {% for r in m.recordings %}
   {# Translators: %(n)s is which recording of the meeting this is, when it was recorded in parts: "Recording 2". #}
   {% set __ = links.append({"url": r.url, "label": _("Recording %(n)s", n=loop.index) if m.recordings | length > 1 else _("Recording"),
-                            "runtime": r.seconds | runtime if r.seconds else none}) %}
+                            "runtime": r.seconds | runtime if r.get("seconds") else none}) %}
   {% endfor %}
   {% endif %}
   {% if m.minutes_doc %}{% set __ = links.append({"url": document_url('minutes', m.minutes_doc.file) if m.minutes_doc.get('converted_from') else m.minutes_doc.source_url, "label": _("Minutes (PDF)")}) %}{% endif %}
