@@ -235,7 +235,8 @@ Return:
         # after, until its minutes come and are summarized instead. Its decisions as the minutes' are, each
         # with the transcript's own words for it, checked against the transcript (pipeline/factcheck.py).
         # Version 2: each decision with a title, main or routine, and a topic, as the minutes' (version 5).
-        "version": 2,
+        # Version 3: each matter discussed starts with a short name for it ("Law Department funding: ...").
+        "version": 3,
         "folder": "transcripts",
         # The document is text (the transcript), not a PDF.
         "text": True,
@@ -257,7 +258,7 @@ Return:
   - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 7-3" or "Referred ... to the Finance Subcommittee").
   - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other.
   - quote: the transcript's own words that record this decision, copied exactly, character for character, without the times in brackets: the motion and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the transcript's words.""" + DECISION_LABELS + """
-- discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed and the views raised, without saying who raised them. An empty list if there was little discussion.""",
+- discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed and the views raised, without saying who raised them. Start each with a short name for the matter, of at most 5 words, then a colon (for example "Law Department funding: Members debated whether ..."). An empty list if there was little discussion.""",
         "schema": {
             "type": "object",
             "properties": {

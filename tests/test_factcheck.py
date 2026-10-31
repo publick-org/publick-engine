@@ -283,6 +283,23 @@ def test_counts_written_with_names_or_in_words_and_figures():
     assert factcheck.votes_for_against("Yea: Alderman Gregg $1,500 Nay: 0") is None
 
 
+def test_a_count_the_chair_says_in_a_recording():
+    # Medford's City Council, as its recording's transcript has it.
+    assert factcheck.document_votes("Seven in the affirmative, none in the negative. The motion passes.") == {(7, 0)}
+    assert factcheck.document_votes("Six affirmative, one of the negative, the motion passes.") == {(6, 1)}
+    assert factcheck.document_votes("7, the affirmative none, the negative, the motion passes.") == {(7, 0)}
+    # A misheard word isn't a count.
+    assert factcheck.document_votes("Assembly affirmative, none of the negative of the motion passes.") == set()
+    doc = ("[0:41:12] On the motion of Councillor Seng to approve the comment letter, seconded by Councillor Scarpelli. "
+           "Six affirmative, one of the negative, the motion passes. [0:41:30] Next item.")
+    record = {"kind": "recording", "headline": "", "summary": "",
+              "decisions": ["Approved sending a comment letter to the MWRA, 6-1.", "Approved the letter, 7-0."],
+              "decision_evidence": [{"outcome": "approved", "quote": "On the motion of Councillor Seng to approve the comment "
+                                     "letter, seconded by Councillor Scarpelli. Six affirmative, one of the negative, the motion passes."}] * 2}
+    tallies = [(p["entry"], p["what"]) for p in factcheck.check(record, "recording", [doc])["problems"] if p["kind"] == "tally"]
+    assert tallies == [(2, "7-0")]
+
+
 def test_a_motion_held_to_the_next_meeting_is_continued():
     # Salem's City Council: an appointment held under its rules.
     doc = ("#404 Appointment of Alphonse Wright to the Food Policy Council The Mayor's Appointment of Alphonse Wright "

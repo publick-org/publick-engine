@@ -218,3 +218,29 @@ def test_the_meetings_page_lists_the_last_two_weeks(site_dir):
     recent = page[page.index('<h2 id="recent">Recent</h2>'):page.index('href="/meetings/past/"')]
     days = re.findall(r'<time datetime="(2026-\d\d-\d\d)">', recent)
     assert days and days == sorted(days, reverse=True) and min(days) >= "2026-09-18" and max(days) < "2026-10-02"
+
+
+def test_a_matter_discussed_is_named_first():
+    assert build_site.discussion_parts("Law Department funding: Members debated whether to keep funding it.") == \
+        ("Law Department funding", "Members debated whether to keep funding it.")
+    # A summary from before matters were named, or a colon later in a sentence, is shown as it is.
+    text = "Members discussed the city charter. A legal opinion said: it took effect."
+    assert build_site.discussion_parts(text) == (None, text)
+    assert build_site.discussion_parts("A very long first clause that runs on and on for words: then more.")[0] is None
+
+
+def test_a_translations_own_titles_are_kept():
+    from pipeline import translate
+    record = labeled()
+    # Titles are translated with the summary, and only where it has them.
+    assert translate.fields("minutes", record)[-1] == "decision_titles"
+    assert "decision_titles" not in translate.fields("minutes", {"decisions": ["Approved X."]})
+    assert translate.english(record, "minutes")["decision_titles"] == record["decision_titles"]
+    translated = {"kind": "minutes", "headline": "Otro", "summary": "",
+                  "decisions": ["Aprobó $200,000 para limpiar el suelo en 448 High Street, 7-0.", "Aprobó B.", "Aprobó C."],
+                  "decision_titles": ["$200,000 para limpiar el suelo en 448 High Street", "B", "C"], "translated": True}
+    shown = factcheck.shown(translated, record, "minutes")
+    assert shown["decision_titles"] == translated["decision_titles"]
+    with i18n.use("es"):
+        decisions = build_site.decisions_shown(shown, record, record)
+    assert decisions[0].title == "$200,000 para limpiar el suelo en 448 High Street"

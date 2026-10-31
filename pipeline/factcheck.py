@@ -106,8 +106,9 @@ from pipeline import translate
 # inside, or after a title (translate.names()). 6: the page each decision's quote is on. 7: roll calls with
 # names before each count, and counts in words and figures; "held until the next meeting" as continued, and
 # "forward to the full board" as referred; a "not" in a condition isn't a no; a decision's figures to the end
-# of its passage; an ordinal run into the next word.
-VERSION = 7
+# of its passage; an ordinal run into the next word. 8: a count a chair says in a recording ("seven in the
+# affirmative, none in the negative").
+VERSION = 8
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
@@ -550,10 +551,32 @@ def votes_for_against(quote: str) -> tuple[int, int] | None:
     return None
 
 
+# A count as a chair says it, in a recording's transcript: "Seven in the affirmative, none in the negative",
+# "six affirmative, one of the negative", "7, the affirmative, none, the negative". A word the transcript
+# misheard ("Assembly affirmative") isn't a count, and that vote is left without one.
+NUMBER_WORDS = {w: n for n, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve "
+                                           "thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split())}
+NUMBER_WORDS.update(none=0, no=0, nobody=0, nil=0)
+SPOKEN_COUNT = re.compile(r"\b(\w+)\W+(?:(?:in|the|of)\W+){0,2}affirmative\W+(\w+)\W+(?:(?:in|the|of)\W+){0,2}negative\b",
+                          re.I)
+
+
+def spoken_number(word: str) -> int | None:
+    word = word.lower()
+    if word.isdigit() and len(word) <= 2:
+        return int(word)
+    return NUMBER_WORDS.get(word)
+
+
 @functools.lru_cache(maxsize=4)
 def document_votes(doc: str) -> set[tuple[int, int]]:
-    """Every count, for and against, the document writes out in words."""
-    return {(int(m.group(1)), int(m.group(2))) for pattern in COUNTS for m in pattern.finditer(doc)}
+    """Every count, for and against, the document writes out in words, or a chair says (SPOKEN_COUNT)."""
+    found = {(int(m.group(1)), int(m.group(2))) for pattern in COUNTS for m in pattern.finditer(doc)}
+    for m in SPOKEN_COUNT.finditer(doc):
+        yes, no = spoken_number(m.group(1)), spoken_number(m.group(2))
+        if yes is not None and no is not None:
+            found.add((yes, no))
+    return found
 
 
 class Located:
@@ -1005,13 +1028,13 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
         out["decision_outcomes"] = [None if j + 1 in doubted else (e or {}).get("outcome")
                                     for j, e in enumerate(evidence) if j + 1 not in gone]
     # And each one's title, whether it's main, and its topic (summarize.split_decisions), beside the decisions
-    # shown; a title only where the decisions are shown in English, as it's written.
+    # shown; a translation's titles are its own, or none.
     for field in ("decision_titles", "decision_main", "decision_topics"):
-        values = record.get(field) or []
-        if field == "decision_titles" and not english:
-            out.pop(field, None)
-        elif values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
+        values = (record if english or field != "decision_titles" else display).get(field) or []
+        if values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
             out[field] = [v for j, v in enumerate(values) if j + 1 not in gone]
+        else:
+            out.pop(field, None)
     # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.
     on_page = fc.get("pages")
     if on_page and len(on_page) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
