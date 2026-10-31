@@ -363,10 +363,14 @@ class Decision(str):
     where it isn't known); and its vote count where the text ends with one ("7–0"), with the text
     before it ("body"), for the pages to say the outcome and the count beside the decision."""
 
-    def __new__(cls, text: str, page: int | None = None, quote: str | None = None, outcome: str | None = None):
+    def __new__(cls, text: str, page: int | None = None, quote: str | None = None, outcome: str | None = None,
+                title: str | None = None, main: bool | None = None, topic: str | None = None):
         decision = super().__new__(cls, text)
         decision.page, decision.quote, decision.outcome = page, quote, outcome
         decision.body, decision.tally = split_tally(text)
+        # Its short title, whether it's one residents look for (None: not known), and its topic, where the summary
+        # gives them (summarize.DECISION_LABELS).
+        decision.title, decision.main, decision.topic = title, main, topic
         return decision
 
 
@@ -423,11 +427,52 @@ def outcome_from_text(english: str) -> str | None:
     return next((outcome for pattern, outcome in OUTCOME_LEADS if pattern.search(english.strip())), None)
 
 
+# A title's numbers and names, which must be in its decision for the title to be shown: a number ("448",
+# "$200,000") or a word with a capital after the title's first.
+TITLE_FACTS = re.compile(r"\$?\d[\d,.]*|(?<=\s)[A-Z][\w'’-]*")
+
+
+def title_supported(title: str, decision: str) -> bool:
+    """Whether every number and name in a decision's title is in the decision itself, which the fact check
+    has checked against the document."""
+    said = decision.lower().replace(",", "")
+    for fact in TITLE_FACTS.findall(title.strip()):
+        fact = re.sub(r"['’]s$", "", fact).rstrip(".,").lower().replace(",", "")
+        if fact and fact not in said:
+            return False
+    return True
+
+
+def decision_labels(shown: dict, raw: dict | None, n: int, english: bool) -> list[tuple]:
+    """Each decision's (title, main, topic), where the summary gives them (summarize.DECISION_LISTS), as
+    factcheck.shown() keeps them beside the decisions shown; a title only for decisions shown in English."""
+    source = shown if "decision_main" in shown or not raw or raw.get("fact_check") else raw
+    lists = []
+    for field in ("decision_titles", "decision_main", "decision_topics"):
+        values = source.get(field)
+        if field == "decision_titles" and not english:
+            values = None
+        lists.append(values if isinstance(values, list) and len(values) == n else [None] * n)
+    return list(zip(*lists))
+
+
+def main_and_routine(items: list) -> tuple[list, list]:
+    """A meeting's decisions in two: those residents look for, and the routine ones, where the summary says
+    which are which (Decision.main) and there are some of each; otherwise all of them, and none."""
+    routine = [d for d in items if getattr(d, "main", None) is False]
+    if not routine or len(routine) == len(items):
+        return list(items), []
+    return [d for d in items if getattr(d, "main", None) is not False], routine
+
+
 def decisions_shown(shown: dict, english: dict | None, raw: dict | None) -> list[Decision]:
-    """A summary's decisions as shown (shown: factcheck.shown()'s), each a Decision with its page and quote,
-    and its outcome: the summary's own (decision_evidence), as the fact check leaves it, or read from the
-    English decision where the summary doesn't give one."""
+    """A summary's decisions as shown (shown: factcheck.shown()'s), each a Decision with its page and quote;
+    its outcome: the summary's own (decision_evidence), as the fact check leaves it, or read from the
+    English decision where the summary doesn't give one; and its title, whether it's main, and its topic,
+    where the summary gives them. A title with a number or name its decision doesn't have isn't used."""
     texts = shown["decisions"]
+    in_english = i18n.language() == "en" or bool(shown.get("english"))
+    labels = decision_labels(shown, raw, len(texts), in_english)
     cited = shown.get("decision_pages") or [[None, None]] * len(texts)
     outcomes = shown.get("decision_outcomes")
     evidence = (raw or {}).get("decision_evidence") or []
@@ -440,8 +485,10 @@ def decisions_shown(shown: dict, english: dict | None, raw: dict | None) -> list
         # None from the summary is one the fact check questioned, and stays unsaid; read from the text only
         # where the summary gives no outcomes.
         outcomes = [outcome_from_text(en) if en else None for en in in_english]
-    return [Decision(text, page, quote, outcome if outcome in factcheck.OUTCOMES else None)
-            for text, (page, quote), outcome in zip(texts, cited, outcomes)]
+    return [Decision(text, page, quote, outcome if outcome in factcheck.OUTCOMES else None,
+                     title if title and title_supported(title, text) else None,
+                     main if isinstance(main, bool) else None, topic if topic in summarize.TOPICS else None)
+            for text, (page, quote), outcome, (title, main, topic) in zip(texts, cited, outcomes, labels)]
 
 
 # Hosts whose links open a viewer, not the PDF itself, so a link to a page (#page=3) does nothing there.
@@ -1452,6 +1499,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # A decision's text and the vote count it ends with, for the count to be said beside it (macros.html decision_rows).
     env.globals["split_tally"] = split_tally
     env.globals["without_outcome_verb"] = without_outcome_verb
+    env.globals["main_and_routine"] = main_and_routine
+    env.globals["decision_topics"] = summarize.TOPICS
     env.globals["tidy_recommendation"] = tidy_recommendation
     env.globals["how_checked"] = factcheck.how_checked
     env.filters["english"] = in_english

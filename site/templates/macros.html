@@ -242,21 +242,48 @@
 {%- elif o == "withdrawn" %}{{ pgettext("decision outcome", "Withdrawn") }}{% endif -%}
 {%- endmacro %}
 
+{# A decision's topic (pipeline/summarize.py TOPICS), as the Decisions page's filter names it. #}
+{% macro topic_name(t) -%}
+{%- if t == "budget" %}{{ pgettext("decision topic", "Budget and taxes") }}
+{%- elif t == "housing" %}{{ pgettext("decision topic", "Housing and zoning") }}
+{%- elif t == "schools" %}{{ pgettext("decision topic", "Schools") }}
+{%- elif t == "safety" %}{{ pgettext("decision topic", "Public safety") }}
+{%- elif t == "streets" %}{{ pgettext("decision topic", "Streets and utilities") }}
+{%- elif t == "environment" %}{{ pgettext("decision topic", "Parks and environment") }}
+{%- elif t == "government" %}{{ pgettext("decision topic", "City government") }}
+{%- else %}{{ pgettext("decision topic", "Other") }}{% endif -%}
+{%- endmacro %}
+
 {# A meeting's decisions, one a row: its outcome and vote count in a narrow column ("Approved 7–0"), then the decision,
-   without the count it ends with or, in English, the verb its outcome says, and its page in the minutes. A decision whose outcome isn't known has an empty column.
-   link: the text as shown (a glossary linker, gloss or gloss.for_meeting()). fmt: "decision", with dollar amounts in bold,
-   "recommendation", a committee's recommendation without its standard wording (tidy_recommendation), or "plain". #}
-{% macro decision_rows(doc, items, english=false, link=none, fmt="plain") -%}
+   without the count it ends with or, in English, the verb its outcome says, and its page in the minutes. A decision
+   whose outcome isn't known has an empty column. titled: a decision with a title (Decision.title) is shown by it, with
+   the decision under it. link: the text as shown (a glossary linker, gloss or gloss.for_meeting()). fmt: "decision",
+   with dollar amounts in bold, "recommendation", a committee's recommendation without its standard wording
+   (tidy_recommendation), or "plain". #}
+{% macro decision_rows(doc, items, english=false, link=none, fmt="plain", titled=false) -%}
 <ul class="decision-rows">
   {% for d in items %}
   {% set o = d.outcome if d.outcome is defined else none %}
+  {% set title = d.title if titled and d.title is defined and d.title else none %}
   {% set parts = split_tally(tidy_recommendation(d) if fmt == "recommendation" else d) %}
   {% set body = without_outcome_verb(parts[0], o, english) %}
   {% set text = (body | decision) if fmt != "plain" else body %}
-  <li><span class="outcome">{{ outcome_word(o) }}{% if parts[1] %} <span class="tally">{{ parts[1] }}</span>{% endif %}</span>
-    <span class="decision-text"{% if english %} lang="en"{% endif %}>{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}</span></li>
+  <li{% if d.topic is defined and d.topic %} data-topic="{{ d.topic }}"{% endif %}><span class="outcome">{{ outcome_word(o) }}{% if parts[1] %} <span class="tally">{{ parts[1] }}</span>{% endif %}</span>
+    <span class="decision-text"{% if english %} lang="en"{% endif %}>{% if title %}<strong class="decision-title">{{ title }}</strong> <span class="decision-detail">{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}</span>
+    {%- else %}{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}{% endif %}</span></li>
   {% endfor %}
 </ul>
+{%- endmacro %}
+
+{# A meeting page's decisions: those residents look for by their titles, then "Also voted on", the routine ones, one
+   line each, where the summary says which are which (main_and_routine); otherwise all of them, as rows. #}
+{% macro decision_groups(doc, items, english=false, link=none) -%}
+{% set groups = main_and_routine(items) %}
+{{ decision_rows(doc, groups[0], english, link, titled=true) }}
+{% if groups[1] %}
+<h4 class="also-voted">{{ _("Also voted on") }}</h4>
+{{ decision_rows(doc, groups[1], english, link) }}
+{% endif %}
 {%- endmacro %}
 
 {% macro cite(doc, d, style=none, site_url="") -%}

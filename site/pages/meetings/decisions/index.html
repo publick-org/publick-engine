@@ -6,21 +6,27 @@
 {# Translators: %(town)s is the town's name. #}
 {% block description %}{% trans town=town.name %}Votes and other decisions recorded in the minutes of {{ town }}'s City Council, boards, and committees, newest meeting first.{% endtrans %}{% endblock %}
 {# The download as a dataset for dataset search, once, on the English page. #}
+{% block head %}<script src="{{ "/static/js/decisions.js" | versioned }}" defer></script>{% endblock %}
 {% block structured_data %}{% if lang == "en" and meetings.decided %}{{ structured(dataset(town.name ~ " decisions from meeting minutes", self.description(),
   canonical_url, ["/meetings/data/decisions.csv"], start=meetings.decided[-1].date, end=meetings.decided[0].date)) }}{% endif %}{% endblock %}
-{% from "macros.html" import cite, decision_rows %}
+{% from "macros.html" import cite, decision_rows, topic_name %}
+{# A meeting's decisions: those residents look for, by their titles, and the routine ones folded, where the summary
+   says which are which (main_and_routine); otherwise the first few, and the rest folded. #}
 {% macro decision_list(m, items, shown, fmt="decision", english=false, terms=none) -%}
-{{ decision_rows(m.minutes_doc, items[:shown], english, terms, fmt) }}
-{% if items | length > shown %}
+{% set groups = main_and_routine(items) %}
+{% set first = groups[0] if groups[1] else items[:shown] %}
+{% set rest = groups[1] if groups[1] else items[shown:] %}
+{{ decision_rows(m.minutes_doc, first, english, terms, fmt, titled=true) }}
+{% if rest %}
 <details class="expand">
   <summary>{% if fmt == "recommendation" %}
   {# Translators: the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more. #}
-  {% trans count=items | length - shown %}{{ count }} more recommendation{% pluralize %}{{ count }} more recommendations{% endtrans %}
+  {% trans count=rest | length %}{{ count }} more recommendation{% pluralize %}{{ count }} more recommendations{% endtrans %}
   {% else %}
   {# Translators: the label that shows a meeting's other decisions; %(count)s is how many, 1 or more. #}
-  {% trans count=items | length - shown %}{{ count }} more decision{% pluralize %}{{ count }} more decisions{% endtrans %}
+  {% trans count=rest | length %}{{ count }} more decision{% pluralize %}{{ count }} more decisions{% endtrans %}
   {% endif %}</summary>
-  {{ decision_rows(m.minutes_doc, items[shown:], english, terms, fmt) }}
+  {{ decision_rows(m.minutes_doc, rest, english, terms, fmt) }}
 </details>
 {% endif %}
 {%- endmacro %}
@@ -35,6 +41,15 @@
 </div>
 
 {% if meetings.decided %}
+{# The topics the decisions are on (Decision.topic), for the filter (decisions.js), in summarize.TOPICS's order. #}
+{% set topics = [] %}
+{% for m in meetings.decided %}{% for d in m.decisions.decided + m.decisions.recommended + m.decisions.procedural %}{% if d.topic is defined and d.topic and d.topic not in topics %}{% set __ = topics.append(d.topic) %}{% endif %}{% endfor %}{% endfor %}
+{% if topics | length > 1 %}
+<div class="topic-filter" role="group" aria-label="{{ _("Decisions on") }}" hidden>
+  <button type="button" data-topic="" aria-pressed="true">{{ _("All topics") }}</button>
+  {% for t in decision_topics if t in topics %}<button type="button" data-topic="{{ t }}" aria-pressed="false">{{ topic_name(t) }}</button>{% endfor %}
+</div>
+{% endif %}
 <div class="credit">
   <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {{ report_button(report_link(page_url, "Decisions page"), _("Report an error in a decision")) }}
