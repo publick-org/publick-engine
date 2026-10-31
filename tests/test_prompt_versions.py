@@ -47,7 +47,7 @@ PROMPTS = {
 PINNED = {
     "summary of an agenda (summarize.KINDS)": (5, "22ed04a0cc5534fe"),
     "summary of minutes (summarize.KINDS)": (5, "6bc35ef9cb410b4b"),
-    "summary of a recording's transcript (summarize.KINDS)": (2, "a073fbc7985c7531"),
+    "summary of a recording's transcript (summarize.KINDS)": (3, "d25d9fa5f686b484"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
     "translation (translate.VERSION)": (7, "ce0bd075573fb358"),
     # The town's glossary added to the drafting prompt (2026-10-16) without a bump: it only adds words, and
