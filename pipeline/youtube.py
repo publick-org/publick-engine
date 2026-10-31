@@ -5,8 +5,10 @@ it's there; YouTube is read for a meeting it doesn't have. YouTube doesn't let
 a server download its videos, nor read its pages (it answers with a check for
 robots), so:
 
-- New videos are listed by the YouTube Data API (playlistItems.list, the
-  newest LIST_PAGES pages of 50): the playlist's, or for a channel its
+- New videos are listed by the YouTube Data API (playlistItems.list, 50 a
+  page, a quota unit each, the newest first): the next page is read only
+  while the last one held no video published before the run's earliest
+  meeting date, up to LIST_PAGES. The playlist's, or for a channel its
   uploads, the playlist "UU" + the channel id after "UC". Each comes with
   its title, which names the board and the meeting's date. Without
   YOUTUBE_API_KEY they're found in the channel's or playlist's RSS feed
@@ -51,7 +53,7 @@ PLATFORM = "youtube"
 FEED = "https://www.youtube.com/feeds/videos.xml"
 VIDEOS = "https://youtube.googleapis.com/youtube/v3/videos"
 PLAYLIST_ITEMS = "https://youtube.googleapis.com/youtube/v3/playlistItems"
-# Pages of 50 a source's listing reads: a busy channel's uploads of the last few weeks.
+# Pages of 50 a source's listing may read: a busy channel's uploads of the last few weeks. Most runs need one.
 LIST_PAGES = 2
 KEY_ENV = "YOUTUBE_API_KEY"
 NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
@@ -97,8 +99,9 @@ def parse(feed: bytes, source: dict) -> list[dict]:
     return [f for f in found if f]
 
 
-def listed(source: dict, key: str, get=requests.get) -> list[dict]:
-    """The videos of the source's boards in its playlist's newest LIST_PAGES pages, from the Data API."""
+def listed(source: dict, key: str, get=requests.get, since: str = "") -> list[dict]:
+    """The videos of the source's boards in its playlist's newest pages, from the Data API: the next page only
+    while every video on the last was published on or after since (a meeting's date), up to LIST_PAGES."""
     out, page = [], None
     for _ in range(LIST_PAGES):
         params = {"part": "snippet,contentDetails", "playlistId": playlist_id(source), "maxResults": 50}
@@ -111,15 +114,18 @@ def listed(source: dict, key: str, get=requests.get) -> list[dict]:
         if response.status_code >= 400:
             raise FetchError(f"YouTube Data API: HTTP {response.status_code}: {response.text[:300]}", response.status_code)
         data = response.json()
+        reached = False
         for item in data.get("items") or []:
             snippet, content = item.get("snippet") or {}, item.get("contentDetails") or {}
+            published = content.get("videoPublishedAt") or snippet.get("publishedAt", "")
+            reached = reached or bool(published and since and published[:10] < since)
             found = video(content.get("videoId") or (snippet.get("resourceId") or {}).get("videoId", ""),
-                          snippet.get("title", ""), content.get("videoPublishedAt") or snippet.get("publishedAt", ""),
-                          source)
+                          snippet.get("title", ""), published, source)
             if found:
                 out.append(found)
         page = data.get("nextPageToken")
-        if not page:
+        # A video published before since was of an older meeting: what's after it is older still.
+        if not page or reached:
             break
     return out
 
@@ -152,7 +158,7 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
 
 def find(client, source: dict, since: str, timezone: str, get=requests.get) -> list[dict]:
     key = api_key()
-    found = listed(source, key, get) if key else parse(client.get(feed_url(source)).content, source)
+    found = listed(source, key, get, since) if key else parse(client.get(feed_url(source)).content, source)
     found = [f for f in found if f["date"] >= since]
     if found and key:
         lengths = details([f["video_id"] for f in found], key, get)
