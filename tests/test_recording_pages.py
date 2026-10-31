@@ -132,3 +132,22 @@ def test_the_digest_lists_meetings_summarized_from_their_recordings():
     # The second's minutes came the same week: it's listed with them, not here.
     assert issue["recorded"] == [m]
     assert json.dumps(issue["minutes"], default=str).count("2026-10-01") == 1
+
+
+def test_a_recording_with_no_length_or_transcript_is_still_linked(config, data_dir, tmp_path):
+    """A recording found but not read yet (an Internet Archive upload still being processed) has no length or
+    transcript: its meeting's page links it, without a length."""
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    model = config["summaries"]["model"]
+    meetings = build_site.load_meetings(data, BUILT_AT.date(), model)["all"]
+    m = next(m for m in meetings if m["date"] < BUILT_AT.date().isoformat() and m["status"] == "scheduled")
+    entry = recording(m, 3)
+    del entry["seconds"], entry["transcript"]
+    recordings.save(data, {"telvue-3": entry})
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    page = (out / "meetings" / m["slug"] / "index.html").read_text()
+    links = section(page, '<p class="doc-links">', "</p>")
+    assert 'href="https://videoplayer.telvue.com/player/x/media/3"' in links and "Recording" in links
+    assert 'class="runtime"' not in links and "Machine transcript" not in links
