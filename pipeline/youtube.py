@@ -5,9 +5,13 @@ it's there; YouTube is read for a meeting it doesn't have. YouTube doesn't let
 a server download its videos, nor read its pages (it answers with a check for
 robots), so:
 
-- New videos are found in the channel's or playlist's RSS feed
-  (/feeds/videos.xml?channel_id= or ?playlist_id=), its latest 15, each with
-  its title, which names the board and the meeting's date.
+- New videos are listed by the YouTube Data API (playlistItems.list, the
+  newest LIST_PAGES pages of 50): the playlist's, or for a channel its
+  uploads, the playlist "UU" + the channel id after "UC". Each comes with
+  its title, which names the board and the meeting's date. Without
+  YOUTUBE_API_KEY they're found in the channel's or playlist's RSS feed
+  (/feeds/videos.xml?channel_id= or ?playlist_id=), its latest 15, which
+  YouTube has also answered with 404 and 500 for every channel for hours.
 - Each video's length, and whether it's still a live stream (or one yet to
   start), come from the YouTube Data API (videos.list, at
   youtube.googleapis.com), with a Google API key of its own
@@ -46,6 +50,9 @@ from pipeline.http import FetchError
 PLATFORM = "youtube"
 FEED = "https://www.youtube.com/feeds/videos.xml"
 VIDEOS = "https://youtube.googleapis.com/youtube/v3/videos"
+PLAYLIST_ITEMS = "https://youtube.googleapis.com/youtube/v3/playlistItems"
+# Pages of 50 a source's listing reads: a busy channel's uploads of the last few weeks.
+LIST_PAGES = 2
 KEY_ENV = "YOUTUBE_API_KEY"
 NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
 DURATION = re.compile(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$")
@@ -65,19 +72,55 @@ def feed_url(source: dict) -> str:
     return f"{FEED}?channel_id={source['channel']}" if source.get("channel") else f"{FEED}?playlist_id={source['playlist']}"
 
 
+def playlist_id(source: dict) -> str:
+    """The source's playlist, or its channel's uploads (UC... -> UU...)."""
+    return source.get("playlist") or "UU" + source["channel"][2:]
+
+
+def video(video_id: str, title: str, published: str, source: dict) -> dict | None:
+    """A video of one of the source's boards, with the meeting's date from its title; None for any other."""
+    title = " ".join(title.split())
+    board = recordings.board_for_title(title, source["boards"])
+    day = recordings.title_date(title)
+    if not video_id or not board or not day:
+        return None
+    return {"id": f"youtube-{video_id}", "platform": PLATFORM, "board": board, "date": day, "title": title,
+            "url": gemini.video_url(video_id), "part": recordings.title_part(title), "video_id": video_id,
+            "published": published}
+
+
 def parse(feed: bytes, source: dict) -> list[dict]:
-    """The feed's videos of the source's boards, with the meeting's date from each title."""
-    out = []
-    for entry in ET.fromstring(feed).findall("atom:entry", NS):
-        video = entry.findtext("yt:videoId", "", NS)
-        title = " ".join(entry.findtext("atom:title", "", NS).split())
-        board = recordings.board_for_title(title, source["boards"])
-        day = recordings.title_date(title)
-        if not video or not board or not day:
-            continue
-        out.append({"id": f"youtube-{video}", "platform": PLATFORM, "board": board, "date": day, "title": title,
-                    "url": gemini.video_url(video), "part": recordings.title_part(title), "video_id": video,
-                    "published": entry.findtext("atom:published", "", NS)})
+    """The feed's videos of the source's boards."""
+    found = (video(e.findtext("yt:videoId", "", NS), e.findtext("atom:title", "", NS),
+                   e.findtext("atom:published", "", NS), source)
+             for e in ET.fromstring(feed).findall("atom:entry", NS))
+    return [f for f in found if f]
+
+
+def listed(source: dict, key: str, get=requests.get) -> list[dict]:
+    """The videos of the source's boards in its playlist's newest LIST_PAGES pages, from the Data API."""
+    out, page = [], None
+    for _ in range(LIST_PAGES):
+        params = {"part": "snippet,contentDetails", "playlistId": playlist_id(source), "maxResults": 50}
+        if page:
+            params["pageToken"] = page
+        try:
+            response = get(PLAYLIST_ITEMS, params=params, headers={"x-goog-api-key": key}, timeout=60)
+        except requests.RequestException as e:
+            raise FetchError(f"YouTube Data API: {e}") from e
+        if response.status_code >= 400:
+            raise FetchError(f"YouTube Data API: HTTP {response.status_code}: {response.text[:300]}", response.status_code)
+        data = response.json()
+        for item in data.get("items") or []:
+            snippet, content = item.get("snippet") or {}, item.get("contentDetails") or {}
+            found = video(content.get("videoId") or (snippet.get("resourceId") or {}).get("videoId", ""),
+                          snippet.get("title", ""), content.get("videoPublishedAt") or snippet.get("publishedAt", ""),
+                          source)
+            if found:
+                out.append(found)
+        page = data.get("nextPageToken")
+        if not page:
+            break
     return out
 
 
@@ -108,8 +151,9 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
 
 
 def find(client, source: dict, since: str, timezone: str, get=requests.get) -> list[dict]:
-    found = [f for f in parse(client.get(feed_url(source)).content, source) if f["date"] >= since]
     key = api_key()
+    found = listed(source, key, get) if key else parse(client.get(feed_url(source)).content, source)
+    found = [f for f in found if f["date"] >= since]
     if found and key:
         lengths = details([f["video_id"] for f in found], key, get)
         for f in found:
