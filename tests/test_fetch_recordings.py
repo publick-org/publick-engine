@@ -269,3 +269,36 @@ def test_a_board_pattern_must_be_a_regular_expression(config):
     config["recordings"] = {"sources": [{"platform": "internet_archive", "collection": "x", "boards": {"City Council": "("}}]}
     with pytest.raises(SystemExit, match="isn't a regular expression"):
         recordings.check(config)
+
+
+class FakeTranscribingPlatform(FakePlatform):
+    """A platform that makes its own transcripts (as YouTube's, by Gemini), or none yet."""
+
+    def __init__(self, found, ready=True):
+        super().__init__(found)
+        self.ready = ready
+
+    def media(self, client, source, recording):
+        return None
+
+    def transcript(self, client, source, recording, storage=None):
+        return ("[0:00:05] Made elsewhere.\n", {"model": "gemini-x", "usage": {"requests": 1}}) if self.ready else None
+
+
+def test_a_platform_that_transcribes_its_own_needs_no_whisper(config, data_dir, monkeypatch):
+    use(monkeypatch, FakeTranscribingPlatform([{**found("1", "City Council", "2026-10-27"), "platform": "youtube"}]))
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: pytest.fail("no Whisper"),
+                                  transcriber=lambda *a: pytest.fail("no ffmpeg"))
+    assert status["transcribed"] == ["fake-1"]
+    t = recordings.load(data_dir)["fake-1"]["transcript"]
+    assert t["model"] == "gemini-x" and t["words"] == 2
+    assert (data_dir / "meetings" / "transcripts" / "fake-1.txt").read_text() == "[0:00:05] Made elsewhere.\n"
+
+
+def test_without_its_key_a_youtube_video_waits(config, data_dir, monkeypatch):
+    use(monkeypatch, FakeTranscribingPlatform([{**found("1", "City Council", "2026-10-27"), "platform": "youtube"}],
+                                              ready=False))
+    for _ in range(3):
+        status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: pytest.fail("no Whisper"))
+    assert status["not_ready"] == ["fake-1"]
+    assert "tries" not in recordings.load(data_dir)["fake-1"]
