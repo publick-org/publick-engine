@@ -79,7 +79,7 @@
   {%- elif how == "recording" %} {{ _("Checked against the transcript.") }}{% endif %}
   {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %}
   {{ _("Check the original before relying on it.") }} <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
-  {{ report_button(report_url, _("Report an error in this summary")) }}
+  {% if report_url %}{{ report_button(report_url, _("Report an error in this summary")) }}{% endif %}
 </div>
 {%- endmacro %}
 
@@ -261,37 +261,48 @@
    with dollar amounts in bold, "recommendation", a committee's recommendation without its standard wording
    (tidy_recommendation), or "plain". #}
 {% macro decision_rows(doc, items, english=false, link=none, fmt="plain", titled=false) -%}
+{# A list where some decisions have titles shows the others by their text in the title's place; one with none (a summary
+   from before decisions had titles) is plain rows. #}
+{% set some_titled = titled and (items | selectattr("title") | list) %}
 <ul class="decision-rows">
   {% for d in items %}
   {% set o = d.outcome if d.outcome is defined else none %}
+  {# A main decision without a usable title is shown by its own text, in the title's place. #}
   {% set title = d.title if titled and d.title is defined and d.title else none %}
+  {% set untitled = some_titled and not title %}
   {% set parts = split_tally(tidy_recommendation(d) if fmt == "recommendation" else d) %}
   {% set body = without_outcome_verb(parts[0], o, english) %}
   {% set text = (body | decision) if fmt != "plain" else body %}
   <li{% if d.topic is defined and d.topic %} data-topic="{{ d.topic }}"{% endif %}><span class="outcome">{{ outcome_word(o) }}{% if parts[1] %} <span class="tally">{{ parts[1] }}</span>{% endif %}</span>
-    <span class="decision-text"{% if english %} lang="en"{% endif %}>{% if title %}<strong class="decision-title">{{ title }}</strong> <span class="decision-detail">{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}</span>
+    <span class="decision-text"{% if english %} lang="en"{% endif %}>{% if title and not adds_to(title, body) %}<strong class="decision-title">{{ title }}</strong>{{ cite(doc, d) if doc else "" }}
+    {%- elif title %}<strong class="decision-title">{{ title }}</strong> <span class="decision-detail">{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}</span>
+    {%- elif untitled %}<strong class="decision-title">{{ link(text, english) if link else text }}</strong>{{ cite(doc, d) if doc else "" }}
     {%- else %}{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}{% endif %}</span></li>
   {% endfor %}
 </ul>
 {%- endmacro %}
 
-{# A meeting page's decisions: those residents look for by their titles, then "Also voted on", the routine ones, one
-   line each, and all of them in the order they were taken, folded, where the summary says which are which
-   (main_and_routine); otherwise all of them, as rows. #}
+{# A meeting page's decisions, most important first: where the summary says which are main (main_and_routine), every
+   vote in the order taken, folded; the main decisions that settled a matter, by their titles; those that put one
+   off ("Put off or sent to committee"); then the routine ones, one line each. Otherwise all of them, as rows. A
+   decision whose text only says its title again is shown by its title alone (adds_to). #}
 {% macro decision_groups(doc, items, english=false, link=none) -%}
 {% set groups = main_and_routine(items) %}
 {% if groups[1] %}
-{# Every vote as the meeting took them, first and folded, for a reader who follows the agenda or wants the record
-   whole. #}
 <details class="all-votes">
   <summary>{% trans count=items | length %}Show the {{ count }} vote in order{% pluralize %}Show all {{ count }} votes in order{% endtrans %}</summary>
   {{ decision_rows(doc, items, english) }}
 </details>
+{% set main = final_and_put_off(groups[0]) %}
+{{ decision_rows(doc, main[0], english, link, titled=true) }}
+{% if main[1] %}
+<h3 class="decision-group">{{ _("Put off or sent to committee") }}</h3>
+{{ decision_rows(doc, main[1], english, link, titled=true) }}
 {% endif %}
-{{ decision_rows(doc, groups[0], english, link, titled=true) }}
-{% if groups[1] %}
-<h4 class="also-voted">{{ _("Also voted on") }}</h4>
+<h3 class="decision-group">{{ _("Also voted on") }}</h3>
 {{ decision_rows(doc, groups[1], english, link) }}
+{% else %}
+{{ decision_rows(doc, items, english, link, titled=true) }}
 {% endif %}
 {%- endmacro %}
 

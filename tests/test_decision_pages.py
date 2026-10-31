@@ -194,7 +194,7 @@ def pages_with_decisions(site, lang=""):
     out = []
     for path in sorted((site / lang / "meetings").glob("*/index.html")):
         html = path.read_text(encoding="utf-8")
-        if "Decisions recorded" in html or "Decisiones registradas" in html:
+        if '<h2 id="minutes">' in html and 'class="decision-rows"' in html:
             out.append(html)
     return out
 

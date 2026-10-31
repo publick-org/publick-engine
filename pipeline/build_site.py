@@ -470,6 +470,31 @@ def discussion_parts(text: str) -> tuple[str | None, str]:
     return m.group(1).strip(), m.group(2)
 
 
+# Outcomes that put a matter off rather than settle it: a reader looks first for what was decided.
+PUT_OFF = ("referred", "tabled", "continued")
+# Words a decision's detail can share with its title without saying more (adds_to()).
+FILLER = frozenset("a an and the of to for in on at by with from its it this that as or be is was were "
+                   "approved approve denied tabled referred continued request requested".split())
+
+
+def final_and_put_off(items: list) -> tuple[list, list]:
+    """A meeting's main decisions in two: those that settled a matter, then those that put it off (PUT_OFF),
+    each in the order taken; all of them, and none, where they're all one or the other."""
+    put_off = [d for d in items if getattr(d, "outcome", None) in PUT_OFF]
+    if not put_off or len(put_off) == len(items):
+        return list(items), []
+    return [d for d in items if getattr(d, "outcome", None) not in PUT_OFF], put_off
+
+
+def adds_to(title: str, detail: str, enough: int = 3) -> bool:
+    """Whether a decision's text says more than its title: at least `enough` words the title doesn't have,
+    besides FILLER, so a detail that only says the title again isn't shown under it."""
+    words = lambda text: {w for w in re.findall(r"[\w$'’.,-]+", text.lower().replace("’", "'"))
+                          if w.strip(".,") and w.strip(".,") not in FILLER}
+    said = {w.strip(".,") for w in words(title)}
+    return len({w.strip(".,") for w in words(detail)} - said) >= enough
+
+
 def main_and_routine(items: list) -> tuple[list, list]:
     """A meeting's decisions in two: those residents look for, and the routine ones, where the summary says
     which are which (Decision.main) and there are some of each; otherwise all of them, and none."""
@@ -499,8 +524,11 @@ def decisions_shown(shown: dict, english: dict | None, raw: dict | None) -> list
         # None from the summary is one the fact check questioned, and stays unsaid; read from the text only
         # where the summary gives no outcomes.
         outcomes = [outcome_from_text(en) if en else None for en in in_english]
+    # A title the fact check has held to the document (factcheck VERSION 9) is shown as it leaves it; one it hasn't,
+    # only with nothing its decision doesn't say.
+    checked_titles = ((raw or {}).get("fact_check") or {}).get("version", 0) >= 9
     return [Decision(text, page, quote, outcome if outcome in factcheck.OUTCOMES else None,
-                     title if title and title_supported(title, text) else None,
+                     title if title and (checked_titles or title_supported(title, text)) else None,
                      main if isinstance(main, bool) else None, topic if topic in summarize.TOPICS else None)
             for text, (page, quote), outcome, (title, main, topic) in zip(texts, cited, outcomes, labels)]
 
@@ -1522,6 +1550,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals["split_tally"] = split_tally
     env.globals["without_outcome_verb"] = without_outcome_verb
     env.globals["main_and_routine"] = main_and_routine
+    env.globals["final_and_put_off"] = final_and_put_off
+    env.globals["adds_to"] = adds_to
     env.globals["discussion_parts"] = discussion_parts
     env.globals["decision_topics"] = summarize.TOPICS
     env.globals["tidy_recommendation"] = tidy_recommendation
