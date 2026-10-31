@@ -300,6 +300,16 @@ def test_youtube_lists_a_playlist_and_reads_at_most_list_pages():
     assert {(f["id"], f["board"], f["date"]) for f in found} == {("youtube-Kb0teFwRY1s", "City Council", "2026-10-27")}
 
 
+def test_youtube_reads_another_page_only_while_it_could_hold_a_meeting_since():
+    page = {"items": [playlist_item("new", "Methuen School Committee 10/26/2026", "2026-10-27T01:00:00Z"),
+                      playlist_item("old", "Methuen School Committee 10/6/2026", "2026-10-07T01:00:00Z")],
+            "nextPageToken": "more"}
+    get = FakeHTTP((200, page))
+    found = youtube.listed(METHUEN_SCHOOLS, "k", get, since="2026-10-20")
+    # The page reached back past since: one request, a quota unit.
+    assert len(get.calls) == 1 and [f["video_id"] for f in found] == ["new", "old"]
+
+
 def test_youtube_data_api_errors_are_fetch_errors():
     from pipeline.http import FetchError
     with pytest.raises(FetchError, match="HTTP 403"):
