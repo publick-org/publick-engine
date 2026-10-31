@@ -445,15 +445,29 @@ def title_supported(title: str, decision: str) -> bool:
 
 def decision_labels(shown: dict, raw: dict | None, n: int, english: bool) -> list[tuple]:
     """Each decision's (title, main, topic), where the summary gives them (summarize.DECISION_LISTS), as
-    factcheck.shown() keeps them beside the decisions shown; a title only for decisions shown in English."""
+    factcheck.shown() keeps them beside the decisions shown; a title in English, or in a translation's own words."""
     source = shown if "decision_main" in shown or not raw or raw.get("fact_check") else raw
     lists = []
     for field in ("decision_titles", "decision_main", "decision_topics"):
         values = source.get(field)
         if field == "decision_titles" and not english:
-            values = None
+            # A translation's own titles (in_language()), as the fact check leaves them.
+            values = shown.get(field) if shown.get("translated") else None
         lists.append(values if isinstance(values, list) and len(values) == n else [None] * n)
     return list(zip(*lists))
+
+
+# What was discussed, as a recording's summary gives each matter: its short name, a colon, then what was said
+# ("Law Department funding: Members debated ...").
+DISCUSSION_LABEL = re.compile(r"^([^:.;]{2,60}?):\s+(\S.*)$", re.S)
+
+
+def discussion_parts(text: str) -> tuple[str | None, str]:
+    """A matter discussed: its short name, where it starts with one of at most six words, and what was said."""
+    m = DISCUSSION_LABEL.match(text or "")
+    if not m or len(m.group(1).split()) > 6:
+        return None, text
+    return m.group(1).strip(), m.group(2)
 
 
 def main_and_routine(items: list) -> tuple[list, list]:
@@ -629,8 +643,13 @@ def in_language(data_dir: Path, record: dict | None, kind: str, doc: dict | None
         return record
     translated = translate.shown(data_dir, lang, doc["sha256"], record, kind, terms)
     if translated:
-        return {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True,
-                "translated_at": translated.get("generated_at")}
+        shown = {**record, **{f: translated[f] for f in translate.FIELDS[kind]}, "translated": True,
+                 "translated_at": translated.get("generated_at")}
+        # The decisions' titles in this language, or none: the English ones aren't shown with a translation.
+        shown.pop("decision_titles", None)
+        if translated.get("decision_titles"):
+            shown["decision_titles"] = translated["decision_titles"]
+        return shown
     return {**record, "english": "failed" if translate.failed(data_dir, lang, doc["sha256"], record, kind, terms) else True}
 
 
@@ -1503,6 +1522,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals["split_tally"] = split_tally
     env.globals["without_outcome_verb"] = without_outcome_verb
     env.globals["main_and_routine"] = main_and_routine
+    env.globals["discussion_parts"] = discussion_parts
     env.globals["decision_topics"] = summarize.TOPICS
     env.globals["tidy_recommendation"] = tidy_recommendation
     env.globals["how_checked"] = factcheck.how_checked
