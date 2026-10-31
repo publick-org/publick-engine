@@ -66,14 +66,16 @@ def test_before_the_minutes_the_recording_is_what_was_decided(built):
     out, before, _ = built
     page = (out / "meetings" / before["slug"] / "index.html").read_text()
     decided = section(page, '<h2 id="minutes">')
-    assert "From the meeting&#39;s recording. The official minutes come later" in decided or \
-        "From the meeting's recording. The official minutes come later" in decided
-    assert "Decisions heard in the recording" in decided
+    # Nothing between the date and what was decided: how it was made is at the end.
+    assert '<p class="source-line">' not in page
+    # How it was made, what isn't shown, and why there are no minutes: together, under "About this page", after it.
+    about = page[page.index('<h2 id="about">'):]
+    assert "Checked against the transcript." in about and 'data-gap="not_posted"' in about
+    assert "Checked against the transcript." not in decided and page.count('class="report-link"') == 1
     # Each decision a row: its outcome and the vote count it ends with beside it, then the decision without the count.
     assert re.search(r'<span class="outcome">Approved <span class="tally">10–0</span></span>\s*'
                      r'<span class="decision-text">A \$1.5 million supplemental appropriation for the Fire Department\.<', decided)
     assert "Residents asked the council to keep the Flock camera pause in place." in decided
-    assert "Checked against the transcript." in decided
     # The recording, its length, and its machine transcript, in the line of links under the date.
     links = section(page, '<p class="doc-links">', "</p>")
     assert 'href="https://videoplayer.telvue.com/player/x/media/1"' in links and "Recording" in links
@@ -83,18 +85,17 @@ def test_before_the_minutes_the_recording_is_what_was_decided(built):
     # Where it met comes after what it decided; with nothing to say, no heading.
     assert '<h2 id="details">' not in page and '<dl class="facts">' not in page
     es = (out / "es" / "meetings" / before["slug"] / "index.html").read_text()
-    assert "Decisiones que se oyen en la grabación" in es and "Grabación" in es[es.index('<p class="doc-links">'):] and ">Aprobado <span" in es
+    assert "Sobre esta página" in es and "Grabación" in es[es.index('<p class="doc-links">'):] and ">Aprobado <span" in es
 
 
 def test_after_the_minutes_what_was_discussed_stays_under_them(built):
     out, _, after = built
     page = (out / "meetings" / after["slug"] / "index.html").read_text()
     decided = section(page, '<h2 id="minutes">')
-    assert "Decisions recorded" in decided
-    assert "Decisions heard in the recording" not in decided
+    assert 'class="decision-rows"' in decided and "Summary written by AI" in page[page.index('<h2 id="about">'):]
     assert "supplemental appropriation" not in decided
     # What was discussed, after the minutes'.
-    assert decided.index("Decisions recorded") < decided.index('<h3 id="discussed">What was discussed</h3>')
+    assert decided.index('class="decision-rows"') < decided.index('<h3 id="discussed">What was discussed</h3>')
     assert "Residents asked the council to keep the Flock camera pause in place." in decided
     links = section(page, '<p class="doc-links">', "</p>")
     assert 'href="https://videoplayer.telvue.com/player/x/media/2"' in links and "Recording" in links

@@ -107,8 +107,8 @@ from pipeline import translate
 # names before each count, and counts in words and figures; "held until the next meeting" as continued, and
 # "forward to the full board" as referred; a "not" in a condition isn't a no; a decision's figures to the end
 # of its passage; an ordinal run into the next word. 8: a count a chair says in a recording ("seven in the
-# affirmative, none in the negative").
-VERSION = 8
+# affirmative, none in the negative"). 9: each decision's title, against the document.
+VERSION = 9
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
@@ -399,6 +399,13 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
             for p in check_text(text, doc, *found[:3], words, *found[3:]):
                 problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
+    # Each decision's title (summarize.DECISION_LABELS), held to the document as the decisions are: a title with a
+    # number or name the document doesn't have isn't shown, and the decision is shown without it (shown()).
+    # It never fails the summary.
+    for i, title in enumerate(record.get("decision_titles") or []):
+        for p in check_text(title or "", doc, *found[:3], words, *found[3:]):
+            if p["kind"] != "tally":
+                problems.append({"field": "decision_titles", "entry": i + 1, **p})
     on_page = None
     if kind in QUOTED and "decision_evidence" in record:
         located = Located(doc)
@@ -418,7 +425,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
                      for p in says_outcome(record, sentence, outcomes)]
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
-    hard = [p for p in problems if p["kind"] not in NOTED]
+    hard = [p for p in problems if p["kind"] not in NOTED and p["field"] != "decision_titles"]
     result = "ok" if not hard else ("failed" if source in ("pdf", "recording") else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems,
             **({"pages": on_page} if on_page is not None else {})}
@@ -1008,7 +1015,7 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     hidden: dict[str, set] = {}
     for p in fc["problems"]:
         field = p["field"]
-        if field not in out or not out[field]:
+        if field not in out or not out[field] or field == "decision_titles":
             continue
         if p["kind"] == "tally":
             if isinstance(out[field], list):
@@ -1029,10 +1036,12 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                                     for j, e in enumerate(evidence) if j + 1 not in gone]
     # And each one's title, whether it's main, and its topic (summarize.split_decisions), beside the decisions
     # shown; a translation's titles are its own, or none.
+    untitled = {p.get("entry") for p in fc["problems"] if p["field"] == "decision_titles"}
     for field in ("decision_titles", "decision_main", "decision_topics"):
         values = (record if english or field != "decision_titles" else display).get(field) or []
         if values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
-            out[field] = [v for j, v in enumerate(values) if j + 1 not in gone]
+            out[field] = [None if field == "decision_titles" and j + 1 in untitled else v
+                          for j, v in enumerate(values) if j + 1 not in gone]
         else:
             out.pop(field, None)
     # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.

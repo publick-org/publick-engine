@@ -190,7 +190,7 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
              if '<strong class="decision-title">Main decision title</strong>' in p.read_text()]
     assert len(pages) == 1
     page = pages[0]
-    assert page.index("Main decision title") < page.index('<h4 class="also-voted">Also voted on</h4>')
+    assert page.index("Main decision title") < page.index('<h3 class="decision-group">Also voted on</h3>')
     # Every vote, in the order taken, folded above the main ones; and where it met after what it decided.
     in_order = page[page.index('<details class="all-votes">'):page.index("</details>", page.index('<details class="all-votes">'))]
     grouped = page[page.index("</details>", page.index('<details class="all-votes">')):]
@@ -246,3 +246,34 @@ def test_a_translations_own_titles_are_kept():
     with i18n.use("es"):
         decisions = build_site.decisions_shown(shown, record, record)
     assert decisions[0].title == "$200,000 para limpiar el suelo en 448 High Street"
+
+
+def test_decisions_that_settled_a_matter_come_before_those_put_off():
+    ds = [build_site.Decision("Referred X.", outcome="referred"), build_site.Decision("Approved Y.", outcome="approved"),
+          build_site.Decision("Tabled Z.", outcome="tabled"), build_site.Decision("Denied W.", outcome="denied")]
+    final, put_off = build_site.final_and_put_off(ds)
+    assert [str(d) for d in final] == ["Approved Y.", "Denied W."] and [str(d) for d in put_off] == ["Referred X.", "Tabled Z."]
+    # All one or the other: one list.
+    assert build_site.final_and_put_off(final) == (final, [])
+
+
+def test_a_detail_that_only_says_the_title_again_isnt_shown():
+    assert not build_site.adds_to("Request for update on City Charter", "The request for an update on the City Charter.")
+    assert build_site.adds_to("$200,000 soil cleanup at 448 High Street",
+                              "$200,000 from the capital stabilization fund for soil remediation at 448 High Street.")
+
+
+def test_a_title_the_document_doesnt_support_is_dropped_not_its_decision():
+    doc = ("PLANNING BOARD MINUTES. Motion by Squibb to approve the site plan for 12 Elm Street with the conditions in "
+           "the staff report. Motion carried 3-0. " * 3)
+    record = {"kind": "minutes", "headline": "", "summary": "",
+              "decisions": ["Approved the site plan for 12 Elm Street, 3-0."],
+              "decision_evidence": [{"outcome": "approved", "quote": "Motion by Squibb to approve the site plan for 12 Elm "
+                                     "Street with the conditions in the staff report. Motion carried 3-0."}],
+              "decision_titles": ["Site plan for 14 Elm Street"], "decision_main": [True], "decision_topics": ["housing"]}
+    fc = factcheck.check(record, "minutes", [doc])
+    assert fc["result"] == "ok" and [p["field"] for p in fc["problems"]] == ["decision_titles"]
+    shown = factcheck.shown(dict(record, fact_check=fc), dict(record, fact_check=fc), "minutes")
+    assert shown["decisions"] == record["decisions"] and shown["decision_titles"] == [None]
+    record["decision_titles"] = ["Site plan for 12 Elm Street, with the staff report's conditions"]
+    assert not [p for p in factcheck.check(record, "minutes", [doc])["problems"] if p["field"] == "decision_titles"]
