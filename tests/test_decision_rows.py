@@ -277,3 +277,34 @@ def test_a_title_the_document_doesnt_support_is_dropped_not_its_decision():
     assert shown["decisions"] == record["decisions"] and shown["decision_titles"] == [None]
     record["decision_titles"] = ["Site plan for 12 Elm Street, with the staff report's conditions"]
     assert not [p for p in factcheck.check(record, "minutes", [doc])["problems"] if p["field"] == "decision_titles"]
+
+
+def test_a_section_with_nothing_of_its_summary_shown_says_why(tmp_path):
+    """The notes on a summary go under "About this page", except where none of the summary is shown (every decision
+    held back by the fact check, and its summary too): there they stay in its section, which isn't left empty."""
+    import json
+    import re
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    held = None
+    for path in sorted((data / "summaries").glob("*.json")):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "minutes" and rec.get("decisions") and rec.get("is_minutes", True) and not held:
+            rec["summary"], rec["headline"] = "", ""
+            rec["fact_check"] = {"version": factcheck.VERSION, "source": "pdf", "result": "failed",
+                                 "problems": [{"field": "decisions", "entry": i + 1, "kind": "name", "what": "X"}
+                                              for i in range(len(rec["decisions"]))]}
+            path.write_text(json.dumps(rec))
+            held = rec
+    assert held
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    section = re.compile(r'<h2 id="(minutes|agenda)">.*?</h2>(.*?)(?=<h2|</main>)', re.S)
+    found = False
+    for path in (tmp_path / "site").glob("**/meetings/*/index.html"):
+        html = path.read_text()
+        for name, body in section.findall(html):
+            assert re.sub(r"<[^>]+>|\s", "", body), f"{path}: empty {name} section"
+            found = found or ("aren't shown" in body or "isn't shown" in body)
+    assert found
