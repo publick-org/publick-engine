@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, search_form, meeting_flags %}
+{% from "macros.html" import calendar_behind_note, day_group, search_form, meeting_flags, meeting_item %}
 {% block title %}{{ _("Meetings") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
 {% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} public meetings and agendas{% endtrans %}{% endblock %}
@@ -29,6 +29,13 @@
 {% endif %}
 {% elif not meetings.calendar_behind %}
 <p>{% if meeting_links.has_calendar %}{{ _("No upcoming meetings are listed on the city calendar right now.") }}{% else %}{{ _("No upcoming meetings are listed right now.") }}{% endif %}</p>
+{% endif %}
+{% if meetings.recent and meeting_links.documents %}
+{# What the last two weeks' meetings decided, a line each, for a reader who comes after a meeting. #}
+<h2 id="recent">{{ _("Recent") }}</h2>
+<ul class="meeting-list">
+  {% for m in meetings.recent %}{{ meeting_item(m, show_date=true) }}{% endfor %}
+</ul>
 {% endif %}
 <p><a href="/meetings/past/">{{ _("Past meetings") }}</a></p>
 {# Where the meetings come from: each of the town's sources, in a sentence of its own. #}

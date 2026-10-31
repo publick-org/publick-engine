@@ -29,6 +29,10 @@
         if (topic && has) fold.open = true;
       });
     });
+    // The main decisions above the meetings.
+    each(".main-decisions > li", null, function (row) {
+      row.hidden = !!topic && row.getAttribute("data-topic") !== topic;
+    });
     // A month with no meeting shown is left out; a folded month with one opens.
     each(".decision-list", null, function (list) {
       var has = Array.prototype.some.call(list.querySelectorAll(".decision-meeting"), shown);
