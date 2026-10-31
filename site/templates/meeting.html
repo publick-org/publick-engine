@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite, decision_rows %}
+{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite, decision_groups %}
 {% from "search_text.html" import when_where, with_ai_label %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
@@ -26,7 +26,7 @@
 {% if rs.summary %}<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
 {% if rs.decisions %}
 <h3>{{ _("Decisions heard in the recording") }}</h3>
-{{ decision_rows(none, rs.decisions, rs.get("english"), gloss) }}
+{{ decision_groups(none, rs.decisions, rs.get("english"), gloss) }}
 {% endif %}
 {% endif %}
 {% if rs.get("discussion") %}
@@ -252,7 +252,7 @@
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
 <h3>{{ _("Decisions recorded") }}</h3>
-{{ decision_rows(m.minutes_doc, ms.decisions, ms.get("english"), gloss) }}
+{{ decision_groups(m.minutes_doc, ms.decisions, ms.get("english"), gloss) }}
 {% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}

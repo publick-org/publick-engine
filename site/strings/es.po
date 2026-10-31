@@ -2024,9 +2024,17 @@ msgstr "Todos los lugares con solicitudes repetidas"
 msgid "All the terms in the glossary"
 msgstr "Todos los términos del glosario"
 
+#: site/pages/meetings/decisions/index.html
+msgid "All topics"
+msgstr "Todos los temas"
+
 #: site/pages/officials/index.html
 msgid "Also representing you, elected citywide:"
 msgstr "También lo representan, elegidos por toda la ciudad:"
+
+#: site/templates/macros.html
+msgid "Also voted on"
+msgstr "También se votó"
 
 #: site/pages/data/index.html
 msgid "Always \"publick-meetings\", and the format's version number."
@@ -2325,6 +2333,11 @@ msgstr "Presupuesto e impuestos"
 msgid "Budget and tax figures"
 msgstr "Cifras de presupuesto e impuestos"
 
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "Budget and taxes"
+msgstr "Presupuesto e impuestos"
+
 #: site/states/vt/schools.html
 msgid "Budget per pupil"
 msgstr "Presupuesto por estudiante"
@@ -2596,6 +2609,11 @@ msgid ""
 msgstr ""
 "Los documentos del presupuesto de la ciudad, con el detalle por departamento, están en el <a "
 "href=\"%(url)s\">sitio web de la ciudad</a>."
+
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "City government"
+msgstr "Gobierno municipal"
 
 #. %(town)s is the town's name; the link is to its government's own website.
 #: site/templates/base.html
@@ -2887,6 +2905,10 @@ msgstr ""
 #: site/templates/meeting.html
 msgid "Decisions heard in the recording"
 msgstr "Decisiones que se oyen en la grabación"
+
+#: site/pages/meetings/decisions/index.html
+msgid "Decisions on"
+msgstr "Decisiones sobre"
 
 #: site/templates/meeting.html
 msgid "Decisions recorded"
@@ -3907,6 +3929,11 @@ msgstr "Vivienda"
 #: pipeline/common_strings.py
 msgid "Housing Authority"
 msgstr "Autoridad de Vivienda"
+
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "Housing and zoning"
+msgstr "Vivienda y zonificación"
 
 #: pipeline/fetch_housing.py
 msgid "Housing figures"
@@ -5554,6 +5581,11 @@ msgstr "Abiertas en los últimos %(days)s días"
 msgid "Other"
 msgstr "Otros"
 
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "Other"
+msgstr "Otros"
+
 #: pipeline/states/ma/housing.py
 msgid "Other residential"
 msgstr "Otras residenciales"
@@ -5612,6 +5644,11 @@ msgstr "Comisión de Parques y Recreación"
 #: pipeline/common_strings.py
 msgid "Parks and Recreation Commission"
 msgstr "Comisión de Parques y Recreación"
+
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "Parks and environment"
+msgstr "Parques y medio ambiente"
 
 #. %(network)s is the name of the network of sites, such as "Publick".
 #: site/pages/about/index.html
@@ -5905,6 +5942,11 @@ msgid "Public requests only; recorded back to %(since)s."
 msgstr "Solo solicitudes públicas; registradas desde el %(since)s."
 
 #: pipeline/states/ma/budget.py
+msgid "Public safety"
+msgstr "Seguridad pública"
+
+#: site/templates/macros.html
+msgctxt "decision topic"
 msgid "Public safety"
 msgstr "Seguridad pública"
 
@@ -6271,6 +6313,11 @@ msgstr "Las cifras escuela por escuela y más están en el <a href=\"%(url)s\">%
 #: pipeline/build_site.py site/states/ct/schools.html site/states/ma/schools.html
 #: site/states/me/schools.html site/states/nh/schools.html site/states/ri/schools.html
 #: site/states/vt/schools.html
+msgid "Schools"
+msgstr "Escuelas"
+
+#: site/templates/macros.html
+msgctxt "decision topic"
 msgid "Schools"
 msgstr "Escuelas"
 
@@ -7208,6 +7255,11 @@ msgstr "Nombre de la calle"
 #: pipeline/common_strings.py
 msgid "Streetlight Out"
 msgstr "Luz de la calle apagada"
+
+#: site/templates/macros.html
+msgctxt "decision topic"
+msgid "Streets and utilities"
+msgstr "Calles y servicios públicos"
 
 #: site/states/me/schools.html
 msgid "Students enrolled fewer than 10 days aren't counted."

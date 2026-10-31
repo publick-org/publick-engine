@@ -1004,6 +1004,14 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
         doubted = {p.get("entry") for p in fc["problems"] if p["field"] == "decisions" and p["kind"] == "outcome"}
         out["decision_outcomes"] = [None if j + 1 in doubted else (e or {}).get("outcome")
                                     for j, e in enumerate(evidence) if j + 1 not in gone]
+    # And each one's title, whether it's main, and its topic (summarize.split_decisions), beside the decisions
+    # shown; a title only where the decisions are shown in English, as it's written.
+    for field in ("decision_titles", "decision_main", "decision_topics"):
+        values = record.get(field) or []
+        if field == "decision_titles" and not english:
+            out.pop(field, None)
+        elif values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
+            out[field] = [v for j, v in enumerate(values) if j + 1 not in gone]
     # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.
     on_page = fc.get("pages")
     if on_page and len(on_page) == len(record.get("decisions") or []) == len(out.get("decisions") or []):

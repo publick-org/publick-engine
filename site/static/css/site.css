@@ -300,6 +300,15 @@ main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap
 .decision-rows .tally { font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .decision-text { min-width: 0; }
 .decision-meeting .decision-rows { padding-left: 0; }
+.decision-rows > li[hidden], .decision-meeting[hidden] { display: none; }
+.decision-title { display: block; font-weight: 700; }
+.decision-detail { display: block; color: var(--ink-soft); font-size: 0.9375rem; }
+h4.also-voted { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
+/* The Decisions page's topic filter (decisions.js). */
+.topic-filter { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 1rem 0 0; }
+.topic-filter[hidden] { display: none; }
+.topic-filter button { font: inherit; font-size: 0.9375rem; min-height: 2.75rem; padding: 0; border: 0; background: none; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.topic-filter button[aria-pressed="true"] { color: var(--ink); font-weight: 700; text-decoration: none; }
 @media (max-width: 30rem) {
   main .decision-rows > li { grid-template-columns: 1fr; }
   .decision-rows .outcome:empty { display: none; }
