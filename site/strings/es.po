@@ -1051,11 +1051,6 @@ msgstr "<a href=\"%(url)s\">%(title)s</a>, en el %(listing)s"
 msgid "<a href=\"%(url)s\">How we know</a>."
 msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
 
-#: site/templates/meeting.html
-#, python-format
-msgid "<a href=\"%(url)s\">Machine transcript</a>, as made, not corrected"
-msgstr "<a href=\"%(url)s\">Transcripción automática</a>, tal como salió, sin corregir"
-
 #. %(where)s is where the minutes were posted, such as "the city website".
 #: site/templates/meeting.html
 #, python-format
@@ -2107,6 +2102,11 @@ msgstr "Edificios de apartamentos (4 unidades o más)"
 msgid "Appointed"
 msgstr "Por nombramiento"
 
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Approved"
+msgstr "Aprobado"
+
 #: pipeline/i18n.py
 msgctxt "month, short"
 msgid "Apr"
@@ -2734,6 +2734,11 @@ msgstr "Contacto"
 msgid "Contingency"
 msgstr "Imprevistos"
 
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Continued"
+msgstr "Aplazado"
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "Correction: {page}"
@@ -2886,6 +2891,11 @@ msgstr "Decisiones que se oyen en la grabación"
 #: site/templates/meeting.html
 msgid "Decisions recorded"
 msgstr "Decisiones registradas"
+
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Denied"
+msgstr "Rechazado"
 
 #: pipeline/common_strings.py
 msgid "Design Review Board"
@@ -4376,6 +4386,10 @@ msgstr "Última revisión: <time datetime=\"%(iso)s\">%(when)s</time>."
 msgid "Last reviewed <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Revisado por última vez el <time datetime=\"%(iso)s\">%(when)s</time>."
 
+#: site/pages/meetings/index.html
+msgid "Later, no agenda yet"
+msgstr "Más adelante, sin agenda todavía"
+
 #: site/pages/about/index.html
 msgctxt "data status"
 msgid "Latest"
@@ -4535,6 +4549,17 @@ msgstr "MCAS de matemáticas, grados 3–8"
 #: site/states/ma/schools.html
 msgid "MCAS results"
 msgstr "Resultados del MCAS"
+
+#: site/templates/meeting.html
+msgid "Machine transcript"
+msgstr "Transcripción automática"
+
+#. a link to the machine transcript of part %(n)s of a meeting's recording, when it was recorded in
+#. parts.
+#: site/templates/meeting.html
+#, python-format
+msgid "Machine transcript %(n)s"
+msgstr "Transcripción automática %(n)s"
 
 #: site/templates/base.html
 msgid "Main"
@@ -5915,14 +5940,25 @@ msgstr "Las cifras de los meses recientes cambiarán a medida que se cierren sol
 msgid "Recently decided"
 msgstr "Decisiones recientes"
 
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Recommended"
+msgstr "Recomendado"
+
 #: site/pages/311/index.html
 #, python-format
 msgid "Recorded back to %(since)s."
 msgstr "Registradas desde el %(since)s."
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "Recording"
 msgstr "Grabación"
+
+#. %(n)s is which recording of the meeting this is, when it was recorded in parts: "Recording 2".
+#: site/templates/meeting.html
+#, python-format
+msgid "Recording %(n)s"
+msgstr "Grabación %(n)s"
 
 #: site/templates/meeting.html
 #, python-format
@@ -5936,6 +5972,11 @@ msgstr "Comisión de Recreación"
 #: pipeline/common_strings.py
 msgid "Redevelopment Authority"
 msgstr "Autoridad de Reurbanización"
+
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Referred"
+msgstr "Remitido"
 
 #. %(listing)s is where the city lists meetings, such as "city's meeting portal".
 #: site/templates/macros.html
@@ -6414,6 +6455,13 @@ msgid "Show %(count)s more meeting this week"
 msgid_plural "Show %(count)s more meetings this week"
 msgstr[0] "Ver %(count)s reunión más de esta semana"
 msgstr[1] "Ver %(count)s reuniones más de esta semana"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Show the agenda's %(count)s item"
+msgid_plural "Show the agenda's %(count)s items"
+msgstr[0] "Mostrar el punto de la agenda (%(count)s)"
+msgstr[1] "Mostrar los %(count)s puntos de la agenda"
 
 #: site/pages/streets/index.html
 #, python-brace-format
@@ -7284,6 +7332,11 @@ msgstr "dom"
 msgctxt "weekday"
 msgid "Sunday"
 msgstr "domingo"
+
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Tabled"
+msgstr "Sobre la mesa"
 
 #: pipeline/states/ct/tax_bill.py pipeline/states/me/tax_bill.py pipeline/states/nh/tax_bill.py
 #: pipeline/states/vt/tax_bill.py
@@ -8342,7 +8395,7 @@ msgstr "jueves"
 msgid "Time"
 msgstr "Hora"
 
-#: site/templates/macros.html
+#: site/pages/meetings/index.html site/templates/macros.html
 msgid "Time TBA"
 msgstr "Hora por anunciar"
 
@@ -8671,7 +8724,7 @@ msgstr "Véala en <a href=\"%(url)s\">YouTube</a>."
 msgid "Watch or take part online: <a href=\"%(url)s\">join by Zoom</a>."
 msgstr "Vea o participe en línea: <a href=\"%(url)s\">únase por Zoom</a>."
 
-#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
+#: site/templates/digest.html site/templates/digest_email.html
 msgid "Watch the recording"
 msgstr "Ver la grabación"
 
@@ -9003,6 +9056,11 @@ msgstr "¿En qué distrito está {street}?"
 #: pipeline/build_site.py site/pages/officials/index.html
 msgid "Who represents you"
 msgstr "Quién lo representa"
+
+#: site/templates/macros.html
+msgctxt "decision outcome"
+msgid "Withdrawn"
+msgstr "Retirado"
 
 #: site/pages/meetings/glossary/index.html
 msgid "Words that come up in agendas, minutes, and their summaries, and what they mean."

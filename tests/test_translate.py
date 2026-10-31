@@ -210,7 +210,7 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     minutes = [p for p in (out / "es" / "meetings").glob("20*/index.html") if "ES The board aprobó" in p.read_text()]
     assert minutes
     page = minutes[0].read_text()
-    assert "<p>ES The board aprobó a site plan for 12 Main St.</p>" in page
+    assert '<p class="summary">ES The board aprobó a site plan for 12 Main St.</p>' in page
     assert "hasn't been translated" not in page
     # Said plainly: translated by AI, with the English it came from one link away.
     path = "/" + str(minutes[0].relative_to(out / "es").parent) + "/"
@@ -218,7 +218,7 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     assert ", en inglés)." in page and ">Copia guardada<" in page
     english = (out / minutes[0].relative_to(out / "es")).read_text()
     assert "Translated automatically" not in english and "en inglés" not in english
-    assert "<p>The board approved a site plan for 12 Main St.</p>" in english and "ES " not in english
+    assert "<p class=\"summary\">The board approved a site plan for 12 Main St.</p>" in english and "ES " not in english
     index = json.loads((out / "es" / "meetings" / "search-index.json").read_text())
     assert any(d["text"].startswith("ES ") for row in index for d in row["docs"])
 
@@ -231,7 +231,7 @@ def test_untranslated_summaries_are_shown_in_english(tmp_path, monkeypatch):
     build_site.build("gloucester", out, data_dir=tmp_path, now=BUILT_AT)
     page = next(p for p in (out / "es" / "meetings").glob("20*/index.html")
                 if "a site plan for 12 Main St." in p.read_text()).read_text()
-    assert '<p lang="en">The board approved a site plan for 12 Main St.</p>' in page
+    assert '<p class="summary" lang="en">The board approved a site plan for 12 Main St.</p>' in page
     # Made twice and failed: the page says so, rather than that it's waiting.
     summarize.run(config, FakeAnthropic(translation_drops_numbers=True), tmp_path, limit=50, now=FETCHED_AT)
     build_site.build("gloucester", out, data_dir=tmp_path, now=BUILT_AT)
