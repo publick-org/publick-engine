@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite, decision_groups %}
+{% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite, decision_groups, report_button %}
 {% from "search_text.html" import when_where, with_ai_label %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
@@ -20,31 +20,30 @@
 {# Translators: a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
 {# The summary of a meeting's recording: primary, before the minutes' summary (its decisions and what was discussed);
    otherwise, under the minutes', what was discussed. #}
-{% macro recording_part(rs, primary, report_url, english_url) -%}
+{% macro recording_part(rs, primary, report_url, english_url, about) -%}
 {% if primary %}
 {% if rs.summary %}<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
 {% if rs.decisions %}
-<h3>{{ _("Decisions heard in the recording") }}</h3>
 {{ decision_groups(none, rs.decisions, rs.get("english"), gloss) }}
 {% endif %}
 {% endif %}
 {% if rs.get("discussion") %}
 <h3 id="discussed">{{ _("What was discussed") }}</h3>
-{% if not primary %}<p class="small">{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endif %}
+{% if not primary %}{% set n %}<p>{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endset %}{% set __ = about.notes.append(n) %}{% endif %}
 <div class="discussion"{{ english_attr(rs) }}>
   {% for d in rs.discussion %}{% set parts = discussion_parts(d) %}<p>{% if parts[0] %}<strong>{{ parts[0] }}.</strong> {% endif %}{{ gloss(parts[1], rs.get("english")) }}</p>{% endfor %}
 </div>
 {% endif %}
 {% if primary or rs.get("discussion") %}
+{% set n %}
+{{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, none, none, english_url, rs) }}
 {% if rs.get("not_shown") %}
 {# Something the transcript doesn't have (pipeline/factcheck.py) isn't shown. #}
-<p class="small">{% trans count=rs.not_shown %}{{ count }} item isn't shown: it couldn't be matched to the transcript.{% pluralize %}{{ count }} items aren't shown: they couldn't be matched to the transcript.{% endtrans %}</p>
+<p>{% trans count=rs.not_shown %}{{ count }} item isn't shown: it couldn't be matched to the transcript.{% pluralize %}{{ count }} items aren't shown: they couldn't be matched to the transcript.{% endtrans %}</p>
 {% endif %}
-{% if rs.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
-{%- elif rs.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{# Said once, with the note on how it was made, not above the summary. #}
-{% if primary %}<p class="small">{{ _("From the meeting's recording. The official minutes come later, and their summary will replace this one.") }}</p>{% endif %}
-{{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, report_url, none, english_url, rs) }}
+{% if rs.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif rs.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{% endset %}{% set __ = about.notes.append(n) %}
 {% endif %}
 {%- endmacro %}
 
@@ -107,6 +106,9 @@
   breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
 {% block footer_signup %}{% endblock %}
 {% block content %}
+{# Notes on how the page's summaries were made, what isn't shown, and where its documents are saved: gathered as the
+   page is written, and said once, under "About this page". #}
+{% set about = namespace(notes=[]) %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
 {% set district = m.source in ("drive", "finalsite", "page", "sharpschool", "diligent", "opengov", "ical", "schedule") %}
 {% set documents_only = m.source == "archive" or district %}
@@ -184,7 +186,7 @@
 </dl>
 {% if m.from_agenda %}<p class="small">{{ _("From the posted agenda, as read by AI. The agenda is the official notice; check it before you go.") }}</p>
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
-{% elif not documents_only and m.agenda and has_where %}<p class="small">{% trans listing=m.listing %}Location from the {{ listing }}. The posted agenda is the official notice; check it if the two differ.{% endtrans %}</p>{% endif %}
+{% elif not documents_only and m.agenda and has_where %}{% set n %}<p>{% trans listing=m.listing %}Location from the {{ listing }}. The posted agenda is the official notice; check it if the two differ.{% endtrans %}</p>{% endset %}{% if upcoming %}<p class="small">{{ n | striptags }}</p>{% else %}{% set __ = about.notes.append(n) %}{% endif %}{% endif %}
 {% endif %}
 
 {% set part = config.get("participation", {}).get(m.body_en, {}) %}
@@ -224,7 +226,7 @@
 {% if not meeting_links.documents %}
 {% if from_recording %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
-{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}
+{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none, about) }}
 {% endif %}
 {# A town that doesn't collect agendas and minutes yet links to where the city posts them. #}
 <h2 id="agenda">{{ _("Agenda and minutes") }}</h2>
@@ -246,7 +248,7 @@
 {% if m.minutes_doc %}
 {% set ms = m.minutes_summary %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
-{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
+{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none, about) }}{% endif %}
 {% if ms %}
 {% if ms.get("is_minutes") == false %}
 <p>{% if "agenda" in ms.summary.lower() %}
@@ -261,19 +263,20 @@
 {% endif %}
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
-<h3>{{ _("Decisions recorded") }}</h3>
 {{ decision_groups(m.minutes_doc, ms.decisions, ms.get("english"), gloss) }}
 {% elif not ms.get("not_shown") %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}
+{% set n %}
+{{ ai_credit("minutes", ms.source_url, none, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none, ms) }}
 {% if ms.get("is_minutes") != false and ms.get("not_shown") %}
 {# A decision with something the minutes' own text doesn't have (pipeline/factcheck.py) isn't shown. #}
-<p class="small">{% trans count=ms.not_shown %}{{ count }} decision isn't shown: it couldn't be matched to the minutes.{% pluralize %}{{ count }} decisions aren't shown: they couldn't be matched to the minutes.{% endtrans %}</p>
+<p>{% trans count=ms.not_shown %}{{ count }} decision isn't shown: it couldn't be matched to the minutes.{% pluralize %}{{ count }} decisions aren't shown: they couldn't be matched to the minutes.{% endtrans %}</p>
 {% endif %}
-{% if ms.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
-{%- elif ms.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("minutes", ms.source_url, report_url, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none, ms) }}
+{% if ms.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif ms.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ full_text("minutes", ms) }}
+{% endset %}{% set __ = about.notes.append(n) %}
 {% elif m.get("withheld", {}).get("minutes") %}
 {# Taken down by hand after a reader reported an error ([[summaries.withheld]]), until it's fixed. #}
 <p>{{ _("Minutes are posted and linked below. Their summary was taken down while a reported error is checked.") }}</p>
@@ -287,6 +290,7 @@
 {% else %}
 <p>{{ _("Minutes are posted. A plain-English summary will be added: new minutes are summarized first, and older ones a few each day.") }}</p>
 {% endif %}
+{% set n %}
 {% if m.minutes_doc.get("converted_from") %}
 {# Posted as another kind of file, which the button above doesn't link: its PDF is the saved copy. #}
 <ul>
@@ -297,7 +301,7 @@
 {% else %}
 {# The city's PDF is the button at the top of the page; here, where it's posted, and the copy saved in case it changes. #}
 {# Translators: %(where)s is where the minutes were posted, such as "the city website"; %(size)s is the file's size, such as "257 KB". #}
-<p class="small">{% trans where=m.minutes_doc.get("posted_on") or _("the city website"), size=m.minutes_doc.bytes | filesize %}Minutes posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('minutes', m.minutes_doc.file), iso=m.minutes_doc.fetched_at, when=m.minutes_doc.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+<p>{% trans where=m.minutes_doc.get("posted_on") or _("the city website"), size=m.minutes_doc.bytes | filesize %}Minutes posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('minutes', m.minutes_doc.file), iso=m.minutes_doc.fetched_at, when=m.minutes_doc.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
 {% endif %}
 {% if m.minutes | length > 1 %}
 <p>{{ _("Earlier versions of these minutes:") }}</p>
@@ -307,10 +311,11 @@
   {% endfor %}
 </ul>
 {% endif %}
-{% if rs and not from_recording %}{{ recording_part(rs, false, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
+{% endset %}{% set __ = about.notes.append(n) %}
+{% if rs and not from_recording %}{{ recording_part(rs, false, report_url, versions[0].path if rs.get("translated") else none, about) }}{% endif %}
 {% elif m.minutes_gap or from_recording %}
 <h2 id="minutes">{{ _("What was decided") }}</h2>
-{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none) }}{% endif %}
+{% if from_recording %}{{ recording_part(rs, true, report_url, versions[0].path if rs.get("translated") else none, about) }}{% endif %}
 {% if m.minutes_gap %}
 {# Why there are no minutes (pipeline/absences.py). A meeting that wasn't held has none to wait for, and says nothing. #}
 {% set g = m.minutes_gap %}
@@ -323,6 +328,8 @@
 {% elif source in ("civicclerk", "legistar", "primegov") %}{% set where_url, where = meeting_links.portal, _("city's meeting portal") %}
 {% elif source == "filelist" %}{% set where_url, where = meeting_links.documents_page, meeting_links.archive_name %}
 {% else %}{% set where_url, where = meeting_links.archive, meeting_links.archive_name %}{% endif %}
+{# After a recording's summary, which says the minutes come later, why there are none is a note under "About this page". #}
+{% set gap %}
 {% if g.reason == "not_posted" %}
 {# Translators: %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number of days. #}
 <p data-gap="not_posted">{% trans count=g.days, num=g.days | number, url=where_url, where=where %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} day after the meeting.{% pluralize %}Minutes haven't been posted on the <a href="{{ url }}">{{ where }}</a> yet, {{ num }} days after the meeting.{% endtrans %} {{ _("Minutes usually come out after the board approves them at a later meeting.") }}</p>
@@ -337,6 +344,7 @@
 {% else %}
 <p>{% trans url=town.get("official_site") or meeting_links.calendar %}This site doesn't collect this board's minutes. They may be on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
+{% endset %}{% if from_recording %}{% set __ = about.notes.append(gap) %}{% else %}{{ gap }}{% endif %}
 {% endif %}
 {% endif %}
 
@@ -364,13 +372,15 @@
 </details>
 {% endif %}
 {% endif %}
+{% set n %}
+{{ ai_credit("agenda", m.preview.source_url, none, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none, m.preview) }}
 {% if m.preview.get("not_shown") %}
-<p class="small">{% trans count=m.preview.not_shown %}{{ count }} agenda item isn't shown: it couldn't be matched to the agenda.{% pluralize %}{{ count }} agenda items aren't shown: they couldn't be matched to the agenda.{% endtrans %}</p>
+<p>{% trans count=m.preview.not_shown %}{{ count }} agenda item isn't shown: it couldn't be matched to the agenda.{% pluralize %}{{ count }} agenda items aren't shown: they couldn't be matched to the agenda.{% endtrans %}</p>
 {% endif %}
-{% if m.preview.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
-{%- elif m.preview.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{{ ai_credit("agenda", m.preview.source_url, report_url, m.agenda.get("posted_by") if m.agenda else none, versions[0].path if m.preview.get("translated") else none, m.preview) }}
+{% if m.preview.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
+{%- elif m.preview.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ full_text("agenda", m.preview) }}
+{% endset %}{% set __ = about.notes.append(n) %}
 {% endif %}
 {% if m.agenda and not m.preview %}
 {# Why a saved agenda has no summary (pipeline/absences.py summary_gap); a town without summaries says nothing. #}
@@ -382,10 +392,10 @@
 {% if m.agenda %}
 {# The city's PDF is the button at the top of the page; here, where it's posted, and the copy saved in case it changes. #}
 {# Translators: %(where)s is where the agenda was posted, such as "the city website"; %(size)s is the file's size, such as "257 KB". #}
-<p class="small">{% trans where=m.agenda.get("posted_on") or _("the city website"), size=m.agenda.bytes | filesize %}Agenda posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('agendas', m.agenda.file), iso=m.agenda.fetched_at, when=m.agenda.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+{% set n %}<p>{% trans where=m.agenda.get("posted_on") or _("the city website"), size=m.agenda.bytes | filesize %}Agenda posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('agendas', m.agenda.file), iso=m.agenda.fetched_at, when=m.agenda.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
 {% if m.agenda.has_text == false %}
 {# Translators: %(who)s is who posted the agenda: "The city" or a school district's name. #}
-<p class="small">{% trans who=m.agenda.get("posted_by") or _("The city") %}{{ who }} posted this as a scanned image.{% endtrans %}{% if m.preview %} {{ _("The full text above is a readable version.") }}{% endif %}</p>
+<p>{% trans who=m.agenda.get("posted_by") or _("The city") %}{{ who }} posted this as a scanned image.{% endtrans %}{% if m.preview %} {{ _("The full text above is a readable version.") }}{% endif %}</p>
 {% endif %}
 {% if m.agendas | length > 1 %}
 <p>{{ _("Earlier versions of this agenda:") }}</p>
@@ -395,6 +405,7 @@
   {% endfor %}
 </ul>
 {% endif %}
+{% endset %}{% set __ = about.notes.append(n) %}
 {% elif m.date >= built_at.date().isoformat() %}
 <p>{{ _("No agenda posted yet.") }}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
 {% elif m.board_documents_url %}
@@ -441,7 +452,9 @@
 </ul>
 {% endif %}
 
-<h2 id="source">{{ _("Source") }}</h2>
+<h2 id="about"><span id="source"></span>{{ _("About this page") }}</h2>
+<div class="about-notes">
+{% for n in about.notes %}{{ n }}{% endfor %}
 {# Translators: %(site)s is this website's name. #}
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
 {% if m.get("unplaced") %}
@@ -479,4 +492,6 @@
 {% else %}
 <p>{% trans url=m.source_url, town=town.name %}<a href="{{ url }}">This meeting on the City of {{ town }} calendar</a>.{% endtrans %} {{ recorded }}</p>
 {% endif %}
+<p>{{ report_button(report_url, _("Report an error on this page")) }}</p>
+</div>
 {% endblock %}
