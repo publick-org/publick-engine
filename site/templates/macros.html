@@ -276,13 +276,19 @@
 {%- endmacro %}
 
 {# A meeting page's decisions: those residents look for by their titles, then "Also voted on", the routine ones, one
-   line each, where the summary says which are which (main_and_routine); otherwise all of them, as rows. #}
+   line each, and all of them in the order they were taken, folded, where the summary says which are which
+   (main_and_routine); otherwise all of them, as rows. #}
 {% macro decision_groups(doc, items, english=false, link=none) -%}
 {% set groups = main_and_routine(items) %}
 {{ decision_rows(doc, groups[0], english, link, titled=true) }}
 {% if groups[1] %}
 <h4 class="also-voted">{{ _("Also voted on") }}</h4>
 {{ decision_rows(doc, groups[1], english, link) }}
+{# Every vote as the meeting took them, for a reader who follows the agenda or wants the record whole. #}
+<details class="expand all-votes">
+  <summary>{% trans count=items | length %}Show the {{ count }} vote in order{% pluralize %}Show all {{ count }} votes in order{% endtrans %}</summary>
+  {{ decision_rows(doc, items, english) }}
+</details>
 {% endif %}
 {%- endmacro %}
 

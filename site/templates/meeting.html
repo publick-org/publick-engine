@@ -163,6 +163,12 @@
   {% endif %}
 </div>
 
+{# Where and when, how to take part, and where its recordings are: before what the meeting decided for a meeting to
+   come; after it, for one past whose decisions are shown, so they come first (logistics, below). #}
+{% set shown_rs = m.recording_summary if m.status != "cancelled" else none %}
+{% set shown_ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes") != false else none %}
+{% set decided_first = not upcoming and ((shown_ms and shown_ms.get("decisions")) or (not shown_ms and shown_rs and shown_rs.get("decisions"))) %}
+{% set logistics %}
 {% set has_where = m.location_name or m.address or m.location %}
 {% if has_where or m.remote_url or not documents_only %}
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
@@ -205,6 +211,9 @@
 {% elif part.get("video_url") %}
 <p>{% trans body=m.body, url=part.video_url, title=part.video_title %}Recordings of {{ body }} meetings: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</p>
 {% endif %}
+
+{% endset %}
+{% if not decided_first %}{{ logistics }}{% endif %}
 
 {# The summary of the meeting's recording (pipeline/recordings.py), in "What was decided": before the minutes' summary,
    the whole of it; after, what was discussed, which the minutes don't give. #}
@@ -403,6 +412,11 @@
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
 <p>{% trans listing=m.listing %}The {{ listing }} doesn't link an agenda for this meeting.{% endtrans %}</p>
 {% endif %}
+{% endif %}
+
+{% if decided_first and logistics | trim %}
+<h2 id="details">{{ _("Meeting details") }}</h2>
+{{ logistics }}
 {% endif %}
 
 {# The weekly digest's signup, for a reader who came for one meeting: after the meeting's own content, so it never

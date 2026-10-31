@@ -304,6 +304,10 @@ main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap
 .decision-title { display: block; font-weight: 700; }
 .decision-detail { display: block; color: var(--ink-soft); font-size: 0.9375rem; }
 h4.also-voted { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
+.main-decisions > li[hidden] { display: none; }
+.decision-detail a { font-weight: 600; }
+.meeting-headline { margin: 0.25rem 0 0; }
+details.meeting-decisions { margin-top: 0.4rem; }
 /* The Decisions page's topic filter (decisions.js). */
 .topic-filter { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin: 1rem 0 0; }
 .topic-filter[hidden] { display: none; }
