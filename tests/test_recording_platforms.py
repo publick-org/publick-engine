@@ -1,12 +1,13 @@
 """Each video platform's recordings, read from saved listings (pipeline/recordings.py's PLATFORMS)."""
 
 import json
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fakes import FIXTURES, FakeJSONResponse
 
-from pipeline import cablecast, castus, civicclerk_media, internet_archive, recordings, telvue
+from pipeline import cablecast, castus, civicclerk_media, gemini, internet_archive, recordings, telvue, transcribe, youtube
 
 
 class FakeAPI:
@@ -236,3 +237,175 @@ def test_cablecast_by_category_leaves_shows_without_a_recording():
     found = cablecast.find(FakeCablecast("cablecast_shows_category.json"), salem, "2026-10-01", "America/New_York")
     # The council's meetings of 10-22 have no recording yet (one is the live stream's placeholder).
     assert [(f["board"], f["date"]) for f in found] == [("Zoning Board of Appeals", "2026-10-21")]
+
+
+# ---- YouTube, transcribed by Gemini ------------------------------------------------------------------------
+
+class FakeHTTP:
+    """requests.get or requests.post: the response given for each call, and what each was asked."""
+
+    def __init__(self, *responses):
+        self.responses, self.calls = list(responses), []
+
+    def __call__(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        status, data = self.responses.pop(0)
+        return SimpleNamespace(status_code=status, json=lambda: data, text=json.dumps(data))
+
+
+METHUEN_SCHOOLS = {"platform": "youtube", "channel": "UCez3QQIzOP9up4JK-B08L5g",
+                   "boards": {"School Committee": r"^Methuen School Committee \d"}}
+
+
+def test_youtube_finds_videos_in_the_feed_and_their_lengths(monkeypatch):
+    from fakes import FakeResponse
+    monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    client = SimpleNamespace(get=lambda url: FakeResponse((FIXTURES / "youtube_feed.xml").read_bytes()))
+    get = FakeHTTP((200, {"items": [
+        {"id": "4DvgJgx_Q6U", "snippet": {"liveBroadcastContent": "none"}, "contentDetails": {"duration": "PT2H41M7S"}}]}))
+    found = youtube.find(client, METHUEN_SCHOOLS, "2026-10-20", "America/New_York", get=get)
+    assert [(f["id"], f["date"], f["seconds"]) for f in found] == [("youtube-4DvgJgx_Q6U", "2026-10-26", 9667)]
+    assert found[0]["url"] == "https://www.youtube.com/watch?v=4DvgJgx_Q6U"
+    # The key goes in a header, never in the address.
+    url, kwargs = get.calls[0]
+    assert url == "https://youtube.googleapis.com/youtube/v3/videos" and "test-key" not in json.dumps(kwargs["params"])
+    assert kwargs["headers"] == {"x-goog-api-key": "test-key"}
+
+
+def test_youtube_without_a_key_finds_videos_that_wait(monkeypatch):
+    from fakes import FakeResponse
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    client = SimpleNamespace(get=lambda url: FakeResponse((FIXTURES / "youtube_feed.xml").read_bytes()))
+    found = youtube.find(client, METHUEN_SCHOOLS, "2026-09-01", "America/New_York", get=lambda *a, **k: pytest.fail())
+    assert len(found) == 4 and all("seconds" not in f for f in found)
+    assert youtube.transcript(None, METHUEN_SCHOOLS, {**found[0], "seconds": 600}) is None
+
+
+def test_a_live_video_has_no_length_yet():
+    get = FakeHTTP((200, {"items": [{"id": "a", "snippet": {"liveBroadcastContent": "live"}, "contentDetails": {"duration": "P0D"}},
+                                    {"id": "b", "snippet": {"liveBroadcastContent": "none"}, "contentDetails": {"duration": "PT45M"}}]}))
+    assert youtube.details(["a", "b"], "k", get) == {"a": {"seconds": None}, "b": {"seconds": 2700}}
+
+
+def interaction(text, tokens=(1000, 500)):
+    return {"status": "completed", "steps": [{"type": "model_output", "content": [{"type": "text", "text": text}]}],
+            "usage": {"total_input_tokens": tokens[0], "total_output_tokens": tokens[1]}}
+
+
+def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    post = FakeHTTP(
+        (200, interaction("[0:00:05] Good evening. The committee will come to order.\n[0:12:40] Motion to approve the budget.")),
+        # The second part's times, given from its own start: moved to the recording's.
+        (200, interaction("[0:01:10] The motion carries 5 to 0.\nThe meeting is adjourned.")),
+    )
+    text, made = youtube.transcript(None, METHUEN_SCHOOLS, {"id": "youtube-abc", "video_id": "abc", "seconds": 1500,
+                                                            "title": "School Committee", "date": "2026-10-26"}, post=post)
+    assert text == ("[0:00:05] Good evening. The committee will come to order.\n"
+                    "[0:12:40] Motion to approve the budget.\n"
+                    "[0:21:10] The motion carries 5 to 0. The meeting is adjourned.\n")
+    assert made == {"model": gemini.MODEL, "usage": {"requests": 2, "input_tokens": 2000, "output_tokens": 1000}}
+    first, second = (kwargs["json"] for _, kwargs in post.calls)
+    video = first["input"][0]
+    assert video["uri"] == "https://www.youtube.com/watch?v=abc"
+    # The API takes the offsets as strings of seconds; a number is refused (400, "Invalid input at 'input[0].processing'").
+    assert video["processing"] == {"type": "static", "start_offset": "0s", "end_offset": "1200s", "fps": gemini.FPS}
+    assert second["input"][0]["processing"]["start_offset"] == "1200s" and second["input"][0]["processing"]["end_offset"] == "1500s"
+    assert first["store"] is False
+    assert "from 0:20:00 to 0:25:00" in second["input"][1]["text"]
+    assert post.calls[0][1]["headers"]["x-goog-api-key"] == "test-key"
+
+
+def test_gemini_errors_are_a_failed_try():
+    from pipeline.http import FetchError
+    waits = []
+    # The day's requests used up: not asked again.
+    post = FakeHTTP((429, {"error": {"message": "Rate limit exceeded: requests per day"}}))
+    with pytest.raises(gemini.Unavailable, match="HTTP 429"):
+        gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert len(post.calls) == 1 and waits == []
+    # A request the API refuses (400) isn't asked again either.
+    with pytest.raises(FetchError, match="HTTP 400"):
+        gemini.transcribe(FakeHTTP((400, {"error": {"message": "Invalid input"}})), "abc", 600, "x", "2026-10-26", "k",
+                          sleep=waits.append)
+    # Busy every time: asked once and again after each wait, then unavailable for now.
+    post = FakeHTTP(*[(503, {"error": {"message": "high demand"}})] * 4)
+    with pytest.raises(gemini.Unavailable, match="HTTP 503"):
+        gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert len(post.calls) == 4 and waits == list(gemini.RETRY_WAITS)
+    # Answered with nothing every time.
+    with pytest.raises(transcribe.TranscribeError, match="answered a part with nothing"):
+        gemini.transcribe(FakeHTTP(*[(200, interaction("\n"))] * 4), "abc", 600, "x", "2026-10-26", "k", sleep=lambda s: None)
+    # A meeting with no speech at all.
+    with pytest.raises(transcribe.TranscribeError, match="heard nothing"):
+        gemini.transcribe(FakeHTTP((200, interaction("[no speech]"))), "abc", 600, "x", "2026-10-26", "k")
+
+
+def test_gemini_asks_again_while_busy_or_answering_nothing():
+    waits = []
+    post = FakeHTTP((503, {"error": {"message": "high demand"}}), (429, {"error": {"message": "too many requests a minute"}}),
+                    (200, interaction("\n")), (200, interaction("[0:00:05] Good evening.")))
+    text, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", sleep=waits.append)
+    assert text == "[0:00:05] Good evening.\n" and len(post.calls) == 4 and waits == list(gemini.RETRY_WAITS)
+    assert usage["requests"] == 1
+
+
+def test_gemini_asks_for_little_thinking_and_counts_its_thoughts():
+    answer = interaction("[0:00:05] Good evening.")
+    answer["usage"]["total_thought_tokens"] = 300
+    post = FakeHTTP((200, answer))
+    _, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k")
+    assert post.calls[0][1]["json"]["generation_config"]["thinking_level"] == "low"
+    # Thoughts are billed as output.
+    assert usage == {"requests": 1, "input_tokens": 1000, "output_tokens": 800}
+
+
+def test_gemini_reads_minutes_past_an_hour_and_drops_no_speech():
+    text = "[84:10] Roll call, please.\n[1:24:30] Motion carries.\n[no speech]\n[1:25:00] [inaudible]"
+    assert gemini.paragraphs(text, 4800, 6000) == [(5050.0, "Roll call, please."), (5070.0, "Motion carries.")]
+
+
+def test_gemini_paragraphs_start_at_times_inside_a_line():
+    # gemini-3.8-flash wrote a 20-minute part as one line, with its paragraphs' times inline.
+    text = "[0:00:02] Come to order. Pledge of Allegiance. [0:00:59] Roll call, Mr. Clerk. 11 present. [0:05:00] Moment of silence."
+    assert gemini.paragraphs(text, 0, 1200) == [(2.0, "Come to order. Pledge of Allegiance."),
+                                                (59.0, "Roll call, Mr. Clerk. 11 present."), (300.0, "Moment of silence.")]
+
+
+def test_a_youtube_transcript_goes_on_from_the_parts_already_answered(monkeypatch, tmp_path):
+    from pipeline.documents import LocalDocuments
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    storage = LocalDocuments(tmp_path)
+    video = {"id": "youtube-abc", "video_id": "abc", "seconds": 3000, "title": "School Committee", "date": "2026-10-26"}
+    # The first part is answered; then the day's requests run out: the video waits, and no try is counted.
+    post = FakeHTTP((200, interaction("[0:00:05] Good evening.")),
+                    (429, {"error": {"message": "Rate limit exceeded: requests per day"}}))
+    assert youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post) is None
+    kept = json.loads((tmp_path / "meetings" / "transcripts" / "youtube-abc.parts.json").read_text())
+    assert kept["parts"] == {"0": ["[0:00:05] Good evening."]} and kept["usage"]["requests"] == 1
+    # The next run asks only for the parts still missing.
+    post = FakeHTTP((200, interaction("[0:20:10] Motion to adjourn.")), (200, interaction("[0:40:00] So voted.")))
+    text, made = youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post)
+    assert text == "[0:00:05] Good evening.\n[0:20:10] Motion to adjourn.\n[0:40:00] So voted.\n"
+    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["1200s", "2400s"]
+    assert made["usage"] == {"requests": 3, "input_tokens": 3000, "output_tokens": 1500}
+
+
+def test_parts_from_another_model_are_asked_for_again():
+    done = {"model": "gemini-old", "clip": gemini.CLIP_SECONDS, "parts": {"0": ["[0:00:05] Old."]},
+            "usage": {"requests": 1, "input_tokens": 1, "output_tokens": 1}}
+    text, usage = gemini.transcribe(FakeHTTP((200, interaction("[0:00:05] New."))), "abc", 600, "x", "2026-10-26", "k",
+                                    done=done)
+    assert text == "[0:00:05] New.\n" and usage["requests"] == 1
+
+
+def test_youtube_is_the_backup():
+    own = {"id": "telvue-1", "platform": "telvue", "found_at": "2026-10-28T06:00", "source": 0}
+    yt = {"id": "youtube-1", "platform": "youtube", "found_at": "2026-10-27T23:00", "source": 1}
+    assert recordings.chosen([yt]) == [yt]
+    # Found later, the town's own recording is still the one transcribed.
+    assert recordings.chosen([yt, own]) == [own]
+    # Once a meeting is transcribed, a recording found after it isn't.
+    assert recordings.chosen([{**yt, "transcript": {"sha256": "x"}}, own])[0]["id"] == "youtube-1"
