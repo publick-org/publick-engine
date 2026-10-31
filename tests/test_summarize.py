@@ -216,6 +216,7 @@ def test_a_summary_made_again_the_same_month_is_still_counted(tmp_path, monkeypa
     first = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]["cost"]
     # A new minutes prompt: the ones it remakes are made again, their files replaced, both paid for.
     monkeypatch.setitem(summarize.KINDS["minutes"], "version", summarize.KINDS["minutes"]["version"] + 1)
+    monkeypatch.delitem(summarize.KINDS["minutes"], "remake_since")
     remade = summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["summarized"]
     row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     assert remade and row["replaced_cost"] == round(remade * REQUEST, 4) and row["cost"] == first

@@ -98,3 +98,101 @@ def test_later_meetings_without_an_agenda_are_one_line_each(site_dir):
     assert lines and min(lines) >= "2026-10-09"
     for day in lines:
         assert f'id="day-{day}"' not in by_day or "No agenda posted yet" not in by_day
+
+
+def test_a_summarys_decision_labels_are_kept_beside_its_decisions():
+    from pipeline import summarize
+    result = {"headline": "", "summary": "", "decisions": [
+        {"decision": "Approved $200,000 for soil cleanup at 448 High Street, 7-0.", "outcome": "approved", "quote": "q",
+         "title": "$200,000 for soil cleanup at 448 High Street", "main": True, "topic": "budget"},
+        {"decision": "Approved three appointments, 7-0.", "outcome": "approved", "quote": "q",
+         "title": "Three appointments", "main": False, "topic": "government"}]}
+    record = summarize.split_decisions(result)
+    assert record["decisions"][1] == "Approved three appointments, 7-0."
+    assert record["decision_titles"] == ["$200,000 for soil cleanup at 448 High Street", "Three appointments"]
+    assert record["decision_main"] == [True, False] and record["decision_topics"] == ["budget", "government"]
+    # A summary made before decisions had them has none.
+    older = summarize.split_decisions({"decisions": [{"decision": "Approved X.", "outcome": "approved", "quote": "q"}]})
+    assert "decision_titles" not in older and "decision_main" not in older
+
+
+def labeled(problems=(), result="ok"):
+    record = summary(["Approved $200,000 for soil cleanup at 448 High Street, 7-0.", "Approved B.", "Approved C."],
+                     ["approved"] * 3, problems, result)
+    record.update(decision_titles=["$200,000 for soil cleanup at 448 High Street", "B", "C"],
+                  decision_main=[True, False, True], decision_topics=["budget", "government", "schools"])
+    return record
+
+
+def test_the_fact_check_keeps_each_shown_decisions_labels():
+    record = labeled([{"field": "decisions", "entry": 2, "kind": "name", "what": "B"}], result="failed")
+    shown = factcheck.shown(record, record, "minutes")
+    assert shown["decision_titles"] == ["$200,000 for soil cleanup at 448 High Street", "C"]
+    assert shown["decision_main"] == [True, True] and shown["decision_topics"] == ["budget", "schools"]
+    # A translation has no titles of its own: the English ones aren't shown with it.
+    translated = {"kind": "minutes", "headline": "Otro", "summary": "",
+                  "decisions": ["Aprobó $200,000, 7-0.", "Aprobó B.", "Aprobó C."]}
+    shown = factcheck.shown(translated, record, "minutes")
+    assert "decision_titles" not in shown and shown["decision_topics"] == ["budget", "schools"]
+
+
+def test_a_title_is_shown_only_with_its_decisions_numbers_and_names():
+    decision = "Approved $200,000 for soil remediation at 448 High Street and $45,470 for firefighter gear, 7-0."
+    assert build_site.title_supported("$200,000 for soil cleanup at 448 High Street", decision)
+    assert not build_site.title_supported("$250,000 for soil cleanup at 448 High Street", decision)
+    assert not build_site.title_supported("Soil cleanup at 448 Main Street", decision)
+    assert build_site.title_supported("Law Department's extra funding cut",
+                                      "Cut the law department supplemental appropriation.")
+    record = labeled()
+    record["decision_titles"][2] = "Comcast conduit at 75 Riverside Avenue"
+    with i18n.use("en"):
+        decisions = build_site.decisions_shown(record, record, record)
+    assert [d.title for d in decisions] == ["$200,000 for soil cleanup at 448 High Street", "B", None]
+    assert [d.main for d in decisions] == [True, False, True] and decisions[0].topic == "budget"
+
+
+def test_main_decisions_come_first_and_routine_ones_after():
+    with i18n.use("en"):
+        decisions = build_site.decisions_shown(labeled(), labeled(), labeled())
+    main, routine = build_site.main_and_routine(decisions)
+    assert [str(d) for d in main] == ["Approved $200,000 for soil cleanup at 448 High Street, 7-0.", "Approved C."]
+    assert [str(d) for d in routine] == ["Approved B."]
+    # All routine, or none said: one list.
+    assert build_site.main_and_routine(main) == (main, [])
+    assert build_site.main_and_routine(routine) == (routine, [])
+    assert build_site.main_and_routine(["Approved X."]) == (["Approved X."], [])
+
+
+def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
+    """A meeting page shows its main decisions by their titles, then "Also voted on"; the Decisions page folds the
+    routine ones and has a topic filter for its script."""
+    import json
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    labeled_one = None
+    for path in sorted((data / "summaries").glob("*.json")):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "minutes" and rec.get("decisions") and rec.get("is_minutes", True) and not labeled_one:
+            for field in ("fact_check", "decision_evidence", "decision_pages"):
+                rec.pop(field, None)
+            rec["decisions"] = ["Approved the site plan for 12 Elm Street, 5-0.", "Approved the minutes of May 1, 2026.",
+                                "Approved two appointments to the Library Board."]
+            rec["decision_main"] = [True, False, False]
+            rec["decision_topics"] = ["housing", "government", "government"]
+            rec["decision_titles"] = ["Main decision title", "Minutes", "Library Board appointments"]
+            path.write_text(json.dumps(rec))
+            labeled_one = rec
+    assert labeled_one
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    pages = [p.read_text() for p in (tmp_path / "site" / "meetings").glob("20*/index.html")
+             if '<strong class="decision-title">Main decision title</strong>' in p.read_text()]
+    assert len(pages) == 1
+    page = pages[0]
+    assert page.index("Main decision title") < page.index('<h4 class="also-voted">Also voted on</h4>')
+    assert page.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
+    decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
+    assert '<div class="topic-filter" role="group"' in decisions and "decisions.js" in decisions
+    assert 'data-topic="housing" aria-pressed="false">Housing and zoning</button>' in decisions
+    assert 'data-topic="government" aria-pressed="false">City government</button>' in decisions
