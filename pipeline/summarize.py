@@ -99,6 +99,20 @@ SUMMARY_RULES = """Summary rules:
 - Plain English at about an 8th-grade reading level. Short sentences, one idea each.
 - Keep names, dollar amounts, dates, and case or application numbers exactly as written."""
 
+# What each decision of minutes or a recording is about, for the decisions page to filter by
+# (pipeline/build_site.py TOPIC_NAMES says each one).
+TOPICS = ("budget", "housing", "schools", "safety", "streets", "environment", "government", "other")
+
+# What minutes' and a recording's summaries give for each decision, besides the decision itself: a short
+# title for it, whether it's one residents look for or routine, and its topic. The pages show a main decision
+# by its title, and the routine ones after them, one line each.
+DECISION_LABELS = """
+  - title: the matter decided, as a short heading of at most 10 words, without the outcome or the vote: what residents would call it, with its street address, name, or dollar amount where the decision gives one (for example "$200,000 for soil cleanup at 448 High Street", "Ban on black plastic takeout containers", "Site plan for 12 Elm Street"). Use only names, places, and numbers that are in the decision.
+  - main: true for a decision residents are likely to look for: a project or development; a new rule, ordinance, or moratorium; taxes, fees, a budget, spending, or a contract; schools; or any vote that was not unanimous. false for routine business, such as approving minutes or reports, proclamations and resolutions honoring someone, appointments, licenses and permits renewed as usual, small settlements, and scheduling.
+  - topic: what the decision is about, in one word: budget (taxes, fees, budgets, spending, contracts), housing (housing, zoning, development, building), schools, safety (police, fire, emergency services), streets (streets, traffic, parking, utilities), environment (parks, open space, water, sewer, climate), government (how the city runs: elections, appointments, the charter, its own rules), or other."""
+DECISION_LABEL_PROPERTIES = {"title": {"type": "string"}, "main": {"type": "boolean"},
+                             "topic": {"type": "string", "enum": list(TOPICS)}}
+
 # Run limits for a town whose [summaries] table leaves them out.
 DEFAULT_MAX_PER_RUN = 50
 DEFAULT_MAX_COST_PER_RUN = 5.0
@@ -169,11 +183,12 @@ Return:
     "minutes": {
         # Version 3: each decision with its outcome and the minutes' own words for it, checked
         # without AI (pipeline/factcheck.py). Version 4: the headline leads with what residents look
-        # for, as the agenda's (version 5) does. Minutes of meetings before remake_since keep the
-        # version they have (3, or 2 before 2026-08-04), about 30 days back when version 4 shipped:
+        # for, as the agenda's (version 5) does. Version 5: each decision with a short title, whether it's
+        # main or routine, and its topic (DECISION_LABELS). Minutes of meetings before remake_since keep the
+        # version they have (4, 3, or 2 before 2026-08-04), about 30 days back when version 5 shipped:
         # they're made again only if wanted, by moving it.
-        "version": 4,
-        "remake_since": "2026-09-08",
+        "version": 5,
+        "remake_since": "2026-10-01",
         "folder": "minutes",
         # Long scanned minutes take the model most of 16,000 tokens before it writes (Beverly's City
         # Council, 2026-03-16, 26 decisions): what isn't used isn't paid for.
@@ -192,7 +207,7 @@ Return:
 - decisions: each motion, vote, or other decision the minutes record, in order. Skip procedural motions such as adjourning or accepting the agenda. For each:
   - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 5-0" or "Continued ... to October 22, 2026").
   - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other (anything else, such as placed on file or no action taken).
-  - quote: the minutes' own words that record this decision, copied exactly, character for character: the item or motion, with its number, address, or amount if the minutes give one, and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the minutes' words.""",
+  - quote: the minutes' own words that record this decision, copied exactly, character for character: the item or motion, with its number, address, or amount if the minutes give one, and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the minutes' words.""" + DECISION_LABELS,
         "schema": {
             "type": "object",
             "properties": {
@@ -205,8 +220,9 @@ Return:
                         "decision": {"type": "string"},
                         "outcome": {"type": "string", "enum": list(factcheck.OUTCOMES)},
                         "quote": {"type": "string"},
+                        **DECISION_LABEL_PROPERTIES,
                     },
-                    "required": ["decision", "outcome", "quote"],
+                    "required": ["decision", "outcome", "quote", *DECISION_LABEL_PROPERTIES],
                     "additionalProperties": False,
                 }},
             },
@@ -218,7 +234,8 @@ Return:
         # A meeting summarized from the machine transcript of its recording (pipeline/recordings.py), the day
         # after, until its minutes come and are summarized instead. Its decisions as the minutes' are, each
         # with the transcript's own words for it, checked against the transcript (pipeline/factcheck.py).
-        "version": 1,
+        # Version 2: each decision with a title, main or routine, and a topic, as the minutes' (version 5).
+        "version": 2,
         "folder": "transcripts",
         # The document is text (the transcript), not a PDF.
         "text": True,
@@ -239,7 +256,7 @@ Return:
 - decisions: each motion or vote whose result the transcript records, in order. Skip procedural motions such as adjourning, accepting the agenda, or approving minutes. For each:
   - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 7-3" or "Referred ... to the Finance Subcommittee").
   - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other.
-  - quote: the transcript's own words that record this decision, copied exactly, character for character, without the times in brackets: the motion and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the transcript's words.
+  - quote: the transcript's own words that record this decision, copied exactly, character for character, without the times in brackets: the motion and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the transcript's words.""" + DECISION_LABELS + """
 - discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed and the views raised, without saying who raised them. An empty list if there was little discussion.""",
         "schema": {
             "type": "object",
@@ -252,8 +269,9 @@ Return:
                         "decision": {"type": "string"},
                         "outcome": {"type": "string", "enum": list(factcheck.OUTCOMES)},
                         "quote": {"type": "string"},
+                        **DECISION_LABEL_PROPERTIES,
                     },
-                    "required": ["decision", "outcome", "quote"],
+                    "required": ["decision", "outcome", "quote", *DECISION_LABEL_PROPERTIES],
                     "additionalProperties": False,
                 }},
                 "discussion": {"type": "array", "items": {"type": "string"}},
@@ -414,14 +432,22 @@ def kept(data_dir: Path, sha256: str, kind: str, meeting: dict) -> bool:
     return cached(data_dir, sha256, kind, current=False) is not None
 
 
+# Lists kept beside a summary's decisions, one entry each (split_decisions()), from DECISION_LABELS.
+DECISION_LISTS = {"title": "decision_titles", "main": "decision_main", "topic": "decision_topics"}
+
+
 def split_decisions(result: dict) -> dict:
     """A minutes summary as saved: its decisions as sentences, as every page and translation reads
-    them, and each one's outcome and quote beside them, in "decision_evidence"."""
+    them, and each one's outcome and quote beside them, in "decision_evidence"; and where the summary
+    gives them, each one's title, whether it's main, and its topic, in "decision_titles",
+    "decision_main" and "decision_topics"."""
     if not result.get("decisions") or not isinstance(result["decisions"][0], dict):
         return result
     entries = result["decisions"]
+    labels = {field: [d.get(key) for d in entries] for key, field in DECISION_LISTS.items()
+              if all(key in d for d in entries)}
     return {**result, "decisions": [d["decision"] for d in entries],
-            "decision_evidence": [{"outcome": d["outcome"], "quote": d["quote"]} for d in entries]}
+            "decision_evidence": [{"outcome": d["outcome"], "quote": d["quote"]} for d in entries], **labels}
 
 
 def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
