@@ -191,9 +191,11 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert len(pages) == 1
     page = pages[0]
     assert page.index("Main decision title") < page.index('<h4 class="also-voted">Also voted on</h4>')
-    grouped, in_order = page.split('<details class="expand all-votes">')
+    # Every vote, in the order taken, folded above the main ones; and where it met after what it decided.
+    in_order = page[page.index('<details class="all-votes">'):page.index("</details>", page.index('<details class="all-votes">'))]
+    grouped = page[page.index("</details>", page.index('<details class="all-votes">')):]
+    assert page.index('<details class="all-votes">') < page.index('<strong class="decision-title">')
     assert grouped.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
-    # Every vote, in the order taken, folded; and where it met and how to watch after what it decided.
     assert "<summary>Show all 3 votes in order</summary>" in in_order
     assert in_order.index("The site plan for 12 Elm Street") < in_order.index("The minutes of May 1, 2026.")
     assert '<dl class="facts">' not in page[:page.index('class="decision-rows"')]

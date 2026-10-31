@@ -280,15 +280,18 @@
    (main_and_routine); otherwise all of them, as rows. #}
 {% macro decision_groups(doc, items, english=false, link=none) -%}
 {% set groups = main_and_routine(items) %}
+{% if groups[1] %}
+{# Every vote as the meeting took them, first and folded, for a reader who follows the agenda or wants the record
+   whole. #}
+<details class="all-votes">
+  <summary>{% trans count=items | length %}Show the {{ count }} vote in order{% pluralize %}Show all {{ count }} votes in order{% endtrans %}</summary>
+  {{ decision_rows(doc, items, english) }}
+</details>
+{% endif %}
 {{ decision_rows(doc, groups[0], english, link, titled=true) }}
 {% if groups[1] %}
 <h4 class="also-voted">{{ _("Also voted on") }}</h4>
 {{ decision_rows(doc, groups[1], english, link) }}
-{# Every vote as the meeting took them, for a reader who follows the agenda or wants the record whole. #}
-<details class="expand all-votes">
-  <summary>{% trans count=items | length %}Show the {{ count }} vote in order{% pluralize %}Show all {{ count }} votes in order{% endtrans %}</summary>
-  {{ decision_rows(doc, items, english) }}
-</details>
 {% endif %}
 {%- endmacro %}
 

@@ -304,6 +304,11 @@ main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap
 .decision-title { display: block; font-weight: 700; }
 .decision-detail { display: block; color: var(--ink-soft); font-size: 0.9375rem; }
 h4.also-voted { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
+/* "Show all N votes in order", a plain link above a meeting's decisions that opens them in order. */
+details.all-votes { margin: 0 0 0.5rem; max-width: 46rem; }
+details.all-votes > summary { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; list-style: none; font-size: 0.9375rem; }
+details.all-votes > summary::-webkit-details-marker { display: none; }
+details.all-votes[open] { margin-bottom: 1.25rem; }
 .main-decisions > li[hidden] { display: none; }
 .decision-detail a { font-weight: 600; }
 .meeting-headline { margin: 0.25rem 0 0; }

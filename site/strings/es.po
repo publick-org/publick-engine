@@ -2906,6 +2906,8 @@ msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
 " actas antes de basarse en una."
 
+#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
+#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 msgid "Decisions heard in the recording"
 msgstr "Decisiones que se oyen en la grabación"
@@ -3751,8 +3753,6 @@ msgstr ""
 "De las actas más recientes que ha publicado la ciudad. Las actas salen después de que una junta "
 "las aprueba, por lo general unas semanas después de la reunión."
 
-#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
-#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 msgid ""
 "From the meeting's recording. The official minutes come later, and their summary will replace "

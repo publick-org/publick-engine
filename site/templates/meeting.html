@@ -22,7 +22,6 @@
    otherwise, under the minutes', what was discussed. #}
 {% macro recording_part(rs, primary, report_url, english_url) -%}
 {% if primary %}
-<p class="small">{{ _("From the meeting's recording. The official minutes come later, and their summary will replace this one.") }}</p>
 {% if rs.summary %}<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
 {% if rs.decisions %}
 <h3>{{ _("Decisions heard in the recording") }}</h3>
@@ -43,6 +42,8 @@
 {% endif %}
 {% if rs.get("english") == "failed" %}<p class="small">{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif rs.get("english") %}<p class="small">{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
+{# Said once, with the note on how it was made, not above the summary. #}
+{% if primary %}<p class="small">{{ _("From the meeting's recording. The official minutes come later, and their summary will replace this one.") }}</p>{% endif %}
 {{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, report_url, none, english_url, rs) }}
 {% endif %}
 {%- endmacro %}
