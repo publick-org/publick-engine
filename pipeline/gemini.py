@@ -23,6 +23,12 @@ or the API is still busy after the last wait, Unavailable: the parts already
 answered are kept by the caller (done, keep), and the rest are asked for on
 a later run.
 
+Gemini's filters sometimes refuse a part of a public meeting outright (HTTP
+400, "Input blocked"), every time it's asked. Such a part is asked for in
+halves, down to MIN_PIECE: what can be transcribed is, and a piece still
+refused is a gap in the transcript (GAP, at its time), so one passage
+doesn't keep a whole meeting from being transcribed.
+
 The request is the Interactions API's (POST /v1beta/interactions, the key in
 x-goog-api-key), with the video as {"type": "video", "uri": <its link>} and
 store false, so Google keeps no copy of the conversation. The API key is
@@ -53,6 +59,9 @@ TIMEOUT = 600
 RETRY_WAITS = (30, 120, 300)
 RETRY_STATUS = {429, 500, 502, 503, 504}
 NO_SPEECH = "[no speech]"
+# The shortest piece a part Gemini's filters refuse is split into; a piece that short still refused is a GAP.
+MIN_PIECE = 5 * 60
+GAP = "[Not transcribed: Gemini declined this part of the recording.]"
 
 PROMPT = """This is part of the recording of a public meeting of a city government: {title}, {date}. This part runs from {start} to {end} of the recording.
 
@@ -124,6 +133,10 @@ class Unavailable(FetchError):
     """The API can't answer for now: the key's requests for the day are used up, or it stayed busy."""
 
 
+class Blocked(FetchError):
+    """Gemini's filters refused this part of the video (HTTP 400, "blocked"): asking again won't help."""
+
+
 def ask(post, body: dict, key: str, sleep=time.sleep) -> tuple[dict, str]:
     """One part's interaction and its text, asked again after a wait while the API is busy or answers nothing."""
     for wait in (*RETRY_WAITS, None):
@@ -144,6 +157,8 @@ def ask(post, body: dict, key: str, sleep=time.sleep) -> tuple[dict, str]:
                 # The day's requests are used up: asking again before tomorrow won't help.
                 if response.status_code == 429 and "per day" in response.text:
                     raise Unavailable(error.args[0], response.status_code)
+                if response.status_code == 400 and "blocked" in response.text.lower():
+                    raise Blocked(error.args[0], response.status_code)
                 if response.status_code not in RETRY_STATUS:
                     raise error
         if wait is None:
@@ -151,6 +166,25 @@ def ask(post, body: dict, key: str, sleep=time.sleep) -> tuple[dict, str]:
                 raise Unavailable(error.args[0], error.status)
             raise error
         sleep(wait)
+
+
+def piece(post, video_id: str, start: int, end: int, title: str, date: str, key: str, model: str, sleep,
+          usage: dict) -> list[str]:
+    """A part's paragraphs, "[h:mm:ss] ..." a line, adding its tokens to usage. A part Gemini's filters refuse
+    is asked for in halves, down to MIN_PIECE; a piece still refused is a GAP at its start."""
+    try:
+        data, text = ask(post, request(video_id, start, end, title, date, model), key, sleep)
+    except Blocked:
+        if end - start <= MIN_PIECE:
+            return [f"[{stamp(start)}] {GAP}"]
+        middle = start + (end - start) // 2
+        return (piece(post, video_id, start, middle, title, date, key, model, sleep, usage)
+                + piece(post, video_id, middle, end, title, date, key, model, sleep, usage))
+    used = data.get("usage") or {}
+    usage["requests"] += 1
+    usage["input_tokens"] += used.get("total_input_tokens", 0)
+    usage["output_tokens"] += used.get("total_output_tokens", 0) + used.get("total_thought_tokens", 0)
+    return [f"[{stamp(t)}] {words}" for t, words in paragraphs(text, start, end)]
 
 
 def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: str, model: str = MODEL,
@@ -171,14 +205,11 @@ def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: st
         if str(start) in done["parts"]:
             continue
         end = min(start + clip, seconds)
-        data, text = ask(post, request(video_id, start, end, title, date, model), key, sleep)
-        used = data.get("usage") or {}
-        usage["requests"] += 1
-        usage["input_tokens"] += used.get("total_input_tokens", 0)
-        usage["output_tokens"] += used.get("total_output_tokens", 0) + used.get("total_thought_tokens", 0)
-        done["parts"][str(start)] = [f"[{stamp(t)}] {words}" for t, words in paragraphs(text, start, end)]
+        done["parts"][str(start)] = piece(post, video_id, start, end, title, date, key, model, sleep, usage)
         keep(done)
     lines = [line for start in sorted(done["parts"], key=int) for line in done["parts"][start]]
     if not lines:
         raise TranscribeError("Gemini heard nothing in the recording")
+    if all(line.endswith(GAP) for line in lines):
+        raise TranscribeError("Gemini declined every part of the recording")
     return "".join(line + "\n" for line in lines), usage
