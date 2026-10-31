@@ -257,20 +257,53 @@ METHUEN_SCHOOLS = {"platform": "youtube", "channel": "UCez3QQIzOP9up4JK-B08L5g",
                    "boards": {"School Committee": r"^Methuen School Committee \d"}}
 
 
-def test_youtube_finds_videos_in_the_feed_and_their_lengths(monkeypatch):
-    from fakes import FakeResponse
+def playlist_item(video_id, title, published="2026-10-27T01:00:00Z"):
+    return {"snippet": {"title": title, "publishedAt": published, "resourceId": {"videoId": video_id}},
+            "contentDetails": {"videoId": video_id, "videoPublishedAt": published}}
+
+
+def test_youtube_lists_a_channels_uploads_from_the_data_api_and_their_lengths(monkeypatch):
     monkeypatch.setenv("YOUTUBE_API_KEY", "test-key")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    client = SimpleNamespace(get=lambda url: FakeResponse((FIXTURES / "youtube_feed.xml").read_bytes()))
-    get = FakeHTTP((200, {"items": [
-        {"id": "4DvgJgx_Q6U", "snippet": {"liveBroadcastContent": "none"}, "contentDetails": {"duration": "PT2H41M7S"}}]}))
+    client = SimpleNamespace(get=lambda url: pytest.fail("the RSS feed isn't read with a key"))
+    get = FakeHTTP(
+        (200, {"items": [playlist_item("4DvgJgx_Q6U", "Methuen School Committee 10/26/2026"),
+                         playlist_item("other", "Methuen Planning Board 10/27/2026"),
+                         playlist_item("gone", "Deleted video")],
+               "nextPageToken": "P2"}),
+        (200, {"items": [playlist_item("old", "Methuen School Committee 9/8/2026", "2026-09-09T01:00:00Z")]}),
+        (200, {"items": [{"id": "4DvgJgx_Q6U", "snippet": {"liveBroadcastContent": "none"},
+                          "contentDetails": {"duration": "PT2H41M7S"}}]}))
     found = youtube.find(client, METHUEN_SCHOOLS, "2026-10-20", "America/New_York", get=get)
     assert [(f["id"], f["date"], f["seconds"]) for f in found] == [("youtube-4DvgJgx_Q6U", "2026-10-26", 9667)]
     assert found[0]["url"] == "https://www.youtube.com/watch?v=4DvgJgx_Q6U"
-    # The key goes in a header, never in the address.
-    url, kwargs = get.calls[0]
-    assert url == "https://youtube.googleapis.com/youtube/v3/videos" and "test-key" not in json.dumps(kwargs["params"])
-    assert kwargs["headers"] == {"x-goog-api-key": "test-key"}
+    # A channel's videos are its uploads playlist, read a page at a time; the key goes in a header, never in the
+    # address.
+    (url, first), (_, second), (videos, _) = get.calls
+    assert url == "https://youtube.googleapis.com/youtube/v3/playlistItems"
+    assert first["params"]["playlistId"] == "UU" + METHUEN_SCHOOLS["channel"][2:] and "pageToken" not in first["params"]
+    assert second["params"]["pageToken"] == "P2"
+    assert videos == "https://youtube.googleapis.com/youtube/v3/videos"
+    assert all(kwargs["headers"] == {"x-goog-api-key": "test-key"} and "test-key" not in json.dumps(kwargs["params"])
+               for _, kwargs in get.calls)
+
+
+def test_youtube_lists_a_playlist_and_reads_at_most_list_pages():
+    gloucester = {"platform": "youtube", "playlist": "PLTfh1ln9eCuqLMvsNOiCQFEh7rrRC6f9o",
+                  "boards": {"City Council": r"^\s*gloucester\s+(?:special\s+)?city\s+council\s+meeting\b"}}
+    page = {"items": [playlist_item("Kb0teFwRY1s", "Gloucester City Council Meeting | October 27, 2026")],
+            "nextPageToken": "more"}
+    get = FakeHTTP(*[(200, page)] * youtube.LIST_PAGES)
+    found = youtube.listed(gloucester, "k", get)
+    assert len(get.calls) == youtube.LIST_PAGES
+    assert get.calls[0][1]["params"]["playlistId"] == "PLTfh1ln9eCuqLMvsNOiCQFEh7rrRC6f9o"
+    assert {(f["id"], f["board"], f["date"]) for f in found} == {("youtube-Kb0teFwRY1s", "City Council", "2026-10-27")}
+
+
+def test_youtube_data_api_errors_are_fetch_errors():
+    from pipeline.http import FetchError
+    with pytest.raises(FetchError, match="HTTP 403"):
+        youtube.listed(METHUEN_SCHOOLS, "k", FakeHTTP((403, {"error": {"message": "quota"}})))
 
 
 def test_youtube_without_a_key_finds_videos_that_wait(monkeypatch):
