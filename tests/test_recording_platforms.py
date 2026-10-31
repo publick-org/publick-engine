@@ -444,6 +444,58 @@ def test_parts_from_another_model_are_asked_for_again():
     assert text == "[0:00:05] New.\n" and usage["requests"] == 1
 
 
+def test_a_youtube_source_without_a_channel_names_its_boards():
+    config = {"recordings": {"sources": [{"platform": "youtube", "boards": ["City Council"]}]}}
+    recordings.check(config)
+    for boards in ({"City Council": "x"}, [], ["City Council", ""]):
+        with pytest.raises(SystemExit, match="must list the boards"):
+            recordings.check({"recordings": {"sources": [{"platform": "youtube", "boards": boards}]}})
+    # With a channel, they're still patterns.
+    with pytest.raises(SystemExit, match="map each board"):
+        recordings.check({"recordings": {"sources": [{"platform": "youtube", "channel": "UCez3QQIzOP9up4JK-B08L5g",
+                                                       "boards": ["City Council"]}]}})
+
+
+def test_youtube_videos_linked_from_meetings():
+    meetings = {
+        "pg-1": {"id": "pg-1", "body": "City Council", "date": "2026-10-20", "title": "City Council Meeting",
+                 "video_id": "abc123def45"},
+        "pg-2": {"id": "pg-2", "body": "License Commission", "date": "2026-10-21", "video_id": "license0001"},
+        "pg-3": {"id": "pg-3", "body": "City Council", "date": "2026-10-06", "video_id": "older000001"},
+        "pg-4": {"id": "pg-4", "body": "City Council", "date": "2026-10-27", "video_id": "cancel00001",
+                 "status": "cancelled"},
+        "pg-5": {"id": "pg-5", "body": "City Council", "date": "2026-10-28"},
+        "fs-6": {"id": "fs-6", "body": "Board of Education", "date": "2026-10-22", "video_id": "daystream01",
+                 "video_start": 4210},
+    }
+    found = youtube.linked({"platform": "youtube", "boards": ["City Council", "Board of Education"]}, meetings,
+                           "2026-10-15")
+    assert [(f["id"], f["board"], f["listing"], f.get("video_start")) for f in found] == [
+        ("youtube-abc123def45", "City Council", "pg-1", None),
+        ("youtube-daystream01-4210", "Board of Education", "fs-6", 4210)]
+    assert found[1]["url"] == "https://www.youtube.com/watch?v=daystream01&t=4210s"
+
+
+def test_a_linked_video_is_transcribed_from_where_the_meeting_starts(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    post = FakeHTTP((200, interaction("[1:10:20] Call to order.")), (200, interaction("[1:30:10] Adjourned.")))
+    text, made = youtube.transcript(None, {"platform": "youtube", "boards": ["Board of Education"]},
+                                    {"id": "youtube-daystream01-4210", "video_id": "daystream01", "seconds": 6000,
+                                     "video_start": 4210, "title": "Board of Education", "date": "2026-10-22"},
+                                    post=post)
+    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["4210s", "5410s"]
+    assert text == "[1:10:20] Call to order.\n[1:30:10] Adjourned.\n"
+
+
+def test_civicclerk_events_keep_their_youtube_link():
+    from pipeline import civicclerk
+    event = {"id": 7, "startDateTime": "2026-10-19T18:00:00Z", "eventName": "City Council Regular Meeting",
+             "externalMediaUrl": "https://www.youtube.com/live/0HBcno0GzaI?si=uFeE7lCLr1KxdiOu"}
+    channel = {**event, "id": 8, "externalMediaUrl": "https://www.youtube.com/@schoolcommitteeSPS/streams"}
+    first, second = civicclerk.parse_events({"value": [event, channel]}, "https://springfieldma.portal.civicclerk.com")
+    assert first["video_id"] == "0HBcno0GzaI" and "video_id" not in second
+
+
 def test_youtube_is_the_backup():
     own = {"id": "telvue-1", "platform": "telvue", "found_at": "2026-10-28T06:00", "source": 0}
     yt = {"id": "youtube-1", "platform": "youtube", "found_at": "2026-10-27T23:00", "source": 1}

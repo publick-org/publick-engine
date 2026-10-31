@@ -31,6 +31,19 @@ robots), so:
 
 Without either key, videos are found and matched, and wait to be transcribed.
 
+A source with neither channel nor playlist takes the videos the town's own
+meeting listings link (a meeting's video_id, from PrimeGov's videoUrl,
+CivicClerk's externalMediaUrl, a Finalsite or link page's YouTube link):
+each is matched to the meeting that links it, so its boards are only named,
+with no pattern, and nothing is read from a title. Where the link starts
+partway through the video (&t=), so does the transcript. This needs no
+channel or pattern per town: where a town's listings link its videos, it's
+the way to read them.
+
+  [[recordings.sources]]
+  platform = "youtube"
+  boards = ["City Council"]   # the videos these boards' meetings link
+
   [[recordings.sources]]
   platform = "youtube"
   channel = "UC..."        # or playlist = "PL..."
@@ -57,6 +70,8 @@ PLAYLIST_ITEMS = "https://youtube.googleapis.com/youtube/v3/playlistItems"
 LIST_PAGES = 2
 KEY_ENV = "YOUTUBE_API_KEY"
 NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
+# fetch_recordings.find() gives find() the town's meetings, for a source that reads their links.
+READS_MEETINGS = True
 DURATION = re.compile(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$")
 
 
@@ -64,8 +79,20 @@ def api_key() -> str | None:
     return os.environ.get(KEY_ENV) or None
 
 
+def from_meetings(source: dict) -> bool:
+    """Whether the source's videos are those the town's meeting listings link (no channel or playlist)."""
+    return not (source.get("channel") or source.get("playlist"))
+
+
+def boards_by_name(source: dict) -> bool:
+    """Whether the source's boards are only named (recordings.check()): its videos come with their meetings."""
+    return from_meetings(source)
+
+
 def check(source: dict, where: str) -> None:
     channel, playlist = source.get("channel") or "", source.get("playlist") or ""
+    if from_meetings(source):
+        return
     if bool(channel) == bool(playlist) or not re.fullmatch(r"(UC|PL|UU|OL)[\w-]{10,}", channel or playlist):
         raise SystemExit(f"{where} (youtube): needs channel (its id, UC...) or playlist (PL...), not both.")
 
@@ -156,9 +183,31 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
     return out
 
 
-def find(client, source: dict, since: str, timezone: str, get=requests.get) -> list[dict]:
+def linked(source: dict, meetings: dict, since: str) -> list[dict]:
+    """The videos the source's boards' meetings on or after since link, each with its meeting (listing)."""
+    out = []
+    for meeting in meetings.values():
+        video_id = meeting.get("video_id")
+        if not video_id or meeting.get("date", "") < since or meeting.get("status") == "cancelled":
+            continue
+        names = [meeting.get("body", ""), *meeting.get("body_names", [])]
+        board = next((b for b in source["boards"] if any(recordings.same_board(n, b) for n in names)), None)
+        if not board:
+            continue
+        start = meeting.get("video_start") or 0
+        out.append({"id": f"youtube-{video_id}" + (f"-{start}" if start else ""), "platform": PLATFORM,
+                    "board": board, "date": meeting["date"], "title": meeting.get("title") or board,
+                    "url": gemini.video_url(video_id) + (f"&t={start}s" if start else ""), "part": None,
+                    "video_id": video_id, "listing": meeting["id"], **({"video_start": start} if start else {})})
+    return out
+
+
+def find(client, source: dict, since: str, timezone: str, get=requests.get, meetings: dict | None = None) -> list[dict]:
     key = api_key()
-    found = listed(source, key, get, since) if key else parse(client.get(feed_url(source)).content, source)
+    if from_meetings(source):
+        found = linked(source, meetings or {}, since)
+    else:
+        found = listed(source, key, get, since) if key else parse(client.get(feed_url(source)).content, source)
     found = [f for f in found if f["date"] >= since]
     if found and key:
         lengths = details([f["video_id"] for f in found], key, get)
@@ -195,7 +244,8 @@ def transcript(client, source: dict, recording: dict, storage=None, post=request
 
     try:
         text, usage = gemini.transcribe(post, recording["video_id"], int(recording["seconds"]), recording["title"],
-                                        recording["date"], key, model, done=done, keep=keep)
+                                        recording["date"], key, model, done=done, keep=keep,
+                                        start=int(recording.get("video_start") or 0))
     except gemini.Unavailable:
         return None
     return text, {"model": model, "usage": usage}
