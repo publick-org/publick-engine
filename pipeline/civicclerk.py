@@ -20,6 +20,7 @@ import re
 from datetime import date
 from urllib.parse import quote
 
+from pipeline.finalsite import recording
 from pipeline.meeting_names import find_board, parse_name
 
 
@@ -118,5 +119,7 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
             event["body"] = find_board(category, boards, aliases or {}) or event["body"]
         if api_url:
             event.update(documents(e, api_url))
+        # A portal that posts its recordings to YouTube links each event's (Nashua's, Springfield's).
+        event.update(recording(e.get("externalMediaUrl") or "") or {})
         events.append(event)
     return events
