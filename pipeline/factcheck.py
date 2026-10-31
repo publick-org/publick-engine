@@ -996,11 +996,18 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                 out[field] = without_tally(out[field], p["what"])
         elif fc["result"] == "failed":
             hidden.setdefault(field, set()).add(p.get("entry"))
+    gone = hidden.get("decisions", set())
+    # Each decision's outcome (decision_evidence), kept beside the decisions shown, for the site to say it beside
+    # each one; none for a decision whose outcome the check questioned.
+    evidence = record.get("decision_evidence") or []
+    if evidence and len(evidence) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
+        doubted = {p.get("entry") for p in fc["problems"] if p["field"] == "decisions" and p["kind"] == "outcome"}
+        out["decision_outcomes"] = [None if j + 1 in doubted else (e or {}).get("outcome")
+                                    for j, e in enumerate(evidence) if j + 1 not in gone]
     # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.
     on_page = fc.get("pages")
     if on_page and len(on_page) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
         quotes = [(e or {}).get("quote") for e in record.get("decision_evidence") or []]
-        gone = hidden.get("decisions", set())
         out["decision_pages"] = [[page, quotes[j] if page and j < len(quotes) else None]
                                  for j, page in enumerate(on_page) if j + 1 not in gone]
     for field, entries in hidden.items():

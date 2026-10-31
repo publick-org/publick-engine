@@ -222,7 +222,7 @@ def test_manchester_civicclerk_meeting_has_its_agenda_and_minutes(manchester_sit
     assert 'href="/meetings/minutes/civicclerk-5246.pdf"' in board
     # The stand-in summary's vote count isn't in these real minutes: the fact check
     # (pipeline/factcheck.py) leaves the count out, and the decision in.
-    assert "What was decided" in board and "<li>Approved the site plan for 12 Main St</li>" in board
+    assert "What was decided" in board and ">The site plan for 12 Main St<" in board
     assert "ADA compliance with Joe Lucido" in board  # the agenda's summary
     assert "(CivicClerk)" in board
 
@@ -268,7 +268,7 @@ def test_malden_meeting_has_its_minutes(malden_site):
     assert 'href="/meetings/minutes/agendacenter-4400.pdf"' in appeal
     # The stand-in summary's vote count isn't in these real minutes: the fact check
     # (pipeline/factcheck.py) leaves the count out, and the decision in.
-    assert "What was decided" in appeal and "<li>Approved the site plan for 12 Main St</li>" in appeal
+    assert "What was decided" in appeal and ">The site plan for 12 Main St<" in appeal
     assert "Board of Appeal" in page(malden_site, "/meetings/decisions/")
 
 
@@ -305,7 +305,7 @@ def test_wallingford_meeting_from_its_documents_has_its_minutes(wallingford_site
     assert 'href="/meetings/minutes/filelist-12188.pdf"' in council
     # The stand-in summary's vote count isn't in these real minutes: the fact check
     # (pipeline/factcheck.py) leaves the count out, and the decision in.
-    assert "What was decided" in council and "<li>Approved the site plan for 12 Main St</li>" in council
+    assert "What was decided" in council and ">The site plan for 12 Main St<" in council
     assert "Town Council" in page(wallingford_site, "/meetings/decisions/")
 
 
