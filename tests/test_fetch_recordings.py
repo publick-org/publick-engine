@@ -302,3 +302,24 @@ def test_without_its_key_a_youtube_video_waits(config, data_dir, monkeypatch):
         status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: pytest.fail("no Whisper"))
     assert status["not_ready"] == ["fake-1"]
     assert "tries" not in recordings.load(data_dir)["fake-1"]
+
+
+def test_youtube_videos_linked_from_the_meetings_are_matched_through_their_listing(config, data_dir, monkeypatch):
+    from pipeline import youtube
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    store = json.loads((data_dir / "meetings" / "meetings.json").read_text())
+    store["ac-1"]["video_id"] = "council1027"
+    # Two Planning Board meetings that day: a title couldn't tell them apart, the link does.
+    store["ac-5"].update(video_id="pbspecial", video_start=95)
+    store["ac-3"]["video_id"] = "school1026"
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+    config["recordings"] = {"sources": [{"platform": "youtube", "boards": ["City Council", "Planning Board"]}]}
+    recordings.check(config)
+    monkeypatch.setattr(recordings, "platform", lambda name: youtube)
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True)
+    kept = recordings.load(data_dir)
+    assert status["unmatched"] == [] and status["errors"] == []
+    assert {k: (v["meeting"], v["board"]) for k, v in kept.items()} == {
+        "youtube-council1027": ("ac-1", "City Council"), "youtube-pbspecial-95": ("ac-5", "Planning Board")}
+    assert kept["youtube-pbspecial-95"]["url"] == "https://www.youtube.com/watch?v=pbspecial&t=95s"

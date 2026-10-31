@@ -64,7 +64,9 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
     for i, source in enumerate(config["recordings"]["sources"]):
         module = recordings.platform(source["platform"])
         try:
-            found = module.find(client, source, since, config["site"]["timezone"])
+            # A platform that reads the town's own listings (YouTube's links) is given the meetings.
+            found = module.find(client, source, since, config["site"]["timezone"],
+                                **({"meetings": meetings} if getattr(module, "READS_MEETINGS", False) else {}))
         except FetchError as e:
             counts["errors"].append(f"{source['platform']} (source {i + 1}): {e}")
             continue
@@ -103,7 +105,7 @@ def to_transcribe(store: dict, meetings: dict, since: str) -> list[dict]:
 def likely_seconds(recording: dict) -> float:
     """How long the recording is likely to take to read and transcribe: by Whisper here, or by Gemini (a
     fraction of that, YOUTUBE_SPEED)."""
-    length = recording.get("seconds") or UNKNOWN_SECONDS
+    length = max((recording.get("seconds") or UNKNOWN_SECONDS) - (recording.get("video_start") or 0), 0)
     if recording.get("platform") in recordings.BACKUP:
         return length / YOUTUBE_SPEED
     return length / transcribe.SPEED + length * DOWNLOAD_SHARE
