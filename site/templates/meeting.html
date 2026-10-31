@@ -35,6 +35,7 @@
 </div>
 {% endif %}
 {% if primary or rs.get("discussion") %}
+{% set nothing_shown = primary and not rs.summary and not rs.decisions and not rs.get("discussion") %}
 {% set n %}
 {{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, none, none, english_url, rs) }}
 {% if rs.get("not_shown") %}
@@ -43,7 +44,7 @@
 {% endif %}
 {% if rs.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif rs.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
-{% endset %}{% set __ = about.notes.append(n) %}
+{% endset %}{% if nothing_shown %}{{ n }}{% else %}{% set __ = about.notes.append(n) %}{% endif %}
 {% endif %}
 {%- endmacro %}
 
@@ -276,7 +277,10 @@
 {% if ms.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif ms.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ full_text("minutes", ms) }}
-{% endset %}{% set __ = about.notes.append(n) %}
+{% endset %}
+{# With none of the summary shown (every decision held back, and the summary too, as can be in a translation), its
+   notes stay here, so the section says why it's empty. #}
+{% if ms.get("is_minutes") != false and not ms.summary and not ms.decisions and ms.get("not_shown") %}{{ n }}{% else %}{% set __ = about.notes.append(n) %}{% endif %}
 {% elif m.get("withheld", {}).get("minutes") %}
 {# Taken down by hand after a reader reported an error ([[summaries.withheld]]), until it's fixed. #}
 <p>{{ _("Minutes are posted and linked below. Their summary was taken down while a reported error is checked.") }}</p>
@@ -380,7 +384,7 @@
 {% if m.preview.get("english") == "failed" %}<p>{{ _("This summary is shown in English: its automatic translation didn't pass our checks.") }}</p>
 {%- elif m.preview.get("english") %}<p>{{ _("This summary hasn't been translated yet, so it's shown in English.") }}</p>{% endif %}
 {{ full_text("agenda", m.preview) }}
-{% endset %}{% set __ = about.notes.append(n) %}
+{% endset %}{% if not m.preview.summary and not m.preview["items"] %}{{ n }}{% else %}{% set __ = about.notes.append(n) %}{% endif %}
 {% endif %}
 {% if m.agenda and not m.preview %}
 {# Why a saved agenda has no summary (pipeline/absences.py summary_gap); a town without summaries says nothing. #}
