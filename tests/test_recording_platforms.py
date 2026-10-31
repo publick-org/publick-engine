@@ -496,6 +496,23 @@ def test_civicclerk_events_keep_their_youtube_link():
     assert first["video_id"] == "0HBcno0GzaI" and "video_id" not in second
 
 
+BLOCKED = (400, {"error": {"message": "Input blocked: This request was blocked by Gemini's filters."}})
+
+
+def test_a_part_gemini_declines_is_asked_for_in_halves_down_to_a_gap():
+    # A 10-minute part refused: its halves are asked for; the second, refused again at MIN_PIECE, is a gap.
+    post = FakeHTTP(BLOCKED, (200, interaction("[0:00:05] Good evening.")), BLOCKED)
+    text, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", clip=600, sleep=lambda s: pytest.fail())
+    assert text == f"[0:00:05] Good evening.\n[0:05:00] {gemini.GAP}\n"
+    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["0s", "0s", "300s"]
+    assert usage["requests"] == 1
+
+
+def test_a_recording_gemini_declines_throughout_is_a_failed_try():
+    with pytest.raises(transcribe.TranscribeError, match="declined every part"):
+        gemini.transcribe(FakeHTTP(BLOCKED), "abc", 300, "x", "2026-10-26", "k")
+
+
 def test_youtube_is_the_backup():
     own = {"id": "telvue-1", "platform": "telvue", "found_at": "2026-10-28T06:00", "source": 0}
     yt = {"id": "youtube-1", "platform": "youtube", "found_at": "2026-10-27T23:00", "source": 1}
