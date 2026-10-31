@@ -191,8 +191,30 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert len(pages) == 1
     page = pages[0]
     assert page.index("Main decision title") < page.index('<h4 class="also-voted">Also voted on</h4>')
-    assert page.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
+    grouped, in_order = page.split('<details class="expand all-votes">')
+    assert grouped.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
+    # Every vote, in the order taken, folded; and where it met and how to watch after what it decided.
+    assert "<summary>Show all 3 votes in order</summary>" in in_order
+    assert in_order.index("The site plan for 12 Elm Street") < in_order.index("The minutes of May 1, 2026.")
+    assert '<dl class="facts">' not in page[:page.index('class="decision-rows"')]
+    # Where it met, where the page says, after what it decided, under its own heading.
+    assert ('<h2 id="details">Meeting details</h2>' in page) == ('<dl class="facts">' in page)
+    if '<dl class="facts">' in page:
+        assert page.index('class="decision-rows"') < page.index('<h2 id="details">') < page.index('<dl class="facts">')
     decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
+    # The main decisions first, by title; the meeting below is one line, its decisions folded.
+    main = decisions[decisions.index('<h2 id="main">The main decisions</h2>'):decisions.index('<h2 id="by-meeting">')]
+    assert "Main decision title" in main and "Library Board" not in main
+    assert '<summary>Show its 3 decisions</summary>' in decisions
     assert '<div class="topic-filter" role="group"' in decisions and "decisions.js" in decisions
     assert 'data-topic="housing" aria-pressed="false">Housing and zoning</button>' in decisions
     assert 'data-topic="government" aria-pressed="false">City government</button>' in decisions
+
+
+def test_the_meetings_page_lists_the_last_two_weeks(site_dir):
+    """Under "Recent", the meetings of the last two weeks that were held, newest first, with what each decided."""
+    import re
+    page = (site_dir / "meetings" / "index.html").read_text()
+    recent = page[page.index('<h2 id="recent">Recent</h2>'):page.index('href="/meetings/past/"')]
+    days = re.findall(r'<time datetime="(2026-\d\d-\d\d)">', recent)
+    assert days and days == sorted(days, reverse=True) and min(days) >= "2026-09-18" and max(days) < "2026-10-02"

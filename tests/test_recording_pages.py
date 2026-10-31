@@ -80,6 +80,8 @@ def test_before_the_minutes_the_recording_is_what_was_decided(built):
     assert '<span class="runtime">(1 h 13 min)</span>' in links
     assert ">Machine transcript</a>" in links and "telvue-1.txt" in links
     assert (out / "meetings" / "transcripts" / "telvue-1.txt").read_text() == f"{TRANSCRIPT}1"
+    # Where it met comes after what it decided; with nothing to say, no heading.
+    assert '<h2 id="details">' not in page and '<dl class="facts">' not in page
     es = (out / "es" / "meetings" / before["slug"] / "index.html").read_text()
     assert "Decisiones que se oyen en la grabación" in es and "Grabación" in es[es.index('<p class="doc-links">'):] and ">Aprobado <span" in es
 
