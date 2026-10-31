@@ -235,7 +235,7 @@ def test_meeting_known_from_minutes(site_dir, data_dir):
     archived = next(m for m in store.values() if m.get("source") == "archive")
     page = (site_dir / "meetings" / archived["slug"] / "index.html").read_text()
     assert "What was decided" in page
-    assert "Decisions recorded" in page
+    assert 'class="decision-rows"' in page
     assert "Archive Center" in page
     assert f"/meetings/minutes/{archived['minutes'][0]['file']}" in page
 

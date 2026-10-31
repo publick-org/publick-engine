@@ -294,16 +294,23 @@ main .decision-list > li { max-width: none; margin: 0; }
 
 /* A meeting's decisions, one a row: the outcome and vote count in a narrow column, then the decision (macros.html
    decision_rows), like the time column of a list of meetings. */
-.decision-rows { margin: 0.4rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.1rem 1rem; max-width: 46rem; margin: 0; padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
+/* Grouped by space, not rules: more space between decisions than within one (title, then its detail). */
+.decision-rows { max-width: 46rem; margin: 0.75rem 0 0; padding: 0; list-style: none; display: grid; gap: 1rem; }
+main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.1rem 1rem; max-width: none; margin: 0; padding: 0; }
 .decision-rows .outcome { font-weight: 600; font-size: 0.9375rem; }
 .decision-rows .tally { font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .decision-text { min-width: 0; }
 .decision-meeting .decision-rows { padding-left: 0; }
 .decision-rows > li[hidden], .decision-meeting[hidden] { display: none; }
-.decision-title { display: block; font-weight: 700; }
-.decision-detail { display: block; color: var(--ink-soft); font-size: 0.9375rem; }
-h4.also-voted { margin: 1.5rem 0 0.25rem; font-size: 1rem; }
+.decision-title { display: block; font-weight: 700; line-height: 1.4; }
+.decision-detail { display: block; margin-top: 0.15rem; color: var(--ink-soft); font-size: 0.9375rem; }
+/* A meeting's groups of decisions ("Put off or sent to committee", "Also voted on"): a rule above, as a break. */
+h3.decision-group { max-width: 46rem; margin: 2rem 0 0; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 1rem; }
+/* "About this page": every note on how the page was made, in one quiet place at the end. */
+.about-notes { max-width: var(--measure); color: var(--ink-soft); font-size: 0.875rem; }
+.about-notes p, .about-notes ul { margin: 0 0 0.6rem; }
+.about-notes .credit { margin: 0 0 0.6rem; font-size: inherit; }
+.about-notes details.expand { margin-top: 0; }
 /* "Show all N votes in order", a plain link above a meeting's decisions that opens them in order. */
 details.all-votes { margin: 0 0 0.5rem; max-width: 46rem; }
 details.all-votes > summary { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; list-style: none; font-size: 0.9375rem; }

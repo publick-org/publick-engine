@@ -1807,6 +1807,14 @@ msgstr "Acerca de"
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
+#: site/pages/meetings/decisions/index.html
+msgid "About these decisions"
+msgstr "Sobre estas decisiones"
+
+#: site/templates/meeting.html
+msgid "About this page"
+msgstr "Sobre esta página"
+
 #: site/pages/about/accessibility/index.html site/templates/base.html
 msgid "Accessibility"
 msgstr "Accesibilidad"
@@ -2906,19 +2914,9 @@ msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
 " actas antes de basarse en una."
 
-#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
-#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
-#: site/templates/meeting.html
-msgid "Decisions heard in the recording"
-msgstr "Decisiones que se oyen en la grabación"
-
 #: site/pages/meetings/decisions/index.html
 msgid "Decisions on"
 msgstr "Decisiones sobre"
-
-#: site/templates/meeting.html
-msgid "Decisions recorded"
-msgstr "Decisiones registradas"
 
 #: site/templates/macros.html
 msgctxt "decision outcome"
@@ -3752,14 +3750,6 @@ msgid ""
 msgstr ""
 "De las actas más recientes que ha publicado la ciudad. Las actas salen después de que una junta "
 "las aprueba, por lo general unas semanas después de la reunión."
-
-#: site/templates/meeting.html
-msgid ""
-"From the meeting's recording. The official minutes come later, and their summary will replace "
-"this one."
-msgstr ""
-"De la grabación de la reunión. Las actas oficiales llegan después, y su resumen reemplazará a "
-"este."
 
 #: site/templates/meeting.html
 msgid "From the meeting's recording: the debate and public comment, which the minutes don't give in full."
@@ -5966,6 +5956,10 @@ msgstr "Seguridad pública"
 msgid "Public works"
 msgstr "Obras públicas"
 
+#: site/templates/macros.html
+msgid "Put off or sent to committee"
+msgstr "Pospuesto o enviado a un comité"
+
 #: site/states/me/budget.html site/states/nh/budget.html site/states/vt/budget.html
 msgid "Rate"
 msgstr "Tasa"
@@ -6102,6 +6096,10 @@ msgstr ""
 #: site/templates/macros.html
 msgid "Report an error in this summary"
 msgstr "Informar un error en este resumen"
+
+#: site/templates/meeting.html
+msgid "Report an error on this page"
+msgstr "Reportar un error en esta página"
 
 #: site/pages/311/index.html site/pages/311/repeat-locations/index.html site/templates/category.html
 #: site/templates/ward.html
@@ -6617,10 +6615,6 @@ msgid "Sorted by requests submitted after an earlier request at the same place w
 msgstr ""
 "Ordenados por las solicitudes enviadas después de que se cerró una solicitud anterior en el mismo"
 " lugar."
-
-#: site/templates/meeting.html
-msgid "Source"
-msgstr "Fuente"
 
 #: site/pages/about/index.html
 msgctxt "data status"
@@ -8989,6 +8983,8 @@ msgstr "Lo que este sitio no incluye"
 msgid "What was decided"
 msgstr "Qué se decidió"
 
+#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
+#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 msgid "What was discussed"
 msgstr "Qué se habló"
