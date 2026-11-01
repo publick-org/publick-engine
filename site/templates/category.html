@@ -55,5 +55,5 @@
   {% for r in c.oldest %}<li>{% if source_311.locations %}<a href="{{ r.url }}">{{ r.address or _("No street address") }}</a>{% else %}{{ r.get("type") or r.category }}{% endif %}<span class="item-detail">{% if r.ward %}{{ area(r.ward) }} · {% endif %}{% trans iso=r.created_at, when=r.created_at[:10] | date("plain") %}Open since <time datetime="{{ iso }}">{{ when }}</time>{% endtrans %}</span></li>{% endfor %}
 </ol>
 {% endif %}
-<p class="source-note"><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a>.</p>
+<p class="source-note" data-about><a href="/311/methodology/">{{ _("How these numbers are calculated") }}</a>.</p>
 {% endblock %}

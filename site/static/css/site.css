@@ -311,6 +311,13 @@ h3.decision-group { max-width: 46rem; margin: 2rem 0 0; padding-top: 0.9rem; bor
 .about-notes p, .about-notes ul { margin: 0 0 0.6rem; }
 .about-notes .credit { margin: 0 0 0.6rem; font-size: inherit; }
 .about-notes details.expand { margin-top: 0; }
+/* "Show earlier years" under a folded table of years (tables.js), as plain as a link. */
+button.fold-more { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0; border: 0; background: none;
+  color: var(--primary); font: inherit; font-size: 0.9375rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.data-table tr[hidden] { display: none; }
+/* The same notes gathered from any other page (build_site.gather_notes): one size and color, whatever class each had. */
+.about-page { margin-top: 3rem; }
+.about-page .about-notes .small, .about-page .about-notes .source-note { color: inherit; font-size: inherit; }
 /* "Show all N votes in order", a plain link above a meeting's decisions that opens them in order. */
 details.all-votes { margin: 0 0 0.5rem; max-width: 46rem; }
 details.all-votes > summary { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; list-style: none; font-size: 0.9375rem; }

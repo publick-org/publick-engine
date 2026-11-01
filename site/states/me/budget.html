@@ -15,7 +15,7 @@
   <h1>{{ _("City budget") }}</h1>
   <p class="lede">{{ _("The city's property tax rate, what the property tax raises, and what it comes to for a home and for each resident, from Maine Revenue Services (MRS).") }}</p>
   {% if budget %}
-  <p class="source-note">{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; MRS publishes each tax year's figures in the November or December after the next.{% endtrans %}</p>
+  <p class="source-note" data-about>{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; MRS publishes each tax year's figures in the November or December after the next.{% endtrans %}</p>
   {% endif %}
 </div>
 
@@ -59,7 +59,7 @@
 <h2 id="tax-rate">{{ _("Property tax rate") }}</h2>
 <p>{{ _("The rate is in dollars for each $1,000 of a property's assessed value, and the same rate applies to homes and businesses. It pays for the city, its schools, and its share of the county. Maine names each rate by its tax year: the rate is set on property as it stood on April 1, and the city's fiscal year usually starts that July.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ _("State median") }}</th><th scope="col" class="num wide">{{ _("Certified ratio") }}</th></tr></thead>
   <tbody>
   {% for r in budget.rates | reverse %}
@@ -70,14 +70,15 @@
 </div>
 {% set how %}{% trans count=budget.rates[-1].municipalities %}The middle of the tax rates of the {{ count }} Maine municipalities with a rate that year, as Maine Revenue Services publishes them.{% endtrans %}{% endset %}
 {{ calculated(how) }}
-<p class="small">{{ _("Maine towns and cities assess property at a share of its market value, the certified ratio, which falls as values rise between revaluations. When a city revalues, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }}{% if rate.certified_ratio %} {% trans ratio=rate.certified_ratio, year=rate.tax_year %}In {{ year }} the city's assessed values were {{ ratio }}% of market value.{% endtrans %}{% endif %} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">MRS, Municipal Valuation Return Statistical Summary</a>.{% endtrans %}</p>
+<p class="small">{{ _("Maine towns and cities assess property at a share of its market value, the certified ratio, which falls as values rise between revaluations. When a city revalues, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }}{% if rate.certified_ratio %} {% trans ratio=rate.certified_ratio, year=rate.tax_year %}In {{ year }} the city's assessed values were {{ ratio }}% of market value.{% endtrans %}{% endif %}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">MRS, Municipal Valuation Return Statistical Summary</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
 
 {# ---- Commitment ---- #}
 <h2 id="commitment">{{ _("What the property tax raises") }}</h2>
 <p>{% trans year=rate.tax_year, total=rate.commitment | money, valuation=rate.valuation | money %}The city's property tax commitment, the tax it levied, was {{ total }} in tax year {{ year }}, on {{ valuation }} of taxable property: land, buildings, and business equipment, after exemptions.{% endtrans %}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Commitment") }}</th><th scope="col" class="num wide">{{ _("Taxable valuation") }}</th><th scope="col" class="num">{{ _("Change") }}</th></tr></thead>
   <tbody>
   {% for y in budget.rates | reverse %}
@@ -87,7 +88,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("The change is in the commitment. Amounts are not adjusted for inflation.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">MRS, Municipal Valuation Return Statistical Summary</a>.{% endtrans %}</p>
+<p class="small">{{ _("The change is in the commitment. Amounts are not adjusted for inflation.") }}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">MRS, Municipal Valuation Return Statistical Summary</a>.{% endtrans %}</p>
 {{ chart_links("commitment", "/budget/data/tax-rates.csv") }}
 
 {# ---- Average bill ---- #}
@@ -96,7 +98,7 @@
 <p>{% trans year=bill.tax_year, town=town.name, value=bill.average_value | money, rate="%.2f" | format(bill.rate), amount=bill.average_bill | money %}In tax year {{ year }}, the average single-family home in {{ town }} was assessed at {{ value }}. At that year's rate of ${{ rate }} per $1,000, its tax bill was <strong>{{ amount }}</strong>.{% endtrans %}{% if bill.certified_ratio %} {% trans ratio=bill.certified_ratio %}Assessed values were {{ ratio }}% of market value that year, so the home's market value was higher.{% endtrans %}{% endif %}</p>
 {% if tax_bill.years | length > 1 %}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Average assessed value") }}</th><th scope="col" class="num">{{ _("Rate") }}</th><th scope="col" class="num">{{ _("Average bill") }}</th></tr></thead>
   <tbody>
   {% for y in tax_bill.years | reverse %}
@@ -108,7 +110,7 @@
 {% endif %}
 {% set uses = config.finance.single_family_use %}{% set codes = '"' ~ (uses if uses is string or uses is number else uses | join('", "')) ~ '"' %}{% set how %}{% trans parcels=bill.parcels | number, codes=codes, year=bill.tax_year %}The average assessed value, land and buildings, of {{ parcels }} single-family homes (land use {{ codes }}) in the Maine GeoLibrary's parcel table, times the {{ year }} tax rate from Maine Revenue Services. It's the bill before exemptions, such as the homestead exemption.{% endtrans %} {{ _("Maine doesn't publish an average bill. The parcel table is what each city sends the Maine GeoLibrary, so the figure is shown only while the city's parcels add up to about its taxable land and buildings in MRS's figures for that year.") }}{% endset %}
 {{ calculated(how) }}
-<p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">MRS, Municipal Valuation Return Statistical Summary</a>; <a href="{{ parcels }}">Maine GeoLibrary, Maine Parcels Organized Towns</a>.{% endtrans %}</p>
+<p class="small" data-about>{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">MRS, Municipal Valuation Return Statistical Summary</a>; <a href="{{ parcels }}">Maine GeoLibrary, Maine Parcels Organized Towns</a>.{% endtrans %}</p>
 {{ chart_links("tax-bill", "/budget/data/tax-bill.csv") }}
 {% endif %}
 
@@ -118,11 +120,12 @@
 <p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Maine towns, cities, and plantations was {{ median }}.{% endtrans %}</p>
 {% set how %}{% trans year=pr.tax_year, communities=pr.communities %}Each municipality's {{ year }} property tax commitment, from Maine Revenue Services' Municipal Valuation Return, divided by its Census population estimate for July 1, {{ year }}. The median is of {{ communities }} Maine towns, cities, and plantations.{% endtrans %}{% endset %}
 {{ calculated(how) }}
-<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">MRS</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
+<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %}</p>
+<p class="small" data-about>{% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">MRS</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 
 {% if config.finance.get("budget_documents_url") %}
-<p class="source-note">{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+<p class="source-note" data-about>{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
 {{ figures_dash() }}
 {% endif %}

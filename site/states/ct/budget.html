@@ -15,7 +15,7 @@
   <h1>{{ _("City budget") }}</h1>
   <p class="lede">{{ _("What the city budgets, its mill rate, and what the property tax raises, from the Connecticut Office of Policy and Management (OPM).") }}</p>
   {% if budget %}
-  <p class="source-note">{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("OPM adds each fiscal year's budgets and mill rates once towns have filed them, in the summer and fall.") }}</p>
+  <p class="source-note" data-about>{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("OPM adds each fiscal year's budgets and mill rates once towns have filed them, in the summer and fall.") }}</p>
   {% endif %}
 </div>
 
@@ -70,7 +70,7 @@
 {% for name, amount in latest.revenue | dictsort(by="value", reverse=true) %}{% if amount %}{% set ignored = rows.append({"label": data_label(name), "value": amount, "text": (amount | money("short")) ~ " · " ~ ((amount / latest.total * 100) | round | int) ~ "%"}) %}{% endif %}{% endfor %}
 {{ bars(rows, _("Adopted budget by source of revenue, fiscal year %(year)s", year=latest.fiscal_year), wide_numbers=true, wide_labels=true) }}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Fiscal year") }}</th><th scope="col" class="num">{{ _("Adopted budget") }}</th><th scope="col" class="num wide">{{ data_label("Education") }}</th><th scope="col" class="num wide">{{ data_label("Property tax") }}</th><th scope="col" class="num">{{ _("Change") }}</th></tr></thead>
   <tbody>
   {% for y in budget.adopted | reverse %}
@@ -80,7 +80,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} {% trans url=budget.source_urls.adopted %}Source: <a href="{{ url }}">OPM, adopted budgets from the Fiscal Health Monitoring System</a>.{% endtrans %}</p>
+<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.adopted %}Source: <a href="{{ url }}">OPM, adopted budgets from the Fiscal Health Monitoring System</a>.{% endtrans %}</p>
 {{ chart_links("budget", "/budget/data/adopted-budget.csv") }}
 {% endif %}
 
@@ -88,7 +89,7 @@
 <h2 id="mill-rate">{{ _("Mill rate") }}</h2>
 <p>{{ _("The mill rate is the property tax in dollars for each $1,000 of assessed value. Connecticut assesses property at 70%% of its market value, so a home worth $400,000 is assessed at $280,000. The same rate applies to homes, businesses, and cars.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Fiscal year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ _("State median") }}</th></tr></thead>
   <tbody>
   {% for r in budget.rates | reverse %}
@@ -98,7 +99,8 @@
 </table>
 </div>
 {{ calculated(_("The middle of the mill rates of the Connecticut towns with a rate that fiscal year, as OPM publishes them.")) }}
-<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">OPM, mill rates</a>.{% endtrans %}</p>
+<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills. Connecticut towns revalue at least every five years.") }}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">OPM, mill rates</a>.{% endtrans %}</p>
 {{ chart_links("mill-rate", "/budget/data/mill-rates.csv") }}
 
 {# ---- Levy and grand list ---- #}
@@ -107,7 +109,7 @@
 {% set lv = budget.levy[-1] %}
 <p>{% trans year=lv.fiscal_year, total=lv.total | money("short") %}The city's tax levy for fiscal year {{ year }} was {{ total }}: the tax on real estate, on business equipment (personal property), and on cars.{% endtrans %}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Fiscal year") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num wide">{{ _("Real estate") }}</th><th scope="col" class="num wide">{{ _("Personal property") }}</th><th scope="col" class="num wide">{{ _("Motor vehicles") }}</th></tr></thead>
   <tbody>
   {% for y in budget.levy | reverse %}
@@ -116,14 +118,14 @@
   </tbody>
 </table>
 </div>
-<p class="small">{% trans url=budget.source_urls.levy %}Source: <a href="{{ url }}">OPM, tax levy</a>.{% endtrans %}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.levy %}Source: <a href="{{ url }}">OPM, tax levy</a>.{% endtrans %}</p>
 {{ chart_links("levy", "/budget/data/tax-levy.csv") }}
 {% if budget.grand_list %}
 {% set gl = budget.grand_list[-1] %}
 <h3 id="grand-list">{{ _("The grand list") }}</h3>
 <p>{% trans year=gl.grand_list_year, total=gl.total | money("short"), fy=gl.grand_list_year + 2 %}The grand list is the assessed value of everything the city taxes. The October {{ year }} list, {{ total }} after exemptions, is taxed in fiscal year {{ fy }}.{% endtrans %}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Grand list") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num wide">{{ _("Homes") }}</th><th scope="col" class="num wide">{{ _("Businesses") }}</th><th scope="col" class="num wide">{{ _("Motor vehicles") }}</th></tr></thead>
   <tbody>
   {% for y in budget.grand_list | reverse %}
@@ -132,7 +134,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Homes are houses, condominiums, and apartment buildings; businesses are commercial and industrial real estate. Values are assessed values, before exemptions, except the total.") }} {% trans url=budget.source_urls.grand_list %}Source: <a href="{{ url }}">OPM, net grand list</a>.{% endtrans %}</p>
+<p class="small">{{ _("Homes are houses, condominiums, and apartment buildings; businesses are commercial and industrial real estate. Values are assessed values, before exemptions, except the total.") }}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.grand_list %}Source: <a href="{{ url }}">OPM, net grand list</a>.{% endtrans %}</p>
 {{ chart_links("grand-list", "/budget/data/grand-list.csv") }}
 {% endif %}
 {% endif %}
@@ -143,7 +146,7 @@
 <p>{% trans year=bill.fiscal_year, town=town.name, value=bill.average_value | money, rate="%.2f" | format(bill.rate), amount=bill.average_bill | money %}In fiscal year {{ year }}, the average single-family home in {{ town }} was assessed at {{ value }}. At that year's mill rate of {{ rate }}, its tax bill was <strong>{{ amount }}</strong>.{% endtrans %}</p>
 {% if tax_bill.years | length > 1 %}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Fiscal year") }}</th><th scope="col" class="num">{{ _("Average assessed value") }}</th><th scope="col" class="num">{{ _("Mill rate") }}</th><th scope="col" class="num">{{ _("Average bill") }}</th></tr></thead>
   <tbody>
   {% for y in tax_bill.years | reverse %}
@@ -155,7 +158,7 @@
 {% endif %}
 {% set how %}{% trans parcels=bill.parcels | number, file=bill.fiscal_year - 1, year=bill.fiscal_year %}The average assessed value of {{ parcels }} single-family homes in the state's {{ file }} parcel file, times the fiscal year {{ year }} mill rate. Connecticut assesses homes at 70% of market value. It's the bill before exemptions and credits.{% endtrans %} {{ _("Connecticut doesn't publish an average bill.") }}{% endset %}
 {{ calculated(how) }}
-<p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">OPM, mill rates</a>; <a href="{{ parcels }}">OPM, Connecticut Parcel and CAMA Data</a>.{% endtrans %}</p>
+<p class="small" data-about>{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">OPM, mill rates</a>; <a href="{{ parcels }}">OPM, Connecticut Parcel and CAMA Data</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Per resident ---- #}
@@ -164,11 +167,12 @@
 <p>{% trans year=pr.fiscal_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In fiscal year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} Connecticut towns was {{ median }}.{% endtrans %}</p>
 {% set how %}{% trans year=pr.fiscal_year, communities=pr.communities %}Each town's adjusted tax levy for fiscal year {{ year }}, from its audit as reported to OPM, divided by its population, the Department of Public Health's estimate. The median is of {{ communities }} Connecticut towns.{% endtrans %}{% endset %}
 {{ calculated(how) }}
-<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {{ _("The figures are from each town's audit, so they are two to three years behind.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans url=budget.source_urls.per_resident %}Source: <a href="{{ url }}">OPM, Municipal Fiscal Indicators</a>.{% endtrans %}</p>
+<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {{ _("The figures are from each town's audit, so they are two to three years behind.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.per_resident %}Source: <a href="{{ url }}">OPM, Municipal Fiscal Indicators</a>.{% endtrans %}</p>
 {% endif %}
 
 {% if config.finance.get("budget_documents_url") %}
-<p class="source-note">{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+<p class="source-note" data-about>{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
 {{ figures_dash() }}
 {% endif %}

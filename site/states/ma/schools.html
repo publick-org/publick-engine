@@ -10,7 +10,7 @@
   <h1>{{ _("Schools") }}</h1>
   <p class="lede">{% trans district=sch.district_name %}{{ district }} compared with the state, from the Massachusetts Department of Elementary and Secondary Education (DESE).{% endtrans %}</p>
   {% if schools %}
-  <p class="source-note">{% trans iso=schools.updated_at, when=schools.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("DESE updates each figure once a year.") }}</p>
+  <p class="source-note" data-about>{% trans iso=schools.updated_at, when=schools.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("DESE updates each figure once a year.") }}</p>
   {% endif %}
 </div>
 
@@ -56,7 +56,7 @@
 <h2 id="graduation">{{ _("Graduation rate") }}</h2>
 <p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.graduation.years | reverse %}
@@ -65,12 +65,13 @@
   </tbody>
 </table>
 </div>
-<p class="small">{% trans url=ms.graduation.dataset_url %}Source: <a href="{{ url }}">DESE High School Graduation Rates</a>.{% endtrans %}{{ state_dash(ms.graduation.years) }}</p>
+<p class="small">{{ state_dash(ms.graduation.years) }}</p>
+<p class="small" data-about>{% trans url=ms.graduation.dataset_url %}Source: <a href="{{ url }}">DESE High School Graduation Rates</a>.{% endtrans %}</p>
 
 <h2 id="absenteeism">{{ _("Chronic absenteeism") }}</h2>
 <p>{{ _("Share of students who missed 10%% or more of the school days they were enrolled, for any reason.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("School year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.absenteeism.years | reverse %}
@@ -79,14 +80,15 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Schools closed in spring 2020 and many were remote in 2020–21, which affects those years.") }} {% trans url=ms.absenteeism.dataset_url %}Source: <a href="{{ url }}">DESE Student Attendance</a>.{% endtrans %}{{ state_dash(ms.absenteeism.years) }}</p>
+<p class="small">{{ _("Schools closed in spring 2020 and many were remote in 2020–21, which affects those years.") }}{{ state_dash(ms.absenteeism.years) }}</p>
+<p class="small" data-about>{% trans url=ms.absenteeism.dataset_url %}Source: <a href="{{ url }}">DESE Student Attendance</a>.{% endtrans %}</p>
 
 <h2 id="mcas">{{ _("MCAS results") }}</h2>
 <p>{{ _("Share of students in grades 3 to 8 who met or exceeded expectations on the state MCAS tests.") }}</p>
 {% for key, slug, subject in [("mcas_ela", "english", _("English")), ("mcas_math", "math", _("Math"))] %}
 <h3 id="mcas-{{ slug }}">{{ subject }}</h3>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ pgettext("season", "Spring") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms[key].years | reverse %}
@@ -96,8 +98,9 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">{{ _("No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and fewer students took part, so 2021 results aren't directly comparable with other years.") }} {% trans url=ms.mcas_ela.dataset_url %}Source: <a href="{{ url }}">DESE MCAS Achievement Results</a>.{% endtrans %}{{ state_dash(ms.mcas_ela.years + ms.mcas_math.years) }}</p>
+<p class="small">{{ _("No MCAS tests were given in 2020. In spring 2021, tests for grades 3 to 8 were shortened and fewer students took part, so 2021 results aren't directly comparable with other years.") }}{{ state_dash(ms.mcas_ela.years + ms.mcas_math.years) }}</p>
+<p class="small" data-about>{% trans url=ms.mcas_ela.dataset_url %}Source: <a href="{{ url }}">DESE MCAS Achievement Results</a>.{% endtrans %}</p>
 
-<p class="source-note">{% trans url=sch.portal %}All figures from the state's <a href="{{ url }}">Education-to-Career (E2C) data hub</a>, published by DESE.{% endtrans %}{% if sch.report_url is defined %} {% trans url=sch.report_url, report=sch.report_name %}School-by-school figures and more are on the <a href="{{ url }}">{{ report }}</a>.{% endtrans %}{% endif %}</p>
+<p class="source-note" data-about>{% trans url=sch.portal %}All figures from the state's <a href="{{ url }}">Education-to-Career (E2C) data hub</a>, published by DESE.{% endtrans %}{% if sch.report_url is defined %} {% trans url=sch.report_url, report=sch.report_name %}School-by-school figures and more are on the <a href="{{ url }}">{{ report }}</a>.{% endtrans %}{% endif %}</p>
 {% endif %}
 {% endblock %}
