@@ -82,6 +82,9 @@ def test_title_dates():
     assert recordings.title_date("City Council - October 27, 2026") == "2026-10-27"
     assert recordings.title_date("School Committee Sept. 8th 2026") == "2026-09-08"
     assert recordings.title_date("Planning Board 21 October 2026") == "2026-10-21"
+    assert recordings.title_date("South Burlington City Council -10/19/2026") == "2026-10-19"
+    assert recordings.title_date("Planning Commission-10/15/2026") == "2026-10-15"
+    assert recordings.title_date("Item 4-10/15/2026") is None
     assert recordings.title_date("Ward 3 Meeting") is None
     # A date that isn't one is passed over for the next.
     assert recordings.title_date("Item 13/40/2026 then 10/27/2026") == "2026-10-27"
