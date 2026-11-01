@@ -7931,6 +7931,16 @@ msgstr ""
 "download>decisions.csv</a>, y las agendas y actas nuevas, en un <a href=\"%(feed)s\">canal "
 "RSS</a>."
 
+#: site/states/nh/schools.html
+#, python-format
+msgid ""
+"The district has no high school of its own: these are the figures for %(school)s, where its "
+"students go to high school. The state test results below are the district's own (grades 3 to 8)."
+msgstr ""
+"El distrito no tiene escuela secundaria propia: estas son las cifras de %(school)s, donde sus "
+"estudiantes cursan la secundaria. Los resultados de las pruebas estatales de abajo son del propio"
+" distrito (grados 3 a 8)."
+
 #: site/pages/officials/index.html
 msgid "The district map isn't available yet. Each member's seat is listed under its office below."
 msgstr ""

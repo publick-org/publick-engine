@@ -55,10 +55,10 @@
 </ul>
 
 <h2 id="graduation">{{ _("Graduation rate") }}</h2>
-<p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}</p>
+<p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}{% if ms.graduation.school %} {% trans school=ms.graduation.school %}The district has no high school of its own: these are the figures for {{ school }}, where its students go to high school. The state test results below are the district's own (grades 3 to 8).{% endtrans %}{% endif %}</p>
 <div class="table-wrap">
 <table class="data-table">
-  <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num wide">{{ _("Graduated") }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
+  <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ ms.graduation.school or town.name }}</th><th scope="col" class="num wide">{{ _("Graduated") }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.graduation.years | reverse %}
     <tr><th scope="row">{{ y.year }}</th><td class="num">{{ y.town | round(1) }}%</td><td class="num wide">{% trans graduated=y.graduated | number, cohort=y.cohort | number %}{{ graduated }} of {{ cohort }}{% endtrans %}</td><td class="num">{% if y.state is not none %}{{ y.state | round(1) }}%{% else %}–{% endif %}</td></tr>
