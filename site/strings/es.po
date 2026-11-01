@@ -71,6 +71,20 @@ msgstr "%(board)s: reuniones (página trasladada)"
 msgid "%(board)s minutes"
 msgstr "%(board)s: actas"
 
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s minutes read for roll calls: %(num)s meetings, from %(first)s to %(last)s."
+msgstr ""
+"%(board)s: se leyeron las votaciones nominales de las actas de %(num)s reuniones, del %(first)s "
+"al %(last)s."
+
+#. which minutes roll call votes are read from: %(board)s is a board's name, such as "City Council";
+#. %(num)s a number of meetings, %(first)s and %(last)s dates, such as "February 10, 2026".
+#: site/templates/meeting.html
+#, python-format
+msgid "%(board)s minutes read for roll calls: one meeting, %(first)s."
+msgstr "%(board)s: se leyeron las votaciones nominales de las actas de una reunión, la del %(first)s."
+
 #. the name of a board's public hearing; %(board)s is the board, such as "Planning Board".
 #: site/templates/meeting.html
 #, python-format
@@ -236,6 +250,21 @@ msgid "%(count)s public meeting this week."
 msgid_plural "%(count)s public meetings this week."
 msgstr[0] "%(count)s reunión pública esta semana."
 msgstr[1] "%(count)s reuniones públicas esta semana."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"%(count)s roll call in these minutes isn't shown: its counts and names don't agree, or a name "
+"isn't one of the members."
+msgid_plural ""
+"%(count)s roll calls in these minutes aren't shown: their counts and names don't agree, or a name"
+" isn't one of the members."
+msgstr[0] ""
+"%(count)s votación nominal de estas actas no se muestra: su conteo y sus nombres no coinciden, o "
+"uno de los nombres no es de un miembro."
+msgstr[1] ""
+"%(count)s votaciones nominales de estas actas no se muestran: su conteo y sus nombres no "
+"coinciden, o uno de los nombres no es de un miembro."
 
 #: site/states/ct/schools.html
 #, python-format
@@ -1815,6 +1844,16 @@ msgstr "Sobre estas decisiones"
 msgid "About this page"
 msgstr "Sobre esta página"
 
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Absent"
+msgstr "Ausente"
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Abstain"
+msgstr "Abstención"
+
 #: site/pages/about/accessibility/index.html site/templates/base.html
 msgid "Accessibility"
 msgstr "Accesibilidad"
@@ -3099,6 +3138,15 @@ msgstr ""
 "Cada solicitud tiene el último estado que le dio la ciudad. Una solicitud con el estado "
 "%(closed)s cuenta como cerrada; cualquier otro estado cuenta como abierta."
 
+#: site/templates/meeting.html
+msgid ""
+"Each roll call as the minutes list it, by name, read from the minutes' own text without AI. A "
+"vote taken by voice, or recorded only as a count or in a sentence, isn't listed by member."
+msgstr ""
+"Cada votación nominal tal como la dan las actas, con los nombres, leída del propio texto de las "
+"actas sin IA. Una votación de viva voz, o que las actas registran solo con un conteo o en una "
+"oración, no aparece aquí miembro por miembro."
+
 #. "Behind" is the status the table below shows for such a source.
 #: site/pages/about/index.html
 msgid ""
@@ -3419,6 +3467,11 @@ msgstr ""
 #: pipeline/states/ct/budget.py
 msgid "Everything else"
 msgstr "Todo lo demás"
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Excused"
+msgstr "Con excusa"
 
 #: pipeline/common_strings.py
 msgid "Fair Rent Commission"
@@ -4267,6 +4320,16 @@ msgstr ""
 "impuestos de educación van al Fondo de Educación del estado, que paga todos los distritos "
 "escolares de Vermont; la ciudad se queda con el impuesto municipal."
 
+#: site/templates/meeting.html
+msgid "In the minutes"
+msgstr "En las actas"
+
+#. a link to the page of the minutes a roll call is on; %(page)s is its number.
+#: site/templates/meeting.html
+#, python-format
+msgid "In the minutes, page %(page)s"
+msgstr "En las actas, página %(page)s"
+
 #: site/pages/311/index.html
 #, python-format
 msgid ""
@@ -4333,6 +4396,12 @@ msgstr "Se aprobó el <time datetime=\"%(iso)s\">%(when)s</time>."
 #, python-format
 msgid "It's held online only: %(place)s."
 msgstr "Se realiza solo en línea: %(place)s."
+
+#. a roll call's item in the minutes, by its paper number, such as "Item 224-26".
+#: site/templates/meeting.html
+#, python-format
+msgid "Item %(item)s"
+msgstr "Asunto %(item)s"
 
 #: site/pages/data/index.html
 msgid "Its AI summary, or null when there isn't one yet:"
@@ -5092,6 +5161,11 @@ msgstr "Vehículos de motor"
 msgid "Municipal"
 msgstr "Municipal"
 
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Nay"
+msgstr "En contra"
+
 #: site/pages/311/methodology/index.html
 msgctxt "311 status"
 msgid "New"
@@ -5366,6 +5440,11 @@ msgstr "Sin actualizar en más de un año"
 msgid "No ward recorded"
 msgstr "Sin distrito registrado"
 
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Non-Voting"
+msgstr "Sin voto"
+
 #. the street lookup's messages; keep each {name} as it is.
 #: site/pages/streets/index.html
 msgid "None found."
@@ -5419,6 +5498,10 @@ msgstr "No indicada"
 #, python-format
 msgid "Not listed on the %(listing)s"
 msgstr "No aparece en el %(listing)s"
+
+#: site/templates/meeting.html
+msgid "Not recorded in this vote"
+msgstr "No consta en esta votación"
 
 #: site/pages/about/index.html
 msgid "Nothing that identifies you is kept, not even your IP address."
@@ -5834,6 +5917,11 @@ msgstr "Precinto {ward}"
 msgid "Precincts"
 msgstr "Precintos"
 
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Present"
+msgstr "Presente"
+
 #: pipeline/common_strings.py
 msgid "President"
 msgstr "Presidente"
@@ -6020,6 +6108,11 @@ msgstr "%(body)s: grabaciones de las reuniones en <a href=\"%(url)s\">%(title)s<
 #: pipeline/common_strings.py
 msgid "Recreation Commission"
 msgstr "Comisión de Recreación"
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Recused"
+msgstr "Se inhibió"
 
 #: pipeline/common_strings.py
 msgid "Redevelopment Authority"
@@ -6254,6 +6347,10 @@ msgstr ""
 #: site/states/ri/about_finance.html
 msgid "Rhode Island publishes no average tax bill."
 msgstr "Rhode Island no publica una factura promedio."
+
+#: site/templates/meeting.html
+msgid "Roll call votes"
+msgstr "Votaciones nominales"
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -6523,6 +6620,13 @@ msgid "Show its %(num)s decision"
 msgid_plural "Show its %(num)s decisions"
 msgstr[0] "Mostrar su decisión (%(num)s)"
 msgstr[1] "Mostrar sus %(num)s decisiones"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Show the %(count)s roll call vote"
+msgid_plural "Show the %(count)s roll call votes"
+msgstr[0] "Mostrar la votación nominal (%(count)s)"
+msgstr[1] "Mostrar las %(count)s votaciones nominales"
 
 #: site/templates/macros.html
 #, python-format
@@ -8122,6 +8226,10 @@ msgstr ""
 "vale $400,000 se tasa en $280,000. La misma tasa se aplica a viviendas, negocios y carros."
 
 #: site/templates/meeting.html
+msgid "The minutes add:"
+msgstr "Las actas agregan:"
+
+#: site/templates/meeting.html
 #, python-format
 msgid ""
 "The minutes are <a href=\"%(url)s\">posted on the city website</a>. A copy hasn't been saved here"
@@ -8141,6 +8249,35 @@ msgstr ""
 #: site/templates/meeting.html
 msgid "The minutes do not record any votes or decisions."
 msgstr "Las actas no registran ninguna votación ni decisión."
+
+#: site/templates/meeting.html
+#, python-format
+msgid ""
+"The minutes of %(num)s other meetings on this site, between %(first)s and %(last)s, aren't "
+"included."
+msgstr ""
+"No se incluyen las actas de otras %(num)s reuniones que tiene este sitio, entre el %(first)s y el"
+" %(last)s."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The minutes of one other meeting on this site, %(when)s, aren't included."
+msgstr "No se incluyen las actas de otra reunión que tiene este sitio, la del %(when)s."
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "The motion carried."
+msgstr "La moción se aprobó."
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "The motion failed."
+msgstr "La moción no se aprobó."
+
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "The motion passed."
+msgstr "La moción se aprobó."
 
 #: site/states/ri/budget.html
 #, python-format
@@ -9153,6 +9290,11 @@ msgstr "Palabras que aparecen en las agendas, las actas y sus resúmenes, y qué
 msgid "Works with screen readers, keyboards, and zoom up to 200%%."
 msgstr "Funciona con lectores de pantalla, teclados y zoom de hasta 200%%."
 
+#: site/templates/meeting.html
+msgctxt "roll call"
+msgid "Yea"
+msgstr "A favor"
+
 #: site/pages/housing/index.html
 msgid "Year"
 msgstr "Año"
@@ -9814,4 +9956,12 @@ msgstr ""
 #: site/templates/macros.html
 msgid "– means the state hasn't published a statewide figure for that year."
 msgstr "– significa que el estado no ha publicado una cifra estatal para ese año."
+
+#: site/templates/meeting.html
+msgid ""
+"“Not recorded in this vote” is a member the minutes don't name in it. They don't say why: it "
+"doesn't mean absent, or a vote either way."
+msgstr ""
+"“No consta en esta votación” es un miembro a quien las actas no nombran en ella. Las actas no "
+"dicen por qué: no quiere decir que estuviera ausente, ni que votara a favor o en contra."
 
