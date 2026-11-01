@@ -99,3 +99,15 @@ def test_street_index_shows_sensitive_requests_to_the_block():
     index = build_site.street_index([], [], requests, BUILT_AT.date(), town, sensitive_categories=["Animal Issues"])
     shown = {r["category"]: r["address"] for r in index["streets"]["MAIN ST"]["requests"]}
     assert shown == {"Homeless Encampment": "200–299 Main St", "Pothole": "264 Main St", "Animal Issues": "200–299 Main St"}
+
+
+def test_street_index_keeps_a_translated_sensitive_request_to_the_block():
+    # On a Spanish page the category is already translated ("Queja por ruido"), which the English
+    # pattern can't match; the flag set from the English name decides.
+    requests = [{"id": "1", "category": "Queja por ruido", "sensitive": True, "status": "open",
+                 "created_at": "2026-09-20T09:00:00-04:00", "address": "56 1st St Medford, Massachusetts, 02155"},
+                {"id": "2", "category": "Bache", "sensitive": False, "status": "open",
+                 "created_at": "2026-09-21T09:00:00-04:00", "address": "58 1st St Medford, Massachusetts, 02155"}]
+    index = build_site.street_index([], [], requests, BUILT_AT.date(), {"name": "Medford", "state_abbr": "MA"}, "/es")
+    shown = {r["category"]: r["address"] for r in index["streets"]["1ST ST"]["requests"]}
+    assert shown == {"Queja por ruido": "1–99 1st St", "Bache": "58 1st St"}
