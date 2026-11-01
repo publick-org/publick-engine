@@ -1603,9 +1603,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
+    # Which requests are shown only to the block is decided on the city's English category names, before they're translated.
+    sensitive_categories = config.get("seeclickfix", {}).get("sensitive_categories", [])
+    for r in requests_311:
+        r["sensitive"] = sensitive(r["category"], sensitive_categories)
     localize_categories(requests_311, tr)
     streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
-                           sensitive_categories=config.get("seeclickfix", {}).get("sensitive_categories", []))
+                           sensitive_categories=sensitive_categories)
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
@@ -1888,7 +1892,7 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
         for key in streets_mod.street_keys(r.get("address", ""), town["name"]):
             streets[key]["requests"].append({
                 "date": r["created_at"][:10], "category": r["category"], "status": r["status"],
-                "address": (block_address(r["address"], town["name"]) if sensitive(r["category"], sensitive_categories)
+                "address": (block_address(r["address"], town["name"]) if r.get("sensitive", sensitive(r["category"], sensitive_categories))
                             else short_address(r["address"], town["name"])),
                 "url": f"https://seeclickfix.com/issues/{r['id']}"})
     out = {}
