@@ -27,7 +27,8 @@ calendar entry a meeting. Three layouts are read:
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
-("September 16, 2026", "Sept. 16 2026") or as "2026-09-16". Its meeting's
+("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures, month first, with a two- or
+four-digit year (Hamden Public Schools' "10/13/26"). Its meeting's
 name is the rest of the text: for a row, its cells without their links'
 labels and without cells that only repeat their column's heading; for a link,
 its label without the date and the words "agenda" and "minutes"; for a line,
@@ -68,6 +69,9 @@ BLOCK_TAG = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br|section|header|article|t
 # A line longer than this is a paragraph, not a meeting's heading.
 HEADING_LENGTH = 120
 ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
+# "10/13/26", "9/8/2026": month, day and year in figures, the year of two digits taken as 20xx. Not a
+# fraction or a part of a longer run of figures and slashes ("8/10", "1/2/3/4").
+NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])")
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -81,8 +85,8 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out or as yyyy-mm-dd."""
-    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value)) if m]
+    """The first date in a text, written out, as yyyy-mm-dd, or as m/d/yy (or m/d/yyyy)."""
+    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value)) if m]
     return min(found, key=lambda m: m.start()) if found else None
 
 
@@ -90,6 +94,9 @@ def date_value(found: re.Match) -> str | None:
     try:
         if found.re is ISO_DATE:
             return date(*(int(g) for g in found.groups())).isoformat()
+        if found.re is NUMERIC_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year + (2000 if year < 100 else 0), month, day).isoformat()
         month, day, year = found.groups()
         return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
     except ValueError:
@@ -124,8 +131,10 @@ def tidy(value: str) -> str:
 
 
 def row_name(row: str, headings: list[str], columns: list[str] | None = None) -> str:
-    """A table row's meeting name: its cells without the date, their links' labels, and any cell
-    that only repeats its column's heading (a cell with nothing posted yet). With columns (headings,
+    """A table row's meeting name: its cells without the date, their links' labels, any cell
+    that only repeats its column's heading (a cell with nothing posted yet), and a note marked with
+    an asterisk next to a document ("Minutes *pending approval of BOE", Hamden's), which goes when
+    the minutes are approved. With columns (headings,
     [page_meetings] name_columns), only those columns' cells: a page whose document cells have words
     of their own ("Agenda and Zoom Link (News Post, PDF) and Meeting Minutes", Medford's), which
     change as documents are posted."""
@@ -137,6 +146,7 @@ def row_name(row: str, headings: list[str], columns: list[str] | None = None) ->
             continue
         value = text(LINK.sub(" ", cell))
         value = text(without(value, find_date(value)))
+        value = tidy(re.sub(r"\*.*", " ", value)) if value.startswith("*") else value
         if value and words(value) != words(heading):
             parts.append(value)
     return tidy(" ".join(parts))

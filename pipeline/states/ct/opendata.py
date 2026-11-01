@@ -44,6 +44,18 @@ def query(client, dataset: str, **params) -> list[dict]:
     return data
 
 
+def query_all(client, dataset: str, order: str, **params) -> list[dict]:
+    """Every row a SoQL query returns, a page of LIMIT rows at a time, in a fixed order so the pages
+    don't overlap."""
+    rows, offset = [], 0
+    while True:
+        page = query(client, dataset, order=order, offset=offset, **params)
+        rows += page
+        if len(page) < params.get("limit", LIMIT):
+            return rows
+        offset += len(page)
+
+
 def quoted(text: str) -> str:
     """A string for a SoQL query."""
     return "'" + str(text).replace("'", "''") + "'"
