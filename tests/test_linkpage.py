@@ -1,6 +1,7 @@
 """A board's meetings from a page that links each meeting's documents: Methuen Public Schools'
-table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), and Nashua's lines of
-dates with their documents under them (Finalsite), saved and trimmed: tests/fixtures/linkpage_*.html."""
+table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), Nashua's lines of
+dates with their documents under them (Finalsite), and Hamden Public Schools' tables with dates in
+figures (ParentSquare SmartSites), saved and trimmed: tests/fixtures/linkpage_*.html."""
 
 import copy
 import json
@@ -71,6 +72,9 @@ def run(town, tmp_path, client=None, now=NOW):
 @pytest.mark.parametrize("value, expected", [
     ("2026-10-13", "2026-10-13"), ("2026-08-17*", "2026-08-17"), ("September 16, 2026 Minutes", "2026-09-16"),
     ("June 10 2026 Special Meeting Minutes", "2026-06-10"), ("Sept. 2, 2026 Agenda", "2026-09-02"),
+    ("10/13/26", "2026-10-13"), ("9/8/26 Board of Education Meeting", "2026-09-08"), ("Minutes 9/8/2026", "2026-09-08"),
+    # The first date in the text, whichever way it's written.
+    ("10/13/26 Rescheduled from October 6, 2026", "2026-10-13"), ("October 6, 2026 (was 9/29/26)", "2026-10-06"),
 ])
 def test_dates(value, expected):
     assert linkpage.date_value(linkpage.find_date(value)) == expected
@@ -79,6 +83,10 @@ def test_dates(value, expected):
 def test_no_date():
     assert linkpage.find_date("October Additional Resources") is None
     assert linkpage.date_value(linkpage.find_date("2026-02-30")) is None
+    # A day and month without a year, a fraction, or figures and slashes that aren't one date.
+    for value in ("Rescheduled from 8/10", "1/2 day", "Policy 1/2/3/4", "13/1/26 Agenda"):
+        found = linkpage.find_date(value)
+        assert found is None or linkpage.date_value(found) is None, value
 
 
 @pytest.mark.parametrize("value, expected", [
@@ -244,6 +252,39 @@ def test_without_name_columns_the_document_cells_words_are_in_the_name():
     keys = [linkpage.meetings(MEDFORD_PAGE.format(row=MEDFORD_ROW.format(minutes=m)), MEDFORD, settings)[0][0]["key"]
             for m in ("", MINUTES)]
     assert keys[0] != keys[1]
+
+
+# Hamden Public Schools' page (ParentSquare SmartSites): a table under each month, its dates written
+# 10/13/26, its recordings on Zoom.
+HAMDEN = "https://www.hamden.org/boe-meeting-agendas-minutes"
+
+
+def test_a_table_with_dates_in_figures():
+    page = (FIXTURES / "linkpage_hamden.html").read_text()
+    settings = {"body": "Board of Education",
+                "bodies": {"Finance Committee": "Board of Education Finance Committee",
+                           "Goals and Evaluations": "Board of Education Goals and Evaluations Committee"}}
+    found, unrecognized = linkpage.meetings(page, HAMDEN, settings)
+    found = {m["key"]: m for m in found}
+    assert unrecognized == []
+    assert list(found) == ["2026-10-19-goals-and-evaluations-committe-meeting", "2026-10-13-board-of-education-meeting",
+                           "2026-10-13-finance-committee-meeting", "2026-09-08-board-of-education-meeting",
+                           "2026-05-28-special-board-of-education-meeting"]
+    boe = found["2026-10-13-board-of-education-meeting"]
+    assert (boe["body"], boe["status"], boe["special"], boe["start_time"]) == ("Board of Education", "scheduled", False, None)
+    assert boe["agenda_url"] == "https://files.smartsites.parentsquare.com/13638/boeagenda_oct132026_rev.pdf"
+    # A Zoom recording is kept as a link.
+    assert [link["text"] for link in boe["links"]] == ["Recording"] and "video_id" not in boe
+    assert boe["links"][0]["url"].startswith("https://hamden.zoom.us/rec/share/")
+    assert found["2026-10-13-finance-committee-meeting"]["body"] == "Board of Education Finance Committee"
+    assert found["2026-10-19-goals-and-evaluations-committe-meeting"]["body"] == (
+        "Board of Education Goals and Evaluations Committee")
+    # The note by the minutes isn't the meeting's name, so its key stays when the note goes.
+    september = found["2026-09-08-board-of-education-meeting"]
+    assert september["name"] == "Board of Education Meeting"
+    assert september["minutes_url"] == "https://files.smartsites.parentsquare.com/13638/boe_minutes_09082026.pdf"
+    cancelled = found["2026-05-28-special-board-of-education-meeting"]
+    assert (cancelled["status"], cancelled["special"]) == ("cancelled", True)
 
 
 # Worcester Public Schools' page (Apptegy): its table is HTML escaped inside the JSON of a script, the
