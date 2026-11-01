@@ -113,7 +113,8 @@ def for_town(config: dict) -> State:
 
 
 def check(config: dict) -> None:
-    """Stop with a clear message when a state source's table is missing a key it needs."""
+    """Stop with a clear message when a state source's table is missing a key it needs, or when the
+    source's own check(config) finds one of its settings wrong."""
     state = for_town(config)
     for kind, source in state.sources.items():
         table = config.get(source.table)
@@ -126,6 +127,10 @@ def check(config: dict) -> None:
         if missing:
             raise SystemExit(f"[{source.table}] in config/{config['slug']}.toml needs {', '.join(missing)} for "
                              f"{state.name}'s {KINDS[kind].lower()} (see pipeline/states/{state.templates}/).")
+        # A source with settings of its own checks them: check(config), in its module.
+        module = source.load()
+        if hasattr(module, "check"):
+            module.check(config)
 
 
 def run(config: dict, kind: str, client, data_dir: Path, now=None, force: bool = False) -> dict:

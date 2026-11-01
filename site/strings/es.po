@@ -2214,6 +2214,19 @@ msgstr ""
 "Ese año, los valores tasados eran el %(ratio)s%% del valor de mercado, así que el valor de "
 "mercado de la casa era más alto."
 
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"Assessments are phased in over %(years)s years after the revaluation of October %(revaluation)s, "
+"as on the tax bills: each home's value here is its assessment before the revaluation, from the "
+"state's %(before)s parcel file, plus %(percent)s%% of any increase (year %(year)s of %(years)s). "
+"A decrease isn't phased in."
+msgstr ""
+"Los valores tasados suben por etapas durante %(years)s años después de la tasación general de "
+"octubre de %(revaluation)s, como en las facturas de impuestos: el valor de cada casa aquí es su "
+"tasación antes de la tasación general, del archivo de parcelas de %(before)s del estado, más el "
+"%(percent)s%% de cualquier aumento (año %(year)s de %(years)s). Una baja no se aplica por etapas."
+
 #: pipeline/common_strings.py
 msgid "At-large"
 msgstr "Toda la ciudad"

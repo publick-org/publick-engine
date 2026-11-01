@@ -411,7 +411,15 @@ file is found by its name in the portal's catalog, paired with the fiscal year
 its grand list is taxed in, and used only when its total for the town is close
 to OPM's grand list (see `pipeline/states/ct/tax_bill.py`). Towns code their
 single-family homes differently, so `[finance] single_family_use` lists the
-town's codes when they aren't "101" or "1010".
+town's codes when they aren't "101" or "1010". A town that phases in a
+revaluation's increases over several years (Connecticut General Statutes
+12-62c) taxes each parcel's assessment before the revaluation plus a share of
+its increase, while the parcel files carry the full new assessments, far over
+the grand list until the last year; `[finance] phase_in = { revaluation =
+2024, years = 4 }` (the revaluation's grand list year and the number of years,
+from the town's own account of its phase-in: Hamden's) has each parcel's value
+in those years worked out the same way, from its assessment in the parcel file
+of the revaluation's year, matched by its `pid`; a decrease isn't phased in.
 
 The school figures come from EdSight, the State Department of
 Education's data portal, through the CSV export each of its reports has
