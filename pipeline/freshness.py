@@ -98,7 +98,12 @@ def check(config: dict, data_dir: Path, now: datetime | None = None) -> list[dic
 
 def officials_row(review: dict) -> dict:
     """The row for the list of elected officials: when it was last checked, and the check it's due."""
-    if review["terms"]:
+    if review["seated"]:
+        # Translators: the check the list of elected officials is due, such as "a check once new members take office on December 7, 2026".
+        upcoming = _("a check once new members take office on {date}").format(date=plain_date(review["seated"]))
+        # Translators: why the list of elected officials is behind, such as "not checked since new members took office on December 7, 2026".
+        behind = _("not checked since new members took office on {date}").format(date=plain_date(review["seated"]))
+    elif review["terms"]:
         # Translators: the check the list of elected officials is due, such as "a check once new terms begin in January 2028".
         upcoming = _("a check once new terms begin in {month}").format(month=month_year(review["terms"]))
         # Translators: why the list of elected officials is behind, such as "not checked since new terms began in January 2028".

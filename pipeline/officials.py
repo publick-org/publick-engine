@@ -13,6 +13,14 @@ from the members' own term_ends). A list not checked by then, GRACE_DAYS
 after, is behind: the About page's data status, the network's status page,
 and the daily alert say so, and the Officials page says some members may
 have changed (review, pipeline/freshness.py).
+
+Members elected before they take office are recorded with their body as
+incoming: the day they take office ([officials.bodies.incoming] takes_office)
+and the body's whole membership from that day (members). Until then the page
+lists the sitting members and names those elected; from that day it lists the
+incoming members, with no change to the config, since every daily run builds
+the page again. The list is then due a check once they have taken office, for
+the officers a body chooses when it organizes.
 """
 
 from __future__ import annotations
@@ -24,7 +32,8 @@ from datetime import date, timedelta
 from pathlib import Path
 
 MEMBER_FIELDS = {"name", "seat", "ward", "wards", "role", "term_ends", "email", "phone", "url"}
-BODY_FIELDS = {"name", "board", "url", "note", "members"}
+BODY_FIELDS = {"name", "board", "url", "note", "members", "incoming"}
+INCOMING_FIELDS = {"takes_office", "members"}
 # Days after a list is due a check (the election, or new terms) before it counts as behind.
 GRACE_DAYS = 7
 
@@ -86,33 +95,27 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
         raise SystemExit(f'[officials] checked in {where} must be the date the list was last checked, like "2026-10-01".')
     wards = sorted(ward_names(data_dir, config), key=ward_key)
     boards = boards or {}
+    today = today or date.today()
     bodies, by_ward, citywide = [], defaultdict(list), []
     for body in table["bodies"]:
         unknown = set(body) - BODY_FIELDS
         if unknown or not body.get("name") or not body.get("members"):
             raise SystemExit(f"Each [[officials.bodies]] in {where} needs a name and members"
                              + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
+        sitting = [checked_member(m, body["name"], wards, config) for m in body["members"]]
+        coming = incoming(body, where)
+        if coming:
+            arriving = [checked_member(m, body["name"], wards, config) for m in coming["members"]]
+            continuing(body, sitting, arriving, coming["takes_office"], where)
+            if today >= coming["takes_office"]:
+                print(f"::warning::The {body['name']}'s incoming members took office on {coming['takes_office']}: "
+                      f"make them its members in {where}.")
+                sitting, coming = arriving, None
         members = []
-        for m in body["members"]:
-            unknown = set(m) - MEMBER_FIELDS
-            if unknown or not m.get("name") or not m.get("seat"):
-                raise SystemExit(f"Each member of the {body['name']} in {where} needs a name and a seat"
-                                 + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
-            # A seat elected by one ward (ward = 3), or by several (wards = [1, 2, 3], a district of wards), or
-            # by a part of the city the ward map doesn't follow (wards = [], Worcester's School Committee districts,
-            # each of precincts from several wards): listed with its body, not under a ward or as citywide.
-            if "ward" in m and "wards" in m:
-                raise SystemExit(f"{m['name']} ({body['name']}) in {where} has both ward and wards; use one.")
-            seat_wards = [str(w) for w in (m["wards"] if "wards" in m else [m["ward"]] if "ward" in m else [])]
-            for ward in seat_wards:
-                if wards and ward not in wards:
-                    raise SystemExit(f"{m['name']} ({body['name']}) is for ward {ward}, which isn't in the ward file "
-                                     f"{wards_file(config)} ({', '.join(wards) or 'none'}).")
-            term_ends = str(m["term_ends"]) if "term_ends" in m else None
-            if term_ends is not None and not re.fullmatch(r"\d{4}-\d{2}", term_ends):
-                raise SystemExit(f'term_ends for {m["name"]} in {where} must be a month, like "2028-01".')
+        for m, seat_wards in sitting:
             linked = sorted(seat_wards, key=ward_key) if wards else []
-            member = {**m, "wards": [{"ward": w, "id": f"ward-{slugify(w)}"} for w in linked], "term_ends": term_ends,
+            member = {**m, "wards": [{"ward": w, "id": f"ward-{slugify(w)}"} for w in linked],
+                      "term_ends": str(m["term_ends"]) if "term_ends" in m else None,
                       "id": slugify(m["name"]),
                       # The member's row: someone on two bodies (the mayor) has a row on each.
                       "anchor": f"{slugify(body['name'])}-{slugify(m['name'])}"}
@@ -126,8 +129,10 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
         bodies.append({**body, "id": slugify(body["name"]), "members": members, "board_url": boards.get(board),
                        # A Seat column only where seats differ: "At-large" on every row, or a mayor's one
                        # "Citywide", says nothing the body's note doesn't.
-                       "show_seat": len({m["seat"] for m in members}) > 1})
-    due = review(config, today or date.today())
+                       "show_seat": len({m["seat"] for m in members}) > 1,
+                       # Members elected and not yet in office: named under the body until they take office.
+                       "incoming": coming and elected(sitting, arriving, coming["takes_office"])})
+    due = review(config, today)
     return {
         "checked": checked.isoformat(),
         # Not checked since the election, or since new terms began: the page says members may have changed.
@@ -146,12 +151,75 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
     }
 
 
+def checked_member(m: dict, body: str, wards: list[str], config: dict) -> tuple[dict, list[str]]:
+    """A member of the body as the config gives them, checked, with the wards their seat is elected by."""
+    where = f"config/{config['slug']}.toml"
+    unknown = set(m) - MEMBER_FIELDS
+    if unknown or not m.get("name") or not m.get("seat"):
+        raise SystemExit(f"Each member of the {body} in {where} needs a name and a seat"
+                         + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
+    # A seat elected by one ward (ward = 3), or by several (wards = [1, 2, 3], a district of wards), or
+    # by a part of the city the ward map doesn't follow (wards = [], Worcester's School Committee districts,
+    # each of precincts from several wards): listed with its body, not under a ward or as citywide.
+    if "ward" in m and "wards" in m:
+        raise SystemExit(f"{m['name']} ({body}) in {where} has both ward and wards; use one.")
+    seat_wards = [str(w) for w in (m["wards"] if "wards" in m else [m["ward"]] if "ward" in m else [])]
+    for ward in seat_wards:
+        if wards and ward not in wards:
+            raise SystemExit(f"{m['name']} ({body}) is for ward {ward}, which isn't in the ward file "
+                             f"{wards_file(config)} ({', '.join(wards) or 'none'}).")
+    if "term_ends" in m and not re.fullmatch(r"\d{4}-\d{2}", str(m["term_ends"])):
+        raise SystemExit(f'term_ends for {m["name"]} in {where} must be a month, like "2028-01".')
+    return m, seat_wards
+
+
+def incoming(body: dict, where: str) -> dict | None:
+    """The body's members from the day newly elected members take office ([officials.bodies.incoming]),
+    or None. takes_office is that day; members is the whole body from then on."""
+    coming = body.get("incoming")
+    if coming is None:
+        return None
+    unknown = set(coming) - INCOMING_FIELDS if isinstance(coming, dict) else set()
+    if not isinstance(coming, dict) or unknown or not coming.get("members"):
+        raise SystemExit(f"The {body['name']}'s incoming in {where} needs takes_office and members, the whole body "
+                         f"from that day" + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
+    try:
+        day = date.fromisoformat(str(coming["takes_office"]))
+    except (KeyError, ValueError):
+        raise SystemExit(f"takes_office for the {body['name']}'s incoming members in {where} must be the day they "
+                         f'take office, like "2026-12-07".')
+    return {"takes_office": day, "members": coming["members"]}
+
+
+def continuing(body: dict, sitting: list, arriving: list, day: date, where: str) -> None:
+    """Every sitting member whose term runs past the month the incoming members take office is one of them:
+    incoming lists the whole body, so a member left out by mistake would leave the page that day."""
+    names = {m["name"] for m, _ in arriving}
+    for m, _ in sitting:
+        if "term_ends" in m and str(m["term_ends"]) > day.strftime("%Y-%m") and m["name"] not in names:
+            raise SystemExit(f"{m['name']}'s term on the {body['name']} ends in {m['term_ends']}, after the incoming "
+                             f"members take office on {day}: list them in its incoming members too ({where}).")
+
+
+def elected(sitting: list, arriving: list, day: date) -> dict:
+    """Who the page names as elected and taking office on that day: the incoming members who aren't
+    sitting with the same term (a member re-elected is named; one whose term continues isn't)."""
+    now = {(m["name"], str(m.get("term_ends"))) for m, _ in sitting}
+    new = [m for m, _ in arriving if (m["name"], str(m.get("term_ends"))) not in now]
+    return {"takes_office": day.isoformat(), "show_seat": len({m["seat"] for m, _ in arriving}) > 1,
+            "members": [{"name": m["name"], "seat": m["seat"]} for m in new]}
+
+
 def review(config: dict, today: date) -> dict | None:
     """When the list is due a check, from the town's next municipal election ([officials] next_election),
     or None for a town that doesn't give one. Due on the election's day, or on the first day of the month
     new terms begin, if that's later: the first month a member's term ends on or after the election's
     month. Behind when it wasn't checked on or after that day, GRACE_DAYS after it; passed when it was,
-    and the election is over, so the config's next_election should move to the one after."""
+    and the election is over, so the config's next_election should move to the one after.
+
+    Members recorded as incoming, and not checked since they took office, are due a check that day
+    instead (seated): the page lists them from then on, and the officers a body chooses as it organizes
+    are known only after."""
     table = config.get("officials") or {}
     if "next_election" not in table:
         return None
@@ -162,11 +230,16 @@ def review(config: dict, today: date) -> dict | None:
         raise SystemExit(f'[officials] next_election in {where} must be the date of the town\'s next municipal election, '
                          f'like "2027-11-02".')
     checked = date.fromisoformat(str(table["checked"]))
+    seated = max((coming["takes_office"] for body in table.get("bodies", []) if (coming := incoming(body, where))
+                  and coming["takes_office"] > checked), default=None)
+    if seated:
+        return {"election": election, "terms": None, "seated": seated, "due": seated, "checked": checked,
+                "behind": today >= seated + timedelta(days=GRACE_DAYS), "passed": False}
     ends = sorted(date.fromisoformat(f"{m['term_ends']}-01") for body in table.get("bodies", [])
                   for m in body.get("members", []) if re.fullmatch(r"\d{4}-\d{2}", str(m.get("term_ends", ""))))
     terms = next((d for d in ends if d >= election.replace(day=1)), None)
     due = max(election, terms) if terms else election
-    return {"election": election, "terms": terms if terms and terms > election else None, "due": due,
+    return {"election": election, "terms": terms if terms and terms > election else None, "seated": None, "due": due,
             "checked": checked, "behind": checked < due and today >= due + timedelta(days=GRACE_DAYS),
             "passed": checked >= due and today >= due}
 

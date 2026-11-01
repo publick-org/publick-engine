@@ -57,7 +57,7 @@
   <p class="lede">{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
   <p class="source-note">{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
   {% if o.out_of_date %}{% set due = o.out_of_date %}
-  <p class="source-note"><strong class="flag">{% if due.terms %}{% trans month=due.terms | date("month") %}That was before new terms began in {{ month }}, so some members may have changed.{% endtrans %}{% else %}{% trans election=due.election | date("plain") %}That was before the election of {{ election }}, so some members may have changed.{% endtrans %}{% endif %}</strong></p>
+  <p class="source-note"><strong class="flag">{% if due.seated %}{% trans day=due.seated | date("plain") %}That was before new members took office on {{ day }}, so some members or officers may have changed.{% endtrans %}{% elif due.terms %}{% trans month=due.terms | date("month") %}That was before new terms began in {{ month }}, so some members may have changed.{% endtrans %}{% else %}{% trans election=due.election | date("plain") %}That was before the election of {{ election }}, so some members may have changed.{% endtrans %}{% endif %}</strong></p>
   {% endif %}
 </div>
 
@@ -165,6 +165,11 @@
   {% if b.board_url %}<li><a href="{{ b.board_url }}">{% trans board=b.name %}{{ board }} meetings{% endtrans %}</a></li>{% endif %}
   {% if b.get("url") %}<li><a href="{{ b.url }}">{% trans board=b.name %}The {{ board }}'s official page{% endtrans %}</a></li>{% endif %}
 </ul>
+{% endif %}
+{% if b.incoming and b.incoming.members %}{% set elected = [] %}
+{%- for m in b.incoming.members %}{% set __ = elected.append(m.name ~ (" (" ~ m.seat ~ ")" if b.incoming.show_seat else "")) %}{% endfor %}
+{#- Translators: members elected who haven't taken office yet, listed under their body: %(day)s is the day they do, such as "December 7, 2026", and %(names)s their names, such as "Anna Bullett (District 4), April D. Fournier (At-large)". #}
+<p class="source-note">{% trans day=b.incoming.takes_office | date("plain"), names=elected | join(", ") %}Elected, and taking office on {{ day }}: {{ names }}. Until then, the members below serve.{% endtrans %}</p>
 {% endif %}
 <div class="table-wrap">
 <table class="data-table officials">
