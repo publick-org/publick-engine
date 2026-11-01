@@ -8530,6 +8530,16 @@ msgstr ""
 
 #: site/templates/meeting.html
 msgid ""
+"This meeting is listed in more than one place, named differently in each: the same board, on the "
+"same day, at the same time (a listing that gives no time has its agenda's). The listings are "
+"shown here as one meeting."
+msgstr ""
+"Esta reunión aparece en más de un lugar, con un nombre distinto en cada uno: la misma junta, el "
+"mismo día y a la misma hora (una publicación que no da la hora tiene la de su agenda). Aquí se "
+"muestran como una sola reunión."
+
+#: site/templates/meeting.html
+msgid ""
 "This meeting is listed in more than one place: the same board on the same day, and only one "
 "listing gives a time. The listings are shown here as one meeting."
 msgstr ""
