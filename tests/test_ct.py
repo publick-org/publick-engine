@@ -210,6 +210,100 @@ def test_saved_tax_bill_years_are_kept_and_not_asked_for_again(tmp_path):
     assert any("/ibe8-9i3q.json" in u for u in client.urls)
 
 
+# A town that phases in a revaluation of October 2024 over four years, as Hamden does: its parcels in
+# the state's files before the revaluation (2024) and after (2025, 2026, with the full new values).
+PHASED_PARCELS = {
+    2024: {"1": ("1010", 100000), "2": ("1010", 200000), "4": ("3400", 1000000)},
+    # A home's increase is phased in; a decrease isn't; a home not in the 2024 file has its new value.
+    2025: {"1": ("1010", 200000), "2": ("1010", 160000), "3": ("1010", 300000), "4": ("3400", 2000000)},
+    2026: {"1": ("1010", 200000), "2": ("1010", 160000), "3": ("1010", 300000), "4": ("3400", 2000000)},
+}
+PHASED_FILES = {2024: "pqrn-qghw", 2025: "rny9-6ak2", 2026: "ibe8-9i3q"}
+
+
+class FakePhasedOpenData:
+    """data.ct.gov for that town: its mill rates and grand lists, and its parcels, summed or row by row."""
+
+    def __init__(self):
+        self.urls = []
+
+    def get(self, url):
+        self.urls.append(url)
+        if url.startswith(opendata.CATALOG):
+            return FakeJSONResponse({"results": [{"resource": {"id": d, "name": f"{y} Connecticut Parcel and CAMA Data"}}
+                                                 for y, d in PHASED_FILES.items()]})
+        query = {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
+        dataset = urlparse(url).path.rsplit("/", 1)[1].removesuffix(".json")
+        if dataset == opendata.MILL_RATES:
+            return FakeJSONResponse([{"fiscal_year": str(y), "mill_rate_real_personal": str(r)}
+                                     for y, r in ((2025, 50.0), (2026, 40.0), (2027, 45.0))])
+        if dataset == opendata.GRAND_LIST:
+            return FakeJSONResponse([{"year": str(y), "net_real_property": str(v)}
+                                     for y, v in ((2023, 1200000), (2024, 1600000), (2025, 1800000))])
+        year = next(y for y, d in PHASED_FILES.items() if d == dataset)
+        parcels = sorted(PHASED_PARCELS[year].items())
+        if "count(*)" in query["$select"]:
+            values = [v for _, (use, v) in parcels if "state_use IN" not in query["$where"] or use == "1010"]
+            return FakeJSONResponse([{"count": str(len(values)), "total": str(sum(values)),
+                                      "average": str(sum(values) / len(values))}])
+        assert query["$order"] == "pid"
+        start, limit = int(query.get("$offset", 0)), int(query["$limit"])
+        return FakeJSONResponse([{"pid": pid, "state_use": use, "assessed_total": f"{v}.0"}
+                                 for pid, (use, v) in parcels[start:start + limit]])
+
+
+def phased_town(phase_in=None) -> dict:
+    config = wallingford()
+    if phase_in:
+        config["finance"]["phase_in"] = phase_in
+    return config
+
+
+def test_a_revaluations_full_values_are_far_over_the_grand_list(tmp_path, capsys):
+    """Without the town's phase-in, the files after the revaluation don't match the grand list."""
+    result = fetch_finance.run(phased_town(), FakePhasedOpenData(), tmp_path, now=NOW)
+    assert result["left_out"] == [2026, 2027] and result["latest"] == 2025
+    assert result["value_ratios"] == {2025: 1.083, 2026: 1.663, 2027: 1.478}
+    assert "fiscal year 2026 left out" in capsys.readouterr().out
+
+
+def test_a_phased_in_revaluation(tmp_path, monkeypatch):
+    # Two parcels a page, so the rows are read in pages.
+    monkeypatch.setattr(opendata, "LIMIT", 2)
+    client = FakePhasedOpenData()
+    result = fetch_finance.run(phased_town({"revaluation": 2024, "years": 4}), client, tmp_path, now=NOW)
+    # Phased in, the files match the grand list: 1,835,000 and 2,110,000.
+    assert result["value_ratios"] == {2025: 1.083, 2026: 1.147, 2027: 1.172} and "left_out" not in result
+    years = json.loads((tmp_path / "finance" / "tax_bill.json").read_text())["years"]
+    # Before the revaluation: (100,000 + 200,000) / 2 at 50 mills. Year 1: 100,000 + a quarter of
+    # 100,000, the decrease to 160,000, and the new home's 300,000, at 40 mills. Year 2: half.
+    assert [(y["fiscal_year"], y["average_value"], y["average_bill"]) for y in years] == [
+        (2025, 150000, 7500), (2026, 195000, 7800), (2027, 203333, 9150)]
+    assert "phase_in" not in years[0]
+    assert years[2]["phase_in"] == {"revaluation": 2024, "years": 4, "year": 2, "percent": 50, "before_file": 2024}
+    assert years[2]["calculated"] == ct_tax_bill.method(2027, 3, years[2]["phase_in"])
+    assert "plus 50% of any increase (year 2 of 4)" in years[2]["calculated"]
+    # Every parcel of each phased-in file and of the 2024 file, two at a time: four parcels take three
+    # requests (the last finds none), three take two.
+    assert sum("offset=" in u for u in client.urls) == 2 * (3 + 2)
+
+
+def test_phase_in_years(tmp_path):
+    phase = {"revaluation": 2024, "years": 4}
+    # The 2025 file has the October 2024 grand list, the revaluation's own: year 1. The 2028 file's is the last.
+    assert [ct_tax_bill.phase_in_year(phase, y) for y in (2024, 2025, 2026, 2027, 2028)] == [None, 1, 2, 3, None]
+    assert ct_tax_bill.phase_in_year(None, 2025) is None
+
+
+@pytest.mark.parametrize("value", [{"revaluation": 2024}, {"revaluation": 2024, "years": 6},
+                                   {"revaluation": "2024", "years": 4}, 2024])
+def test_phase_in_is_checked(value):
+    config = phased_town()
+    config["finance"]["phase_in"] = value
+    with pytest.raises(SystemExit, match="phase_in"):
+        states.check(config)
+
+
 def test_budget_figures(tmp_path):
     result = fetch_budget.run(wallingford(), FakeOpenData(), tmp_path, now=NOW)
     assert result == {"rates": 2027, "adopted": 2026, "per_resident": 3052}
@@ -288,6 +382,26 @@ def test_every_calculated_figure_says_so_on_its_page(ct_site):
     for how in marked:
         assert any(how in note for note in notes), how
     assert budget.count("Calculated by Publick.</strong>") == len(marked)
+
+
+def test_a_phased_in_years_page_says_how(tmp_path, data_dir, monkeypatch):
+    """The newest bill's method, phase-in and all, under "Calculated by Publick", in English and Spanish."""
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    for name in ("finance", "schools"):
+        shutil.rmtree(data / name, ignore_errors=True)
+    config = phased_town({"revaluation": 2024, "years": 4})
+    config["site"]["languages"] = ["en", "es"]
+    fetch_finance.run(config, FakePhasedOpenData(), data, now=NOW)
+    fetch_budget.run(config, FakeOpenData(), data, now=NOW)
+    fetch_schools.run(config, FakeEdSight(), data, now=NOW)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    how = json.loads((data / "finance" / "tax_bill.json").read_text())["years"][-1]["calculated"]
+    assert any(how in note for note in calculated_notes((out / "budget" / "index.html").read_text()))
+    spanish = (out / "es" / "budget" / "index.html").read_text()
+    assert "más el 50% de cualquier aumento (año 2 de 4)" in spanish and "%%" not in spanish
 
 
 def test_connecticut_links_resolve(ct_site):
