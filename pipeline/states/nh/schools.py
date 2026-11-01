@@ -7,7 +7,11 @@ statewide files (figures/, from the yearly extract). All are as published:
   all grades tested together (grades 3 to 8, and 11th graders' SAT),
 - cost per pupil (current operating spending per student),
 
-each for the district and the state. Writes data/schools/schools.json. Run by
+each for the district and the state. A district with no high school of its own takes the
+graduation rate of the school its students go to, as the files name it ([schools]
+graduation_school: Pinkerton Academy, for Derry Cooperative); one with neither has none, and
+its page says so.
+Writes data/schools/schools.json. Run by
 python -m pipeline.fetch_schools.
 """
 
@@ -58,12 +62,17 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
                  for y, row, state in figures.with_state(kind, name)]
         return [y for y in years if y["town"] is not None][-YEARS_KEPT:]
 
-    grad = {y: row for y, row in figures.rows("graduation", high_school or district)}
+    # A district with no high school and no graduation_school has no graduation rate in the state's
+    # files: the page says why, rather than showing none or another district's.
+    no_rate = not high_school and not figures.has("graduation", district)
+    grad = {} if no_rate else {y: row for y, row in figures.rows("graduation", high_school or district)}
     measures = {
         "graduation": {"source_url": figures.load("graduation")["source_url"],
                        "school": high_school,
-                       "years": [{**y, "cohort": grad[y["year"]]["cohort"], "graduated": grad[y["year"]]["graduated"]}
-                                 for y in series("graduation", lambda r: r["rate"], high_school or district)]},
+                       **({"none_published": True} if no_rate else {}),
+                       "years": [] if no_rate else
+                       [{**y, "cohort": grad[y["year"]]["cohort"], "graduated": grad[y["year"]]["graduated"]}
+                        for y in series("graduation", lambda r: r["rate"], high_school or district)]},
         **{f"sas_{key}": {"source_url": figures.load("assessment")["source_url"],
                           "years": series("assessment", lambda r, s=subject: (r.get(s) or {}).get("proficient"))}
            for key, subject in SUBJECTS.items()},

@@ -28,9 +28,10 @@ A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
 ("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures, month first: with
-slashes and a two- or four-digit year (Hamden Public Schools' "10/13/26"), or with dashes and a
-four-digit year ("10-14-2026", "9-9-2026": Winooski School District's "Agenda 10-14-2026 WSD
-Regular Board Meeting"). Its meeting's
+slashes and a two- or four-digit year (Hamden Public Schools' "10/13/26"), with dots and a two- or
+four-digit year ("10.07.26", "05.06.2026", as Bristol Public Schools titles its minutes), or with
+dashes and a four-digit year ("10-14-2026", "9-9-2026": Winooski School District's "Agenda
+10-14-2026 WSD Regular Board Meeting"). Its meeting's
 name is the rest of the text: for a row, its cells without their links'
 labels and without cells that only repeat their column's heading; for a link,
 its label without the date and the words "agenda" and "minutes"; for a line,
@@ -90,6 +91,8 @@ NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])
 DASHED_DATE = re.compile(r"(?<![\d./-])(\d{1,2})-(\d{1,2})-(\d{4})(?![\d-])")
 # A link that redirects to the document it names: an Apptegy short link ("https://aptg.co/Lj5CdR").
 SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
+# A date in figures, month first, with dots: "10.07.26", "05.06.2026" (Bristol Public Schools' minutes).
+DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d.])")
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -103,9 +106,10 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out, as yyyy-mm-dd, as m/d/yy (or m/d/yyyy), or as mm-dd-yyyy."""
+    """The first date in a text, written out, as yyyy-mm-dd, as m/d/yy (or m/d/yyyy), as mm.dd.yy, or as
+    mm-dd-yyyy."""
     found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value),
-                         DASHED_DATE.search(value)) if m]
+                         DOTTED_DATE.search(value), DASHED_DATE.search(value)) if m]
     return min(found, key=lambda m: m.start()) if found else None
 
 
@@ -119,6 +123,9 @@ def date_value(found: re.Match) -> str | None:
         if found.re is DASHED_DATE:
             month, day, year = (int(g) for g in found.groups())
             return date(year, month, day).isoformat()
+        if found.re is DOTTED_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year + 2000 if year < 100 else year, month, day).isoformat()
         month, day, year = found.groups()
         return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
     except ValueError:

@@ -88,6 +88,16 @@
   {# Translators: %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington School District". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=config.diligent_meetings.get("body") or (config.diligent_meetings.bodies.values() | list)[0], source=config.diligent_meetings.source_name, url=config.diligent_meetings.page_url, since=config.diligent_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from its <a href="{{ url }}">Diligent Community portal</a>, from {{ since }} on.{% endtrans %}</li>
   {% endif %}
+  {% if config.boardbook_meetings is defined %}
+  {% set bb = config.boardbook_meetings %}
+  {% if bb.get("minutes", true) %}
+  {# Translators: %(board)s is a board's name, such as "Board of Education". %(source)s is the district, such as "Bristol Public Schools". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=bb.get("body") or (bb.bodies.values() | list)[0], source=bb.source_name, url=bb.page_url, since=bb.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> {{ source }}, from its <a href="{{ url }}">BoardBook page</a>, from {{ since }} on.{% endtrans %}</li>
+  {% else %}
+  {# Translators: %(board)s is a board's name, such as "Board of Education". %(source)s is the district, such as "Bristol Public Schools". %(since)s is a month, such as "January 2024". #}
+  <li>{% trans board=bb.get("body") or (bb.bodies.values() | list)[0], source=bb.source_name, url=bb.page_url, since=bb.since | date("month") %}<strong>{{ board }} meetings and agendas:</strong> {{ source }}, from its <a href="{{ url }}">BoardBook page</a>, from {{ since }} on.{% endtrans %}</li>
+  {% endif %}
+  {% endif %}
   {% if config.meetingdocs_meetings is defined %}
   {# Translators: %(board)s is a board's name, such as "School Committee". %(since)s is a month, such as "January 2024". #}
   <li>{% trans board=config.meetingdocs_meetings.get("body") or (config.meetingdocs_meetings.bodies.values() | list)[0], url=config.meetingdocs_meetings.page_url, since=config.meetingdocs_meetings.since | date("month") %}<strong>{{ board }} meetings, agendas, and minutes:</strong> the city's <a href="{{ url }}">events calendar</a>, where they're posted, from {{ since }} on.{% endtrans %}</li>
