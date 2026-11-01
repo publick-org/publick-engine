@@ -1,9 +1,11 @@
 """A board's meetings from a page that links each meeting's documents: Methuen Public Schools'
 table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), and Nashua's lines of
-dates with their documents under them (Finalsite), saved and trimmed: tests/fixtures/linkpage_*.html."""
+dates with their documents under them (Finalsite), and Westbrook's table of links labelled only with
+their dates (Apptegy), saved and trimmed: tests/fixtures/linkpage_*.html."""
 
 import copy
 import json
+import re
 import shutil
 from datetime import datetime
 
@@ -269,6 +271,103 @@ def test_a_page_without_escaped_links_drops_its_scripts():
     assert linkpage.entries(page.replace('\\"', '"'), WORCESTER) == []
 
 
+# Westbrook School Department's School Committee page (Apptegy), trimmed: its meeting announcement, and
+# the 2025-2026 table, whose links are each labelled only with the meeting's date, under the columns
+# "AGENDA/BACK-UP INFORMATION" and "APPROVED MINUTES".
+WESTBROOK = "https://www.westbrookschools.org/o/wsd/page/westbrook-school-committee"
+WESTBROOK_POLICY = "https://www.westbrookschools.org/o/wsd/page/policy-committee"
+
+
+def westbrook() -> dict:
+    """[page_meetings] as Westbrook's config has it: the remote participation policy linked under the
+    announcement left out."""
+    return {"page_url": WESTBROOK, "source_name": "Westbrook School Department", "since": "2026-01-01",
+            "body": "School Committee", "exclude_pattern": "Remote Participation", "one_meeting_a_day": True}
+
+
+def westbrook_page() -> str:
+    return (FIXTURES / "linkpage_westbrook.html").read_text(encoding="utf-8")
+
+
+def test_links_labelled_only_with_a_date_are_named_by_their_column():
+    found = {m["key"]: m for m in linkpage.meetings(westbrook_page(), WESTBROOK, westbrook())[0]}
+    # June 10, 2026's row has no links yet: no meeting.
+    assert list(found) == ["2026-10-14-school-committee", "2025-12-18-school-committee",
+                           "2026-01-14-school-committee", "2026-04-08-school-committee"]
+    january = found["2026-01-14-school-committee"]
+    assert january["agenda_url"] == "https://drive.google.com/file/d/1oTQFeFYsw7t3c49ZfJ0LghKA_OCqn099/view?usp=drive_link"
+    assert january["minutes_url"] == "https://drive.google.com/file/d/1jFkqgGBZI0ax4L9poZ_wZZYb6Bt8qHRv/view?usp=drive_link"
+    assert (january["body"], january["name"], january["links"]) == ("School Committee", "", [])
+    april = found["2026-04-08-school-committee"]
+    assert april["agenda_url"].startswith("https://drive.google.com/file/d/1a13Tye5X1_USLQu0B2nspD70EP7W33cE/")
+    assert "minutes_url" not in april
+    # The announcement: the next meeting, its time, and its agenda by the link's own label.
+    october = found["2026-10-14-school-committee"]
+    assert october["agenda_url"].startswith("https://drive.google.com/file/d/19QuAviIlqf5zkaLz_B7lmarS6vYl9SBP/")
+    assert (october["start_time"], october["status"], october["special"], october["links"]) == ("19:00", "scheduled", False, [])
+
+
+def test_without_its_heading_a_date_labelled_link_is_only_a_link():
+    """A table without a row of headings says nothing of what its links are: they're kept as links."""
+    page = re.sub(r"DATE.*?APPROVED MINUTES", "", westbrook_page(), flags=re.S)
+    found = {m["key"]: m for m in linkpage.meetings(page, WESTBROOK, westbrook())[0]}
+    january = found["2026-01-14-school-committee"]
+    assert "agenda_url" not in january and [link["text"] for link in january["links"]] == ["January 14, 2026"] * 2
+
+
+def test_one_meeting_a_day_takes_the_announcement_and_the_row_as_one():
+    row = ('<table><tr><td>DATE</td><td>AGENDA/BACK-UP INFORMATION</td><td>APPROVED MINUTES</td></tr>'
+           '<tr><td>October 14, 2026</td><td><a href="https://drive.google.com/file/d/1AgendaAgendaAgendaAgendaAgenda01/view">October 14, 2026</a></td>'
+           '<td><a href="https://drive.google.com/file/d/1MinutesMinutesMinutesMinutes0001/view">October 14, 2026</a></td></tr></table>')
+    page = westbrook_page().replace("</body>", row + "</body>")
+    found = {m["key"]: m for m in linkpage.meetings(page, WESTBROOK, westbrook())[0]}
+    october = found["2026-10-14-school-committee"]
+    assert october["minutes_url"] == "https://drive.google.com/file/d/1MinutesMinutesMinutesMinutes0001/view"
+    # The announcement is listed first, so its agenda is the meeting's; the row's is kept as a link.
+    assert october["agenda_url"].startswith("https://drive.google.com/file/d/19QuAviIlqf5zkaLz_B7lmarS6vYl9SBP/")
+    assert october["links"] == [{"url": "https://drive.google.com/file/d/1AgendaAgendaAgendaAgendaAgenda01/view", "text": "AGENDA/BACK-UP INFORMATION"}]
+    assert (october["name"], october["start_time"]) == ("", "19:00")
+    # Without it, the announcement's sentence and the row's empty name are two meetings.
+    settings = {k: v for k, v in westbrook().items() if k != "one_meeting_a_day"}
+    keys = [m["key"] for m in linkpage.meetings(page, WESTBROOK, settings)[0] if m["date"] == "2026-10-14"]
+    assert len(keys) == 2 and "2026-10-14-meeting" in keys
+
+
+# Westbrook's Policy Committee page, its announcement 125 characters long, and the Educational Programs
+# Committee's table, a cell's date split by its link ("J" and a link "anuary 14, 2026"), and its third column
+# the committee's reports.
+COMMITTEE_PAGE = (
+    '<p>MEETING ANNOUNCEMENT</p><p>The Policy Committee will meet on Wednesday, October 28, 2026 at 5:00 PM in room 114 '
+    'at Central Office (117 Stroudwater Street)</p><p><a href="https://drive.google.com/file/d/1PolicyAgendaPolicyAgendaPolicy01/view">AGENDA &amp; '
+    'Backup Information</a></p>'
+    '<table><tr><th>Agenda &amp; Information</th><th>Meeting Report</th></tr>'
+    '<tr><td><p>J<a href="https://drive.google.com/file/d/1JanuaryAgendaJanuaryAgendaJanu01/view">anuary 14, 2026</a></p></td>'
+    '<td><p><a href="https://drive.google.com/file/d/1JanuaryReportJanuaryReportJanu01/view">January 14, 2026</a></p></td></tr></table>')
+
+
+def test_a_committees_page_of_date_labelled_links():
+    found = {m["key"]: m for m in linkpage.meetings(COMMITTEE_PAGE, WESTBROOK_POLICY, westbrook(),
+                                                    "School Committee Policy Committee")[0]}
+    assert list(found) == ["2026-10-28-school-committee-policy-committee", "2026-01-14-school-committee-policy-committee"]
+    announced = found["2026-10-28-school-committee-policy-committee"]
+    assert (announced["agenda_url"], announced["start_time"]) == ("https://drive.google.com/file/d/1PolicyAgendaPolicyAgendaPolicy01/view", "17:00")
+    january = found["2026-01-14-school-committee-policy-committee"]
+    assert january["agenda_url"] == "https://drive.google.com/file/d/1JanuaryAgendaJanuaryAgendaJanu01/view" and "minutes_url" not in january
+    # A report isn't the minutes: it's kept as a link, named by its column.
+    assert january["links"] == [{"url": "https://drive.google.com/file/d/1JanuaryReportJanuaryReportJanu01/view", "text": "Meeting Report"}]
+
+
+def test_a_column_heading_names_only_links_labelled_with_a_date():
+    """A link with words of its own keeps them, whatever its column ("Posting" under "Agenda")."""
+    page = ('<table><tr><th>Date</th><th>Agenda</th><th>Minutes</th></tr><tr><td>2026-10-13</td>'
+            '<td><a href="https://drive.google.com/file/d/1PostingPostingPostingPostingPost/view">Posting</a></td>'
+            '<td><a href="https://drive.google.com/file/d/1MinutesMinutesMinutesMinutesMinu/view">2026-10-13</a></td></tr></table>')
+    meeting = linkpage.meetings(page, WESTBROOK, {"body": "School Committee"})[0][0]
+    assert "agenda_url" not in meeting and meeting["links"] == [{"url": "https://drive.google.com/file/d/1PostingPostingPostingPostingPost/view",
+                                                                  "text": "Posting"}]
+    assert meeting["minutes_url"] == "https://drive.google.com/file/d/1MinutesMinutesMinutesMinutesMinu/view"
+
+
 # ---- Collecting -------------------------------------------------------------------------------
 
 def test_first_run_records_meetings_and_saves_documents(district, tmp_path):
@@ -365,6 +464,17 @@ def test_a_committees_page_that_lists_nothing_is_reported(config, tmp_path):
     assert status["meetings_created"] == 9
 
 
+def test_westbrook(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = westbrook()
+    status, store, client = run(town, tmp_path, FakeLinkPage(replaced={WESTBROOK: westbrook_page()}))
+    assert status["meetings_created"] == 3 and not status["errors"] and not status["unrecognized"]
+    january = store["page-2026-01-14-school-committee"]
+    assert len(january["agendas"]) == 1 and len(january["minutes"]) == 1
+    assert store["page-2026-10-14-school-committee"]["start_time"] == "19:00"
+    assert "page-2025-12-18-school-committee" not in store  # before since
+
+
 def test_waltham(config, tmp_path):
     town = copy.deepcopy(config)
     town["page_meetings"] = waltham()
@@ -383,6 +493,7 @@ def test_waltham(config, tmp_path):
     ({"agenda_pattern": "(agenda"}, "agenda_pattern isn't a regular expression"),
     ({"max_documents_per_run": 0}, "max_documents_per_run must be"),
     ({"pages": {"policy": "Board of Education Policy Committee"}}, "pages must map"),
+    ({"one_meeting_a_day": "yes"}, "one_meeting_a_day must be true or false"),
 ])
 def test_config_is_checked(change, message):
     settings = {k: v for k, v in {**methuen(), **change}.items() if v is not None}
