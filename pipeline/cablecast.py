@@ -32,12 +32,15 @@ from __future__ import annotations
 import re
 
 from pipeline import recordings
+from pipeline.http import FetchError
 
 PLATFORM = "cablecast"
 PAGE_SIZE = 50
 # Pages read at most for one project or category: the newest 500 shows.
 MAX_PAGES = 10
 CANCELLED = re.compile(r"\bcancel", re.I)
+# What a recording's playlist answers while the station is still processing it.
+NOT_READY = (403, 404)
 
 
 def check(source: dict, where: str) -> None:
@@ -95,8 +98,17 @@ def find(client, source: dict, since: str, timezone: str) -> list[dict]:
 
 
 def media(client, source: dict, recording: dict) -> dict | None:
+    """Where the recording's audio is read from, or None while the station is still processing it: a
+    new recording's playlist answers 403 (or 404) until its files are ready (Beverly's of October 27,
+    2026, for a day), which isn't a failed try, so it waits for a later run (within max_age_days)."""
     url = recording["vod_url"]
     if url.endswith("/vod.mp4"):
         master = url[:-len("vod.mp4")] + "vod.m3u8"
-        return {"url": recordings.hls_stream(client.get(master).text, master)}
+        try:
+            playlist = client.get(master).text
+        except FetchError as e:
+            if e.status in NOT_READY:
+                return None
+            raise
+        return {"url": recordings.hls_stream(playlist, master)}
     return {"url": url}
