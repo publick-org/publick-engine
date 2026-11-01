@@ -3327,6 +3327,16 @@ msgstr "Funcionarios electos de %(town)s, por cargo y por distrito, y cómo comu
 msgid "Elected officials in %(town)s, by office, and how to reach them."
 msgstr "Funcionarios electos de %(town)s, por cargo, y cómo comunicarse con ellos."
 
+#. members elected who haven't taken office yet, listed under their body: %(day)s is the day they do,
+#. such as "December 7, 2026", and %(names)s their names, such as "Anna Bullett (District 4), April D.
+#. Fournier (At-large)".
+#: site/pages/officials/index.html
+#, python-format
+msgid "Elected, and taking office on %(day)s: %(names)s. Until then, the members below serve."
+msgstr ""
+"Personas electas que asumen el cargo el %(day)s: %(names)s. Hasta entonces, siguen en funciones "
+"los miembros de abajo."
+
 #: pipeline/common_strings.py
 msgid "Election Commission"
 msgstr "Comisión Electoral"
@@ -7602,6 +7612,13 @@ msgstr "No se pudo completar"
 
 #: site/pages/officials/index.html
 #, python-format
+msgid "That was before new members took office on %(day)s, so some members or officers may have changed."
+msgstr ""
+"Eso fue antes de que los nuevos miembros asumieran el cargo el %(day)s, así que algunos miembros "
+"o cargos pueden haber cambiado."
+
+#: site/pages/officials/index.html
+#, python-format
 msgid "That was before new terms began in %(month)s, so some members may have changed."
 msgstr ""
 "Eso fue antes de que empezaran los nuevos mandatos en %(month)s, así que algunos miembros pueden "
@@ -9462,6 +9479,13 @@ msgstr "Junta de Apelaciones de Zonificación"
 msgid "a check after the election of {date}"
 msgstr "una revisión después de las elecciones del {date}"
 
+#. the check the list of elected officials is due, such as "a check once new members take office on
+#. December 7, 2026".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "a check once new members take office on {date}"
+msgstr "una revisión cuando los nuevos miembros asuman el cargo el {date}"
+
 #. the check the list of elected officials is due, such as "a check once new terms begin in January
 #. 2028".
 #: pipeline/freshness.py
@@ -9581,6 +9605,13 @@ msgstr "model y generated_at: el modelo de IA, y cuándo escribió el resumen;"
 #: pipeline/rhythms.py
 msgid "no data yet"
 msgstr "aún no hay datos"
+
+#. why the list of elected officials is behind, such as "not checked since new members took office on
+#. December 7, 2026".
+#: pipeline/freshness.py
+#, python-brace-format
+msgid "not checked since new members took office on {date}"
+msgstr "no se ha revisado desde que los nuevos miembros asumieron el cargo el {date}"
 
 #. why the list of elected officials is behind, such as "not checked since new terms began in January
 #. 2028".

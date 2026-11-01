@@ -1423,7 +1423,7 @@ def localize_officials(officials: dict, tr: TownStrings) -> None:
         body["name"] = tr.board(body["name"])
         if body.get("note"):
             body["note"] = tr(body["note"])
-        for m in body["members"]:
+        for m in body["members"] + (body["incoming"]["members"] if body.get("incoming") else []):
             member(m)
     for m in [m for ward in officials["wards"] for m in ward["members"]] + officials["citywide"]:
         m["body"] = tr.board(m["body"])

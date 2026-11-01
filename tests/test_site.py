@@ -965,6 +965,17 @@ def test_officials_list_is_due_a_check_after_each_election(config):
     due = officials.review(town, date(2028, 1, 11))
     assert due["due"] == date(2028, 1, 4) and due["terms"] is None and due["behind"]
     assert freshness.officials_row(due)["behind"] == "not checked since the election of January 4, 2028"
+    # Results not recorded two days after the election are flagged for a person (the status row), though
+    # the Officials page says nothing until new terms begin.
+    town["officials"]["next_election"] = "2027-11-02"
+    assert not freshness.officials_row(officials.review(town, date(2027, 11, 3)))["stale"]
+    due = officials.review(town, date(2027, 11, 4))
+    assert due["unrecorded"] and not due["behind"]
+    row = freshness.officials_row(due)
+    assert row["stale"] and row["behind"] == "not checked since the election of November 2, 2027" and not row["next"]
+    town["officials"]["checked"] = "2027-11-04"
+    assert not officials.review(town, date(2027, 11, 20))["unrecorded"]
+    town["officials"]["checked"] = "2026-09-15"
     town["officials"]["next_election"] = "soon"
     with pytest.raises(SystemExit, match="next_election"):
         officials.review(town, date(2028, 1, 11))
@@ -986,6 +997,75 @@ def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_pat
     assert "That was before new terms began in January 2028, so some members may have changed." in page
     about = (out / "about" / "index.html").read_text()
     assert re.search(r'<th scope="row">Elected officials</th>.*?not checked since new terms began in January 2028', about, re.S)
+
+
+def test_officials_incoming_members_take_office_on_their_day(config, data_dir, tmp_path, monkeypatch):
+    """Members elected are recorded with the day they take office: until then the page lists the sitting
+    members and names those elected; from that day it lists the incoming ones, with no change to the config."""
+    import copy
+    from datetime import datetime
+    from pipeline import freshness, officials
+    from conftest import TZ
+    town = copy.deepcopy(config)
+    town["officials"].update(next_election="2027-11-02", checked="2027-11-10")
+    school = town["officials"]["bodies"][2]
+    school["incoming"] = {"takes_office": "2028-01-03", "members": [
+        {"name": "Harper Example", "seat": "At-large", "term_ends": "2030-01"},
+        {"name": "Jamie Example", "seat": "District A", "wards": [1, 2], "term_ends": "2032-01"},
+        {"name": "Riley Example", "seat": "Ward 2", "ward": 2, "term_ends": "2032-01"},
+        {"name": "Morgan Example", "seat": "Mayor", "term_ends": "2030-01"},
+    ]}
+    before = officials.load(town, data_dir, today=date(2028, 1, 2))
+    body = before["bodies"][2]
+    assert [m["name"] for m in body["members"]] == ["Harper Example", "Jamie Example", "Indy Example", "Morgan Example"]
+    # Harper's term continues, so only the three elected are named.
+    assert [m["name"] for m in body["incoming"]["members"]] == ["Jamie Example", "Riley Example", "Morgan Example"]
+    assert body["incoming"]["takes_office"] == "2028-01-03" and before["out_of_date"] is None
+    after = officials.load(town, data_dir, today=date(2028, 1, 3))
+    body = after["bodies"][2]
+    assert [m["name"] for m in body["members"]] == ["Harper Example", "Jamie Example", "Riley Example", "Morgan Example"]
+    assert body["incoming"] is None and body["members"][3].get("role") is None
+    ward_2 = next(w for w in after["wards"] if w["ward"] == "2")
+    assert "Riley Example" in [m["name"] for m in ward_2["members"]] and "Indy Example" not in [m["name"] for m in ward_2["members"]]
+    # Due a check once they have taken office, for the officers chosen then; behind a week after.
+    due = officials.review(town, date(2028, 1, 9))
+    assert due["seated"] == date(2028, 1, 3) and due["due"] == date(2028, 1, 3) and not due["behind"] and not due["passed"]
+    assert freshness.officials_row(officials.review(town, date(2027, 12, 1)))["next"] == \
+        "a check once new members take office on January 3, 2028"
+    row = freshness.officials_row(officials.review(town, date(2028, 1, 10)))
+    assert row["stale"] and row["behind"] == "not checked since new members took office on January 3, 2028"
+    checked = copy.deepcopy(town)
+    checked["officials"]["checked"] = "2028-01-05"
+    assert officials.review(checked, date(2028, 1, 10))["passed"]
+
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data_dir, now=datetime(2027, 12, 1, 7, 0, tzinfo=TZ))
+    page = (out / "officials" / "index.html").read_text()
+    assert ("Elected, and taking office on January 3, 2028: Jamie Example (District A), Riley Example (Ward 2), "
+            "Morgan Example (Mayor). Until then, the members below serve.") in page
+    assert 'id="school-committee-indy-example"' in page and 'id="school-committee-riley-example"' not in page
+    build_site.build("gloucester", out, data_dir=data_dir, now=datetime(2028, 1, 10, 7, 0, tzinfo=TZ))
+    page = (out / "officials" / "index.html").read_text()
+    assert 'id="school-committee-riley-example"' in page and 'id="school-committee-indy-example"' not in page
+    assert "Elected, and taking office" not in page
+    assert "That was before new members took office on January 3, 2028, so some members or officers may have changed." in page
+
+    # incoming lists the whole body: a member whose term continues can't be left out by mistake.
+    bad = copy.deepcopy(town)
+    del bad["officials"]["bodies"][2]["incoming"]["members"][0]
+    with pytest.raises(SystemExit, match="Harper Example's term on the School Committee ends in 2030-01"):
+        officials.load(bad, data_dir, today=date(2027, 12, 1))
+    for change, error in [({"takes_office": "January"}, "takes_office"), ({"sworn": "2028-01-03"}, "unknown sworn"),
+                          ({"members": []}, "needs takes_office and members")]:
+        bad = copy.deepcopy(town)
+        bad["officials"]["bodies"][2]["incoming"].update(change)
+        with pytest.raises(SystemExit, match=error):
+            officials.load(bad, data_dir, today=date(2027, 12, 1))
+    bad = copy.deepcopy(town)
+    bad["officials"]["bodies"][2]["incoming"]["members"][2]["ward"] = 9
+    with pytest.raises(SystemExit, match="isn't in the ward file"):
+        officials.load(bad, data_dir, today=date(2027, 12, 1))
 
 
 def test_recently_decided_marks_committee_recommendations():
