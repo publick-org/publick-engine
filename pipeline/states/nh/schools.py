@@ -49,17 +49,21 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     schools = config["schools"]
     district = schools["doe_district"]
+    # A district with no high school of its own (Derry Cooperative's students go to
+    # Pinkerton Academy): the graduation rate is that school's, named on the page.
+    high_school = schools.get("graduation_school")
 
-    def series(kind: str, value) -> list[dict]:
+    def series(kind: str, value, name: str = district) -> list[dict]:
         years = [{"year": y, "town": value(row), "state": value(state) if state else None}
-                 for y, row, state in figures.with_state(kind, district)]
+                 for y, row, state in figures.with_state(kind, name)]
         return [y for y in years if y["town"] is not None][-YEARS_KEPT:]
 
-    grad = {y: row for y, row in figures.rows("graduation", district)}
+    grad = {y: row for y, row in figures.rows("graduation", high_school or district)}
     measures = {
         "graduation": {"source_url": figures.load("graduation")["source_url"],
+                       "school": high_school,
                        "years": [{**y, "cohort": grad[y["year"]]["cohort"], "graduated": grad[y["year"]]["graduated"]}
-                                 for y in series("graduation", lambda r: r["rate"])]},
+                                 for y in series("graduation", lambda r: r["rate"], high_school or district)]},
         **{f"sas_{key}": {"source_url": figures.load("assessment")["source_url"],
                           "years": series("assessment", lambda r, s=subject: (r.get(s) or {}).get("proficient"))}
            for key, subject in SUBJECTS.items()},

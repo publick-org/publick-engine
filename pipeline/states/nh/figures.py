@@ -18,9 +18,16 @@ def load(kind: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def same_name(a: str, b: str) -> bool:
+    """The state's files write some names with two spaces in one year's file and one in
+    another's ("Derry  Cooperative"): the same name, whatever the spaces."""
+    return a.split() == b.split()
+
+
 def rows(kind: str, name: str) -> list[tuple[int, dict]]:
     """[(year, row)] for every saved year that has this name, oldest first."""
-    found = [(int(year), rows[name]) for year, rows in load(kind)["years"].items() if name in rows]
+    found = [(int(year), row) for year, rows in load(kind)["years"].items()
+             for key, row in rows.items() if same_name(key, name)]
     if not found:
         raise FetchError(f"{name!r} is not in the saved {kind} figures (names are the state's, as in its files)")
     return found
