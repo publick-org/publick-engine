@@ -71,6 +71,10 @@ def run(town, tmp_path, client=None, now=NOW):
 @pytest.mark.parametrize("value, expected", [
     ("2026-10-13", "2026-10-13"), ("2026-08-17*", "2026-08-17"), ("September 16, 2026 Minutes", "2026-09-16"),
     ("June 10 2026 Special Meeting Minutes", "2026-06-10"), ("Sept. 2, 2026 Agenda", "2026-09-02"),
+    # Bristol Public Schools' minutes, dated in figures with dots.
+    ("01.14.26 – Special BoE Meeting Minutes – APPROVED", "2026-01-14"),
+    ("05.06.2026-Regular Board of Education Minutes – APPROVED", "2026-05-06"),
+    ("03.18.26- Special BOE Meeting Minutes", "2026-03-18"),
 ])
 def test_dates(value, expected):
     assert linkpage.date_value(linkpage.find_date(value)) == expected
@@ -79,6 +83,9 @@ def test_dates(value, expected):
 def test_no_date():
     assert linkpage.find_date("October Additional Resources") is None
     assert linkpage.date_value(linkpage.find_date("2026-02-30")) is None
+    # Not a date: a version number, or a date without its year.
+    assert linkpage.find_date("Policy 6114.3 revised") is None and linkpage.find_date("Version 1.2.3.4") is None
+    assert linkpage.date_value(linkpage.find_date("13.02.26 Minutes")) is None
 
 
 @pytest.mark.parametrize("value, expected", [
