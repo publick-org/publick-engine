@@ -58,7 +58,8 @@ def new_meeting(store: dict, found: dict, settings: dict, stamp: str) -> dict:
         "slug": unique_slug(f"{found['date']}-{slugify(found['body'])}", store),
         "date": found["date"],
         "body": found["body"],
-        "start_time": None,
+        # The time the page gives, so a meeting's first record doesn't show it as a change.
+        "start_time": found.get("start_time"),
         "end_time": None,
         "location": "",
     }

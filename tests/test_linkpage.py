@@ -528,7 +528,9 @@ def test_westbrook(config, tmp_path):
     assert status["meetings_created"] == 3 and not status["errors"] and not status["unrecognized"]
     january = store["page-2026-01-14-school-committee"]
     assert len(january["agendas"]) == 1 and len(january["minutes"]) == 1
-    assert store["page-2026-10-14-school-committee"]["start_time"] == "19:00"
+    october = store["page-2026-10-14-school-committee"]
+    # The time the page gives is the meeting's from its first record, not a change to it.
+    assert october["start_time"] == "19:00" and not october.get("history")
     assert "page-2025-12-18-school-committee" not in store  # before since
 
 
