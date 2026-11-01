@@ -290,7 +290,45 @@ def test_schools_page_names_the_high_school(nh_figures, tmp_path, data_dir, monk
     build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
     page = (out / "schools" / "index.html").read_text()
     assert "these are the figures for Pinkerton Academy, where its students go to high school" in page
+    assert "for the whole school, including any students from other towns" in page
     assert '<th scope="col" class="num">Pinkerton Academy</th>' in page
+    # The summary's figure is labelled the school's too.
+    assert '<span class="stat-label">Graduation rate, Pinkerton Academy</span>' in page
+
+
+def test_a_district_with_no_graduation_rate_published(tmp_path):
+    """A district the state's graduation files don't list, with no graduation_school: its other
+    figures are saved, and its graduation rate is marked as not published, not looked for elsewhere."""
+    figures.load.cache_clear()
+    config = manchester()
+    config["schools"] = {"doe_district": "Derry Cooperative", "district_name": "Derry Cooperative School District"}
+    latest = fetch_schools.run(config, None, tmp_path, now=NOW)
+    assert latest["graduation"] is None and latest["sas_ela"] is not None
+    saved = json.loads((tmp_path / "schools" / "schools.json").read_text())
+    assert saved["measures"]["graduation"]["none_published"] and saved["measures"]["graduation"]["years"] == []
+    assert figures.has("cost_per_pupil", "Derry Cooperative") and not figures.has("graduation", "Derry Cooperative")
+    figures.load.cache_clear()
+
+
+def test_schools_page_says_why_there_is_no_graduation_rate(nh_figures, tmp_path, data_dir, monkeypatch):
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    for name in ("finance", "schools"):
+        shutil.rmtree(data / name, ignore_errors=True)
+    config = manchester()
+    fetch_finance.run(config, FakeParcels(), data, now=NOW)
+    fetch_budget.run(config, FakeCity(), data, now=NOW)
+    fetch_schools.run(config, None, data, now=NOW)
+    saved = data / "schools" / "schools.json"
+    schools = json.loads(saved.read_text())
+    schools["measures"]["graduation"].update(years=[], none_published=True)
+    saved.write_text(json.dumps(schools))
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    page = (out / "schools" / "index.html").read_text()
+    assert "publishes no graduation rate for it" in page
+    assert '<span class="stat-label">Graduation rate' not in page and "Class of" not in page
 
 
 def test_schools_page_builds_from_data_saved_before_the_high_school(nh_figures, tmp_path, data_dir, monkeypatch):
