@@ -965,6 +965,17 @@ def test_officials_list_is_due_a_check_after_each_election(config):
     due = officials.review(town, date(2028, 1, 11))
     assert due["due"] == date(2028, 1, 4) and due["terms"] is None and due["behind"]
     assert freshness.officials_row(due)["behind"] == "not checked since the election of January 4, 2028"
+    # Results not recorded two days after the election are flagged for a person (the status row), though
+    # the Officials page says nothing until new terms begin.
+    town["officials"]["next_election"] = "2027-11-02"
+    assert not freshness.officials_row(officials.review(town, date(2027, 11, 3)))["stale"]
+    due = officials.review(town, date(2027, 11, 4))
+    assert due["unrecorded"] and not due["behind"]
+    row = freshness.officials_row(due)
+    assert row["stale"] and row["behind"] == "not checked since the election of November 2, 2027" and not row["next"]
+    town["officials"]["checked"] = "2027-11-04"
+    assert not officials.review(town, date(2027, 11, 20))["unrecorded"]
+    town["officials"]["checked"] = "2026-09-15"
     town["officials"]["next_election"] = "soon"
     with pytest.raises(SystemExit, match="next_election"):
         officials.review(town, date(2028, 1, 11))

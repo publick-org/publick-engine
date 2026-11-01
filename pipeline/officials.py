@@ -36,6 +36,10 @@ BODY_FIELDS = {"name", "board", "url", "note", "members", "incoming"}
 INCOMING_FIELDS = {"takes_office", "members"}
 # Days after a list is due a check (the election, or new terms) before it counts as behind.
 GRACE_DAYS = 7
+# Days after an election before its results, if not checked yet, are flagged for a person to record (the alert
+# and the status pages; not the Officials page, whose sitting members are still right until new terms begin).
+# Ahead of the members taking office, which can be days later (Bangor's council is sworn in the next Monday).
+RESULTS_DAYS = 2
 
 
 def slugify(text: str) -> str:
@@ -219,7 +223,10 @@ def review(config: dict, today: date) -> dict | None:
 
     Members recorded as incoming, and not checked since they took office, are due a check that day
     instead (seated): the page lists them from then on, and the officers a body chooses as it organizes
-    are known only after."""
+    are known only after.
+
+    unrecorded: the election was RESULTS_DAYS ago or more and the list hasn't been checked since, so its
+    results (the incoming members) are still to be recorded."""
     table = config.get("officials") or {}
     if "next_election" not in table:
         return None
@@ -230,18 +237,19 @@ def review(config: dict, today: date) -> dict | None:
         raise SystemExit(f'[officials] next_election in {where} must be the date of the town\'s next municipal election, '
                          f'like "2027-11-02".')
     checked = date.fromisoformat(str(table["checked"]))
+    unrecorded = checked < election and today >= election + timedelta(days=RESULTS_DAYS)
     seated = max((coming["takes_office"] for body in table.get("bodies", []) if (coming := incoming(body, where))
                   and coming["takes_office"] > checked), default=None)
     if seated:
         return {"election": election, "terms": None, "seated": seated, "due": seated, "checked": checked,
-                "behind": today >= seated + timedelta(days=GRACE_DAYS), "passed": False}
+                "behind": today >= seated + timedelta(days=GRACE_DAYS), "unrecorded": unrecorded, "passed": False}
     ends = sorted(date.fromisoformat(f"{m['term_ends']}-01") for body in table.get("bodies", [])
                   for m in body.get("members", []) if re.fullmatch(r"\d{4}-\d{2}", str(m.get("term_ends", ""))))
     terms = next((d for d in ends if d >= election.replace(day=1)), None)
     due = max(election, terms) if terms else election
     return {"election": election, "terms": terms if terms and terms > election else None, "seated": None, "due": due,
             "checked": checked, "behind": checked < due and today >= due + timedelta(days=GRACE_DAYS),
-            "passed": checked >= due and today >= due}
+            "unrecorded": unrecorded, "passed": checked >= due and today >= due}
 
 
 def ward_names(data_dir: Path, config: dict) -> set[str]:
