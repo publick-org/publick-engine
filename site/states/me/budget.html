@@ -13,7 +13,11 @@
 {% block content %}
 <div class="page-head">
   <h1>{{ _("City budget") }}</h1>
+  {% if state.source("tax_bill", config) %}
   <p class="lede">{{ _("The city's property tax rate, what the property tax raises, and what it comes to for a home and for each resident, from Maine Revenue Services (MRS).") }}</p>
+  {% else %}
+  <p class="lede">{{ _("The city's property tax rate, what the property tax raises, and what it comes to for each resident, from Maine Revenue Services (MRS).") }}</p>
+  {% endif %}
   {% if budget %}
   <p class="source-note" data-about>{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; MRS publishes each tax year's figures in the November or December after the next.{% endtrans %}</p>
   {% endif %}
@@ -112,6 +116,11 @@
 {{ calculated(how) }}
 <p class="small" data-about>{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">MRS, Municipal Valuation Return Statistical Summary</a>; <a href="{{ parcels }}">Maine GeoLibrary, Maine Parcels Organized Towns</a>.{% endtrans %}</p>
 {{ chart_links("tax-bill", "/budget/data/tax-bill.csv") }}
+{% endif %}
+
+{% if not state.source("tax_bill", config) %}
+{# A town whose parcels in the GeoLibrary's table don't give its homes' values ([finance] has no megis_geocode). #}
+<p class="small">{% trans town=town.name %}Maine doesn't publish an average tax bill. This site calculates one where a city's single-family homes, with their assessed values of land and buildings, can be found in the Maine GeoLibrary's parcel table; {{ town }}'s can't, so this page doesn't show an average bill.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Per resident ---- #}
