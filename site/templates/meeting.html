@@ -48,6 +48,69 @@
 {% endif %}
 {%- endmacro %}
 
+{# A roll call's group, as the minutes label it ("Yea: 10 - ..."; pipeline/votes.py LABELS). #}
+{% macro vote_label(label) -%}
+{%- if label == "Yea" %}{{ pgettext("roll call", "Yea") }}
+{%- elif label == "Nay" %}{{ pgettext("roll call", "Nay") }}
+{%- elif label == "Abstain" %}{{ pgettext("roll call", "Abstain") }}
+{%- elif label == "Recused" %}{{ pgettext("roll call", "Recused") }}
+{%- elif label == "Absent" %}{{ pgettext("roll call", "Absent") }}
+{%- elif label == "Present" %}{{ pgettext("roll call", "Present") }}
+{%- elif label == "Excused" %}{{ pgettext("roll call", "Excused") }}
+{%- elif label == "Non-Voting" %}{{ pgettext("roll call", "Non-Voting") }}
+{%- else %}{{ label }}{% endif -%}
+{%- endmacro %}
+{# The roll calls read from the minutes' own text, without AI (pipeline/votes.py), for a town that shows them ([votes]
+   show): each checked one as the minutes give it, under its item (its paper number and the minutes' description of it,
+   or the numbered section it's in), with its motion as worded, how it came out, each group with the names the minutes
+   list, the members they don't name in it, and its page in the minutes. What they're read from, and what they leave
+   out, is said first, so they aren't taken for every vote. One the check held back is counted, never shown. #}
+{% macro roll_call_votes(m) -%}
+{% set en = ' lang="en"' | safe if page_lang != "en" else "" %}
+<h3 id="roll-calls">{{ _("Roll call votes") }}</h3>
+{% set c = m.roll_call_coverage %}
+<div class="roll-call-coverage small">
+<p>{{ _("Each roll call as the minutes list it, by name, read from the minutes' own text without AI. A vote taken by voice, or recorded only as a count or in a sentence, isn't listed by member.") }}</p>
+{% if c %}<p>
+{#- Translators: which minutes roll call votes are read from: %(board)s is a board's name, such as "City Council"; %(num)s a number of meetings, %(first)s and %(last)s dates, such as "February 10, 2026". -#}
+{% if c.count == 1 %}{% trans board=m.body, first=c.first | date("plain") %}{{ board }} minutes read for roll calls: one meeting, {{ first }}.{% endtrans %}
+{%- else %}{% trans board=m.body, num=c.count | number, first=c.first | date("plain"), last=c.last | date("plain") %}{{ board }} minutes read for roll calls: {{ num }} meetings, from {{ first }} to {{ last }}.{% endtrans %}{% endif %}
+{% if c.unread == 1 %} {% trans when=c.unread_first | date("plain") %}The minutes of one other meeting on this site, {{ when }}, aren't included.{% endtrans %}
+{%- elif c.unread %} {% trans num=c.unread | number, first=c.unread_first | date("plain"), last=c.unread_last | date("plain") %}The minutes of {{ num }} other meetings on this site, between {{ first }} and {{ last }}, aren't included.{% endtrans %}{% endif %}
+</p>{% endif %}
+<p>{{ _("“Not recorded in this vote” is a member the minutes don't name in it. They don't say why: it doesn't mean absent, or a vote either way.") }}</p>
+</div>
+{% set fold = m.roll_calls | length > 3 %}
+{% if m.roll_calls %}
+{% if fold %}<details class="expand roll-call-list">
+  <summary>{% trans count=m.roll_calls | length %}Show the {{ count }} roll call vote{% pluralize %}Show the {{ count }} roll call votes{% endtrans %}</summary>{% endif %}
+<ol class="roll-calls">
+  {% for v in m.roll_calls %}
+  <li class="roll-call">
+    {# Translators: a roll call's item in the minutes, by its paper number, such as "Item 224-26". #}
+    <p class="roll-call-item">{% if v.item %}<strong>{% trans item=v.item %}Item {{ item }}{% endtrans %}</strong>{% if v.get("subject") %}: <span{{ en }}>{{ v.subject }}</span>{% endif %}
+      {%- elif v.get("section") %}<strong{{ en }}>{{ v.section | capitalize }}</strong>{% endif %}</p>
+    {% if v.motion %}<blockquote class="roll-call-motion"{{ en }}><p>{{ v.motion }}</p></blockquote>{% endif %}
+    {% if v.result == "carried" %}<p class="roll-call-result">{{ pgettext("roll call", "The motion carried.") }}</p>
+    {%- elif v.result == "passed" %}<p class="roll-call-result">{{ pgettext("roll call", "The motion passed.") }}</p>
+    {%- elif v.result == "failed" %}<p class="roll-call-result">{{ pgettext("roll call", "The motion failed.") }}</p>{% endif %}
+    <dl class="roll-call-groups">
+      {% for g in v.groups %}<div><dt>{{ vote_label(g.label) }} ({{ g.count | number }})</dt><dd>{{ g.names | join(", ") }}</dd></div>{% endfor %}
+      {% if v.not_recorded %}<div><dt>{{ _("Not recorded in this vote") }} ({{ v.not_recorded | length | number }})</dt><dd>{{ v.not_recorded | join(", ") }}</dd></div>{% endif %}
+    </dl>
+    {% for note in v.notes %}<p class="small">{{ _("The minutes add:") }} <q{{ en }}>{{ note }}</q></p>{% endfor %}
+    {# Translators: a link to the page of the minutes a roll call is on; %(page)s is its number. #}
+    <p class="small"><a href="{{ roll_call_link(m.minutes_doc, v) }}">{% if v.get("page") %}{% trans page=v.page %}In the minutes, page {{ page }}{% endtrans %}{% else %}{{ _("In the minutes") }}{% endif %}</a></p>
+  </li>
+  {% endfor %}
+</ol>
+{% if fold %}</details>{% endif %}
+{% endif %}
+{% if m.roll_calls_held %}
+<p class="small">{% trans count=m.roll_calls_held %}{{ count }} roll call in these minutes isn't shown: its counts and names don't agree, or a name isn't one of the members.{% pluralize %}{{ count }} roll calls in these minutes aren't shown: their counts and names don't agree, or a name isn't one of the members.{% endtrans %}</p>
+{% endif %}
+{%- endmacro %}
+
 {% macro meeting_name(name, when) %}{% if m.day_part %}{% trans name=name, when=when, part=m.day_part %}{{ name }} – {{ when }}, meeting {{ part }}{% endtrans %}{% elif m.same_day and m.start_time %}{{ name }} – {{ when }}, {{ m.start_time | time }}{% else %}{{ name }} – {{ when }}{% endif %}{% endmacro %}
 {# The page's name, as its heading and wherever it's shared: "City Council Ordinances & Administration Committee – Oct 19, 2026".
    The town is in the site's name above it. The board's name is the one alone, in this language; the breadcrumb has its English name too. #}
@@ -265,9 +328,10 @@
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
 {{ decision_groups(m.minutes_doc, ms.decisions, ms.get("english"), gloss) }}
-{% elif not ms.get("not_shown") %}
+{% elif not ms.get("not_shown") and not m.roll_calls %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}
+{% if m.roll_calls or m.roll_calls_held %}{{ roll_call_votes(m) }}{% endif %}
 {% set n %}
 {{ ai_credit("minutes", ms.source_url, none, m.minutes_doc.get("posted_by"), versions[0].path if ms.get("translated") else none, ms) }}
 {% if ms.get("is_minutes") != false and ms.get("not_shown") %}
