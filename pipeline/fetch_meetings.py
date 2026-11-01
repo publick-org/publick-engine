@@ -467,10 +467,24 @@ def file_list_calendar(config: dict) -> Calendar:
     return Calendar("town website", events, lambda m: m.get("source") == filelist.SOURCE, details)
 
 
+def adopt_dated(store: dict, meeting: dict) -> None:
+    """Move a meeting a feed whose UIDs change (Westbrook's) stored under one of its UIDs to its dated id,
+    keeping its record (its address, first_seen and history): a stored meeting of the feed's on the
+    same date, of the same board, that isn't under a dated id."""
+    if meeting["id"] in store:
+        return
+    old = next((i for i, m in store.items() if m.get("source") == ical.SOURCE and not ical.DATED.match(i)
+                and (m["date"], m["body"]) == (meeting["date"], meeting["body"])), None)
+    if old:
+        store[meeting["id"]] = {**store.pop(old), "id": meeting["id"]}
+
+
 def ical_calendar(config: dict) -> Calendar:
     """A school district's (or another body's) calendar feed ([ical_meetings]): its meetings of
     the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request. A
-    repeating event is each of its meetings in that time."""
+    repeating event is each of its meetings in that time. With uid_changes (a feed whose UIDs change
+    each time it's read), a meeting's id is its date and board (ical.dated_id), and one stored under a
+    UID it was read with before moves to it."""
     settings = config["ical_meetings"]
 
     def events(client, today, store):
@@ -480,6 +494,12 @@ def ical_calendar(config: dict) -> Calendar:
         feed = client.get(settings["ical_url"]).text
         for event in ical.parse_events(feed, until=last, tz=ZoneInfo(config["site"]["timezone"])):
             meeting = ical.to_meeting(event, settings["bodies"])
+            if meeting and settings.get("uid_changes"):
+                ids = {m["id"] for m in found}
+                meeting["id"] = ical.dated_id(meeting["date"], meeting["body"])
+                if meeting["id"] in ids:
+                    meeting["id"] = ical.dated_id(meeting["date"], meeting["body"], meeting["start_time"] or "0000")
+                adopt_dated(store, meeting)
             if meeting and settings["since"] <= meeting["date"] <= ahead:
                 found.append({**meeting, "source_url": meeting["source_url"] or settings["page_url"],
                               "source_name": settings["source_name"]})
