@@ -47,13 +47,22 @@ REASONS = {
     "one_time": "same board and day; one listing gives the time, the others none",
     "no_time": "same board and day; no listing gives a time",
     "only_meeting": "same board and day; the only meeting the listings could be, one calling it special or a hearing",
+    "agenda_time": "same board, day and start time, named differently; a listing without a time has it from its agenda",
 }
 
 
-def reason(records: list[dict], kinds_differ: bool = False) -> str:
+def reason(records: list[dict], kinds_differ: bool = False, times: dict[str, str] | None = None,
+           kinds_apart: bool = False) -> str:
+    """Why records are one meeting (REASONS). kinds_differ and kinds_apart are identity.meetings'; times,
+    the start times listings' agendas give (identity.agenda_times)."""
     timed = [m for m in records if m.get("start_time")]
     if len(timed) == len(records):
         return "same_time"
+    # Listings that would be different meetings by their titles (identity.py, rule 3) are one by the
+    # time their agendas give (rule 1).
+    starts = {m.get("start_time") or (times or {}).get(m["id"]) for m in records}
+    if kinds_apart and len(starts) == 1 and None not in starts:
+        return "agenda_time"
     return "only_meeting" if kinds_differ else "one_time" if timed else "no_time"
 
 
@@ -125,16 +134,17 @@ def combine(records: list[dict], why: str, listing_of=lambda m: m.get("source", 
 
 
 def combined(store: dict, listing_of=lambda m: m.get("source", "calendar"), ledger: dict | None = None,
-             town: str = "") -> tuple[dict, dict]:
+             town: str = "", times: dict[str, str] | None = None) -> tuple[dict, dict]:
     """The store with each meeting as one record (under its first recorded listing's id), at its page
     address (slug) with its other addresses (addresses), and the other records' ids, each to that id.
     ledger is the kept identities (identity.load); without any, every meeting keeps the address of
-    its first recorded listing, as before identities were kept."""
+    its first recorded listing, as before identities were kept. times: the start times listings'
+    agendas give (identity.agenda_times)."""
     out, moved = {}, {}
-    for meeting in identity.meetings(store, ledger, town):
+    for meeting in identity.meetings(store, ledger, town, times):
         records = meeting["records"]
         if len(records) > 1:
-            m = combine(records, reason(records, meeting["kinds_differ"]), listing_of)
+            m = combine(records, reason(records, meeting["kinds_differ"], times, meeting["kinds_apart"]), listing_of)
             for r in records[1:]:
                 moved[r["id"]] = records[0]["id"]
         else:
@@ -150,7 +160,7 @@ def read(data_dir: Path, listing_of=lambda m: m.get("source", "calendar"), town:
     transcripts (pipeline/recordings.py)."""
     path = data_dir / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    meetings, moved = combined(store, listing_of, identity.load(data_dir), town)
+    meetings, moved = combined(store, listing_of, identity.load(data_dir), town, identity.agenda_times(store, data_dir))
     recordings.attach(meetings, data_dir, moved)
     return meetings, moved
 
@@ -162,12 +172,13 @@ def main() -> int:
     args = parser.parse_args()
     path = args.data / "meetings" / "meetings.json"
     store = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    for meeting in sorted(identity.meetings(store, identity.load(args.data)), key=lambda m: (m["records"][0]["date"], m["id"])):
+    times = identity.agenda_times(store, args.data)
+    for meeting in sorted(identity.meetings(store, identity.load(args.data), times=times), key=lambda m: (m["records"][0]["date"], m["id"])):
         records = meeting["records"]
         if len(records) < 2 and not meeting["unplaced"]:
             continue
         why = "unplaced: could be more than one of the board's meetings that day" if meeting["unplaced"] else \
-            REASONS[reason(records, meeting["kinds_differ"])]
+            REASONS[reason(records, meeting["kinds_differ"], times, meeting["kinds_apart"])]
         print(f"/meetings/{meeting['id']}/ {meeting['body']}: {why}")
         for m in records:
             print(f"    {m['id']:<28} {m.get('source', 'calendar'):<13} {m.get('start_time') or '--:--'}  "
