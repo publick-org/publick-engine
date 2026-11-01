@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import requests
 
@@ -171,12 +171,26 @@ class PoliteClient:
     def get(self, url: str) -> requests.Response:
         return self._request(url)
 
+    def location(self, url: str) -> str | None:
+        """Where a link that redirects leads (a short link's file): the Location it answers with, read with a
+        HEAD request (a GET without following it where the host refuses HEAD), spaced and retried as a GET is.
+        None when it doesn't redirect."""
+        try:
+            response = self._request(url, method="HEAD")
+        except FetchError as e:
+            if e.status not in (405, 501):
+                raise
+            response = self._request(url, method="GET", follow=False)
+        target = response.headers.get("Location") if 300 <= response.status_code < 400 else None
+        return urljoin(url, target) if target else None
+
     def post_json(self, url: str, body: dict) -> requests.Response:
         """A POST of a JSON body, as a web service asks for its answer (a SharpSchool site's
         listing of a folder), spaced and retried as a GET is."""
         return self._request(url, body)
 
-    def _request(self, url: str, body: dict | None = None) -> requests.Response:
+    def _request(self, url: str, body: dict | None = None, method: str = "GET",
+                 follow: bool = True) -> requests.Response:
         last_error, asked = None, None
         parts = urlsplit(url)
         host = parts.hostname or ""
@@ -192,8 +206,14 @@ class PoliteClient:
             self._last = time.monotonic()
             self.request_count += 1
             try:
-                response = (self.session.get(url, timeout=self.timeout) if body is None
-                            else self.session.post(url, json=body, timeout=self.timeout))
+                if body is not None:
+                    response = self.session.post(url, json=body, timeout=self.timeout)
+                elif method == "HEAD":
+                    response = self.session.head(url, timeout=self.timeout, allow_redirects=False)
+                elif not follow:
+                    response = self.session.get(url, timeout=self.timeout, allow_redirects=False)
+                else:
+                    response = self.session.get(url, timeout=self.timeout)
             except requests.RequestException as e:
                 last_error, asked = e, None
                 continue
