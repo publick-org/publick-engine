@@ -801,3 +801,81 @@ class FakeSocrata:
         keys = [k.strip() for k in query["$order"].split(",")]
         rows.sort(key=lambda r: tuple(self.value(r.get(k)) for k in keys))
         return JSONResponse(rows[:int(query["$limit"])])
+
+
+def boardbook_package(title: str, agenda_pages: int = 2, attachments: tuple = ("Draft minutes", "Presentation"),
+                      bookmarks: bool = True) -> bytes:
+    """An agenda package laid out as BoardBook Premier makes them: the agenda's pages, then each
+    attachment's, bookmarked under a root "Agenda" by item ("1. CALL TO ORDER") and, under its item,
+    by attachment. Each page has its text, so the agenda's can be told from the attachments'."""
+    import io
+
+    from fpdf import FPDF
+    from pypdf import PdfReader, PdfWriter
+
+    pdf = FPDF(format="letter")
+    pdf.set_font("helvetica", size=11)
+    for n in range(agenda_pages):
+        pdf.add_page()
+        pdf.multi_cell(0, 6, f"{title}\nAgenda page {n + 1}\n{n + 1}. ITEM {n + 1}")
+    for name in attachments:
+        pdf.add_page()
+        pdf.multi_cell(0, 6, f"Attachment: {name}")
+    reader = PdfReader(io.BytesIO(bytes(pdf.output())))
+    writer = PdfWriter()
+    for page in reader.pages:
+        writer.add_page(page)
+    if bookmarks:
+        root = writer.add_outline_item("Agenda", 0)
+        for n in range(agenda_pages):
+            item = writer.add_outline_item(f"{n + 1}. ITEM {n + 1}", n, parent=root)
+            if n < len(attachments):
+                writer.add_outline_item(attachments[n], agenda_pages + n, parent=item)
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+class FakeBoardBook:
+    """BoardBook Premier for Bristol Public Schools: its organization's page (tests/fixtures/
+    boardbook_bristol.html, eight meetings), each meeting's agenda page (boardbook_agenda.html,
+    with the meeting's own number), its agenda package (boardbook_package()), the minutes viewer
+    (boardbook_minutes_viewer.html) and the minutes' PDF. `agenda_pages` replaces an agenda page
+    by meeting number, `packages` a package, and `minutes` a minutes PDF."""
+    BASE = "https://meetings.boardbook.org"
+    PAGE = f"{BASE}/Public/Organization/2447"
+
+    def __init__(self, page: str | None = None, agenda_pages: dict | None = None, packages: dict | None = None,
+                 minutes: dict | None = None):
+        self.page = page if page is not None else (FIXTURES / "boardbook_bristol.html").read_text()
+        self.agenda_page = (FIXTURES / "boardbook_agenda.html").read_text()
+        self.viewer = (FIXTURES / "boardbook_minutes_viewer.html").read_text()
+        self.agenda_pages = agenda_pages or {}
+        self.packages = packages or {}
+        self.minutes = minutes or {}
+        self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
+        self.urls = []
+        self.request_count = 0
+
+    def get(self, url):
+        import re
+        self.urls.append(url)
+        self.request_count += 1
+        if url == self.PAGE:
+            return FakeResponse(self.page.encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/Public/(Agenda|DownloadAgenda|Minutes)/bristol\?meeting=(\d+)", url)
+        if found:
+            kind, number = found.group(1), int(found.group(2))
+            if kind == "Agenda":
+                page = self.agenda_pages.get(number, self.agenda_page.replace("772970", str(number)))
+                return FakeResponse(page.encode())
+            if kind == "DownloadAgenda":
+                content = self.packages.get(number) or boardbook_package(f"Meeting {number}")
+                return FakeResponse(content, {"content-disposition": f'attachment; filename="Meeting {number}.pdf"'})
+            return FakeResponse(self.viewer.replace("723306", str(number)).encode())
+        found = re.fullmatch(rf"{re.escape(self.BASE)}/Public/DownloadSnapshot\?SnapshotUri=Org2447%2FMeeting(\d+)%2F"
+                             r"Minutes%2FUnit%2FPublic\.pdf", url)
+        if found:
+            number = int(found.group(1))
+            return FakeResponse(self.minutes.get(number, self.pdf + f"\n% minutes {number}\n".encode()))
+        raise AssertionError(f"unexpected URL {url}")

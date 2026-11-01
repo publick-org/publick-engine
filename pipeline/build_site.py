@@ -644,6 +644,7 @@ LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's me
             "primegov": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
             "finalsite": N_("school district's website"), "ical": N_("school district's website"),
             "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
+            "boardbook": N_("school district's meeting portal"),
             "opengov": N_("state's Open Meetings portal"), "meetingdocs": N_("city's events calendar"),
             "sharpschool": N_("school district's website"),
             "schedule": N_("published schedule")}
@@ -1073,7 +1074,7 @@ def meeting_links(config: dict) -> dict:
         "opengov_only": opengov_only,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
-                              "meetingdocs_meetings", "sharpschool_meetings", "ical_meetings")
+                              "meetingdocs_meetings", "sharpschool_meetings", "boardbook_meetings", "ical_meetings")
                     if t in config and not (t == "opengov_meetings" and opengov_only)]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),

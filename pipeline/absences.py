@@ -32,7 +32,7 @@ NOT_HELD = ("cancelled", "postponed", "rescheduled")
 NO_DOCUMENTS = ("ical", "schedule")
 # Sources of a board's documents other than the city's own listings (a school district's website or
 # portal, the state's Open Meetings portal), each with a [<source>_meetings] table.
-SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "opengov", "meetingdocs", "sharpschool")
+SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "boardbook", "opengov", "meetingdocs", "sharpschool")
 # Which of a meeting's sources of minutes its page names, when more than one collects them for its date:
 # the board's own website or portal (a school district's, whose [<source>_meetings] table lists only its
 # own boards' meetings) before the city's systems, and the city's posting of the meeting itself (Agenda
