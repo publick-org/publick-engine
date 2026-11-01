@@ -34,6 +34,15 @@ calendar entry a meeting. Three layouts are read:
   Westbrook High School") and links its agenda ("AGENDA & Back Up
   Informaton"), as a line of a date with its documents under it.
 
+- Columns, each a board's. Biddeford Schools' "Agendas and Minutes" page
+  (Apptegy) has a row of four headings ("School Committee", "Standing
+  Committee on Finance/Building & Grounds", "Advisory Committee on
+  Curriculum", "Advisory Committee on Policy") and under it a row of four
+  columns, each an accordion of school years with a link a meeting, its label
+  the meeting's date and time ("October 28, 2026(7:00pm)"), to its packet, a
+  Google Doc. [page_meetings.columns] maps a heading to its board, and each
+  column is read as a page of that board's meetings (apptegy_columns).
+
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
@@ -63,6 +72,7 @@ packets, folders, videos on Drive) are kept with the meeting as links.
 from __future__ import annotations
 
 import html
+import json
 import re
 from datetime import date
 from urllib.parse import urljoin
@@ -199,6 +209,73 @@ def readable(page: str) -> str:
     return re.sub(r'\\+/', "/", re.sub(r'\\+"', '"', page))
 
 
+# An Apptegy page's content, as its script holds it: window.clientWorkStateTemp = JSON.parse("...").
+APPTEGY_STATE = re.compile(r'JSON\.parse\("((?:[^"\\]|\\.)*)"\)')
+
+
+def apptegy_structure(page: str) -> dict | None:
+    """The tree of an Apptegy page's content (page.content.structure in the JSON its script parses):
+    nodes of layout rows (LAYOUT_NODE_*), their columns (BASE_COLUMN), and content (CONTENT_NODE_*,
+    with its HTML in content.html). None for a page that isn't one."""
+    for found in APPTEGY_STATE.finditer(page):
+        try:
+            state = json.loads(json.loads(f'"{found.group(1)}"'))
+        except ValueError:
+            continue
+        structure = ((state.get("page") or {}).get("content") or {}).get("structure") if isinstance(state, dict) else None
+        if isinstance(structure, dict):
+            return structure
+    return None
+
+
+def node_html(node: dict) -> str:
+    """A node's HTML: its own content's and its children's, in order."""
+    content = node.get("content")
+    own = content.get("html", "") if isinstance(content, dict) and isinstance(content.get("html"), str) else ""
+    return own + "".join(node_html(child) for child in node.get("nodes") or [] if isinstance(child, dict))
+
+
+def apptegy_columns(page: str) -> dict[str, str]:
+    """An Apptegy page's columns that a heading names, as {heading: the column's HTML}. A column's
+    heading is its first node, a heading; or, for a column of a row just under a row of as many
+    columns each holding only a heading, the heading above it (Biddeford's: a row of four headings,
+    then a row of four accordions)."""
+    structure = apptegy_structure(page)
+    columns: dict[str, str] = {}
+
+    def heading(node: dict) -> str | None:
+        return text(node_html(node)) or None if node.get("type") == "CONTENT_NODE_HEADING" else None
+
+    def walk(node: dict) -> None:
+        above: list[str] | None = None
+        for child in node.get("nodes") or []:
+            if not isinstance(child, dict):
+                continue
+            cells = [c for c in child.get("nodes") or [] if isinstance(c, dict) and c.get("type") == "BASE_COLUMN"]
+            if not str(child.get("type", "")).startswith("LAYOUT_NODE") or not cells:
+                above = None
+                walk(child)
+                continue
+            contents = [[n for n in c.get("nodes") or [] if isinstance(n, dict)] for c in cells]
+            names = [heading(nodes[0]) if nodes else None for nodes in contents]
+            if all(len(nodes) == 1 and name for nodes, name in zip(contents, names)):
+                above = names
+                continue
+            for i, nodes in enumerate(contents):
+                name = names[i] if nodes and names[i] else above[i] if above and len(above) == len(cells) else None
+                rest = nodes[1:] if nodes and names[i] else nodes
+                if name:
+                    columns[name] = "".join(node_html(n) for n in rest)
+            above = None
+            for nodes in contents:
+                for n in nodes:
+                    walk(n)
+
+    if structure:
+        walk(structure)
+    return columns
+
+
 def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> list[dict]:
     """Each table row with a link, and each link outside a table row: its date (or None), the
     meeting's name, any time it gives, and its links, in the page's order."""
@@ -309,9 +386,23 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None)
     board, reported rather than guessed at. Links whose label matches exclude_pattern (a
     translation, say) are left out. `board` is the board of a page of one board's meetings
     ([page_meetings.pages]): every meeting on it is that board's, and its key names it, so
-    two boards' meetings on one day are kept apart. With one_meeting_a_day, a date's entries are
+    two boards' meetings on one day are kept apart. With [page_meetings.columns], the page's
+    columns named by those headings are read instead, each as a page of its board's meetings, and a
+    heading not found is reported. With one_meeting_a_day, a date's entries are
     one meeting of their board, keyed by the date (and the page's board), whatever their names; the
     shortest name is the meeting's (a table row's, over an announcement's sentence)."""
+    if board is None and settings.get("columns"):
+        # Each column a board's ([page_meetings.columns]): read as a page of that board's meetings.
+        on_page = {words(name): column for name, column in apptegy_columns(page).items()}
+        found, unrecognized = [], []
+        for name, column_board in settings["columns"].items():
+            if words(name) not in on_page:
+                unrecognized.append(f"(no column headed {name!r})")
+                continue
+            in_column, not_read = meetings(on_page[words(name)], page_url, settings, column_board)
+            found += in_column
+            unrecognized += not_read
+        return found, unrecognized
     exclude = settings.get("exclude_pattern")
     one_a_day = settings.get("one_meeting_a_day", False)
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
@@ -380,5 +471,10 @@ def check(config: dict) -> None:
     for key in ("recheck_days", "max_documents_per_run"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")
+    columns = settings.get("columns", {})
+    if not isinstance(columns, dict) or not all(isinstance(k, str) and k and isinstance(v, str) and v
+                                                for k, v in columns.items()):
+        raise SystemExit(f'{where}: columns must map a column\'s heading on the page to its board, like '
+                         '"Advisory Committee on Policy" = "School Committee Policy Committee".')
     if not isinstance(settings.get("one_meeting_a_day", False), bool):
         raise SystemExit(f"{where}: one_meeting_a_day must be true or false.")
