@@ -320,3 +320,117 @@ def test_a_drive_files_variant_beyond_the_boards_name_is_a_kind():
     schedule = record("schedule-1", "School Committee", source="drive", title="School Committee", variant="")
     workshop = record("drive-2", "School Committee", source="drive", title="School Committee: Governance Workshop", variant="Governance Workshop")
     assert meetings_of(drive, schedule, workshop) == [(["drive-1", "schedule-1"], False), (["drive-2"], False)]
+
+
+# ---- An agenda's time ----------------------------------------------------------
+
+NOV_2 = "2026-11-02"
+# Derry's Conservation Commission on November 2: the calendar's 7 PM meeting, and the Agenda Center's
+# notice of a site walk and agenda for the meeting, neither giving a time; their agendas say 3 PM and 7 PM.
+DERRY_CALENDAR = record("659", "Conservation Commission", date=NOV_2, time="19:00", title="Conservation Commission")
+SITE_WALK = record("agendacenter-376", "Conservation Commission", date=NOV_2, source="agendacenter",
+                   title="Conservation Commission Meeting", posted_title="Conservation Commission Site Walk")
+DERRY_AGENDA = record("agendacenter-383", "Conservation Commission", date=NOV_2, source="agendacenter",
+                      title="Conservation Commission Meeting", posted_title="Conservation Committee Meeting")
+DERRY_TIMES = {"agendacenter-376": "15:00", "agendacenter-383": "19:00"}
+
+
+def test_an_untimed_listing_joins_the_meeting_at_its_agendas_time():
+    store = store_of(DERRY_CALENDAR, SITE_WALK, DERRY_AGENDA)
+    found = identity.meetings(store, {}, times=DERRY_TIMES)
+    assert sorted(sorted(r["id"] for r in m["records"]) for m in found) == [["659", "agendacenter-383"], ["agendacenter-376"]]
+    # Without the agendas' times, the agenda's "Committee" makes it a meeting of its own, as before.
+    assert len(identity.meetings(store, {})) == 3
+    # The same meetings whatever order the listings arrive in.
+    for order in itertools.permutations([DERRY_CALENDAR, SITE_WALK, DERRY_AGENDA]):
+        store, ledger = {}, {"meetings": {}}
+        for batch in ([order[0]], order[1:]):
+            store.update(store_of(*batch))
+            ledger = identity.assign(store, ledger, times=DERRY_TIMES)
+        assert sorted(grouping(ledger).values()) == [["659", "agendacenter-383"], ["agendacenter-376"]]
+
+
+def test_a_meeting_already_recorded_joins_the_meeting_at_its_agendas_time_and_its_address_leads_there():
+    """The agendas' summaries are made after their listings are placed: the meeting recorded apart becomes
+    one with the calendar's, at the address recorded first, and its own address leads to it."""
+    store = store_of(DERRY_CALENDAR, SITE_WALK, DERRY_AGENDA)
+    ledger = identity.assign(store, {"meetings": {}})
+    assert grouping(ledger) == {"2026-11-02-conservation-commission": ["659"], "2026-11-02-conservation-commission-2": ["agendacenter-376"],
+                                "2026-11-02-conservation-commission-3": ["agendacenter-383"]}
+    after = identity.assign(store, ledger, times=DERRY_TIMES)
+    assert grouping(after) == {"2026-11-02-conservation-commission": ["659", "agendacenter-383"],
+                               "2026-11-02-conservation-commission-2": ["agendacenter-376"]}
+    assert after["meetings"]["2026-11-02-conservation-commission"]["addresses"] == ["2026-11-02-conservation-commission-3"]
+    # Kept from run to run, and never given to another meeting.
+    assert identity.assign(store, json.loads(json.dumps(after)), times=DERRY_TIMES) == after
+    assert identity.assign(store, after) == after
+    combined, _ = listings.combined(store, ledger=after, times=DERRY_TIMES)
+    m = combined["659"]
+    assert (m["slug"], m["addresses"], m["same_as"]) == ("2026-11-02-conservation-commission", ["2026-11-02-conservation-commission-3"], "agenda_time")
+    assert combined["agendacenter-376"]["slug"] == "2026-11-02-conservation-commission-2"
+
+
+def test_a_meeting_unplaced_is_placed_by_its_agendas_time():
+    untimed = record("agendacenter-5", source="agendacenter", title="Planning Board Agenda")
+    store = store_of(record("1", time="17:00"), record("2", time="19:00"), untimed)
+    ledger = identity.assign(store, {"meetings": {}})
+    assert ledger["meetings"]["2026-10-06-planning-board-2"]["unplaced"] is True
+    after = identity.assign(store, ledger, times={"agendacenter-5": "19:00"})
+    assert after["meetings"]["2026-10-06-planning-board-1900"] == {
+        "date": DAY, "board": "planning board", "listings": ["2", "agendacenter-5"], "addresses": ["2026-10-06-planning-board-2"]}
+    assert "2026-10-06-planning-board-2" not in after["meetings"]
+
+
+def test_a_site_walk_and_a_meeting_at_their_agendas_times_stay_two_meetings():
+    """Two untimed listings that are two meetings, their agendas at 3 PM and 7 PM, with or without the
+    calendar's: Derry's October 19 site walk and the meeting the calendar lists."""
+    walk = record("agendacenter-378", "Conservation Commission", source="agendacenter", posted_title="Conservation Commission Site Walk")
+    regular = record("agendacenter-375", "Conservation Commission", source="agendacenter", posted_title="Conservation Commission Regular Meeting")
+    calendar = record("661", "Conservation Commission", time="19:00", title="Conservation Commission")
+    times = {"agendacenter-378": "15:00", "agendacenter-375": "19:00"}
+    for records, expected in (([walk, regular], [["agendacenter-375"], ["agendacenter-378"]]),
+                              ([calendar, walk, regular], [["661", "agendacenter-375"], ["agendacenter-378"]])):
+        for given in ({}, times):
+            found = identity.meetings(store_of(*records), {}, times=given)
+            assert sorted(sorted(r["id"] for r in m["records"]) for m in found) == expected
+
+
+def test_an_agendas_time_no_meeting_has_places_the_listing_as_one_without_a_time():
+    """A calendar and an agenda can give one meeting's time half an hour apart: the agenda's 6 PM doesn't
+    make the calendar's 6:30 meeting two."""
+    calendar = record("1", time="18:30")
+    store = store_of(calendar, AGENDA)
+    assert meetings_of(calendar, AGENDA) == [(["1", "agendacenter-5"], False)]
+    found = identity.meetings(store, {}, times={"agendacenter-5": "18:00"})
+    assert [sorted(r["id"] for r in m["records"]) for m in found] == [["1", "agendacenter-5"]]
+    ledger = identity.assign(store, {"meetings": {}})
+    assert identity.assign(store, ledger, times={"agendacenter-5": "18:00"}) == ledger
+
+
+def test_agenda_times_are_read_from_the_agendas_summaries(tmp_path):
+    (tmp_path / "summaries").mkdir()
+    for sha, summary in (("a" * 64, {"kind": "agenda", "start_time": "19:00"}), ("b" * 64, {"kind": "agenda", "start_time": ""}),
+                         ("c" * 64, {"kind": "agenda", "start_time": "7 PM"}), ("d" * 64, {"kind": "minutes"})):
+        (tmp_path / "summaries" / f"{sha}.json").write_text(json.dumps(summary))
+    store = store_of(record("agendacenter-1", source="agendacenter", agendas=[{"sha256": "d" * 64}, {"sha256": "a" * 64}]),
+                     record("agendacenter-2", source="agendacenter", agendas=[{"sha256": "b" * 64}]),
+                     record("agendacenter-3", source="agendacenter", agendas=[{"sha256": "c" * 64}]),
+                     record("agendacenter-4", source="agendacenter", agendas=[{"sha256": "e" * 64}]),
+                     record("agendacenter-5", source="agendacenter"),
+                     record("6", time="18:00", agendas=[{"sha256": "a" * 64}]))
+    assert identity.agenda_times(store, tmp_path) == {"agendacenter-1": "19:00"}
+
+
+def test_a_run_places_listings_by_their_agendas_times(tmp_path):
+    """identity.update reads the agendas' times from the town's summaries."""
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "summaries").mkdir()
+    store = store_of(DERRY_CALENDAR, SITE_WALK, DERRY_AGENDA)
+    identity.update(tmp_path, store, "", previous={})
+    assert len(identity.load(tmp_path)["meetings"]) == 3
+    for m, sha in ((SITE_WALK, "5" * 64), (DERRY_AGENDA, "7" * 64)):
+        (tmp_path / "summaries" / f"{sha}.json").write_text(json.dumps({"kind": "agenda", "start_time": DERRY_TIMES[m["id"]]}))
+        store[m["id"]]["agendas"] = [{"sha256": sha}]
+    identity.update(tmp_path, store, "")
+    assert grouping(identity.load(tmp_path)) == {"2026-11-02-conservation-commission": ["659", "agendacenter-383"],
+                                                 "2026-11-02-conservation-commission-2": ["agendacenter-376"]}
