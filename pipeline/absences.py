@@ -165,6 +165,13 @@ def calendar_behind(config: dict, status: dict | None, now: datetime) -> dict | 
                      if s.get("file") == "meetings/status.json"), CALENDAR_MAX_DAYS)
     stamp = (status or {}).get("updated_at")
     updated = datetime.fromisoformat(stamp) if stamp else None
+    # A calendar that failed and has never been read (its status has no entry for it): the status's
+    # updated_at counts it from the run that tried, so on a town's first runs a site whose calendar never
+    # answers would read as checked, and the page would say no meetings are listed.
+    never_read = [name for name in (status or {}).get("failed_calendars", [])
+                  if name not in (status or {}).get("calendars", {})]
+    if never_read:
+        return {"since": None}
     if updated and now - updated <= timedelta(days=max_days):
         return None
     return {"since": updated.date().isoformat() if updated else None}
