@@ -113,10 +113,14 @@ def officials_row(review: dict) -> dict:
         upcoming = _("a check after the election of {date}").format(date=plain_date(review["election"]))
         # Translators: why the list of elected officials is behind, such as "not checked since the election of November 3, 2026".
         behind = _("not checked since the election of {date}").format(date=plain_date(review["election"]))
+    if review["unrecorded"] and not review["behind"]:
+        # The election's results aren't recorded yet, though the members elected may not have taken office.
+        behind = _("not checked since the election of {date}").format(date=plain_date(review["election"]))
+    stale = review["behind"] or review["unrecorded"]
     return {"label": _("Elected officials"), "file": "config", "updated_at": review["checked"].isoformat(),
-            "max_days": None, "stale": review["behind"], "latest": None,
-            "next": None if review["passed"] or review["behind"] else upcoming,
-            "behind": behind if review["behind"] else None, "passed": review["passed"]}
+            "max_days": None, "stale": stale, "latest": None,
+            "next": None if review["passed"] or stale else upcoming,
+            "behind": behind if stale else None, "passed": review["passed"]}
 
 
 def main() -> int:
