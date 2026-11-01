@@ -21,6 +21,12 @@ other links (postings, folders, videos on Drive) are kept as links, never
 downloaded. A cancelled meeting's agenda is linked, not saved. An upcoming
 meeting that leaves the page is marked as no longer listed.
 
+[page_meetings] other_pages are read with the page, as one list (a district
+that posts its agendas on one page and its minutes on another). A short link
+(an Apptegy aptg.co link) is followed to the file it redirects to, with a HEAD
+request, once: where each leads is kept in meetings/page_status.json
+(short_links) and asked again only of a link not resolved before.
+
 Entries with a document but no date or no board are listed in the run's
 summary, not guessed at.
 
@@ -77,6 +83,35 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     storage = open_documents(config, data_dir)
 
     errors, found, unrecognized = [], [], []
+    status_path = meetings_dir(data_dir) / STATUS_FILE
+    previous = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
+    known, short_links = previous.get("short_links", {}), {}
+
+    def resolve(url: str) -> str | None:
+        # A short link leads to the same file for good: each is asked once, and its answer kept.
+        if url not in known:
+            target = url
+            try:
+                for _ in range(3):   # a short link to another short link, at most
+                    target = client.location(target) or target
+                    if not linkpage.SHORT_LINK.match(target):
+                        break
+            except FetchError as e:
+                errors.append(f"{url}: {e}")
+                return None
+            if target == url or linkpage.SHORT_LINK.match(target):
+                errors.append(f"{url}: doesn't lead to a file")
+                return None
+            known[url] = target
+        short_links[url] = known[url]
+        return known[url]
+
+    more = []
+    for url in settings.get("other_pages", []):
+        try:
+            more.append((client.get(url).text, url))
+        except FetchError as e:
+            errors.append(str(e))
     for url, board in [(settings["page_url"], None), *settings.get("pages", {}).items()]:
         try:
             page = client.get(url).text
@@ -85,7 +120,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
                 raise
             errors.append(str(e))
             continue
-        on_page, not_read = linkpage.meetings(page, url, settings, board)
+        on_page, not_read = linkpage.meetings(page, url, settings, board, more if board is None else [], resolve)
         if not on_page:
             # A page lists at least the current year's meetings: none means its layout changed.
             if board is None:
@@ -127,8 +162,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         update_documents(client, meeting, storage, settings, today, recent, stamp, counts, errors)
 
     save_store(data_dir, store, config)
-    status_path = meetings_dir(data_dir) / STATUS_FILE
-    reported = json.loads(status_path.read_text(encoding="utf-8")).get("unrecognized", []) if status_path.exists() else []
+    reported = previous.get("unrecognized", [])
     status = {
         "updated_at": stamp,
         "meetings_listed": len(found),
@@ -142,6 +176,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "unrecognized": sorted(set(unrecognized)),
         "new_unrecognized": sorted(set(unrecognized) - set(reported)),
         "errors": errors,
+        # Where each short link on the pages leads, so it isn't asked again.
+        "short_links": dict(sorted(short_links.items())),
     }
     save_json(status_path, status)
     return status

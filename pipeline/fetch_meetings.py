@@ -469,13 +469,16 @@ def file_list_calendar(config: dict) -> Calendar:
 
 def ical_calendar(config: dict) -> Calendar:
     """A school district's (or another body's) calendar feed ([ical_meetings]): its meetings of
-    the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request."""
+    the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request. A
+    repeating event is each of its meetings in that time."""
     settings = config["ical_meetings"]
 
     def events(client, today, store):
-        ahead = (today + timedelta(days=settings.get("days_ahead", 90))).isoformat()
+        last = today + timedelta(days=settings.get("days_ahead", 90))
+        ahead = last.isoformat()
         found = []
-        for event in ical.parse_events(client.get(settings["ical_url"]).text):
+        feed = client.get(settings["ical_url"]).text
+        for event in ical.parse_events(feed, until=last, tz=ZoneInfo(config["site"]["timezone"])):
             meeting = ical.to_meeting(event, settings["bodies"])
             if meeting and settings["since"] <= meeting["date"] <= ahead:
                 found.append({**meeting, "source_url": meeting["source_url"] or settings["page_url"],
