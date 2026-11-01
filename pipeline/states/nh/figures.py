@@ -24,6 +24,11 @@ def same_name(a: str, b: str) -> bool:
     return a.split() == b.split()
 
 
+def has(kind: str, name: str) -> bool:
+    """Whether any saved year of these figures has this name."""
+    return any(same_name(key, name) for rows in load(kind)["years"].values() for key in rows)
+
+
 def rows(kind: str, name: str) -> list[tuple[int, dict]]:
     """[(year, row)] for every saved year that has this name, oldest first."""
     found = [(int(year), row) for year, rows in load(kind)["years"].items()

@@ -78,6 +78,10 @@ def run(town, tmp_path, client=None, now=NOW):
     # Month, day and year (Winooski School District's labels).
     ("Agenda 10-14-2026 WSD Regular Board Meeting", "2026-10-14"), ("Minutes 9-9-2026 Regular Board Meeting", "2026-09-09"),
     ("Agenda 1-7-2026 WSD Special Board Meeting", "2026-01-07"),
+    # Bristol Public Schools' minutes, dated in figures with dots.
+    ("01.14.26 – Special BoE Meeting Minutes – APPROVED", "2026-01-14"),
+    ("05.06.2026-Regular Board of Education Minutes – APPROVED", "2026-05-06"),
+    ("03.18.26- Special BOE Meeting Minutes", "2026-03-18"),
 ])
 def test_dates(value, expected):
     assert linkpage.date_value(linkpage.find_date(value)) == expected
@@ -100,6 +104,9 @@ def test_no_date():
 def test_figures_that_arent_a_month_day_and_year(value):
     found = linkpage.find_date(value)
     assert found is None or found.re not in (linkpage.NUMERIC_DATE, linkpage.DASHED_DATE)
+    # Not a date: a version number, or a date without its year.
+    assert linkpage.find_date("Policy 6114.3 revised") is None and linkpage.find_date("Version 1.2.3.4") is None
+    assert linkpage.date_value(linkpage.find_date("13.02.26 Minutes")) is None
 
 
 @pytest.mark.parametrize("value, expected", [

@@ -106,6 +106,7 @@ def test_a_town_without_a_source_skips_its_steps_without_starting_them(fake_step
                        "Fetch school board meetings": "no [finalsite_meetings] in the config",
                        "Fetch school board documents": "no [page_meetings] in the config",
                        "Fetch Diligent Community meetings": "no [diligent_meetings] in the config",
+                       "Fetch BoardBook meetings": "no [boardbook_meetings] in the config",
                        "Fetch Open Meetings portal meetings": "no [opengov_meetings] in the config",
                        "Fetch the city's meeting documents": "no [meetingdocs_meetings] in the config",
                        "Fetch the school district's minutes library": "no [sharpschool_meetings] in the config",
@@ -155,7 +156,7 @@ def test_the_bucket_keys_go_only_to_the_steps_that_use_them(monkeypatch):
     # The steps that save or read agendas and minutes, or the 311 requests and scorecard, in the document bucket.
     assert {n for n, k in given.items() if k and set(storage) <= set(k)} == {
         "Fetch meetings", "Fetch minutes", "Fetch School Committee documents", "Fetch school board meetings",
-        "Fetch school board documents", "Fetch Diligent Community meetings",
+        "Fetch school board documents", "Fetch Diligent Community meetings", "Fetch BoardBook meetings",
         "Fetch Open Meetings portal meetings", "Fetch the city's meeting documents",
         "Fetch the school district's minutes library", "Summarize agendas", "Move saved documents to storage", "Fetch 311 requests",
         "Fetch 311 requests from an open data portal", "Compute 311 scorecard"}
