@@ -208,3 +208,34 @@ def test_site_shows_the_portals_meetings(config, data_dir, tmp_path, monkeypatch
     board = (out / "meetings" / "boards" / "school-committee" / "index.html").read_text()
     assert "Earlier meetings are on the" in board and "Open Meetings portal" in board
     assert json.loads((data / "meetings" / "opengov_status.json").read_text())["errors"] == []
+
+
+def test_site_with_every_meeting_from_the_portal(config, data_dir, tmp_path, monkeypatch):
+    """A town with no meeting reader of the city's own and no [archive] (Pawtucket, Central
+    Falls): the About and Meetings pages name the portal as the source of every meeting."""
+    import shutil
+
+    from conftest import BUILT_AT
+
+    from pipeline import build_site
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    town = copy.deepcopy(config)
+    town.pop("archive", None)
+    town["meetings"] = {k: v for k, v in town["meetings"].items() if k not in build_site.CITY_MEETING_READERS}
+    town["opengov_meetings"] = south_kingstown() | {"bodies": {"South Kingstown Town Council": "Town Council",
+                                                               "South Kingstown School Committee": "School Committee"}}
+    links = build_site.meeting_links(town)
+    assert links["opengov_only"] and "Rhode Island Open Meetings portal" not in [s["name"] for s in links["schools"]]
+    assert not build_site.meeting_links(config)["opengov_only"]
+    fetch_opengov_meetings.run(town, FakeOpenGov(), data, now=BUILT_AT)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+
+    about = (out / "about" / "index.html").read_text()
+    assert "<strong>Meetings, agendas, and minutes:</strong> the Rhode Island Secretary of State" in about
+    assert "Archive Center" not in about and "Town Council, School Committee meetings" not in about
+    meetings = (out / "meetings" / "index.html").read_text()
+    assert "From the Rhode Island Secretary of State" in meetings
+    assert "School board meetings from the <a href=\"https://opengov" not in meetings
