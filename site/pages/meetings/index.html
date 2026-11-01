@@ -40,7 +40,8 @@
 <p><a href="/meetings/past/">{{ _("Past meetings") }}</a></p>
 {# Where the meetings come from: each of the town's sources, in a sentence of its own. #}
 <p class="source-note">
-{%- if meeting_links.has_calendar and meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}
+{%- if meeting_links.opengov_only %}{% trans url=config.opengov_meetings.page_url %}From the Rhode Island Secretary of State's <a href="{{ url }}">Open Meetings portal</a>, where every public body in the state files its notices and minutes.{% endtrans %}
+{%- elif meeting_links.has_calendar and meeting_links.portal %}{% trans calendar=meeting_links.calendar, portal=meeting_links.portal %}From the <a href="{{ calendar }}">city calendar</a> and the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}
 {%- elif meeting_links.has_calendar %}{% trans calendar=meeting_links.calendar %}From the <a href="{{ calendar }}">city calendar</a>.{% endtrans %}
 {%- elif meeting_links.agenda_center %}{% trans url=meeting_links.agenda_center %}From the city's <a href="{{ url }}">Agenda Center</a>, which lists a meeting once its agenda is posted.{% endtrans %}
 {%- elif meeting_links.portal %}{% trans portal=meeting_links.portal %}From the city's <a href="{{ portal }}">meeting portal</a>.{% endtrans %}{% endif %}

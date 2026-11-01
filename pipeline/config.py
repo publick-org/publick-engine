@@ -80,7 +80,7 @@ TABLES = {"site", "town", "sections", "analytics", "digest", "meetings", "archiv
           "finalsite_meetings", "drive_meetings", "page_meetings", "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
           "sharpschool_meetings", "recordings", "seeclickfix", "socrata_311",
           "storage", "summaries", "participation", "glossary", "terms", "schools", "finance", "housing", "labor",
-          "permits", "freshness", "officials", "absences", "strings"}
+          "permits", "freshness", "officials", "votes", "absences", "strings"}
 # Merged into every town, not only one whose own file has the table: wording looked up by key.
 EVERY_TOWN = ("terms", "strings")
 # A number: an integer or a decimal, as TOML writes either.

@@ -152,3 +152,117 @@ def test_a_section_heading_is_a_numbered_line_in_capitals():
     assert not votes.SECTION.match("1. The elimination of the line items associated with Ward Improvement Funds;")
     assert not votes.SECTION.match("173-26 Response to Friedman OML March 12")
 
+
+
+def test_a_roll_call_keeps_its_page_and_its_item_as_the_minutes_describe_it():
+    found = votes.roll_calls(SECTIONS, COUNCIL)
+    consent, first = found[0], found[1]
+    assert (consent["page"], consent["subject"]) == (2, None)
+    assert first["page"] == 3 and first["subject"] == (
+        "Mayoral Reappointment: John P. King of 67 Upham Street, Malden, as member of the Board of Appeal, having "
+        "served since 2000, said term to commence upon confirmation by the City Council and expire May 1, 2029.")
+    # A long description is cut at a word.
+    communication = found[3]
+    assert communication["item"] == "226-26" and communication["subject"].endswith("…")
+    assert len(communication["subject"]) <= votes.SUBJECT_CHARS + 1
+    (v,) = votes.roll_calls(ROLL_CALLS, COUNCIL)
+    assert (v["page"], v["subject"]) == (1, "Election of City Council President for 2026")
+
+
+def test_an_attachment_named_for_a_paper_doesnt_begin_an_item():
+    # Under "Attachments:", a file's name can start with a paper number, its own or another's.
+    assert votes.ITEM.match("263-26") and not votes.ITEM.match("263-26 City council Meeting letter")
+    assert not votes.ITEM.match("73-26 Response to OML Complaint reg. 1.20.2026")
+
+
+def test_votes_are_shown_only_where_the_town_says_so():
+    assert not votes.show({}) and not votes.show({"votes": {}})
+    assert votes.show({"votes": {"show": True}}) and not votes.show({"votes": {"show": False}})
+    import pytest
+    with pytest.raises(SystemExit, match=r"\[votes\] show"):
+        votes.show({"slug": "malden", "votes": {"show": "yes"}})
+
+
+def test_only_checked_roll_calls_read_by_current_rules_against_the_members_are_shown():
+    record = votes.read({"kind": "minutes"}, SECTIONS, COUNCIL)
+    record["votes"][0] = {**record["votes"][0], "checked": False}
+    shown, held = votes.shown(record, COUNCIL)
+    assert len(shown) == len(record["votes"]) - 1 and held == 1 and all(v["checked"] for v in shown)
+    assert shown == [v for v in record["votes"] if v["checked"]]
+    # Read by rules from before a consent agenda's vote lost the last paper's number: not shown.
+    assert votes.shown({**record, "votes_version": 1}, COUNCIL) is None
+    assert votes.shown({**record, "votes_version": votes.SHOWN_FROM}, COUNCIL) is not None
+    # Read against other members, until the next run reads them again.
+    assert votes.shown(record, COUNCIL[:-1]) is None
+    # Not read, not minutes, or a document filed as minutes that isn't.
+    assert votes.shown({"kind": "minutes"}, COUNCIL) is None
+    assert votes.shown({**record, "kind": "recording"}, COUNCIL) is None
+    assert votes.shown({**record, "is_minutes": False}, COUNCIL) is None
+    assert votes.shown(None, COUNCIL) is None and votes.shown(record, []) is None
+
+
+def test_a_meeting_page_shows_its_checked_roll_calls(config, data_dir, tmp_path, monkeypatch):
+    import copy
+    import html
+    import re
+    import shutil
+    from conftest import BUILT_AT
+    from pipeline import build_site, summarize
+    config = copy.deepcopy(config)  # the session's config, shared with other tests
+    config["site"]["languages"] = ["en", "es"]
+    config["votes"] = {"show": True}
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    members = votes.members_for(config, "City Council")
+    meetings = build_site.load_meetings(data, BUILT_AT.date(), config["summaries"]["model"])["all"]
+    council = [m for m in meetings if m["body"] == "City Council" and m["minutes_summary"]]
+    shown_at, older = council[-1], council[0]
+    a, b, c, d, e, f, g = members
+    named = [{"label": "Yea", "count": 4, "names": [a, b, c, d]}, {"label": "Nay", "count": 1, "names": [e]},
+             {"label": "Recused", "count": 1, "names": [f]}]
+    vote = votes.check({"item": "301-26", "subject": "Order: That the city repave Main Street.", "section": "ORDERS",
+                        "page": 4, "motion": "A motion was made by Councillor Avery, seconded by Councillor Blake, "
+                        "that the Order be adopted.", "outcome": "The motion carried by the following vote:",
+                        "result": "carried", "notes": ["Councillor Gray left the meeting at 8:10 PM."],
+                        "groups": named, "quote": ""}, members)
+    wrong = votes.check({"item": "302-26", "subject": None, "section": "ORDERS", "page": 5,
+                         "motion": "A motion was made to table the miscounted order.", "outcome": None, "result": "carried",
+                         "notes": [], "groups": [{"label": "Yea", "count": 6, "names": [a, b]}], "quote": ""}, members)
+    assert vote["checked"] and vote["not_recorded"] == [g] and not wrong["checked"]
+    for m, version in ((shown_at, votes.VERSION), (older, 1)):
+        sha = m["minutes_doc"]["sha256"]
+        record = summarize.cached(data, sha, "minutes", current=False)
+        summarize.save_record(data, sha, {**record, "votes": [vote, wrong], "votes_version": version,
+                                          "votes_members": members})
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+
+    page = (out / "meetings" / shown_at["slug"] / "index.html").read_text()
+    text = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", page)))
+    assert 'id="roll-calls"' in page
+    assert "Item 301-26 : Order: That the city repave Main Street." in text
+    assert "that the Order be adopted." in text and "The motion carried." in text
+    assert f"Yea (4) {a}, {b}, {c}, {d}" in text and f"Nay (1) {e}" in text and f"Recused (1) {f}" in text
+    # A member the minutes don't name is "not recorded", never absent or a vote.
+    assert f"Not recorded in this vote (1) {g}" in text
+    assert "The minutes add: Councillor Gray left the meeting at 8:10 PM." in text
+    assert f'href="{shown_at["minutes_doc"]["source_url"]}#page=4"' in page and "In the minutes, page 4" in text
+    # The unchecked one isn't shown, only counted.
+    assert "miscounted" not in page and "302-26" not in page
+    assert "1 roll call in these minutes isn't shown" in text
+    # Which minutes they're read from, and which aren't: the older meeting's were read by older rules.
+    read = [m for m in council if m is not older]
+    assert (f"City Council minutes read for roll calls: {len(read)} meetings, from "
+            f"{build_site.format_date(read[0]['date'], 'plain')} to {build_site.format_date(read[-1]['date'], 'plain')}.") in text
+    assert f"The minutes of one other meeting on this site, {build_site.format_date(older['date'], 'plain')}, aren't included." in text
+    assert 'id="roll-calls"' not in (out / "meetings" / older["slug"] / "index.html").read_text()
+    # In Spanish, the minutes' own words are marked as English.
+    es = (out / "es" / "meetings" / shown_at["slug"] / "index.html").read_text()
+    assert "Votaciones nominales" in es and "No consta en esta votación (1)" in es
+    assert '<blockquote class="roll-call-motion" lang="en">' in es
+
+
+def test_no_votes_are_shown_unless_the_town_says_so(site_dir):
+    # The tests' town collects votes but doesn't show them.
+    assert not any('id="roll-calls"' in p.read_text() for p in (site_dir / "meetings").rglob("index.html"))

@@ -4,8 +4,8 @@ import { afterEach, beforeEach, test } from "node:test";
 
 import worker from "./scheduler-index.js";
 import {
-  ALERT_LABEL, DIGEST_LABEL, DOWN_LABEL, ENGINE_CRON, RELEASE_CRON, STALE_HOURS, UPTIME_CRON, downSites, lastDailyRun,
-  onSchedule, siteHosts, startRun, watch, watchSites,
+  ALERT_LABEL, DIGEST_LABEL, DOWN_LABEL, ENGINE_CRON, RECORDINGS_CRON, RELEASE_CRON, STALE_HOURS, UPTIME_CRON, downSites,
+  lastDailyRun, onSchedule, siteHosts, startRun, watch, watchSites,
 } from "./scheduler.js";
 import { DIGEST_CRON, TEST_PREFIX, deleteTests, newestIssue, sendDigests, sendTest } from "./digest.js";
 import { main as digestTest } from "./digest-test.js";
@@ -129,6 +129,20 @@ test("08:40 starts the network's engine pull request, and nothing else", async (
   await worker.scheduled({ scheduledTime: NOW.getTime(), cron: ENGINE_CRON }, env());
   assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`),
     ["POST /repos/publick-org/publick.org/actions/workflows/engine.yml/dispatches"]);
+});
+
+test("the recordings cron starts the network's recordings run, and nothing else", async () => {
+  routes["POST /repos/publick-org/publick.org/actions/workflows/recordings.yml/dispatches"] = [204, null];
+  await worker.scheduled({ scheduledTime: NOW.getTime(), cron: RECORDINGS_CRON }, env());
+  assert.deepEqual(calls.map((c) => `${c.method} ${c.path}`),
+    ["POST /repos/publick-org/publick.org/actions/workflows/recordings.yml/dispatches"]);
+  assert.deepEqual(calls[0].body, { ref: "main" });
+});
+
+test("a refused recordings start fails the invocation", async () => {
+  routes["POST /repos/publick-org/publick.org/actions/workflows/recordings.yml/dispatches"] = [403, { message: "nope" }];
+  await assert.rejects(onSchedule({ scheduledTime: NOW.getTime(), cron: RECORDINGS_CRON }, env()),
+    /recordings\.yml: HTTP 403/);
 });
 
 test("a refused release start fails the invocation, naming the repository", async () => {

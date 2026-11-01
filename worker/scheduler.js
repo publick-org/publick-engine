@@ -25,6 +25,12 @@
 // On DIGEST_CRON it sends the towns' weekly digests (digest.js), and if any
 // fails, opens an issue (or comments on the one open) saying which.
 //
+// On RECORDINGS_CRON it starts the network's recordings run (RECORDINGS_WORKFLOW,
+// recordings.yml), which finds, matches and transcribes the meetings' recordings
+// for the next morning's summaries. GitHub's own schedule for it, kept as the
+// backup, started three of its first seven runs, 26 to 95 minutes late. A start
+// with nothing new to transcribe finds that and ends in minutes.
+//
 // On UPTIME_CRON, every hour, it loads each site's homepage through the sites
 // Worker: publick.org and every town in the network's sitemap (SITEMAP_URL,
 // publick.org/sitemap.xml, which lists each live town from its first build).
@@ -40,7 +46,7 @@
 // Issues read and write, and for the engine repository with Actions read and
 // write); REPOSITORY, WORKFLOW, BRANCH, and STATUS_URL; ALERT_ASSIGNEE, the
 // account the issues are assigned to (a var or a secret; none, and they're
-// assigned to no one); ENGINE_REPOSITORY, RELEASE_WORKFLOW, and ENGINE_WORKFLOW; and SITES, a
+// assigned to no one); ENGINE_REPOSITORY, RELEASE_WORKFLOW, ENGINE_WORKFLOW and RECORDINGS_WORKFLOW; and SITES, a
 // service binding to the Worker that serves the sites, which the status page
 // is read through; for the digest, BUTTONDOWN_SEND_KEY and DIGEST_TOWNS (digest.js); and for
 // Search Console, GSC_SERVICE_ACCOUNT_JSON and SEARCH_CONSOLE_SITE (search.js).
@@ -54,6 +60,8 @@ export const STALE_HOURS = 30;
 export const RELEASE_CRON = "20 8 * * *";
 export const ENGINE_CRON = "40 8 * * *";
 export const UPTIME_CRON = "50 * * * *";
+// The recordings runs: early morning Eastern, for the night's meetings, then through the day for the ones posted later.
+export const RECORDINGS_CRON = "23 5,7,9,13,17 * * *";
 export const ALERT_LABEL = "network stopped";
 export const DOWN_LABEL = "site down";
 // How long the uptime check waits before trying a site that didn't load once more.
@@ -274,7 +282,8 @@ export async function watchSites(env, now = new Date(), wait = undefined) {
   return { down };
 }
 
-// Each Cron Trigger: the release, the engine pull request, the weekly digest, the uptime check, or a daily run,
+// Each Cron Trigger: the release, the engine pull request, the recordings run, the weekly digest, the uptime check,
+// or a daily run,
 // a check on the runs, and new sitemaps submitted to Search Console.
 // For a daily run, one failing doesn't stop the others; any failing fails the invocation, so it
 // shows in the Worker's logs.
@@ -287,6 +296,9 @@ export async function onSchedule(controller, env) {
   }
   if (controller.cron === UPTIME_CRON) {
     return watchSites(env, new Date(controller.scheduledTime));
+  }
+  if (controller.cron === RECORDINGS_CRON) {
+    return startWorkflow(env, env.REPOSITORY, env.RECORDINGS_WORKFLOW || "recordings.yml");
   }
   if (controller.cron === DIGEST_CRON) {
     const now = new Date(controller.scheduledTime);

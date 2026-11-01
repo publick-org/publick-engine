@@ -20,8 +20,9 @@ Legistar's (Malden's City Council) reads:
     Taylor, Winslow and Luong
     Nay: 1 - O'Malley
 
-Nothing is shown on the sites yet. To check every vote read against its
-minutes, before a town's votes are public:
+A town shows its checked roll calls on its meeting pages once its config
+says so ([votes] show = true; shown()). To check every vote read against its
+minutes first:
 
     python -m pipeline.votes [--town malden]
 """
@@ -39,18 +40,29 @@ from pipeline.officials import slugify
 
 # Bump when the reading rules change, so minutes are read again.
 # 2: a numbered section heading ends the item before it (a consent agenda's or adjournment's vote has no paper).
-VERSION = 2
+# 3: each roll call's page in the minutes, and its item's description as the minutes give it; an item begins only
+#    at a paper number alone on its line, not at an attachment named for a paper.
+VERSION = 3
+# Votes read by rules before this aren't shown: version 1 gave a vote under a section with no paper of its own
+# the last paper's number.
+SHOWN_FROM = 2
+# The most of an item's description a vote is shown with, in characters.
+SUBJECT_CHARS = 300
 
 LABELS = ("Yea", "Nay", "Abstain", "Recused", "Absent", "Present", "Excused", "Non-Voting")
 GROUP = re.compile(r"^(%s)\s*:\s*(\d+)\s*-\s*(.*)$" % "|".join(LABELS))
 # A motion runs to the end of its sentence (not "Mr." or "St.").
 MOTION = re.compile(r"A motion was made by\b.*?(?:(?<!\b(?:Mr|Ms|Dr|St|No))(?<!\bMrs|\bAve)\.(?=\s+[A-Z])|$)")
 OUTCOME = re.compile(r"The motion (carried|failed|passed)\b[^.:]*?\bvote\s*[.:]?", re.I)
-ITEM = re.compile(r"^(\d{1,4}-\d{2})\b")
+# An item's paper number, alone in its column ("224-26"): not an attachment's name that starts with one
+# ("263-26 cottage bakery comment"), which may be another paper's.
+ITEM = re.compile(r"^(\d{1,4}-\d{2})$")
 # A numbered section of the meeting, in capitals: "6. CONSENT AGENDA", "12. ADJOURNMENT". Not a numbered
 # list inside an item ("1. The elimination of ..."), which isn't in capitals.
 SECTION = re.compile(r"^\d{1,2}\.\s+([A-Z][^a-z]*)$")
 SENTENCE = re.compile(r"[^.]*\.")
+# Where an item's description ends: its sponsors, attachments, a motion, or what was done with it.
+SUBJECT_END = re.compile(r"^(?:Sponsors|Attachments|Indexes|Enactment No)\s*:|^A motion was made\b|^This \w+ (?:was|were)\b")
 
 
 def members_for(config: dict, board: str) -> list[str]:
@@ -59,6 +71,27 @@ def members_for(config: dict, board: str) -> list[str]:
         if slugify(body.get("board", body.get("name", ""))) == slugify(board):
             return [m["name"] for m in body.get("members", []) if m.get("name")]
     return []
+
+
+def show(config: dict) -> bool:
+    """Whether the town's meeting pages show the roll calls read from its minutes ([votes] show, false unless set)."""
+    value = config.get("votes", {}).get("show", False)
+    if not isinstance(value, bool):
+        raise SystemExit(f"[votes] show in config/{config.get('slug', '<town>')}.toml must be true or false, not {value!r}.")
+    return value
+
+
+def shown(record: dict | None, members: list[str]) -> tuple[list[dict], int] | None:
+    """The roll calls a meeting page shows from its minutes' record, in the order the minutes give them, and how
+    many it holds back (unchecked: their counts and names don't agree, or a name isn't one member); None where
+    the record's votes aren't shown at all: not read, read by rules before SHOWN_FROM, or read against other
+    members than the body's (they're read again on the next run). A vote by voice or "unanimous" names no one,
+    so it's no roll call here; a recording's summary has none."""
+    if (not record or record.get("kind") != "minutes" or record.get("is_minutes") is False or "votes" not in record
+            or (record.get("votes_version") or 0) < SHOWN_FROM or not members or record.get("votes_members") != members):
+        return None
+    checked = [v for v in record["votes"] if v.get("checked")]
+    return checked, len(record["votes"]) - len(checked)
 
 
 def current(record: dict, members: list[str]) -> bool:
@@ -113,15 +146,15 @@ def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
     for r in rows:
         r["text"] = r["text"].strip()
 
-    votes, item, section, before, i = [], None, None, [], 0
+    votes, item, subject, section, before, i = [], None, None, None, [], 0
     while i < len(rows):
         text = rows[i]["text"]
         # A vote belongs to the paper it follows, within its section: one under a section with no paper of
         # its own before it (the consent agenda, adjournment) has none, never the last section's.
         if SECTION.match(text):
-            item, section, before = None, SECTION.match(text).group(1).strip(), []
+            item, subject, section, before = None, None, SECTION.match(text).group(1).strip(), []
         if ITEM.match(text):
-            item, before = ITEM.match(text).group(1), []
+            item, subject, before = ITEM.match(text).group(1), _subject(rows, i), []
         if not GROUP.match(text):
             before.append(text)
             i += 1
@@ -157,7 +190,10 @@ def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
         notes = SENTENCE.findall(context[outcome.end():]) if outcome else []
         votes.append(check({
             "item": item,
+            "subject": subject,
             "section": section,
+            # The page of the minutes its first group is on, counted from 1.
+            "page": rows[i]["page"] + 1,
             "motion": motion.group(0).strip() if motion else None,
             "outcome": outcome.group(0).strip() if outcome else None,
             "result": outcome.group(1).lower() if outcome else None,
@@ -167,6 +203,31 @@ def roll_calls(pdf: bytes, members: list[str]) -> list[dict]:
         }, members))
         before, i = [], j
     return votes
+
+
+def _subject(rows: list[dict], i: int) -> str | None:
+    """The item's description as the minutes give it, beside its paper number (row i): its lines in one column,
+    onto the next page past its running header, to its sponsors, attachments, motion, or what was done with it;
+    cut at a word, with "…", past SUBJECT_CHARS. None where the paper number has nothing after it."""
+    lines, j, x, last = [], i + 1, None, rows[i]
+    while j < len(rows):
+        j = _skip_page_top(rows, j, last)
+        if j >= len(rows):
+            break
+        row = rows[j]
+        if GROUP.match(row["text"]) or ITEM.match(row["text"]) or SECTION.match(row["text"]) \
+                or SUBJECT_END.match(row["text"]):
+            break
+        if x is None:
+            x = row["x"]
+        elif abs(row["x"] - x) > 3:
+            break
+        lines.append(row["text"])
+        last, j = row, j + 1
+    text = re.sub(r"\s+", " ", " ".join(lines)).strip()
+    if len(text) > SUBJECT_CHARS:
+        text = text[:SUBJECT_CHARS].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return text or None
 
 
 def _skip_page_top(rows: list[dict], j: int, last: dict) -> int:
