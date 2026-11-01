@@ -23,22 +23,62 @@ calendar entry a meeting. Three layouts are read:
   then a list of links labelled "Agenda and Attachments", "Minutes",
   "Non-Public Minutes". Its committees each have a page of their own, the same
   shape ([page_meetings.pages] maps each to its board).
+- A table whose links are labelled only with their meeting's date, with the
+  column they're in saying what they are. Westbrook School Department's School
+  Committee page (Apptegy) has, under "Meeting Information 2025-2026", rows of
+  a date and two links both labelled "January 14, 2026", under the columns
+  "AGENDA/BACK-UP INFORMATION" and "APPROVED MINUTES"; its committees' pages
+  have "Agenda & Information" and "Finance Meeting Report". Above the table, a
+  "Meeting Announcement" names the next meeting ("The Westbrook School
+  Committee will meet on Wednesday, October 14, 2026 at 7:00 PM in Room 114 at
+  Westbrook High School") and links its agenda ("AGENDA & Back Up
+  Informaton"), as a line of a date with its documents under it.
+
+- Columns, each a board's. Biddeford Schools' "Agendas and Minutes" page
+  (Apptegy) has a row of four headings ("School Committee", "Standing
+  Committee on Finance/Building & Grounds", "Advisory Committee on
+  Curriculum", "Advisory Committee on Policy") and under it a row of four
+  columns, each an accordion of school years with a link a meeting, its label
+  the meeting's date and time ("October 28, 2026(7:00pm)"), to its packet, a
+  Google Doc. [page_meetings.columns] maps a heading to its board, and each
+  column is read as a page of that board's meetings (apptegy_columns).
 
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
-("September 16, 2026", "Sept. 16 2026") or as "2026-09-16". Its meeting's
+("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures, month first: with
+slashes and a two- or four-digit year (Hamden Public Schools' "10/13/26"), with dots and a two- or
+four-digit year ("10.07.26", "05.06.2026", as Bristol Public Schools titles its minutes), or with
+dashes and a four-digit year ("10-14-2026", "9-9-2026": Winooski School District's "Agenda
+10-14-2026 WSD Regular Board Meeting"). Its meeting's
 name is the rest of the text: for a row, its cells without their links'
 labels and without cells that only repeat their column's heading; for a link,
 its label without the date and the words "agenda" and "minutes"; for a line,
-the rest of the line. Entries of
+the rest of the line. A board whose page names one meeting a day in more than
+one way (Westbrook's announcement, and the row of the same date in the year's
+table, with no name at all) sets one_meeting_a_day: its entries of a date are
+then one meeting of their board, whatever else their text says. Entries of
 the same date and name are one meeting, so "June 10, 2026 Special Meeting"
 and "June 10 2026 Special Meeting Minutes" are documents of one meeting, and
 "September 16, 2026 Agenda" and "September 16, 2026 Minutes" of another.
+Words that name a meeting one way on its agenda and another on its minutes
+(Winooski's agenda "WSD Regular Board Meeting", minutes "Regular Board
+Meeting") are left out of that comparison by name_ignore_pattern.
+
+A district can post its agendas on one page and its minutes on another
+(Winooski's): other_pages are read with the page, as one list.
+
+An Apptegy short link (aptg.co/...), as South Burlington School District
+labels some agendas and minutes, redirects to its file; the caller resolves
+it (resolve), and the file it leads to is the document, as a link to it would
+be.
 
 What each link is comes from its label: minutes if it matches the town's
 minutes_pattern (default "minutes"), an agenda if it matches agenda_pattern
-(default "agenda"); a YouTube link is the meeting's recording. Waltham's
+(default "agenda"); a YouTube link is the meeting's recording. A link in a
+table labelled only with a date is named by its column's heading instead, so
+Westbrook's "January 14, 2026" under "APPROVED MINUTES" is the minutes, and
+one under "Finance Meeting Report" is a link of that name. Waltham's
 agenda_pattern also takes "Special Meeting", "Budget Workshop" and "Public
 Hearing", the names it gives those meetings' agendas. Other links (postings,
 packets, folders, videos on Drive) are kept with the meeting as links.
@@ -47,6 +87,7 @@ packets, folders, videos on Drive) are kept with the meeting as links.
 from __future__ import annotations
 
 import html
+import json
 import re
 from datetime import date
 from urllib.parse import urljoin
@@ -65,9 +106,21 @@ TOKEN = re.compile(r'(?P<link><a\b[^>]*\bhref="(?P<href>[^"]+)"[^>]*>(?P<label>.
                    re.S | re.I)
 # Tags that end a line of text.
 BLOCK_TAG = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br|section|header|article|table|dt|dd)\b", re.I)
-# A line longer than this is a paragraph, not a meeting's heading.
-HEADING_LENGTH = 120
+# A line longer than this is a paragraph, not a meeting's heading. Westbrook's committee
+# announcements run to 125 characters ("The Policy Committee will meet on Wednesday, October 28, 2026
+# at 5:00 PM in room 114 at Central Office (117 Stroudwater Street)").
+HEADING_LENGTH = 160
 ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
+# "10/13/26", "9/8/2026": month, day and year in figures, the year of two digits taken as 20xx. Not a
+# fraction or a part of a longer run of figures and slashes ("8/10", "1/2/3/4").
+NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])")
+# "10-14-2026", "9-9-2026": month, day, and a four-digit year (two digits after dashes could be a
+# phone number's).
+DASHED_DATE = re.compile(r"(?<![\d./-])(\d{1,2})-(\d{1,2})-(\d{4})(?![\d-])")
+# A link that redirects to the document it names: an Apptegy short link ("https://aptg.co/Lj5CdR").
+SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
+# A date in figures, month first, with dots: "10.07.26", "05.06.2026" (Bristol Public Schools' minutes).
+DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d.])")
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -81,8 +134,10 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out or as yyyy-mm-dd."""
-    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value)) if m]
+    """The first date in a text, written out, as yyyy-mm-dd, as m/d/yy (or m/d/yyyy), as mm.dd.yy, or as
+    mm-dd-yyyy."""
+    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value),
+                         DOTTED_DATE.search(value), DASHED_DATE.search(value)) if m]
     return min(found, key=lambda m: m.start()) if found else None
 
 
@@ -90,6 +145,15 @@ def date_value(found: re.Match) -> str | None:
     try:
         if found.re is ISO_DATE:
             return date(*(int(g) for g in found.groups())).isoformat()
+        if found.re is NUMERIC_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year + (2000 if year < 100 else 0), month, day).isoformat()
+        if found.re is DASHED_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year, month, day).isoformat()
+        if found.re is DOTTED_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year + 2000 if year < 100 else year, month, day).isoformat()
         month, day, year = found.groups()
         return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
     except ValueError:
@@ -110,6 +174,30 @@ def links_in(fragment: str, page_url: str) -> list[dict]:
             for url, label in LINK.findall(fragment) if not url.startswith(("#", "mailto:", "tel:", "javascript:"))]
 
 
+def only_a_date(label: str) -> bool:
+    """Whether a link's label is a date and nothing else ("January 14, 2026", "2026-01-14")."""
+    day = find_date(label)
+    return bool(day) and not re.sub(r"[\W_]+", "", without(label, day))
+
+
+def row_links(row: str, headings: list[str], page_url: str) -> list[dict]:
+    """A table row's links, in order. A link labelled only with a date (Westbrook's "January 14, 2026")
+    says nothing of what it is: its column's heading does ("APPROVED MINUTES"), and is its label. So
+    does a cell's one link whose cell, read as one word, is a date ("J" and a link "anuary 14, 2026").
+    A row whose cells can't be matched to its links (a link outside any cell) keeps its links' own
+    labels."""
+    links = links_in(row, page_url)
+    by_cell = []
+    for i, cell in enumerate(CELL.findall(row)):
+        in_cell = links_in(cell, page_url)
+        whole = len(in_cell) == 1 and only_a_date(html.unescape(re.sub(r"<[^>]+>", "", cell)))
+        by_cell += [(i, link, whole or only_a_date(link["text"])) for link in in_cell]
+    if [link for _, link, _ in by_cell] != links:
+        return links
+    return [{**link, "text": headings[i]} if dated and i < len(headings) and headings[i] else link
+            for i, link, dated in by_cell]
+
+
 def without(value: str, found: re.Match | None) -> str:
     return value if found is None else value[:found.start()] + " " + value[found.end():]
 
@@ -124,8 +212,10 @@ def tidy(value: str) -> str:
 
 
 def row_name(row: str, headings: list[str], columns: list[str] | None = None) -> str:
-    """A table row's meeting name: its cells without the date, their links' labels, and any cell
-    that only repeats its column's heading (a cell with nothing posted yet). With columns (headings,
+    """A table row's meeting name: its cells without the date, their links' labels, any cell
+    that only repeats its column's heading (a cell with nothing posted yet), and a note marked with
+    an asterisk next to a document ("Minutes *pending approval of BOE", Hamden's), which goes when
+    the minutes are approved. With columns (headings,
     [page_meetings] name_columns), only those columns' cells: a page whose document cells have words
     of their own ("Agenda and Zoom Link (News Post, PDF) and Meeting Minutes", Medford's), which
     change as documents are posted."""
@@ -137,6 +227,7 @@ def row_name(row: str, headings: list[str], columns: list[str] | None = None) ->
             continue
         value = text(LINK.sub(" ", cell))
         value = text(without(value, find_date(value)))
+        value = tidy(re.sub(r"\*.*", " ", value)) if value.startswith("*") else value
         if value and words(value) != words(heading):
             parts.append(value)
     return tidy(" ".join(parts))
@@ -157,17 +248,85 @@ def readable(page: str) -> str:
     return re.sub(r'\\+/', "/", re.sub(r'\\+"', '"', page))
 
 
+# An Apptegy page's content, as its script holds it: window.clientWorkStateTemp = JSON.parse("...").
+APPTEGY_STATE = re.compile(r'JSON\.parse\("((?:[^"\\]|\\.)*)"\)')
+
+
+def apptegy_structure(page: str) -> dict | None:
+    """The tree of an Apptegy page's content (page.content.structure in the JSON its script parses):
+    nodes of layout rows (LAYOUT_NODE_*), their columns (BASE_COLUMN), and content (CONTENT_NODE_*,
+    with its HTML in content.html). None for a page that isn't one."""
+    for found in APPTEGY_STATE.finditer(page):
+        try:
+            state = json.loads(json.loads(f'"{found.group(1)}"'))
+        except ValueError:
+            continue
+        structure = ((state.get("page") or {}).get("content") or {}).get("structure") if isinstance(state, dict) else None
+        if isinstance(structure, dict):
+            return structure
+    return None
+
+
+def node_html(node: dict) -> str:
+    """A node's HTML: its own content's and its children's, in order."""
+    content = node.get("content")
+    own = content.get("html", "") if isinstance(content, dict) and isinstance(content.get("html"), str) else ""
+    return own + "".join(node_html(child) for child in node.get("nodes") or [] if isinstance(child, dict))
+
+
+def apptegy_columns(page: str) -> dict[str, str]:
+    """An Apptegy page's columns that a heading names, as {heading: the column's HTML}. A column's
+    heading is its first node, a heading; or, for a column of a row just under a row of as many
+    columns each holding only a heading, the heading above it (Biddeford's: a row of four headings,
+    then a row of four accordions)."""
+    structure = apptegy_structure(page)
+    columns: dict[str, str] = {}
+
+    def heading(node: dict) -> str | None:
+        return text(node_html(node)) or None if node.get("type") == "CONTENT_NODE_HEADING" else None
+
+    def walk(node: dict) -> None:
+        above: list[str] | None = None
+        for child in node.get("nodes") or []:
+            if not isinstance(child, dict):
+                continue
+            cells = [c for c in child.get("nodes") or [] if isinstance(c, dict) and c.get("type") == "BASE_COLUMN"]
+            if not str(child.get("type", "")).startswith("LAYOUT_NODE") or not cells:
+                above = None
+                walk(child)
+                continue
+            contents = [[n for n in c.get("nodes") or [] if isinstance(n, dict)] for c in cells]
+            names = [heading(nodes[0]) if nodes else None for nodes in contents]
+            if all(len(nodes) == 1 and name for nodes, name in zip(contents, names)):
+                above = names
+                continue
+            for i, nodes in enumerate(contents):
+                name = names[i] if nodes and names[i] else above[i] if above and len(above) == len(cells) else None
+                rest = nodes[1:] if nodes and names[i] else nodes
+                if name:
+                    columns[name] = "".join(node_html(n) for n in rest)
+            above = None
+            for nodes in contents:
+                for n in nodes:
+                    walk(n)
+
+    if structure:
+        walk(structure)
+    return columns
+
+
 def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> list[dict]:
     """Each table row with a link, and each link outside a table row: its date (or None), the
     meeting's name, any time it gives, and its links, in the page's order."""
     page = readable(page)
     found, headings = [], []
     for row in ROW.finditer(page):
-        links = links_in(row.group(1), page_url)
+        links = row_links(row.group(1), headings, page_url)
         cells = [text(c) for c in CELL.findall(row.group(1))]
         if not links:
-            # A row of headings, kept to tell an empty cell ("Minutes") from a meeting's name.
-            if cells and not find_date(" ".join(cells)):
+            # A row of headings, kept to tell an empty cell ("Minutes") from a meeting's name, and to
+            # say what a link labelled only with a date is. A row with no text at all is a spacer.
+            if any(cells) and not find_date(" ".join(cells)):
                 headings = cells
             continue
         raw = text(row.group(1))
@@ -220,9 +379,12 @@ def slug(value: str) -> str:
     return "-".join(words(re.sub(r"[^A-Za-z0-9]+", " ", value)).split())
 
 
-def meeting_key(name: str) -> str:
+def meeting_key(name: str, ignore: str | None = None) -> str:
     """What tells a day's meetings apart, the same when the district later marks one cancelled or
-    amended: 'Finance Subcommittee - CANCELLED' -> 'finance subcommittee'."""
+    amended: 'Finance Subcommittee - CANCELLED' -> 'finance subcommittee'. Words matching ignore
+    ([page_meetings] name_ignore_pattern) are left out too."""
+    if ignore:
+        name = re.sub(ignore, " ", name, flags=re.I)
     name = STATUS_IN_NAME.sub(" ", DOCUMENT_WORDS.sub(" ", MOVED_FROM.sub(" ", name)))
     return words(re.sub(r"[^A-Za-z]+", " ", name))
 
@@ -259,19 +421,46 @@ def meeting_fields(links: list[dict], settings: dict) -> dict:
     return fields
 
 
-def meetings(page: str, page_url: str, settings: dict, board: str | None = None) -> tuple[list[dict], list[str]]:
+def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
+             more: list[tuple[str, str]] = (), resolve=None) -> tuple[list[dict], list[str]]:
     """The page's meetings, newest listed first as the page lists them, each with its date, board,
     name, status, whether it's special, its time if given, and its documents (as
     meeting_fields gives them); and the entries with a document but no date, or no
     board, reported rather than guessed at. Links whose label matches exclude_pattern (a
     translation, say) are left out. `board` is the board of a page of one board's meetings
     ([page_meetings.pages]): every meeting on it is that board's, and its key names it, so
-    two boards' meetings on one day are kept apart."""
-    exclude = settings.get("exclude_pattern")
+    two boards' meetings on one day are kept apart. `more`, (page, address) pairs, are read
+    with the page as one list ([page_meetings] other_pages). resolve(url), if given, is where a
+    short link (SHORT_LINK) leads, or None; it's asked only for entries dated from `since` on. With
+    [page_meetings.columns], the page's columns named by those headings are read instead, each as a
+    page of its board's meetings, and a heading not found is reported. With one_meeting_a_day, a date's entries are one meeting of
+    their board, keyed by the date (and the page's board), whatever their names; the shortest name is
+    the meeting's (a table row's, over an announcement's sentence)."""
+    if board is None and settings.get("columns"):
+        # Each column a board's ([page_meetings.columns]): read as a page of that board's meetings.
+        on_page = {words(name): column for name, column in apptegy_columns(page).items()}
+        found, unrecognized = [], []
+        for name, column_board in settings["columns"].items():
+            if words(name) not in on_page:
+                unrecognized.append(f"(no column headed {name!r})")
+                continue
+            in_column, not_read = meetings(on_page[words(name)], page_url, settings, column_board,
+                                           resolve=resolve)
+            found += in_column
+            unrecognized += not_read
+        return found, unrecognized
+    exclude, ignore = settings.get("exclude_pattern"), settings.get("name_ignore_pattern")
+    one_a_day = settings.get("one_meeting_a_day", False)
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
     grouped, unrecognized = {}, []
-    for entry in entries(page, page_url, settings.get("name_columns")):
+    listed = entries(page, page_url, settings.get("name_columns"))
+    for other, url in more:
+        listed += entries(other, url, settings.get("name_columns"))
+    for entry in listed:
         links = [link for link in entry["links"] if not (exclude and re.search(exclude, link["text"], re.I))]
+        if resolve and entry["date"] and entry["date"] >= str(settings.get("since", "")):
+            links = [{**link, "url": resolve(link["url"]) or link["url"]} if SHORT_LINK.match(link["url"]) else link
+                     for link in links]
         documents = [link for link in links if finalsite.is_document(link["url"]) or finalsite.recording(link["url"])]
         if not documents:
             continue
@@ -280,8 +469,10 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None)
         if not entry["date"] or not body:
             unrecognized.append(entry["raw"])
             continue
-        key = (entry["date"], meeting_key(name))
+        key = (entry["date"], slug(body) if one_a_day and not board else "" if one_a_day else meeting_key(name, ignore))
         meeting = grouped.setdefault(key, {"date": entry["date"], "name": name, "body": body, "time": None, "links": []})
+        if one_a_day and len(name) < len(meeting["name"]):
+            meeting["name"] = name
         meeting["time"] = meeting["time"] or entry["time"]
         meeting["links"].extend(links)
     found = []
@@ -290,8 +481,9 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None)
         info = parse_name(MOVED_FROM.sub(" ", m["name"]).strip() or m["body"], [], bodies)
         special = bool(re.search(r"\bspecial\b", m["name"], re.I)) and "special" not in words(m["body"]).split()
         fields = meeting_fields(m["links"], settings)
-        name_key = "-".join(key.split()) or "meeting"
-        found.append({"key": f"{day}-{slug(board)}-{name_key}" if board else f"{day}-{name_key}", "date": day, "body": m["body"],
+        name_key = "-".join(key.split()) or ("" if board and one_a_day else "meeting")
+        page_key = "-".join(p for p in (slug(board), name_key) if p) if board else name_key
+        found.append({"key": f"{day}-{page_key}", "date": day, "body": m["body"],
                       "name": m["name"], "status": info["status"], "special": special,
                       "start_time": m["time"], **fields})
     return found, unrecognized
@@ -322,7 +514,11 @@ def check(config: dict) -> None:
                                               for url, b in pages.items()):
         raise SystemExit(f'{where}: pages must map the address of a page of one board\'s meetings to that board, '
                          'like "https://www.example.k12.nh.us/board/policy" = "Board of Education Policy Committee".')
-    for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern"):
+    others = settings.get("other_pages", [])
+    if not isinstance(others, list) or not all(re.match(r"https?://", str(url)) for url in others):
+        raise SystemExit(f'{where}: other_pages must list the addresses of more pages of the board\'s documents, like '
+                         '["https://www.example.org/board/minutes/"].')
+    for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern", "name_ignore_pattern"):
         if key in settings:
             try:
                 re.compile(settings[key])
@@ -331,3 +527,10 @@ def check(config: dict) -> None:
     for key in ("recheck_days", "max_documents_per_run"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")
+    columns = settings.get("columns", {})
+    if not isinstance(columns, dict) or not all(isinstance(k, str) and k and isinstance(v, str) and v
+                                                for k, v in columns.items()):
+        raise SystemExit(f'{where}: columns must map a column\'s heading on the page to its board, like '
+                         '"Advisory Committee on Policy" = "School Committee Policy Committee".')
+    if not isinstance(settings.get("one_meeting_a_day", False), bool):
+        raise SystemExit(f"{where}: one_meeting_a_day must be true or false.")

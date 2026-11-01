@@ -156,7 +156,7 @@
 </table>
 </div>
 {% endif %}
-{% set how %}{% trans parcels=bill.parcels | number, file=bill.fiscal_year - 1, year=bill.fiscal_year %}The average assessed value of {{ parcels }} single-family homes in the state's {{ file }} parcel file, times the fiscal year {{ year }} mill rate. Connecticut assesses homes at 70% of market value. It's the bill before exemptions and credits.{% endtrans %} {{ _("Connecticut doesn't publish an average bill.") }}{% endset %}
+{% set how %}{% trans parcels=bill.parcels | number, file=bill.fiscal_year - 1, year=bill.fiscal_year %}The average assessed value of {{ parcels }} single-family homes in the state's {{ file }} parcel file, times the fiscal year {{ year }} mill rate. Connecticut assesses homes at 70% of market value. It's the bill before exemptions and credits.{% endtrans %}{% if bill.get("phase_in") %} {% trans years=bill.phase_in.years, revaluation=bill.phase_in.revaluation, before=bill.phase_in.before_file, percent=bill.phase_in.percent, year=bill.phase_in.year %}Assessments are phased in over {{ years }} years after the revaluation of October {{ revaluation }}, as on the tax bills: each home's value here is its assessment before the revaluation, from the state's {{ before }} parcel file, plus {{ percent }}% of any increase (year {{ year }} of {{ years }}). A decrease isn't phased in.{% endtrans %}{% endif %} {{ _("Connecticut doesn't publish an average bill.") }}{% endset %}
 {{ calculated(how) }}
 <p class="small" data-about>{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">OPM, mill rates</a>; <a href="{{ parcels }}">OPM, Connecticut Parcel and CAMA Data</a>.{% endtrans %}</p>
 {% endif %}

@@ -1100,6 +1100,12 @@ msgstr ""
 msgid "<a href=\"%(url)s\">Saved copy</a>, saved <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "<a href=\"%(url)s\">Copia guardada</a>, guardada el <time datetime=\"%(iso)s\">%(when)s</time>."
 
+#. %(name)s is a school district, such as "Bristol Public Schools".
+#: site/templates/meeting.html
+#, python-format
+msgid "<a href=\"%(url)s\">This meeting on the %(name)s meeting portal</a> (BoardBook)."
+msgstr "<a href=\"%(url)s\">Esta reunión en el portal de reuniones de %(name)s</a> (BoardBook)."
+
 #. %(name)s is a school district, such as "Burlington School District".
 #: site/templates/meeting.html
 #, python-format
@@ -1156,6 +1162,28 @@ msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
+
+#. %(board)s is a board's name, such as "Board of Education". %(source)s is the district, such as
+#. "Bristol Public Schools". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings and agendas:</strong> %(source)s, from its <a "
+"href=\"%(url)s\">BoardBook page</a>, from %(since)s on."
+msgstr ""
+"<strong>Reuniones y agendas (%(board)s):</strong> %(source)s, de su <a href=\"%(url)s\">página de"
+" BoardBook</a>, desde %(since)s."
+
+#. %(board)s is a board's name, such as "Board of Education". %(source)s is the district, such as
+#. "Bristol Public Schools". %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"<strong>%(board)s meetings, agendas, and minutes:</strong> %(source)s, from its <a "
+"href=\"%(url)s\">BoardBook page</a>, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas (%(board)s):</strong> %(source)s, de su <a "
+"href=\"%(url)s\">página de BoardBook</a>, desde %(since)s."
 
 #. %(board)s is a board's name, such as "School Board". %(source)s is the district, such as "Burlington
 #. School District". %(since)s is a month, such as "January 2024".
@@ -2213,6 +2241,19 @@ msgid "Assessed values were %(ratio)s%% of market value that year, so the home's
 msgstr ""
 "Ese año, los valores tasados eran el %(ratio)s%% del valor de mercado, así que el valor de "
 "mercado de la casa era más alto."
+
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"Assessments are phased in over %(years)s years after the revaluation of October %(revaluation)s, "
+"as on the tax bills: each home's value here is its assessment before the revaluation, from the "
+"state's %(before)s parcel file, plus %(percent)s%% of any increase (year %(year)s of %(years)s). "
+"A decrease isn't phased in."
+msgstr ""
+"Los valores tasados suben por etapas durante %(years)s años después de la tasación general de "
+"octubre de %(revaluation)s, como en las facturas de impuestos: el valor de cada casa aquí es su "
+"tasación antes de la tasación general, del archivo de parcelas de %(before)s del estado, más el "
+"%(percent)s%% de cualquier aumento (año %(year)s de %(years)s). Una baja no se aplica por etapas."
 
 #: pipeline/common_strings.py
 msgid "At-large"
@@ -3908,6 +3949,13 @@ msgstr "Graduados"
 msgid "Graduation rate"
 msgstr "Tasa de graduación"
 
+#. %(school)s is the high school a district without one sends its students to, such as "Pinkerton
+#. Academy".
+#: site/states/nh/schools.html
+#, python-format
+msgid "Graduation rate, %(school)s"
+msgstr "Tasa de graduación, %(school)s"
+
 #: pipeline/common_strings.py
 msgid "Graduation, attendance, and MCAS results compared with the state."
 msgstr "Graduación, asistencia y resultados del MCAS, comparados con el estado."
@@ -4691,6 +4739,18 @@ msgstr ""
 "Maine no publica una factura promedio. La tabla de parcelas tiene lo que cada ciudad envía a la "
 "Maine GeoLibrary, así que la cifra se muestra solo mientras las parcelas de la ciudad suman más o"
 " menos lo mismo que sus terrenos y edificios gravables en las cifras de MRS de ese año."
+
+#: site/states/me/budget.html
+#, python-format
+msgid ""
+"Maine doesn't publish an average tax bill. This site calculates one where a city's single-family "
+"homes, with their assessed values of land and buildings, can be found in the Maine GeoLibrary's "
+"parcel table; %(town)s's can't, so this page doesn't show an average bill."
+msgstr ""
+"Maine no publica una factura promedio del impuesto. Este sitio calcula una cuando las casas "
+"unifamiliares de una ciudad, con sus valores tasados de terreno y edificios, se pueden encontrar "
+"en la tabla de parcelas de la Maine GeoLibrary; las de %(town)s no, así que esta página no "
+"muestra una factura promedio."
 
 #: site/states/me/budget.html
 msgid ""
@@ -8005,6 +8065,14 @@ msgstr ""
 "La tasa del impuesto a la propiedad de la ciudad, lo que recauda y lo que representa para una "
 "casa y para cada residente, según Maine Revenue Services (MRS)."
 
+#: site/states/me/budget.html
+msgid ""
+"The city's property tax rate, what the property tax raises, and what it comes to for each "
+"resident, from Maine Revenue Services (MRS)."
+msgstr ""
+"La tasa del impuesto a la propiedad de la ciudad, lo que recauda y lo que representa para cada "
+"residente, según Maine Revenue Services (MRS)."
+
 #: site/states/vt/budget.html
 msgid ""
 "The city's property tax rates, what the property tax raises for the city and for Vermont's "
@@ -8058,6 +8126,15 @@ msgstr ""
 "Las decisiones solas están en una hoja de cálculo, <a href=\"%(decisions)s\" "
 "download>decisions.csv</a>, y las agendas y actas nuevas, en un <a href=\"%(feed)s\">canal "
 "RSS</a>."
+
+#: site/states/nh/schools.html
+msgid ""
+"The district has no high school of its own, so the Department of Education publishes no "
+"graduation rate for it. The state test results below are the district's own."
+msgstr ""
+"El distrito no tiene escuela secundaria propia, así que el Departamento de Educación no publica "
+"una tasa de graduación para él. Los resultados de las pruebas estatales que siguen son los del "
+"propio distrito."
 
 #: site/states/nh/schools.html
 #, python-format
@@ -8413,6 +8490,10 @@ msgid ""
 msgstr ""
 "El estado nombra cada tasa por su año fiscal: el año fiscal %(year)s va de julio de %(start)s a "
 "junio de %(year)s, y grava las propiedades según su tasación al 31 de diciembre de %(assessed)s."
+
+#: site/states/nh/schools.html
+msgid "The state publishes them for the whole school, including any students from other towns."
+msgstr "El estado las publica para toda la escuela, incluidos los estudiantes de otros pueblos."
 
 #: site/pages/housing/index.html
 msgid "The state updates the list about every two years, with some changes in between."
