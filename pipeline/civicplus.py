@@ -17,7 +17,7 @@ from __future__ import annotations
 import html
 import re
 from datetime import date, datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import feedparser
 
@@ -197,6 +197,14 @@ def parse_calendar_feed(content: bytes | str, base_url: str) -> list[dict]:
     return events
 
 
+def is_zoom_link(url: str) -> bool:
+    """Whether url is a Zoom meeting or webinar link (zoom.us, or a city's own subdomain of it)."""
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    return parts.scheme == "https" and (host == "zoom.us" or host.endswith(".zoom.us")) and \
+        bool(re.match(r"/(j|w|webinar|meeting|my)/", parts.path))
+
+
 def parse_event_page(page: str, base_url: str) -> dict:
     """Pull structured details from a Calendar.aspx?EID=... page."""
     details: dict = {}
@@ -221,9 +229,14 @@ def parse_event_page(page: str, base_url: str) -> dict:
     if address:
         details["address"] = clean_text(address.group(1))
 
+    # The event's "Link" field: kept only as a Zoom meeting's link, since the meeting page offers it as
+    # "Join by Zoom". Cities also put a board's page, the Archive Center, or a stream there (Concord,
+    # New Hampshire), often as a path on the city's site; those aren't a way to take part.
     link = re.search(r'id="[^"]*lnkLink"[^>]*href="([^"]+)"', page, re.I)
     if link:
-        details["remote_url"] = html.unescape(link.group(1))
+        url = urljoin(base_url, html.unescape(link.group(1)).strip())
+        if is_zoom_link(url):
+            details["remote_url"] = url
 
     return details
 
