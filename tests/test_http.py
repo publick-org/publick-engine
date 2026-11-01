@@ -39,6 +39,33 @@ def test_a_server_error_is_tried_again_and_a_missing_page_isnt(monkeypatch):
     assert e.value.status == 404 and slept == []
 
 
+def test_a_short_links_location_is_read_with_a_head_request(monkeypatch):
+    monkeypatch.setattr(http.time, "sleep", lambda s: None)
+    c = PoliteClient("test", delay=0)
+    asked = []
+    target = "https://files-backend.assets.thrillshare.com/documents/asset/uploaded_file/4049/Sbsd/x/Minutes.pdf"
+    c.session = SimpleNamespace(head=lambda url, timeout, allow_redirects: asked.append((url, allow_redirects)) or
+                                SimpleNamespace(status_code=301, headers={"Location": target}))
+    assert c.location("https://aptg.co/Lj5CdR") == target
+    assert asked == [("https://aptg.co/Lj5CdR", False)]
+    # A relative Location is read against the link; a link that doesn't redirect has none.
+    c.session.head = lambda url, timeout, allow_redirects: SimpleNamespace(status_code=302, headers={"Location": "/f"})
+    assert c.location("https://aptg.co/abc") == "https://aptg.co/f"
+    c.session.head = lambda url, timeout, allow_redirects: SimpleNamespace(status_code=200, headers={})
+    assert c.location("https://aptg.co/abc") is None
+
+
+def test_a_host_that_refuses_head_is_asked_with_a_get_not_followed(monkeypatch):
+    monkeypatch.setattr(http.time, "sleep", lambda s: None)
+    c = PoliteClient("test", delay=0)
+    gets = []
+    c.session = SimpleNamespace(
+        head=lambda url, timeout, allow_redirects: SimpleNamespace(status_code=405, headers={}),
+        get=lambda url, timeout, allow_redirects: gets.append(allow_redirects) or SimpleNamespace(
+            status_code=301, headers={"Location": "https://example.org/a.pdf"}))
+    assert c.location("https://aptg.co/abc") == "https://example.org/a.pdf" and gets == [False]
+
+
 def test_a_json_post_is_retried_as_a_get_is(monkeypatch):
     slept, sent = [], []
     monkeypatch.setattr(http.time, "sleep", slept.append)

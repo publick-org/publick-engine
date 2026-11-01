@@ -27,8 +27,10 @@ calendar entry a meeting. Three layouts are read:
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
-("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures, month first, with a two- or
-four-digit year (Hamden Public Schools' "10/13/26"). Its meeting's
+("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures, month first: with
+slashes and a two- or four-digit year (Hamden Public Schools' "10/13/26"), or with dashes and a
+four-digit year ("10-14-2026", "9-9-2026": Winooski School District's "Agenda 10-14-2026 WSD
+Regular Board Meeting"). Its meeting's
 name is the rest of the text: for a row, its cells without their links'
 labels and without cells that only repeat their column's heading; for a link,
 its label without the date and the words "agenda" and "minutes"; for a line,
@@ -36,6 +38,17 @@ the rest of the line. Entries of
 the same date and name are one meeting, so "June 10, 2026 Special Meeting"
 and "June 10 2026 Special Meeting Minutes" are documents of one meeting, and
 "September 16, 2026 Agenda" and "September 16, 2026 Minutes" of another.
+Words that name a meeting one way on its agenda and another on its minutes
+(Winooski's agenda "WSD Regular Board Meeting", minutes "Regular Board
+Meeting") are left out of that comparison by name_ignore_pattern.
+
+A district can post its agendas on one page and its minutes on another
+(Winooski's): other_pages are read with the page, as one list.
+
+An Apptegy short link (aptg.co/...), as South Burlington School District
+labels some agendas and minutes, redirects to its file; the caller resolves
+it (resolve), and the file it leads to is the document, as a link to it would
+be.
 
 What each link is comes from its label: minutes if it matches the town's
 minutes_pattern (default "minutes"), an agenda if it matches agenda_pattern
@@ -72,6 +85,11 @@ ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
 # "10/13/26", "9/8/2026": month, day and year in figures, the year of two digits taken as 20xx. Not a
 # fraction or a part of a longer run of figures and slashes ("8/10", "1/2/3/4").
 NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])")
+# "10-14-2026", "9-9-2026": month, day, and a four-digit year (two digits after dashes could be a
+# phone number's).
+DASHED_DATE = re.compile(r"(?<![\d./-])(\d{1,2})-(\d{1,2})-(\d{4})(?![\d-])")
+# A link that redirects to the document it names: an Apptegy short link ("https://aptg.co/Lj5CdR").
+SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -85,8 +103,9 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out, as yyyy-mm-dd, or as m/d/yy (or m/d/yyyy)."""
-    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value)) if m]
+    """The first date in a text, written out, as yyyy-mm-dd, as m/d/yy (or m/d/yyyy), or as mm-dd-yyyy."""
+    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value),
+                         DASHED_DATE.search(value)) if m]
     return min(found, key=lambda m: m.start()) if found else None
 
 
@@ -97,6 +116,9 @@ def date_value(found: re.Match) -> str | None:
         if found.re is NUMERIC_DATE:
             month, day, year = (int(g) for g in found.groups())
             return date(year + (2000 if year < 100 else 0), month, day).isoformat()
+        if found.re is DASHED_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year, month, day).isoformat()
         month, day, year = found.groups()
         return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
     except ValueError:
@@ -230,9 +252,12 @@ def slug(value: str) -> str:
     return "-".join(words(re.sub(r"[^A-Za-z0-9]+", " ", value)).split())
 
 
-def meeting_key(name: str) -> str:
+def meeting_key(name: str, ignore: str | None = None) -> str:
     """What tells a day's meetings apart, the same when the district later marks one cancelled or
-    amended: 'Finance Subcommittee - CANCELLED' -> 'finance subcommittee'."""
+    amended: 'Finance Subcommittee - CANCELLED' -> 'finance subcommittee'. Words matching ignore
+    ([page_meetings] name_ignore_pattern) are left out too."""
+    if ignore:
+        name = re.sub(ignore, " ", name, flags=re.I)
     name = STATUS_IN_NAME.sub(" ", DOCUMENT_WORDS.sub(" ", MOVED_FROM.sub(" ", name)))
     return words(re.sub(r"[^A-Za-z]+", " ", name))
 
@@ -269,19 +294,28 @@ def meeting_fields(links: list[dict], settings: dict) -> dict:
     return fields
 
 
-def meetings(page: str, page_url: str, settings: dict, board: str | None = None) -> tuple[list[dict], list[str]]:
+def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
+             more: list[tuple[str, str]] = (), resolve=None) -> tuple[list[dict], list[str]]:
     """The page's meetings, newest listed first as the page lists them, each with its date, board,
     name, status, whether it's special, its time if given, and its documents (as
     meeting_fields gives them); and the entries with a document but no date, or no
     board, reported rather than guessed at. Links whose label matches exclude_pattern (a
     translation, say) are left out. `board` is the board of a page of one board's meetings
     ([page_meetings.pages]): every meeting on it is that board's, and its key names it, so
-    two boards' meetings on one day are kept apart."""
-    exclude = settings.get("exclude_pattern")
+    two boards' meetings on one day are kept apart. `more`, (page, address) pairs, are read
+    with the page as one list ([page_meetings] other_pages). resolve(url), if given, is where a
+    short link (SHORT_LINK) leads, or None; it's asked only for entries dated from `since` on."""
+    exclude, ignore = settings.get("exclude_pattern"), settings.get("name_ignore_pattern")
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
     grouped, unrecognized = {}, []
-    for entry in entries(page, page_url, settings.get("name_columns")):
+    listed = entries(page, page_url, settings.get("name_columns"))
+    for other, url in more:
+        listed += entries(other, url, settings.get("name_columns"))
+    for entry in listed:
         links = [link for link in entry["links"] if not (exclude and re.search(exclude, link["text"], re.I))]
+        if resolve and entry["date"] and entry["date"] >= str(settings.get("since", "")):
+            links = [{**link, "url": resolve(link["url"]) or link["url"]} if SHORT_LINK.match(link["url"]) else link
+                     for link in links]
         documents = [link for link in links if finalsite.is_document(link["url"]) or finalsite.recording(link["url"])]
         if not documents:
             continue
@@ -290,7 +324,7 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None)
         if not entry["date"] or not body:
             unrecognized.append(entry["raw"])
             continue
-        key = (entry["date"], meeting_key(name))
+        key = (entry["date"], meeting_key(name, ignore))
         meeting = grouped.setdefault(key, {"date": entry["date"], "name": name, "body": body, "time": None, "links": []})
         meeting["time"] = meeting["time"] or entry["time"]
         meeting["links"].extend(links)
@@ -332,7 +366,11 @@ def check(config: dict) -> None:
                                               for url, b in pages.items()):
         raise SystemExit(f'{where}: pages must map the address of a page of one board\'s meetings to that board, '
                          'like "https://www.example.k12.nh.us/board/policy" = "Board of Education Policy Committee".')
-    for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern"):
+    others = settings.get("other_pages", [])
+    if not isinstance(others, list) or not all(re.match(r"https?://", str(url)) for url in others):
+        raise SystemExit(f'{where}: other_pages must list the addresses of more pages of the board\'s documents, like '
+                         '["https://www.example.org/board/minutes/"].')
+    for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern", "name_ignore_pattern"):
         if key in settings:
             try:
                 re.compile(settings[key])

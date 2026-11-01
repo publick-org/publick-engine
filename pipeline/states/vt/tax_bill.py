@@ -21,6 +21,16 @@ The parcel data has one grand list year (GLYEAR) at a time. The bill is
 calculated only when PVR's figures have that year's rates, and only while the
 town's homestead values on the parcel data add up to about PVR's homestead
 grand list for the year (VALUE_CHECK); otherwise the last one saved is kept.
+A town whose parcel maps predate some of its parcels (Winooski's, last
+updated in 2019, lack about 200 of the parcels PVR counts for it, most of them
+condominiums in category O) falls short of that total with every R1 home
+there. Its bill is calculated all the same when the
+parcel data's R1 parcels match PVR's count and listed value of the town's R1
+for the year (figures/categories.json), each within VALUE_CHECK, and the
+homestead value it lacks is no more than the education grand list it lacks:
+the homesteads missing are on parcels missing, not homes on the parcel data
+without their declarations. The figure's note then says how many of PVR's R1
+parcels the parcel data has.
 Each year's figure is saved as it's calculated, so the history grows a year at
 a time. Writes data/finance/tax_bill.json. Run by python -m pipeline.fetch_finance.
 """
@@ -76,11 +86,51 @@ def parcel_stats(client, town: str, where: str, stats: dict[str, tuple[str, str]
     return found
 
 
-def method(tax_year: int, homes: int) -> str:
-    return (f"The average listed value of {homes:,} homesteads (homes their owners live in, on less than six acres) "
+def method(tax_year: int, homes: int, r1: tuple[int, int] | None = None) -> str:
+    """How the bill was calculated. r1, (the parcel data's R1 parcels, PVR's), when the parcel data lacks some of
+    the town's other parcels."""
+    note = (f"The average listed value of {homes:,} homesteads (homes their owners live in, on less than six acres) "
             f"in VCGI's statewide parcel data, taxed at the town's {tax_year} homestead education, municipal, and local "
             "agreement rates, with any part of a home's value not declared as homestead at the nonhomestead rate. It's "
             "the bill before the property tax credit, which lowers many homestead bills by household income.")
+    if r1:
+        note += (f" The parcel data lacks some of the town's parcels, but has {r1[0]:,} of the {r1[1]:,} residences on "
+                 f"less than six acres the Department of Taxes counts for {tax_year}.")
+    return note
+
+
+def within(ratio: float | None) -> bool:
+    return ratio is not None and VALUE_CHECK[0] <= ratio <= VALUE_CHECK[1]
+
+
+def r1_complete(client, town: str, name: str, tax_year: int, row: dict, totals: dict) -> tuple[int, int] | None:
+    """(the parcel data's R1 parcels, PVR's) when the parcel data falls short of PVR's homestead grand list only
+    by parcels it lacks: its R1 parcels match PVR's count and education listed value for the year, each within
+    VALUE_CHECK, and its homestead shortfall is no more than its shortfall in the whole education grand list (both
+    in 1% of listed value). None otherwise, or when PVR's figures have no R1 row for the year."""
+    try:
+        pvr = dict(figures.rows("categories", name)).get(tax_year, {}).get("R1")
+    except FetchError:   # no category figures saved, or none for this town
+        return None
+    if not pvr or not pvr.get("parcels") or not pvr.get("education_listed_value") \
+            or row.get("nonhomestead_grand_list") is None:
+        return None
+    r1 = parcel_stats(client, town, "CAT = 'R1'", {"count": ("count", "OBJECTID"),
+                                                    "r1_homestead_list": ("sum", "GLVAL_HS"),
+                                                    "r1_nonhomestead_list": ("sum", "GLVAL_NR")})
+    listed = ((r1["r1_homestead_list"] or 0) + (r1["r1_nonhomestead_list"] or 0)) * 100
+    if not (within(r1["count"] / pvr["parcels"]) and within(listed / pvr["education_listed_value"])):
+        print(f"::notice::{name}'s R1 parcels on the parcel data ({r1['count']:,}, ${listed:,.0f}) aren't PVR's "
+              f"{tax_year} R1 ({pvr['parcels']:,}, ${pvr['education_listed_value']:,}).")
+        return None
+    others = parcel_stats(client, town, "1=1", {"count": ("count", "OBJECTID"), "nonhomestead_list": ("sum", "GLVAL_NR")})
+    lacking = row["homestead_grand_list"] + row["nonhomestead_grand_list"] \
+        - totals["homestead_list"] - (others["nonhomestead_list"] or 0)
+    if row["homestead_grand_list"] - totals["homestead_list"] > lacking:
+        print(f"::notice::{name}'s homesteads on the parcel data fall short of PVR's {tax_year} homestead grand list "
+              "by more than the parcels it lacks.")
+        return None
+    return r1["count"], pvr["parcels"]
 
 
 def run(config: dict, client, data_dir: Path, now: datetime | None = None, force: bool = False) -> dict:
@@ -102,7 +152,12 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
         row = None   # a year whose figures lack a rate can't be used
     ratio = totals["homestead_list"] / row["homestead_grand_list"] if row and row.get("homestead_grand_list") else None
     result["value_ratio"] = ratio and round(ratio, 4)
-    if row and ratio and VALUE_CHECK[0] <= ratio <= VALUE_CHECK[1]:
+    r1 = None
+    if row and ratio and ratio < VALUE_CHECK[0]:
+        r1 = r1_complete(client, town, name, tax_year, row, totals)
+        if r1:
+            result["r1_parcels"] = list(r1)
+    if row and (within(ratio) or r1):
         homes = parcel_stats(client, town, HOMESTEADS, {"count": ("count", "OBJECTID"), "value": ("avg", "REAL_FLV"),
                                                          "homestead": ("avg", "HSTED_FLV")})
         value, homestead = homes["value"], min(homes["homestead"], homes["value"])
@@ -113,7 +168,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
             "average_value": round(value), "parcels": homes["count"],
             "rate": round(row["homestead_rate"] + row["municipal_rate"] + (row.get("local_agreement_rate") or 0), 4),
             "rates": {k: row.get(k) for k in (*RATES, "nonhomestead_rate")},
-            "calculated": method(tax_year, homes["count"]),
+            "calculated": method(tax_year, homes["count"], r1),
         }
         result["average_bill"] = years[tax_year]["average_bill"]
     elif row is None:
@@ -124,7 +179,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     else:
         print(f"::warning::{name}'s homestead values on the parcel data add up to "
               f"{'nothing' if ratio is None else f'{ratio:.3f} times'} PVR's {tax_year} homestead grand list, outside "
-              f"{VALUE_CHECK[0]}–{VALUE_CHECK[1]}. Kept the saved tax bill.")
+              f"{VALUE_CHECK[0]}–{VALUE_CHECK[1]}"
+              + (", and its R1 parcels don't account for it" if ratio and ratio < VALUE_CHECK[0] else "")
+              + ". Kept the saved tax bill.")
         result["kept"] = sorted(years)
     if not years:
         raise FetchError(f"no tax bill for {name} yet: the parcel data's grand list year has no rates in the figures")

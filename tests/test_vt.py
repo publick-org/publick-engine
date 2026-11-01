@@ -26,6 +26,7 @@ NOW = datetime(2026, 10, 4, 8, tzinfo=ZoneInfo("America/New_York"))
 # Trimmed from the state's files: a few towns each, Burlington among them.
 WORKBOOKS = ["2025-tax-rates-taxes-and-tax-rates-by-county.xlsx", "TaxRates2023.xlsx",
              "2025-education-and-municipal-listed-and-equalized-grand-list-by-town.xlsx",
+             "2025-education-and-municipal-listed-values-and-equalized-values-by-category-town.xlsx",
              "edu-fy26-cohort-spending-by-school-type.xlsx"]
 # VCGI's parcel data and data.vermont.gov's answers for Burlington, recorded on 2026-10-04.
 ANSWERS = json.loads((VT / "answers.json").read_text())
@@ -57,17 +58,20 @@ def burlington() -> dict:
 
 
 class FakeVermont:
-    """The parcel data and data.vermont.gov, from the recorded answers. scale multiplies the parcel data's
-    homestead grand list, standing in for parcel data from another year than the PVR figures'."""
+    """The parcel data and data.vermont.gov, from the recorded answers. Each keyword multiplies the parcel data's
+    statistic of that name: homestead_list=1.2 stands in for parcel data from another year than the PVR figures',
+    homestead_list=0.885 for parcel data lacking some of the town's parcels, as Winooski's does."""
 
-    def __init__(self, scale=1.0):
+    def __init__(self, **scale):
         self.scale, self.urls = scale, []
 
     def get(self, url):
         self.urls.append(url)
         data = copy.deepcopy(ANSWERS[url])
-        if self.scale != 1.0 and "homestead_list" in url:
-            data["features"][0]["attributes"]["homestead_list"] *= self.scale
+        for feature in data.get("features", []) if "arcgis" in url else []:
+            for name, factor in self.scale.items():
+                if name in feature["attributes"]:
+                    feature["attributes"][name] *= factor
         return FakeJSONResponse(data)
 
 
@@ -88,6 +92,10 @@ def test_extract_reads_each_kind_of_workbook(vt_figures):
     spending = json.loads((vt_figures / "spending.json").read_text())["years"]["2026"]
     assert spending["T037"] == {"name": "Burlington", "pupils": 6972.03, "budget": 19331.5, "education_spending": 14825.07}
     assert spending["State"] == {"name": "State of Vermont", "budget": 16650.0, "education_spending": 13947.0}
+    # Only the category the tax bill uses, R1, of each town's rows by category.
+    categories = json.loads((vt_figures / "categories.json").read_text())["years"]["2025"]
+    assert categories["Burlington"] == {"R1": {"parcels": 9027, "education_listed_value": 3872070893}}
+    assert categories["Winooski"] == {"R1": {"parcels": 1342, "education_listed_value": 578552530}}
 
 
 def test_a_towns_districts_are_left_out(vt_figures):
@@ -118,9 +126,13 @@ def test_the_state_pages_lead_to_the_workbooks():
             '<a href="/document/rates">Tax Rates: Taxes and Tax Rates by County</a>'
             '<a href="/document/rates-pdf">Tax Rates: Taxes and Tax Rates by County (PDF)</a>'
             '<a href="/document/gl">Education and Municipal Listed and Equalized Grand List by Town</a>'
+            '<a href="/document/cat">Education and Municipal Listed Values and Equalized Vales by Category Town</a>'
+            '<a href="/document/cat-state">Education and Municipal Listed Values and Equalized Values by Category '
+            'Statewide</a>'
             '<a href="/document/other">Current Use Acreage Enrolled by Year</a>',
         "https://tax.vermont.gov/document/rates": '<a href="/sites/tax/files/documents/rates.xlsx">x</a>',
         "https://tax.vermont.gov/document/gl": '<a href="/sites/tax/files/documents/B-2.pdf">form</a>',
+        "https://tax.vermont.gov/document/cat": '<a href="/sites/tax/files/documents/cat.xlsx">x</a>',
         extract.SPENDING_PAGE: '<a href="https://education.vermont.gov/documents/fy26">FY 2026 Report</a>'
                                '<a href="https://education.vermont.gov/document/fy24">FY 2024 Report</a>',
         "https://education.vermont.gov/documents/fy26": '<a href="/sites/aoe/files/documents/fy26.xlsx">x</a>',
@@ -131,7 +143,9 @@ def test_the_state_pages_lead_to_the_workbooks():
             return type("Page", (), {"text": pages[url]})()
 
     # The grand list's page offers no workbook (only a PDF), and fiscal 2024 is before the pupil count changed.
+    # 2025's link says "Vales"; the statewide twin isn't read.
     assert extract.state_files(Pages()) == ["https://tax.vermont.gov/sites/tax/files/documents/rates.xlsx",
+                                           "https://tax.vermont.gov/sites/tax/files/documents/cat.xlsx",
                                            "https://education.vermont.gov/sites/aoe/files/documents/fy26.xlsx"]
 
 
@@ -164,10 +178,45 @@ def test_tax_bill_is_calculated_and_says_how(vt_figures, tmp_path):
 def test_tax_bill_is_kept_when_the_parcel_data_isnt_pvrs_year(vt_figures, tmp_path, capsys):
     fetch_finance.run(burlington(), FakeVermont(), tmp_path, now=NOW)
     before = json.loads((tmp_path / "finance" / "tax_bill.json").read_text())["years"]
-    result = fetch_finance.run(burlington(), FakeVermont(scale=1.2), tmp_path, now=NOW)
+    result = fetch_finance.run(burlington(), FakeVermont(homestead_list=1.2), tmp_path, now=NOW)
     assert "average_bill" not in result and result["kept"] == [2025]
     assert json.loads((tmp_path / "finance" / "tax_bill.json").read_text())["years"] == before
     assert "Kept the saved tax bill" in capsys.readouterr().out
+
+
+def test_tax_bill_is_calculated_when_the_parcel_data_lacks_parcels_other_than_r1(vt_figures, tmp_path):
+    # Winooski's parcel maps predate about 200 of its parcels, condominiums among them: its homesteads on the parcel
+    # data add up to 0.885 of PVR's homestead grand list, with every R1 parcel there.
+    result = fetch_finance.run(burlington(), FakeVermont(homestead_list=0.885, nonhomestead_list=0.85), tmp_path,
+                               now=NOW)
+    assert result["average_bill"] == 10043 and result["value_ratio"] == 0.885
+    assert result["r1_parcels"] == [9061, 9027]
+    year = json.loads((tmp_path / "finance" / "tax_bill.json").read_text())["years"][-1]
+    assert year["calculated"] == vt_tax_bill.method(2025, 5674, (9061, 9027))
+    assert year["calculated"].endswith("has 9,061 of the 9,027 residences on less than six acres the Department of "
+                                       "Taxes counts for 2025.")
+
+
+@pytest.mark.parametrize("scale, why", [
+    # Its R1 parcels add up to less than PVR's R1: the homes averaged aren't all there.
+    ({"r1_homestead_list": 0.8}, "R1 parcels on the parcel data"),
+    # Its other parcels are all there: the homesteads missing are homes without their declarations.
+    ({}, "by more than the parcels it lacks"),
+])
+def test_tax_bill_is_kept_when_r1_doesnt_account_for_the_shortfall(vt_figures, tmp_path, capsys, scale, why):
+    fetch_finance.run(burlington(), FakeVermont(), tmp_path, now=NOW)
+    result = fetch_finance.run(burlington(), FakeVermont(homestead_list=0.885, **scale), tmp_path, now=NOW)
+    assert "average_bill" not in result and "r1_parcels" not in result and result["kept"] == [2025]
+    out = capsys.readouterr().out
+    assert why in out and "R1 parcels don't account for it. Kept the saved tax bill." in out
+
+
+def test_tax_bill_needs_no_category_figures_when_the_homesteads_add_up(vt_figures, tmp_path):
+    (vt_figures / "categories.json").unlink()
+    figures.load.cache_clear()
+    fake = FakeVermont()
+    assert fetch_finance.run(burlington(), fake, tmp_path, now=NOW)["average_bill"] == 10043
+    assert not any("CAT+%3D+%27R1%27&" in url for url in fake.urls), "no R1 query when the homesteads add up"
 
 
 def test_budget_figures(vt_figures, tmp_path):

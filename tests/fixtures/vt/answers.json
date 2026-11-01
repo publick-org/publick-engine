@@ -869,5 +869,102 @@
     }
    }
   ]
+ },
+ "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?where=TNAME+%3D+%27Burlington%27+AND+CAT+%3D+%27R1%27&f=json&outStatistics=%5B%7B%22statisticType%22%3A+%22count%22%2C+%22onStatisticField%22%3A+%22OBJECTID%22%2C+%22outStatisticFieldName%22%3A+%22count%22%7D%2C+%7B%22statisticType%22%3A+%22sum%22%2C+%22onStatisticField%22%3A+%22GLVAL_HS%22%2C+%22outStatisticFieldName%22%3A+%22r1_homestead_list%22%7D%2C+%7B%22statisticType%22%3A+%22sum%22%2C+%22onStatisticField%22%3A+%22GLVAL_NR%22%2C+%22outStatisticFieldName%22%3A+%22r1_nonhomestead_list%22%7D%5D": {
+  "objectIdFieldName": "OBJECTID",
+  "uniqueIdField": {
+   "name": "OBJECTID",
+   "isSystemMaintained": true
+  },
+  "globalIdFieldName": "",
+  "geometryProperties": {
+   "shapeAreaFieldName": "Shape__Area",
+   "shapeLengthFieldName": "Shape__Length",
+   "units": "esriMeters"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+   "wkid": 32145,
+   "latestWkid": 32145
+  },
+  "fields": [
+   {
+    "name": "count",
+    "type": "esriFieldTypeInteger",
+    "alias": "count",
+    "sqlType": "sqlTypeInteger",
+    "domain": null,
+    "defaultValue": null
+   },
+   {
+    "name": "r1_homestead_list",
+    "type": "esriFieldTypeDouble",
+    "alias": "r1_homestead_list",
+    "sqlType": "sqlTypeFloat",
+    "domain": null,
+    "defaultValue": null
+   },
+   {
+    "name": "r1_nonhomestead_list",
+    "type": "esriFieldTypeDouble",
+    "alias": "r1_nonhomestead_list",
+    "sqlType": "sqlTypeFloat",
+    "domain": null,
+    "defaultValue": null
+   }
+  ],
+  "features": [
+   {
+    "attributes": {
+     "count": 9061,
+     "r1_homestead_list": 23325201.609999992,
+     "r1_nonhomestead_list": 15504428.590000002
+    }
+   }
+  ]
+ },
+ "https://services1.arcgis.com/BkFxaEFNwHqX3tAw/arcgis/rest/services/FS_VCGI_OPENDATA_Cadastral_VTPARCELS_poly_standardized_parcels_SP_v1/FeatureServer/0/query?where=TNAME+%3D+%27Burlington%27+AND+1%3D1&f=json&outStatistics=%5B%7B%22statisticType%22%3A+%22count%22%2C+%22onStatisticField%22%3A+%22OBJECTID%22%2C+%22outStatisticFieldName%22%3A+%22count%22%7D%2C+%7B%22statisticType%22%3A+%22sum%22%2C+%22onStatisticField%22%3A+%22GLVAL_NR%22%2C+%22outStatisticFieldName%22%3A+%22nonhomestead_list%22%7D%5D": {
+  "objectIdFieldName": "OBJECTID",
+  "uniqueIdField": {
+   "name": "OBJECTID",
+   "isSystemMaintained": true
+  },
+  "globalIdFieldName": "",
+  "geometryProperties": {
+   "shapeAreaFieldName": "Shape__Area",
+   "shapeLengthFieldName": "Shape__Length",
+   "units": "esriMeters"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+   "wkid": 32145,
+   "latestWkid": 32145
+  },
+  "fields": [
+   {
+    "name": "count",
+    "type": "esriFieldTypeInteger",
+    "alias": "count",
+    "sqlType": "sqlTypeInteger",
+    "domain": null,
+    "defaultValue": null
+   },
+   {
+    "name": "nonhomestead_list",
+    "type": "esriFieldTypeDouble",
+    "alias": "nonhomestead_list",
+    "sqlType": "sqlTypeFloat",
+    "domain": null,
+    "defaultValue": null
+   }
+  ],
+  "features": [
+   {
+    "attributes": {
+     "count": 10818,
+     "nonhomestead_list": 33693168.500000015
+    }
+   }
+  ]
  }
 }

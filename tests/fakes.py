@@ -531,6 +531,19 @@ class FakeLinkPage:
     the saved page of the board itself, and `replaced` any page by its address; `missing` lists
     Drive files that answer with a sign-in page instead."""
     METHUEN = "https://www.methuen.k12.ma.us/school-community/meetings-documents"
+    WINOOSKI = "https://www.wsdvt.org/school-board/board-agenda/"
+    WINOOSKI_MINUTES = "https://www.wsdvt.org/school-board/board-minutes/"
+    SOUTH_BURLINGTON = "https://www.sbschools.net/page/school-board"
+    # Where Apptegy's short links on South Burlington's page lead (HEAD, answered 301), recorded 2026-11-01.
+    THRILLSHARE = "https://files-backend.assets.thrillshare.com/documents/asset/uploaded_file/4049/Sbsd/"
+    SHORT_LINKS = {
+        "https://aptg.co/LJKxnt": THRILLSHARE + "f3369d70-b9fb-4019-9765-981afab3d279/November-4-Regular-Meeting-Agenda---"
+                                                "South-Burlington-School-Board.pdf?disposition=inline",
+        "https://aptg.co/7ddYQz": THRILLSHARE + "f2ad036d-bf08-4a15-9a42-5cb5125aec66/10-21-26-School-Board-Meeting-"
+                                                "Minutes---Unapproved.pdf?disposition=inline",
+        "https://aptg.co/8qb4bT": THRILLSHARE + "8abd7250-8f46-4faf-9abe-4cb46f5520cf/October-7-School-Board-Meeting-"
+                                                "Minutes---APPROVED.pdf?disposition=inline",
+    }
     WALTHAM = "https://www.walthampublicschools.org/minutes-and-documentation"
     NASHUA = "https://www.nashua.edu/our-district/board-of-education/boe-meeting-agendas-and-minutes"
     NASHUA_POLICY = NASHUA + "/policy"
@@ -538,16 +551,29 @@ class FakeLinkPage:
     def __init__(self, page: str | None = None, missing: tuple = (), replaced: dict | None = None):
         self.pages = {self.METHUEN: FIXTURES / "linkpage_methuen.html", self.WALTHAM: FIXTURES / "linkpage_waltham.html",
                       self.NASHUA: FIXTURES / "linkpage_nashua.html",
-                      self.NASHUA_POLICY: FIXTURES / "linkpage_nashua_policy.html"}
+                      self.NASHUA_POLICY: FIXTURES / "linkpage_nashua_policy.html",
+                      self.WINOOSKI: FIXTURES / "linkpage_winooski_agendas.html",
+                      self.WINOOSKI_MINUTES: FIXTURES / "linkpage_winooski_minutes.html",
+                      self.SOUTH_BURLINGTON: FIXTURES / "linkpage_south_burlington.html"}
         self.page = page
         self.replaced = replaced or {}
         self.missing = missing
         self.pdf = (FIXTURES / "finalsite_doc.pdf").read_bytes()
         self.urls = []
+        self.heads = []
         self.request_count = 0
+
+    def location(self, url):
+        """A short link's target, as PoliteClient.location gives it."""
+        self.heads.append(url)
+        self.request_count += 1
+        if url not in self.SHORT_LINKS:
+            raise AssertionError(f"unexpected short link {url}")
+        return self.SHORT_LINKS[url]
 
     def get(self, url):
         import re
+        from urllib.parse import urlparse
         self.urls.append(url)
         self.request_count += 1
         if url in self.replaced:
@@ -561,6 +587,9 @@ class FakeLinkPage:
                 return FakeResponse(b"<html>Sign in</html>")
             return FakeResponse(self.pdf + f"\n% file {drive.group(1)}\n".encode(),
                                 {"content-disposition": f'attachment; filename="{drive.group(1)}.pdf"'})
+        doc = re.fullmatch(r"https://docs\.google\.com/document/d/([\w-]+)/export\?format=pdf", url)
+        if doc or urlparse(url).path.lower().endswith(".pdf"):
+            return FakeResponse(self.pdf + f"\n% file {doc.group(1) if doc else url}\n".encode())
         raise AssertionError(f"unexpected URL {url}")
 
 
