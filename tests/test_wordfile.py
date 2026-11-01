@@ -99,3 +99,16 @@ def test_other_files_are_still_refused(malden, tmp_path):
     summary = fetch_minutes.run_linked(malden, WordAgendaCenter(PAGE, b"\xd0\xcf\x11\xe0 an old .doc"), tmp_path, now=NOW)
     assert summary["minutes_added"] == 0
     assert "not a PDF or a Word (.docx) file" in summary["errors"][0]
+
+
+def test_word_agendas_are_saved_as_a_pdf(malden, tmp_path):
+    fetch_meetings.run(malden, WordAgendaCenter(PAGE, MINUTES), tmp_path, now=NOW)
+    finance = load_store(tmp_path)["agendacenter-4453"]
+    agenda = finance["agendas"][0]
+    assert agenda["converted_from"] == "docx" and agenda["has_text"] is True
+    assert (tmp_path / "meetings" / "agendas" / f"{agenda['id']}.pdf").read_bytes().startswith(b"%PDF")
+
+
+def test_other_agenda_files_are_still_refused(malden, tmp_path):
+    fetch_meetings.run(malden, WordAgendaCenter(PAGE, b"\xd0\xcf\x11\xe0 an old .doc"), tmp_path, now=NOW)
+    assert not load_store(tmp_path)["agendacenter-4453"].get("agendas")

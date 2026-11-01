@@ -2,7 +2,8 @@
 
 Writes data/meetings/meetings.json (one record per meeting, never deleted) and
 saves each posted agenda PDF under data/meetings/agendas/ (or in the town's
-bucket; see pipeline/documents.py). Changes the city
+bucket; see pipeline/documents.py); an agenda posted as a Word file (.docx)
+is saved as a PDF of its text (pipeline/wordfile.py). Changes the city
 makes after posting (new time, new place, revised agenda, cancellation) are
 recorded in each meeting's history so they stay visible.
 
@@ -47,7 +48,7 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, legistar, primegov, schedule
+from pipeline import agendacenter, civicclerk, civicplus, dnn, filelist, ical, identity, legistar, primegov, schedule, wordfile
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
@@ -148,9 +149,12 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str) -> Non
     if any(a["id"] == agenda_id for a in agendas):
         return
     response = client.get(details["agenda_url"])
-    content = response.content
+    content, converted = response.content, None
+    if wordfile.is_docx(content):
+        # Saved as a PDF of its text (pipeline/wordfile.py); the page links the saved copy.
+        content, converted = wordfile.to_pdf(content), "docx"
     if not content.startswith(b"%PDF"):
-        raise FetchError(f"agenda {agenda_id} is not a PDF")
+        raise FetchError(f"agenda {agenda_id} is not a PDF or a Word (.docx) file")
     disposition = response.headers.get("content-disposition", "")
     filename = re.search(r'filename="?([^";]+)', disposition)
     name = f"{agenda_id}.pdf"
@@ -166,6 +170,7 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str) -> Non
         "bytes": len(content),
         "has_text": pdf_has_text(content),
         "fetched_at": now,
+        **({"converted_from": converted} if converted else {}),
     })
 
 

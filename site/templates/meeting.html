@@ -153,7 +153,7 @@
   {% endfor %}
   {% endif %}
   {% if m.minutes_doc %}{% set __ = links.append({"url": document_url('minutes', m.minutes_doc.file) if m.minutes_doc.get('converted_from') else m.minutes_doc.source_url, "label": _("Minutes (PDF)")}) %}{% endif %}
-  {% if m.agenda %}{% set __ = links.append({"url": m.agenda.source_url, "label": _("Agenda (PDF)")}) %}
+  {% if m.agenda %}{% set __ = links.append({"url": document_url('agendas', m.agenda.file) if m.agenda.get('converted_from') else m.agenda.source_url, "label": _("Agenda (PDF)")}) %}
   {% elif m.documents_url %}{% set __ = links.append({"url": m.documents_url, "label": _("Agenda and minutes") if m.source == "civicclerk" and not upcoming else _("Agenda")}) %}{% endif %}
   {% if m.transcript_doc and m.status != "cancelled" %}
   {% set transcripts = m.transcript_doc.get("parts") or [m.transcript_doc] %}
