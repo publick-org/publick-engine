@@ -10,7 +10,9 @@ as in its files.
     [finance]  dra_municipality (the town's name in the DRA's files); optional parcels_town (its name on
                the parcel map, if different), budget_table_url and budget_table_name (the city's budget
                table; see budget.py), and budget_documents_url
-    [schools]  doe_district (the district's name in the Department of Education's files), district_name
+    [schools]  doe_district (the district's name in the Department of Education's files), district_name,
+               and graduation_school (optional: the high school a district without one sends its students
+               to, as the files name it, "Pinkerton Academy", for the graduation rate)
 """
 
 from pipeline.i18n import N_

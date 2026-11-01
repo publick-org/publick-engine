@@ -249,3 +249,45 @@ def test_nh_dashes_are_explained(nh_site):
     """Every – in a table has a legend on its page, as the site checks require."""
     from test_absences import assert_dashes_explained
     assert_dashes_explained(nh_site)
+
+
+def test_a_district_without_a_high_school(tmp_path):
+    """Derry Cooperative's students go to Pinkerton Academy: the graduation rate is the
+    academy's, named on the page, and the district's other figures are its own, found
+    whatever the spaces in its name ("Derry  Cooperative" in the cost per pupil file).
+    From the engine's own saved figures."""
+    figures.load.cache_clear()
+    config = manchester()
+    config["schools"] = {"doe_district": "Derry Cooperative", "district_name": "Derry Cooperative School District",
+                         "graduation_school": "Pinkerton Academy"}
+    latest = fetch_schools.run(config, None, tmp_path, now=NOW)
+    year, academy = figures.rows("graduation", "Pinkerton Academy")[-1]
+    assert latest["graduation"]["year"] == year and latest["graduation"]["town"] == academy["rate"]
+    assert latest["graduation"]["cohort"] == academy["cohort"]
+    assert latest["cost_per_pupil"] is not None and latest["sas_ela"] is not None
+    saved = json.loads((tmp_path / "schools" / "schools.json").read_text())
+    assert saved["measures"]["graduation"]["school"] == "Pinkerton Academy"
+    assert figures.same_name("Derry  Cooperative", "Derry Cooperative") and not figures.same_name("Derry", "Derry Cooperative")
+    figures.load.cache_clear()
+
+
+def test_schools_page_names_the_high_school(nh_figures, tmp_path, data_dir, monkeypatch):
+    """The page names the school whose graduation rate it shows."""
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    for name in ("finance", "schools"):
+        shutil.rmtree(data / name, ignore_errors=True)
+    config = manchester()
+    fetch_finance.run(config, FakeParcels(), data, now=NOW)
+    fetch_budget.run(config, FakeCity(), data, now=NOW)
+    fetch_schools.run(config, None, data, now=NOW)
+    saved = data / "schools" / "schools.json"
+    schools = json.loads(saved.read_text())
+    schools["measures"]["graduation"]["school"] = "Pinkerton Academy"
+    saved.write_text(json.dumps(schools))
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    page = (out / "schools" / "index.html").read_text()
+    assert "these are the figures for Pinkerton Academy, where its students go to high school" in page
+    assert '<th scope="col" class="num">Pinkerton Academy</th>' in page
