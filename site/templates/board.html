@@ -113,14 +113,14 @@
 </ul>
 
 {% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule", "meetingdocs", "sharpschool"]) | list)[:1] %}
-{% set portal = (b.meetings | selectattr("source", "equalto", "diligent") | list)[:1] %}
+{% set portal = (b.meetings | selectattr("source", "in", ["diligent", "boardbook"]) | list)[:1] %}
 {% set opengov = (b.meetings | selectattr("source", "equalto", "opengov") | list)[:1] %}
 {# Translators: %(month)s is a month and year, such as "January 2026". #}
 <p class="source-note" data-about>{% trans month=b.meetings[-1].date | date("month") %}Meetings recorded here start in {{ month }}.{% endtrans %} {% if opengov %}
 {% trans url=opengov[0].source_url %}Earlier meetings are on the <a href="{{ url }}">state's Open Meetings portal</a>.{% endtrans %}
 {% elif portal %}
 {# Translators: %(name)s is a school district, such as "Burlington School District". #}
-{% trans url=config.diligent_meetings.page_url, name=portal[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} meeting portal</a>.{% endtrans %}
+{% trans url=config[portal[0].source ~ "_meetings"].page_url, name=portal[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} meeting portal</a>.{% endtrans %}
 {% elif drive %}
 {# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}
 {% trans url=drive[0].source_url, name=drive[0].source_name %}Earlier meetings are on the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}
