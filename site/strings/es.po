@@ -1366,6 +1366,18 @@ msgstr ""
 #: site/pages/about/index.html
 #, python-format
 msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the Rhode Island Secretary of State's <a "
+"href=\"%(url)s\">Open Meetings portal</a>, where every public body in the state files its notices"
+" and minutes, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(url)s\">portal de Reuniones "
+"Abiertas</a> de la Secretaría de Estado de Rhode Island, donde cada organismo público del estado "
+"presenta sus avisos y actas, desde %(since)s."
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
 "<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(calendar)s\">calendar</a>"
 " and <a href=\"%(archive)s\">Archive Center</a>. Copies are saved when posted. Minutes are "
 "collected from %(since)s on."
@@ -3715,6 +3727,15 @@ msgid ""
 msgstr ""
 "De la Encuesta sobre la Comunidad Estadounidense (ACS) de la Oficina del Censo, que encuesta a "
 "una muestra de hogares durante cinco años (%(years)s)."
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid ""
+"From the Rhode Island Secretary of State's <a href=\"%(url)s\">Open Meetings portal</a>, where "
+"every public body in the state files its notices and minutes."
+msgstr ""
+"Del <a href=\"%(url)s\">portal de Reuniones Abiertas</a> de la Secretaría de Estado de Rhode "
+"Island, donde cada organismo público del estado presenta sus avisos y actas."
 
 #: site/pages/meetings/index.html
 #, python-format

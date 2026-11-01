@@ -966,12 +966,17 @@ def home_meetings(this_week: list[dict], main: list[str]) -> dict:
     return {"count": len(this_week), "full": full, "more": more, "hidden": len(more) > 1}
 
 
+# The [meetings] tables that read the city's own meeting listings (fetch_meetings.calendars).
+CITY_MEETING_READERS = ("civicplus", "calendar_feed", "agenda_center", "civicclerk", "legistar", "primegov", "dnn", "file_list")
+
+
 def meeting_links(config: dict) -> dict:
     """The city's own meeting pages, linked from this site's, and whether the
     town collects agendas and minutes ([meetings] documents, default true). The
     defaults are a CivicPlus site's addresses."""
     m = config.get("meetings", {})
     base = m.get("base_url", "").rstrip("/")
+    opengov_only = "opengov_meetings" in config and not any(k in m for k in CITY_MEETING_READERS)
     return {
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
         "portal": m.get("civicclerk", {}).get("portal_url") or (
@@ -987,10 +992,13 @@ def meeting_links(config: dict) -> dict:
         "has_calendar": any(k in m for k in ("calendar_feed", "civicplus", "dnn", "file_list")),
         "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
+        # A town whose every meeting comes from Rhode Island's Open Meetings portal: no reader of
+        # the city's own in [meetings], so its pages name the portal as the source of them all.
+        "opengov_only": opengov_only,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
                               "meetingdocs_meetings", "sharpschool_meetings", "ical_meetings")
-                    if t in config]
+                    if t in config and not (t == "opengov_meetings" and opengov_only)]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),
     }
