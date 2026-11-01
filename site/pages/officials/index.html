@@ -55,7 +55,7 @@
 <div class="page-head">
   <h1>{{ _("Who represents you") }}</h1>
   <p class="lede">{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
-  <p class="source-note">{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
+  <p class="source-note" data-about>{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
   {% if o.out_of_date %}{% set due = o.out_of_date %}
   <p class="source-note"><strong class="flag">{% if due.seated %}{% trans day=due.seated | date("plain") %}That was before new members took office on {{ day }}, so some members or officers may have changed.{% endtrans %}{% elif due.terms %}{% trans month=due.terms | date("month") %}That was before new terms began in {{ month }}, so some members may have changed.{% endtrans %}{% else %}{% trans election=due.election | date("plain") %}That was before the election of {{ election }}, so some members may have changed.{% endtrans %}{% endif %}</strong></p>
   {% endif %}
@@ -138,6 +138,8 @@
 <div class="ward-result" id="ward-result" role="status" aria-live="polite"></div>
 {% endif %}
 <p>{{ say.citywide }}</p>
+{# A ward's own members, where any ward elects one: with none, every ward's card would only say so. #}
+{% if o.wards | selectattr("members") | list %}
 <ul class="ward-list">
   {% for w in o.wards %}
   <li id="{{ w.id }}" data-ward="{{ w.ward }}">
@@ -152,6 +154,7 @@
   </li>
   {% endfor %}
 </ul>
+{% endif %}
 {# No seat elected by a ward (pipeline/officials.py at_large): no map, and nothing to explain. #}
 {% elif not o.at_large %}
 <p data-gap="no-ward-map">{{ say.no_map }}</p>
@@ -173,7 +176,7 @@
 {% endif %}
 <div class="table-wrap">
 <table class="data-table officials">
-  <thead><tr>{% if b.show_seat %}<th scope="col">{{ _("Seat") }}</th>{% endif %}<th scope="col">{{ _("Member") }}</th><th scope="col">{{ _("Term ends") }}</th><th scope="col">{{ _("Contact") }}</th></tr></thead>
+  <thead><tr>{% if b.show_seat %}<th scope="col">{{ _("Seat") }}</th>{% endif %}<th scope="col">{{ _("Member") }}</th>{% if b.members | selectattr("term_ends") | list %}<th scope="col">{{ _("Term ends") }}</th>{% endif %}<th scope="col">{{ _("Contact") }}</th></tr></thead>
   <tbody>
   {% for m in b.members %}
     <tr id="{{ m.anchor }}">
@@ -190,7 +193,7 @@
         {% trans wards=ward_links[:-1] | join(", "), last=ward_links[-1] %}(Wards {{ wards }} and {{ last }}){% endtrans %}
         {%- endif %}</span>{% endif %}{% endif %}</td>{% endif %}
       <th scope="row">{% if m.get("url") %}<a href="{{ m.url }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% if m.get("role") %}<span class="cell-note"> · {{ m.role }}</span>{% endif %}</th>
-      <td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>
+      {% if b.members | selectattr("term_ends") | list %}<td>{{ m.term_ends | month_long if m.term_ends else "–" }}</td>{% endif %}
       <td>
         {%- if m.get("email") %}<a href="mailto:{{ m.email }}">{% trans name=m.name %}Email<span class="visually-hidden"> {{ name }}</span>{% endtrans %}</a>{% endif %}
         {%- if m.get("email") and m.get("phone") %}<br>{% endif %}
@@ -205,5 +208,5 @@
 {% endfor %}
 
 {% if o.dashes %}<p class="small dash-legend">{{ _("– means no official source gives it: the end of a term, or a city- or school-issued email address or office phone.") }}</p>{% endif %}
-<p class="source-note">{% trans %}Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.{% endtrans %}</p>
+<p class="source-note" data-about>{% trans %}Spot a mistake, or a change the city has made? See <a href="/about/#corrections">Corrections</a>.{% endtrans %}</p>
 {% endblock %}

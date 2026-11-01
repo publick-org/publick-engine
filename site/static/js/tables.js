@@ -5,6 +5,33 @@
 // order doesn't grow on a wide screen. Checked again when the box changes size:
 // a table in a closed <details> has no size until it opens. A box given its
 // place in the template (tabindex) is left as it is.
+// A table of years, newest first, marked data-fold shows its latest years and a button for the
+// rest; the attribute holds the button's label. Without this script every year shows.
+(function () {
+  "use strict";
+  var SHOWN = 5;
+  var tables = document.querySelectorAll("table[data-fold]");
+  for (var i = 0; i < tables.length; i++) fold(tables[i]);
+
+  function fold(table) {
+    var rows = table.tBodies.length ? table.tBodies[0].rows : [];
+    // Hiding one or two rows saves less than the button costs.
+    if (rows.length <= SHOWN + 2) return;
+    var hidden = [];
+    for (var r = SHOWN; r < rows.length; r++) { rows[r].hidden = true; hidden.push(rows[r]); }
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "fold-more";
+    button.textContent = table.getAttribute("data-fold");
+    button.addEventListener("click", function () {
+      for (var h = 0; h < hidden.length; h++) hidden[h].hidden = false;
+      button.remove();
+    });
+    var box = table.closest(".table-wrap") || table;
+    box.parentNode.insertBefore(button, box.nextSibling);
+  }
+})();
+
 (function () {
   "use strict";
   if (!window.ResizeObserver) return;

@@ -1852,7 +1852,7 @@ msgstr "Sobre los resúmenes hechos con IA"
 msgid "About these decisions"
 msgstr "Sobre estas decisiones"
 
-#: site/templates/meeting.html
+#: pipeline/build_site.py site/templates/meeting.html
 msgid "About this page"
 msgstr "Sobre esta página"
 
@@ -2070,10 +2070,6 @@ msgstr "Todas las viviendas"
 #: site/pages/index.html
 msgid "All meetings"
 msgstr "Todas las reuniones"
-
-#: site/templates/board.html
-msgid "All recorded meetings"
-msgstr "Todas las reuniones registradas"
 
 #: site/pages/311/index.html
 msgid "All repeat locations"
@@ -2742,7 +2738,7 @@ msgstr "Las solicitudes cerradas se archivan después de 7 días. Cuentan como c
 msgid "Color is never the only way information is shown."
 msgstr "El color nunca es la única forma de mostrar la información."
 
-#: site/pages/index.html
+#: site/pages/index.html site/templates/board.html
 msgid "Coming up"
 msgstr "Lo que viene"
 
@@ -4507,7 +4503,7 @@ msgstr "Última revisión: <time datetime=\"%(iso)s\">%(when)s</time>."
 msgid "Last reviewed <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Revisado por última vez el <time datetime=\"%(iso)s\">%(when)s</time>."
 
-#: site/pages/meetings/index.html
+#: site/pages/meetings/index.html site/templates/board.html
 msgid "Later, no agenda yet"
 msgstr "Más adelante, sin agenda todavía"
 
@@ -5305,10 +5301,6 @@ msgid "Next meeting <time datetime=\"%(iso)s\">%(when)s</time>"
 msgstr "Próxima reunión: <time datetime=\"%(iso)s\">%(when)s</time>"
 
 #: site/templates/board.html
-msgid "Next meeting details"
-msgstr "Detalles de la próxima reunión"
-
-#: site/templates/board.html
 #, python-format
 msgid "Next meeting: %(when)s"
 msgstr "Próxima reunión: %(when)s"
@@ -5809,7 +5801,7 @@ msgstr ""
 "Últimos 12 meses. Las diferencias reflejan en parte con qué frecuencia la gente de cada distrito "
 "informa problemas."
 
-#: site/pages/meetings/index.html site/pages/meetings/past/index.html
+#: site/pages/meetings/index.html site/pages/meetings/past/index.html site/templates/board.html
 msgid "Past meetings"
 msgstr "Reuniones pasadas"
 
@@ -6644,6 +6636,21 @@ msgid "Show %(count)s more meeting this week"
 msgid_plural "Show %(count)s more meetings this week"
 msgstr[0] "Ver %(count)s reunión más de esta semana"
 msgstr[1] "Ver %(count)s reuniones más de esta semana"
+
+#: site/templates/board.html
+#, python-format
+msgid "Show %(n)s earlier meeting"
+msgid_plural "Show %(n)s earlier meetings"
+msgstr[0] "Mostrar %(n)s reunión anterior"
+msgstr[1] "Mostrar %(n)s reuniones anteriores"
+
+#: site/pages/housing/index.html site/states/ct/budget.html site/states/ct/schools.html
+#: site/states/ma/budget.html site/states/ma/schools.html site/states/me/budget.html
+#: site/states/me/schools.html site/states/nh/budget.html site/states/nh/schools.html
+#: site/states/ri/budget.html site/states/ri/schools.html site/states/vt/budget.html
+#: site/states/vt/schools.html
+msgid "Show earlier years"
+msgstr "Mostrar años anteriores"
 
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -8660,7 +8667,7 @@ msgstr "jueves"
 msgid "Time"
 msgstr "Hora"
 
-#: site/pages/meetings/index.html site/templates/macros.html
+#: site/pages/meetings/index.html site/templates/board.html site/templates/macros.html
 msgid "Time TBA"
 msgstr "Hora por anunciar"
 

@@ -25,7 +25,7 @@
   <p>{{ source_311.settings.scope_note }}</p>
   {% endif %}
   {% if sc %}
-  <p class="source-note">{% trans iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
+  <p class="source-note" data-about>{% trans iso=sc.get("fetched_at") or sc.generated_at, when=(sc.get("fetched_at") or sc.generated_at) | timestamp %}Requests submitted in the past 12 months. Updated <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
   {% endif %}
   {{ city_report_button(config) }}
 </div>
@@ -66,15 +66,11 @@
   </div></li>
 </ul>
 {% if o.checked %}
-<ul class="small plain-list">
-  <li>{% trans acknowledged=o.acknowledged | number, checked=o.checked | number, percent=(o.acknowledged / o.checked * 100) | round | int %}City staff acknowledged {{ acknowledged }} of {{ checked }} requests ({{ percent }}%).{% endtrans %}{% if o.get("closed_unacknowledged") %} {% trans num=o.closed_unacknowledged | number %}Another {{ num }} were closed without being acknowledged first.{% endtrans %}{% endif %}</li>
-  <li>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</li>
-  {% if o.checked < o.received %}<li>{% trans checked=o.checked | number, received=o.received | number %}Acknowledgment times are known for {{ checked }} of {{ received }} requests so far. The rest are being looked up.{% endtrans %}</li>{% endif %}
-</ul>
+  <p class="small" data-about>{% trans acknowledged=o.acknowledged | number, checked=o.checked | number, percent=(o.acknowledged / o.checked * 100) | round | int %}City staff acknowledged {{ acknowledged }} of {{ checked }} requests ({{ percent }}%).{% endtrans %}{% if o.get("closed_unacknowledged") %} {% trans num=o.closed_unacknowledged | number %}Another {{ num }} were closed without being acknowledged first.{% endtrans %}{% endif %}</p>
+  <p class="small" data-about>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</p>
+  {% if o.checked < o.received %}<p class="small" data-about>{% trans checked=o.checked | number, received=o.received | number %}Acknowledgment times are known for {{ checked }} of {{ received }} requests so far. The rest are being looked up.{% endtrans %}</p>{% endif %}
 {% elif not source_311.acknowledged %}
-<ul class="small plain-list">
-  <li>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</li>
-</ul>
+<p class="small" data-about>{% trans closed=o.closed | number, open=o.open | number %}Time to close counts only the {{ closed }} closed requests. The {{ open }} still open are left out.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Monthly ---- #}
@@ -255,7 +251,7 @@
 </ul>
 {% endif %}
 
-<p class="source-note">{% if source_311.table != "seeclickfix" %}{{ portal_credit(source_311) }} {% trans since=sc.data_since | date("plain") %}Recorded back to {{ since }}.{% endtrans %}{% else %}{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
+<p class="source-note" data-about>{% if source_311.table != "seeclickfix" %}{{ portal_credit(source_311) }} {% trans since=sc.data_since | date("plain") %}Recorded back to {{ since }}.{% endtrans %}{% else %}{% trans %}Data from <a href="https://seeclickfix.com">seeclickfix.com</a>, used under the <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/">CC BY-NC-SA 3.0</a> license.{% endtrans %} {% trans since=sc.data_since | date("plain") %}Public requests only;
 recorded back to {{ since }}.{% endtrans %}{% endif %} {# Translators: "Not enough data" is what a typical time shows when there are too few requests; use the same words as its translation. #}{% trans min=sc.min_sample %}A typical time from fewer than {{ min }} requests shows "Not enough data".{% endtrans %} <span class="dash-legend">{% if not source_311.locations and has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests with no ward recorded, no population to count per 1,000 residents.{% endtrans %}{% elif not has_areas %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time.{% endtrans %}{% elif areas == "precincts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the precincts, no population to count per 1,000 residents.{% endtrans %}{% elif areas == "districts" %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the districts, no population to count per 1,000 residents.{% endtrans %}{% else %}{% trans min=sc.min_sample %}In the tables, – means fewer than {{ min }} requests, too few for a typical time, or, for requests outside the wards, no population to count per 1,000 residents.{% endtrans %}{% endif %}</span> <a href="/311/methodology/">{{ _("Methodology") }}</a>.</p>
 {% endif %}
 {% endblock %}
