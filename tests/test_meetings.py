@@ -79,6 +79,19 @@ def test_parse_event_page():
     }
 
 
+@pytest.mark.parametrize("href, kept", [
+    ("https://gloucester-ma-gov.zoom.us/j/86129893412", "https://gloucester-ma-gov.zoom.us/j/86129893412"),
+    ("https://us02web.zoom.us/webinar/register/WN_abc", "https://us02web.zoom.us/webinar/register/WN_abc"),
+    ("/1183/Traffic-Operations-Committee", None),
+    ("https://www.concordnh.gov/Archive.aspx?AMID=40", None),
+    ("https://www.youtube.com/@CityofConcordNH/streams", None),
+    ("https://zoom.us.example.com/j/1", None),
+])
+def test_parse_event_page_keeps_only_zoom_links(href, kept):
+    page = f'<a id="ctl00_lnkLink" href="{href}">Link</a>'
+    assert civicplus.parse_event_page(page, BASE).get("remote_url") == kept
+
+
 def test_parse_event_page_without_agenda():
     assert civicplus.parse_event_page("<html><body>No details</body></html>", BASE) == {}
 

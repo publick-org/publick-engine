@@ -33,7 +33,8 @@ Without either key, videos are found and matched, and wait to be transcribed.
 
 A source with neither channel nor playlist takes the videos the town's own
 meeting listings link (a meeting's video_id, from PrimeGov's videoUrl,
-CivicClerk's externalMediaUrl, a Finalsite or link page's YouTube link):
+CivicClerk's externalMediaUrl, a Finalsite or link page's YouTube link, or a
+ClerkBase docket's, pipeline/clerkbase.py):
 each is matched to the meeting that links it, so its boards are only named,
 with no pattern, and nothing is read from a title. Where the link starts
 partway through the video (&t=), so does the transcript. This needs no

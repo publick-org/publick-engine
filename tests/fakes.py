@@ -614,11 +614,15 @@ class FakeOpenGov:
     1094488 is served the first page with its own file numbers, and 1082970 the first page
     marked "Annual Calendar". `upcoming` and `cancelled` are feed items ((id, "2026-10-27
     17:00") pairs) for those feeds, `pages` replaces a meeting's page by its id, and `content`
-    a file's bytes by its number."""
+    a file's bytes by its number. `dockets` are ClerkBase dockets by address (a docket of
+    Pawtucket's City Council, tests/fixtures/clerkbase_docket.htm, trimmed), each a page, or an
+    HTTP status to answer with; ClerkBase answers any other with 404."""
     BASE = "https://opengov.sos.ri.gov"
 
-    def __init__(self, upcoming=(), cancelled=(), pages: dict | None = None, content: dict | None = None):
+    def __init__(self, upcoming=(), cancelled=(), pages: dict | None = None, content: dict | None = None,
+                 dockets: dict | None = None):
         import re
+        self.dockets = dockets or {}
         minutes = (FIXTURES / "opengov_meeting_minutes.html").read_text()
         self.pages = {
             1093108: minutes,
@@ -658,6 +662,12 @@ class FakeOpenGov:
         found = re.fullmatch(rf"{re.escape(self.BASE)}/OpenMeetingsPublic/MeetingInformation\?MeetingID=(\d+)", url)
         if found:
             return FakeResponse(self.pages[int(found.group(1))].encode())
+        if url.startswith("https://clerkshq.com/"):
+            from pipeline.http import FetchError
+            docket = self.dockets.get(url, 404)
+            if isinstance(docket, int):
+                raise FetchError(f"{url}: HTTP {docket}", docket)
+            return FakeResponse(docket.encode())
         found = re.fullmatch(rf"{re.escape(self.BASE)}/Common/DownloadMeetingFiles\?FilePath=(.+)", url)
         if found:
             number = re.search(r"(\d+)\.pdf$", unquote(found.group(1))).group(1)

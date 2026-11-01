@@ -18,6 +18,15 @@ meetings first; a cancelled meeting's aren't saved. A page that's an annual cale
 isn't a meeting: it's left out, and listed in the run's summary. An upcoming
 meeting that leaves the feeds is marked as no longer listed.
 
+A board whose clerk posts its dockets on ClerkBase ([opengov_meetings.dockets]
+maps it to their folder) has each meeting's video read from its docket
+(pipeline/clerkbase.py): the docket of a meeting held, recent and not
+cancelled, with no video yet, is read each run until it links one, about a
+week after the meeting. The video is kept as the meeting's video_id, which its
+page links and a YouTube [[recordings.sources]] without a channel transcribes
+(pipeline/youtube.py). Where the board met twice that day, at different
+times, the docket's video isn't given to either.
+
 Usage:
     python -m pipeline.fetch_opengov_meetings [--town south-kingstown]
 """
@@ -32,7 +41,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import opengov
+from pipeline import clerkbase, opengov
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, merge, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
@@ -114,6 +123,34 @@ def save_documents(client, meeting: dict, page: dict, storage, settings: dict, s
             meeting[field] = docs
             counts["added"] += 1
     return True
+
+
+def link_videos(client, store: dict, settings: dict, today: str, recent: str, errors: list) -> int:
+    """Give each held, recent, not cancelled meeting of a board with ClerkBase dockets the video its
+    docket links (video_id), while it has none. Returns how many meetings were given one."""
+    days = {}
+    for meeting in store.values():
+        if (meeting.get("source") == opengov.SOURCE and meeting.get("body") in settings["dockets"]
+                and meeting["status"] != "cancelled" and recent <= meeting["date"] < today):
+            days.setdefault((meeting["body"], meeting["date"]), []).append(meeting)
+    linked = 0
+    for (board, day), meetings in sorted(days.items(), key=lambda kv: kv[0][1], reverse=True):
+        # A docket is the day's: with two meetings at different times, which one it is isn't known.
+        if all(m.get("video_id") for m in meetings) or len({m.get("start_time") for m in meetings}) > 1:
+            continue
+        url = clerkbase.docket_url(settings["dockets"][board], day)
+        try:
+            page = client.get(url).text
+        except FetchError as e:
+            # No docket by that name: one the clerk named otherwise, or hasn't posted.
+            if e.status != 404:
+                errors.append(str(e))
+            continue
+        video_id = clerkbase.video(page)
+        for meeting in meetings if video_id else ():
+            meeting["video_id"] = video_id
+            linked += 1
+    return linked
 
 
 def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
@@ -203,6 +240,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         else:
             waiting += 1
 
+    videos = link_videos(client, store, settings, today, recent, errors) if settings.get("dockets") else 0
+
     save_store(data_dir, store, config)
     status = {
         "updated_at": stamp,
@@ -211,6 +250,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "pages_read": checked,
         "documents_added": counts["added"],
         "meetings_waiting": waiting,
+        "videos_linked": videos,
         "requests": getattr(client, "request_count", None),
         "not_meetings": {str(k): v for k, v in sorted(not_meetings.items())},
         "errors": errors,
