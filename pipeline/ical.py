@@ -7,6 +7,12 @@ Committee's meetings: "Regular School Committee Meeting-BMS Library",
 Each event has an id (UID), a start (DTSTART, local time or a whole day), a
 title (SUMMARY) and sometimes a place (LOCATION) and a page (URL). Lines are
 folded at 75 characters and commas escaped, as the standard has it.
+
+A meeting's id is its event's UID: the number a numbered UID starts with
+(Beverly's "48810607@www.beverlyschools.org#20261125"), or the whole UID. A
+feed that gives its events a new UID each time it's read (Westbrook School
+Department's, on Apptegy) sets [ical_meetings] uid_changes, and its meetings'
+ids are their dates and boards (dated_id).
 """
 
 from __future__ import annotations
@@ -44,6 +50,31 @@ def parse_events(content: str) -> list[dict]:
     return events
 
 
+# A UID that's a number, alone or with more numbers, a host or a date after it: Beverly's (Edlio)
+# "48810607@www.beverlyschools.org#20261125", Somerville's "934-1793646000-1793646000@www.somerville.k12.ma.us".
+NUMBERED = re.compile(r"(\d+)(?:-\d+)*(?:[@#]|$)")
+
+
+def meeting_id(uid: str) -> str:
+    """A meeting's id from its event's UID: the UID's number, for a UID NUMBERED, or else the whole
+    UID (Westbrook's Apptegy feed: "2319c3cf-cdd4-48cd-89f7-e7d35837163c"), so two events whose UIDs
+    merely start with the same digits are two meetings."""
+    number = NUMBERED.match(uid)
+    return f"{SOURCE}-{number.group(1) if number else uid}"
+
+
+def dated_id(date: str, body: str, start_time: str | None = None) -> str:
+    """A meeting's id from its date and board (and its time, for a board's second meeting that day),
+    for a feed that gives its events a new UID each time it's read ([ical_meetings] uid_changes):
+    Westbrook School Department's (Apptegy) gives its "Policy Committee Meeting" of January 27, 2027
+    a new random UUID with every request."""
+    slug = "-".join(re.findall(r"[a-z0-9]+", body.lower()))
+    return f"{SOURCE}-{date}-{slug}" + (f"-{start_time.replace(':', '')}" if start_time else "")
+
+
+DATED = re.compile(rf"{SOURCE}-\d{{4}}-\d{{2}}-\d{{2}}-")
+
+
 def to_meeting(event: dict, bodies: dict) -> dict | None:
     """An event as a meeting record for pipeline.fetch_meetings, if its title names one of `bodies`
     (names in titles mapped to the site's boards, the longest found winning), or None."""
@@ -51,9 +82,8 @@ def to_meeting(event: dict, bodies: dict) -> dict | None:
     if not body:
         return None
     parsed = parse_name(event["title"], [], bodies)
-    number = re.match(r"\d+", event["uid"])
     return {
-        "id": f"{SOURCE}-{number.group(0) if number else event['uid']}",
+        "id": meeting_id(event["uid"]),
         "source": SOURCE,
         "source_url": event["url"],
         "date": event["date"],
@@ -80,6 +110,8 @@ def check(config: dict) -> None:
                          "the first meeting date to collect, and the boards its event titles name.")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(settings["since"])):
         raise SystemExit(f'{where}: since must be a date, like "2026-07-01".')
+    if not isinstance(settings.get("uid_changes", False), bool):
+        raise SystemExit(f"{where}: uid_changes must be true or false.")
     if not isinstance(settings["bodies"], dict):
         raise SystemExit(f'{where}: bodies must map names in event titles to board names, like '
                          '"Committee of the Whole" = "School Committee of the Whole".')
