@@ -1,5 +1,6 @@
 """A school district's calendar feed (Beverly Public Schools', saved and trimmed:
-tests/fixtures/ical_district.ics), read for its board's meetings (pipeline/ical.py)."""
+tests/fixtures/ical_district.ics), read for its board's meetings (pipeline/ical.py); and one whose
+events' UIDs are random UUIDs (Westbrook School Department's, on Apptegy)."""
 
 import copy
 from datetime import date, datetime
@@ -8,7 +9,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeResponse
 
-from pipeline import build_site, fetch_meetings, ical
+from pipeline import build_site, fetch_meetings, ical, identity
 from pipeline.fetch_meetings import load_store
 
 FEED = (FIXTURES / "ical_district.ics").read_text(encoding="utf-8")
@@ -93,10 +94,106 @@ def test_the_meeting_page_says_where_it_s_from(beverly, tmp_path):
     assert m["listing"] == "school district's website"
 
 
+# ---- Ids --------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("uid, expected", [
+    ("48810607@www.beverlyschools.org#20261125", "ical-48810607"),         # Beverly (Edlio)
+    ("934-1793646000-1793646000@www.somerville.k12.ma.us", "ical-934"),    # Somerville
+    ("1@x", "ical-1"), ("1020", "ical-1020"),
+    ("300ab2c1-0d4e-4a7b-9c1f-2b3c4d5e6f70", "ical-300ab2c1-0d4e-4a7b-9c1f-2b3c4d5e6f70"),  # Westbrook (Apptegy)
+    ("d4c7509e-37df-4e45-8ce0-02a72b99c709", "ical-d4c7509e-37df-4e45-8ce0-02a72b99c709"),
+    ("9756723c-cb64-4415-ada8-b08b71349db7", "ical-9756723c-cb64-4415-ada8-b08b71349db7"),
+])
+def test_a_meetings_id_from_its_uid(uid, expected):
+    assert ical.meeting_id(uid) == expected
+
+
+def uuid_feed(*events: tuple[str, str, str]) -> str:
+    """A feed as Westbrook's: (uid, DTSTART, SUMMARY) an event."""
+    body = "".join(f"BEGIN:VEVENT\r\nUID:{uid}\r\nDTSTART:{start}\r\nSUMMARY:{title}\r\nEND:VEVENT\r\n"
+                   for uid, start, title in events)
+    return f"BEGIN:VCALENDAR\r\nVERSION:2.0\r\n{body}END:VCALENDAR\r\n"
+
+
+class FakeFeed:
+    """A feed read once a run: `feeds` in turn, the last again after."""
+    def __init__(self, *feeds: str):
+        self.feeds = list(feeds)
+
+    def get(self, url):
+        assert url == ICAL_URL
+        return FakeResponse((self.feeds.pop(0) if len(self.feeds) > 1 else self.feeds[0]).encode())
+
+
+@pytest.fixture
+def westbrook(beverly):
+    beverly["meetings"].pop("agenda_center")
+    beverly["ical_meetings"]["bodies"] = {"School Committee": "School Committee",
+                                          "Ed Programs Committee": "School Committee Educational Programs Committee"}
+    return beverly
+
+
+def test_events_whose_uids_start_alike_are_two_meetings(westbrook, tmp_path):
+    feed = uuid_feed(("3b111579-0dea-4a20-9339-2f5422f5b1d5", "20261118T190000", "School Committee Meeting"),
+                     ("3a37fc5d-957a-407a-ac5a-7203ccd1ecf2", "20261209T190000", "Ed Programs Committee Meeting"))
+    fetch_meetings.run(westbrook, FakeFeed(feed), tmp_path, now=NOW)
+    assert sorted(load_store(tmp_path)) == ["ical-3a37fc5d-957a-407a-ac5a-7203ccd1ecf2",
+                                            "ical-3b111579-0dea-4a20-9339-2f5422f5b1d5"]
+
+
+# Westbrook's feed read twice: each time, every event has a new UID.
+FIRST = uuid_feed(("2dbfcb31-63ed-4214-85a8-c3739c691d12", "20261118T190000", "School Committee Meeting"),
+                  ("62206e13-91f1-47f0-ba15-b667b4b0e379", "20261118T170000", "Ed Programs Committee Meeting"),
+                  ("77f52502-6bdf-4722-ba6f-507262bb919a", "20261209T190000", "School Committee Meeting"))
+SECOND = uuid_feed(("52da6800-de83-4cc5-8416-10731ad54b6d", "20261118T190000", "School Committee Meeting"),
+                   ("839e9f3a-be75-4f14-8960-f18be4913d41", "20261118T170000", "Ed Programs Committee Meeting"),
+                   ("183ae4ac-4b31-4a28-bb26-6208e34c8acd", "20261209T190000", "School Committee Meeting"))
+
+
+def test_a_feed_whose_uids_change_is_read_by_date(westbrook, tmp_path):
+    westbrook["ical_meetings"]["uid_changes"] = True
+    client = FakeFeed(FIRST, SECOND)
+    fetch_meetings.run(westbrook, client, tmp_path, now=NOW)
+    first = load_store(tmp_path)
+    fetch_meetings.run(westbrook, client, tmp_path, now=NOW.replace(day=3))
+    store = load_store(tmp_path)
+    assert sorted(store) == sorted(first) == ["ical-2026-11-18-school-committee",
+                                              "ical-2026-11-18-school-committee-educational-programs-committee",
+                                              "ical-2026-12-09-school-committee"]
+    assert all(m.get("listed", True) and not m.get("history") for m in store.values())
+
+
+def test_a_boards_second_meeting_that_day_is_named_by_its_time(westbrook, tmp_path):
+    westbrook["ical_meetings"]["uid_changes"] = True
+    feed = uuid_feed(("a", "20261118T190000", "School Committee Meeting"), ("b", "20261118T170000", "School Committee Meeting"))
+    fetch_meetings.run(westbrook, FakeFeed(feed), tmp_path, now=NOW)
+    assert sorted(load_store(tmp_path)) == ["ical-2026-11-18-school-committee", "ical-2026-11-18-school-committee-1700"]
+
+
+def test_meetings_stored_under_uids_move_to_their_dated_ids(westbrook, tmp_path):
+    """A town's meetings recorded before uid_changes was set keep their records and addresses."""
+    client = FakeFeed(FIRST, SECOND)
+    fetch_meetings.run(westbrook, client, tmp_path, now=NOW)
+    before = load_store(tmp_path)
+    ledger = identity.load(tmp_path)["meetings"]
+    address = {e["listings"][0]: mid for mid, e in ledger.items()}
+    westbrook["ical_meetings"]["uid_changes"] = True
+    fetch_meetings.run(westbrook, client, tmp_path, now=NOW.replace(day=3))
+    store = load_store(tmp_path)
+    assert len(store) == 3 and all(i.startswith("ical-2026-") for i in store)
+    old = before["ical-77f52502-6bdf-4722-ba6f-507262bb919a"]
+    moved = store["ical-2026-12-09-school-committee"]
+    assert (moved["slug"], moved["first_seen"], moved.get("history")) == (old["slug"], old["first_seen"], None)
+    assert all(m.get("listed", True) for m in store.values())
+    ledger = identity.load(tmp_path)["meetings"]
+    assert ledger[address["ical-77f52502-6bdf-4722-ba6f-507262bb919a"]]["listings"] == ["ical-2026-12-09-school-committee"]
+
+
 @pytest.mark.parametrize("change, message", [
     ({"ical_url": None}, "needs ical_url"),
     ({"since": "September"}, "since must be a date"),
     ({"bodies": ["School Committee"]}, "bodies must map"),
+    ({"uid_changes": "yes"}, "uid_changes must be true or false"),
 ])
 def test_config_is_checked(change, message):
     settings = {"ical_url": ICAL_URL, "page_url": PAGE_URL, "source_name": "Beverly Public Schools",

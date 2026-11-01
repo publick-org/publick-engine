@@ -4741,6 +4741,18 @@ msgstr ""
 " menos lo mismo que sus terrenos y edificios gravables en las cifras de MRS de ese año."
 
 #: site/states/me/budget.html
+#, python-format
+msgid ""
+"Maine doesn't publish an average tax bill. This site calculates one where a city's single-family "
+"homes, with their assessed values of land and buildings, can be found in the Maine GeoLibrary's "
+"parcel table; %(town)s's can't, so this page doesn't show an average bill."
+msgstr ""
+"Maine no publica una factura promedio del impuesto. Este sitio calcula una cuando las casas "
+"unifamiliares de una ciudad, con sus valores tasados de terreno y edificios, se pueden encontrar "
+"en la tabla de parcelas de la Maine GeoLibrary; las de %(town)s no, así que esta página no "
+"muestra una factura promedio."
+
+#: site/states/me/budget.html
 msgid ""
 "Maine towns and cities assess property at a share of its market value, the certified ratio, which"
 " falls as values rise between revaluations. When a city revalues, assessed values jump and the "
@@ -8052,6 +8064,14 @@ msgid ""
 msgstr ""
 "La tasa del impuesto a la propiedad de la ciudad, lo que recauda y lo que representa para una "
 "casa y para cada residente, según Maine Revenue Services (MRS)."
+
+#: site/states/me/budget.html
+msgid ""
+"The city's property tax rate, what the property tax raises, and what it comes to for each "
+"resident, from Maine Revenue Services (MRS)."
+msgstr ""
+"La tasa del impuesto a la propiedad de la ciudad, lo que recauda y lo que representa para cada "
+"residente, según Maine Revenue Services (MRS)."
 
 #: site/states/vt/budget.html
 msgid ""

@@ -381,6 +381,7 @@ def me_site(me_figures, tmp_path, data_dir, monkeypatch):
 def test_maine_pages(me_site):
     budget = (me_site / "budget" / "index.html").read_text()
     assert "Calculated by Publick." in budget and "6,510 single-family homes" in budget
+    assert "for a home and for each resident" in budget and "this page doesn't show an average bill" not in budget
     assert "<title>Lewiston, ME city budget and 2024 property tax rate</title>" in budget
     assert "$31.77" in budget and "$3,436" in budget and "54% of market value" in budget
     assert "Maine Revenue Services" in budget and "Division of Local Services" not in budget
@@ -408,7 +409,10 @@ def test_a_maine_town_without_a_tax_bill(me_figures, tmp_path, data_dir, monkeyp
     out = tmp_path / "site"
     build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
     budget = (out / "budget" / "index.html").read_text()
-    assert "$31.77" in budget and "single-family" not in budget
+    assert "$31.77" in budget and "Average single-family tax bill" not in budget
+    # The page says why there's no bill, and doesn't promise one.
+    assert "Maine doesn't publish an average tax bill." in budget and "Lewiston's can't" in budget
+    assert "what it comes to for each resident" in budget and "for a home" not in budget
     about = (out / "about" / "index.html").read_text()
     assert "Property tax per resident, and the state's median rate, are calculated by Publick" in about
     assert "parcel table" not in about
