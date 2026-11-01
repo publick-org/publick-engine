@@ -28,6 +28,9 @@ def test_dates():
     ("Monday, November 9, 2026", [("2026-11-09", "")]),
     ("Nov. 9th, 2026 - Finance", [("2026-11-09", "Finance")]),
     ("10/26/26 BOE Meeting", [("2026-10-26", "BOE Meeting")]),
+    ("11-11-2026 Regular Board Meeting", [("2026-11-11", "Regular Board Meeting")]),
+    # Dashes with a two-digit year, a yyyy-mm-dd date, and a phone number aren't read as month, day and year.
+    ("11-11-26 Board Meeting", []), ("Call 802-655-6410", []),
 ])
 def test_date_forms(text, expected):
     assert schedule.parse_dates(f"<p>{text}</p>") == expected
