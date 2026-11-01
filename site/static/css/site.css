@@ -329,6 +329,23 @@ details.meeting-decisions { margin-top: 0.4rem; }
   main .decision-rows > li { grid-template-columns: 1fr; }
   .decision-rows .outcome:empty { display: none; }
 }
+/* A meeting's roll call votes, as its minutes list them (meeting.html roll_call_votes): one a block, its groups as rows. */
+.roll-call-coverage { max-width: var(--measure); }
+.roll-call-coverage p { margin: 0 0 0.5rem; }
+.roll-calls { max-width: 46rem; margin: 0.75rem 0 0; padding: 0; list-style: none; }
+main .roll-calls > li { max-width: none; margin: 0; padding: 0.9rem 0; border-top: 1px solid var(--line); }
+.roll-call p { margin: 0.3rem 0 0; }
+.roll-call .roll-call-item { margin-top: 0; }
+.roll-call-motion { margin: 0.4rem 0 0; padding-left: 0.75rem; border-left: 3px solid var(--line); }
+.roll-call-motion p { margin: 0; }
+.roll-call-result { font-weight: 600; }
+dl.roll-call-groups { margin: 0.4rem 0 0; }
+dl.roll-call-groups > div { padding: 0.2rem 0; }
+dl.roll-call-groups dt { font-weight: 700; font-size: 0.9375rem; }
+dl.roll-call-groups dd { margin: 0; }
+@media (min-width: 40rem) {
+  dl.roll-call-groups > div { display: grid; grid-template-columns: 15rem 1fr; gap: 1rem; }
+}
 /* A meeting's documents under its date: one line of links (meeting.html). */
 .doc-links { margin: 0.4rem 0 0; font-size: 0.9375rem; }
 /* Meetings after this week with no agenda yet, one short line each (meetings/index.html). */

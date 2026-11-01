@@ -57,6 +57,15 @@ def test_a_note_in_the_location_box_is_not_a_place():
      "Beverly License Board Meeting - Agenda - October 1, 2026"),
     ("CANCELLED---Budget/Managment Analyst Preliminary Screening Committee Meeting",
      "Budget/Managment Analyst Preliminary Screening Committee", "Budget/Managment Analyst Preliminary Screening Committee Meeting"),
+    # A committee of the board named after it is the committee's meeting, not the board's (Lawrence).
+    ("City Council - Ordinance Committee", "City Council Ordinance Committee", "City Council - Ordinance Committee"),
+    ("City Council - Committee of the Whole", "City Council Committee of the Whole",
+     "City Council - Committee of the Whole"),
+    ("City Council - Public Safety and Emergency Management Committee",
+     "City Council Public Safety and Emergency Management Committee",
+     "City Council - Public Safety and Emergency Management Committee"),
+    ("School Committee - Finance Subcommittee Meeting", "School Committee Finance Subcommittee",
+     "School Committee - Finance Subcommittee Meeting"),
 ])
 def test_calendar_titles(title, body, shown):
     parsed = civicplus.parse_title(title)

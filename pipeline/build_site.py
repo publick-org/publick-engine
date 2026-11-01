@@ -56,6 +56,7 @@ from pipeline import streets as streets_mod
 from pipeline import structured
 from pipeline import summarize
 from pipeline import translate
+from pipeline import votes
 from pipeline.fetch_meetings import slugify
 from pipeline.i18n import N_, _, month_name, month_year, ngettext, pgettext, plain_date, weekday_name
 from pipeline.seeclickfix import block_address, sensitive, short_address
@@ -559,6 +560,33 @@ def page_link(doc: dict, decision: Decision, document_url, site_url: str = "") -
     return f"{url}#page={decision.page}{find}"
 
 
+def roll_call_link(doc: dict, vote: dict, document_url) -> str:
+    """A link to the minutes a roll call was read from, at its page where it's known (#page=3). Only the page: the
+    same words ("Yea: 11 - ...") are in many of its votes, so a search for them could find another."""
+    url = minutes_pdf(doc, document_url)
+    return f"{url}#page={vote['page']}" if vote.get("page") else url
+
+
+def roll_call_coverage(meetings: list[dict]) -> None:
+    """Each meeting showing roll calls gets "roll_call_coverage": which of its board's minutes on the site they're read
+    from (their count, first and last dates) and which aren't (the minutes of a meeting not yet summarized, or read
+    by older rules or against other members), for its page to say, so a reader doesn't take them as every vote."""
+    boards = defaultdict(list)
+    for m in meetings:
+        if m["minutes_doc"] and m.get("roll_calls_read") is not None:
+            boards[m["body_slug"]].append(m)
+    for ms in boards.values():
+        read = [m["date"] for m in ms if m["roll_calls_read"]]
+        if not read:
+            continue
+        unread = [m["date"] for m in ms if not m["roll_calls_read"]]
+        coverage = {"count": len(read), "first": min(read), "last": max(read),
+                    "unread": len(unread), "unread_first": min(unread, default=None), "unread_last": max(unread, default=None)}
+        for m in ms:
+            if m["roll_calls_read"]:
+                m["roll_call_coverage"] = coverage
+
+
 def decision_text(text: str) -> Markup:
     """A decision for reading: "TTE" (term to expire) spelled out, dollar amounts in bold."""
     return emphasize_money(re.sub(r"\bTTE\b", "term ends", text))
@@ -744,7 +772,11 @@ def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[
 
 
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, terms: list[dict] | None = None,
-                  corrections: list[dict] | None = None, withheld: list[dict] | None = None, town: str = "") -> dict:
+                  corrections: list[dict] | None = None, withheld: list[dict] | None = None, town: str = "",
+                  vote_members=None) -> dict:
+    """The town's meetings, for its pages. vote_members, for a town that shows roll call votes ([votes] show):
+    the members of the body whose meetings these are, by its English name (votes.members_for), the roll calls
+    read from its minutes are checked against."""
     status_path = data_dir / "meetings" / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else None
 
@@ -800,6 +832,16 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m["preview"] = None
         if m["withheld"]["minutes"]:
             m["minutes_summary"] = None
+        # The roll calls read from the minutes' own text (pipeline/votes.py), checked ones only, for a town that shows
+        # them; none from a summary taken down, or a recording's. roll_calls_read: whether this meeting's minutes are
+        # read for them (None: no minutes, or a document that isn't minutes), for the page to say which are.
+        m["roll_calls"], m["roll_calls_held"], m["roll_calls_read"] = [], 0, None
+        members = vote_members(m["body"]) if vote_members and m["minutes_doc"] else []
+        if members and (m["minutes_summary"] or {}).get("is_minutes") is not False:
+            found = votes.shown(m["minutes_summary"], members)
+            m["roll_calls_read"] = found is not None
+            if found:
+                m["roll_calls"], m["roll_calls_held"] = found
         m["minutes_too_large"] = bool(m["minutes_doc"]) and (summarize.too_large(m["minutes_doc"])
                                                              or summarize.too_long(data_dir, m["minutes_doc"]))
         m["agenda_too_large"] = bool(m["agenda"]) and (summarize.too_large(m["agenda"])
@@ -859,6 +901,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         # How the summary that line comes from was checked, said beside it (factcheck.how_checked).
         m["preview_checked"] = factcheck.how_checked(*preview_source(m)) if m["preview_line"] else None
         m["glossary"] = glossary_for(english, terms or [])
+
+    roll_call_coverage(meetings)
 
     for problem in apply_corrections(meetings, corrections or []):
         if i18n.language() == "en":
@@ -966,12 +1010,17 @@ def home_meetings(this_week: list[dict], main: list[str]) -> dict:
     return {"count": len(this_week), "full": full, "more": more, "hidden": len(more) > 1}
 
 
+# The [meetings] tables that read the city's own meeting listings (fetch_meetings.calendars).
+CITY_MEETING_READERS = ("civicplus", "calendar_feed", "agenda_center", "civicclerk", "legistar", "primegov", "dnn", "file_list")
+
+
 def meeting_links(config: dict) -> dict:
     """The city's own meeting pages, linked from this site's, and whether the
     town collects agendas and minutes ([meetings] documents, default true). The
     defaults are a CivicPlus site's addresses."""
     m = config.get("meetings", {})
     base = m.get("base_url", "").rstrip("/")
+    opengov_only = "opengov_meetings" in config and not any(k in m for k in CITY_MEETING_READERS)
     return {
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
         "portal": m.get("civicclerk", {}).get("portal_url") or (
@@ -987,10 +1036,13 @@ def meeting_links(config: dict) -> dict:
         "has_calendar": any(k in m for k in ("calendar_feed", "civicplus", "dnn", "file_list")),
         "agenda_center": f"{m['agenda_center']['base_url'].rstrip('/')}/AgendaCenter" if "agenda_center" in m else None,
         "documents_page": m["file_list"]["documents_url"] if "file_list" in m else None,
+        # A town whose every meeting comes from Rhode Island's Open Meetings portal: no reader of
+        # the city's own in [meetings], so its pages name the portal as the source of them all.
+        "opengov_only": opengov_only,
         "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
                               "meetingdocs_meetings", "sharpschool_meetings", "ical_meetings")
-                    if t in config]
+                    if t in config and not (t == "opengov_meetings" and opengov_only)]
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),
     }
@@ -1442,6 +1494,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     english = lang == "en"
     # The town's main boards, in English, for the home page (before the config is translated).
     main = main_boards(config)
+    # The members roll calls are checked against, by their body's English name, where the town shows its votes.
+    english_config = config
+    vote_members = (lambda body: votes.members_for(english_config, body)) if votes.show(config) else None
     if not english:
         config = localize_config(config, tr)
         site = config["site"]
@@ -1457,7 +1512,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     terms = glossary.shown(config, lang, tr)
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), terms,
                              config.get("meetings", {}).get("corrections", []),
-                             config.get("summaries", {}).get("withheld", []), config["town"]["name"])
+                             config.get("summaries", {}).get("withheld", []), config["town"]["name"], vote_members)
     # A board's name alone in this language, for its pages' titles (the pages show its English name too),
     # unless another board's is the same: then with its English name after it, as elsewhere.
     alone = defaultdict(set)
@@ -1579,6 +1634,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals["document_url"] = open_documents(config, data_dir).url
     # A decision's page in its minutes (macros.html cite), said in this language.
     env.globals["page_link"] = lambda doc, d, site_url="": page_link(doc, d, env.globals["document_url"], site_url)
+    env.globals["roll_call_link"] = lambda doc, v: roll_call_link(doc, v, env.globals["document_url"])
     env.globals["page_lang"] = lang
     env.globals.update(group_by=group_by, today=built_at.date().isoformat(), css_version=css_version, export_version=EXPORT_VERSION,
                        change=lambda diff, since: change_text(diff, "", since))
@@ -1603,9 +1659,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
+    # Which requests are shown only to the block is decided on the city's English category names, before they're translated.
+    sensitive_categories = config.get("seeclickfix", {}).get("sensitive_categories", [])
+    for r in requests_311:
+        r["sensitive"] = sensitive(r["category"], sensitive_categories)
     localize_categories(requests_311, tr)
     streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
-                           sensitive_categories=config.get("seeclickfix", {}).get("sensitive_categories", []))
+                           sensitive_categories=sensitive_categories)
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
@@ -1888,7 +1948,7 @@ def street_index(meetings: list[dict], permits: list[dict], requests: list[dict]
         for key in streets_mod.street_keys(r.get("address", ""), town["name"]):
             streets[key]["requests"].append({
                 "date": r["created_at"][:10], "category": r["category"], "status": r["status"],
-                "address": (block_address(r["address"], town["name"]) if sensitive(r["category"], sensitive_categories)
+                "address": (block_address(r["address"], town["name"]) if r.get("sensitive", sensitive(r["category"], sensitive_categories))
                             else short_address(r["address"], town["name"])),
                 "url": f"https://seeclickfix.com/issues/{r['id']}"})
     out = {}
