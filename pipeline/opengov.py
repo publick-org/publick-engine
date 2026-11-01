@@ -29,6 +29,8 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote
 
+from pipeline import clerkbase
+
 SOURCE = "opengov"
 BASE = "https://opengov.sos.ri.gov"
 FEEDS = {"upcoming": 1, "completed": 3, "cancelled": 4}
@@ -147,3 +149,5 @@ def check(config: dict) -> None:
     for key in ("recheck_days", "max_documents_per_run"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")
+    if "dockets" in settings:
+        clerkbase.check(settings["dockets"], where)
