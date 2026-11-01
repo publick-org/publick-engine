@@ -4,7 +4,7 @@ Some boards publish their schedule as a plain list: Malden Public Schools' Schoo
 Committee Meetings page lists "Monday, October 5, 2026", "Monday, November 9,
 2026" and so on, every year's dates under each other, with a meeting's agenda
 posted elsewhere (Malden's Agenda Center) when it's ready. A date may be
-written "November 9, 2026" or "11/9/26", and followed by the board's name
+written "November 9, 2026", "11/9/26" or "11-9-2026", and followed by the board's name
 where the page lists more than one board.
 """
 
@@ -21,7 +21,9 @@ SOURCE = "schedule"
 MONTHS = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
           r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
 DATE = re.compile(rf"\b(?P<month>{MONTHS})\.?\s+(?P<day>\d{{1,2}})(?:st|nd|rd|th)?,?\s+(?P<year>\d{{4}})\b"
-                  r"|(?<![\d/])(?P<m>\d{1,2})/(?P<d>\d{1,2})/(?P<y>\d{4}|\d{2})(?![\d/])")
+                  r"|(?<![\d/])(?P<m>\d{1,2})/(?P<d>\d{1,2})/(?P<y>\d{4}|\d{2})(?![\d/])"
+                  # "11-9-2026": with dashes, only a four-digit year, so "2026-11-09" and phone numbers aren't read.
+                  r"|(?<![\d./-])(?P<dm>\d{1,2})-(?P<dd>\d{1,2})-(?P<dy>\d{4})(?![\d-])")
 
 
 def page_text(page: str) -> str:
@@ -38,6 +40,8 @@ def parse_dates(page: str) -> list[tuple[str, str]]:
         try:
             if m.group("month"):
                 day = datetime.strptime(f"{m['month'][:3]} {m['day']} {m['year']}", "%b %d %Y").date()
+            elif m.group("dm"):
+                day = date(int(m["dy"]), int(m["dm"]), int(m["dd"]))
             else:
                 day = date(int(m["y"]) + (2000 if len(m["y"]) == 2 else 0), int(m["m"]), int(m["d"]))
         except ValueError:

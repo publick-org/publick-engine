@@ -174,7 +174,7 @@
    page is written, and said once, under "About this page". #}
 {% set about = namespace(notes=[]) %}
 {# Meetings known only from their documents, or from a school district's website, not from the city calendar. #}
-{% set district = m.source in ("drive", "finalsite", "page", "sharpschool", "diligent", "opengov", "ical", "schedule") %}
+{% set district = m.source in ("drive", "finalsite", "page", "sharpschool", "diligent", "boardbook", "opengov", "ical", "schedule") %}
 {% set documents_only = m.source == "archive" or district %}
 <nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
   <ol>
@@ -389,7 +389,7 @@
 {% set g = m.minutes_gap %}
 {% set source = g.get("source") %}
 {% if source in ("finalsite", "drive", "page", "sharpschool") %}{% set where_url, where = g.url, _("%(name)s website", name=g.name) %}
-{% elif source == "diligent" %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
+{% elif source in ("diligent", "boardbook") %}{% set where_url, where = g.url, _("%(name)s meeting portal", name=g.name) %}
 {% elif source == "opengov" %}{% set where_url, where = g.url, _("state's Open Meetings portal") %}
 {% elif source == "meetingdocs" %}{% set where_url, where = g.url, _("city's events calendar") %}
 {% elif source == "agendacenter" %}{% set where_url, where = meeting_links.agenda_center, _("city's Agenda Center") %}
@@ -552,6 +552,9 @@
 {% elif m.source == "diligent" %}
 {# Translators: %(name)s is a school district, such as "Burlington School District". #}
 <p>{% trans url=m.source_url, name=m.source_name %}<a href="{{ url }}">This meeting on the {{ name }} meeting portal</a> (Diligent Community).{% endtrans %} {{ recorded }}</p>
+{% elif m.source == "boardbook" %}
+{# Translators: %(name)s is a school district, such as "Bristol Public Schools". #}
+<p>{% trans url=m.source_url, name=m.source_name %}<a href="{{ url }}">This meeting on the {{ name }} meeting portal</a> (BoardBook).{% endtrans %} {{ recorded }}</p>
 {% elif district %}
 <p>{% trans url=m.source_url, name=m.source_name, town=town.name %}This meeting is known from the <a href="{{ url }}">{{ name }} website</a>. It was not found on the City of {{ town }} calendar.{% endtrans %} {{ recorded }}</p>
 {% elif m.source == "agendacenter" %}

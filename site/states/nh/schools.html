@@ -26,7 +26,8 @@
 <ul class="stats">
   {% if grad %}
   <li class="stat"><a href="#graduation">
-    <span class="stat-label">{{ _("Graduation rate") }}</span>
+    {# Translators: %(school)s is the high school a district without one sends its students to, such as "Pinkerton Academy". #}
+    <span class="stat-label">{% if ms.graduation.get("school") %}{% trans school=ms.graduation.get("school") %}Graduation rate, {{ school }}{% endtrans %}{% else %}{{ _("Graduation rate") }}{% endif %}</span>
     <span class="stat-value">{{ grad.town | round(1) }}%</span>
     <span class="stat-change">{% trans year=grad.year %}Class of {{ year }}{% endtrans %} · {% trans pct=grad.state | round(1) %}State {{ pct }}%{% endtrans %}</span>
   </a></li>
@@ -55,7 +56,10 @@
 </ul>
 
 <h2 id="graduation">{{ _("Graduation rate") }}</h2>
-<p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}{% if ms.graduation.get("school") %} {% trans school=ms.graduation.get("school") %}The district has no high school of its own: these are the figures for {{ school }}, where its students go to high school. The state test results below are the district's own (grades 3 to 8).{% endtrans %}{% endif %}</p>
+{% if ms.graduation.get("none_published") %}
+<p>{{ _("The district has no high school of its own, so the Department of Education publishes no graduation rate for it. The state test results below are the district's own.") }}</p>
+{% else %}
+<p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}{% if ms.graduation.get("school") %} {% trans school=ms.graduation.get("school") %}The district has no high school of its own: these are the figures for {{ school }}, where its students go to high school. The state test results below are the district's own (grades 3 to 8).{% endtrans %} {% trans school=ms.graduation.get("school") %}The state publishes them for the whole school, including any students from other towns.{% endtrans %}{% endif %}</p>
 <div class="table-wrap">
 <table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ ms.graduation.get("school") or town.name }}</th><th scope="col" class="num wide">{{ _("Graduated") }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
@@ -67,6 +71,7 @@
 </table>
 </div>
 <p class="small">{{ _("The four-year adjusted cohort graduation rate.") }}{{ state_dash(ms.graduation.years) }}</p>
+{% endif %}
 <p class="small" data-about>{% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">New Hampshire Department of Education, iPlatform</a> (Cohort Counts By School).{% endtrans %}</p>
 
 <h2 id="sas">{{ _("State test results") }}</h2>

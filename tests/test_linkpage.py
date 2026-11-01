@@ -1,9 +1,12 @@
 """A board's meetings from a page that links each meeting's documents: Methuen Public Schools'
-table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), and Nashua's lines of
-dates with their documents under them (Finalsite), saved and trimmed: tests/fixtures/linkpage_*.html."""
+table (Finalsite), Waltham Public Schools' list (ParentSquare SmartSites), Nashua's lines of
+dates with their documents under them (Finalsite), Hamden Public Schools' tables with dates in
+figures (ParentSquare SmartSites), Westbrook's table of links labelled only with their dates, and
+Biddeford's columns, a board's each (both Apptegy), saved and trimmed: tests/fixtures/linkpage_*.html."""
 
 import copy
 import json
+import re
 import shutil
 from datetime import datetime
 
@@ -71,6 +74,16 @@ def run(town, tmp_path, client=None, now=NOW):
 @pytest.mark.parametrize("value, expected", [
     ("2026-10-13", "2026-10-13"), ("2026-08-17*", "2026-08-17"), ("September 16, 2026 Minutes", "2026-09-16"),
     ("June 10 2026 Special Meeting Minutes", "2026-06-10"), ("Sept. 2, 2026 Agenda", "2026-09-02"),
+    ("10/13/26", "2026-10-13"), ("9/8/26 Board of Education Meeting", "2026-09-08"), ("Minutes 9/8/2026", "2026-09-08"),
+    # The first date in the text, whichever way it's written.
+    ("10/13/26 Rescheduled from October 6, 2026", "2026-10-13"), ("October 6, 2026 (was 9/29/26)", "2026-10-06"),
+    # Month, day and year (Winooski School District's labels).
+    ("Agenda 10-14-2026 WSD Regular Board Meeting", "2026-10-14"), ("Minutes 9-9-2026 Regular Board Meeting", "2026-09-09"),
+    ("Agenda 1-7-2026 WSD Special Board Meeting", "2026-01-07"),
+    # Bristol Public Schools' minutes, dated in figures with dots.
+    ("01.14.26 – Special BoE Meeting Minutes – APPROVED", "2026-01-14"),
+    ("05.06.2026-Regular Board of Education Minutes – APPROVED", "2026-05-06"),
+    ("03.18.26- Special BOE Meeting Minutes", "2026-03-18"),
 ])
 def test_dates(value, expected):
     assert linkpage.date_value(linkpage.find_date(value)) == expected
@@ -79,6 +92,23 @@ def test_dates(value, expected):
 def test_no_date():
     assert linkpage.find_date("October Additional Resources") is None
     assert linkpage.date_value(linkpage.find_date("2026-02-30")) is None
+    # A day and month without a year, a fraction, or figures and slashes that aren't one date.
+    for value in ("Rescheduled from 8/10", "1/2 day", "Policy 1/2/3/4", "13/1/26 Agenda"):
+        found = linkpage.find_date(value)
+        assert found is None or linkpage.date_value(found) is None, value
+    assert linkpage.date_value(linkpage.find_date("Agenda 2-30-2026")) is None
+
+
+@pytest.mark.parametrize("value", [
+    # Not month, day and year: a two-digit year, a phone number, part of a yyyy-mm-dd date, a file's version.
+    "Agenda 10-14-26", "Call 802-655-6410", "2026-10-14", "Budget v1.10-14-2026",
+])
+def test_figures_that_arent_a_month_day_and_year(value):
+    found = linkpage.find_date(value)
+    assert found is None or found.re not in (linkpage.NUMERIC_DATE, linkpage.DASHED_DATE)
+    # Not a date: a version number, or a date without its year.
+    assert linkpage.find_date("Policy 6114.3 revised") is None and linkpage.find_date("Version 1.2.3.4") is None
+    assert linkpage.date_value(linkpage.find_date("13.02.26 Minutes")) is None
 
 
 @pytest.mark.parametrize("value, expected", [
@@ -246,6 +276,39 @@ def test_without_name_columns_the_document_cells_words_are_in_the_name():
     assert keys[0] != keys[1]
 
 
+# Hamden Public Schools' page (ParentSquare SmartSites): a table under each month, its dates written
+# 10/13/26, its recordings on Zoom.
+HAMDEN = "https://www.hamden.org/boe-meeting-agendas-minutes"
+
+
+def test_a_table_with_dates_in_figures():
+    page = (FIXTURES / "linkpage_hamden.html").read_text()
+    settings = {"body": "Board of Education",
+                "bodies": {"Finance Committee": "Board of Education Finance Committee",
+                           "Goals and Evaluations": "Board of Education Goals and Evaluations Committee"}}
+    found, unrecognized = linkpage.meetings(page, HAMDEN, settings)
+    found = {m["key"]: m for m in found}
+    assert unrecognized == []
+    assert list(found) == ["2026-10-19-goals-and-evaluations-committe-meeting", "2026-10-13-board-of-education-meeting",
+                           "2026-10-13-finance-committee-meeting", "2026-09-08-board-of-education-meeting",
+                           "2026-05-28-special-board-of-education-meeting"]
+    boe = found["2026-10-13-board-of-education-meeting"]
+    assert (boe["body"], boe["status"], boe["special"], boe["start_time"]) == ("Board of Education", "scheduled", False, None)
+    assert boe["agenda_url"] == "https://files.smartsites.parentsquare.com/13638/boeagenda_oct132026_rev.pdf"
+    # A Zoom recording is kept as a link.
+    assert [link["text"] for link in boe["links"]] == ["Recording"] and "video_id" not in boe
+    assert boe["links"][0]["url"].startswith("https://hamden.zoom.us/rec/share/")
+    assert found["2026-10-13-finance-committee-meeting"]["body"] == "Board of Education Finance Committee"
+    assert found["2026-10-19-goals-and-evaluations-committe-meeting"]["body"] == (
+        "Board of Education Goals and Evaluations Committee")
+    # The note by the minutes isn't the meeting's name, so its key stays when the note goes.
+    september = found["2026-09-08-board-of-education-meeting"]
+    assert september["name"] == "Board of Education Meeting"
+    assert september["minutes_url"] == "https://files.smartsites.parentsquare.com/13638/boe_minutes_09082026.pdf"
+    cancelled = found["2026-05-28-special-board-of-education-meeting"]
+    assert (cancelled["status"], cancelled["special"]) == ("cancelled", True)
+
+
 # Worcester Public Schools' page (Apptegy): its table is HTML escaped inside the JSON of a script, the
 # page's own scripts kept, trimmed to three meetings.
 WORCESTER = "https://www.worcesterschools.org/o/wps/page/agenda-and-minutes"
@@ -267,6 +330,160 @@ def test_a_table_escaped_inside_a_scripts_json():
 def test_a_page_without_escaped_links_drops_its_scripts():
     page = '<script>var x = "<a href=\\"/a.pdf\\">October 5, 2026 Agenda</a>";</script><p>No meetings.</p>'
     assert linkpage.entries(page.replace('\\"', '"'), WORCESTER) == []
+
+
+# Westbrook School Department's School Committee page (Apptegy), trimmed: its meeting announcement, and
+# the 2025-2026 table, whose links are each labelled only with the meeting's date, under the columns
+# "AGENDA/BACK-UP INFORMATION" and "APPROVED MINUTES".
+WESTBROOK = "https://www.westbrookschools.org/o/wsd/page/westbrook-school-committee"
+WESTBROOK_POLICY = "https://www.westbrookschools.org/o/wsd/page/policy-committee"
+
+
+def westbrook() -> dict:
+    """[page_meetings] as Westbrook's config has it: the remote participation policy linked under the
+    announcement left out."""
+    return {"page_url": WESTBROOK, "source_name": "Westbrook School Department", "since": "2026-01-01",
+            "body": "School Committee", "exclude_pattern": "Remote Participation", "one_meeting_a_day": True}
+
+
+def westbrook_page() -> str:
+    return (FIXTURES / "linkpage_westbrook.html").read_text(encoding="utf-8")
+
+
+def test_links_labelled_only_with_a_date_are_named_by_their_column():
+    found = {m["key"]: m for m in linkpage.meetings(westbrook_page(), WESTBROOK, westbrook())[0]}
+    # June 10, 2026's row has no links yet: no meeting.
+    assert list(found) == ["2026-10-14-school-committee", "2025-12-18-school-committee",
+                           "2026-01-14-school-committee", "2026-04-08-school-committee"]
+    january = found["2026-01-14-school-committee"]
+    assert january["agenda_url"] == "https://drive.google.com/file/d/1oTQFeFYsw7t3c49ZfJ0LghKA_OCqn099/view?usp=drive_link"
+    assert january["minutes_url"] == "https://drive.google.com/file/d/1jFkqgGBZI0ax4L9poZ_wZZYb6Bt8qHRv/view?usp=drive_link"
+    assert (january["body"], january["name"], january["links"]) == ("School Committee", "", [])
+    april = found["2026-04-08-school-committee"]
+    assert april["agenda_url"].startswith("https://drive.google.com/file/d/1a13Tye5X1_USLQu0B2nspD70EP7W33cE/")
+    assert "minutes_url" not in april
+    # The announcement: the next meeting, its time, and its agenda by the link's own label.
+    october = found["2026-10-14-school-committee"]
+    assert october["agenda_url"].startswith("https://drive.google.com/file/d/19QuAviIlqf5zkaLz_B7lmarS6vYl9SBP/")
+    assert (october["start_time"], october["status"], october["special"], october["links"]) == ("19:00", "scheduled", False, [])
+
+
+def test_without_its_heading_a_date_labelled_link_is_only_a_link():
+    """A table without a row of headings says nothing of what its links are: they're kept as links."""
+    page = re.sub(r"DATE.*?APPROVED MINUTES", "", westbrook_page(), flags=re.S)
+    found = {m["key"]: m for m in linkpage.meetings(page, WESTBROOK, westbrook())[0]}
+    january = found["2026-01-14-school-committee"]
+    assert "agenda_url" not in january and [link["text"] for link in january["links"]] == ["January 14, 2026"] * 2
+
+
+def test_one_meeting_a_day_takes_the_announcement_and_the_row_as_one():
+    row = ('<table><tr><td>DATE</td><td>AGENDA/BACK-UP INFORMATION</td><td>APPROVED MINUTES</td></tr>'
+           '<tr><td>October 14, 2026</td><td><a href="https://drive.google.com/file/d/1AgendaAgendaAgendaAgendaAgenda01/view">October 14, 2026</a></td>'
+           '<td><a href="https://drive.google.com/file/d/1MinutesMinutesMinutesMinutes0001/view">October 14, 2026</a></td></tr></table>')
+    page = westbrook_page().replace("</body>", row + "</body>")
+    found = {m["key"]: m for m in linkpage.meetings(page, WESTBROOK, westbrook())[0]}
+    october = found["2026-10-14-school-committee"]
+    assert october["minutes_url"] == "https://drive.google.com/file/d/1MinutesMinutesMinutesMinutes0001/view"
+    # The announcement is listed first, so its agenda is the meeting's; the row's is kept as a link.
+    assert october["agenda_url"].startswith("https://drive.google.com/file/d/19QuAviIlqf5zkaLz_B7lmarS6vYl9SBP/")
+    assert october["links"] == [{"url": "https://drive.google.com/file/d/1AgendaAgendaAgendaAgendaAgenda01/view", "text": "AGENDA/BACK-UP INFORMATION"}]
+    assert (october["name"], october["start_time"]) == ("", "19:00")
+    # Without it, the announcement's sentence and the row's empty name are two meetings.
+    settings = {k: v for k, v in westbrook().items() if k != "one_meeting_a_day"}
+    keys = [m["key"] for m in linkpage.meetings(page, WESTBROOK, settings)[0] if m["date"] == "2026-10-14"]
+    assert len(keys) == 2 and "2026-10-14-meeting" in keys
+
+
+# Westbrook's Policy Committee page, its announcement 125 characters long, and the Educational Programs
+# Committee's table, a cell's date split by its link ("J" and a link "anuary 14, 2026"), and its third column
+# the committee's reports.
+COMMITTEE_PAGE = (
+    '<p>MEETING ANNOUNCEMENT</p><p>The Policy Committee will meet on Wednesday, October 28, 2026 at 5:00 PM in room 114 '
+    'at Central Office (117 Stroudwater Street)</p><p><a href="https://drive.google.com/file/d/1PolicyAgendaPolicyAgendaPolicy01/view">AGENDA &amp; '
+    'Backup Information</a></p>'
+    '<table><tr><th>Agenda &amp; Information</th><th>Meeting Report</th></tr>'
+    '<tr><td><p>J<a href="https://drive.google.com/file/d/1JanuaryAgendaJanuaryAgendaJanu01/view">anuary 14, 2026</a></p></td>'
+    '<td><p><a href="https://drive.google.com/file/d/1JanuaryReportJanuaryReportJanu01/view">January 14, 2026</a></p></td></tr></table>')
+
+
+def test_a_committees_page_of_date_labelled_links():
+    found = {m["key"]: m for m in linkpage.meetings(COMMITTEE_PAGE, WESTBROOK_POLICY, westbrook(),
+                                                    "School Committee Policy Committee")[0]}
+    assert list(found) == ["2026-10-28-school-committee-policy-committee", "2026-01-14-school-committee-policy-committee"]
+    announced = found["2026-10-28-school-committee-policy-committee"]
+    assert (announced["agenda_url"], announced["start_time"]) == ("https://drive.google.com/file/d/1PolicyAgendaPolicyAgendaPolicy01/view", "17:00")
+    january = found["2026-01-14-school-committee-policy-committee"]
+    assert january["agenda_url"] == "https://drive.google.com/file/d/1JanuaryAgendaJanuaryAgendaJanu01/view" and "minutes_url" not in january
+    # A report isn't the minutes: it's kept as a link, named by its column.
+    assert january["links"] == [{"url": "https://drive.google.com/file/d/1JanuaryReportJanuaryReportJanu01/view", "text": "Meeting Report"}]
+
+
+def test_a_column_heading_names_only_links_labelled_with_a_date():
+    """A link with words of its own keeps them, whatever its column ("Posting" under "Agenda")."""
+    page = ('<table><tr><th>Date</th><th>Agenda</th><th>Minutes</th></tr><tr><td>2026-10-13</td>'
+            '<td><a href="https://drive.google.com/file/d/1PostingPostingPostingPostingPost/view">Posting</a></td>'
+            '<td><a href="https://drive.google.com/file/d/1MinutesMinutesMinutesMinutesMinu/view">2026-10-13</a></td></tr></table>')
+    meeting = linkpage.meetings(page, WESTBROOK, {"body": "School Committee"})[0][0]
+    assert "agenda_url" not in meeting and meeting["links"] == [{"url": "https://drive.google.com/file/d/1PostingPostingPostingPostingPost/view",
+                                                                  "text": "Posting"}]
+    assert meeting["minutes_url"] == "https://drive.google.com/file/d/1MinutesMinutesMinutesMinutesMinu/view"
+
+
+# Biddeford Schools' "Agendas and Minutes" page (Apptegy), trimmed: a row of four headings, and under it
+# a row of four columns, each an accordion of school years, with a link a meeting to its packet.
+BIDDEFORD = "https://www.biddefordschools.me/o/biddeford/page/agendas-and-minutes"
+
+
+def biddeford() -> dict:
+    """[page_meetings] as Biddeford's config has it: a link labelled with its meeting's time is its
+    packet, the agenda."""
+    return {"page_url": BIDDEFORD, "source_name": "Biddeford Schools", "since": "2026-06-01",
+            "body": "School Committee", "one_meeting_a_day": True,
+            "agenda_pattern": r"\(\s*\d{1,2}(:\d{2})?\s*[ap]\.?m",
+            "columns": {"School Committee": "School Committee",
+                        "Standing Committee on Finance/Building & Grounds": "School Committee Finance/Building and Grounds Committee",
+                        "Advisory Committee on Curriculum": "School Committee Advisory Committee on Curriculum",
+                        "Advisory Committee on Policy": "School Committee Policy Committee"}}
+
+
+def biddeford_page() -> str:
+    return (FIXTURES / "linkpage_biddeford.html").read_text(encoding="utf-8")
+
+
+def test_an_apptegy_pages_columns_by_their_headings():
+    columns = linkpage.apptegy_columns(biddeford_page())
+    assert list(columns) == ["School Committee", "Standing Committee on Finance/Building & Grounds",
+                             "Advisory Committee on Curriculum", "Advisory Committee on Policy"]
+    assert "October 28, 2026(7:00pm)" in columns["School Committee"]
+    assert "October 28, 2026" not in columns["Advisory Committee on Policy"]
+    assert linkpage.apptegy_columns(westbrook_page()) == {}  # its content has no columns with headings
+    assert linkpage.apptegy_structure("<html><body>No script</body></html>") is None
+
+
+def test_each_column_is_its_boards():
+    found = {m["key"]: m for m in linkpage.meetings(biddeford_page(), BIDDEFORD, biddeford())[0]}
+    assert list(found) == [
+        "2026-04-01-school-committee", "2026-06-10-school-committee", "2026-08-12-school-committee",
+        "2026-10-28-school-committee", "2026-04-08-school-committee-finance-building-and-grounds-committee",
+        "2026-04-27-school-committee-finance-building-and-grounds-committee",
+        "2026-01-14-school-committee-advisory-committee-on-curriculum",
+        "2026-08-12-school-committee-policy-committee", "2026-10-14-school-committee-policy-committee"]
+    october = found["2026-10-28-school-committee"]
+    assert october["agenda_url"] == "https://docs.google.com/document/d/1lA_EpH9qo9-XJoEysqT0PGIMdv4tPGzS3yRS4JudaAI/edit?usp=sharing"
+    assert (october["body"], october["start_time"], october["links"]) == ("School Committee", "19:00", [])
+    # Two boards' meetings on one day are two meetings.
+    assert found["2026-08-12-school-committee-policy-committee"]["start_time"] == "16:30"
+    assert found["2026-08-12-school-committee"]["start_time"] == "17:00"
+    curriculum = found["2026-01-14-school-committee-advisory-committee-on-curriculum"]
+    assert curriculum["agenda_url"].startswith("https://drive.google.com/file/d/1oPeh5yLjoG2zxS6PJ9b0Xnin6EpTXvu1/")
+    assert curriculum["minutes_url"].startswith("https://drive.google.com/file/d/1sR876DcNM_NTLkB9hfBxi4_68O1J4F0T/")
+
+
+def test_a_column_not_on_the_page_is_reported():
+    settings = {**biddeford(), "columns": {"School Committee": "School Committee", "Negotiations": "Negotiations"}}
+    found, unrecognized = linkpage.meetings(biddeford_page(), BIDDEFORD, settings)
+    assert {m["body"] for m in found} == {"School Committee"}
+    assert unrecognized == ["(no column headed 'Negotiations')"]
 
 
 # ---- Collecting -------------------------------------------------------------------------------
@@ -365,6 +582,19 @@ def test_a_committees_page_that_lists_nothing_is_reported(config, tmp_path):
     assert status["meetings_created"] == 9
 
 
+def test_westbrook(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = westbrook()
+    status, store, client = run(town, tmp_path, FakeLinkPage(replaced={WESTBROOK: westbrook_page()}))
+    assert status["meetings_created"] == 3 and not status["errors"] and not status["unrecognized"]
+    january = store["page-2026-01-14-school-committee"]
+    assert len(january["agendas"]) == 1 and len(january["minutes"]) == 1
+    october = store["page-2026-10-14-school-committee"]
+    # The time the page gives is the meeting's from its first record, not a change to it.
+    assert october["start_time"] == "19:00" and not october.get("history")
+    assert "page-2025-12-18-school-committee" not in store  # before since
+
+
 def test_waltham(config, tmp_path):
     town = copy.deepcopy(config)
     town["page_meetings"] = waltham()
@@ -383,11 +613,123 @@ def test_waltham(config, tmp_path):
     ({"agenda_pattern": "(agenda"}, "agenda_pattern isn't a regular expression"),
     ({"max_documents_per_run": 0}, "max_documents_per_run must be"),
     ({"pages": {"policy": "Board of Education Policy Committee"}}, "pages must map"),
+    ({"other_pages": "https://www.wsdvt.org/school-board/board-minutes/"}, "other_pages must list"),
+    ({"name_ignore_pattern": "(WSD"}, "name_ignore_pattern isn't a regular expression"),
+    ({"one_meeting_a_day": "yes"}, "one_meeting_a_day must be true or false"),
+    ({"columns": ["School Committee"]}, "columns must map"),
 ])
 def test_config_is_checked(change, message):
     settings = {k: v for k, v in {**methuen(), **change}.items() if v is not None}
     with pytest.raises(SystemExit, match=message):
         linkpage.check({"slug": "methuen", "page_meetings": settings})
+
+
+# ---- Winooski: agendas and minutes on two pages, dated mm-dd-yyyy ----------------------------------
+
+def winooski() -> dict:
+    """[page_meetings] as Winooski's config has it: the minutes' page read with the agendas', the regional
+    CESA's and the Act 170 merger committee's documents left out, and "WSD" and "Board", which the agendas
+    and minutes write differently, left out of the meetings' names when they're compared."""
+    return {"page_url": FakeLinkPage.WINOOSKI, "other_pages": [FakeLinkPage.WINOOSKI_MINUTES],
+            "source_name": "Winooski School District", "since": "2026-01-01", "body": "School Board",
+            "bodies": {"Finance Committee": "School Board Finance Committee",
+                       "Student Board Committee": "Student Board Committee"},
+            "exclude_pattern": r"\bCESA\b|\bAct 170\b", "name_ignore_pattern": r"\bWSD\b|\bboard\b"}
+
+
+def test_agendas_and_minutes_on_two_pages_are_one_meetings():
+    page = (FIXTURES / "linkpage_winooski_agendas.html").read_text(encoding="utf-8")
+    minutes = (FIXTURES / "linkpage_winooski_minutes.html").read_text(encoding="utf-8")
+    found, unrecognized = linkpage.meetings(page, FakeLinkPage.WINOOSKI, winooski(),
+                                            more=[(minutes, FakeLinkPage.WINOOSKI_MINUTES)])
+    found = {m["key"]: m for m in found}
+    regular = found["2026-10-14-regular-meeting"]
+    assert (regular["body"], regular["name"], regular["special"]) == ("School Board", "WSD Regular Board Meeting", False)
+    assert regular["agenda_url"].startswith("https://docs.google.com/document/d/1pKIdntbMOeaeYQwl1JeODtULgBJSAHA5_rMlZ")
+    assert regular["minutes_url"].startswith("https://docs.google.com/document/d/1gJsgKKcupR4h84v3Z6mwQ8apyR0zUO9sV1gT8")
+    # "WSD Special Board Meeting" and "Special Board Meeting" minutes, and two meetings on February 16.
+    assert found["2026-02-16-special-meeting"]["special"] and found["2026-02-16-special-meeting"]["minutes_url"]
+    assert found["2026-02-16-finance-committee-meeting"]["body"] == "School Board Finance Committee"
+    assert found["2026-08-27-retreat"]["agenda_url"] and found["2026-08-27-retreat"]["minutes_url"]
+    # The CESA's and the merger committee's documents aren't the board's.
+    assert not [k for k in found if k.startswith(("2026-10-26", "2026-10-20", "2026-10-22", "2026-09-28"))]
+    assert not unrecognized
+    # Without name_ignore_pattern, the agenda's and the minutes' names differ: two meetings.
+    apart, _ = linkpage.meetings(page, FakeLinkPage.WINOOSKI, {**winooski(), "name_ignore_pattern": None},
+                                 more=[(minutes, FakeLinkPage.WINOOSKI_MINUTES)])
+    assert len([m for m in apart if m["date"] == "2026-10-14"]) == 2
+
+
+def test_winooski(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = winooski()
+    status, store, client = run(town, tmp_path)
+    page = [m for m in store.values() if m.get("source") == "page"]
+    assert status["meetings_created"] == len(page) == 19 and not status["errors"] and not status["unrecognized"]
+    assert client.urls[:2] == [FakeLinkPage.WINOOSKI_MINUTES, FakeLinkPage.WINOOSKI]
+    meeting = store["page-2026-10-14-regular-meeting"]
+    assert meeting["source_url"] == FakeLinkPage.WINOOSKI and meeting["agendas"] and meeting["minutes"]
+    assert meeting["agendas"][0]["posted_on"] == "Google Docs"
+    # A PDF on the district's own site.
+    assert store["page-2026-03-11-regular-meeting"]["agendas"][0]["posted_on"] == "the Winooski School District website"
+
+
+# ---- South Burlington: Apptegy short links ---------------------------------------------------------
+
+def south_burlington() -> dict:
+    """[page_meetings] as South Burlington's config has it."""
+    return {"page_url": FakeLinkPage.SOUTH_BURLINGTON, "source_name": "South Burlington School District",
+            "since": "2026-01-01", "body": "School Board", "name_columns": ["Meeting"]}
+
+
+def test_a_short_link_is_its_file():
+    page = (FIXTURES / "linkpage_south_burlington.html").read_text(encoding="utf-8")
+    client = FakeLinkPage()
+    found = {m["date"]: m for m in linkpage.meetings(page, FakeLinkPage.SOUTH_BURLINGTON, south_burlington(),
+                                                    resolve=client.location)[0]}
+    assert found["2026-11-04"]["agenda_url"] == FakeLinkPage.SHORT_LINKS["https://aptg.co/LJKxnt"]
+    assert found["2026-10-21"]["minutes_url"] == FakeLinkPage.SHORT_LINKS["https://aptg.co/7ddYQz"]
+    assert found["2026-10-21"]["agenda_url"].startswith(FakeLinkPage.THRILLSHARE)
+    # Without following them, the short links aren't documents: November 4 has no other link that is.
+    unresolved = {m["date"]: m for m in linkpage.meetings(page, FakeLinkPage.SOUTH_BURLINGTON, south_burlington())[0]}
+    assert "2026-11-04" not in unresolved and not unresolved["2026-10-21"].get("minutes_url")
+    # Only entries from `since` on are followed.
+    client = FakeLinkPage()
+    linkpage.meetings(page, FakeLinkPage.SOUTH_BURLINGTON, {**south_burlington(), "since": "2026-10-15"},
+                      resolve=client.location)
+    assert client.heads == ["https://aptg.co/LJKxnt", "https://aptg.co/7ddYQz"]
+
+
+def test_short_links_are_followed_once(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = south_burlington()
+    status, store, client = run(town, tmp_path)
+    assert status["meetings_created"] == 3 and not status["errors"]
+    assert sorted(client.heads) == sorted(FakeLinkPage.SHORT_LINKS) and status["short_links"] == FakeLinkPage.SHORT_LINKS
+    november = next(m for m in store.values() if m["date"] == "2026-11-04")
+    agenda = november["agendas"][0]
+    assert agenda["source_url"] == FakeLinkPage.SHORT_LINKS["https://aptg.co/LJKxnt"]
+    assert agenda["posted_on"] == "the South Burlington School District website"
+    assert next(m for m in store.values() if m["date"] == "2026-10-07")["minutes"]
+    # The next run asks none of them again.
+    _, _, again = run(town, tmp_path)
+    assert again.heads == []
+
+
+def test_a_short_link_that_leads_nowhere(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = south_burlington()
+
+    class Broken(FakeLinkPage):
+        def location(self, url):
+            if url == "https://aptg.co/LJKxnt":
+                return None   # it doesn't redirect
+            return super().location(url)
+
+    status, store, _ = run(town, tmp_path, Broken())
+    assert status["errors"] == ["https://aptg.co/LJKxnt: doesn't lead to a file"]
+    assert "https://aptg.co/LJKxnt" not in status["short_links"]
+    assert not any(m["date"] == "2026-11-04" for m in store.values())
 
 
 # ---- On the site -------------------------------------------------------------------------------
