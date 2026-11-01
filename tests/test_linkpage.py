@@ -394,6 +394,53 @@ def test_one_meeting_a_day_takes_the_announcement_and_the_row_as_one():
     assert len(keys) == 2 and "2026-10-14-meeting" in keys
 
 
+def test_one_meeting_a_day_keeps_a_cancellation_the_shorter_name_doesnt_say():
+    # The announcement says CANCELLED; the table row, whose shorter (empty) name is shown, doesn't.
+    row = ('<table><tr><td>DATE</td><td>AGENDA/BACK-UP INFORMATION</td><td>APPROVED MINUTES</td></tr>'
+           '<tr><td>October 14, 2026</td><td><a href="https://drive.google.com/file/d/1AgendaAgendaAgendaAgendaAgenda01/view">October 14, 2026</a></td>'
+           '<td></td></tr></table>')
+    page = westbrook_page().replace("School Committee will meet", "School Committee meeting is CANCELLED. It will meet", 1)
+    page = page.replace("</body>", row + "</body>")
+    october = {m["key"]: m for m in linkpage.meetings(page, WESTBROOK, westbrook())[0]}["2026-10-14-school-committee"]
+    assert (october["name"], october["status"]) == ("", "cancelled")
+
+
+def test_minutes_an_agenda_links():
+    # Biddeford School Committee's packet of October 14, 2026: its minutes item links September 23's.
+    page = (FIXTURES / "linkpage_biddeford_packet.html").read_text(encoding="utf-8")
+    assert linkpage.minutes_in_agenda(page) == [
+        ("2026-09-23", "https://docs.google.com/document/d/1MtsFhMA-iR8_WaZK0IRoocrLxJuIUg5qbkh8ZDY-z1k/edit?usp=sharing")]
+    # A dated link in a paragraph that isn't about minutes, or a minutes item without a dated link, isn't one.
+    assert linkpage.minutes_in_agenda('<p>Workshop <a href="https://example.org/a.pdf">9/30/2026</a></p>'
+                                      '<p>Minutes: <a href="https://example.org/b.pdf">see here</a></p>') == []
+
+
+def test_minutes_in_agendas_go_to_the_earlier_meeting():
+    class Packets:
+        def __init__(self):
+            self.urls = []
+
+        def get(self, url):
+            from fakes import FakeResponse
+            self.urls.append(url)
+            body = (FIXTURES / "linkpage_biddeford_packet.html").read_bytes() if "OCTOBER" in url else b"<p>Agenda</p>"
+            return FakeResponse(body)
+
+    doc = "https://docs.google.com/document/d/{}/edit"
+    found = [{"body": "School Committee", "date": "2026-10-14", "agenda_url": doc.format("1OCTOBERxxxxxxxxxxxxxxxxxxxxxxx")},
+             {"body": "School Committee", "date": "2026-09-23", "agenda_url": doc.format("1SEPTEMBERxxxxxxxxxxxxxxxxxxxxx")},
+             {"body": "School Committee", "date": "2026-11-12", "agenda_url": doc.format("1NOVEMBERxxxxxxxxxxxxxxxxxxxxxx")}]
+    client, known, errors = Packets(), {}, []
+    fetch_page_meetings.link_minutes_in_agendas(client, found, "2026-06-01", "2026-11-01", known, errors)
+    assert found[1]["minutes_url"].startswith("https://docs.google.com/document/d/1MtsFhMA")
+    assert "minutes_url" not in found[0] and errors == []
+    # A past packet without minutes is remembered as none; an upcoming one is read again next run.
+    assert known[doc.format("1SEPTEMBERxxxxxxxxxxxxxxxxxxxxx")] == [] and doc.format("1NOVEMBERxxxxxxxxxxxxxxxxxxxxxx") not in known
+    client.urls.clear()
+    fetch_page_meetings.link_minutes_in_agendas(client, found, "2026-06-01", "2026-11-01", known, errors)
+    assert client.urls == [f"https://docs.google.com/document/d/1NOVEMBER{'x' * 22}/export?format=html"]
+
+
 # Westbrook's Policy Committee page, its announcement 125 characters long, and the Educational Programs
 # Committee's table, a cell's date split by its link ("J" and a link "anuary 14, 2026"), and its third column
 # the committee's reports.
@@ -616,6 +663,7 @@ def test_waltham(config, tmp_path):
     ({"other_pages": "https://www.wsdvt.org/school-board/board-minutes/"}, "other_pages must list"),
     ({"name_ignore_pattern": "(WSD"}, "name_ignore_pattern isn't a regular expression"),
     ({"one_meeting_a_day": "yes"}, "one_meeting_a_day must be true or false"),
+    ({"minutes_in_agenda": "yes"}, "minutes_in_agenda must be true or false"),
     ({"columns": ["School Committee"]}, "columns must map"),
 ])
 def test_config_is_checked(change, message):
