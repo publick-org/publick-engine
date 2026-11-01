@@ -1,6 +1,7 @@
 """Public bodies' meetings from Rhode Island's Open Meetings portal: South Kingstown School
 Committee's completed meetings' feed and two meeting pages (tests/fixtures/opengov_*), saved
-and trimmed."""
+and trimmed; and their videos from a clerk's ClerkBase dockets (a docket of Pawtucket's City
+Council, tests/fixtures/clerkbase_docket.htm, trimmed)."""
 
 import copy
 import json
@@ -10,7 +11,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeOpenGov
 
-from pipeline import absences, fetch_opengov_meetings, opengov
+from pipeline import absences, clerkbase, fetch_opengov_meetings, opengov, youtube
 from pipeline.fetch_meetings import load_store
 from pipeline.http import FetchError
 
@@ -168,6 +169,76 @@ def test_minutes_not_posted_names_the_portal(town):
     assert gap["reason"] == "not_posted" and gap["source"] == "opengov" and gap["url"] == m["source_url"]
 
 
+# ---- Videos from ClerkBase dockets ----------------------------------------------------------
+
+FOLDER = "https://clerkshq.com/Content/Pawtucket-ri/council"
+DOCKET = (FIXTURES / "clerkbase_docket.htm").read_text(encoding="utf-8")
+
+
+def test_docket_url():
+    assert clerkbase.docket_url(FOLDER, "2026-10-21") == f"{FOLDER}/2026/oct21_26dk.htm"
+    assert clerkbase.docket_url(FOLDER + "/", "2026-02-05") == f"{FOLDER}/2026/feb05_26dk.htm"
+
+
+def test_docket_video():
+    # Its whole-meeting link plays January 7's meeting, left from that docket; its items play its own.
+    assert "SCkRAP6hz1c" in DOCKET
+    assert clerkbase.video(DOCKET) == "y_CuxXXyn2E"
+    # Before the video is indexed, the docket links none.
+    assert clerkbase.video(DOCKET.replace("youtube.com", "example.com")) is None
+    # Two videos linked as often: neither is known to be the meeting's.
+    assert clerkbase.video('<a href="https://youtu.be/aaaaaaaaaaa">1</a><a href="https://www.youtube.com/watch?v=bbbbbbbbbbb">2</a>') is None
+
+
+def with_dockets(town, dockets):
+    town["opengov_meetings"]["dockets"] = {"School Committee": FOLDER}
+    return FakeOpenGov(dockets=dockets)
+
+
+def test_a_docket_gives_its_meeting_a_video(town, tmp_path):
+    client = with_dockets(town, {f"{FOLDER}/2026/sep08_26dk.htm": DOCKET})
+    status, store, _ = run(town, tmp_path, client)
+    assert store["opengov-1093108"]["video_id"] == "y_CuxXXyn2E"
+    assert status["videos_linked"] == 1 and status["errors"] == []
+    # October 13's two meetings, at 5 and 6 p.m., share a docket: neither is given its video, nor is it read.
+    assert not any("video_id" in store[i] for i in ("opengov-1094476", "opengov-1094488"))
+    assert not any("oct13" in url for url in client.urls)
+    # A YouTube source without a channel takes it, matched to the meeting that links it.
+    found = youtube.linked({"platform": "youtube", "boards": ["School Committee"]}, store, "2026-09-01")
+    assert [(f["video_id"], f["listing"], f["date"]) for f in found] == [("y_CuxXXyn2E", "opengov-1093108", "2026-09-08")]
+    # A meeting with its video isn't read again.
+    _, _, client = run(town, tmp_path, with_dockets(town, {}))
+    assert not any("clerkshq.com" in url for url in client.urls)
+
+
+def test_a_docket_is_read_until_it_links_a_video(town, tmp_path):
+    url = f"{FOLDER}/2026/sep08_26dk.htm"
+    _, store, client = run(town, tmp_path, with_dockets(town, {}))
+    assert url in client.urls and "video_id" not in store["opengov-1093108"]
+    _, store, _ = run(town, tmp_path, with_dockets(town, {url: DOCKET.replace("youtube.com", "example.com")}))
+    assert "video_id" not in store["opengov-1093108"]
+    _, store, _ = run(town, tmp_path, with_dockets(town, {url: DOCKET}))
+    assert store["opengov-1093108"]["video_id"] == "y_CuxXXyn2E"
+
+
+def test_dockets_not_read(town, tmp_path):
+    # Upcoming and cancelled meetings, and meetings older than recheck_days, aren't read.
+    client = FakeOpenGov(upcoming=[(1095000, "2026-10-27T17:00")], cancelled=[(1093108, "2026-09-08T17:00")],
+                         pages={1095000: (FIXTURES / "opengov_meeting_amended.html").read_text()})
+    town["opengov_meetings"]["dockets"] = {"School Committee": FOLDER}
+    _, _, client = run(town, tmp_path, client)
+    assert not any("clerkshq.com" in url for url in client.urls)
+    town["opengov_meetings"]["recheck_days"] = 30
+    _, _, client = run(town, tmp_path, with_dockets(town, {}))
+    assert not any("clerkshq.com" in url for url in client.urls)
+
+
+def test_a_docket_that_cant_be_read(town, tmp_path):
+    status, store, _ = run(town, tmp_path, with_dockets(town, {f"{FOLDER}/2026/sep08_26dk.htm": 403}))
+    assert any("sep08_26dk.htm: HTTP 403" in e for e in status["errors"])
+    assert "video_id" not in store["opengov-1093108"] and store["opengov-1093108"]["minutes"]
+
+
 # ---- The config -----------------------------------------------------------------------------
 
 @pytest.mark.parametrize("settings, message", [
@@ -176,10 +247,16 @@ def test_minutes_not_posted_names_the_portal(town):
     ({**south_kingstown(), "page_url": "opengov.sos.ri.gov"}, "page_url must be"),
     ({**south_kingstown(), "bodies": {"South Kingstown School Committee": ""}}, "bodies must map"),
     ({**south_kingstown(), "recheck_days": -1}, "recheck_days must be"),
+    ({**south_kingstown(), "dockets": {"School Committee": "https://clerkshq.com/Pawtucket-ri"}}, "dockets must map"),
+    ({**south_kingstown(), "dockets": ["School Committee"]}, "dockets must map"),
 ])
 def test_config_check(settings, message):
     with pytest.raises(SystemExit, match=message):
         opengov.check({"slug": "south-kingstown", "opengov_meetings": settings})
+
+
+def test_config_with_dockets():
+    opengov.check({"slug": "pawtucket", "opengov_meetings": {**south_kingstown(), "dockets": {"School Committee": FOLDER}}})
 
 
 # ---- The site -------------------------------------------------------------------------------
