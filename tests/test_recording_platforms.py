@@ -499,18 +499,38 @@ def test_civicclerk_events_keep_their_youtube_link():
 BLOCKED = (400, {"error": {"message": "Input blocked: This request was blocked by Gemini's filters."}})
 
 
-def test_a_part_gemini_declines_is_asked_for_in_halves_down_to_a_gap():
-    # A 10-minute part refused: its halves are asked for; the second, refused again at MIN_PIECE, is a gap.
-    post = FakeHTTP(BLOCKED, (200, interaction("[0:00:05] Good evening.")), BLOCKED)
+def test_a_part_the_model_declines_is_asked_of_the_fallback():
+    post = FakeHTTP(BLOCKED, (200, interaction("[0:40:05] We owe $2.7 million.")))
+    text, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", clip=600, sleep=lambda s: pytest.fail())
+    assert text == "[0:40:05] We owe $2.7 million.\n"
+    assert [kwargs["json"]["model"] for _, kwargs in post.calls] == [gemini.MODEL, gemini.FALLBACK]
+    assert usage["requests"] == 1 and usage["fallback_requests"] == 1
+
+
+def test_a_part_both_decline_is_asked_for_in_halves_down_to_a_gap():
+    # A 10-minute part refused by both: its halves are asked for; the second, refused again by both at
+    # MIN_PIECE, is a gap.
+    post = FakeHTTP(BLOCKED, BLOCKED, (200, interaction("[0:00:05] Good evening.")), BLOCKED, BLOCKED)
     text, usage = gemini.transcribe(post, "abc", 600, "x", "2026-10-26", "k", clip=600, sleep=lambda s: pytest.fail())
     assert text == f"[0:00:05] Good evening.\n[0:05:00] {gemini.GAP}\n"
-    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["0s", "0s", "300s"]
+    assert [(kwargs["json"]["model"], kwargs["json"]["input"][0]["processing"]["start_offset"]) for _, kwargs in post.calls] == [
+        (gemini.MODEL, "0s"), (gemini.FALLBACK, "0s"), (gemini.MODEL, "0s"), (gemini.MODEL, "300s"),
+        (gemini.FALLBACK, "300s")]
     assert usage["requests"] == 1
 
 
 def test_a_recording_gemini_declines_throughout_is_a_failed_try():
     with pytest.raises(transcribe.TranscribeError, match="declined every part"):
-        gemini.transcribe(FakeHTTP(BLOCKED), "abc", 300, "x", "2026-10-26", "k")
+        gemini.transcribe(FakeHTTP(BLOCKED, BLOCKED), "abc", 300, "x", "2026-10-26", "k")
+
+
+def test_a_part_kept_with_a_gap_is_asked_for_again():
+    done = {"model": gemini.MODEL, "clip": 600, "usage": {"requests": 1, "input_tokens": 1, "output_tokens": 1},
+            "parts": {"0": ["[0:00:05] Kept."], "600": [f"[0:10:00] {gemini.GAP}"]}}
+    post = FakeHTTP((200, interaction("[0:10:05] Now heard.")))
+    text, _ = gemini.transcribe(post, "abc", 1200, "x", "2026-10-26", "k", clip=600, done=done)
+    assert text == "[0:00:05] Kept.\n[0:10:05] Now heard.\n"
+    assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["600s"]
 
 
 def test_youtube_is_the_backup():
