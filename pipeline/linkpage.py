@@ -27,7 +27,9 @@ calendar entry a meeting. Three layouts are read:
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
-("September 16, 2026", "Sept. 16 2026") or as "2026-09-16". Its meeting's
+("September 16, 2026", "Sept. 16 2026"), as "2026-09-16", or in figures with
+dots, month first ("10.07.26", "05.06.2026", as Bristol Public Schools titles
+its minutes). Its meeting's
 name is the rest of the text: for a row, its cells without their links'
 labels and without cells that only repeat their column's heading; for a link,
 its label without the date and the words "agenda" and "minutes"; for a line,
@@ -68,6 +70,8 @@ BLOCK_TAG = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br|section|header|article|t
 # A line longer than this is a paragraph, not a meeting's heading.
 HEADING_LENGTH = 120
 ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
+# A date in figures, month first, with dots: "10.07.26", "05.06.2026" (Bristol Public Schools' minutes).
+DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d.])")
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -81,8 +85,8 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out or as yyyy-mm-dd."""
-    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value)) if m]
+    """The first date in a text, written out, as yyyy-mm-dd, or as mm.dd.yy."""
+    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), DOTTED_DATE.search(value)) if m]
     return min(found, key=lambda m: m.start()) if found else None
 
 
@@ -90,6 +94,9 @@ def date_value(found: re.Match) -> str | None:
     try:
         if found.re is ISO_DATE:
             return date(*(int(g) for g in found.groups())).isoformat()
+        if found.re is DOTTED_DATE:
+            month, day, year = (int(g) for g in found.groups())
+            return date(year + 2000 if year < 100 else year, month, day).isoformat()
         month, day, year = found.groups()
         return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
     except ValueError:
