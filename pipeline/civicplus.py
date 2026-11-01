@@ -75,6 +75,9 @@ DATE_IN_NAME = re.compile(
     rf"(?:\b{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+\d{{4}}\b)?"
     r"|(?<![\d/.-])\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})(?![\d/.-])"
     r"|(?<!\d)\d{4}-\d{2}-\d{2}(?!\d))", re.I)
+# What a clerk writes after a board's name that names one of its committees: "City Council - Ordinance
+# Committee", "City Council - Committee of the Whole" (Lawrence's calendar). The meeting is the committee's.
+OF_BOARD = re.compile(r"^[\w&,/' ]*\b(?:sub)?committee(?: of the whole)?(?:\s+meeting)?$", re.I)
 # A committee's meeting posted as the full council's too, so a quorum of it may attend: "Committee on
 # Administration and Finance co-posted with the Committee of the Whole". The meeting is the committee's.
 CO_POSTED = re.compile(r"\s*,?\s*\bco-?posted\b.*$", re.I)
@@ -113,8 +116,13 @@ def parse_title(title: str) -> dict:
     # The board, without what the clerk added after it ("Planning Board - Public
     # Hearing", "License Board Meeting - Agenda - October 1, 2026") or in brackets
     # ("Community Preservation Committee (CPC)"), its date (board_part), or the kind
-    # of meeting.
-    body = re.split(r"\s+[-–]+\s+", board_part(re.sub(r"\s*\([^)]*\)", "", name)))[0]
+    # of meeting; but with the committee of it that follows ("City Council - Ordinance
+    # Committee": its Ordinance Committee).
+    pieces = re.split(r"\s+[-–]+\s+", board_part(re.sub(r"\s*\([^)]*\)", "", name)))
+    body = pieces[0]
+    if len(pieces) > 1 and OF_BOARD.match(pieces[1]):
+        committee = re.sub(r"\s+meeting$", "", pieces[1], flags=re.I)
+        body = f"{body} {committee}"
     body = re.sub(r"^regular\s+", "", body, flags=re.I)
     body = re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$", "", body, flags=re.I)
     body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip() or name
