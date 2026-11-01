@@ -425,10 +425,10 @@ year, and only years not yet saved are asked for.
 ### Vermont's yearly figures
 
 Vermont's Department of Taxes (Property Valuation and Review) and Agency of
-Education publish tax rates, grand lists, taxes raised, and spending per pupil
-as statewide workbooks once a year, under names that change each year. One
-command finds the newest on the state's pages, by their links' text, and saves
-every town's and district's rows into the engine:
+Education publish tax rates, grand lists, parcels by property category, taxes
+raised, and spending per pupil as statewide workbooks once a year, under names
+that change each year. One command finds the newest on the state's pages, by
+their links' text, and saves every town's and district's rows into the engine:
 
 ```sh
 python -m pipeline.states.vt.extract                # or name workbooks downloaded by hand
@@ -438,9 +438,14 @@ python -m pipeline.states.vt.extract --population   # Census estimates, matched 
 Commit `pipeline/states/vt/figures/`, as for New Hampshire. The average
 homestead bill is calculated daily from those rates and VCGI's statewide parcel
 data, while the parcel data's grand list year has rates in the saved figures and
-its homestead values add up to the state's homestead grand list. Graduation
-rates, chronic absenteeism, and test results come from data.vermont.gov at each
-run; each spring's test results are a dataset of their own, found by name.
+its homestead values add up to the state's homestead grand list. Where the
+parcel data lacks some of a town's parcels (Winooski's maps predate many of its
+condominiums), the bill is calculated while the parcel data's R1 parcels, the
+homes it averages, match PVR's count and listed value of the town's R1, and the
+homestead value it lacks is no more than the grand list it lacks; the bill's
+note says so. Graduation rates, chronic absenteeism, and test results come from
+data.vermont.gov at each run; each spring's test results are a dataset of their
+own, found by name.
 
 ### Maine's yearly figures
 

@@ -22,6 +22,7 @@ recognized by what's in it, not its name:
   PVR Annual Report supplemental data (ANNUAL_REPORT), each year:
     Tax Rates: Taxes and Tax Rates by County (.xlsx)
     Education and Municipal Listed and Equalized Grand List by Town (.xlsx)
+    Education and Municipal Listed Values and Equalized Values by Category - Town (.xlsx)
   AOE, Per Pupil Spending (SPENDING_PAGE), each fiscal year from 2025:
     FY <year> Report (.xlsx, "Classifying School Districts by Size and Type")
 
@@ -63,6 +64,9 @@ FILES = {
                       "Taxes and Tax Rates by County", "source_url": ANNUAL_REPORT},
     "grand_list": {"source": "Vermont Department of Taxes, Property Valuation and Review, Annual Report: "
                              "Education and Municipal Listed and Equalized Grand List by Town",
+                   "source_url": ANNUAL_REPORT},
+    "categories": {"source": "Vermont Department of Taxes, Property Valuation and Review, Annual Report: "
+                             "Education and Municipal Listed Values and Equalized Values by Category - Town",
                    "source_url": ANNUAL_REPORT},
     "spending": {"source": "Vermont Agency of Education, Per Pupil Spending", "source_url": SPENDING_PAGE},
     "population": {"source": "U.S. Census Bureau, Population Estimates Program (city and town totals)",
@@ -164,6 +168,31 @@ def grand_lists(content: bytes) -> dict[int, dict]:
         out.setdefault(int(year), {})[str(town).strip()] = record
     if not out:
         raise ValueError("no towns in the grand list workbook")
+    return out
+
+
+# The property categories whose parcel counts and listed values are saved: R1, residences on less than six acres,
+# the homes the average homestead bill is of (tax_bill.py).
+CATEGORIES = ("R1",)
+
+
+def categories(content: bytes) -> dict[int, dict]:
+    """{tax year: {town: {category: {"parcels", "education_listed_value"}}}} from a Listed Values and Equalized
+    Values by Category - Town workbook, for the CATEGORIES only. The education listed value is without a TIF
+    district's increment, as the town's education grand list is."""
+    header, rows = table(sheet_rows(content), ("tax year", "town name", "category code", "property count",
+                                               "education listed value"))
+    out: dict[int, dict] = {}
+    for row in rows:
+        year, town, category = number(row[header["tax year"]]), row[header["town name"]], row[header["category code"]]
+        category = str(category or "").strip()
+        if not year or not town or category not in CATEGORIES:
+            continue
+        count, value = number(row[header["property count"]]), number(row[header["education listed value"]])
+        out.setdefault(int(year), {}).setdefault(str(town).strip(), {})[category] = {
+            "parcels": round(count or 0), "education_listed_value": round(value or 0)}
+    if not out:
+        raise ValueError("no towns in the listed values by category workbook")
     return out
 
 
@@ -277,8 +306,13 @@ def workbook_on(client, document_page: str) -> str | None:
     return found[0] if found else None
 
 
+# "Education and Municipal Listed Values and Equalized Values by Category - Town", as 2024's page writes it; 2025's
+# says "Equalized Vales by Category Town", 2023's "Listed values". Not its "- Statewide" twin.
+CATEGORIES_LINK = r"Education and Municipal Listed Values and Equalized Val\w* by Category\W+Town\b"
+
+
 def state_files(client) -> list[str]:
-    """The workbooks the state's pages list now: each Annual Report year's two, and each fiscal year's spending."""
+    """The workbooks the state's pages list now: each Annual Report year's three, and each fiscal year's spending."""
     found = []
     for text, year_page in links(client, ANNUAL_REPORT):
         if not re.match(r"\d{4} Supplemental Data", text):
@@ -286,7 +320,8 @@ def state_files(client) -> list[str]:
         for title, page in links(client, year_page):
             if re.match(r"Tax Rates: Taxes and Tax Rates by County", title) and "(PDF)" not in title \
                     or re.match(r"Education and Municipal Listed and Equalized Grand List by Town", title) \
-                    and "(PDF)" not in title:
+                    and "(PDF)" not in title \
+                    or re.match(CATEGORIES_LINK, title, re.I) and "(PDF)" not in title:
                 found.append(workbook_on(client, page))
     for text, page in links(client, SPENDING_PAGE):
         m = re.match(r"FY\s*(\d{4})\s+Report", text.replace("​", "").replace("\xa0", " ").strip())
@@ -345,6 +380,8 @@ def read(content: bytes, name: str) -> tuple[str, dict[int, dict]]:
         year, rows = spending(content)
         return "spending", {year: rows}
     cells = " ".join(norm(c) for row in sheet_rows(content)[:6] for c in row if c)
+    if "category code" in cells and "property count" in cells:
+        return "categories", categories(content)
     if "homestead tax rate" in cells:
         return "tax", taxes(content)
     if "cla" in cells.split() and "equalized" in cells:
