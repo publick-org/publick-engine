@@ -43,7 +43,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import linkpage
+from pipeline import finalsite, linkpage
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_finalsite_meetings import update_documents
@@ -71,6 +71,36 @@ def new_meeting(store: dict, found: dict, settings: dict, stamp: str) -> dict:
     }
     store[meeting["id"]] = meeting
     return meeting
+
+
+def link_minutes_in_agendas(client, found: list[dict], since: str, today: str, known: dict,
+                            errors: list[str]) -> None:
+    """[page_meetings] minutes_in_agenda: a board that posts a meeting's minutes only as a link in the next
+    meeting's agenda (Biddeford School Committee's packets, Google Docs: "Approval of Last Meeting's Minutes:
+    9/23/2026"). Each agenda that's a Google Doc, of a meeting from `since` on, is read as HTML until it links
+    minutes or its meeting has passed, then not again (`known`, by the agenda's address, kept in the status
+    file), and each link is the minutes of
+    the same board's meeting on its date, where that meeting has none of its own."""
+    by_day = {(m["body"], m["date"]): m for m in found}
+    for item in found:
+        agenda = item.get("agenda_url")
+        if item["date"] < since or not agenda or not finalsite.is_google_doc(agenda):
+            continue
+        if agenda not in known:
+            doc = finalsite.file_key(agenda)
+            try:
+                page = client.get(f"https://docs.google.com/document/d/{doc}/export?format=html").text
+            except FetchError as e:
+                errors.append(f"{agenda}: {e}")
+                continue
+            links = linkpage.minutes_in_agenda(page)
+            if not links and item["date"] >= today:
+                continue   # read again next run: the agenda may not link them yet
+            known[agenda] = links
+        for day, url in known[agenda]:
+            earlier = by_day.get((item["body"], day))
+            if earlier and day < item["date"] and not earlier.get("minutes_url"):
+                earlier["minutes_url"] = url
 
 
 def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
@@ -130,6 +160,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         found += [{**m, "page_url": url} for m in on_page]
         unrecognized += not_read
 
+    agenda_minutes = previous.get("agenda_minutes", {}) if settings.get("minutes_in_agenda") else {}
+    if settings.get("minutes_in_agenda"):
+        link_minutes_in_agendas(client, found, since, today, agenda_minutes, errors)
+
     created, listed = 0, set()
     for item in found:
         if item["date"] < since:
@@ -179,6 +213,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "errors": errors,
         # Where each short link on the pages leads, so it isn't asked again.
         "short_links": dict(sorted(short_links.items())),
+        # The minutes each agenda links ([page_meetings] minutes_in_agenda), so a packet isn't read again.
+        **({"agenda_minutes": dict(sorted(agenda_minutes.items()))} if settings.get("minutes_in_agenda") else {}),
     }
     save_json(status_path, status)
     return status
