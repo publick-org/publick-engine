@@ -736,6 +736,7 @@ The network's Workers send it through [Buttondown](https://buttondown.com) (`wor
 
 - The workflow runs every morning, fetches new data, commits any changes under `data/`, then tests, builds, and deploys.
 - Requests identify the site in the User-Agent, wait between calls, and back off on errors. The city website rate-limits bursts of requests.
+- Certificates are always verified. A host whose server leaves a certificate out of its chain, so that the chain doesn't reach a root in the trust store, can be given that certificate in `pipeline/http.py` (`EXTRA_CERTIFICATES`, files in `pipeline/certs/`): only an intermediate its issuer publishes, which must itself chain to a root of the store, for that host alone. SAU 10's website (Derry Cooperative School District) sends Let's Encrypt's YR1 without ISRG Root YR cross-signed by ISRG Root X1.
 - Records are never deleted. When a source changes something after posting it, the change is recorded in the record's `history`.
 - Meeting page URLs are fixed when a meeting is first identified (`pipeline/identity.py`), so links keep working if the city renames or reschedules it, or lists it somewhere else too.
 

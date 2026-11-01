@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import ssl
 import tempfile
 import time
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.ssl_ import create_urllib3_context
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
 # The longest a server's Retry-After is waited for, in seconds.
@@ -104,6 +107,54 @@ class HostLimiter:
         return found[0] if found[0] > time.time() else None
 
 
+# Hosts whose server sends a certificate chain that stops short of any root in the trust store, each
+# with the one certificate (in pipeline/certs/) that joins it to a root the store has. SAU 10's website
+# (Derry Cooperative School District) sends its certificate and Let's Encrypt's YR1, issued by ISRG Root
+# YR, which no trust store had yet in 2026 (certifi 2026.10.23 hasn't it); Let's Encrypt publishes Root
+# YR cross-signed by ISRG Root X1, which every store has, as the chain's next link. That intermediate
+# is added for these hosts alone, to the trust store requests uses (certifi, or REQUESTS_CA_BUNDLE):
+# verification stays on, and every other host is verified as before.
+EXTRA_CERTIFICATES = {
+    "www.sau10.nh.gov": "isrg-root-yr-by-x1.pem",
+    "sau10.nh.gov": "isrg-root-yr-by-x1.pem",
+}
+CERTS_DIR = Path(__file__).parent / "certs"
+
+
+class ExtraCertificate(HTTPAdapter):
+    """Requests to one host verified with one more certificate than the trust store has: an
+    intermediate the host's server leaves out of its chain (EXTRA_CERTIFICATES). The trust store
+    requests would use is still loaded, as for any host, and the certificate must chain to it."""
+
+    def __init__(self, pem: str, **kwargs):
+        self.pem = pem
+        super().__init__(**kwargs)
+
+    def context(self):
+        context = create_urllib3_context()
+        # A certificate in the store is trusted as it stands when partial chains are allowed (urllib3
+        # allows them): without, the chain must still end at a root of the store, so the added
+        # certificate is only a link to one.
+        context.verify_flags &= ~ssl.VERIFY_X509_PARTIAL_CHAIN
+        context.load_verify_locations(cadata=self.pem)
+        return context
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = self.context()
+        super().init_poolmanager(*args, **kwargs)
+
+    def proxy_manager_for(self, proxy, **kwargs):
+        # Through a proxy (HTTPS_PROXY), the connection to the host is made by the proxy manager.
+        kwargs.setdefault("ssl_context", self.context())
+        return super().proxy_manager_for(proxy, **kwargs)
+
+
+def mount_extra_certificates(session: requests.Session) -> None:
+    """Give each host in EXTRA_CERTIFICATES its certificate, on this session only."""
+    for host, name in EXTRA_CERTIFICATES.items():
+        session.mount(f"https://{host}/", ExtraCertificate((CERTS_DIR / name).read_text(encoding="ascii")))
+
+
 class FetchError(Exception):
     def __init__(self, message: str, status: int | None = None):
         super().__init__(message)
@@ -133,6 +184,7 @@ class PoliteClient:
         refusals. Without one, they're kept by this client alone."""
         self.session = requests.Session()
         self.session.headers["User-Agent"] = user_agent
+        mount_extra_certificates(self.session)
         self.delay = delay
         self.retries = retries
         self.timeout = timeout
