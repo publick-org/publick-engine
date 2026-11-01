@@ -771,6 +771,10 @@ def withheld_summaries(meetings: list[dict], withheld: list[dict]) -> set[tuple[
     return found
 
 
+# How far ahead an upcoming meeting with no agenda or documents yet is listed (load_meetings()).
+LISTED_AHEAD_DAYS = 30
+
+
 def load_meetings(data_dir: Path, today: date, summary_model: str | None = None, terms: list[dict] | None = None,
                   corrections: list[dict] | None = None, withheld: list[dict] | None = None, town: str = "",
                   vote_members=None) -> dict:
@@ -924,7 +928,15 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             m["day_part"] = _("{i} of {n}").format(i=i, n=len(group)) if m["same_day"] and not by_time else None
 
     today_s = today.isoformat()
-    upcoming = [m for m in meetings if m["date"] >= today_s]
+    # An upcoming meeting with nothing posted yet is listed only within LISTED_AHEAD_DAYS: the calendars run
+    # two or three months out, and a long list of dates with no agenda says little. One with an agenda or
+    # documents is listed however far out. Each still has its own page, and a board's next meeting is named.
+    listed_until = (today + timedelta(days=LISTED_AHEAD_DAYS)).isoformat()
+
+    def listed(m: dict) -> bool:
+        return m["date"] < listed_until or bool(m["agenda"] or m["preview"] or m.get("documents_url"))
+
+    upcoming = [m for m in meetings if m["date"] >= today_s and listed(m)]
     past = [m for m in meetings if m["date"] < today_s][::-1]
 
     boards = defaultdict(list)
@@ -939,7 +951,9 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
             if slugify(name) not in boards:
                 other_names[m["body_slug"]].add(slugify(name))
     board_list = sorted(
-        ({"slug": s, "name": ms[-1]["body"], "name_en": ms[-1]["body"], "url": ms[0]["body_url"], "meetings": ms[::-1],
+        ({"slug": s, "name": ms[-1]["body"], "name_en": ms[-1]["body"], "url": ms[0]["body_url"],
+          # A board with only meetings beyond that keeps its next one listed.
+          "meetings": ([m for m in ms if m["date"] < today_s or listed(m)] or ms[:1])[::-1],
           "next": next((m for m in ms if m["date"] >= today_s), None),
           "also_urls": [f"/meetings/boards/{a}/" for a in sorted(other_names[s])]} for s, ms in boards.items()),
         key=lambda b: b["name"].lower(),
