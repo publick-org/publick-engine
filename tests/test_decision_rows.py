@@ -308,3 +308,22 @@ def test_a_section_with_nothing_of_its_summary_shown_says_why(tmp_path):
             assert re.sub(r"<[^>]+>|\s", "", body), f"{path}: empty {name} section"
             found = found or ("aren't shown" in body or "isn't shown" in body)
     assert found
+
+
+def test_meetings_with_nothing_posted_are_listed_a_month_ahead(data_dir):
+    """An upcoming meeting with no agenda or documents is listed (the meetings page's upcoming and Later
+    lists, its board's list) only within LISTED_AHEAD_DAYS; it keeps its own page, and its board names it
+    as the next meeting."""
+    from datetime import timedelta
+
+    from conftest import BUILT_AT
+    today = BUILT_AT.date()
+    built = build_site.load_meetings(data_dir, today)
+    until = (today + timedelta(days=build_site.LISTED_AHEAD_DAYS)).isoformat()
+    bare = lambda m: not (m["agenda"] or m["preview"] or m.get("documents_url"))
+    far = [m for m in built["all"] if m["date"] >= until and bare(m)]
+    assert far, "the fixture has meetings beyond the limit with nothing posted"
+    assert not [m for m in built["upcoming"] + built["later"] if m["date"] >= until and bare(m)]
+    shown = {m["id"] for b in built["boards"] for m in b["meetings"]}
+    assert not {m["id"] for m in far} & shown
+    assert any(m["date"] < until for m in built["upcoming"])
