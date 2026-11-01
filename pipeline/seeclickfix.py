@@ -48,6 +48,19 @@ UNIT = re.compile(r"\s+(?:unit|apt|#)\s*\S+$", re.I)
 COARSE_DIGITS = 3
 
 
+# Where a category's name goes on into the city's instructions to whoever files one: "Noise Complaint
+# - IF THIS IS AN EMERGENCY, PLEASE CALL 911...", "Drainage/Flooding Issue - NON-EMERGENCY SITUATIONS
+# ONLY...", "Public Health Nuisance - Odors *IF YOU SMELL GAS...".
+INSTRUCTIONS = re.compile(r"\s*(?:-+|\*+)\s*\**\s*(?:if\b|please\b|non-emergency\b|for (?:an )?emergenc)", re.I)
+
+
+def category_label(category: str) -> str:
+    """A category's name without the instructions some cities put in it, for a page to show:
+    "Noise Complaint - IF THIS IS AN EMERGENCY, PLEASE CALL 911. ..." -> "Noise Complaint"."""
+    cut = INSTRUCTIONS.search(category or "")
+    return category[:cut.start()].rstrip(" -*:") if cut and cut.start() > 0 else category
+
+
 def sensitive(category: str, extra: list[str] | tuple = ()) -> bool:
     """Whether a category's requests are shown only to the block (SENSITIVE_CATEGORIES)."""
     return bool(SENSITIVE_CATEGORIES.search(category or "")) or category in extra

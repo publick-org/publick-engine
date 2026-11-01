@@ -10,7 +10,7 @@
   <h1>{{ _("Housing") }}</h1>
   <p class="lede">{% if "shi" in state_housing %}{{ _("New homes permitted, home values and rents, affordable housing, and the housing stock, from federal and state data.") }}{% elif state_housing %}{{ _("New homes permitted, home values and rents, and the housing stock, from federal and state data.") }}{% else %}{{ _("New homes permitted, home values and rents, and the housing stock, from federal data.") }}{% endif %}</p>
   {% if h %}
-  <p class="source-note">{% trans iso=h.updated_at, when=h.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>. Each source updates once or twice a year.{% endtrans %}</p>
+  <p class="source-note" data-about>{% trans iso=h.updated_at, when=h.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>. Each source updates once or twice a year.{% endtrans %}</p>
   {% endif %}
 </div>
 
@@ -61,7 +61,7 @@
 {% for y in pm.years %}{% set ignored = cols.append({"label": y.year | string, "short": "’" ~ (y.year | string)[2:], "value": y.units, "text": y.units | number}) %}{% endfor %}
 {{ year_columns(cols, _("New homes permitted by year")) }}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Year") }}</th><th scope="col" class="num">{{ _("Homes") }}</th><th scope="col" class="num">{{ _("In buildings of 5+") }}</th></tr></thead>
   <tbody>
   {% for y in pm.years | reverse %}
@@ -77,7 +77,8 @@
 <p>{% if ytd.get("months_reported") == 0 %}{% trans year=ytd.year, month=month, homes=ytd.units | number, count=ytd.units %}So far in {{ year }}, through {{ month }}: {{ homes }} home, estimated.{% pluralize %}So far in {{ year }}, through {{ month }}: {{ homes }} homes, estimated.{% endtrans %}{% elif ytd.estimated %}{% trans year=ytd.year, month=month, homes=ytd.units | number, count=ytd.units %}So far in {{ year }}, through {{ month }}: {{ homes }} home, partly estimated.{% pluralize %}So far in {{ year }}, through {{ month }}: {{ homes }} homes, partly estimated.{% endtrans %}{% else %}{% trans year=ytd.year, month=month, homes=ytd.units | number, count=ytd.units %}So far in {{ year }}, through {{ month }}: {{ homes }} home.{% pluralize %}So far in {{ year }}, through {{ month }}: {{ homes }} homes.{% endtrans %}{% endif %}</p>
 {% endif %}
 {# Translators: "partly estimated" and "estimated" are the notes on years in the table above. #}
-<p class="small">{% if h.permits.years | selectattr("months_reported", "defined") | selectattr("months_reported", "equalto", 0) | list %}{% trans %}Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated", and years with no reports at all "estimated".{% endtrans %}{% else %}{% trans %}Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated".{% endtrans %}{% endif %} {% trans url=h.bps_page %}Source: <a href="{{ url }}">U.S. Census Bureau, Building Permits Survey</a>.{% endtrans %}</p>
+<p class="small">{% if h.permits.years | selectattr("months_reported", "defined") | selectattr("months_reported", "equalto", 0) | list %}{% trans %}Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated", and years with no reports at all "estimated".{% endtrans %}{% else %}{% trans %}Cities and towns report permits to the Census Bureau monthly or once a year. For months without a report, the Bureau estimates the count; those years are marked "partly estimated".{% endtrans %}{% endif %}</p>
+<p class="small" data-about>{% trans url=h.bps_page %}Source: <a href="{{ url }}">U.S. Census Bureau, Building Permits Survey</a>.{% endtrans %}</p>
 {{ chart_links("permits", "/housing/data/permits.csv") }}
 {% endif %}
 
@@ -108,7 +109,8 @@
 <p>{% trans goal=s.goal_percent %}Massachusetts counts homes that are kept affordable to lower-income households on its Subsidized Housing Inventory. Under Chapter 40B, the goal is for {{ goal }}% of each community's year-round homes to be on the list.{% endtrans %}</p>
 <p>{% trans goal=s.goal_percent %}Below {{ goal }}%, a developer whose project includes affordable homes can get a single permit to build more densely than local zoning allows. If the city denies it, the state can overturn that decision on appeal.{% endtrans %}</p>
 <p>{% trans when=s.as_of | date("plain"), units=s.shi_units | number, town=town.name, homes=s.year_round_homes | number, percent=s.percent %}As of {{ when }}, {{ units }} of {{ town }}'s {{ homes }} year-round homes were on the list: <strong>{{ percent }}%</strong>.{% endtrans %}</p>
-<p class="small">{% if s.get("census_year") %}{% trans year=s.census_year %}Year-round homes are from the {{ year }} Census.{% endtrans %} {% endif %} {{ _("The state updates the list about every two years, with some changes in between.") }} {% trans url=s.source_url %}Source: <a href="{{ url }}">Executive Office of Housing and Livable Communities, Subsidized Housing Inventory</a>.{% endtrans %}</p>
+<p class="small">{% if s.get("census_year") %}{% trans year=s.census_year %}Year-round homes are from the {{ year }} Census.{% endtrans %} {% endif %} {{ _("The state updates the list about every two years, with some changes in between.") }}</p>
+<p class="small" data-about>{% trans url=s.source_url %}Source: <a href="{{ url }}">Executive Office of Housing and Livable Communities, Subsidized Housing Inventory</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Housing stock ---- #}
@@ -129,7 +131,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Estimates from the American Community Survey.") }} {% trans url=acs.source_url %}Source: <a href="{{ url }}">U.S. Census Bureau via Census Reporter</a>.{% endtrans %}</p>
+<p class="small">{{ _("Estimates from the American Community Survey.") }}</p>
+<p class="small" data-about>{% trans url=acs.source_url %}Source: <a href="{{ url }}">U.S. Census Bureau via Census Reporter</a>.{% endtrans %}</p>
 {% endif %}
 {% if h.get("parcels") %}{% set pc = h.parcels %}
 <h3 id="parcels">{{ _("Residential property by type") }}</h3>
@@ -144,7 +147,7 @@
   </tbody>
 </table>
 </div>
-<p class="small">{% trans url=pc.source_url %}Source: <a href="{{ url }}">Mass. Division of Local Services, parcel counts (LA-4)</a>.{% endtrans %}</p>
+<p class="small" data-about>{% trans url=pc.source_url %}Source: <a href="{{ url }}">Mass. Division of Local Services, parcel counts (LA-4)</a>.{% endtrans %}</p>
 {% endif %}
 {% endif %}
 {% endblock %}

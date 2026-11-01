@@ -291,3 +291,25 @@ def test_schools_page_names_the_high_school(nh_figures, tmp_path, data_dir, monk
     page = (out / "schools" / "index.html").read_text()
     assert "these are the figures for Pinkerton Academy, where its students go to high school" in page
     assert '<th scope="col" class="num">Pinkerton Academy</th>' in page
+
+
+def test_schools_page_builds_from_data_saved_before_the_high_school(nh_figures, tmp_path, data_dir, monkeypatch):
+    """schools.json saved before graduation had "school" still builds, with the town's own name."""
+    data = tmp_path / "data"
+    shutil.copytree(data_dir, data)
+    for name in ("finance", "schools"):
+        shutil.rmtree(data / name, ignore_errors=True)
+    config = manchester()
+    fetch_finance.run(config, FakeParcels(), data, now=NOW)
+    fetch_budget.run(config, FakeCity(), data, now=NOW)
+    fetch_schools.run(config, None, data, now=NOW)
+    saved = data / "schools" / "schools.json"
+    schools = json.loads(saved.read_text())
+    schools["measures"]["graduation"].pop("school", None)
+    saved.write_text(json.dumps(schools))
+    monkeypatch.setattr(build_site, "load_config", lambda slug: config)
+    out = tmp_path / "site"
+    build_site.build("gloucester", out, data_dir=data, now=BUILT_AT)
+    page = (out / "schools" / "index.html").read_text()
+    assert "where its students go to high school" not in page
+    assert f'<th scope="col" class="num">{config["town"]["name"]}</th>' in page
