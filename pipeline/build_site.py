@@ -59,7 +59,7 @@ from pipeline import translate
 from pipeline import votes
 from pipeline.fetch_meetings import slugify
 from pipeline.i18n import N_, _, month_name, month_year, ngettext, pgettext, plain_date, weekday_name
-from pipeline.seeclickfix import block_address, sensitive, short_address
+from pipeline.seeclickfix import block_address, category_label, sensitive, short_address
 
 SITE_DIR = ENGINE_DIR / "site"
 PAGES_DIR = SITE_DIR / "pages"
@@ -585,6 +585,24 @@ def roll_call_coverage(meetings: list[dict]) -> None:
         for m in ms:
             if m["roll_calls_read"]:
                 m["roll_call_coverage"] = coverage
+
+
+# A note a page's template marks to be said at the end of the page, not where it's written (data-about): when its
+# figures were checked, where they're from. What a reader needs to read a chart or table stays beside it.
+ABOUT_PLACE = "<!--about-page-->"
+ABOUT_NOTE = re.compile(r"<p\b[^>]*\bdata-about\b[^>]*>.*?</p>\s*", re.S)
+
+
+def gather_notes(html: str, heading: str) -> str:
+    """The page with its notes marked data-about moved, in order, under one heading at the end of its
+    content, where base.html marks it (ABOUT_PLACE)."""
+    notes = ABOUT_NOTE.findall(html)
+    if not notes or ABOUT_PLACE not in html:
+        return html.replace(ABOUT_PLACE + "\n", "").replace(ABOUT_PLACE, "")
+    html = ABOUT_NOTE.sub("", html)
+    section = (f'<section class="about-page" aria-labelledby="about-page"><h2 id="about-page">{escape(heading)}</h2>'
+               f'<div class="about-notes">{"".join(n.replace(" data-about", "") for n in notes)}</div></section>')
+    return html.replace(ABOUT_PLACE, section, 1)
 
 
 def decision_text(text: str) -> Markup:
@@ -1431,11 +1449,12 @@ def localize_officials(officials: dict, tr: TownStrings) -> None:
 
 
 def localize_categories(value, tr: TownStrings) -> None:
-    """Every 311 category name in the scorecard (or a list of requests), in the language being built."""
+    """Every 311 category name in the scorecard (or a list of requests), as shown: without the city's
+    instructions to whoever files one, in the language being built."""
     if isinstance(value, dict):
         for key, item in value.items():
             if key == "category" and isinstance(item, str):
-                value[key] = tr.data(item)
+                value[key] = tr.data(category_label(item))
             else:
                 localize_categories(item, tr)
     elif isinstance(value, list):
@@ -1746,6 +1765,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             moved_to=prefix + canonical if canonical else None,
             lang=lang, versions=versions,
         )
+        html = gather_notes(html, _("About this page"))
         html = mark_new_tab_links(html, own_hosts)
         if prefix:
             html = localize_links(html, prefix)

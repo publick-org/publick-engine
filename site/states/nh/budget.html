@@ -15,7 +15,7 @@
   <h1>{{ _("City budget") }}</h1>
   <p class="lede">{{ _("What the city budgets, its property tax rate, and where the tax goes, from the city and the New Hampshire Department of Revenue Administration (DRA).") }}</p>
   {% if budget %}
-  <p class="source-note">{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; the DRA publishes each year's tax rates once they're set, in the fall.{% endtrans %}</p>
+  <p class="source-note" data-about>{% trans iso=budget.updated_at, when=budget.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {% trans iso=budget.figures_extracted_at, when=budget.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>; the DRA publishes each year's tax rates once they're set, in the fall.{% endtrans %}</p>
   {% endif %}
 </div>
 
@@ -67,7 +67,7 @@
 {# The city's rows from its total on, in its order. On a phone, only the total and the change show. #}
 {% set summary = latest.summary | map(attribute="label") | list %}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Fiscal year") }}</th>{% for label in summary %}<th scope="col" class="num{% if not loop.first %} wide{% endif %}">{{ label }}</th>{% endfor %}<th scope="col" class="num">{{ _("Change") }}</th></tr></thead>
   <tbody>
   {% for y in cb.years | reverse %}
@@ -77,7 +77,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} <span class="dash-legend">{{ _("– means that year's budget has no such line, or, for the change, that there's no earlier year to compare with.") }}</span> {% trans url=cb.source_url, source=cb.source_name %}Source: <a href="{{ url }}">{{ source }}</a>.{% endtrans %}</p>
+<p class="small">{{ _("Budgets as adopted, not what was spent. The change is in the total. Amounts are not adjusted for inflation.") }} <span class="dash-legend">{{ _("– means that year's budget has no such line, or, for the change, that there's no earlier year to compare with.") }}</span></p>
+<p class="small" data-about>{% trans url=cb.source_url, source=cb.source_name %}Source: <a href="{{ url }}">{{ source }}</a>.{% endtrans %}</p>
 {{ chart_links("budget", "/budget/data/city-budget.csv") }}
 {% endif %}
 
@@ -85,7 +86,7 @@
 <h2 id="tax-rate">{{ _("Property tax rate") }}</h2>
 <p>{{ _("The rate is in dollars for each $1,000 of a property's assessed value. It has four parts: the city's own, the county's, the statewide education tax, and the local schools'. New Hampshire names each rate by its tax year, which runs from April 1 to March 31; the DRA sets each town's rate in the fall.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Total") }}</th><th scope="col" class="num">{{ _("City") }}</th><th scope="col" class="num">{{ _("County") }}</th><th scope="col" class="num wide">{{ _("State education") }}</th><th scope="col" class="num wide">{{ _("Local education") }}</th></tr></thead>
   <tbody>
   {% for r in budget.rates | reverse %}
@@ -94,7 +95,8 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, municipal tax rates</a>.{% endtrans %}</p>
+<p class="small">{{ _("When a city revalues its property, assessed values jump and the rate falls to match, so a lower rate doesn't by itself mean lower bills.") }}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, municipal tax rates</a>.{% endtrans %}</p>
 {{ chart_links("tax-rate", "/budget/data/tax-rates.csv") }}
 
 {% set ef = budget.tax_effort %}
@@ -104,7 +106,8 @@
 {% set rows = [] %}
 {% for name, amount in ef.parts | dictsort(by="value", reverse=true) %}{% set ignored = rows.append({"label": name, "value": amount, "text": amount | money("short")}) %}{% endfor %}
 {{ bars(rows, _("Property tax raised by part, tax year %(year)s", year=ef.tax_year), wide_numbers=true, wide_labels=true) }}
-<p class="small">{% if ef.veterans_credits %}{% trans credits=ef.veterans_credits | money("short"), commitment=ef.commitment | money("short") %}Less {{ credits }} in veterans' tax credits, the city's total property tax commitment was {{ commitment }}.{% endtrans %}{% else %}{% trans commitment=ef.commitment | money("short") %}The city's total property tax commitment was {{ commitment }}.{% endtrans %}{% endif %} {% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, tax rate calculation data</a>.{% endtrans %}</p>
+<p class="small">{% if ef.veterans_credits %}{% trans credits=ef.veterans_credits | money("short"), commitment=ef.commitment | money("short") %}Less {{ credits }} in veterans' tax credits, the city's total property tax commitment was {{ commitment }}.{% endtrans %}{% else %}{% trans commitment=ef.commitment | money("short") %}The city's total property tax commitment was {{ commitment }}.{% endtrans %}{% endif %}</p>
+<p class="small" data-about>{% trans url=budget.source_urls.rates %}Source: <a href="{{ url }}">DRA, tax rate calculation data</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Average bill ---- #}
@@ -113,7 +116,7 @@
 <p>{% trans year=bill.tax_year, town=town.name, value=bill.average_value | money, rate="%.2f" | format(bill.rate), amount=bill.average_bill | money %}In tax year {{ year }}, the average single-family home in {{ town }} was assessed at {{ value }}. At that year's rate of ${{ rate }} per $1,000, its tax bill was <strong>{{ amount }}</strong>.{% endtrans %}</p>
 {% if tax_bill.years | length > 1 %}
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Tax year") }}</th><th scope="col" class="num">{{ _("Average value") }}</th><th scope="col" class="num">{{ _("Rate") }}</th><th scope="col" class="num">{{ _("Average bill") }}</th></tr></thead>
   <tbody>
   {% for y in tax_bill.years | reverse %}
@@ -125,7 +128,7 @@
 {% endif %}
 {% set how %}{% trans parcels=bill.parcels | number, year=bill.tax_year %}The average assessed value of {{ parcels }} single-family homes on NH GRANIT's parcel map, times the {{ year }} tax rate. It's the bill before exemptions and credits.{% endtrans %} {{ _("New Hampshire doesn't publish an average bill.") }}{% endset %}
 {{ calculated(how) }}
-<p class="small">{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">DRA, municipal tax rates</a>; <a href="{{ parcels }}">NH GRANIT, statewide parcel map</a>.{% endtrans %}</p>
+<p class="small" data-about>{% trans rates=tax_bill.source_url, parcels=tax_bill.parcels_url %}Sources: <a href="{{ rates }}">DRA, municipal tax rates</a>; <a href="{{ parcels }}">NH GRANIT, statewide parcel map</a>.{% endtrans %}</p>
 {% endif %}
 
 {# ---- Per resident ---- #}
@@ -134,11 +137,12 @@
 <p>{% trans year=pr.tax_year, town=town.name, amount=pr.town | money, communities=pr.communities, median=pr.state_median | money %}In tax year {{ year }}, {{ town }}'s property tax came to {{ amount }} per resident. The median across {{ communities }} New Hampshire towns and cities was {{ median }}.{% endtrans %}</p>
 {% set how %}{% trans year=pr.tax_year, communities=pr.communities %}Each town's total {{ year }} property tax commitment, from the DRA, divided by its Census population estimate for July 1, {{ year }}. The median is of {{ communities }} New Hampshire towns and cities.{% endtrans %}{% endset %}
 {{ calculated(how) }}
-<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %} {% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">DRA</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
+<p class="small">{{ _("Property tax per resident depends on how much of a town's tax base is businesses rather than homes, and on seasonal homes, whose owners pay tax but aren't counted as residents.") }} {% trans population=pr.population | number %}Population: {{ population }}.{% endtrans %}</p>
+<p class="small" data-about>{% trans rates=budget.source_urls.rates, population=budget.source_urls.population %}Sources: <a href="{{ rates }}">DRA</a>; <a href="{{ population }}">U.S. Census Bureau population estimates</a>.{% endtrans %}</p>
 {% endif %}
 
 {% if config.finance.get("budget_documents_url") %}
-<p class="source-note">{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
+<p class="source-note" data-about>{% trans url=config.finance.budget_documents_url %}City budget documents, including department detail, are on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% endif %}
 {% endif %}
 {% endblock %}

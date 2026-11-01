@@ -10,7 +10,7 @@
   <h1>{{ _("Schools") }}</h1>
   <p class="lede">{% trans district=sch.district_name %}{{ district }} compared with the state, from the Maine Department of Education.{% endtrans %}</p>
   {% if schools %}
-  <p class="source-note">{% trans iso=schools.figures_extracted_at, when=schools.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("The Department of Education adds each school year's figures to its ESSA Dashboard once a year, in the winter after the year ends.") }}</p>
+  <p class="source-note" data-about>{% trans iso=schools.figures_extracted_at, when=schools.figures_extracted_at | timestamp %}State figures as of <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %} {{ _("The Department of Education adds each school year's figures to its ESSA Dashboard once a year, in the winter after the year ends.") }}</p>
   {% endif %}
 </div>
 
@@ -65,7 +65,7 @@
 <h2 id="graduation">{{ _("Graduation rate") }}</h2>
 <p>{{ _("Share of students who graduated high school within four years of starting ninth grade.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("Class of") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num wide">{{ _("Graduated") }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.graduation.years | reverse %}
@@ -74,12 +74,13 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("The four-year adjusted cohort graduation rate. The dashboard names each class by its senior year: 2024-2025 is the class of 2025.") }} {% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (High School Graduation Rate).{% endtrans %}</p>
+<p class="small">{{ _("The four-year adjusted cohort graduation rate. The dashboard names each class by its senior year: 2024-2025 is the class of 2025.") }}</p>
+<p class="small" data-about>{% trans url=ms.graduation.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (High School Graduation Rate).{% endtrans %}</p>
 
 <h2 id="absenteeism">{{ _("Chronic absenteeism") }}</h2>
 <p>{{ _("Share of students who missed 10%% or more of the school days they were enrolled, for any reason, excused or not.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("School year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.absenteeism.years | reverse %}
@@ -88,14 +89,15 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Students enrolled fewer than 10 days aren't counted.") }} {% trans url=ms.absenteeism.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Chronic Absenteeism).{% endtrans %}</p>
+<p class="small">{{ _("Students enrolled fewer than 10 days aren't counted.") }}</p>
+<p class="small" data-about>{% trans url=ms.absenteeism.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Chronic Absenteeism).{% endtrans %}</p>
 
 <h2 id="tests">{{ _("State test results") }}</h2>
 <p>{{ _("Share of students who scored at or above state expectations on Maine's state tests: the Maine Through Year Assessment in grades 3 to 8, and the SAT in the third year of high school. The figures are for every grade tested together.") }}</p>
 {% for key, slug, subject in [("tests_ela", "english", _("English")), ("tests_math", "math", _("Math"))] %}
 <h3 id="tests-{{ slug }}">{{ subject }}</h3>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ pgettext("season", "Spring") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms[key].years | reverse %}
@@ -105,12 +107,13 @@
 </table>
 </div>
 {% endfor %}
-<p class="small">{{ _("The dashboard has results from spring 2023 on. Maine sets its own expectations, so these results can't be compared with other states' tests.") }} {% trans url=ms.tests_ela.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Student Assessment).{% endtrans %}</p>
+<p class="small">{{ _("The dashboard has results from spring 2023 on. Maine sets its own expectations, so these results can't be compared with other states' tests.") }}</p>
+<p class="small" data-about>{% trans url=ms.tests_ela.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Student Assessment).{% endtrans %}</p>
 
 <h2 id="spending">{{ _("Spending per pupil") }}</h2>
 <p>{{ _("What the district spends for each student, from local, state, and federal funds: salaries, benefits, and everything else, at its schools and its central office, as reported under the federal Every Student Succeeds Act. It leaves out construction and debt payments.") }}</p>
 <div class="table-wrap">
-<table class="data-table">
+<table class="data-table" data-fold="{{ _("Show earlier years") }}">
   <thead><tr><th scope="col">{{ _("School year") }}</th><th scope="col" class="num">{{ town.name }}</th><th scope="col" class="num">{{ pgettext("the state as a whole", "State") }}</th></tr></thead>
   <tbody>
   {% for y in ms.spending.years | reverse %}
@@ -119,9 +122,10 @@
   </tbody>
 </table>
 </div>
-<p class="small">{{ _("Amounts are not adjusted for inflation.") }} {% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Per Pupil Spending).{% endtrans %}</p>
+<p class="small">{{ _("Amounts are not adjusted for inflation.") }}</p>
+<p class="small" data-about>{% trans url=ms.spending.source_url %}Source: <a href="{{ url }}">Maine Department of Education, ESSA Dashboard</a> (Per Pupil Spending).{% endtrans %}</p>
 
-<p class="source-note">{% trans url="https://www.maine.gov/doe/dashboard" %}All figures as published by the Maine Department of Education on its <a href="{{ url }}">ESSA Dashboard</a>.{% endtrans %}</p>
+<p class="source-note" data-about>{% trans url="https://www.maine.gov/doe/dashboard" %}All figures as published by the Maine Department of Education on its <a href="{{ url }}">ESSA Dashboard</a>.{% endtrans %}</p>
 {{ figures_dash() }}
 {% endif %}
 {% endblock %}
