@@ -24,9 +24,12 @@ answered are kept by the caller (done, keep), and the rest are asked for on
 a later run.
 
 Gemini's filters sometimes refuse a part of a public meeting outright (HTTP
-400, "Input blocked"), every time it's asked. Such a part is asked for in
-halves, down to MIN_PIECE: what can be transcribed is, and a piece still
-refused is a gap in the transcript (GAP, at its time), so one passage
+400, "Input blocked"), every time it's asked: gemini-3.8-flash refused most
+of South Kingstown's Town Council meeting of 2026-10-26, a debate on its
+contract with Veolia, which runs its wastewater plant. FALLBACK, another
+model, is asked for a part the model refuses; one it refuses too is asked
+for in halves, down to MIN_PIECE: what can be transcribed is, and a piece
+still refused is a gap in the transcript (GAP, at its time), so one passage
 doesn't keep a whole meeting from being transcribed.
 
 The request is the Interactions API's (POST /v1beta/interactions, the key in
@@ -59,6 +62,9 @@ TIMEOUT = 600
 RETRY_WAITS = (30, 120, 300)
 RETRY_STATUS = {429, 500, 502, 503, 504}
 NO_SPEECH = "[no speech]"
+# Asked for a part the model's filters refuse: its filters refused none of the parts gemini-3.8-flash did, where
+# tried (South Kingstown's 2026-10-26, 0:40:00-1:00:00).
+FALLBACK = "gemini-3.6-flash"
 # The shortest piece a part Gemini's filters refuse is split into; a piece that short still refused is a GAP.
 MIN_PIECE = 5 * 60
 GAP = "[Not transcribed: Gemini declined this part of the recording.]"
@@ -170,11 +176,20 @@ def ask(post, body: dict, key: str, sleep=time.sleep) -> tuple[dict, str]:
 
 def piece(post, video_id: str, start: int, end: int, title: str, date: str, key: str, model: str, sleep,
           usage: dict) -> list[str]:
-    """A part's paragraphs, "[h:mm:ss] ..." a line, adding its tokens to usage. A part Gemini's filters refuse
-    is asked for in halves, down to MIN_PIECE; a piece still refused is a GAP at its start."""
+    """A part's paragraphs, "[h:mm:ss] ..." a line, adding its tokens to usage. A part the model's filters refuse
+    is asked of FALLBACK; one both refuse is asked for in halves, down to MIN_PIECE, and a piece still refused
+    is a GAP at its start."""
     try:
         data, text = ask(post, request(video_id, start, end, title, date, model), key, sleep)
     except Blocked:
+        data = None
+        if model != FALLBACK:
+            try:
+                data, text = ask(post, request(video_id, start, end, title, date, FALLBACK), key, sleep)
+                usage["fallback_requests"] = usage.get("fallback_requests", 0) + 1
+            except Blocked:
+                pass
+    if data is None:
         if end - start <= MIN_PIECE:
             return [f"[{stamp(start)}] {GAP}"]
         middle = start + (end - start) // 2
@@ -195,14 +210,15 @@ def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: st
     timeout) is requests.post, or a stand-in.
 
     done holds the parts already answered, from an earlier try ({"model", "clip", "parts": {start: lines},
-    "usage"}): they aren't asked for again. keep(done) is called after each part, to save them. start is where
+    "usage"}): they aren't asked for again, except one with a GAP. keep(done) is called after each part, to save them. start is where
     in the video the meeting starts (a link's &t=): the parts are from there, their times still the video's."""
     if not done or done.get("model") != model or done.get("clip") != clip:
         done = {"model": model, "clip": clip, "parts": {},
                 "usage": {"requests": 0, "input_tokens": 0, "output_tokens": 0}}
     usage = done["usage"]
     for start in range(start, seconds, clip):
-        if str(start) in done["parts"]:
+        # A part kept with a gap is asked for again: the filters, or FALLBACK, may let it through now.
+        if str(start) in done["parts"] and not any(line.endswith(GAP) for line in done["parts"][str(start)]):
             continue
         end = min(start + clip, seconds)
         done["parts"][str(start)] = piece(post, video_id, start, end, title, date, key, model, sleep, usage)
