@@ -231,6 +231,27 @@ def test_cablecast_reads_the_recordings_audio_track():
     assert cablecast.media(FakeCablecast(), METHUEN, {"vod_url": old}) == {"url": old}
 
 
+def test_cablecast_waits_for_a_recording_still_being_processed():
+    # Beverly's of October 27, 2026: its playlist answered 403 for a day, then 200. Not a failed try.
+    from pipeline.http import FetchError
+
+    class Processing(FakeCablecast):
+        def __init__(self, status):
+            super().__init__()
+            self.status = status
+
+        def get(self, url):
+            if url.endswith(".m3u8"):
+                raise FetchError(f"{url}: HTTP {self.status}", status=self.status)
+            return super().get(url)
+
+    vod = {"vod_url": "https://bevcam.cablecast.tv/store-4/13353-Beverly-Planning-Board-v2/vod.mp4"}
+    assert cablecast.media(Processing(403), METHUEN, vod) is None
+    assert cablecast.media(Processing(404), METHUEN, vod) is None
+    with pytest.raises(FetchError):
+        cablecast.media(Processing(500), METHUEN, vod)
+
+
 def test_cablecast_by_category_leaves_shows_without_a_recording():
     salem = {"platform": "cablecast", "host": "http://cc.satvonline.org", "categories": [44],
              "boards": {"Zoning Board of Appeals": r"^Salem Zoning Board of Appeals\b", "City Council": r"City Council"}}

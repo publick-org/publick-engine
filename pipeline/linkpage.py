@@ -90,7 +90,7 @@ import html
 import json
 import re
 from datetime import date
-from urllib.parse import urljoin
+from urllib.parse import unquote, urljoin
 
 from pipeline import finalsite
 from pipeline.filelist import DATE_IN_TITLE, MONTHS
@@ -121,6 +121,8 @@ DASHED_DATE = re.compile(r"(?<![\d./-])(\d{1,2})-(\d{1,2})-(\d{4})(?![\d-])")
 SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
 # A date in figures, month first, with dots: "10.07.26", "05.06.2026" (Bristol Public Schools' minutes).
 DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d.])")
+# A Google Drive folder: a link to a meeting's files, never itself saved.
+DRIVE_FOLDER = re.compile(r"^https://drive\.google\.com/drive/(?:u/\d+/)?folders/", re.I)
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
 TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s?m\b\.?", re.I)
 # Words in a link's label that say which document it is, not which meeting.
@@ -462,7 +464,11 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
             links = [{**link, "url": resolve(link["url"]) or link["url"]} if SHORT_LINK.match(link["url"]) else link
                      for link in links]
         documents = [link for link in links if finalsite.is_document(link["url"]) or finalsite.recording(link["url"])]
-        if not documents:
+        # A dated entry whose agenda or minutes is a Drive folder (Derry's of October 27, 2026: "agenda" and
+        # "attachments" folders, and a video) is still a meeting: listed, its folders kept as links, never
+        # downloaded.
+        folders = [link for link in links if DRIVE_FOLDER.search(link["url"]) and kind_of(link["text"], settings)]
+        if not documents and not (folders and entry["date"]):
             continue
         name = entry["name"]
         body = find_board(name, [], bodies) or default
@@ -470,7 +476,9 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
             unrecognized.append(entry["raw"])
             continue
         key = (entry["date"], slug(body) if one_a_day and not board else "" if one_a_day else meeting_key(name, ignore))
-        meeting = grouped.setdefault(key, {"date": entry["date"], "name": name, "body": body, "time": None, "links": []})
+        meeting = grouped.setdefault(key, {"date": entry["date"], "name": name, "body": body, "time": None, "links": [],
+                                           "names": []})
+        meeting["names"].append(name)
         if one_a_day and len(name) < len(meeting["name"]):
             meeting["name"] = name
         meeting["time"] = meeting["time"] or entry["time"]
@@ -479,14 +487,41 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
     for (day, key), m in grouped.items():
         # "Rescheduled from 8/10" says this is the meeting's new date: it takes place.
         info = parse_name(MOVED_FROM.sub(" ", m["name"]).strip() or m["body"], [], bodies)
+        # Entries taken as one meeting (one_meeting_a_day): a status any of them gives ("CANCELLED" in an
+        # announcement whose table row doesn't say it) is the meeting's, though the shortest name is shown.
+        said = [parse_name(MOVED_FROM.sub(" ", n).strip() or m["body"], [], bodies)["status"] for n in m["names"]]
+        status = next((s for s in said if s != "scheduled"), info["status"])
         special = bool(re.search(r"\bspecial\b", m["name"], re.I)) and "special" not in words(m["body"]).split()
         fields = meeting_fields(m["links"], settings)
         name_key = "-".join(key.split()) or ("" if board and one_a_day else "meeting")
         page_key = "-".join(p for p in (slug(board), name_key) if p) if board else name_key
         found.append({"key": f"{day}-{page_key}", "date": day, "body": m["body"],
-                      "name": m["name"], "status": info["status"], "special": special,
+                      "name": m["name"], "status": status, "special": special,
                       "start_time": m["time"], **fields})
     return found, unrecognized
+
+
+# A Google redirect around a link in a Google Doc's HTML export ("https://www.google.com/url?q=<link>&sa=...").
+GOOGLE_REDIRECT = re.compile(r"^https://www\.google\.com/url\?q=([^&]+)")
+
+
+def minutes_in_agenda(page: str) -> list[tuple[str, str]]:
+    """The minutes an agenda links, as (date, link): a paragraph of the agenda that says "minutes" and links
+    a document labelled with a date (Biddeford School Committee's packets: "5. Approval of Last Meeting's
+    Minutes: 9/23/2026 (Motion Needed)", "9/23/2026" linking that meeting's minutes, a Google Doc). page
+    is the agenda as HTML (a Google Doc's export)."""
+    found = []
+    for paragraph in re.split(r"</p>|</li>", page, flags=re.I):
+        if not re.search(r"\bminutes\b", text(paragraph), re.I):
+            continue
+        for href, label in re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>', paragraph, re.I | re.S):
+            url = html.unescape(href)
+            wrapped = GOOGLE_REDIRECT.match(url)
+            url = unquote(wrapped.group(1)) if wrapped else url
+            day = find_date(text(label))
+            if day and date_value(day) and finalsite.is_document(url):
+                found.append((date_value(day), url))
+    return found
 
 
 # ---- The town's config ------------------------------------------------------------------
@@ -534,3 +569,5 @@ def check(config: dict) -> None:
                          '"Advisory Committee on Policy" = "School Committee Policy Committee".')
     if not isinstance(settings.get("one_meeting_a_day", False), bool):
         raise SystemExit(f"{where}: one_meeting_a_day must be true or false.")
+    if not isinstance(settings.get("minutes_in_agenda", False), bool):
+        raise SystemExit(f"{where}: minutes_in_agenda must be true or false.")
