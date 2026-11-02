@@ -101,6 +101,9 @@ pipeline/                   Python package
   fetch_recordings.py       On its own schedule: meetings' recordings found on the town's video platform (recordings.py: TelVue,
                             Cablecast, Castus, CivicClerk, the Internet Archive), matched to their meetings, and transcribed by
                             Whisper (transcribe.py) -> data/meetings/recordings.json, audio and transcripts in the bucket
+  coverage.py               Each daily run: the main boards' meetings of the last week, by how far each got toward a summary
+                            from its recording (summarized, the next day or later; minutes first; transcribed; found; not
+                            matched; not found; no source) -> the run record (run.json), which network.py recordings adds up
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             each decision of minutes and recordings with a short title, main or routine, and a topic;
                             new documents first, with each request's cost in the cost log (cost_log.py); in a network's
@@ -919,6 +922,6 @@ The Publick network's own setup, for reference. Everything here belongs to Publi
 | Daily runs | Started every hour from 09:05 to 14:05 UTC by the `publick-scheduler` Worker, with GitHub's schedule as a backup; each takes the towns that are due. AI summaries and translations share a monthly budget, with a floor per town; summaries go as one batch a town, at half the price. Massachusetts's DLS reports, Subsidized Housing Inventory, and DESE school figures are fetched once for every town, into the network repository's `states/ma/` |
 | Engine | Released at 08:20 UTC and moved on every town at 08:40 by the network's `engine.yml`, both started by the scheduler Worker, after checking every page of the canaries (`network.py canaries`) and a sample of the rest; a failure runs once more, and a few towns that still fail are held back rather than every town. The network pins the exact release in its `engine-version`, and deploys the Workers when their code changes |
 | Weekly digest | Emailed through Buttondown, one newsletter with a tag per town and language; sent by the scheduler Worker on Sunday evenings to the towns in its `DIGEST_TOWNS` |
-| Alerts | GitHub issues: "Towns need attention", kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; "The weekly digest didn't send"; a site that doesn't load, opened by the scheduler's hourly check; and "Towns held back by engine vX", opened by an engine move |
+| Alerts | GitHub issues: "Towns need attention", kept up to date by each daily run; "Next-day recordings" (`network.py recordings`), the main boards' meetings of the last week by how far each got toward a summary from its recording, also kept up to date by each daily run; "The network's daily runs have stopped", opened by the scheduler after 30 hours without one; "The weekly digest didn't send"; a site that doesn't load, opened by the scheduler's hourly check; and "Towns held back by engine vX", opened by an engine move |
 
 Adding a town to the network is a pull request to the network repository that adds its folder (see its README). No DNS or email change is needed.
