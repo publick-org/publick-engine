@@ -22,7 +22,7 @@
   <li><a href="/data/meetings.json" download>{{ _("Download meetings.json") }}</a></li>
 </ul>
 {% if documents %}
-<p>{% trans decisions="/meetings/data/decisions.csv", feed="/feed.xml" %}The decisions alone are a spreadsheet, <a href="{{ decisions }}" download>decisions.csv</a>, and new agendas and minutes are in an <a href="{{ feed }}">RSS feed</a>.{% endtrans %}</p>
+<p>{% trans decisions="/meetings/data/decisions.csv", feed=feed_url %}The decisions alone are a spreadsheet, <a href="{{ decisions }}" download>decisions.csv</a>, and new agendas and minutes are in an <a href="{{ feed }}">RSS feed</a>.{% endtrans %}</p>
 {% endif %}
 {% endif %}
 <p>{{ _("Every chart on this site has a table with the same numbers, and a CSV download under it.") }}</p>
