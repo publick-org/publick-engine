@@ -231,8 +231,9 @@ def test_cablecast_reads_the_recordings_audio_track():
     assert cablecast.media(FakeCablecast(), METHUEN, {"vod_url": old}) == {"url": old}
 
 
-def test_cablecast_waits_for_a_recording_still_being_processed():
-    # Beverly's of October 27, 2026: its playlist answered 403 for a day, then 200. Not a failed try.
+def test_cablecast_waits_for_files_not_published_but_counts_a_refusal():
+    # A playlist not there yet (404) waits without a failed try; a refusal (403, as Beverly's station
+    # answers GitHub's runners) is a failed try, so the meeting can fall back to a backup source.
     from pipeline.http import FetchError
 
     class Processing(FakeCablecast):
@@ -246,10 +247,10 @@ def test_cablecast_waits_for_a_recording_still_being_processed():
             return super().get(url)
 
     vod = {"vod_url": "https://bevcam.cablecast.tv/store-4/13353-Beverly-Planning-Board-v2/vod.mp4"}
-    assert cablecast.media(Processing(403), METHUEN, vod) is None
     assert cablecast.media(Processing(404), METHUEN, vod) is None
-    with pytest.raises(FetchError):
-        cablecast.media(Processing(500), METHUEN, vod)
+    for status in (403, 500):
+        with pytest.raises(FetchError):
+            cablecast.media(Processing(status), METHUEN, vod)
 
 
 def test_cablecast_by_category_leaves_shows_without_a_recording():
