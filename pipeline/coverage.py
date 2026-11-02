@@ -69,11 +69,15 @@ def is_main(meeting: dict, boards: list[str]) -> bool:
     return any(planning_or_zoning(n) or any(recordings.same_board(n, b) for b in boards) for n in names(meeting))
 
 
-def source_boards(config: dict) -> list[str]:
-    """Every board any of the town's recordings sources reads."""
+def source_boards(config: dict) -> list[str] | None:
+    """Every board any of the town's recordings sources reads; None when one reads every board the town
+    lists (boards = "listed", recordings.LISTED)."""
     out = []
     for source in (config.get("recordings") or {}).get("sources", []):
-        out += list(source.get("boards") or [])
+        boards = source.get("boards") or []
+        if isinstance(boards, str):
+            return None
+        out += list(boards)
     return out
 
 
@@ -136,7 +140,8 @@ def coverage(config: dict, data_dir: Path, today: date | None = None, days: int 
         group = grouped.get(m["id"], [])
         unmatched = [r for r in loose if r.get("date") == m["date"]
                      and any(recordings.same_board(r.get("board", ""), n) for n in names(m))]
-        watched = any(recordings.same_board(b, n) for b in watched_boards for n in names(m))
+        watched = watched_boards is None or any(recordings.same_board(b, n) for b in watched_boards
+                                                for n in names(m))
         reached, detail = step(m, group, unmatched, watched, reads, recording_summary(data_dir, m))
         out["held"] += 1
         counts[reached] += 1
