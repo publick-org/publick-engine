@@ -107,7 +107,10 @@ DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
 # Translating a short summary needs little thinking.
 DEFAULT_EFFORT = "low"
 # Room for a model's thinking at a high effort as well as the translation; only what's written is paid for.
-MAX_TOKENS = 16000
+# As much as a summary gets (summarize.KINDS): at 16,000, Haiku 5.5 at high effort stopped before it finished
+# translating minutes of 35 decisions or more (Manchester's aldermen, Somerville's council), and a translation
+# that stops early isn't saved, so it was sent again, and paid for, on every run.
+MAX_TOKENS = 32000
 
 # The fields of each kind of summary that are shown, and so translated.
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
