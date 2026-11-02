@@ -326,3 +326,99 @@ def test_youtube_videos_linked_from_the_meetings_are_matched_through_their_listi
     assert {k: (v["meeting"], v["board"]) for k, v in kept.items()} == {
         "youtube-council1027": ("ac-1", "City Council"), "youtube-pbspecial-95": ("ac-5", "Planning Board")}
     assert kept["youtube-pbspecial-95"]["url"] == "https://www.youtube.com/watch?v=pbspecial&t=95s"
+
+
+# ---- boards = "listed": each recording's board found from the meetings listed that day ----------------
+
+def listed_meetings(*rows):
+    return {m["id"]: m for m in (meeting(*row[:3], **(row[3] if len(row) > 3 else {})) for row in rows)}
+
+
+@pytest.mark.parametrize("title,board", [
+    ("City Council Regular Meeting - October 27, 2026", "City Council"),
+    ("Beverly City Council: 10-27-2026", "City Council"),
+    ("City Council Public Hearings & City Council Regular Meeting - October 27, 2026", "City Council"),
+    ("School Committee: Reg. School Committee Meeting 10/27/2026", "School Committee"),
+    # The fullest name the title gives.
+    ("School Committee: Curriculum & Student Life/COTW Mtg 10/27/2026", "School Committee of the Whole"),
+    ("ZBA 10/27/2026", "Zoning Board of Appeals"),
+    # Another body's: a kind of body the board's name hasn't.
+    ("City Council Finance Committee 10/27/2026", None),
+    ("Joint Meeting of the City Council and School Committee 10/27/2026", None),
+    # No board listed that day, or no body at all.
+    ("Conservation Commission 10/27/2026", None),
+    ("Coffee with the Mayor 10/27/2026", None),
+])
+def test_a_listed_board_is_found_by_its_name_in_the_title(title, board):
+    meetings = listed_meetings(("a", "City Council", "2026-10-27"), ("b", "School Committee", "2026-10-27"),
+                               ("c", "School Committee of the Whole", "2026-10-27"),
+                               ("d", "Zoning Board of Appeals", "2026-10-27"),
+                               ("e", "Conservation Commission", "2026-10-27", {"status": "cancelled"}),
+                               ("f", "Conservation Commission", "2026-10-28"))
+    assert recordings.board_from_listings(title, "2026-10-27", meetings, "Beverly") == board
+
+
+def test_a_listed_board_named_with_the_town_and_another_places_board():
+    meetings = listed_meetings(("a", "Derry School Board", "2026-10-27"), ("b", "Planning Commission", "2026-10-27"))
+    # The board's name has the town's; its recording's title doesn't.
+    assert recordings.board_from_listings("School board meeting and Public Hearing: 10/27/2026", "2026-10-27",
+                                          meetings, "Derry") == "Derry School Board"
+    assert recordings.board_from_listings("Derry Planning Commission - 10/27/2026", "2026-10-27", meetings,
+                                          "Derry") == "Planning Commission"
+    # A regional station's recording of another town's board that met the same day.
+    for title in ("South Derry Planning Commission - 10/27/2026", "Avon Planning Commission Meeting - 10/27/26",
+                  "Chittenden County Regional Planning Commission - 10/27/2026"):
+        assert recordings.board_from_listings(title, "2026-10-27", meetings, "Derry") is None, title
+    # Dates and the kind of meeting before the board's name are no other place.
+    assert recordings.board_from_listings("Tuesday, October 27th 2026 Regular Planning Commission", "2026-10-27",
+                                          meetings, "Derry") == "Planning Commission"
+
+
+def test_a_listed_board_by_another_of_its_names():
+    meetings = listed_meetings(("a", "Board of Mayor and Aldermen", "2026-10-27", {"body_names": ["BMA"]}))
+    assert recordings.board_from_listings("BMA Meeting 10/27/2026", "2026-10-27", meetings) == \
+        "Board of Mayor and Aldermen"
+
+
+def test_two_boards_named_equally_are_left_unmatched():
+    meetings = listed_meetings(("a", "Planning Board", "2026-10-27"), ("b", "Planning Commission", "2026-10-27"))
+    assert recordings.board_from_listings("Planning Board and Commission 10/27/2026", "2026-10-27", meetings) is None
+
+
+def test_a_source_reading_listed_boards_matches_each_recording_by_title(config, data_dir, monkeypatch):
+    def item(id_, title, date):
+        return {**found(id_, recordings.LISTED, date), "title": title}
+    config["recordings"] = {"sources": [{"platform": "internet_archive", "collection": "x", "boards": "listed"}]}
+    recordings.check(config)
+    use(monkeypatch, FakePlatform([
+        item("1", "City Council Meeting - October 27, 2026", "2026-10-27"),
+        item("2", "School Committee 10/26/2026", "2026-10-26"),
+        item("3", "Planning Board 10/21/2026", "2026-10-21"),         # two that day: kept, not matched
+        item("4", "Historic Commission 10/27/2026", "2026-10-27"),    # not listed: named in the status only
+        item("5", "Coffee with the Mayor 10/27/2026", "2026-10-27"),  # not a meeting: nothing
+    ]))
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True)
+    kept = recordings.load(data_dir)
+    assert {k: (v["board"], v["meeting"]) for k, v in kept.items()} == {
+        "fake-1": ("City Council", "ac-1"), "fake-2": ("School Committee", "ac-3"), "fake-3": ("Planning Board", None)}
+    assert sorted(status["unmatched"]) == [
+        "Historic Commission 10/27/2026 (fake-4): no board listed that day is named in its title",
+        "Planning Board 2026-10-21 (fake-3): 2 meetings that day"]
+
+
+def test_boards_must_be_patterns_or_listed(config):
+    config["recordings"] = {"sources": [{"platform": "internet_archive", "collection": "x", "boards": "all"}]}
+    with pytest.raises(SystemExit, match="or be 'listed'"):
+        recordings.check(config)
+
+
+def test_the_main_boards_meetings_are_transcribed_first(config, data_dir, monkeypatch):
+    calls = []
+    use(monkeypatch, FakePlatform([found("1", "City Council", "2026-10-27"), found("2", "Licensing Board", "2026-10-28"),
+                                   found("3", "School Committee", "2026-10-26")]))
+    store = json.loads((data_dir / "meetings" / "meetings.json").read_text())
+    store["ac-8"] = meeting("ac-8", "Licensing Board", "2026-10-28")
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+    fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model", transcriber=fake_transcriber(calls))
+    # The council's and the school committee's, newest first, before the newer Licensing Board's.
+    assert calls == ["fake-1", "fake-3", "fake-2"]

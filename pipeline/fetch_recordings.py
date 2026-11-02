@@ -35,7 +35,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import listings, recordings, transcribe
+from pipeline import coverage, listings, recordings, transcribe
+from pipeline.build_site import main_boards
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import save_json
@@ -73,6 +74,15 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
         for item in found:
             if not item.get("date") or not since <= item["date"] <= today:
                 continue
+            if item.get("board") == recordings.LISTED:
+                board = listed_board(item, meetings, moved, config.get("town", {}).get("name", ""))
+                if not board:
+                    # Another program, or a meeting not listed (yet): looked for again each run, not kept.
+                    if recordings.names_a_body(item.get("title", "")):
+                        counts["unmatched"].append(f"{item.get('title')} ({item['id']}): no board listed that day "
+                                                   "is named in its title")
+                    continue
+                item["board"] = board
             counts["listed"] += 1
             recording = store.get(item["id"])
             if recording is None:
@@ -90,16 +100,28 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
     return counts
 
 
-def to_transcribe(store: dict, meetings: dict, since: str) -> list[dict]:
-    """The recordings to transcribe, newest meeting first: those each meeting's transcript is made from
-    (recordings.chosen()) not yet transcribed, for meetings on or after since whose minutes haven't come."""
+def listed_board(item: dict, meetings: dict, moved: dict, town: str = "") -> str | None:
+    """The board of a recording from a source whose boards are LISTED: its listing's, where the platform
+    posts it with its meeting; else the one listed that day that its title names (town: the town's name)."""
+    listing = item.get("listing")
+    if listing and (moved or {}).get(listing, listing) in meetings:
+        return meetings[(moved or {}).get(listing, listing)]["body"]
+    return recordings.board_from_listings(item.get("title", ""), item["date"], meetings, town)
+
+
+def to_transcribe(store: dict, meetings: dict, since: str, main=lambda meeting: False) -> list[dict]:
+    """The recordings to transcribe: those each meeting's transcript is made from (recordings.chosen())
+    not yet transcribed, for meetings on or after since whose minutes haven't come. The main boards'
+    meetings (main(meeting), coverage.is_main()) first, so a run's hours go to them before a source that
+    reads every board's (recordings.LISTED) fills them; newest meeting first."""
     out = []
     for meeting_id, group in recordings.by_meeting(store, meetings).items():
         meeting = meetings[meeting_id]
         if meeting["date"] < since or meeting.get("minutes"):
             continue
         out += [r for r in recordings.chosen(group) if not r.get("transcript")]
-    return sorted(out, key=lambda r: (meetings[r["meeting"]]["date"], -(r.get("part") or 0), r["id"]), reverse=True)
+    return sorted(out, key=lambda r: (main(meetings[r["meeting"]]), meetings[r["meeting"]]["date"],
+                                      -(r.get("part") or 0), r["id"]), reverse=True)
 
 
 def likely_seconds(recording: dict) -> float:
@@ -168,7 +190,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, hours
     counts = find(config, client, store, meetings, moved, since, today, stamp)
     recordings.save(data_dir, store)
 
-    todo = [] if find_only else to_transcribe(store, meetings, since)
+    boards = main_boards(config)
+    todo = [] if find_only else to_transcribe(store, meetings, since, lambda m: coverage.is_main(m, boards))
     started, done, waiting, not_ready, errors = clock(), [], [], [], list(counts["errors"])
     storage, model = open_documents(config, data_dir), None
     for recording in todo:
