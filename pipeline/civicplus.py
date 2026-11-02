@@ -205,6 +205,13 @@ def is_zoom_link(url: str) -> bool:
         bool(re.match(r"/(j|w|webinar|meeting|my)/", parts.path))
 
 
+# A "Download Agenda" link into the city's Agenda Center: its listing of the board's meeting
+# ("/AgendaCenter/Commission-on-Climate-Action-and-Sustain-59/#_10142026-4468") or the agenda itself
+# ("/AgendaCenter/ViewFile/Agenda/_10142026-4468"). The number after the date is the Agenda Center's own
+# for the meeting (agendacenter-4468, pipeline/agendacenter.py).
+AGENDA_CENTER_LINK = re.compile(r"/AgendaCenter/.*_\d{8}-(\d+)$", re.I)
+
+
 def parse_event_page(page: str, base_url: str) -> dict:
     """Pull structured details from a Calendar.aspx?EID=... page."""
     details: dict = {}
@@ -215,6 +222,9 @@ def parse_event_page(page: str, base_url: str) -> dict:
         adid = re.search(r"ADID=(\d+)", url)
         details["agenda_url"] = url
         details["agenda_id"] = adid.group(1) if adid else None
+        center = AGENDA_CENTER_LINK.search(url)
+        if center:
+            details["agenda_center_id"] = center.group(1)
 
     start = re.search(r'itemprop="startDate"[^>]*>\s*([0-9T:\-]+)\s*<', page)
     if start:

@@ -83,17 +83,19 @@ class FakeMalden:
     """Malden's calendar for October (other months empty), an empty page for each event, its
     Agenda Center, and a PDF for any agenda."""
 
-    def __init__(self, agenda_page: str = ""):
+    def __init__(self, agenda_page: str = "", list_page: str = LIST_PAGE, event_pages: dict | None = None):
         self.agenda_page = agenda_page
+        self.list_page = list_page
+        self.event_pages = event_pages or {}
         self.pdf = (FIXTURES / "civicplus_agenda_scanned.pdf").read_bytes()
         self.urls = []
 
     def get(self, url):
         self.urls.append(url)
         if "Calendar.aspx?CID=0&view=list" in url:
-            return FakeResponse((LIST_PAGE if "month=10&" in url else "<html></html>").encode())
+            return FakeResponse((self.list_page if "month=10&" in url else "<html></html>").encode())
         if "Calendar.aspx?EID=" in url:
-            return FakeResponse(b"<html></html>")
+            return FakeResponse(self.event_pages.get(url.rsplit("=", 1)[1], "<html></html>").encode())
         if "/AgendaCenter/Search/" in url:
             return FakeResponse(self.agenda_page.encode())
         if "/AgendaCenter/ViewFile/" in url:
@@ -140,11 +142,103 @@ def test_patterns_pick_meetings_from_every_calendar(malden, tmp_path):
     assert "Malden Housing Authority" not in bodies
 
 
-def test_a_town_with_an_agenda_center_reads_no_event_pages(malden, tmp_path):
+def read_pages(client):
+    return sorted(u.rsplit("=", 1)[1] for u in client.urls if "EID=" in u)
+
+
+def test_a_town_with_an_agenda_center_reads_event_pages_only_for_their_agenda_link(malden, tmp_path):
+    """Only the next two weeks' meetings (fetch_meetings.AGENDA_LINK_DAYS), and not one whose board the
+    Agenda Center lists that day by the same name: the City Council's of October 6 is there."""
     malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
-    client = FakeMalden(AGENDA_PAGE)
+    client = FakeMalden(AGENDA_PAGE.replace("09222026-4441", "10062026-4441"))
     fetch_meetings.run(malden, client, tmp_path, now=NOW)
-    assert not [u for u in client.urls if "EID=" in u]
+    assert read_pages(client) == ["6309", "6393", "6394", "6396"]
+    # A page with no "Download Agenda" link links no listing.
+    store = load_store(tmp_path)
+    assert all("agenda_listing" not in m for m in store.values())
+
+
+def download_agenda(href: str) -> str:
+    return f'<a id="ctl00_ctl00_MainContent_ModuleContent_ctl00_ctl04_lnkDownloadAgenda" href="{href}">Download Agenda</a>'
+
+
+CLIMATE = "Climate Action &amp; Sustainability Commission Meeting"
+
+
+def test_a_calendar_entry_and_the_agenda_its_page_links_are_one_meeting_whatever_their_names(malden, tmp_path):
+    """The calendar calls Malden's climate commission "Climate Action & Sustainability Commission"; the
+    Agenda Center files its agendas as "Commission on Climate Action and Sustainability". The event's
+    "Download Agenda" link names the Agenda Center's listing, so the meeting is listed once."""
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
+    agendas = AGENDA_PAGE.replace("09092026-4408", "10132026-4408")
+    calendar = LIST_PAGE.replace("<span>Malden Housing Authority </span>", f"<span>{CLIMATE}</span>", 1)
+    page = download_agenda("/AgendaCenter/Commission-on-Climate-Action-and-Sustain-59/#_10132026-4408")
+    client = FakeMalden(agendas, calendar, {"6309": page})
+    status = fetch_meetings.run(malden, client, tmp_path, now=NOW)
+
+    store = load_store(tmp_path)
+    assert store["6309"]["agenda_listing"] == "agendacenter-4408"
+    assert store["6309"]["body"] == "Commission on Climate Action and Sustainability"
+    assert status["renamed"] == 1
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    [m] = [m for m in built["all"] if m["date"] == "2026-10-13" and "Climate" in m["body"]]
+    assert {x["id"] for x in m["listings"]} == {"6309", "agendacenter-4408"}
+    assert (m["start_time"], m["agenda"]["source_url"]) == ("08:30", f"{BASE}/AgendaCenter/ViewFile/Agenda/_10132026-4408")
+
+    # The link is known: the next run reads no page for it, and keeps the meeting together.
+    again = FakeMalden(agendas, calendar, {"6309": page})
+    fetch_meetings.run(malden, again, tmp_path, now=NOW)
+    assert "6309" not in read_pages(again)
+    assert load_store(tmp_path)["6309"]["body"] == "Commission on Climate Action and Sustainability"
+
+
+def test_a_calendar_entry_linking_another_boards_agenda_keeps_its_name(malden, tmp_path):
+    """The Housing Authority's entry of October 13 links the climate commission's agenda of that day (a
+    clerk's slip): the names share no word but kinds of body, so they stay two meetings."""
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
+    agendas = AGENDA_PAGE.replace("09092026-4408", "10132026-4408")
+    page = download_agenda("/AgendaCenter/Commission-on-Climate-Action-and-Sustain-59/#_10132026-4408")
+    status = fetch_meetings.run(malden, FakeMalden(agendas, event_pages={"6309": page}), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    assert store["6309"]["agenda_listing"] == "agendacenter-4408"
+    assert store["6309"]["body"] == "Malden Housing Authority"
+    assert status["renamed"] == 0
+
+
+def test_a_listing_no_longer_listed_is_named_as_a_new_one_would_be(malden, tmp_path):
+    """A calendar lists only its upcoming meetings, so September's entries aren't read again. An alias
+    added since, or a title the parser now reads differently ("City Council - Ordinance Committee" is
+    the committee's, since engine v1.80.0), renames them all the same."""
+    stored = {
+        "6200": {"id": "6200", "slug": "2026-09-09-climate-action-and-sustainability-commission",
+                 "date": "2026-09-09", "body": "Climate Action & Sustainability Commission", "title": CLIMATE.replace("&amp;", "&"),
+                 "source_url": f"{BASE}/Calendar.aspx?EID=6200", "start_time": "17:30", "status": "scheduled",
+                 "first_seen": "2026-09-01T07:00:00-04:00", "last_seen": "2026-09-09T07:00:00-04:00", "listed": True},
+        "6201": {"id": "6201", "slug": "2026-09-15-city-council", "date": "2026-09-15", "body": "City Council",
+                 "title": "City Council - Ordinance Committee", "source_url": f"{BASE}/Calendar.aspx?EID=6201",
+                 "start_time": "18:00", "status": "scheduled", "first_seen": "2026-09-01T07:00:00-04:00",
+                 "last_seen": "2026-09-15T07:00:00-04:00", "listed": True},
+    }
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(stored))
+    malden["meetings"]["aliases"]["Climate Action & Sustainability Commission"] = "Commission on Climate Action and Sustainability"
+    status = fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    assert store["6200"]["body"] == "Commission on Climate Action and Sustainability"
+    assert store["6201"]["body"] == "City Council Ordinance Committee"
+    assert "history" not in store["6200"] and "history" not in store["6201"]
+    assert status["renamed"] == 2
+    # Named as they are now, they aren't renamed again.
+    assert fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)["renamed"] == 0
+
+
+@pytest.mark.parametrize("href, number", [
+    ("/AgendaCenter/Commission-on-Climate-Action-and-Sustain-59/#_10132026-4408", "4408"),
+    ("/AgendaCenter/ViewFile/Agenda/_10132026-4408", "4408"),
+    ("/Archive.aspx?ADID=20124", None),
+])
+def test_an_event_pages_agenda_link_names_its_agenda_center_listing(href, number):
+    assert civicplus.parse_event_page(download_agenda(href), BASE).get("agenda_center_id") == number
 
 
 def test_calendar_and_agenda_center_are_one_meeting(malden, tmp_path):
