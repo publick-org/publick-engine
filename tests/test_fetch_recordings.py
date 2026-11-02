@@ -386,6 +386,22 @@ def test_a_town_of_two_words_before_its_board():
                                           "South Kingstown") is None
 
 
+def test_a_committee_listed_under_its_boards_name_is_titled_by_its_own():
+    meetings = listed_meetings(
+        ("a", "Board of Public Education", "2026-10-27"),
+        ("b", "Board of Public Education Finance, Personnel and Operations Committee", "2026-10-26"),
+        ("c", "City Council Finance Committee", "2026-10-26"), ("d", "City Council", "2026-10-20"))
+    assert recordings.board_from_listings("October 26, 2026 Finance, Personnel, and Operations Committee Meeting",
+                                          "2026-10-26", meetings, "Portland") == \
+        "Board of Public Education Finance, Personnel and Operations Committee"
+    assert recordings.board_from_listings("October 27, 2026 Board of Public Education Business Meeting",
+                                          "2026-10-27", meetings, "Portland") == "Board of Public Education"
+    # Two committees by the same short name the same day: neither.
+    meetings["e"] = meeting("e", "Board of Public Education Finance Committee", "2026-10-26")
+    assert recordings.board_from_listings("Finance Committee Meeting 10/26/2026", "2026-10-26", meetings,
+                                          "Portland") is None
+
+
 def test_a_listed_board_by_another_of_its_names():
     meetings = listed_meetings(("a", "Board of Mayor and Aldermen", "2026-10-27", {"body_names": ["BMA"]}))
     assert recordings.board_from_listings("BMA Meeting 10/27/2026", "2026-10-27", meetings) == \

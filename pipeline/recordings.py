@@ -231,18 +231,29 @@ def name_score(name: str, title: list[str], town: list[str] = ()) -> int | None:
     return len(wanted)
 
 
+def short_names(name: str, bodies: list[list[str]]) -> list[str]:
+    """The name, and what follows the name of another body it starts with: a committee listed under
+    its board's name ("Board of Public Education Finance Committee") is titled by its own ("Finance
+    Committee Meeting")."""
+    own = words(name)
+    return [name] + [" ".join(own[len(b):]) for b in bodies if len(own) > len(b) and own[:len(b)] == b]
+
+
 def board_from_listings(title: str, day: str, meetings: dict, town: str = "") -> str | None:
-    """The board of the meeting listed on day whose name the title gives (body or body_names), the
-    fullest name first ("School Committee of the Whole" before "School Committee"); None if no meeting
-    that day is named, or two boards' are equally. town is the town's name, which a board's name can
-    have and its recordings' titles leave out ("Derry School Board", "School Board Meeting")."""
+    """The board of the meeting listed on day whose name the title gives (body or body_names, or what
+    follows another listed body's name it starts with), the fullest name first ("School Committee of the
+    Whole" before "School Committee"); None if no meeting that day is named, or two boards' are equally.
+    town is the town's name, which a board's name can have and its recordings' titles leave out ("Derry
+    School Board", "School Board Meeting")."""
     title_words, town_words = words(title), words(town)
+    bodies = [words(b) for b in {n for m in meetings.values() for n in [m["body"], *m.get("body_names", [])]}]
     scored = []
     for m in meetings.values():
         if m["date"] != day or m.get("status") == "cancelled":
             continue
-        best = max((s for s in (name_score(n, title_words, town_words) for n in [m["body"], *m.get("body_names", [])])
-                    if s is not None), default=None)
+        names = [short for n in [m["body"], *m.get("body_names", [])] for short in short_names(n, bodies)]
+        best = max((s for s in (name_score(n, title_words, town_words) for n in names) if s is not None),
+                   default=None)
         if best is not None:
             scored.append((best, m["body"]))
     if not scored:
