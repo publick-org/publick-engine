@@ -99,6 +99,12 @@ def test_a_town_without_recordings(config, data_dir):
     assert result["steps"]["summarized"] == 2 and result["steps"]["failed"] == 1
 
 
+def test_a_source_that_reads_every_listed_board_leaves_none_without_a_source(config, data_dir):
+    config["recordings"]["sources"].append({"platform": "youtube", "channel": "UC" + "x" * 22, "boards": "listed"})
+    steps = coverage.coverage(config, data_dir, today=TODAY)["steps"]
+    assert steps["no_source"] == 0 and steps["not_found"] == 2
+
+
 @pytest.mark.parametrize("name,main", [
     ("Planning Board", True), ("Planning Commission", True), ("Zoning Board of Appeals", True),
     ("Board of Zoning Appeals", True), ("Planning and Zoning Commission", True), ("Zoning Board of Review", True),
