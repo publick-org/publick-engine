@@ -19,7 +19,13 @@ Each source maps the town's boards, named as their meetings are, to a pattern
 their recordings' titles match (a regular expression, case ignored); where
 several match, the longest match wins ("School Committee Finance
 Subcommittee" before "School Committee"). A recording of no board named isn't
-read. A platform that keeps recordings in playlists or shows reads only those
+read. Or a source's boards are "listed" (LISTED): every board the town
+lists meetings for, each recording matched by the name of the board whose
+meeting is listed on the recording's date, as its title gives it, with no
+pattern per board (board_from_listings()). One line then reads a channel of
+every board, and a board the town starts listing is read with no change.
+
+  boards = "listed" A platform that keeps recordings in playlists or shows reads only those
 the source lists. The meeting's date is read from the title too, where the
 platform gives none of its own: a recording is often posted days later.
 
@@ -103,13 +109,18 @@ def check(config: dict) -> None:
         boards = source.get("boards")
         if getattr(platform(name), "boards_by_name", lambda source: False)(source):
             # Its recordings come with their meetings (YouTube's linked from the town's listings): only named.
-            if not isinstance(boards, list) or not boards or not all(isinstance(b, str) and b for b in boards):
-                raise SystemExit(f"{where} ({name}): boards must list the boards whose meetings' videos are read.")
+            if boards != LISTED and (not isinstance(boards, list) or not boards
+                                     or not all(isinstance(b, str) and b for b in boards)):
+                raise SystemExit(f"{where} ({name}): boards must list the boards whose meetings' videos are read, "
+                                 f"or be {LISTED!r}.")
+            platform(name).check(source, where)
+            continue
+        if boards == LISTED:
             platform(name).check(source, where)
             continue
         if not isinstance(boards, dict) or not boards or not all(isinstance(v, str) and v for v in boards.values()):
             raise SystemExit(f"{where} ({name}): boards must map each board's name to a pattern its recordings' "
-                             "titles match.")
+                             f"titles match, or be {LISTED!r}.")
         for board, pattern in boards.items():
             try:
                 re.compile(pattern)
@@ -149,15 +160,113 @@ def title_date(title: str) -> str | None:
     return None
 
 
-def board_for_title(title: str, boards: dict) -> str | None:
+def board_for_title(title: str, boards: dict | str) -> str | None:
     """The board whose pattern the title matches; where several do, the one whose match is longest
-    ("School Committee Finance Subcommittee" before "School Committee")."""
+    ("School Committee Finance Subcommittee" before "School Committee"). For a source whose boards are
+    LISTED, LISTED: the board is found from the meetings listed on the recording's date
+    (board_from_listings(), in fetch_recordings.find())."""
+    if boards == LISTED:
+        return LISTED
     found = []
     for board, pattern in boards.items():
         m = re.search(pattern, title or "", re.I)
         if m:
             found.append((len(m.group(0)), board))
     return max(found)[1] if found else None
+
+
+# A source's boards = "listed": every board the town lists, found by name in each recording's title.
+LISTED = "listed"
+WORD = re.compile(r"[a-z0-9]+")
+# Words a board's name can leave out of a title, or a title add, without naming another board ("Joint
+# Planning Commission and Development Review Board", titled "Planning Commission and Development Review
+# Board").
+FILLER = frozenset("of the and a an for on in to at joint".split())
+# Words that name a kind of public body: a title with one the board's name hasn't is another body's
+# ("City Council Finance Committee", "Joint Meeting of the City Council and School Committee").
+KINDS = frozenset("board committee subcommittee commission council authority trustees".split())
+# Abbreviations titles use for boards' names.
+ABBREVIATIONS = {
+    "zba": "zoning board of appeals", "boe": "board of education", "bos": "board of selectmen",
+    "bma": "board of mayor and aldermen", "pzc": "planning and zoning commission",
+    "cotw": "committee of the whole", "mtg": "meeting",
+}
+
+
+def words(text: str) -> list[str]:
+    """A name's or a title's words, lowercased, with abbreviations spelled out."""
+    out = []
+    for word in WORD.findall((text or "").lower()):
+        out += ABBREVIATIONS.get(word, word).split()
+    return out
+
+
+# Words a title can have before the board's name without naming another place ("South Burlington
+# Planning Commission" on a station that carries several towns' meetings): its date and time, and what
+# kind of meeting it is. Besides these, only the town's own name, whole, or its initials ("SK").
+LEAD = frozenset(("city town village of the and a am pm regular special live meeting reg rescheduled emergency "
+                  "annual public hearing monday tuesday wednesday thursday friday saturday sunday january february "
+                  "march april may june july august september october november december jan feb mar apr jun jul "
+                  "aug sep sept oct nov dec").split())
+NUMBER = re.compile(r"\d+(st|nd|rd|th|am|pm)?")
+
+
+def own_lead(lead: list[str], town: list[str]) -> bool:
+    """Whether the words before a board's name in a title are only its date, its kind of meeting, and
+    the town's own name or initials."""
+    rest = [w for w in lead if w not in LEAD and not NUMBER.fullmatch(w)]
+    initials = "".join(w[0] for w in town) if len(town) > 1 else None
+    return not rest or rest == town or rest == [initials]
+
+
+def name_score(name: str, title: list[str], town: list[str] = ()) -> int | None:
+    """How many of the board's name's words the title has, if it has them all (the town's own name
+    aside), names no other kind of body, and names no other place before them; else None."""
+    wanted = {w for w in words(name) if w not in FILLER and w not in town}
+    have = set(title)
+    if not wanted or not wanted <= have or (have & KINDS) - wanted:
+        return None
+    if not own_lead(title[:next(i for i, w in enumerate(title) if w in wanted)], list(town)):
+        return None
+    return len(wanted)
+
+
+def short_names(name: str, bodies: list[list[str]]) -> list[str]:
+    """The name, and what follows the name of another body it starts with: a committee listed under
+    its board's name ("Board of Public Education Finance Committee") is titled by its own ("Finance
+    Committee Meeting")."""
+    own = words(name)
+    return [name] + [" ".join(own[len(b):]) for b in bodies if len(own) > len(b) and own[:len(b)] == b]
+
+
+def board_from_listings(title: str, day: str, meetings: dict, town: str = "") -> str | None:
+    """The board of the meeting listed on day whose name the title gives (body or body_names, or what
+    follows another listed body's name it starts with), the fullest name first ("School Committee of the
+    Whole" before "School Committee"); None if no meeting that day is named, or two boards' are equally.
+    town is the town's name, which a board's name can have and its recordings' titles leave out ("Derry
+    School Board", "School Board Meeting")."""
+    title_words, town_words = words(title), words(town)
+    bodies = [words(b) for b in {n for m in meetings.values() for n in [m["body"], *m.get("body_names", [])]}]
+    scored = []
+    for m in meetings.values():
+        if m["date"] != day or m.get("status") == "cancelled":
+            continue
+        names = [short for n in [m["body"], *m.get("body_names", [])] for short in short_names(n, bodies)]
+        best = max((s for s in (name_score(n, title_words, town_words) for n in names) if s is not None),
+                   default=None)
+        if best is not None:
+            scored.append((best, m["body"]))
+    if not scored:
+        return None
+    top = max(score for score, _ in scored)
+    boards = {body for score, body in scored if score == top}
+    first = next(iter(boards))
+    return first if all(same_board(first, b) for b in boards) else None
+
+
+def names_a_body(title: str) -> bool:
+    """Whether a title names a kind of public body: a recording of a meeting, not some other program."""
+    return bool(set(words(title)) & KINDS)
 
 
 PART = re.compile(r"\bpart\s*(\d{1,2}|one|two|three|four|five)\b", re.I)
