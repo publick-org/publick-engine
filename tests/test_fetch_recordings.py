@@ -434,3 +434,19 @@ def test_the_main_boards_meetings_are_transcribed_first(config, data_dir, monkey
     fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model", transcriber=fake_transcriber(calls))
     # The council's and the school committee's, newest first, before the newer Licensing Board's.
     assert calls == ["fake-1", "fake-3", "fake-2"]
+
+
+def test_youtube_videos_linked_from_every_boards_meetings(config, data_dir, monkeypatch):
+    from pipeline import youtube
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    store = json.loads((data_dir / "meetings" / "meetings.json").read_text())
+    store["ac-1"]["video_id"] = "council1027"
+    store["ac-3"]["video_id"] = "school1026"
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+    config["recordings"] = {"sources": [{"platform": "youtube", "boards": "listed"}]}
+    recordings.check(config)
+    monkeypatch.setattr(recordings, "platform", lambda name: youtube)
+    fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True)
+    assert {k: (v["meeting"], v["board"]) for k, v in recordings.load(data_dir).items()} == {
+        "youtube-council1027": ("ac-1", "City Council"), "youtube-school1026": ("ac-3", "School Committee")}

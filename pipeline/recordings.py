@@ -109,8 +109,10 @@ def check(config: dict) -> None:
         boards = source.get("boards")
         if getattr(platform(name), "boards_by_name", lambda source: False)(source):
             # Its recordings come with their meetings (YouTube's linked from the town's listings): only named.
-            if not isinstance(boards, list) or not boards or not all(isinstance(b, str) and b for b in boards):
-                raise SystemExit(f"{where} ({name}): boards must list the boards whose meetings' videos are read.")
+            if boards != LISTED and (not isinstance(boards, list) or not boards
+                                     or not all(isinstance(b, str) and b for b in boards)):
+                raise SystemExit(f"{where} ({name}): boards must list the boards whose meetings' videos are read, "
+                                 f"or be {LISTED!r}.")
             platform(name).check(source, where)
             continue
         if boards == LISTED:
