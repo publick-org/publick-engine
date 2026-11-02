@@ -394,6 +394,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["data_bytes_added"] = result["data_bytes"] - data_before
         result["activity"] = activity(town_dir / "data")
         result["fact_checks"] = fact_checks(town_dir / "data")
+        result["recordings"] = recording_coverage(root, name)
         write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
@@ -443,6 +444,19 @@ def activity(data: Path, today: date | None = None) -> dict:
         if today.isoformat() <= m["date"] <= last and m.get("status", "scheduled") == "scheduled" and m.get("listed", True):
             upcoming[m["date"]] = upcoming.get(m["date"], 0) + 1
     return {"boards": len({m["body"] for m in store.values()}), "meetings_by_date": dict(sorted(upcoming.items()))}
+
+
+def recording_coverage(root: Path, name: str) -> dict | None:
+    """The town's main boards' recent meetings by how far each got toward a summary from its recording
+    (pipeline/coverage.py), for the network's report (recordings_text()), which reads only run records.
+    None, and the run goes on, if it can't be counted."""
+    # Imported here, as listings is in activity(): coverage needs the readers' packages.
+    from pipeline import coverage
+    try:
+        return coverage.coverage(town_config(root, name), root / TOWNS / name / "data")
+    except Exception as e:  # a count for the report; never a reason for the town's run to fail
+        print(f"::warning::{name}: recordings coverage not counted: {e}")
+        return None
 
 
 def fact_checks(data: Path) -> dict:
@@ -582,6 +596,82 @@ def behind_text(rows: list[dict], hours: float) -> str:
     for r in rows:
         lines.append(f"| {r['folder']} | {r['last_good_at'] or 'never'} | {r['last_run_at'] or 'never'} | "
                      f"{', '.join(r['problems']) or 'no run since'} |")
+    return "\n".join(lines) + "\n"
+
+
+# The steps of pipeline/coverage.py, as the report names them, in its order. Kept here, as the words
+# for them: the network's home job runs this module with the standard library only.
+COVERAGE_STEPS = {
+    "summarized": "Summarized from the recording",
+    "minutes": "Minutes came first",
+    "transcribed": "Transcribed, not summarized yet",
+    "waiting": "Recording found, not transcribed yet",
+    "failed": "Recording found, couldn't be read",
+    "unmatched": "Recording found, not matched to the meeting",
+    "not_found": "No recording found on the town's sources",
+    "no_source": "No source reads the board",
+    "no_recordings": "The town reads no recordings",
+}
+COVERAGE_MISSES = [s for s in COVERAGE_STEPS if s not in ("summarized", "minutes")]
+# Towns listed by name in the report, the most missed first; the rest are counted.
+COVERAGE_TOWNS = 25
+# A run record's count older than this isn't added up: the town is named as not counted.
+COVERAGE_HOURS = 48
+
+
+def recordings_text(root: Path, at: datetime | None = None) -> str:
+    """The network's main boards' meetings of the last week, counted by how far each got toward a
+    summary from its recording, from each town's run record (run.json, "recordings"): totals, the
+    boards most often read by no source, and the towns with the most meetings missed. Its length
+    doesn't grow with the network: COVERAGE_TOWNS towns are named, and the rest counted."""
+    at = at or datetime.now(timezone.utc)
+    counted, uncounted = [], []
+    for name in town_dirs(root):
+        path = root / TOWNS / name / "data" / RUN_RECORD
+        record = json.loads(path.read_text()) if path.exists() else {}
+        cov, finished = record.get("recordings"), record.get("finished_at")
+        if cov and finished and datetime.fromisoformat(finished) >= at - timedelta(hours=COVERAGE_HOURS):
+            counted.append((name, cov))
+        else:
+            uncounted.append(name)
+    held = sum(c["held"] for _, c in counted)
+    steps = {s: sum(c["steps"].get(s, 0) for _, c in counted) for s in COVERAGE_STEPS}
+    next_day = sum(c.get("next_day", 0) for _, c in counted)
+    since = min((c["since"] for _, c in counted), default="")
+    until = max((c["until"] for _, c in counted), default="")
+    pct = lambda n: f"{n / held:.0%}" if held else "–"
+    lines = [f"Main boards' meetings (governing body, school board, planning and zoning, and each town's "
+             f"[meetings] main_boards) held {since} to {until} in {len(counted)} towns: **{held}**. "
+             f"Summarized from the recording by the end of the next day: **{next_day}** ({pct(next_day)}).", "",
+             "| Furthest step reached | Meetings | Share | Towns |", "|---|---|---|---|"]
+    for key, label in COVERAGE_STEPS.items():
+        towns = sum(1 for _, c in counted if c["steps"].get(key))
+        lines.append(f"| {label} | {steps[key]} | {pct(steps[key])} | {towns} |")
+    unread: dict[str, int] = {}
+    for _, c in counted:
+        for miss in c.get("misses", []):
+            if miss["step"] == "no_source":
+                board = " ".join(miss["board"].split())
+                unread[board] = unread.get(board, 0) + 1
+    if unread:
+        top = sorted(unread.items(), key=lambda kv: (-kv[1], kv[0]))[:10]
+        lines += ["", "Boards most often read by no source: " + ", ".join(f"{b} ({n})" for b, n in top) + "."]
+    missed = sorted(((n, c) for n, c in counted if any(c["steps"].get(s) for s in COVERAGE_MISSES)),
+                    key=lambda nc: (-sum(nc[1]["steps"].get(s, 0) for s in COVERAGE_MISSES), nc[0]))
+    if missed:
+        lines += ["", "| Town | Meetings | Next day | Where the others stopped |", "|---|---|---|---|"]
+        for name, c in missed[:COVERAGE_TOWNS]:
+            where = "; ".join(f"{m['date']} {m['board']}: {COVERAGE_STEPS[m['step']].lower()}"
+                              + (f" ({m['detail']})" if m.get("detail") else "")
+                              for m in c.get("misses", [])[:4])
+            more = sum(c["steps"].get(s, 0) for s in COVERAGE_MISSES) - min(len(c.get("misses", [])), 4)
+            lines.append(f"| {name} | {c['held']} | {c.get('next_day', 0)} | {where}"
+                         + (f"; and {more} more" if more > 0 else "") + " |")
+        if len(missed) > COVERAGE_TOWNS:
+            lines.append(f"\nAnd {len(missed) - COVERAGE_TOWNS} more towns with meetings missed.")
+    if uncounted:
+        lines += ["", f"Not counted (no run record with a count from the last {COVERAGE_HOURS} hours): "
+                  f"{len(uncounted)} towns" + (f": {', '.join(uncounted)}." if len(uncounted) <= 25 else ".")]
     return "\n".join(lines) + "\n"
 
 
@@ -765,6 +855,9 @@ def main() -> int:
     b.add_argument("--hours", type=float, default=BEHIND_HOURS)
     b.add_argument("--new-since", type=Path, metavar="FILE",
                    help="print only a comment naming the towns not in this earlier text of the issue")
+    rc = sub.add_parser("recordings", help="the main boards' meetings of the last week by how far each got "
+                                           "toward a summary from its recording, from the run records")
+    rc.add_argument("--root", type=Path, default=Path.cwd())
     st = sub.add_parser("states")
     st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
@@ -814,6 +907,9 @@ def main() -> int:
             print(newly_behind_text(rows, args.new_since.read_text(encoding="utf-8")), end="")
         else:
             print(behind_text(rows, args.hours), end="")
+        return 0
+    if args.command == "recordings":
+        print(recordings_text(args.root.resolve()), end="")
         return 0
     if args.command == "states":
         print(json.dumps(refresh_states(args.root.resolve()), indent=2))
