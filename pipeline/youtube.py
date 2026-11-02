@@ -48,7 +48,7 @@ the way to read them.
   [[recordings.sources]]
   platform = "youtube"
   channel = "UC..."        # or playlist = "PL..."
-  boards = { "City Council" = '^City Council Meeting' }
+  boards = { "City Council" = '^City Council Meeting' }   # or "listed": every board the town lists
 """
 
 from __future__ import annotations
