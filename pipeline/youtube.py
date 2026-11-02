@@ -43,7 +43,7 @@ the way to read them.
 
   [[recordings.sources]]
   platform = "youtube"
-  boards = ["City Council"]   # the videos these boards' meetings link
+  boards = ["City Council"]   # the videos these boards' meetings link, or "listed" for every board's
 
   [[recordings.sources]]
   platform = "youtube"
@@ -185,14 +185,16 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
 
 
 def linked(source: dict, meetings: dict, since: str) -> list[dict]:
-    """The videos the source's boards' meetings on or after since link, each with its meeting (listing)."""
+    """The videos the source's boards' meetings on or after since link (every board's, for LISTED), each
+    with its meeting (listing)."""
     out = []
     for meeting in meetings.values():
         video_id = meeting.get("video_id")
         if not video_id or meeting.get("date", "") < since or meeting.get("status") == "cancelled":
             continue
         names = [meeting.get("body", ""), *meeting.get("body_names", [])]
-        board = next((b for b in source["boards"] if any(recordings.same_board(n, b) for n in names)), None)
+        board = (meeting.get("body") if source["boards"] == recordings.LISTED
+                 else next((b for b in source["boards"] if any(recordings.same_board(n, b) for n in names)), None))
         if not board:
             continue
         start = meeting.get("video_start") or 0
