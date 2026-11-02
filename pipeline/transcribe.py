@@ -36,8 +36,9 @@ COMPUTE_TYPE = "int8"
 SAMPLE_RATE = 16000
 CHUNK_SECONDS = 30 * 60
 # How much faster than real time the step is counted on to transcribe, erring slow, for what a run
-# can take on (pipeline/fetch_recordings.py): measured at 4.6 to 5.3 on four CPUs.
-SPEED = 4.0
+# can take on (pipeline/fetch_recordings.py): measured at 4.6 to 5.3 on four CPUs at first, and at 7.1
+# to 14.3 on the Recordings runs of 2026-10-30 to 2026-11-02 (ten recordings of 32 minutes to 3.3 hours).
+SPEED = 6.0
 # A paragraph of the transcript ends at a pause this long, or once it runs this long.
 PAUSE_SECONDS = 2.0
 PARAGRAPH_SECONDS = 60.0
