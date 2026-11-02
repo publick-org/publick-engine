@@ -117,7 +117,8 @@ def test_language_attributes_and_switch(built):
 
 
 def test_spanish_pages_link_spanish_pages(built):
-    """Links to the site's pages stay in Spanish; downloads, PDFs, static files, and the feed are shared."""
+    """Links to the site's pages stay in Spanish; downloads, PDFs, and static files are shared; the feed and
+    the meetings calendar are Spanish's own."""
     out, _, _ = built
     for path in sorted((out / "es").rglob("*.html")):
         html = path.read_text(encoding="utf-8")
@@ -132,6 +133,8 @@ def test_spanish_pages_link_spanish_pages(built):
             if url.endswith("/"):
                 assert url.startswith("/es/"), f"{path.relative_to(out)}: {tag}"
                 assert (out / url.lstrip("/") / "index.html").exists(), f"{path.relative_to(out)}: {url}"
+            elif url.endswith(("/feed.xml", "/calendar.ics")) and not url.startswith("/digest/"):
+                assert url.startswith("/es/") and (out / url.lstrip("/")).exists(), f"{path.relative_to(out)}: {url}"
             else:
                 assert not url.startswith("/es/") and (out / url.lstrip("/")).exists(), f"{path.relative_to(out)}: {url}"
 

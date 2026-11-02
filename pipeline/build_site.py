@@ -44,6 +44,7 @@ from pipeline import legistar
 from pipeline import primegov
 from pipeline import factcheck
 from pipeline import listings
+from pipeline import meeting_calendar
 from pipeline import meeting_names
 from pipeline.meeting_names import words
 from pipeline import i18n
@@ -1750,7 +1751,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard),
-                  site_nav=lambda url: site_nav(url, sections, street_sources, documents))
+                  site_nav=lambda url: site_nav(url, sections, street_sources, documents),
+                  # This language's feed and calendar file, which localize_links leaves as they are (they're files).
+                  feed_url=f"{prefix}/feed.xml", calendar_url=f"{prefix}/meetings/calendar.ics")
     urls = {}
     today = built_at.date()
     # The day each meeting's page last changed (meeting_lastmod); a board's and a list's is their newest meeting's.
@@ -1868,10 +1871,15 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if english:
             write_311_csvs(out_dir / "311" / "data", scorecard, common["source_311"])
     if not english:
-        # Every language's pages link the same downloads, PDFs, and feed, written with the English.
+        # Every language's pages link the same downloads and PDFs, written with the English; the feed
+        # and the calendar are each language's own.
         if documents:
             (out_dir / prefix.lstrip("/") / "meetings").mkdir(parents=True, exist_ok=True)
             (out_dir / prefix.lstrip("/") / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
+            write_feed(out_dir / prefix.lstrip("/") / "feed.xml", meetings["all"], config, base_url, built_at, prefix)
+        if "meetings" in config:
+            meeting_calendar.write(out_dir / prefix.lstrip("/") / "meetings" / "calendar.ics", meetings["all"], config, base_url,
+                                   built_at, prefix)
         if "streets" in built_folders:
             (out_dir / prefix.lstrip("/") / "streets").mkdir(parents=True, exist_ok=True)
             (out_dir / prefix.lstrip("/") / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
@@ -1893,6 +1901,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                 shutil.copytree(src, out_dir / "meetings" / folder)
         (out_dir / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
         write_feed(out_dir / "feed.xml", meetings["all"], config, base_url, built_at)
+    if "meetings" in config:
+        meeting_calendar.write(out_dir / "meetings" / "calendar.ics", meetings["all"], config, base_url, built_at)
     if "meetings" in config:
         write_digest_feed(out_dir / "digest" / "feed.xml", issues, config, base_url, built_at)
     if wards_json:
@@ -2022,36 +2032,44 @@ def checked_short(how: str | None) -> str:
             "recording": _("Checked against the recording's transcript")}.get(how, _("Not checked"))
 
 
-def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, built_at: datetime, limit: int = 50) -> None:
-    """RSS feed of City Hall updates: each agenda and set of minutes as it is posted."""
+def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, built_at: datetime, prefix: str = "",
+               limit: int = 50) -> None:
+    """RSS feed of City Hall updates: each agenda and set of minutes as it is posted. prefix is the
+    language's ("" for English, "/es" for Spanish): its feed links that language's pages, and a summary
+    not yet translated into it (in_language) is left out for the line saying the document was posted."""
     items = []
+
+    def text(record: dict | None) -> str | None:
+        record = record or {}
+        return None if record.get("english") else record.get("headline") or record.get("summary")
+
     # A feed reader shows the description on its own, so a summary says it was written by AI.
     for m in meetings:
         when = format_date(m["date"])
         if m["agenda"]:
-            summary = (m["preview"] or {}).get("headline") or (m["preview"] or {}).get("summary")
+            summary = text(m["preview"])
             # How it was checked, after the credit (factcheck.how_checked).
             credit = _("(AI summary of the agenda. Check the original.)") + " " + checked_short(factcheck.how_checked(m["preview"], "agenda")) + "."
             items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
                           summary + " " + credit if summary else _("Agenda posted.")))
         rs = m["recording_summary"]
-        if rs and (rs.get("headline") or rs.get("summary")):
-            summary = rs.get("headline") or rs.get("summary")
+        if text(rs):
+            summary = text(rs)
             credit = _("(AI summary of the meeting's recording. The minutes will follow.)") + " " + checked_short(
                 factcheck.how_checked(rs, "recording")) + "."
             items.append((m["transcript_doc"]["fetched_at"], "recording",
                           _("{board}: what happened on {date}").format(board=m["body"], date=when), m, summary + " " + credit))
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
-            summary = ms.get("headline") or ms.get("summary")
+            summary = text(ms)
             credit = _("(AI summary of the minutes. Check the original.)") + " " + checked_short(factcheck.how_checked(ms, "minutes")) + "."
             items.append((m["minutes_doc"]["fetched_at"], "minutes", _("{board}: minutes of {date}").format(board=m["body"], date=when), m,
                           summary + " " + credit if summary else _("Minutes posted.")))
     items.sort(key=lambda i: i[0], reverse=True)
     site = config["site"]
     entries = "".join(
-        f"<item><title>{xml_escape(title)}</title><link>{base_url}{m['url']}</link>"
-        f"<guid isPermaLink=\"false\">{base_url}{m['url']}#{kind}-{xml_escape(posted)}</guid>"
+        f"<item><title>{xml_escape(title)}</title><link>{base_url}{prefix}{m['url']}</link>"
+        f"<guid isPermaLink=\"false\">{base_url}{prefix}{m['url']}#{kind}-{xml_escape(posted)}</guid>"
         f"<pubDate>{format_datetime(datetime.fromisoformat(posted))}</pubDate>"
         f"<description>{xml_escape(text)}</description></item>\n"
         for posted, kind, title, m, text in items[:limit]
@@ -2061,8 +2079,8 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
     feed_description = _("New agendas and minutes from {town} city boards and committees.").format(town=config["town"]["name"])
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel>\n'
-        f"<title>{xml_escape(site['name'])}: {xml_escape(feed_title)}</title><link>{base_url}/</link>"
-        f"<description>{xml_escape(feed_description)}</description>"
+        f"<title>{xml_escape(site['name'])}: {xml_escape(feed_title)}</title><link>{base_url}{prefix}/</link>"
+        f"<description>{xml_escape(feed_description)}</description><language>{prefix.strip('/') or 'en'}</language>"
         f"<lastBuildDate>{format_datetime(built_at)}</lastBuildDate>\n{entries}</channel></rss>\n",
         encoding="utf-8",
     )

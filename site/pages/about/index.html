@@ -17,7 +17,7 @@
   <li>{{ _("Updated every morning from public sources.") }}</li>
   <li>{{ _("Every number links to where it came from.") }}</li>
   {% if config.meetings is defined and meeting_links.documents %}
-  <li>{% trans url="/feed.xml" %}New agendas and minutes are in an <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>
+  <li>{% trans url=feed_url %}New agendas and minutes are in an <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>
   {% endif %}
   {# The weekly digest is in English for now (pipeline/digest.py). #}
   {% if config.meetings is defined and lang == "en" %}
