@@ -973,3 +973,32 @@ def test_a_glossary_change_makes_again_only_the_translations_it_fails(tmp_path):
     summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
     assert all(translations(tmp_path)[sha]["attempts"] == 2 for sha in uses)
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
+
+
+def test_a_long_translation_goes_through_the_real_sdk():
+    """MAX_TOKENS is past what the SDK sends without streaming unless the request gives a timeout: the
+    translation goes out through a real client (its HTTP answered here, not by the API), with the room
+    and the timeout asked for, and isn't refused before it's sent."""
+    import anthropic
+    import httpx2
+
+    sent = []
+
+    def answer(request):
+        body = json.loads(request.content)
+        sent.append((body, request.extensions.get("timeout")))
+        text = json.dumps({"headline": "Titular", "summary": "Resumen", "decisions": ["Se aprobó, 5-0"]})
+        return httpx2.Response(200, json={
+            "id": "msg_1", "type": "message", "role": "assistant", "model": body["model"],
+            "content": [{"type": "text", "text": text}], "stop_reason": "end_turn", "stop_sequence": None,
+            "usage": {"input_tokens": 600, "output_tokens": 300}})
+
+    client = anthropic.Anthropic(api_key="test", max_retries=0, http_client=httpx2.Client(transport=httpx2.MockTransport(answer)))
+    config = {"town": {"name": "Gloucester", "state": "MA"}, "summaries": {}}
+    record = {"headline": "Headline", "summary": "Summary", "decisions": ["Approved, 5-0"]}
+    result, usage = translate.translate(client, config, "es", "minutes", record,
+                                        {"title": "City Council", "date": "2026-09-01", "body": "City Council"})
+    assert result["decisions"] == ["Se aprobó, 5-0"] and usage["output_tokens"] == 300
+    [(body, timeout)] = sent
+    assert body["max_tokens"] == translate.MAX_TOKENS > 21_333 and "stream" not in body
+    assert timeout and timeout.get("read") == translate.REQUEST_TIMEOUT
