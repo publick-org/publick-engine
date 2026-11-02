@@ -195,6 +195,8 @@ def test_a_fetching_run_records_its_result_for_the_status_page(tmp_path, steps, 
     assert len(summaries["waiting"]) == network.WAITING_KEPT and summaries["waiting_count"] == 25
     assert record["sources"][0] == rows[0]
     assert record["fact_checks"]["summaries"] == 0
+    # A town with no meetings yet has nothing missing (pipeline/document_gaps.py).
+    assert record["documents"]["held"] == 0 and record["documents"]["counts"]["no_documents"] == 0
     assert not (town / ".freshness-report.json").exists()
 
 

@@ -395,6 +395,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["activity"] = activity(town_dir / "data")
         result["fact_checks"] = fact_checks(town_dir / "data")
         result["recordings"] = recording_coverage(root, name)
+        result["documents"] = document_coverage(root, name)
         write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
@@ -456,6 +457,19 @@ def recording_coverage(root: Path, name: str) -> dict | None:
         return coverage.coverage(town_config(root, name), root / TOWNS / name / "data")
     except Exception as e:  # a count for the report; never a reason for the town's run to fail
         print(f"::warning::{name}: recordings coverage not counted: {e}")
+        return None
+
+
+def document_coverage(root: Path, name: str) -> dict | None:
+    """Where the town's recent meetings are missing their agendas and minutes (pipeline/document_gaps.py),
+    for the network's report (documents_text()), which reads only run records. None, and the run goes on,
+    if it can't be counted."""
+    from pipeline import document_gaps
+    try:
+        config = town_config(root, name)
+        return document_gaps.gaps(root / TOWNS / name / "data", config.get("town", {}).get("name", ""))
+    except Exception as e:  # a count for the report; never a reason for the town's run to fail
+        print(f"::warning::{name}: documents coverage not counted: {e}")
         return None
 
 
@@ -676,6 +690,70 @@ def recordings_text(root: Path, at: datetime | None = None) -> str:
     return "\n".join(lines) + "\n"
 
 
+# What pipeline/document_gaps.py counts, as the report names it. Kept here, as COVERAGE_STEPS are.
+GAPS = {
+    "no_documents": "Boards with no agenda or minutes",
+    "no_minutes": "Boards with agendas but no minutes",
+    "pairs": "Meetings likely listed twice",
+}
+
+
+def documents_text(root: Path, at: datetime | None = None) -> str:
+    """The network's recent meetings missing their agendas and minutes, from each town's run record
+    (run.json, "documents"): how many boards and meetings each kind of gap has, and the towns with the
+    most, each with a few of its own. Its length doesn't grow with the network: COVERAGE_TOWNS towns
+    are named, and the rest counted."""
+    at = at or datetime.now(timezone.utc)
+    counted, uncounted = [], []
+    for name in town_dirs(root):
+        path = root / TOWNS / name / "data" / RUN_RECORD
+        record = json.loads(path.read_text()) if path.exists() else {}
+        gaps, finished = record.get("documents"), record.get("finished_at")
+        if gaps and finished and datetime.fromisoformat(finished) >= at - timedelta(hours=COVERAGE_HOURS):
+            counted.append((name, gaps))
+        else:
+            uncounted.append(name)
+    since = min((g["since"] for _, g in counted), default="")
+    until = max((g["until"] for _, g in counted), default="")
+    held = sum(g["held"] for _, g in counted)
+    lines = [f"Meetings held {since} to {until} in {len(counted)} towns: **{held}**. A board's documents can be "
+             "posted where the town's sources don't read them, or listed under another name, or not posted at "
+             "all: each line is a lead to look at.", "",
+             "| | Count | Towns |", "|---|---|---|"]
+    for key, label in GAPS.items():
+        total = sum(g["counts"].get(key, 0) for _, g in counted)
+        towns = sum(1 for _, g in counted if g["counts"].get(key))
+        lines.append(f"| {label} | {total} | {towns} |")
+    behind = [(n, sum(g.get("waiting", {}).values())) for n, g in counted if g.get("waiting")]
+    if behind:
+        lines.append(f"| Meetings waiting for their documents | {sum(w for _, w in behind)} | {len(behind)} |")
+
+    def score(g: dict) -> int:
+        return g["counts"].get("no_documents", 0) * 3 + g["counts"].get("pairs", 0) * 2 + g["counts"].get("no_minutes", 0)
+
+    listed = sorted(((n, g) for n, g in counted if score(g) or g.get("waiting")), key=lambda ng: (-score(ng[1]), ng[0]))
+    if listed:
+        lines += ["", "| Town | No agenda or minutes | Likely listed twice | No minutes | Waiting |", "|---|---|---|---|---|"]
+        for name, g in listed[:COVERAGE_TOWNS]:
+            def some(key: str, show) -> str:
+                items, more = g.get(key, []), g["counts"].get(key, 0)
+                text = "; ".join(show(x) for x in items[:3])
+                return text + (f"; and {more - 3} more" if more > 3 else "") if items else ""
+            lines.append("| " + " | ".join([
+                name,
+                some("no_documents", lambda b: f"{b['board']} ({b['meetings']})"),
+                some("pairs", lambda p: f"{p['date']} {p['board']} / {p['other']}"),
+                some("no_minutes", lambda b: f"{b['board']} ({b['meetings']})"),
+                ", ".join(f"{n} ({k.removesuffix('_status')})" for k, n in g.get("waiting", {}).items()),
+            ]) + " |")
+        if len(listed) > COVERAGE_TOWNS:
+            lines.append(f"\nAnd {len(listed) - COVERAGE_TOWNS} more towns.")
+    if uncounted:
+        lines += ["", f"Not counted (no run record with a count from the last {COVERAGE_HOURS} hours): "
+                  f"{len(uncounted)} towns" + (f": {', '.join(uncounted)}." if len(uncounted) <= 25 else ".")]
+    return "\n".join(lines) + "\n"
+
+
 def newly_behind_text(rows: list[dict], previous: str) -> str:
     """A comment for the daily alert naming the towns that aren't in its table yet (previous is the
     issue's text before this run): an edit to the issue sends no email, a comment does. Nothing
@@ -859,6 +937,9 @@ def main() -> int:
     rc = sub.add_parser("recordings", help="the main boards' meetings of the last week by how far each got "
                                            "toward a summary from its recording, from the run records")
     rc.add_argument("--root", type=Path, default=Path.cwd())
+    dc = sub.add_parser("documents", help="the last 90 days' meetings missing their agendas and minutes, from the "
+                                          "run records")
+    dc.add_argument("--root", type=Path, default=Path.cwd())
     st = sub.add_parser("states")
     st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
@@ -911,6 +992,9 @@ def main() -> int:
         return 0
     if args.command == "recordings":
         print(recordings_text(args.root.resolve()), end="")
+        return 0
+    if args.command == "documents":
+        print(documents_text(args.root.resolve()), end="")
         return 0
     if args.command == "states":
         print(json.dumps(refresh_states(args.root.resolve()), indent=2))

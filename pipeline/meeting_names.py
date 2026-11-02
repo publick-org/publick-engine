@@ -27,6 +27,19 @@ def words(text: str) -> str:
     return " " + re.sub(r"[^a-z0-9]+", " ", text.lower().replace("&", " and ")).strip() + " "
 
 
+# Words that say what kind of body a board is, or join a name's words. Two names that share none of
+# the rest name different boards ("Malden Housing Authority", "City Council Committee of the Whole").
+NAME_FILLER = frozenset("of the and a an for on in to at meeting agenda city town board boards committee subcommittee "
+                        "commission council authority trustees".split())
+
+
+def distinct_words(body: str, town: str) -> set[str]:
+    """A board's name's words that tell it from other boards, each by its first five letters, so
+    "License" and "Licensing" are one word."""
+    leave_out = NAME_FILLER | set(words(town).split())
+    return {w[:5] for w in words(body).split() if w not in leave_out}
+
+
 def find_board(name: str, boards: list[str], aliases: dict) -> str | None:
     """The longest listed board (or alias) named in a calendar entry's name."""
     text = words(name)
