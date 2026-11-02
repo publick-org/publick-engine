@@ -46,6 +46,7 @@ def data_dir(tmp_path):
         meeting("council-29", "2026-10-29", "City Council"),                  # its recording failed
         meeting("ped-29", "2026-10-29", "Planning & Economic Development Committee"),  # not a main board
         meeting("cons-28", "2026-10-28", "Conservation Commission"),          # not a main board
+        meeting("ord-27", "2026-10-27", "City Council", title="City Council - Ordinance Committee"),  # a committee
         meeting("council-30", "2026-10-30", "City Council"),                  # today: not yet
         meeting("council-15", "2026-10-15", "City Council"),                  # before the window
     ]

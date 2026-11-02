@@ -66,6 +66,10 @@ def planning_or_zoning(name: str) -> bool:
 
 
 def is_main(meeting: dict, boards: list[str]) -> bool:
+    """Whether the meeting is a main board's: not one of its committees', which some calendars list under
+    the board's name ("City Council - Ordinance Committee", listed as the City Council's)."""
+    if COMMITTEE.search(meeting.get("title") or "") and not any(COMMITTEE.search(n) for n in names(meeting)):
+        return False
     return any(planning_or_zoning(n) or any(recordings.same_board(n, b) for b in boards) for n in names(meeting))
 
 
