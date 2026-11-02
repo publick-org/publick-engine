@@ -42,9 +42,10 @@ from pipeline.fetch_meetings import save_json
 from pipeline.http import FetchError, PoliteClient
 
 MAX_TRIES = recordings.MAX_TRIES
-# Reading the audio, counted against the run's hours as a share of the recording's length (a four-hour
-# meeting's took 7.6 minutes).
-DOWNLOAD_SHARE = 1 / 20
+# Reading the audio, counted against the run's hours as a share of the recording's length, erring slow:
+# a four-hour meeting's took 7.6 minutes, and the Recordings runs of 2026-10-30 to 2026-11-02 took 1.3%
+# to 7.5% of each recording's length.
+DOWNLOAD_SHARE = 1 / 12
 # How much faster than real time Gemini is counted on to transcribe a YouTube video, a part at a time.
 YOUTUBE_SPEED = 10
 # Counted for a recording whose platform doesn't give its length, until its audio is read.

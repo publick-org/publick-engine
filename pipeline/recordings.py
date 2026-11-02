@@ -32,8 +32,9 @@ since a meeting can be listed after its recording is up.
 Every recording found is kept in data/meetings/recordings.json, by its id
 ("<platform>-<the platform's id>"), with its meeting's id once matched and
 its transcript once made. The step that finds and transcribes recordings
-runs on its own (it can take an hour a meeting) and writes only that file, so
-it never conflicts with the daily run's commits. The daily run reads it:
+runs on its own (Whisper takes 10 to 25 minutes for a three-hour meeting)
+and writes only that file, so it never conflicts with the daily run's
+commits. The daily run reads it:
 listings.read() gives each meeting its recordings and its transcript
 (attach()), as it gives its agendas and minutes.
 
