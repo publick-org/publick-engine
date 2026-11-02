@@ -392,6 +392,14 @@ def test_a_listed_board_by_another_of_its_names():
         "Board of Mayor and Aldermen"
 
 
+def test_a_joint_body_listed_as_one():
+    meetings = listed_meetings(("a", "Joint Planning Commission and Development Review Board", "2026-10-27"),
+                               ("b", "Planning Commission", "2026-10-27"))
+    assert recordings.board_from_listings("Winooski Planning Commission and Development Review Board - 10/27/2026",
+                                          "2026-10-27", meetings, "Winooski") == \
+        "Joint Planning Commission and Development Review Board"
+
+
 def test_two_boards_named_equally_are_left_unmatched():
     meetings = listed_meetings(("a", "Planning Board", "2026-10-27"), ("b", "Planning Commission", "2026-10-27"))
     assert recordings.board_from_listings("Planning Board and Commission 10/27/2026", "2026-10-27", meetings) is None

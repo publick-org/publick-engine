@@ -178,8 +178,10 @@ def board_for_title(title: str, boards: dict | str) -> str | None:
 # A source's boards = "listed": every board the town lists, found by name in each recording's title.
 LISTED = "listed"
 WORD = re.compile(r"[a-z0-9]+")
-# Words a board's name can leave out of a title, or a title add, without naming another board.
-FILLER = frozenset("of the and a an for on in to at".split())
+# Words a board's name can leave out of a title, or a title add, without naming another board ("Joint
+# Planning Commission and Development Review Board", titled "Planning Commission and Development Review
+# Board").
+FILLER = frozenset("of the and a an for on in to at joint".split())
 # Words that name a kind of public body: a title with one the board's name hasn't is another body's
 # ("City Council Finance Committee", "Joint Meeting of the City Council and School Committee").
 KINDS = frozenset("board committee subcommittee commission council authority trustees".split())
