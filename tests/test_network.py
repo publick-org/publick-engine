@@ -136,6 +136,16 @@ def test_run_builds_checks_and_publishes_a_town(tmp_path, steps):
     assert calls[3]["cmd"][calls[3]["cmd"].index("-n") + 1] == "auto", "the browser checks run on every core"
 
 
+def test_a_forced_run_checks_every_figure_source(tmp_path, steps):
+    # A figure source checked weekly, whose calculation changed: a run by hand can check it now.
+    calls, _ = steps
+    network.run_town(make_root(tmp_path), "gloucester-ma", fetch=True, deploy=False, reports=None, force=True)
+    assert "--force" in calls[0]["cmd"]
+    calls.clear()
+    network.run_town(make_root(tmp_path / "again"), "gloucester-ma", fetch=True, deploy=False, reports=None)
+    assert "--force" not in calls[0]["cmd"]
+
+
 def test_each_step_gets_only_the_keys_it_uses(tmp_path, steps, monkeypatch):
     calls, _ = steps
     for k in network.FETCH_KEYS + network.PUBLISH_KEYS:
@@ -398,6 +408,25 @@ def test_behind_lists_towns_without_a_good_update(tmp_path):
     write_record(root, "gloucester-ma", finished_at="2026-10-02T09:00:00+00:00", deployed=True, stale=False,
                  fetched=True, steps=[], failing=["Average tax bill (Mass. DLS)"])
     assert network.behind(root, 30, at)[0]["problems"] == ["Average tax bill (Mass. DLS): checks failing"]
+
+
+def test_behind_lists_a_town_with_no_meetings_even_after_a_good_update(tmp_path):
+    # A city's site that never answers: the meeting fetch is optional, so the run is good, but the
+    # town has no meetings at all (Laconia, NH, on its first runs).
+    from datetime import datetime, timezone
+    root = make_root(tmp_path, towns=("gloucester-ma", "salem-ma"))
+    at = datetime(2026, 10, 2, 12, 0, tzinfo=timezone.utc)
+    for name in ("gloucester-ma", "salem-ma"):
+        write_record(root, name, finished_at="2026-10-02T09:00:00+00:00", deployed=True, stale=False,
+                     fetched=True, steps=[{"name": "Fetch meetings", "ok": False}] if name == "salem-ma" else [])
+    meetings = root / "towns" / "salem-ma" / "data" / "meetings"
+    meetings.mkdir(parents=True, exist_ok=True)
+    (meetings / "meetings.json").write_text('{"meetings": {}}')
+    rows = network.behind(root, 30, at)
+    assert [r["folder"] for r in rows] == ["salem-ma"]
+    assert rows[0]["problems"] == ["no meetings: none has ever been fetched", "Fetch meetings"]
+    (meetings / "meetings.json").write_text('{"meetings": {"m-1": {"date": "2026-10-01"}}}')
+    assert network.behind(root, 30, at) == []
 
 
 def test_the_alert_comments_only_on_towns_newly_behind(tmp_path):

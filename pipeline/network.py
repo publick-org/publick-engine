@@ -62,7 +62,7 @@ state's statewide checks that keep failing are listed by behind.
 
     python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
-    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] | --collect [--ready]]
+    python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] [--force] | --collect [--ready]]
                                       [--deploy] [--sample-checks] [--reports DIR]
     python -m pipeline.network report DIR
     python -m pipeline.network behind [--root .] [--hours 30]
@@ -318,7 +318,7 @@ COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_AC
 
 def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | None,
              step_timeout: float = STEP_TIMEOUT, sample_checks: bool = False, sources: str = "all",
-             collect: bool = False, ready_only: bool = False) -> dict:
+             collect: bool = False, ready_only: bool = False, force: bool = False) -> dict:
     town_dir = root / TOWNS / name
     env = town_env(root, name)
     town = env["TOWN"]
@@ -346,7 +346,8 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     if fetch:
         update_report = town_dir / ".update-report.json"
         steps.append(step("Fetch new data", [python, "-m", "pipeline.update", "--town", town, "--sources", sources,
-                                             "--step-timeout", str(step_timeout), "--report", str(update_report)],
+                                             "--step-timeout", str(step_timeout), "--report", str(update_report)]
+                          + (["--force"] if force else []),
                           keyed(env, FETCH_KEYS), town_dir, None))
         if update_report.exists():
             result["update"] = json.loads(update_report.read_text())
@@ -487,18 +488,32 @@ def last_good(record: dict) -> str | None:
     return record.get("finished_at") if record.get("fetched", True) and good(record) else None
 
 
+def no_meetings(root: Path, name: str) -> bool:
+    """Whether a town that has run has no meetings at all: its meeting fetch is an optional step, so a run
+    whose every calendar failed (a city's site that never answers) still counts as a good update."""
+    path = root / TOWNS / name / "data" / "meetings" / "meetings.json"
+    if not path.exists() or not (root / TOWNS / name / "data" / RUN_RECORD).exists():
+        return False
+    stored = json.loads(path.read_text())
+    return not (stored.get("meetings") if isinstance(stored, dict) else stored)
+
+
 def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) -> list[dict]:
-    """Towns without a good update in the last `hours`, or whose figure checks keep failing (not behind
-    yet, but whoever runs the network should know), with what their last run says went wrong."""
+    """Towns without a good update in the last `hours`, whose figure checks keep failing (not behind
+    yet, but whoever runs the network should know), or that have run and still have no meetings, with what their
+    last run says went wrong."""
     at = at or datetime.now(timezone.utc)
     rows = []
     for name in town_dirs(root):
         path = root / TOWNS / name / "data" / RUN_RECORD
         record = json.loads(path.read_text()) if path.exists() else {}
         last = last_good(record)
-        if last and datetime.fromisoformat(last) >= at - timedelta(hours=hours) and not record.get("failing"):
+        empty = no_meetings(root, name)
+        if (last and datetime.fromisoformat(last) >= at - timedelta(hours=hours) and not record.get("failing")
+                and not empty):
             continue
-        problems = [s["name"] for s in record.get("steps", []) if not s["ok"]]
+        problems = ["no meetings: none has ever been fetched"] if empty else []
+        problems += [s["name"] for s in record.get("steps", []) if not s["ok"]]
         problems += [f"{r['label']} behind" for r in record.get("sources") or [] if r.get("stale")]
         problems += [f"{label}: checks failing" for label in record.get("failing") or []]
         rows.append({"folder": name, "last_good_at": last, "last_run_at": record.get("finished_at"),
@@ -736,6 +751,8 @@ def main() -> int:
                    help="with --collect, only a batch that has already ended; one still running is left")
     r.add_argument("--sources", choices=["all", "meetings", "figures", "311"], default="all",
                    help="with --fetch, which data to fetch (pipeline.update's groups)")
+    r.add_argument("--force", action="store_true",
+                   help="with --fetch, check every figure source, due or not (pipeline.update --force)")
     r.add_argument("--deploy", action="store_true", help="publish each site that passes its checks")
     r.add_argument("--reports", type=Path, help="folder for each town's result")
     r.add_argument("--step-timeout", type=float, default=STEP_TIMEOUT)
@@ -779,8 +796,10 @@ def main() -> int:
             raise SystemExit("--collect is a run of its own, after the one that fetched")
         if args.ready and not args.collect:
             raise SystemExit("--ready goes with --collect")
+        if args.force and not args.fetch:
+            raise SystemExit("--force goes with --fetch")
         results = [run_town(root, name, args.fetch, args.deploy, args.reports, args.step_timeout, args.sample_checks,
-                            args.sources, args.collect, args.ready)
+                            args.sources, args.collect, args.ready, args.force)
                    for name in args.towns.replace(",", " ").split()]
         for result in results:
             if not result["ok"]:

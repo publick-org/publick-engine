@@ -144,6 +144,14 @@ def test_calendar_behind():
     # Without a [freshness] row, two days.
     assert absences.calendar_behind({"meetings": {}}, read(2.5), now) == {"since": "2026-10-01"}
     assert absences.calendar_behind({}, None, now) is None
+    # A calendar that failed and has never been read is behind, however recent the status (Laconia, NH,
+    # whose site never answered: its first runs' status was stamped by the run that tried).
+    tried = {**read(0.1), "calendars": {}, "failed_calendars": ["city calendar", "Agenda Center"]}
+    assert absences.calendar_behind(config, tried, now) == {"since": None}
+    # One that failed today but was read before counts from its last good read, as before.
+    once = {**read(1), "calendars": {"city calendar": {"updated_at": read(1)["updated_at"]}},
+            "failed_calendars": ["city calendar"]}
+    assert absences.calendar_behind(config, once, now) is None
 
 
 # ---- On the pages (the fixture town, built on BUILT_AT) ---------------------------
