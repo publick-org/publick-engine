@@ -38,6 +38,7 @@
 </ul>
 {% endif %}
 <p><a href="/meetings/past/">{{ _("Past meetings") }}</a></p>
+<p>{% trans url=calendar_url %}<a href="{{ url }}">Meetings calendar</a> (.ics): add its address to your calendar app to follow every board's meetings.{% endtrans %}</p>
 {# Where the meetings come from: each of the town's sources, in a sentence of its own. #}
 <p class="source-note">
 {%- if meeting_links.opengov_only %}{% trans url=config.opengov_meetings.page_url %}From the Rhode Island Secretary of State's <a href="{{ url }}">Open Meetings portal</a>, where every public body in the state files its notices and minutes.{% endtrans %}

@@ -107,7 +107,14 @@ DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
 # Translating a short summary needs little thinking.
 DEFAULT_EFFORT = "low"
 # Room for a model's thinking at a high effort as well as the translation; only what's written is paid for.
-MAX_TOKENS = 16000
+# As much as a summary gets (summarize.KINDS): at 16,000, Haiku 5.5 at high effort stopped before it finished
+# translating minutes of 35 decisions or more (Manchester's aldermen, Somerville's council), and a translation
+# that stops early isn't saved, so it was sent again, and paid for, on every run.
+MAX_TOKENS = 32000
+# Each translation request's timeout, in seconds. Given, so the SDK doesn't refuse a request this large without
+# streaming (it estimates an hour for 128,000 tokens, and refuses past ten minutes when no timeout is given);
+# a translation at MAX_TOKENS takes a few minutes.
+REQUEST_TIMEOUT = 600
 
 # The fields of each kind of summary that are shown, and so translated.
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
@@ -798,6 +805,7 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     response = client.messages.create(
         model=settings(config)["model"],
         max_tokens=MAX_TOKENS,
+        timeout=REQUEST_TIMEOUT,
         system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
                                     glossary=glossary_text(glossary.entries(config), lang))),
         messages=[{"role": "user", "content": prompt}],
@@ -1116,6 +1124,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         response = client.messages.create(
             model=tsettings["model"],
             max_tokens=MAX_TOKENS,
+            timeout=REQUEST_TIMEOUT,
             system=cached(NAMES_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
                                               glossary=glossary_text(glossary.entries(config), lang))),
             messages=[{"role": "user", "content": NAMES_PROMPT.format(
