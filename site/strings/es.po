@@ -1080,6 +1080,15 @@ msgstr "<a href=\"%(url)s\">%(title)s</a>, en el %(listing)s"
 msgid "<a href=\"%(url)s\">How we know</a>."
 msgstr "<a href=\"%(url)s\">Cómo lo sabemos</a>."
 
+#: site/pages/meetings/index.html site/templates/board.html
+#, python-format
+msgid ""
+"<a href=\"%(url)s\">Meetings calendar</a> (.ics): add its address to your calendar app to follow "
+"every board's meetings."
+msgstr ""
+"<a href=\"%(url)s\">Calendario de reuniones</a> (.ics): agregue su dirección a su aplicación de "
+"calendario para seguir las reuniones de todas las juntas."
+
 #. %(where)s is where the minutes were posted, such as "the city website".
 #: site/templates/meeting.html
 #, python-format
@@ -2509,7 +2518,7 @@ msgstr "Calculado por Publick con datos del estado"
 msgid "Calculated by Publick."
 msgstr "Calculado por Publick."
 
-#: site/templates/macros.html
+#: pipeline/meeting_calendar.py site/templates/macros.html
 msgctxt "meeting"
 msgid "Cancelled"
 msgstr "Cancelada"
@@ -4968,10 +4977,10 @@ msgstr ""
 "revisa antes de publicarlos. El documento de la ciudad es el registro oficial, y cada resumen "
 "enlaza a él."
 
-#: pipeline/build_site.py site/pages/about/index.html site/pages/meetings/glossary/index.html
-#: site/pages/meetings/index.html site/pages/meetings/past/index.html
-#: site/pages/meetings/search/index.html site/templates/board.html site/templates/digest.html
-#: site/templates/digest_email.html site/templates/meeting.html
+#: pipeline/build_site.py pipeline/meeting_calendar.py site/pages/about/index.html
+#: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
+#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
+#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
 
@@ -4997,6 +5006,10 @@ msgid "Meetings before this site began recording are on the <a href=\"%(url)s\">
 msgstr ""
 "Las reuniones de antes de que este sitio empezara a registrarlas están en el <a "
 "href=\"%(url)s\">%(name)s</a>."
+
+#: site/pages/index.html
+msgid "Meetings calendar for your calendar app"
+msgstr "Calendario de reuniones para su aplicación de calendario"
 
 #. %(start)s and %(end)s are dates, such as "Monday, October 12, 2026".
 #: site/templates/digest.html
@@ -5280,10 +5293,11 @@ msgid "New agendas and minutes are in an <a href=\"%(url)s\">RSS feed</a>."
 msgstr "Las agendas y actas nuevas están en un <a href=\"%(url)s\">canal RSS</a>."
 
 #: site/templates/board.html
-msgid "New agendas and minutes from every board are in this site's <a href=\"/feed.xml\">RSS feed</a>."
+#, python-format
+msgid "New agendas and minutes from every board are in this site's <a href=\"%(url)s\">RSS feed</a>."
 msgstr ""
-"Las nuevas agendas y actas de todas las juntas están en el <a href=\"/feed.xml\">canal RSS</a> de"
-" este sitio."
+"Las nuevas agendas y actas de todas las juntas están en el <a href=\"%(url)s\">canal RSS</a> de "
+"este sitio."
 
 #: pipeline/build_site.py
 #, python-brace-format
@@ -5951,7 +5965,7 @@ msgstr "Población: %(population)s (censo de 2020)."
 msgid "Population: %(population)s."
 msgstr "Población: %(population)s."
 
-#: site/templates/macros.html
+#: pipeline/meeting_calendar.py site/templates/macros.html
 msgctxt "meeting"
 msgid "Postponed"
 msgstr "Aplazada"
