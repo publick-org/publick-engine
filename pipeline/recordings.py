@@ -198,24 +198,31 @@ def words(text: str) -> list[str]:
 
 
 # Words a title can have before the board's name without naming another place ("South Burlington
-# Planning Commission" on a station that carries several towns): the town's own name, and its date and
-# what kind of meeting it is.
-LEAD = frozenset(("city town village of the and a regular special live meeting reg rescheduled emergency annual "
-                  "public hearing monday tuesday wednesday thursday friday saturday sunday january february march "
-                  "april may june july august september october november december jan feb mar apr jun jul aug sep "
-                  "sept oct nov dec").split())
-ORDINAL = re.compile(r"\d+(st|nd|rd|th)?")
+# Planning Commission" on a station that carries several towns' meetings): its date and time, and what
+# kind of meeting it is. Besides these, only the town's own name, whole, or its initials ("SK").
+LEAD = frozenset(("city town village of the and a am pm regular special live meeting reg rescheduled emergency "
+                  "annual public hearing monday tuesday wednesday thursday friday saturday sunday january february "
+                  "march april may june july august september october november december jan feb mar apr jun jul "
+                  "aug sep sept oct nov dec").split())
+NUMBER = re.compile(r"\d+(st|nd|rd|th|am|pm)?")
 
 
-def name_score(name: str, title: list[str], town: set[str] = frozenset()) -> int | None:
+def own_lead(lead: list[str], town: list[str]) -> bool:
+    """Whether the words before a board's name in a title are only its date, its kind of meeting, and
+    the town's own name or initials."""
+    rest = [w for w in lead if w not in LEAD and not NUMBER.fullmatch(w)]
+    initials = "".join(w[0] for w in town) if len(town) > 1 else None
+    return not rest or rest == town or rest == [initials]
+
+
+def name_score(name: str, title: list[str], town: list[str] = ()) -> int | None:
     """How many of the board's name's words the title has, if it has them all (the town's own name
     aside), names no other kind of body, and names no other place before them; else None."""
     wanted = {w for w in words(name) if w not in FILLER and w not in town}
     have = set(title)
     if not wanted or not wanted <= have or (have & KINDS) - wanted:
         return None
-    lead = title[:next(i for i, w in enumerate(title) if w in wanted)]
-    if not all(w in LEAD or w in town or ORDINAL.fullmatch(w) for w in lead):
+    if not own_lead(title[:next(i for i, w in enumerate(title) if w in wanted)], list(town)):
         return None
     return len(wanted)
 
@@ -225,7 +232,7 @@ def board_from_listings(title: str, day: str, meetings: dict, town: str = "") ->
     fullest name first ("School Committee of the Whole" before "School Committee"); None if no meeting
     that day is named, or two boards' are equally. town is the town's name, which a board's name can
     have and its recordings' titles leave out ("Derry School Board", "School Board Meeting")."""
-    title_words, town_words = words(title), set(words(town))
+    title_words, town_words = words(title), words(town)
     scored = []
     for m in meetings.values():
         if m["date"] != day or m.get("status") == "cancelled":

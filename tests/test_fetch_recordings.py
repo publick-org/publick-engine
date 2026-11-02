@@ -372,6 +372,18 @@ def test_a_listed_board_named_with_the_town_and_another_places_board():
     # Dates and the kind of meeting before the board's name are no other place.
     assert recordings.board_from_listings("Tuesday, October 27th 2026 Regular Planning Commission", "2026-10-27",
                                           meetings, "Derry") == "Planning Commission"
+    assert recordings.board_from_listings("October 27, 2026, 7pm: Derry Planning Commission Meeting", "2026-10-27",
+                                          meetings, "Derry") == "Planning Commission"
+
+
+def test_a_town_of_two_words_before_its_board():
+    meetings = listed_meetings(("a", "Town Council", "2026-10-22"), ("b", "Development Review Board", "2026-10-22"))
+    for title in ("October 22, 2026 SK Town Council", "South Kingstown Town Council 10/22/2026",
+                  "Town of South Kingstown | Town Council 10/22/2026"):
+        assert recordings.board_from_listings(title, "2026-10-22", meetings, "South Kingstown") == "Town Council", title
+    # Part of its name is another town's.
+    assert recordings.board_from_listings("Kingstown Development Review Board - 10/22/2026", "2026-10-22", meetings,
+                                          "South Kingstown") is None
 
 
 def test_a_listed_board_by_another_of_its_names():
