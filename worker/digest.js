@@ -22,11 +22,12 @@
 //
 // Sending: on each DIGEST_CRON trigger the scheduler reads each town in
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
-// (/digest/feed.xml), and sends it once its date has passed (Sunday at 5:30
-// PM, the town's time), within SEND_WINDOW_HOURS: an issue isn't sent late, nor
-// twice (an email with its subject sent since shortly before its date). A town
-// whose newest issue is still last week's at this week's last try fails the run,
-// so a week skipped (its Sunday build didn't publish) is seen. Each
+// (/digest/feed.xml), and sends it once its date has passed (Sunday at 7 AM,
+// the town's time; the engine's digest.SEND_TIME), within SEND_WINDOW_HOURS: an
+// issue isn't sent late, nor twice (an email with its subject sent since shortly
+// before its date). A town whose newest issue is still last week's at this
+// week's last try fails the run, so a week skipped (neither its Saturday nor
+// its Sunday build published) is seen. Each
 // run makes one request for each town, and a few more for each town sending.
 //
 // Testing: sendTest() sends an issue at once to the addresses given and no
@@ -39,7 +40,7 @@
 
 export const API = "https://api.buttondown.com/v1";
 export const SIGNUP_PATH = "/digest/subscribe";
-// Every hour of Sunday and Monday, UTC: Sunday evening in every US time zone. Days by name:
+// Every hour of Sunday and Monday, UTC: all of Sunday in every US time zone. Days by name:
 // Cloudflare numbers them 1 (Sunday) to 7, not cron's usual 0 to 6, and refuses a 0.
 export const DIGEST_CRON = "35 * * * SUN,MON";
 export const SEND_WINDOW_HOURS = 6;
@@ -274,7 +275,7 @@ export async function sendTown(env, host, now, cache) {
   const sinceNext = late - 7 * 24 * 3600_000;
   if (sinceNext >= (SEND_WINDOW_HOURS - 1) * 3600_000 && sinceNext < SEND_WINDOW_HOURS * 3600_000) {
     throw new Error(`this week's issue isn't in its feed by its last try (the newest is "${issue.subject}"), so this ` +
-      "week isn't sent: the town's Sunday build may not have published, or the week had no meetings and no new minutes");
+      "week isn't sent: the town's Saturday and Sunday builds may not have published, or the week had no meetings and no new minutes");
   }
   if (late < 0 || late > SEND_WINDOW_HOURS * 3600_000) return { host, done: "not_due", subject: issue.subject };
   const key = env.BUTTONDOWN_SEND_KEY;
