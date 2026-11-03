@@ -35,8 +35,11 @@ The form posts to the site's own /digest/subscribe, which only the network's Wor
 
 from __future__ import annotations
 
+import html
 import re
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 # When an issue's email is due, on its Sunday, in the town's timezone.
@@ -74,6 +77,9 @@ EMAIL_REF = "digest-email"
 MAILING_ADDRESS = "c/o Buttondown, LLC, 406 W Franklin St. #201, Richmond, VA 23221"
 # Buttondown's tag for each reader's own unsubscribe link, filled in as it sends.
 UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}"
+# The largest an issue's email may be, in bytes of HTML. Gmail cuts an email off at 102 KB and hides the rest, which
+# would hide the footer with the unsubscribe link; this leaves room for what the provider adds as it sends.
+EMAIL_MAX_BYTES = 100_000
 
 
 def meeting_name(m: dict) -> str:
@@ -268,3 +274,41 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
             "days": [(day, [m for m in week if m["date"] == day]) for day in sorted({m["date"] for m in week})],
         })
     return found
+
+
+def email_problems(body: str, base_url: str, site_dir: Path) -> list[str]:
+    """What would keep an issue's email (its feed item's HTML) from being sent as it should, checked in each town's
+    build before it's published (site_checks/test_town_site.py), so a town whose email fails is held back: past
+    EMAIL_MAX_BYTES; without its unsubscribe link or postal address, which the law on commercial email asks for; a
+    section (an <h2>) that links no meeting; a link to the site whose page, or its anchor, isn't in the build
+    (site_dir); a link or image that isn't in full, which an email app can't follow. An empty list when it's fine."""
+    problems = []
+    size = len(body.encode())
+    if size > EMAIL_MAX_BYTES:
+        problems.append(f"it's {size:,} bytes, past {EMAIL_MAX_BYTES:,}: Gmail would cut it off before its unsubscribe link")
+    if UNSUBSCRIBE_TAG not in body:
+        problems.append(f"it has no unsubscribe link ({UNSUBSCRIBE_TAG})")
+    if MAILING_ADDRESS not in body:
+        problems.append("it has no postal address (MAILING_ADDRESS)")
+    sections = re.split(r"<h2\b", body)[1:]
+    for section in sections:
+        heading = re.sub(r"<[^>]+>", "", section.split("</h2>", 1)[0].split(">", 1)[-1]).strip()
+        if f'href="{base_url}/meetings/' not in section:
+            problems.append(f'its section "{heading}" links no meeting')
+    for attr, value in re.findall(r'\b(href|src)="([^"]*)"', body):
+        url = html.unescape(value)
+        if url == UNSUBSCRIBE_TAG or url.startswith("mailto:"):
+            continue
+        if not url.startswith(base_url + "/"):
+            if not url.startswith("https://"):
+                problems.append(f"a link that isn't in full: {url}")
+            continue
+        parts = urlparse(url)
+        target = site_dir / parts.path.lstrip("/")
+        if parts.path.endswith("/"):
+            target = target / "index.html"
+        if not target.is_file():
+            problems.append(f"a link to a page the site doesn't have: {url}")
+        elif parts.fragment and f'id="{parts.fragment}"' not in target.read_text(encoding="utf-8"):
+            problems.append(f"a link to an anchor its page doesn't have: {url}")
+    return problems
