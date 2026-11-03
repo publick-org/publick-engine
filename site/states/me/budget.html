@@ -9,7 +9,11 @@
 {%- else %}
 {#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and property tax rate{% endtrans %}{% endif %}{% endblock %}
-{% block description %}{% if state.source("tax_bill", config) %}{% trans town=town.name %}{{ town }}'s property tax rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% else %}{% trans town=town.name %}{{ town }}'s property tax rate and what the property tax raises.{% endtrans %}{% endif %}{% endblock %}
+{# What a search result shows under the title: the latest rate itself, as searches for it ask, then what the page has. #}
+{% block description %}{% if budget and budget.rates %}{% set r = budget.rates[-1] %}
+{#- Translators: %(town)s is the town, %(year)s the rate's tax year, such as "2026", and %(rate)s the rate, such as "17.82". -#}
+{% trans town=town.name, year=r.tax_year, rate="%.2f" | format(r.rate) %}{{ town }}'s {{ year }} property tax rate is ${{ rate }} per $1,000 of assessed value.{% endtrans %} {% if state.source("tax_bill", config) %}{{ _("What the property tax raises, and the average single-family tax bill.") }}{% else %}{{ _("What the property tax raises.") }}{% endif %}
+{%- elif state.source("tax_bill", config) %}{% trans town=town.name %}{{ town }}'s property tax rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% else %}{% trans town=town.name %}{{ town }}'s property tax rate and what the property tax raises.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("City budget") }}</h1>

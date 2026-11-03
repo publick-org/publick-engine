@@ -598,6 +598,10 @@ def test_officials_page(site_dir, config):
     assert 'District A<span class="cell-note"> (Wards <a href="#ward-1">1</a> and <a href="#ward-2">2</a>)</span>' in page
     # The mayor is on two bodies: a row on each, with different anchors.
     assert 'id="mayor-morgan-example"' in page and 'id="school-committee-morgan-example"' in page
+    # The title names the bodies, as searches do ("city council members"); the description, the mayor and each body's size.
+    assert "<title>Gloucester, MA Mayor, City Council, and School Committee members</title>" in page
+    assert ('<meta name="description" content="Mayor Morgan Example, 7 City Council members, and 4 School Committee '
+            'members. Elected officials in Gloucester, by office and by ward') in page
     ids = re.findall(r'\bid="([^"]+)"', page)
     assert len(ids) == len(set(ids))
     assert "January 2028" in page and 'href="tel:978555-0100"' in page
@@ -873,7 +877,8 @@ def test_home_and_downloads_for_search_engines(site_dir):
     home = (site_dir / "index.html").read_text()
     # Titles in search results start with the words people search, the town and state first, and leave out
     # the site's name, which search results show from the WebSite data below.
-    assert "<title>Gloucester, MA: city meetings, agendas, and data</title>" in home
+    # It names the governing body, as searches for its agendas do.
+    assert "<title>Gloucester, MA: City Council agendas, meetings, and data</title>" in home
     # A meeting's names the minutes or agenda it has, and the day; its own name, on social cards and in
     # breadcrumbs, doesn't name the town.
     meetings = site_dir / "meetings"
