@@ -1077,9 +1077,27 @@ def meeting_links(config: dict) -> dict:
                     for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
                               "meetingdocs_meetings", "sharpschool_meetings", "boardbook_meetings", "ical_meetings")
                     if t in config and not (t == "opengov_meetings" and opengov_only)]
+                   + page_sources(config)
                    + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
                       if "schedule_meetings" in config else []),
     }
+
+
+def page_sources(config: dict) -> list[dict]:
+    """Who posts the pages of [page_meetings.pages] that name their own source_name, each once, with its first
+    page (Manchester's school district folders, where the table's own source is a city department), unless
+    another table names that source already."""
+    named = {config[t]["source_name"] for t in ("drive_meetings", "finalsite_meetings", "page_meetings",
+                                                "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
+                                                "sharpschool_meetings", "boardbook_meetings", "ical_meetings")
+             if t in config and config[t].get("source_name")}
+    found = []
+    for url, page in (config.get("page_meetings") or {}).get("pages", {}).items():
+        name = page.get("source_name") if isinstance(page, dict) else None
+        if name and name not in named:
+            named.add(name)
+            found.append({"name": name, "url": url})
+    return found
 
 
 # Pages about agendas and minutes, left out for a town that doesn't collect them yet.
