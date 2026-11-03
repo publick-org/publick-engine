@@ -43,6 +43,15 @@ calendar entry a meeting. Three layouts are read:
   Google Doc. [page_meetings.columns] maps a heading to its board, and each
   column is read as a page of that board's meetings (apptegy_columns).
 
+- A folder of files, a board's year of agendas or minutes. Manchester School
+  District's documents (Apptegy, /documents/.../<folder id>) list each file by
+  the name it was given ("2026-10-13 BOSC Agenda", "2026-9-16 Finance and
+  Facilities Minutes"), in the page's Nuxt payload, not as links
+  (apptegy_folder()). Only the files that are an agenda or minutes are read,
+  newest first, so a memo or handout filed with them isn't taken for a
+  meeting; and a folder of years ("2024", "2025", "2026") is read through the
+  years from since on (year_folders(); the caller reads them).
+
 A link inside a table row belongs to that row's meeting; any other link with a
 date in its label is an entry of its own; and a document link without one
 belongs to the last short line of text with a date before it. An entry's date is the first date in its text, written out
@@ -97,6 +106,9 @@ from pipeline.filelist import DATE_IN_TITLE, MONTHS
 from pipeline.meeting_names import find_board, parse_name, words
 
 SOURCE = "page"
+# What a page of [page_meetings.pages] may set of its own, over the table's (pipeline/fetch_page_meetings.py).
+PAGE_SETTINGS = ("source_name", "one_meeting_a_day", "agenda_pattern", "minutes_pattern", "exclude_pattern",
+                 "name_ignore_pattern", "other_pages")
 
 ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.S | re.I)
 CELL = re.compile(r"<t[dh]\b[^>]*>(.*?)</t[dh]>", re.S | re.I)
@@ -110,7 +122,8 @@ BLOCK_TAG = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br|section|header|article|t
 # announcements run to 125 characters ("The Policy Committee will meet on Wednesday, October 28, 2026
 # at 5:00 PM in room 114 at Central Office (117 Stroudwater Street)").
 HEADING_LENGTH = 160
-ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)")
+# "2026-10-13", and without zeros, "2026-9-16" (Manchester School District's file names).
+ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)")
 # "10/13/26", "9/8/2026": month, day and year in figures, the year of two digits taken as 20xx. Not a
 # fraction or a part of a longer run of figures and slashes ("8/10", "1/2/3/4").
 NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])")
@@ -136,7 +149,7 @@ def text(fragment: str) -> str:
 
 
 def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out, as yyyy-mm-dd, as m/d/yy (or m/d/yyyy), as mm.dd.yy, or as
+    """The first date in a text, written out, as yyyy-mm-dd (or yyyy-m-d), as m/d/yy (or m/d/yyyy), as mm.dd.yy, or as
     mm-dd-yyyy."""
     found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value),
                          DOTTED_DATE.search(value), DASHED_DATE.search(value)) if m]
@@ -317,6 +330,85 @@ def apptegy_columns(page: str) -> dict[str, str]:
     return columns
 
 
+# A Nuxt site's state, as the page carries it: a JSON array whose containers hold the indexes of their values.
+NUXT_DATA = re.compile(r'<script\b[^>]*\bid="__NUXT_DATA__"[^>]*>(.*?)</script>', re.S | re.I)
+# The wrappers Nuxt puts around a value ("Reactive", index): the value is the index's.
+NUXT_WRAPPERS = {"Reactive", "ShallowReactive", "Ref", "ShallowRef"}
+
+
+def apptegy_folder(page: str) -> list[dict] | None:
+    """An Apptegy document folder's items, as its page's Nuxt payload has them
+    (data["document-folder-id-<id>"].foldersAndDocuments): its files ({"file_name", "url", "position"})
+    and its folders ({"folder_name", "url", "isFolder"}). None for a page that isn't one."""
+    found = NUXT_DATA.search(page)
+    if not found:
+        return None
+    try:
+        data = json.loads(found.group(1))
+    except ValueError:
+        return None
+    if not isinstance(data, list) or not data:
+        return None
+
+    def value(i, depth: int = 0):
+        # An index into the payload, read back into what it stands for; a negative one is undefined or null.
+        if not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < len(data) or depth > 12:
+            return None
+        v = data[i]
+        if isinstance(v, list):
+            if len(v) == 2 and v[0] in NUXT_WRAPPERS:
+                return value(v[1], depth + 1)
+            return [value(x, depth + 1) for x in v]
+        if isinstance(v, dict):
+            return {k: value(x, depth + 1) for k, x in v.items()}
+        return v
+
+    # The payload's first entry is its root, inside a wrapper ("ShallowReactive", index): read only its "data".
+    root, depth = data[0], 0
+    while isinstance(root, list) and len(root) == 2 and root[0] in NUXT_WRAPPERS and depth < 5:
+        root, depth = data[root[1]] if isinstance(root[1], int) and 0 <= root[1] < len(data) else None, depth + 1
+    state = value(root["data"], 1) if isinstance(root, dict) and "data" in root else None
+    if not isinstance(state, dict):
+        return None
+    folders = [f for key, f in state.items() if key.startswith("document-folder-id-") and isinstance(f, dict)]
+    if not folders:
+        return None
+    return [item for f in folders for item in f.get("foldersAndDocuments") or [] if isinstance(item, dict)]
+
+
+def position(item: dict) -> int:
+    try:
+        return int(item.get("position") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def folder_links(items: list[dict], settings: dict) -> str:
+    """An Apptegy folder's agendas and minutes as a list of links, labelled with their files' names, newest
+    first (the folder lists them oldest first, by position). Its other files (memos, handouts) are left out."""
+    files = sorted((item for item in items if item.get("file_name") and item.get("url")
+                    and kind_of(str(item["file_name"]), settings)), key=position, reverse=True)
+    return "<ul>" + "".join(f'<li><a href="{html.escape(str(f["url"]))}">{html.escape(str(f["file_name"]))}</a></li>'
+                            for f in files) + "</ul>"
+
+
+def as_links(page: str, settings: dict) -> str:
+    """The page to read: an Apptegy document folder as the list of links its files would be, any other page
+    as it is."""
+    items = apptegy_folder(page)
+    return page if items is None else folder_links(items, settings)
+
+
+def year_folders(page: str, page_url: str, since: str) -> list[str]:
+    """An Apptegy document folder's folders named by a year ("2025", "2026"), from since's year on, newest
+    first: a board's folder of years, each year's files in a folder of its own."""
+    items = apptegy_folder(page) or []
+    years = [(int(item["folder_name"]), item["url"]) for item in items
+             if item.get("url") and re.fullmatch(r"\d{4}", str(item.get("folder_name") or "").strip())
+             and int(item["folder_name"]) >= int(str(since)[:4])]
+    return [urljoin(page_url, str(url)) for _, url in sorted(set(years), reverse=True)]
+
+
 def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> list[dict]:
     """Each table row with a link, and each link outside a table row: its date (or None), the
     meeting's name, any time it gives, and its links, in the page's order."""
@@ -455,9 +547,9 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
     one_a_day = settings.get("one_meeting_a_day", False)
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
     grouped, unrecognized = {}, []
-    listed = entries(page, page_url, settings.get("name_columns"))
+    listed = entries(as_links(page, settings), page_url, settings.get("name_columns"))
     for other, url in more:
-        listed += entries(other, url, settings.get("name_columns"))
+        listed += entries(as_links(other, settings), url, settings.get("name_columns"))
     for entry in listed:
         links = [link for link in entry["links"] if not (exclude and re.search(exclude, link["text"], re.I))]
         if resolve and entry["date"] and entry["date"] >= str(settings.get("since", "")):
@@ -545,10 +637,33 @@ def check(config: dict) -> None:
         raise SystemExit(f'{where}: bodies must map names on the page to board names, like '
                          '"Policy Subcommittee" = "School Committee Policy Subcommittee".')
     pages = settings.get("pages", {})
-    if not isinstance(pages, dict) or not all(re.match(r"https?://", str(url)) and isinstance(b, str) and b
+    page_example = ('like "https://www.example.k12.nh.us/board/policy" = "Board of Education Policy Committee", or to a '
+                    'table of the board and the page\'s own settings, like { board = "School Committee", source_name = '
+                    '"Example School District", one_meeting_a_day = false }')
+    if not isinstance(pages, dict) or not all(re.match(r"https?://", str(url)) and (isinstance(b, str) and b or isinstance(b, dict))
                                               for url, b in pages.items()):
-        raise SystemExit(f'{where}: pages must map the address of a page of one board\'s meetings to that board, '
-                         'like "https://www.example.k12.nh.us/board/policy" = "Board of Education Policy Committee".')
+        raise SystemExit(f"{where}: pages must map the address of a page of one board's meetings to that board, {page_example}.")
+    for url, page in pages.items():
+        if not isinstance(page, dict):
+            continue
+        what = f"{where}: the page {url}"
+        unknown = set(page) - {"board", *PAGE_SETTINGS}
+        if unknown or not (isinstance(page.get("board"), str) and page["board"]):
+            raise SystemExit(f"{what} needs a board, and may set only {', '.join(PAGE_SETTINGS)}"
+                             + (f" (not {', '.join(sorted(unknown))})" if unknown else "") + f": {page_example}.")
+        if "source_name" in page and not (isinstance(page["source_name"], str) and page["source_name"]):
+            raise SystemExit(f"{what}: source_name must name who posts the page's documents.")
+        if not isinstance(page.get("one_meeting_a_day", False), bool):
+            raise SystemExit(f"{what}: one_meeting_a_day must be true or false.")
+        if not isinstance(page.get("other_pages", []), list) or not all(re.match(r"https?://", str(u))
+                                                                        for u in page.get("other_pages", [])):
+            raise SystemExit(f"{what}: other_pages must list addresses of more pages of its board's documents.")
+        for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern", "name_ignore_pattern"):
+            if key in page:
+                try:
+                    re.compile(page[key])
+                except (re.error, TypeError) as e:
+                    raise SystemExit(f"{what}: {key} isn't a regular expression ({e}).") from None
     others = settings.get("other_pages", [])
     if not isinstance(others, list) or not all(re.match(r"https?://", str(url)) for url in others):
         raise SystemExit(f'{where}: other_pages must list the addresses of more pages of the board\'s documents, like '
