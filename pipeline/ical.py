@@ -33,7 +33,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from dateutil.rrule import rrulestr
 
-from pipeline.meeting_names import find_board, parse_name
+from pipeline.civicplus import clean_text, status_of, without_status
+from pipeline.meeting_names import abbreviated, abbreviations, find_board, name_words, singular, words
 
 SOURCE = "ical"
 # How far a repeating event with no end is read when the caller gives no `until`.
@@ -190,13 +191,63 @@ def dated_id(date: str, body: str, start_time: str | None = None) -> str:
 DATED = re.compile(rf"{SOURCE}-\d{{4}}-\d{{2}}-\d{{2}}-")
 
 
-def to_meeting(event: dict, bodies: dict) -> dict | None:
-    """An event as a meeting record for pipeline.fetch_meetings, if its title names one of `bodies`
-    (names in titles mapped to the site's boards, the longest found winning), or None."""
-    body = find_board(event["title"], [], bodies)
+# What isn't a meeting of a body, whichever body it names: a non-meeting (New Hampshire's word, RSA 91-A:2, I,
+# for a board's consultation with legal counsel or on negotiations: "Non-Meeting of the Board of School
+# Committee - Meeting with Legal Counsel") and members' office hours ("School Committee Office Hours").
+NOT_A_MEETING = re.compile(r"\bnon[\s-]*meetings?\b|\boffice hours\b", re.I)
+# A title that reads like some body's meeting: one that names none of a calendar's is reported (unmatched).
+MEETING_LIKE = re.compile(r"\b(?:meetings?|hearings?|sessions?|committees?|subcommittees?|boards?|commissions?)\b",
+                          re.I)
+
+
+def names_board(title: str, board: str) -> bool:
+    """Whether a title names the calendar's board: in full, without "Board of" in front ("School
+    Committee" for the Board of School Committee), or by its letters ("BOSC"); or a joint meeting
+    ("Joint Meeting with City Council"), which on a board's calendar is the board's with another."""
+    text = words(title)
+    short = re.sub(r"^board of ", "", board.strip(), flags=re.I)
+    return (any(words(name) in text for name in (board, short)) or bool(abbreviations(board) & abbreviated(title))
+            or (" joint " in text and " meeting " in text))
+
+
+def body_for(title: str, bodies: dict, board: str | None = None, committees: list[str] = ()) -> str | None:
+    """The board an event's title is a meeting of, or None for an event that isn't one.
+
+    `bodies` maps names in titles to boards, the longest found winning; one mapped to "" is left out.
+    A calendar with a `board` and its `committees` (as the site names them) needs it only for a name
+    neither rule below reads ("Ed Programs" for the Educational Programs Committee). A title is:
+      - no meeting, if it says it isn't one (NOT_A_MEETING);
+      - a committee's meeting, if it has each word of the committee's name that the board's name and
+        NAME_FILLER don't ("Finance & Facilities Meeting" for the School Committee Finance and Facilities
+        Subcommittee), or its letters ("COTW", the School Committee of the Whole); of two, the one
+        named by more words;
+      - otherwise the board's, if it names the board (names_board)."""
+    if NOT_A_MEETING.search(title):
+        return None
+    named = find_board(title, [], bodies)
+    if named is not None or not board:
+        return named or None
+    found = {singular(w) for w in words(title).split()}
+    letters = abbreviated(title)
+    own = name_words(board)
+    matched = []
+    for committee in committees:
+        distinct = name_words(committee) - own
+        if (distinct and distinct <= found) or abbreviations(committee) & letters:
+            matched.append((len(distinct), committee))
+    if matched:
+        return max(matched)[1]
+    return board if names_board(title, board) else None
+
+
+def to_meeting(event: dict, bodies: dict, board: str | None = None, committees: list[str] = ()) -> dict | None:
+    """An event as a meeting record for pipeline.fetch_meetings, if its title is a meeting of a board
+    (body_for), or None."""
+    body = body_for(event["title"], bodies, board, committees)
     if not body:
         return None
-    parsed = parse_name(event["title"], [], bodies)
+    title = clean_text(event["title"])
+    special = " special " in words(without_status(title)).replace(words(body), " ")
     return {
         "id": f"{SOURCE}-{event_id(event)}",
         "source": SOURCE,
@@ -205,11 +256,11 @@ def to_meeting(event: dict, bodies: dict) -> dict | None:
         "start_time": event["start_time"],
         "end_time": None,
         "body": body,
-        "title": f"{body} {'Special Meeting' if parsed['special'] else 'Meeting'}",
+        "title": f"{body} {'Special Meeting' if special else 'Meeting'}",
         "posted_title": event["title"],
         "location_name": event["location"],
-        "status": "cancelled" if event["cancelled"] else parsed["status"],
-        "special": parsed["special"],
+        "status": "cancelled" if event["cancelled"] else status_of(title),
+        "special": special,
     }
 
 
@@ -219,14 +270,24 @@ def check(config: dict) -> None:
     if settings is None:
         return
     where = f"[ical_meetings] in config/{config['slug']}.toml"
-    missing = [key for key in ("ical_url", "page_url", "source_name", "since", "bodies") if not settings.get(key)]
+    missing = [key for key in ("ical_url", "page_url", "source_name", "since") if not settings.get(key)]
+    if not settings.get("board") and not settings.get("bodies"):
+        missing.append("board")
     if missing:
         raise SystemExit(f"{where} needs {', '.join(missing)}: the calendar feed, the page it's on, who keeps it, "
-                         "the first meeting date to collect, and the boards its event titles name.")
+                         "the first meeting date to collect, and the board whose meetings it lists.")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(settings["since"])):
         raise SystemExit(f'{where}: since must be a date, like "2026-07-01".')
     if not isinstance(settings.get("uid_changes", False), bool):
         raise SystemExit(f"{where}: uid_changes must be true or false.")
-    if not isinstance(settings["bodies"], dict):
+    if not isinstance(settings.get("board", ""), str):
+        raise SystemExit(f"{where}: board must be the board's name, like \"School Committee\".")
+    committees = settings.get("committees", [])
+    if not isinstance(committees, list) or not all(isinstance(c, str) and c.strip() for c in committees):
+        raise SystemExit(f"{where}: committees must be a list of the board's committees' names, like "
+                         '["School Committee Policy Subcommittee"].')
+    if committees and not settings.get("board"):
+        raise SystemExit(f"{where}: committees needs board, the board they're committees of.")
+    if not isinstance(settings.get("bodies", {}), dict):
         raise SystemExit(f'{where}: bodies must map names in event titles to board names, like '
                          '"Committee of the Whole" = "School Committee of the Whole".')

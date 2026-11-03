@@ -86,7 +86,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from pipeline.files import write_atomic
-from pipeline.meeting_names import words
+from pipeline.meeting_names import abbreviated, abbreviations, words
 
 LEDGER = "identities.json"
 
@@ -137,7 +137,9 @@ def joint_boards(m: dict, known: dict[str, str], town: str = "") -> list[str]:
     """The boards a joint meeting's listing names, as board keys, or [] for one board's meeting.
     A listing is a joint meeting's when its title says "joint" and names another of the town's boards,
     unless the town's board mapping already gave it a joint board of its own (known: every board key recorded, to its name). 'School Committee and City
-    Council Joint Meeting', for the City Council -> ['city council', 'school committee']."""
+    Council Joint Meeting', for the City Council -> ['city council', 'school committee']. A board is
+    named in full or by its letters: 'Joint BMA and BOSC Meeting', for the Board of School Committee ->
+    ['board of mayor and alderman', 'board of school committee']."""
     title = m.get("posted_title") or m.get("title") or ""
     own = board_key(m["body"], town)
     # A board the town's mapping already names as a joint one ("Joint City Council and School
@@ -145,7 +147,10 @@ def joint_boards(m: dict, known: dict[str, str], town: str = "") -> list[str]:
     if " joint " in f" {own} " or " joint " not in words(title):
         return []
     haystack = _key_text(title, town)
-    found = {k for k in known if " joint " not in f" {k} " and f" {k} " in haystack} | {own}
+    # A board named by its letters: "Joint BMA and BOSC Meeting" (meeting_names.abbreviations).
+    letters = abbreviated(title)
+    found = {k for k in known if " joint " not in f" {k} "
+             and (f" {k} " in haystack or abbreviations(known[k]) & letters)} | {own}
     # "City Council" inside "City Council Finance Committee" is the committee's name, not a second board.
     found = {k for k in found if not any(k != o and f" {k} " in f" {o} " for o in found)}
     return sorted(found) if len(found) >= 2 else []

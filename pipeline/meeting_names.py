@@ -40,6 +40,46 @@ def distinct_words(body: str, town: str) -> set[str]:
     return {w[:5] for w in words(body).split() if w not in leave_out}
 
 
+def singular(word: str) -> str:
+    """'buildings' -> 'building', 'athletics' -> 'athletic'; 'business', 'campus' and 'basis' stay."""
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")) else word
+
+
+def name_words(name: str) -> set[str]:
+    """A name's words that aren't NAME_FILLER, singular: 'Committee on Joint School Buildings' ->
+    {'joint', 'school', 'building'}."""
+    return {singular(w) for w in words(name).split() if w not in NAME_FILLER}
+
+
+# Words that join a name's other words: "Board of School Committee" is abbreviated "BOSC" or "BSC".
+JOINING = frozenset("of the and a an for on in to at".split())
+
+
+def abbreviations(name: str) -> set[str]:
+    """The ways a name can be written by its words' first letters, lowercase, three letters or more:
+    the whole name's, and each ending of it that starts with a word that isn't JOINING, each with
+    and without the joining words' letters. 'Board of School Committee' -> {'bosc', 'bsc'}; 'School
+    Committee of the Whole' -> {'scotw', 'scw', 'cotw'}; 'Board of Mayor and Aldermen' -> {'bomaa',
+    'bma', 'maa'}."""
+    parts = words(name).split()
+    found = set()
+    for i, word in enumerate(parts):
+        if word in JOINING:
+            continue
+        for form in (parts[i:], [w for w in parts[i:] if w not in JOINING]):
+            letters = "".join(w[0] for w in form)
+            if len(letters) >= 3:
+                found.add(letters)
+    return found
+
+
+def abbreviated(text: str) -> set[str]:
+    """The words in a text that can be abbreviations, lowercase: words of three to eight letters with
+    two capitals or more. 'Joint BMA and BOSC Meeting' -> {'bma', 'bosc'}; 'BoSC Special Committee on
+    Athletics' -> {'bosc'}."""
+    return {w.lower() for w in re.findall(r"\b[A-Za-z]{3,8}\b", text) if sum(c.isupper() for c in w) >= 2}
+
+
 def find_board(name: str, boards: list[str], aliases: dict) -> str | None:
     """The longest listed board (or alias) named in a calendar entry's name."""
     text = words(name)
