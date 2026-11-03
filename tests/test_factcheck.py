@@ -640,3 +640,105 @@ def test_names_however_the_document_writes_them():
     # A name that's an ordinary word, after a title, is looked for too.
     assert problems("Councilor Hall spoke.", doc) == [("name", "Hall")]
     assert problems("McCallister spoke.", doc) == [("name", "McCallister")]
+
+
+# A Legistar report's text, as its PDF has it: each label after its line's value ("RESULT: ACCEPTED" on the page).
+LEGISTAR = """1. Approval of the Minutes of the Public Health and Public Safety Committee
+Meeting of July 1, 2026.
+Committee
+Minutes
+(ID # 26-1212)
+ACCEPTEDRESULT:
+Ward Four City Councilor Clingan and Ward One City
+Councilor McLaughlin
+AYE:
+City Councilor At Large StrezoABSENT:
+2. Director of Emergency Management conveying the 2025-2026 Cummings
+School Winter Warming Center After Action Report and Improvement Plan.
+Officer's
+Communication
+(ID # 26-1339)
+Chair McLaughlin noted the center was open for 112 nights and asked for a later update.
+KEPT IN COMMITTEERESULT:
+3. Pedestrian and Transit Advisory Committee submitting comments re: bus network redesign.
+Public
+Communication
+(ID # 26-1210)
+PLACED ON FILE AND SENT FOR DISCUSSIONRESULT:
+Traffic and Parking CommitteeFOLLOWUP:
+"""
+
+
+def test_a_legistar_report_is_read_in_the_pages_order():
+    def legistar(*entries):
+        found = decisions(*entries, doc=LEGISTAR)
+        return [(p["entry"], p["kind"]) for p in found["problems"] if p["kind"] in ("quote", "outcome")]
+    assert legistar(("Accepted the minutes of the July 1, 2026 meeting.", "approved",
+                     "Approval of the Minutes of the Public Health and Public Safety Committee Meeting of July 1, "
+                     "2026. ... RESULT: ACCEPTED")) == []
+    # Kept in committee, given continued; and the item and its result joined without "...".
+    assert legistar(("Kept in committee the Warming Center's after action report.", "continued",
+                     "Director of Emergency Management conveying the 2025-2026 Cummings School Winter Warming Center "
+                     "After Action Report and Improvement Plan. RESULT: KEPT IN COMMITTEE")) == []
+    assert legistar(("Placed on file and sent for discussion to the Traffic and Parking Committee the bus network "
+                     "comments.", "referred",
+                     "Pedestrian and Transit Advisory Committee submitting comments re: bus network redesign. ... "
+                     "RESULT: PLACED ON FILE AND SENT FOR DISCUSSION FOLLOWUP: Traffic and Parking Committee")) == []
+    # A result the minutes don't give is still not found.
+    assert legistar(("Approved the Warming Center's after action report.", "approved",
+                     "Director of Emergency Management conveying the 2025-2026 Cummings School Winter Warming Center "
+                     "After Action Report and Improvement Plan. RESULT: APPROVED")) == [(1, "quote")]
+    # The page's text keeps its length, so a quote's page is where it was.
+    assert factcheck.LABEL_AFTER.sub(r"\2:\1", LEGISTAR).__len__() == len(LEGISTAR)
+
+
+def test_sentences_joined_without_an_ellipsis_are_found_in_order():
+    # Each sentence must be in the minutes, in order: one from elsewhere, or out of order, isn't found.
+    entry = ("Placed on file the bus network comments.", "other",
+             "Pedestrian and Transit Advisory Committee submitting comments re: bus network redesign. "
+             "Chair McLaughlin noted the center was open for 112 nights and asked for a later update.")
+    assert [(p["entry"], p["kind"]) for p in decisions(entry, doc=LEGISTAR)["problems"] if p["kind"] == "quote"] \
+        == [(1, "quote")]
+
+
+def test_a_pdfs_ligatures_and_accents_are_read_as_written():
+    doc = ("6. Motion to waive the ﬁrst reading by Erika Reinfeld second by Aaron Olapade- 6/1\n"
+           "7. Citation commending Ramón Bueno for his commitment to climate action. Approved.\n")
+    assert anchor_problems_in(doc, ("Waived the first reading, 6-1.", "approved",
+                                    "Motion to waive the first reading by Erika Reinfeld second by Aaron Olapade- 6/1"),
+                              ("Approved a citation commending Ramón Bueno.", "approved",
+                               "Citation commending Ramón Bueno for his commitment to climate action. Approved.")) == []
+    assert check("Officers waived the first reading.", doc="The Ofﬁcers waived the ﬁrst reading of the policy, "
+                 "as the board's bylaws allow for any policy.")["result"] == "ok"
+
+
+def anchor_problems_in(doc, *entries):
+    return [(p["entry"], p["kind"]) for p in decisions(*entries, doc=doc)["problems"]
+            if p["kind"] in ("quote", "away", "outcome")]
+
+
+def test_outcomes_in_the_minutes_own_words():
+    for decision, outcome, quote in (
+        ("Continued the OPEB review to November 5, 2026.", "continued",
+         "Memorandum from the City Auditor on the OPEB Valuation Reports (cont. to November 5, 2026)"),
+        ("Continued the matter to the next meeting.", "continued",
+         "In City Council, C. Liang requested matter be put over to next meeting. No objections."),
+        ("Put policy JJA on hold for curriculum language review.", "continued", 'JJA: Hold for "curriculum language"'),
+        ("Continued the hearing to October 26, 2026.", "continued",
+         "a motion that was approved by a voice vote to recess the hearing until a date certain of Monday, October 26, 2026."),
+        ("Continued policy C2 to the next meeting.", "continued", "We will come back to this next time, only a first read."),
+        ("Referred Resolution R-26-049 to the Personnel/Administrative Affairs Committee.", "referred",
+         "Given its first reading, assigned to the PERSONNEL/ADMINISTRATIVE AFFAIRS COMMITTEE, by President Wilshire"),
+        ("Sent the cafeteria reports to the full Board.", "referred",
+         "The consensus of the Operations Committee was to send the Cafeteria Reports (4.2) to the full Board for approval."),
+        ("Rejected the bid for the Bridge St. Bridge Rehab project.", "denied",
+         "To formally reject the received bid for the Bridge St. Bridge Rehab project and rebid the project."),
+    ):
+        assert anchor_problems_in(quote + "\n", (decision, outcome, quote)) == [], (decision, quote)
+
+
+def test_a_page_of_glyph_numbers_has_no_text_to_check():
+    glyphs = "/i255\n/1/2/3/4/i255/5/i255/6/i255\n/7/8/9/10/i255/12/13/i255/14/12/15/16/17/17/i255/18/i255/20/21/22\n" * 3
+    record = {"kind": "minutes", "headline": "Approved park namings at Saint Louis Park.", "summary": "", "decisions": []}
+    assert factcheck.check(record, "minutes", [glyphs, glyphs])["result"] == "unchecked"
+    assert factcheck.check(record, "minutes", [glyphs, MINUTES])["source"] == "partial"
