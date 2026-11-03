@@ -2,6 +2,7 @@
 
 import copy
 import json
+import re
 import shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -216,6 +217,7 @@ def test_new_hampshire_pages(nh_site):
     budget = (nh_site / "budget" / "index.html").read_text()
     assert "Calculated by Publick." in budget and "17,212 single-family homes" in budget
     assert "<title>Manchester, NH city budget and 2025 property tax rate</title>" in budget
+    assert re.search(r'<meta name="description" content="([^"]*)"', budget).group(1).startswith("Manchester&#39;s 2025 property tax rate is $20.24 per $1,000 of assessed value. ")
     assert "$20.24" in budget and "Less MSD Budget" in budget and "Division of Local Services" not in budget
     assert (nh_site / "budget" / "data" / "city-budget.csv").read_text().startswith("fiscal_year,")
     schools = (nh_site / "schools" / "index.html").read_text()

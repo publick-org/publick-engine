@@ -163,6 +163,14 @@ def test_meeting_pages_are_named_in_spanish(built):
     assert re.search(r'<h1><span lang="en">Board of Health</span> – ', health)
 
 
+def test_titles_name_the_bodies_in_spanish(built):
+    """The home page's and the Officials page's titles name the bodies as the Spanish pages do; one too long for a
+    search result names fewer."""
+    out, _, _ = built
+    assert "<title>Gloucester, MA: Concejo Municipal (City Council) agendas, meetings, and data</title>" in page(out, "/es/")
+    assert "<title>Gloucester, MA Concejo Municipal (City Council) members</title>" in page(out, "/es/officials/")
+
+
 def test_town_texts_without_spanish_are_listed(built, config):
     _, _, missing = built
     assert set(missing) == {"es"}

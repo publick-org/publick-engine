@@ -1,6 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import area with context %}
+{% from "macros.html" import area, and_list with context %}
 {% set o = officials %}
+{#- The bodies as searches name them: an office one person holds (the mayor) and the bodies with members. -#}
+{% set kinds = namespace(one=[], many=[]) %}
+{% for b in officials.bodies %}{% if b.members | length == 1 %}{% set kinds.one = kinds.one + [b] %}{% else %}{% set kinds.many = kinds.many + [b] %}{% endif %}{% endfor %}
 {#- The page's words for the town's areas ([town] areas): wards, or voting precincts or districts. -#}
 {% if areas == "precincts" %}
 {% set say = {
@@ -40,9 +43,35 @@
 } %}
 {% endif %}
 {% block title %}{{ _("Who represents you") }}{% endblock %}
-{# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} elected officials and how to reach them{% endtrans %}{% endblock %}
-{% block description %}{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
+{# The title names the bodies, as searches do ("lawrence city council members"): the mayor and up to two bodies,
+   then fewer when that's longer than a search result shows (about 70 characters), down to the first body with members. #}
+{% block head_title %}{% if kinds.many %}
+{%- set names = kinds.one[:1] | map(attribute="name") | list + kinds.many[:2] | map(attribute="name") | list %}
+{%- set found = namespace(title="") %}
+{%- for shown in [names, names[-2:] if kinds.one else names, names[1:2] if kinds.one else names[:1]] %}
+{%- if not found.title %}
+{#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(bodies)s its elected bodies, such as "Mayor, City Council, and School Committee". -#}
+{%- set title %}{% trans town=town.name, state=town.state_abbr, bodies=and_list(shown) %}{{ town }}, {{ state }} {{ bodies }} members{% endtrans %}{% endset %}
+{%- if title | length <= 70 or loop.last %}{% set found.title = title %}{% endif %}
+{%- endif %}
+{%- endfor %}
+{{- found.title -}}
+{% else %}
+{#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
+{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} elected officials and how to reach them{% endtrans %}{% endif %}{% endblock %}
+{# Who holds the one-person office, and how many members each body has, before what the page has. #}
+{% block description %}
+{%- set who = namespace(items=[]) %}
+{%- for b in kinds.one[:1] %}
+{#- Translators: an office one person holds, and who holds it, such as "Mayor Jane Smith". -#}
+{%- set who.items = who.items + [_("%(office)s %(name)s", office=b.name, name=b.members[0].name)] %}
+{%- endfor %}
+{%- for b in kinds.many[:2] %}
+{#- Translators: how many members a body has: %(num)s is the number and %(body)s the body, such as "City Council". -#}
+{%- set who.items = who.items + [ngettext("%(num)s %(body)s member", "%(num)s %(body)s members", b.members | length, num=b.members | length, body=b.name)] %}
+{%- endfor %}
+{%- if who.items %}{{ and_list(who.items) }}. {% endif %}
+{%- if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}{% endblock %}
 {% block head %}
 {% if addresses and o.wards %}<script src="{{ "/static/js/address.js" | versioned }}" defer></script>{% endif %}
 {% if wards_url %}

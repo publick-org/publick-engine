@@ -308,6 +308,8 @@ def test_vermont_pages(vt_site):
     budget = (vt_site / "budget" / "index.html").read_text()
     assert "Property Valuation and Review" in budget and "Division of Local Services" not in budget
     assert "<title>Burlington, VT city budget and 2025 property tax rate</title>" in budget
+    assert re.search(r'<meta name="description" content="([^"]*)"', budget).group(1).startswith("Burlington&#39;s 2025 homestead tax rate is $2.3825 per $100 of listed value. ")
+    assert '<span class="stat-value">$2.3825</span>' in budget, "the rate the summary leads with"
     assert "$1.5264" in budget and "$10,043" in budget and "76.25%" in budget and "5,674 homesteads" in budget
     assert "%%" not in budget, "a percent sign doubled in a {% trans %} block"
     for name in ("tax-rates", "taxes-raised", "grand-list"):

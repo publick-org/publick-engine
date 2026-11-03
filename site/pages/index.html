@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% from "macros.html" import calendar_behind_note, day_group, meeting_item, ai_summary_short %}
-{# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say. #}
+{# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say.
+   It names the town's governing body, as searches for its agendas do ("south kingstown town council agenda"). #}
 {% block title %}{% if config.meetings is defined %}
-{# Translators: the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city meetings, agendas, and data{% endtrans %}
+{# Translators: the home page's title in search results and browser tabs; %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(body)s its governing body, such as "City Council". #}
+{% trans town=town.name, state=town.state_abbr, body=meeting_links.governing_body %}{{ town }}, {{ state }}: {{ body }} agendas, meetings, and data{% endtrans %}
 {%- else %}
 {# Translators: the home page's title in search results and browser tabs, for a site without meetings; %(town)s is the town and %(state)s its state's abbreviation. #}
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }}: city data{% endtrans %}{% endif %}{% endblock %}
