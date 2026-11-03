@@ -301,11 +301,15 @@ main .decision-rows > li { display: grid; grid-template-columns: 7.5rem 1fr; gap
 .decision-rows .tally { font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .decision-text { min-width: 0; }
 .decision-meeting .decision-rows { padding-left: 0; }
+.decision-meeting > .summary { margin: 0.4rem 0 0; }
+.digest-quiet { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.digest-quiet li { margin: 0.4rem 0; }
 .decision-rows > li[hidden], .decision-meeting[hidden] { display: none; }
 .decision-title { display: block; font-weight: 700; line-height: 1.4; }
 .decision-detail { display: block; margin-top: 0.15rem; color: var(--ink-soft); font-size: 0.9375rem; }
 /* A meeting's groups of decisions ("Put off or sent to committee", "Also voted on"): a rule above, as a break. */
 h3.decision-group { max-width: 46rem; margin: 2rem 0 0; padding-top: 0.9rem; border-top: 1px solid var(--line); font-size: 1rem; }
+h4.decision-group { margin: 1rem 0 0; font-size: 0.9375rem; }
 /* "About this page": every note on how the page was made, in one quiet place at the end. */
 .about-notes { max-width: var(--measure); color: var(--ink-soft); font-size: 0.875rem; }
 .about-notes p, .about-notes ul { margin: 0 0 0.6rem; }

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% from "macros.html" import day_group, calendar_behind_note, report_button, checked_short, ai_summary_label %}
-{# One issue of the weekly digest (pipeline/digest.py): the week's meetings, and the minutes posted the week before. #}
+{% from "macros.html" import day_group, calendar_behind_note, report_button, checked_short, decision_rows %}
+{# One issue of the weekly digest (pipeline/digest.py): the week's meetings, and what was decided at the meetings whose
+   minutes, or recordings, came the week before. #}
 {# Translators: the title of one week's digest; %(when)s is its Monday, such as "October 12, 2026". #}
 {% block title %}{% trans when=issue.monday | date("plain") %}Week of {{ when }}{% endtrans %}{% endblock %}
 {# Translators: the title in search results of one week's digest: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(when)s its Monday, such as "Oct 12, 2026". #}
@@ -26,61 +27,49 @@
 <p>{{ _("No meetings are listed for this week.") }}</p>
 {% endif %}
 
-{% if issue.minutes %}
-<h2 id="minutes">{{ _("Minutes posted") }}</h2>
+{# What was decided (digest.decided()): each meeting whose minutes, or else whose recording, came that week, the strongest
+   first, by its headline and its main decisions as rows with their outcome; its routine decisions a link away; and the
+   meetings that decided nothing, a line each, after. That it's written by AI is said once, above; how a meeting's was
+   checked, only where it wasn't in full. #}
+{% set dz = issue.decided %}
+{% if dz.entries or dz.quiet %}
+<h2 id="decided">{{ _("What was decided") }}</h2>
 {# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
-<p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}Minutes this site collected from {{ start }}, to {{ end }}, and what each meeting decided.{% endtrans %}</p>
+<p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}At the meetings whose minutes this site collected from {{ start }}, to {{ end }}, and those it summarized from their recordings before their minutes came.{% endtrans %}</p>
 <div class="credit">
-  <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  <p>{{ _("Written by AI from each meeting's minutes, or from its recording until the minutes come, and checked against them. The minutes are the official record.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
 </div>
-{# Each decision's page in its minutes, after it. #}
-{% from "macros.html" import cite %}
+{% if dz.entries %}
 <ul class="decision-list">
-  {% for m in issue.minutes %}
+  {% for e in dz.entries %}
+  {% set m = e.meeting %}
+  {% set how = m.preview_checked %}
   <li class="decision-meeting">
-    <p><a href="{{ m.url }}">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time></p>
-    {% if m.decisions.decided %}
-    <ul>
-      {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
-    </ul>
-    {# Translators: %(count)s is how many of a meeting's decisions aren't listed here, 1 or more. #}
-    {% if m.decisions.decided | length > 5 %}<p class="small"><a href="{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
-    <p class="small checked" data-checked="{{ how_checked(m.minutes_summary, 'minutes') }}">{{ checked_short(how_checked(m.minutes_summary, "minutes")) }}</p>
-    {% elif m.preview_line %}
-    <p>{{ m.preview_line }} <span class="small">({{ ai_summary_label(m.preview_checked) }})</span></p>
-    {% else %}
-    <p class="small">{{ _("No decisions recorded in these minutes.") }}</p>
+    <h3><a href="{{ m.url }}">{{ e.name }}</a></h3>
+    <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time>
+      {%- if e.source == "recording" %} · {{ _("from its recording") }}{% if m.recordings %} · <a href="{{ m.recordings[0].url }}">{{ _("Watch the recording") }}</a>{% endif %}{% endif %}</p>
+    {% if m.preview_line %}<p class="summary">{{ m.preview_line }}</p>{% endif %}
+    {% if e.main %}{{ decision_rows(m.minutes_doc if e.source == "minutes" else none, e.main, false, none, "decision", titled=true) }}{% endif %}
+    {% if e.recommended %}
+    <h4 class="decision-group">{{ _("Committee recommendations to the City Council") }}</h4>
+    {{ decision_rows(m.minutes_doc if e.source == "minutes" else none, e.recommended, false, none, "recommendation") }}
     {% endif %}
+    {# Translators: %(count)s is how many routine decisions (approving minutes, accepting reports) a meeting made, 1 or more. #}
+    {% if e.routine %}<p class="small"><a href="{{ m.url }}">{% trans count=e.routine %}{{ count }} routine decision on the meeting's page{% pluralize %}{{ count }} routine decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
+    {% if how in ("partial", "none") %}<p class="small checked" data-checked="{{ how }}">{{ checked_short(how) }}</p>{% endif %}
   </li>
   {% endfor %}
 </ul>
 {% endif %}
-
-{% if issue.recorded %}
-<h2 id="recorded">{{ _("From meetings' recordings") }}</h2>
-{# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
-<p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}Meetings this site summarized from their recordings from {{ start }}, to {{ end }}, before their minutes came.{% endtrans %}</p>
-<div class="credit">
-  <p>{{ _("These are written by AI from a machine transcript of each meeting's recording. The minutes are the official record.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
-</div>
-{% from "macros.html" import cite %}
-<ul class="decision-list">
-  {% for m in issue.recorded %}
-  {% set source = m.minutes_summary if m.decisions_from == "minutes" else m.recording_summary %}
-  <li class="decision-meeting">
-    <p><a href="{{ m.url }}">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time>{% if m.recordings %} · <a href="{{ m.recordings[0].url }}">{{ _("Watch the recording") }}</a>{% endif %}</p>
-    {% if m.decisions.decided %}
-    <ul>
-      {% for d in m.decisions.decided[:5] %}<li>{{ d | decision }}{{ cite(m.minutes_doc, d) }}</li>{% endfor %}
-    </ul>
-    {% if m.decisions.decided | length > 5 %}<p class="small"><a href="{{ m.url }}">{% trans count=m.decisions.decided | length - 5 %}{{ count }} more decision on the meeting's page{% pluralize %}{{ count }} more decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
-    <p class="small checked" data-checked="{{ how_checked(source, m.decisions_from) }}">{{ checked_short(how_checked(source, m.decisions_from)) }}</p>
-    {% elif m.preview_line %}
-    <p>{{ m.preview_line }} <span class="small">({{ ai_summary_label(m.preview_checked) }})</span></p>
-    {% endif %}
-  </li>
+{% if dz.quiet %}
+<h3 class="decision-group">{{ _("No decisions recorded") }}</h3>
+<ul class="digest-quiet">
+  {% for e in dz.quiet %}
+  {% set m = e.meeting %}
+  <li><a href="{{ m.url }}">{{ e.name }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time>{% if m.preview_line %}: {{ m.preview_line }}{% endif %}</li>
   {% endfor %}
 </ul>
+{% endif %}
 {% endif %}
 
 {% if digest_signup %}<p><a href="/digest/#signup">{{ _("Get the weekly digest by email") }}</a></p>{% endif %}
