@@ -1658,6 +1658,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     env.globals["split_tally"] = split_tally
     env.globals["without_outcome_verb"] = without_outcome_verb
     env.globals["main_and_routine"] = main_and_routine
+    env.globals["meeting_name"] = digest.meeting_name
+    env.globals["short_place"] = digest.short_place
     env.globals["final_and_put_off"] = final_and_put_off
     env.globals["adds_to"] = adds_to
     env.globals["discussion_parts"] = discussion_parts
@@ -1855,10 +1857,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     issues = digest.issues(meetings["all"], meetings["tracking_since"], today, ZoneInfo(site["timezone"])) if english and "meetings" in config else []
     if english and "meetings" in config:
         for issue in issues:
+            # What was decided, the strongest first, and the week's lead (digest.decided()).
+            issue["decided"] = digest.decided(issue, main_boards(config))
             issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
             render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
             issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF,
-                                                                              palette=colors(config), shown=digest.EMAIL_MINUTES,
+                                                                              palette=colors(config), shown=digest.EMAIL_MEETINGS,
+                                                                              shown_decisions=digest.EMAIL_DECISIONS,
                                                                               mailing_address=digest.MAILING_ADDRESS,
                                                                               unsubscribe=digest.UNSUBSCRIBE_TAG)
         render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
@@ -2106,14 +2111,22 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
 
 def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: str, built_at: datetime) -> None:
     """RSS feed of the weekly digest (pipeline/digest.py), for an email provider to send: each issue
-    whole, as HTML, dated when its email is due (digest.SEND_TIME on its Sunday)."""
+    whole, as HTML, dated when its email is due (digest.SEND_TIME on its Sunday). Each one's title, which the
+    email's subject is made from, is its week's lead as a headline where it has one (digest.headline())."""
     site = config["site"]
+
+    def title(issue: dict) -> str:
+        monday = date.fromisoformat(issue["monday"])
+        lead = (issue.get("decided") or {}).get("lead_title")
+        # The week's lead, as a headline ("City Council approved $200,000 soil cleanup at 448 High Street"), or the week.
+        return lead or _("Week of {when}").format(when=plain_date(monday))
+
     entries = "".join(
         f"<item><title>{xml_escape(title)}</title><link>{base_url}{i['url']}</link>"
         f"<guid isPermaLink=\"true\">{base_url}{i['url']}</guid>"
         f"<pubDate>{format_datetime(i['send_at'])}</pubDate>"
         f"<description>{xml_escape(i['email'])}</description></item>\n"
-        for i, title in ((i, _("Week of {when}").format(when=plain_date(date.fromisoformat(i["monday"])))) for i in issues[:digest.FEED_ISSUES])
+        for i, title in ((i, title(i)) for i in issues[:digest.FEED_ISSUES])
     )
     feed_title = _("Weekly digest")
     feed_description = _("Each week, {town}'s public meetings coming up, and what was decided at the meetings whose minutes were posted the week before.").format(town=config["town"]["name"])

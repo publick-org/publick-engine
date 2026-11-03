@@ -236,12 +236,11 @@ def test_the_decisions_page_and_the_digest_cite_it(cited_site):
         assert found and all(f'<span aria-hidden="true">{short}</span>' in c for c in found)
     # The digest, in English.
     issue = (cited_site / "digest" / "2026-10-05" / "index.html").read_text(encoding="utf-8")
-    found = cites(issue[issue.index('id="minutes"'):])
+    found = cites(issue[issue.index('id="decided"'):])
     assert len(found) == 1 and said(found[0]) == "page 3 of the minutes (opens in new tab)"
-    # The email, in the digest's feed: the link in full, its label what screen readers say.
+    # The email lists decisions by their titles, without their pages: the issue's page and the meeting's cite them.
     feed = (cited_site / "digest" / "feed.xml").read_text(encoding="utf-8")
-    assert "#page=3&amp;amp;search=quote%20of%20the%20minutes&amp;amp;phrase=true" in feed
-    assert 'aria-label="page 3 of the minutes"&gt;p. 3&lt;/a&gt;' in feed
+    assert "#page=3" not in feed
 
 
 CITED_PATHS = ["/meetings/2026-08-25-city-council/", "/es/meetings/2026-08-25-city-council/", "/meetings/decisions/",

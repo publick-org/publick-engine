@@ -180,6 +180,6 @@ def test_built_site(site_dir):
     assert said and all(re.search(r"Check the original\.\) (Checked against the city's PDF|Partly checked against the city's PDF|"
                                   r"Checked against an AI transcription|Not checked)\.$", d) for d in said)
     issues = sorted((site_dir / "digest").glob("20*/index.html"))
-    with_minutes = [p.read_text() for p in issues if 'id="minutes"' in p.read_text()]
-    for page in with_minutes:
-        assert page.count('class="small checked"') == len(re.findall(r'<li class="decision-meeting">\s*<p><a[^>]*>[^<]*</a>, <time[^>]*>[^<]*</time></p>\s*<ul>', page))
+    # The digest says how a meeting's decisions were checked only where they weren't in full.
+    for page in (p.read_text() for p in issues):
+        assert set(re.findall(r'class="small checked" data-checked="(\w+)"', page)) <= {"partial", "none"}
