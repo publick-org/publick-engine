@@ -334,6 +334,12 @@ msgstr ""
 msgid "%(field)s changed."
 msgstr "Cambió: %(field)s."
 
+#. two names in a list, such as "City Council and School Committee".
+#: site/templates/macros.html
+#, python-format
+msgid "%(first)s and %(second)s"
+msgstr "%(first)s y %(second)s"
+
 #. a place's first and latest request dates.
 #: site/pages/311/repeat-locations/index.html
 #, python-format
@@ -351,6 +357,12 @@ msgid "%(first)s to %(last)s. Striped: recent months, still changing. Maroon: se
 msgstr ""
 "De %(first)s a %(last)s. Con rayas: meses recientes, cuyas cifras todavía pueden cambiar. Color "
 "vino: vea la nota más abajo."
+
+#. three names in a list, such as "Mayor, City Council, and School Committee".
+#: site/templates/macros.html
+#, python-format
+msgid "%(first)s, %(second)s, and %(third)s"
+msgstr "%(first)s, %(second)s y %(third)s"
 
 #: site/states/me/schools.html site/states/nh/schools.html
 #, python-format
@@ -371,6 +383,14 @@ msgstr "sitio web de %(name)s"
 #, python-format
 msgid "%(name)s – %(when)s, meeting %(part)s"
 msgstr "%(name)s – %(when)s, reunión %(part)s"
+
+#. how many members a body has: %(num)s is the number and %(body)s the body, such as "City Council".
+#: site/pages/officials/index.html
+#, python-format
+msgid "%(num)s %(body)s member"
+msgid_plural "%(num)s %(body)s members"
+msgstr[0] "%(body)s: %(num)s miembro"
+msgstr[1] "%(body)s: %(num)s miembros"
 
 #: site/pages/311/index.html
 #, python-format
@@ -476,6 +496,12 @@ msgstr[1] "%(num)s solicitudes, %(again)s después de un cierre"
 msgid "%(num)s with no update in over a year"
 msgstr "%(num)s sin actualizar en más de un año"
 
+#. an office one person holds, and who holds it, such as "Mayor Jane Smith".
+#: site/pages/officials/index.html
+#, python-format
+msgid "%(office)s %(name)s"
+msgstr "%(office)s: %(name)s"
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "%(pct)s%% of the maximum"
@@ -567,6 +593,24 @@ msgstr "%(sources)s de cualquier calle."
 msgid "%(title)s meeting"
 msgstr "%(title)s: reunión"
 
+#. %(town)s is the town, %(year)s the rate's tax year, such as "2026", and %(rate)s the rate, such as
+#. "2.1234".
+#: site/states/vt/budget.html
+#, python-format
+msgid "%(town)s's %(year)s homestead tax rate is $%(rate)s per $100 of listed value."
+msgstr ""
+"En %(year)s, la tasa de vivienda principal en %(town)s es de $%(rate)s por cada $100 de valor "
+"registrado."
+
+#. %(town)s is the town, %(year)s the rate's tax year, such as "2026", and %(rate)s the rate, such as
+#. "17.82".
+#: site/states/me/budget.html site/states/nh/budget.html
+#, python-format
+msgid "%(town)s's %(year)s property tax rate is $%(rate)s per $1,000 of assessed value."
+msgstr ""
+"En %(year)s, la tasa del impuesto a la propiedad en %(town)s es de $%(rate)s por cada $1,000 de "
+"valor tasado."
+
 #: site/states/ct/budget.html
 #, python-format
 msgid ""
@@ -584,6 +628,18 @@ msgid ""
 msgstr ""
 "El presupuesto aprobado de %(town)s, su tasa del impuesto a la propiedad y adónde va ese "
 "impuesto, y la factura promedio del impuesto de una casa unifamiliar."
+
+#. %(town)s is the town, %(year)s the mill rate's fiscal year, such as "2027", and %(rate)s the rate,
+#. such as "28.95".
+#: site/states/ct/budget.html
+#, python-format
+msgid ""
+"%(town)s's mill rate for fiscal year %(year)s is %(rate)s. The city's adopted budget, what the "
+"property tax raises, and the average single-family tax bill."
+msgstr ""
+"En el año fiscal %(year)s, la tasa de impuesto (mill rate) de %(town)s es de %(rate)s. El "
+"presupuesto aprobado de la ciudad, lo que recauda el impuesto a la propiedad y el impuesto "
+"promedio de una casa unifamiliar."
 
 #: site/states/me/budget.html
 #, python-format
@@ -625,6 +681,17 @@ msgid ""
 "minutes were posted the week before."
 msgstr ""
 
+#. %(town)s is the town, %(year)s the rate's fiscal year, such as "2026", and %(rate)s the rate, such
+#. as "13.47".
+#: site/states/ri/budget.html
+#, python-format
+msgid ""
+"%(town)s's residential tax rate for fiscal year %(year)s is $%(rate)s per $1,000 of assessed "
+"value."
+msgstr ""
+"En el año fiscal %(year)s, la tasa residencial de %(town)s es de $%(rate)s por cada $1,000 de "
+"valor tasado."
+
 #. the page's title in search results, for a board whose agendas and minutes the site collects:
 #. %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's
 #. name, such as "Planning Board".
@@ -639,6 +706,13 @@ msgstr "%(town)s, %(state)s: %(board)s, agendas y actas"
 #, python-format
 msgid "%(town)s, %(state)s %(board)s meetings and agendas"
 msgstr "%(town)s, %(state)s: %(board)s, reuniones y agendas"
+
+#. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
+#. as "MA", and %(bodies)s its elected bodies, such as "Mayor, City Council, and School Committee".
+#: site/pages/officials/index.html
+#, python-format
+msgid "%(town)s, %(state)s %(bodies)s members"
+msgstr "Funcionarios electos de %(town)s, %(state)s: %(bodies)s"
 
 #. a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation,
 #. such as "MA", and %(name)s the meeting, such as "Planning Board agenda – Oct 6, 2026".
@@ -707,11 +781,12 @@ msgid "%(town)s, %(state)s city budget and %(year)s property tax rate"
 msgstr "%(town)s, %(state)s: presupuesto e impuesto a la propiedad de %(year)s"
 
 #. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
-#. as "MA", and %(year)s the mill rate's fiscal year, such as "2026".
+#. as "MA", %(year)s the mill rate's fiscal year, such as "2027", and %(years)s the years it runs from
+#. July to June, such as "2026–27".
 #: site/states/ct/budget.html
 #, python-format
-msgid "%(town)s, %(state)s city budget and FY %(year)s mill rate"
-msgstr "%(town)s, %(state)s: presupuesto municipal y mill rate del año fiscal %(year)s"
+msgid "%(town)s, %(state)s city budget and %(years)s mill rate (FY %(year)s)"
+msgstr "%(town)s, %(state)s: presupuesto municipal y mill rate de %(years)s (año fiscal %(year)s)"
 
 #. the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such
 #. as "MA", and %(year)s the tax rate's fiscal year, such as "2026".
@@ -827,19 +902,19 @@ msgstr "%(town)s, %(state)s: votaciones y decisiones de las reuniones"
 msgid "%(town)s, %(state)s weekly digest: meetings and decisions"
 msgstr "%(town)s, %(state)s: resumen semanal de reuniones y decisiones"
 
+#. the home page's title in search results and browser tabs; %(town)s is the town, %(state)s its
+#. state's abbreviation, such as "MA", and %(body)s its governing body, such as "City Council".
+#: site/pages/index.html
+#, python-format
+msgid "%(town)s, %(state)s: %(body)s agendas, meetings, and data"
+msgstr "%(town)s, %(state)s: %(body)s, reuniones, agendas y datos"
+
 #. the home page's title in search results and browser tabs, for a site without meetings; %(town)s is
 #. the town and %(state)s its state's abbreviation.
 #: site/pages/index.html
 #, python-format
 msgid "%(town)s, %(state)s: city data"
 msgstr "%(town)s, %(state)s: datos municipales"
-
-#. the home page's title in search results and browser tabs; %(town)s is the town and %(state)s its
-#. state's abbreviation, such as "MA".
-#: site/pages/index.html
-#, python-format
-msgid "%(town)s, %(state)s: city meetings, agendas, and data"
-msgstr "%(town)s, %(state)s: reuniones municipales, agendas y datos"
 
 #. %(what)s is a meeting, such as "City Council meeting".
 #: site/templates/meeting.html
@@ -4495,6 +4570,18 @@ msgstr "Su resumen hecho con IA, o null si todavía no hay uno:"
 msgid "Its agenda and minutes, described below."
 msgstr "Su agenda y sus actas, que se describen abajo."
 
+#: site/states/vt/budget.html
+msgid ""
+"Its other rates, what the property tax raises for the city and for schools, and the average "
+"homestead tax bill."
+msgstr ""
+"Sus otras tasas, lo que recauda el impuesto a la propiedad para la ciudad y para las escuelas, y "
+"el impuesto promedio de una vivienda principal."
+
+#: site/states/ri/budget.html
+msgid "Its other rates, what the property tax raises, and the value of the property it taxes."
+msgstr "Sus otras tasas, lo que recauda el impuesto a la propiedad y el valor de la propiedad que grava."
+
 #: site/pages/data/index.html
 msgid "Its recording, and where the city lists it."
 msgstr "Su grabación, y dónde la publica la ciudad."
@@ -8008,6 +8095,12 @@ msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustada
 msgid "The city"
 msgstr "La ciudad"
 
+#: site/states/nh/budget.html
+msgid "The city's adopted budget, where the tax goes, and the average single-family tax bill."
+msgstr ""
+"El presupuesto aprobado de la ciudad, a dónde va el impuesto y el impuesto promedio de una casa "
+"unifamiliar."
+
 #: site/pages/data/index.html
 msgid ""
 "The city's agendas and minutes are the official record. Every summary in the file links the "
@@ -9263,6 +9356,14 @@ msgstr "Sobre qué se cobra el impuesto a la propiedad"
 #: site/states/vt/budget.html
 msgid "What the property tax raises"
 msgstr "Lo que recauda el impuesto a la propiedad"
+
+#: site/states/me/budget.html
+msgid "What the property tax raises, and the average single-family tax bill."
+msgstr "Lo que recauda el impuesto a la propiedad y el impuesto promedio de una casa unifamiliar."
+
+#: site/states/me/budget.html
+msgid "What the property tax raises."
+msgstr "Lo que recauda el impuesto a la propiedad."
 
 #. %(town)s is the town's name.
 #: site/pages/meetings/glossary/index.html

@@ -9,7 +9,11 @@
 {%- else %}
 {#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and property tax rate{% endtrans %}{% endif %}{% endblock %}
-{% block description %}{% trans town=town.name %}{{ town }}'s property tax rates, what the property tax raises, and the value of the property it taxes.{% endtrans %}{% endblock %}
+{# What a search result shows under the title: the latest rate itself, as searches for it ask, then what the page has. #}
+{% block description %}{% set r = budget.rates[-1] if budget and budget.rates else none %}{% if r and r.residential is not none %}
+{#- Translators: %(town)s is the town, %(year)s the rate's fiscal year, such as "2026", and %(rate)s the rate, such as "13.47". -#}
+{% trans town=town.name, year=r.fiscal_year, rate="%.2f" | format(r.residential) %}{{ town }}'s residential tax rate for fiscal year {{ year }} is ${{ rate }} per $1,000 of assessed value.{% endtrans %} {{ _("Its other rates, what the property tax raises, and the value of the property it taxes.") }}
+{%- else %}{% trans town=town.name %}{{ town }}'s property tax rates, what the property tax raises, and the value of the property it taxes.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("City budget") }}</h1>

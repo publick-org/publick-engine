@@ -4,12 +4,17 @@
 {% block title %}{{ _("City budget") }}{% endblock %}
 {# The year of the rate the page leads with, as searches for the rate name it; the bare title until there are figures. #}
 {% block head_title %}{% if budget and budget.rates %}
-{#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(year)s the mill rate's fiscal year, such as "2026". -#}
-{% trans town=town.name, state=town.state_abbr, year=budget.rates[-1].fiscal_year %}{{ town }}, {{ state }} city budget and FY {{ year }} mill rate{% endtrans %}
+{#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", %(year)s the mill rate's fiscal year, such as "2027", and %(years)s the years it runs from July to June, such as "2026–27". -#}
+{% set year = budget.rates[-1].fiscal_year %}
+{% trans town=town.name, state=town.state_abbr, year=year, years="%d–%02d" | format(year - 1, year % 100) %}{{ town }}, {{ state }} city budget and {{ years }} mill rate (FY {{ year }}){% endtrans %}
 {%- else %}
 {#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
 {% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} city budget and mill rate{% endtrans %}{% endif %}{% endblock %}
-{% block description %}{% trans town=town.name %}{{ town }}'s adopted budget, its mill rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% endblock %}
+{# What a search result shows under the title: the latest rate itself, as searches for it ask, then what the page has. #}
+{% block description %}{% if budget and budget.rates %}{% set r = budget.rates[-1] %}
+{#- Translators: %(town)s is the town, %(year)s the mill rate's fiscal year, such as "2027", and %(rate)s the rate, such as "28.95". -#}
+{% trans town=town.name, year=r.fiscal_year, rate="%.2f" | format(r.rate) %}{{ town }}'s mill rate for fiscal year {{ year }} is {{ rate }}. The city's adopted budget, what the property tax raises, and the average single-family tax bill.{% endtrans %}
+{%- else %}{% trans town=town.name %}{{ town }}'s adopted budget, its mill rate, what the property tax raises, and the average single-family tax bill.{% endtrans %}{% endif %}{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>{{ _("City budget") }}</h1>
