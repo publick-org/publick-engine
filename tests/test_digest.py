@@ -440,16 +440,36 @@ def test_meeting_names(title, day_part, expected):
 
 
 def test_every_issue_email_is_sendable(with_new_minutes):
-    """Each issue's email has its unsubscribe link and postal address, no section left empty, and stays under the size
-    Gmail cuts an email at (102 KB), past which the footer, with the unsubscribe link, would be hidden."""
+    """Each issue's email passes the check each town's build runs before it's published (digest.email_problems(),
+    site_checks/test_town_site.py)."""
     feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
-    for item in feed.getElementsByTagName("item"):
+    items = feed.getElementsByTagName("item")
+    assert items
+    for item in items:
         body = item.getElementsByTagName("description")[0].firstChild.data
-        assert len(body.encode()) < 100_000
-        assert digest.UNSUBSCRIBE_TAG in body and digest.MAILING_ADDRESS in body
-        for heading in re.finditer(r"<h2[^>]*>([^<]*)</h2>", body):
-            after = body[heading.end():].split("<h2", 1)[0]
-            assert re.search(r"<a |<td", after), f"an empty section: {heading.group(1)}"
+        assert digest.email_problems(body, "https://gloucester-ma.publick.org", with_new_minutes) == []
+
+
+def test_an_email_that_cant_be_sent_is_caught(with_new_minutes, monkeypatch):
+    """Each thing that would keep an email from going out as it should is named."""
+    feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
+    body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
+    base = "https://gloucester-ma.publick.org"
+    check = lambda b: digest.email_problems(b, base, with_new_minutes)
+    assert check(body.replace(digest.UNSUBSCRIBE_TAG, "#")) == [f"it has no unsubscribe link ({digest.UNSUBSCRIBE_TAG})",
+                                                                 "a link that isn't in full: #"]
+    assert check(body.replace(digest.MAILING_ADDRESS, "")) == ["it has no postal address (MAILING_ADDRESS)"]
+    gone = body.replace(f"{base}/meetings/2026-08-25-city-council/", f"{base}/meetings/2026-08-25-gone/")
+    assert check(gone) and all(p.startswith("a link to a page the site doesn't have: ") for p in check(gone))
+    assert check(body.replace(f"{base}/digest/2026-10-05/?ref=digest-email", f"{base}/digest/2026-10-05/?ref=digest-email#nowhere")) == \
+        [f"a link to an anchor its page doesn't have: {base}/digest/2026-10-05/?ref=digest-email#nowhere"]
+    assert check(body.replace(f'href="{base}/meetings/2026-10-05-', 'href="/meetings/2026-10-05-')) == \
+        ["a link that isn't in full: /meetings/2026-10-05-city-council-ordinances-and-administration-committee/?ref=digest-email"]
+    # A section with no meeting left in it.
+    empty = re.sub(r'(<h2[^>]*>Meetings</h2>).*?(?=<h2)', r"\1<p>Nothing.</p>", body, flags=re.S)
+    assert check(empty) == ['its section "Meetings" links no meeting']
+    monkeypatch.setattr(digest, "EMAIL_MAX_BYTES", 1000)
+    assert check(body)[0].startswith(f"it's {len(body.encode()):,} bytes, past 1,000: Gmail would cut it off")
 
 
 @pytest.mark.parametrize("place, expected", [

@@ -7,12 +7,13 @@ against saved Gloucester data."""
 
 import re
 import time
+import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 import pytest
 
-from pipeline import build_site
+from pipeline import build_site, digest
 from site_checks.conftest import BROWSER_PATHS, PREFIXES
 
 WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
@@ -264,3 +265,17 @@ def test_nothing_left_to_fill_in(config):
     from pipeline.new_town import left_to_fill_in
     left = left_to_fill_in((CONFIG_DIR / f"{config['slug']}.toml").read_text(encoding="utf-8"))
     assert not left, f"config/{config['slug']}.toml has {len(left)} left to fill in:\n" + "\n".join(left)
+
+
+def test_every_digest_email_can_be_sent(site_dir, config):
+    """Each issue of the weekly digest in the feed the scheduler sends from (/digest/feed.xml) is an email that can
+    go out as it is (digest.email_problems()): under Gmail's cut-off, with its unsubscribe link and postal address,
+    no empty section, and every link to the site leading to a page this build has. A town whose email fails isn't
+    published, so the scheduler sends its last good issue's feed, not a broken email."""
+    feed = site_dir / "digest" / "feed.xml"
+    if not feed.exists():
+        pytest.skip("this town has no weekly digest")
+    base_url = f"https://{config['site']['domain']}"
+    problems = [f"{item.findtext('title')}: {problem}" for item in ET.parse(feed).getroot().iter("item")
+                for problem in digest.email_problems(item.findtext("description") or "", base_url, site_dir)]
+    assert not problems, "The weekly digest's email can't be sent as it is:\n" + "\n".join(problems)
