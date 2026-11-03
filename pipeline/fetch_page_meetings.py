@@ -22,7 +22,17 @@ downloaded. A cancelled meeting's agenda is linked, not saved. An upcoming
 meeting that leaves the page is marked as no longer listed.
 
 [page_meetings] other_pages are read with the page, as one list (a district
-that posts its agendas on one page and its minutes on another). A short link
+that posts its agendas on one page and its minutes on another).
+
+A page of [page_meetings.pages] may be a table instead of a board's name, with
+settings of its own (linkpage.PAGE_SETTINGS) over the table's: its board, the name of
+whoever posts it (source_name), one_meeting_a_day, the patterns, and
+other_pages read with it. A town whose [page_meetings] is one department's
+pages can read another body's this way: Manchester's are the Planning and
+Community Development department's, and each of the school district's
+document folders is a page with its own board and source_name. An Apptegy
+folder of years ("2025", "2026") is read through its years from since on, so
+a page needn't change each January. A short link
 (an Apptegy aptg.co link) is followed to the file it redirects to, with a HEAD
 request, once: where each leads is kept in meetings/page_status.json
 (short_links) and asked again only of a link not resolved before.
@@ -54,12 +64,21 @@ from pipeline.http import FetchError, PoliteClient
 STATUS_FILE = "page_status.json"
 
 
+def page_settings(settings: dict, value) -> tuple[str, dict]:
+    """A page of [page_meetings.pages]: its board, and the settings it's read with (the table's, with its own
+    over them). Its other_pages are its own, never the table's."""
+    if isinstance(value, str):
+        return value, {**settings, "other_pages": []}
+    return value["board"], {**settings, "other_pages": [],
+                            **{key: value[key] for key in linkpage.PAGE_SETTINGS if key in value}}
+
+
 def new_meeting(store: dict, found: dict, settings: dict, stamp: str) -> dict:
     meeting = {
         "id": f"{linkpage.SOURCE}-{found['key']}",
         "source": linkpage.SOURCE,
         "source_url": found["page_url"],
-        "source_name": settings["source_name"],
+        "source_name": found.get("source_name") or settings["source_name"],
         "first_seen": stamp,
         "slug": unique_slug(f"{found['date']}-{slugify(found['body'])}", store),
         "date": found["date"],
@@ -137,13 +156,27 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         short_links[url] = known[url]
         return known[url]
 
-    more = []
-    for url in settings.get("other_pages", []):
-        try:
-            more.append((client.get(url).text, url))
-        except FetchError as e:
-            errors.append(str(e))
-    for url, board in [(settings["page_url"], None), *settings.get("pages", {}).items()]:
+    def pages_of(page: str, url: str) -> list[tuple[str, str]]:
+        # An Apptegy folder of years: its years from since on, each a page read with it.
+        read = []
+        for year_url in linkpage.year_folders(page, url, since):
+            try:
+                read.append((client.get(year_url).text, year_url))
+            except FetchError as e:
+                errors.append(str(e))
+        return read
+
+    pages = [(settings["page_url"], None, settings),
+             *((url, *page_settings(settings, value)) for url, value in settings.get("pages", {}).items())]
+    for url, board, read_with in pages:
+        more = []
+        for other in read_with.get("other_pages", []):
+            try:
+                other_page = client.get(other).text
+            except FetchError as e:
+                errors.append(str(e))
+                continue
+            more += [(other_page, other), *pages_of(other_page, other)]
         try:
             page = client.get(url).text
         except FetchError as e:
@@ -151,13 +184,14 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
                 raise
             errors.append(str(e))
             continue
-        on_page, not_read = linkpage.meetings(page, url, settings, board, more if board is None else [], resolve)
+        more = pages_of(page, url) + more
+        on_page, not_read = linkpage.meetings(page, url, read_with, board, more, resolve)
         if not on_page:
             # A page lists at least the current year's meetings: none means its layout changed.
             if board is None:
                 raise FetchError(f"{url}: no meetings found")
             errors.append(f"{url}: no meetings found")
-        found += [{**m, "page_url": url} for m in on_page]
+        found += [{**m, "page_url": url, "source_name": read_with["source_name"]} for m in on_page]
         unrecognized += not_read
 
     agenda_minutes = previous.get("agenda_minutes", {}) if settings.get("minutes_in_agenda") else {}
@@ -172,7 +206,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if meeting is None:
             meeting = new_meeting(store, item, settings, stamp)
             created += 1
-        fields = {k: v for k, v in item.items() if k not in ("key", "name", "start_time", "page_url")}
+        fields = {k: v for k, v in item.items() if k not in ("key", "name", "start_time", "page_url", "source_name")}
         fields["source_url"] = item["page_url"]
         if item["start_time"]:
             fields["start_time"] = item["start_time"]
@@ -194,7 +228,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
                            if meeting.get(f"{kind}_url") and not meeting.get(field)
                            and not (kind == "agenda" and meeting["status"] == "cancelled"))
             continue
-        update_documents(client, meeting, storage, settings, today, recent, stamp, counts, errors)
+        # Saved as posted by whoever posts its page ("the Manchester School District website").
+        update_documents(client, meeting, storage, {**settings, "source_name": meeting.get("source_name") or settings["source_name"]},
+                         today, recent, stamp, counts, errors)
 
     save_store(data_dir, store, config)
     reported = previous.get("unrecognized", [])
