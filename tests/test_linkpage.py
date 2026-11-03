@@ -803,3 +803,157 @@ def test_site_shows_the_districts_meetings(config, data_dir, tmp_path, monkeypat
             f'from the documents linked on its <a href="{FakeLinkPage.METHUEN}"') in about
     board = (out / "meetings" / "boards" / "school-committee-policy-subcommittee" / "index.html").read_text()
     assert "Methuen Public Schools website" in board
+
+
+# ---- Apptegy document folders (Manchester School District) ------------------------------------------
+
+MANSD = "https://www.mansd.org/documents/board-of-school-committee"
+FILES = "https://files-backend.assets.thrillshare.com/documents/asset/uploaded_file/3235/Msd/"
+
+
+def nuxt_page(folder_id: str, items: list[dict]) -> str:
+    """An Apptegy document folder's page as the site serves it: its items only in the Nuxt payload, an array
+    whose containers hold the indexes of their values, its root wrapped ("ShallowReactive", index)."""
+    data: list = []
+
+    def put(value) -> int:
+        i = len(data)
+        data.append(None)
+        if isinstance(value, dict):
+            data[i] = {k: put(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            data[i] = [put(v) for v in value]
+        else:
+            data[i] = value
+        return i
+
+    data.append(None)
+    root = put({"data": ["Reactive", None], "serverRendered": True})
+    data[0] = ["ShallowReactive", root]
+    folder = put({f"document-folder-id-{folder_id}": {"foldersAndDocuments": items, "folderBreadcrumbs": []}})
+    data[data[root]["data"]] = ["Reactive", folder]
+    return ('<html><body><div id="__nuxt"><p>Documents</p></div>'
+            f'<script type="application/json" data-nuxt-data="nuxt-app" id="__NUXT_DATA__">{json.dumps(data)}</script>'
+            "</body></html>")
+
+
+def mansd_file(name: str, position: int) -> dict:
+    return {"folder_id": "24536539", "file_name": name, "file_extension": "pdf",
+            "url": f"{FILES}{position:04d}/{name.replace(' ', '-')}.pdf?disposition=inline",
+            "short_url": f"https://aptg.co/x{position}", "position": str(position)}
+
+
+def mansd_year(year: str, url: str, position: int) -> dict:
+    return {"id": url.rsplit("/", 1)[1], "folder_name": year, "parent_id": "3235", "isFolder": "True",
+            "position": str(position), "url": url.removeprefix("https://www.mansd.org")}
+
+
+MANSD_AGENDAS = f"{MANSD}/agendas/full-board-agendas/24536449"
+MANSD_AGENDAS_2025, MANSD_AGENDAS_2026 = f"{MANSD}/agendas/full-board-agendas/2025/24536530", f"{MANSD}/agendas/full-board-agendas/2026/24536539"
+MANSD_MINUTES = f"{MANSD}/minutes/full-board/24536894"
+MANSD_MINUTES_2026 = f"{MANSD}/minutes/full-board/2026/864646"
+MANSD_PAGES = {
+    # A folder of years, the newest last, and a link to the archive of earlier years on Drive.
+    MANSD_AGENDAS: nuxt_page("24536449", [
+        {"folder_name": None, "url": "https://drive.google.com/drive/folders/0B6cNHOSIYKNZ", "position": "0"},
+        mansd_year("2025", MANSD_AGENDAS_2025, 1), mansd_year("2026", MANSD_AGENDAS_2026, 2)]),
+    # A year's files, oldest first: a revised agenda after the one it replaces, a public hearing's agenda
+    # the same evening, a memo filed with the agendas, and a date written without zeros.
+    MANSD_AGENDAS_2026: nuxt_page("24536539", [
+        mansd_file("2026-9-14 BOSC Agenda", 30), mansd_file("2026-10-26 BOSC Agenda - PH on Donation", 41),
+        mansd_file("2026-10-26 BOSC Agenda", 42), mansd_file("2026-10-26 BOSC Agenda - Revised", 44),
+        mansd_file("2026-10-26 Memo - Super Communications", 45)]),
+    MANSD_AGENDAS_2025: nuxt_page("24536530", [mansd_file("2025-12-8 BOSC Agenda", 20)]),
+    MANSD_MINUTES: nuxt_page("24536894", [mansd_year("2026", MANSD_MINUTES_2026, 1)]),
+    MANSD_MINUTES_2026: nuxt_page("864646", [mansd_file("2026-09-14 BOSC Minutes", 12),
+                                       mansd_file("2026-10-26 BOSC Special (PH on Donation) Minutes", 13)]),
+}
+MANSD_BOARD = {"board": "Board of School Committee", "source_name": "Manchester School District",
+               "one_meeting_a_day": False, "other_pages": [MANSD_MINUTES],
+               "name_ignore_pattern": r"\b(?:special|public\s+hearing|ph|hearing|meeting)\b"}
+
+
+@pytest.mark.parametrize("value, expected", [
+    ("2026-9-14 BOSC Agenda", "2026-09-14"), ("2026-1-6 BOSC Organizational Meeting Agenda", "2026-01-06"),
+    ("0. 2026-8-31 BOSC Retreat Agenda", "2026-08-31"), ("2026-10-13 BOSC Minutes", "2026-10-13"),
+])
+def test_iso_dates_without_zeros(value, expected):
+    assert linkpage.date_value(linkpage.find_date(value)) == expected
+
+
+def test_an_apptegy_document_folder():
+    items = linkpage.apptegy_folder(MANSD_PAGES[MANSD_AGENDAS_2026])
+    assert [i["file_name"] for i in items][:2] == ["2026-9-14 BOSC Agenda", "2026-10-26 BOSC Agenda - PH on Donation"]
+    # Its agendas, newest first, as links: the memo isn't one.
+    links = linkpage.LINK.findall(linkpage.as_links(MANSD_PAGES[MANSD_AGENDAS_2026], {}))
+    assert [label for _, label in links] == ["2026-10-26 BOSC Agenda - Revised", "2026-10-26 BOSC Agenda",
+                                             "2026-10-26 BOSC Agenda - PH on Donation", "2026-9-14 BOSC Agenda"]
+    # A page that isn't a folder is read as it is.
+    assert linkpage.apptegy_folder("<html><a href='x.pdf'>Agenda</a></html>") is None
+    assert linkpage.as_links("<p>page</p>", {}) == "<p>page</p>"
+
+
+def test_an_apptegy_folder_of_years_from_since_on():
+    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2026-01-01") == [MANSD_AGENDAS_2026]
+    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2025-07-01") == [MANSD_AGENDAS_2026, MANSD_AGENDAS_2025]
+    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS_2026], MANSD_AGENDAS_2026, "2026-01-01") == []
+
+
+def test_a_boards_folders_of_agendas_and_minutes():
+    page = MANSD_PAGES[MANSD_AGENDAS_2026]
+    settings = {"since": "2026-01-01", "name_ignore_pattern": MANSD_BOARD["name_ignore_pattern"]}
+    found, unrecognized = linkpage.meetings(page, MANSD_AGENDAS_2026, settings, "Board of School Committee",
+                                            more=[(MANSD_PAGES[MANSD_MINUTES_2026], MANSD_MINUTES_2026)])
+    found = {m["key"]: m for m in found}
+    assert not unrecognized
+    assert sorted(found) == ["2026-09-14-board-of-school-committee-bosc",
+                             "2026-10-26-board-of-school-committee-bosc",
+                             "2026-10-26-board-of-school-committee-bosc-on-donation"]
+    regular = found["2026-10-26-board-of-school-committee-bosc"]
+    # The revised agenda, listed above the one it replaces, is the meeting's; the other is kept as a link.
+    assert regular["agenda_url"].endswith("2026-10-26-BOSC-Agenda---Revised.pdf?disposition=inline")
+    assert [link["text"] for link in regular["links"]] == ["2026-10-26 BOSC Agenda"]
+    # The hearing's agenda and its minutes name it two ways, and are one meeting.
+    hearing = found["2026-10-26-board-of-school-committee-bosc-on-donation"]
+    assert hearing["agenda_url"] and hearing["minutes_url"]
+    assert found["2026-09-14-board-of-school-committee-bosc"]["minutes_url"]
+
+
+def test_a_page_with_settings_of_its_own(config, tmp_path):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = {**methuen(), "pages": {MANSD_AGENDAS: MANSD_BOARD}}
+    linkpage.check(town)
+    status, store, client = run(town, tmp_path, FakeLinkPage(replaced=MANSD_PAGES))
+    assert not status["errors"]
+    # The folders of years are read through 2026 (since), not 2025.
+    assert MANSD_AGENDAS_2026 in client.urls and MANSD_MINUTES_2026 in client.urls and MANSD_AGENDAS_2025 not in client.urls
+    school = {k: m for k, m in store.items() if m["body"] == "Board of School Committee"}
+    assert sorted(school) == ["page-2026-09-14-board-of-school-committee-bosc",
+                              "page-2026-10-26-board-of-school-committee-bosc",
+                              "page-2026-10-26-board-of-school-committee-bosc-on-donation"]
+    meeting = school["page-2026-09-14-board-of-school-committee-bosc"]
+    assert meeting["source_name"] == "Manchester School District" and meeting["source_url"] == MANSD_AGENDAS
+    assert meeting["agendas"][0]["posted_on"] == meeting["minutes"][0]["posted_on"] == "the Manchester School District website"
+    # The table's own page is read as before, with its own source.
+    methuen_meetings = [m for m in store.values() if m["body"] == "School Committee"]
+    assert methuen_meetings and {m["source_name"] for m in methuen_meetings} == {"Methuen Public Schools"}
+    assert all(d["posted_on"] != "the Manchester School District website"
+               for m in methuen_meetings for d in m.get("agendas", []) + m.get("minutes", []))
+    # Its source is named on the About page once, with its page.
+    assert build_site.page_sources(town) == [{"name": "Manchester School District", "url": MANSD_AGENDAS}]
+    town["ical_meetings"] = {"source_name": "Manchester School District", "page_url": "https://www.mansd.org/page/calendar-bosc"}
+    assert build_site.page_sources(town) == []
+
+
+@pytest.mark.parametrize("page, message", [
+    ({"source_name": "Manchester School District"}, "needs a board"),
+    ({"board": "Board of School Committee", "body": "x"}, "not body"),
+    ({"board": "Board of School Committee", "one_meeting_a_day": "no"}, "one_meeting_a_day must be true or false"),
+    ({"board": "Board of School Committee", "other_pages": ["minutes"]}, "other_pages must list addresses"),
+    ({"board": "Board of School Committee", "agenda_pattern": "("}, "agenda_pattern isn't a regular expression"),
+])
+def test_a_pages_own_settings_are_checked(config, page, message):
+    town = copy.deepcopy(config)
+    town["page_meetings"] = {**methuen(), "pages": {MANSD_AGENDAS: page}}
+    with pytest.raises(SystemExit, match=message):
+        linkpage.check(town)
