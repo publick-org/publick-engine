@@ -169,14 +169,26 @@ const DUE = "Sun, 04 Oct 2026 17:30:00 -0400";  // 21:30 UTC
 const FOOTER = '<p><a href="{{ unsubscribe_url }}">Unsubscribe</a>.<br>Publick · PO Box 1, Gloucester, MA 01930</p>';
 const BODY = '<p>13 meetings this week.</p>\n<h2>Meetings</h2><p><a href="https://gloucester-ma.publick.org/meetings/x/?ref=digest">Board &amp; Committee</a></p>' + FOOTER;
 
-function digestEnv(towns = "gloucester-ma.publick.org", feeds = null) {
+// The DIGEST_STORE KV namespace: its values, and each write with its options.
+function fakeStore(values = {}) {
+  const data = new Map(Object.entries(values));
+  const writes = [];
+  return {
+    data, writes,
+    get: async (key) => (data.has(key) ? data.get(key) : null),
+    put: async (key, value, options = {}) => { data.set(key, value); writes.push({ key, value, options }); },
+    delete: async (key) => { data.delete(key); writes.push({ key, deleted: true }); },
+  };
+}
+
+function digestEnv(towns = "gloucester-ma.publick.org", feeds = null, store = fakeStore()) {
   feeds ??= {
     "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick", "Week of October 5, 2026",
       "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY)],
     "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
       "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)],
   };
-  return { ...env(), BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TOWNS: towns,
+  return { ...env(), BUTTONDOWN_SEND_KEY: "send-key", DIGEST_TOWNS: towns, DIGEST_STORE: store,
            SITES: { fetch: async (url) => { const [status, body] = feeds[url] || [404, ""]; return new Response(body, { status }); } } };
 }
 
@@ -197,12 +209,12 @@ function withButtondown(routesFor) {
 }
 
 const TAGS = { results: [{ id: "tag_gloucester", name: "gloucester-ma-en" }, { id: "tag_malden", name: "malden-ma-en" }], next: null };
-const NONE_SENT = { results: [], next: null };
 const at = (iso) => new Date(iso);
 
 test("an issue due is sent once, to its town's readers only", async () => {
-  withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, { id: "em_1" }] });
-  const results = await sendDigests(digestEnv(), at("2026-10-04T21:35:00Z"));
+  withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [201, { id: "em_1" }] });
+  const store = fakeStore();
+  const results = await sendDigests(digestEnv(undefined, null, store), at("2026-10-04T21:35:00Z"));
   assert.deepEqual(results, [{ host: "gloucester-ma.publick.org", done: "sent", subject: "Gloucester Publick: Week of October 5, 2026" }]);
   const sent = calls.find((c) => c.method === "POST" && c.path === "/emails");
   assert.equal(sent.headers.Authorization, "Token send-key");
@@ -217,17 +229,54 @@ test("an issue due is sent once, to its town's readers only", async () => {
   assert.equal(sent.body.slug, "gloucester-ma-2026-10-05");
   assert.equal(sent.body.archival_mode, "disabled");
   assert.equal(sent.body.canonical_url, "https://gloucester-ma.publick.org/digest/2026-10-05/");
-  // Buttondown takes a date for when emails were made, not a time (HTTP 422 for "2026-10-03T15:35:00.000Z").
-  const listed = calls.find((c) => c.method === "GET" && c.path.startsWith("/emails"));
-  assert.equal(new URL(`https://x${listed.path}`).searchParams.get("creation_date__start"), "2026-10-03");
+  // Recorded by its town and week before it's sent, and kept; its tag's ID is kept too. Buttondown's emails aren't read.
+  assert.deepEqual(store.writes.map((w) => w.key), ["tag/gloucester-ma-en", "sent/gloucester-ma.publick.org/2026-10-05"]);
+  assert.equal(store.data.get("tag/gloucester-ma-en"), "tag_gloucester");
+  assert.equal(JSON.parse(store.data.get("sent/gloucester-ma.publick.org/2026-10-05")).subject, sent.body.subject);
+  assert.equal(store.writes[1].options.expirationTtl, 120 * 24 * 3600);
+  assert.ok(!calls.some((c) => c.method === "GET" && c.path.startsWith("/emails")));
+  // The next hour: already sent, and nothing asked of Buttondown.
+  calls.length = 0;
+  const [again] = await sendDigests(digestEnv(undefined, null, store), at("2026-10-04T22:35:00Z"));
+  assert.equal(again.done, "already_sent");
+  assert.equal(calls.length, 0);
 });
 
-test("an issue isn't sent before it's due, nor more than 6 hours late", async () => {
+test("a send Buttondown refuses is tried again; one whose answer never came isn't", async () => {
+  withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [400, { detail: "no" }] });
+  const store = fakeStore();
+  await assert.rejects(sendDigests(digestEnv(undefined, null, store), at("2026-10-04T21:35:00Z")), /sending: HTTP 400/);
+  assert.ok(!store.data.has("sent/gloucester-ma.publick.org/2026-10-05"));
+  buttondownRoutes["POST /emails"] = [201, {}];
+  const [result] = await sendDigests(digestEnv(undefined, null, store), at("2026-10-04T22:35:00Z"));
+  assert.equal(result.done, "sent");
+
+  const lost = fakeStore({ "tag/gloucester-ma-en": "tag_gloucester" });
+  const github = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (url.startsWith("https://api.buttondown.com")) throw new TypeError("network connection lost");
+    return github(url, init);
+  };
+  await assert.rejects(sendDigests(digestEnv(undefined, null, lost), at("2026-10-04T21:35:00Z")),
+    /It may have been sent, so it isn't tried again.*delete sent\/gloucester-ma\.publick\.org\/2026-10-05/);
+  assert.ok(lost.data.has("sent/gloucester-ma.publick.org/2026-10-05"));
+});
+
+test("an issue isn't sent before it's due, nor more than 6 hours late, which is said once", async () => {
   withButtondown({});
-  for (const now of ["2026-10-04T21:29:00Z", "2026-10-05T03:31:00Z"]) {
-    const [result] = await sendDigests(digestEnv(), at(now));
+  const store = fakeStore({ "tag/gloucester-ma-en": "tag_gloucester" });
+  for (const now of ["2026-10-04T21:29:00Z", "2026-10-05T04:31:00Z"]) {
+    const [result] = await sendDigests(digestEnv(undefined, null, store), at(now));
     assert.equal(result.done, "not_due", now);
   }
+  // In the hour after its window: not sent, and the run fails saying so.
+  await assert.rejects(sendDigests(digestEnv(undefined, null, store), at("2026-10-05T03:35:00Z")),
+    /gloucester-ma\.publick\.org: this week's issue \("Gloucester Publick: Week of October 5, 2026"\) wasn't sent within 6 hours/);
+  // Unless it was sent, or the town has no readers.
+  store.data.set("sent/gloucester-ma.publick.org/2026-10-05", "{}");
+  assert.equal((await sendDigests(digestEnv(undefined, null, store), at("2026-10-05T03:35:00Z")))[0].done, "already_sent");
+  const none = fakeStore({ "tag/gloucester-ma-en": "" });
+  assert.equal((await sendDigests(digestEnv(undefined, null, none), at("2026-10-05T03:35:00Z")))[0].done, "no_subscribers");
   assert.equal(calls.length, 0);
 });
 
@@ -243,15 +292,44 @@ test("a week whose issue never came fails its last try, once", async () => {
   assert.equal(calls.length, 0);
 });
 
-test("an issue already sent isn't sent again", async () => {
-  withButtondown({ "GET /emails": [200, { results: [{ subject: "Gloucester Publick: Week of October 5, 2026", status: "sent" }], next: null }] });
-  const [result] = await sendDigests(digestEnv(), at("2026-10-05T00:35:00Z"));
+test("an issue already sent isn't sent again, even with a new subject", async () => {
+  withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+  const store = fakeStore({ "sent/gloucester-ma.publick.org/2026-10-05": '{"subject":"An earlier subject"}' });
+  const [result] = await sendDigests(digestEnv(undefined, null, store), at("2026-10-05T00:35:00Z"));
   assert.equal(result.done, "already_sent");
+  assert.equal(calls.length, 0);
+});
+
+test("tags are listed only for a town whose tag isn't stored, and a town without one is looked for daily", async () => {
+  withButtondown({ "GET /tags": [200, { results: [{ id: "tag_malden", name: "malden-ma-en" }], next: null }], "POST /emails": [201, {}] });
+  const store = fakeStore();
+  const results = await sendDigests(digestEnv("gloucester-ma.publick.org, malden-ma.publick.org", null, store),
+    at("2026-10-04T21:35:00Z"));
+  assert.deepEqual(results.map((r) => r.done), ["no_subscribers", "sent"]);
+  // One listing for both towns in a run.
+  assert.equal(calls.filter((c) => c.path.startsWith("/tags")).length, 1);
+  assert.equal(store.data.get("tag/gloucester-ma-en"), "");
+  assert.equal(store.writes.find((w) => w.key === "tag/gloucester-ma-en").options.expirationTtl, 24 * 3600);
+  assert.deepEqual(store.writes.find((w) => w.key === "tag/malden-ma-en").options, {});
+  calls.length = 0;
+  await sendDigests(digestEnv("gloucester-ma.publick.org, malden-ma.publick.org", null, store), at("2026-10-04T22:35:00Z"));
+  assert.ok(!calls.some((c) => c.path.startsWith("/tags")));
+});
+
+test("tags past the pages read fail the run rather than miss a town's", async () => {
+  withButtondown({ "GET /tags": [200, { results: [{ id: "t", name: "other-xx-en" }], next: "https://api.buttondown.com/v1/tags?page=2" }] });
+  await assert.rejects(sendDigests(digestEnv(), at("2026-10-04T21:35:00Z")), /listing tags: more than 100 pages/);
   assert.ok(!calls.some((c) => c.method === "POST"));
 });
 
+test("a send needs DIGEST_STORE", async () => {
+  withButtondown({});
+  const unbound = { ...digestEnv(), DIGEST_STORE: undefined };
+  await assert.rejects(sendDigests(unbound, at("2026-10-04T21:35:00Z")), /DIGEST_STORE KV namespace isn't bound/);
+});
+
 test("a town no one has signed up for yet sends nothing", async () => {
-  withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, { results: [], next: null }] });
+  withButtondown({ "GET /tags": [200, { results: [], next: null }] });
   const [result] = await sendDigests(digestEnv(), at("2026-10-04T21:35:00Z"));
   assert.equal(result.done, "no_subscribers");
   assert.ok(!calls.some((c) => c.method === "POST"));
@@ -260,7 +338,7 @@ test("a town no one has signed up for yet sends nothing", async () => {
 test("an issue without an unsubscribe link, or a mailing address, isn't sent", async () => {
   for (const [body, error] of [[BODY.replace("{{ unsubscribe_url }}", "#"), /no unsubscribe link/],
                                [BODY.replace("PO Box 1, Gloucester, MA 01930", "[mailing address]"), /no mailing address/]]) {
-    withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+    withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
     const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [200, digestFeed("Gloucester Publick",
       "Week of October 5, 2026", "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, body)] };
     await assert.rejects(sendDigests(digestEnv("gloucester-ma.publick.org", feeds), at("2026-10-04T21:35:00Z")), error);
@@ -279,7 +357,7 @@ test("one town failing doesn't stop the next; the run fails naming it, and opens
   const feeds = { "https://gloucester-ma.publick.org/digest/feed.xml": [503, ""],
                   "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
                     "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)] };
-  withButtondown({ "GET /emails": [200, NONE_SENT], "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+  withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
   routes["GET /repos/publick-org/publick.org/issues"] = [200, []];
   routes["POST /repos/publick-org/publick.org/labels"] = [201, {}];
   routes["POST /repos/publick-org/publick.org/issues"] = [201, { number: 9 }];
@@ -354,7 +432,7 @@ test("the test command sends a built site's issue, and never prints the addresse
   const feed = join(await mkdtemp(join(tmpdir(), "digest-test-")), "feed.xml");
   await writeFile(feed, digestFeed("Gloucester Publick", "Week of October 5, 2026",
     "https://gloucester-ma.publick.org/digest/2026-10-05/", DUE, BODY));
-  withButtondown({ "GET /emails": [200, NONE_SENT], "POST /emails": [201, { id: "em_test" }],
+  withButtondown({ "GET /emails": [200, { results: [], next: null }], "POST /emails": [201, { id: "em_test" }],
                    "POST /emails/em_test/send-draft": [200, {}] });
   const printed = [];
   const log = console.log;
