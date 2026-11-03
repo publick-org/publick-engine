@@ -97,6 +97,7 @@ import functools
 import itertools
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 from pipeline import translate
@@ -107,8 +108,10 @@ from pipeline import translate
 # names before each count, and counts in words and figures; "held until the next meeting" as continued, and
 # "forward to the full board" as referred; a "not" in a condition isn't a no; a decision's figures to the end
 # of its passage; an ordinal run into the next word. 8: a count a chair says in a recording ("seven in the
-# affirmative, none in the negative"). 9: each decision's title, against the document.
-VERSION = 9
+# affirmative, none in the negative"). 9: each decision's title, against the document. 10: a PDF's ligatures,
+# Legistar's labels after their values, glyph numbers as no text, a quote's sentences joined without "...", and
+# more of the minutes' words for continued, referred and denied.
+VERSION = 10
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored")
@@ -118,8 +121,23 @@ FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "s
 # The kinds whose decisions come with a quote of their document and an outcome (decision_evidence).
 QUOTED = ("minutes", "recording")
 
+# A Legistar report's labels, which its PDFs' text has after the line's value with no space between:
+# "RESULT: ACCEPTED" on the page is "ACCEPTEDRESULT:" in the text, "FOLLOWUP: Traffic and Parking
+# Committee" is "Traffic and Parking CommitteeFOLLOWUP:". Read back in the page's order, with the line's
+# length kept, so each page's text keeps its place: "RESULT:ACCEPTED".
+LABEL_AFTER = re.compile(r"^([^\S\n]*\S.*?)(RESULT|FOLLOWUP|MOVER|SECONDER|AYES?|NAYS?|ABSENT|ABSTAIN|RECUSED|EXCUSED):(?=[^\S\n]*$)",
+                         re.M)
+
 # A page with less text than this is taken to be an image (a scanned page).
 PAGE_MIN_CHARS = 40
+# A font's glyph numbers, where a PDF's text layer has no words: "/i255/1/2/3/4/i255" (Lowell's licensing
+# commission's minutes). A page of them has no text to check against, as a scanned page has none.
+GLYPHS = re.compile(r"/[a-z]?\d+")
+
+
+def readable(page: str) -> bool:
+    """Whether a page's text layer has text to check a summary against: enough of it, and not glyph numbers."""
+    return len(re.sub(r"\s+", "", GLYPHS.sub("", page))) >= PAGE_MIN_CHARS
 
 # A vote count: "7-0", "4–1", "5-0-1".
 TALLY = re.compile(r"(?<![\d$#.,/-])(\d{1,2})\s*[-–]\s*(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?(?![\d/-]|[.,]\d)")
@@ -377,7 +395,11 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     with no text at all). A scan is checked against the model's transcription, if it has one. A
     recording's summary is checked against its machine transcript (pages: the transcript, whole), as
     strictly as a PDF's against its text: what isn't in the transcript isn't shown."""
-    texted = [p for p in pages or [] if len(p.strip()) >= PAGE_MIN_CHARS]
+    # A PDF's ligatures ("ﬁ", "ﬂ") are one character in its text, where a summary has two: "certiﬁcation",
+    # "Ofﬁcers" and "Grifﬁn" are read as "certification", "Officers" and "Griffin" (NFKC, which also reads
+    # "…" as "...", and a non-breaking space as a space).
+    pages = [LABEL_AFTER.sub(r"\2:\1", unicodedata.normalize("NFKC", p)) for p in pages] if pages else pages
+    texted = [p for p in pages or [] if readable(p)]
     if kind == "recording":
         source, doc = "recording", "\n".join(pages or [])
         pages = None
@@ -388,7 +410,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     elif texted:
         source, doc = "partial", "\n".join(pages)
     elif record.get("transcript") and record.get("transcript_source") == "ai":
-        source, doc = "ai", record["transcript"]
+        source, doc = "ai", unicodedata.normalize("NFKC", record["transcript"])
         pages = None
     else:
         return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
@@ -510,14 +532,27 @@ def says_no(text: str) -> bool:
 DECISION_NO = re.compile(SAYS_NO.pattern + r"|\b(?:fail(?:s|ed)|reject(?:s|ed)|defeat(?:s|ed)|voted\s+down|turned\s+down)\b", re.I)
 # What the decision and the quote each say, for an outcome that has words of its own.
 SAYS = {
-    # "Held in the Finance and Property Committee": a committee keeping an item is tabling it.
-    "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*|h[eo]ld)\b|on\s+the\s+table", re.I),
+    # "Held in the Finance and Property Committee", Somerville's "Kept in committee": a committee keeping an
+    # item is tabling it, or continuing it to a later meeting.
+    "tabled": re.compile(r"\b(?:tabl(?:e|ed|ing)|postpon\w*|h[eo]ld)\b|on\s+the\s+table|\bkept\s+in\s+committee\b", re.I),
     # "Held until the next meeting, under the rules": Salem's council, an appointment carried to its next meeting.
-    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*)|"
+    # Gloucester's "(cont. to October 7, 2026)", Lowell's "put over to next meeting", Methuen's policies on
+    # "Hold for review", Waltham's hearings "recessed ... to date certain", "delayed ... until the October
+    # meeting", "we will come back to this next time", "bring the Policy back with amendments".
+    "continued": re.compile(r"\b(?:continu\w*|postpon\w*|reschedul\w*|defer\w*|delay\w*|revisit\w*)|\bkept\s+in\s+committee\b|"
+                            r"\bcont\.?\s+(?:to|until)\b|\b(?:put|carr(?:y|ied))\s+over\b|\bon\s+hold\b|"
+                            r"\b(?:hold|held)\s+(?:it\s+)?(?:for|until|pending|over)\b|\brecess\w*\b[^.;]{0,80}?\b(?:until|to)\b|"
+                            r"\bnext\s+time\b|\bbr(?:ing|ought)\s+(?:\S+\s+){0,4}?back\b|"
+                            r"\b(?:at|to|until)\s+(?:the|a|its)\s+(?:next|following|later|future)\s+(?:\S+\s+){0,2}?meeting|"
                             r"\bh[eo]ld\b[^.;]{0,150}?\b(?:until|till|to)\s+(?:the\s+|its\s+)?(?:next|following)\s+(?:\w+\s+)?meeting", re.I),
     # A committee's item sent on to the body it reports to: "will move forward to the full board for consent"
-    # (Wallingford's Board of Education committees), "forwarded to the full council".
+    # (Wallingford's Board of Education committees), "forwarded to the full council"; Somerville's council
+    # "Placed on file and sent for discussion" to a committee.
     "referred": re.compile(r"\b(?:refer\w*|remand\w*|re-?commit\w*)|\bsen[dt]\s+(?:it\s+)?(?:back\s+)?to\b|"
+                           r"\bsen[dt]\s+for\s+(?:discussion|recommendation)\b|"
+                           # Nashua's ordinances "assigned to the PERSONNEL/ADMINISTRATIVE AFFAIRS COMMITTEE", "to send the
+                           # Cafeteria Reports (4.2) to the full Board", "To return 30 Cross Street to the City Council".
+                           r"\bassign\w*\s+to\b|\b(?:sen[dt]|return\w*)\s+(?:\S+\s+){1,6}?to\s+the\b|"
                            r"\bforward(?:ed|s|ing)?\s+(?:\w+\s+){0,3}?(?:to\s+the\s+full\b|for\s+(?:consent|approval|action)\b)", re.I),
     "recommended": re.compile(r"\b(?:recommend\w*|favou?rabl\w*)", re.I),
     "withdrawn": re.compile(r"\bwithdr\w*", re.I),
@@ -586,6 +621,10 @@ def document_votes(doc: str) -> set[tuple[int, int]]:
     return found
 
 
+# Where a quote's sentence ends and the next begins: a period, then a capital letter or a figure.
+SENTENCE_END = re.compile(r"(?<=[a-z0-9)][.!?])\s+(?=[A-Z0-9(])")
+
+
 class Located:
     """A document's text without spaces or punctuation, lowercased, with where each of its
     characters came from, to find a quote however the PDF's text broke it up."""
@@ -602,13 +641,20 @@ class Located:
         """Where the quote is in the document, as (start, end) in its text: each of its words in
         order, with nothing between them but what the document adds (a page header, a line
         number), up to GAP characters at a time and GAPS in all. A quote cut with "..." is found
-        part by part, in order."""
+        part by part, in order; and so is one of sentences the minutes have apart, joined without
+        the "..." (an item's title, and its result after the discussion: "... Code of Ordinances.
+        RESULT: PLACED ON FILE")."""
         if quote not in self.found:
             self.found[quote] = self.places(quote)
+            if not self.found[quote] and not re.search(r"\.\.\.|…", quote):
+                cut = SENTENCE_END.split(quote)
+                if len(cut) > 1:
+                    self.found[quote] = self.places(" ... ".join(cut))
         return self.found[quote]
 
     def places(self, quote: str) -> list[tuple[int, int]]:
-        parts = [re.findall(r"[a-z0-9]+", p.lower()) for p in re.split(r"\.\.\.|…", quote)]
+        # Words of any letters, as the document's text keeps them ("Ramón", not "Ram" and "n").
+        parts = [re.findall(r"[^\W_]+", unicodedata.normalize("NFKC", p).lower()) for p in re.split(r"\.\.\.|…", quote)]
         parts = [p for p in parts if p]
         if not parts or not self.text:
             return []
@@ -846,7 +892,9 @@ def anchored(text: str, evidence: dict, located: Located, words: frozenset, whol
             problems.append({"kind": "outcome", "what": f"{outcome}, but the decision or the minutes don't say so"})
     elif outcome == "denied":
         counted = votes_for_against(quote)
-        if not DECISION_NO.search(text) or not (SAYS_NO.search(quote) or (counted and counted[0] < counted[1]) or failed):
+        # The quote may say no as a decision does, or move to: "To formally reject the received bid".
+        if not DECISION_NO.search(text) or not (DECISION_NO.search(quote) or re.search(r"\breject\w*", quote, re.I)
+                                                or (counted and counted[0] < counted[1]) or failed):
             problems.append({"kind": "outcome", "what": "denied, but the decision or the minutes don't say no"})
     elif outcome == "other":
         # A failed motion given "other" (the evaluation's Lyceum minutes: "Motion fails.") is fine while the
