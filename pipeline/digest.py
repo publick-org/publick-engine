@@ -5,14 +5,19 @@ Each issue is dated a Sunday and covers two things, from data the site already h
 - the meetings of the week ahead, Monday to Sunday, with their agenda summaries where an agenda
   is posted (most are posted 2 to 4 days before the meeting, so the week's later meetings often
   have none yet);
-- the minutes first collected in the week before, Monday to Sunday, with what each meeting decided.
+- the minutes first collected in the week before, Sunday to Saturday, with what each meeting decided.
 
-An issue is built from the first build on or after its Sunday, and shows what the site knows
-about that week as of the latest build. A week with no meetings and no new minutes has no issue.
+An issue is built from the first build on or after its Saturday, the day before its date, and shows
+what the site knows about that week as of the latest build. A week with no meetings and no new
+minutes has no issue. Issues dated before MORNING_FROM were built from their Sunday's run and list
+the minutes collected Monday to Sunday; their pages keep those weeks, so no minutes move from one
+issue to another.
 
 The issues are published at /digest/<Monday>/ with a list at /digest/ and a feed at
 /digest/feed.xml (build_site.py). Each feed item's date is when its email is due: the Sunday at
-SEND_TIME, the town's own time. Whatever sends the email
+SEND_TIME, the town's own time, early enough to be read with the morning's news. Built the day
+before, it doesn't wait on the Sunday's daily run, which ends at a different time in each town;
+that run builds the issue too where Saturday's didn't. Whatever sends the email
 (the network's scheduler Worker, worker/digest.js, through Buttondown) sends each item once its
 date has passed.
 
@@ -34,7 +39,11 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 # When an issue's email is due, on its Sunday, in the town's timezone.
-SEND_TIME = time(17, 30)
+SEND_TIME = time(7, 0)
+# The first issue built the Saturday before and sent Sunday morning. Earlier issues were built on their
+# Sunday and due at EVENING_SEND_TIME; their feed dates and the weeks of minutes their pages list stay as sent.
+MORNING_FROM = date(2026, 11, 8)
+EVENING_SEND_TIME = time(17, 30)
 # Minutes collected for a meeting longer ago than this are left out: a source's history read
 # for the first time, not news. Most minutes are collected 2 to 6 weeks after their meeting (they're
 # approved at the next one); 90 days let a town's first weeks list minutes from months before
@@ -94,6 +103,17 @@ def sundays(since: date, today: date) -> list[date]:
     return [last - timedelta(weeks=n) for n in range(((last - first).days // 7) + 1)] if first <= last else []
 
 
+def last_day(sunday: date) -> date:
+    """The last day of the minutes an issue lists, and the first day it's built: its Saturday, or for an
+    issue dated before MORNING_FROM, its Sunday."""
+    return sunday - timedelta(days=1) if sunday >= MORNING_FROM else sunday
+
+
+def send_at(sunday: date, tz: ZoneInfo) -> datetime:
+    """When an issue's email is due, in the town's time."""
+    return datetime.combine(sunday, SEND_TIME if sunday >= MORNING_FROM else EVENING_SEND_TIME, tz)
+
+
 def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: ZoneInfo) -> list[dict]:
     """The digest's issues, newest first. meetings are every meeting (build_site.load_meetings),
     in date order; tracking_since is when the site first saw any of them. Minutes collected on
@@ -107,24 +127,30 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
     recording_day = {id(m): first_collected([m["transcript_doc"]], tz)
                      if m.get("recording_summary") and m.get("transcript_doc") else None for m in meetings}
     found = []
-    for sunday in sundays(since, today):
+    # Tomorrow's Sunday too: an issue is built from its Saturday.
+    for sunday in sundays(since, today + timedelta(days=1)):
+        end = last_day(sunday)
+        if end > today:
+            continue
+        # The minutes from the day after the issue before's to this one's last day.
+        start = last_day(sunday - timedelta(weeks=1)) + timedelta(days=1)
         monday = sunday + timedelta(days=1)
         week = [m for m in meetings if monday.isoformat() <= m["date"] <= (sunday + timedelta(days=7)).isoformat()]
         minutes = [m for m in meetings
-                   if minutes_day[id(m)] and sunday - timedelta(days=6) <= minutes_day[id(m)] <= sunday
+                   if minutes_day[id(m)] and start <= minutes_day[id(m)] <= end
                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
         # Meetings summarized from their recordings, transcribed that week, whose minutes hadn't come by its end.
         recorded = [m for m in meetings
-                    if recording_day[id(m)] and sunday - timedelta(days=6) <= recording_day[id(m)] <= sunday
-                    and not (minutes_day[id(m)] and minutes_day[id(m)] <= sunday)
+                    if recording_day[id(m)] and start <= recording_day[id(m)] <= end
+                    and not (minutes_day[id(m)] and minutes_day[id(m)] <= end)
                     and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
         if not week and not minutes and not recorded:
             continue
         found.append({
             "sunday": sunday.isoformat(), "monday": monday.isoformat(), "end": (sunday + timedelta(days=7)).isoformat(),
-            "minutes_from": (sunday - timedelta(days=6)).isoformat(),
+            "minutes_from": start.isoformat(), "minutes_to": end.isoformat(),
             "url": f"/digest/{monday.isoformat()}/",
-            "send_at": datetime.combine(sunday, SEND_TIME, tz),
+            "send_at": send_at(sunday, tz),
             "meetings": week, "minutes": minutes, "recorded": recorded,
             # The week's meetings by day, for the page.
             "days": [(day, [m for m in week if m["date"] == day]) for day in sorted({m["date"] for m in week})],

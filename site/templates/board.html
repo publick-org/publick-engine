@@ -109,8 +109,8 @@
   {% if meeting_links.documents %}<li>{% trans url=feed_url %}New agendas and minutes from every board are in this site's <a href="{{ url }}">RSS feed</a>.{% endtrans %}</li>{% endif %}
   <li>{% trans url=calendar_url %}<a href="{{ url }}">Meetings calendar</a> (.ics): add its address to your calendar app to follow every board's meetings.{% endtrans %}</li>
   {# The weekly digest is in English for now (pipeline/digest.py). #}
-  {% if digest_signup and lang == "en" %}<li>{% if meeting_links.documents %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead, and what the meetings whose minutes came out decided.{% endtrans %}
-  {%- else %}{% trans url="/digest/#signup" %}Each Sunday evening, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead.{% endtrans %}{% endif %}</li>{% endif %}
+  {% if digest_signup and lang == "en" %}<li>{% if meeting_links.documents %}{% trans url="/digest/#signup" %}Each Sunday morning, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead, and what the meetings whose minutes came out decided.{% endtrans %}
+  {%- else %}{% trans url="/digest/#signup" %}Each Sunday morning, the <a href="{{ url }}">weekly digest by email</a> lists every board's meetings for the week ahead.{% endtrans %}{% endif %}</li>{% endif %}
 </ul>
 
 {% set drive = (b.meetings | selectattr("source", "in", ["drive", "finalsite", "page", "ical", "schedule", "meetingdocs", "sharpschool"]) | list)[:1] %}

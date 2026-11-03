@@ -55,6 +55,37 @@ def test_an_issue_lists_the_week_ahead_and_the_minutes_of_the_week_before():
     assert [m["date"] for m in found[1]["meetings"]] == ["2026-09-29", "2026-10-04"] and not found[1]["minutes"]
 
 
+def test_an_issue_is_built_on_its_saturday_and_due_sunday_morning():
+    """From MORNING_FROM, an issue is built the day before its Sunday, lists the minutes collected Sunday to
+    Saturday, and is due at 7 AM. The issue before it keeps its week, so no minutes are listed twice."""
+    meetings = [
+        meeting("2026-10-20", "2026-11-01T06:00:00-05:00"),  # collected Sunday, November 1: that issue's
+        meeting("2026-10-21", "2026-11-02T06:00:00-05:00"),  # the Monday after: the first morning issue's
+        meeting("2026-10-27", "2026-11-07T06:00:00-05:00"),  # its Saturday
+        meeting("2026-10-28", "2026-11-08T06:00:00-05:00"),  # its Sunday: the next issue's
+        meeting("2026-11-02"), meeting("2026-11-09"), meeting("2026-11-15"), meeting("2026-11-16"),
+    ]
+    since = "2026-09-01T06:00:00-04:00"
+    # Friday: November 8's issue isn't built yet.
+    assert [i["sunday"] for i in digest.issues(meetings, since, date(2026, 11, 6), TZ)][:1] == ["2026-11-01"]
+    found = digest.issues(meetings, since, date(2026, 11, 7), TZ)
+    morning, evening = found[0], found[1]
+    assert (morning["sunday"], morning["url"]) == ("2026-11-08", "/digest/2026-11-09/")
+    assert (morning["minutes_from"], morning["minutes_to"]) == ("2026-11-02", "2026-11-07")
+    assert [m["date"] for m in morning["minutes"]] == ["2026-10-21", "2026-10-27"]
+    assert [m["date"] for m in morning["meetings"]] == ["2026-11-09", "2026-11-15"]
+    assert morning["send_at"] == datetime(2026, 11, 8, 7, 0, tzinfo=TZ)
+    # The last evening issue, as it was sent.
+    assert (evening["sunday"], evening["minutes_from"], evening["minutes_to"]) == ("2026-11-01", "2026-10-26", "2026-11-01")
+    assert [m["date"] for m in evening["minutes"]] == ["2026-10-20"]
+    assert evening["send_at"] == datetime(2026, 11, 1, 17, 30, tzinfo=TZ)
+    # The week after: Sunday to Saturday.
+    later = digest.issues(meetings, since, date(2026, 11, 14), TZ)[0]
+    assert (later["sunday"], later["minutes_from"], later["minutes_to"]) == ("2026-11-15", "2026-11-08", "2026-11-14")
+    assert [m["date"] for m in later["minutes"]] == ["2026-10-28"]
+    assert later["send_at"] == datetime(2026, 11, 15, 7, 0, tzinfo=TZ)
+
+
 def test_when_minutes_were_posted():
     """Minutes collected on the site's first day are the town's history, not minutes just posted."""
     meetings = [
