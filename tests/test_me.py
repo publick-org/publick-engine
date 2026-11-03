@@ -383,6 +383,8 @@ def test_maine_pages(me_site):
     assert "Calculated by Publick." in budget and "6,510 single-family homes" in budget
     assert "for a home and for each resident" in budget and "this page doesn't show an average bill" not in budget
     assert "<title>Lewiston, ME city budget and 2024 property tax rate</title>" in budget
+    assert re.search(r'<meta name="description" content="([^"]*)"', budget).group(1) == ("Lewiston&#39;s 2024 property tax rate is $31.77 per $1,000 of assessed value. "
+                   "What the property tax raises, and the average single-family tax bill.")
     assert "$31.77" in budget and "$3,436" in budget and "54% of market value" in budget
     assert "Maine Revenue Services" in budget and "Division of Local Services" not in budget
     assert (me_site / "budget" / "data" / "tax-rates.csv").read_text().startswith("tax_year,tax_rate,")

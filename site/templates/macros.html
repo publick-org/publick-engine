@@ -1,3 +1,15 @@
+{# Two or three names as a list in a sentence: "A and B", "A, B, and C". #}
+{% macro and_list(items) -%}
+{% if items | length == 1 %}{{ items[0] }}
+{%- elif items | length == 2 %}
+{#- Translators: two names in a list, such as "City Council and School Committee". -#}
+{% trans first=items[0], second=items[1] %}{{ first }} and {{ second }}{% endtrans %}
+{%- else %}
+{#- Translators: three names in a list, such as "Mayor, City Council, and School Committee". -#}
+{% trans first=items[0], second=items[1], third=items[2] %}{{ first }}, {{ second }}, and {{ third }}{% endtrans %}
+{%- endif %}
+{%- endmacro %}
+
 {% macro status_label(section) -%}
 {% if section.status != "live" %}<span class="status">{{ _("In development") }}</span>{% endif %}
 {%- endmacro %}
