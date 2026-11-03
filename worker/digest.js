@@ -24,19 +24,23 @@
 // DIGEST_TOWNS (its hostname; none, and nothing is sent) for its newest issue
 // (/digest/feed.xml), and sends it once its date has passed (Sunday at 7 AM,
 // the town's time; the engine's digest.SEND_TIME), within SEND_WINDOW_HOURS: an
-// issue isn't sent late, nor twice (an email with its subject sent since shortly
-// before its date). A town whose newest issue is still last week's at this
-// week's last try fails the run, so a week skipped (neither its Saturday nor
-// its Sunday build published) is seen. Each
-// run makes one request for each town, and a few more for each town sending.
+// issue isn't sent late, nor twice (each issue sent is recorded in DIGEST_STORE
+// by its town and week, before it's sent). A town whose newest issue is still
+// last week's at this week's last try fails the run, so a week skipped (neither
+// its Saturday nor its Sunday build published) is seen; so does an issue that
+// came, or couldn't be sent, until its window had closed, in the hour after.
+// Each run makes one request for each town, and a few more for each town
+// sending: Buttondown's tags are listed only when a town's tag isn't in
+// DIGEST_STORE yet, and its emails never.
 //
 // Testing: sendTest() sends an issue at once to the addresses given and no
 // subscriber, run by hand (worker/digest-test.js).
 //
 // Environment: BUTTONDOWN_SUBSCRIBE_KEY (the sites Worker's: subscribers read
 // and write, sending disabled) and BUTTONDOWN_SEND_KEY (the scheduler's:
-// emails read and write, sending enabled), secrets; DIGEST_TOWNS; and, optionally,
-// SIGNUP_LIMITER, a rate limiting binding for the sites Worker.
+// emails read and write, sending enabled), secrets; DIGEST_TOWNS; DIGEST_STORE, a KV
+// namespace bound to the scheduler (keys below); and, optionally, SIGNUP_LIMITER, a rate
+// limiting binding for the sites Worker.
 
 export const API = "https://api.buttondown.com/v1";
 export const SIGNUP_PATH = "/digest/subscribe";
@@ -63,6 +67,13 @@ const TEST_KEEP_MINUTES = 10;
 const LEAVE_ALONE = ["blocked", "complained", "undeliverable", "removed"];
 // Subscribers asked to confirm (again) when they sign up: they unsubscribed, or never confirmed.
 const CONFIRM_AGAIN = ["unsubscribed", "unactivated"];
+// DIGEST_STORE's keys: "sent/<host>/<the issue's Monday>", an issue sent (or being sent), kept SENT_KEEP_DAYS;
+// and "tag/<tag name>", the ID of a town's tag in Buttondown, or "" for a town with no tag yet when last looked,
+// which is looked for again after NO_TAG_RECHECK_HOURS.
+const SENT_KEEP_DAYS = 120;
+const NO_TAG_RECHECK_HOURS = 24;
+// Pages of Buttondown's tags read before the run fails rather than miss a town's tag: 100 a page.
+const TAG_PAGES = 100;
 const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
 
 function buttondown(key, path, init = {}) {
@@ -244,15 +255,36 @@ export function newestIssue(feed) {
   };
 }
 
-// Every page of a list from Buttondown's API.
-async function listAll(key, path, what) {
+// Every page of a list from Buttondown's API, up to maxPages; more fails, rather than leave some out.
+async function listAll(key, path, what, maxPages = 20) {
   const results = [];
-  for (let next = path, pages = 0; next && pages < 20; pages++) {
+  let next = path;
+  for (let pages = 0; next && pages < maxPages; pages++) {
     const page = await (await ok(await buttondown(key, next), what)).json();
     results.push(...page.results);
     next = page.next;
   }
+  if (next) throw new Error(`${what}: more than ${maxPages} pages`);
   return results;
+}
+
+// Where an issue's sending is recorded in DIGEST_STORE: its town and its week (its Monday, from its link),
+// or its due date for a link without one.
+export function sentKey(host, issue) {
+  const monday = issue.link.match(/\/digest\/(\d{4}-\d{2}-\d{2})\/?$/);
+  return `sent/${host}/${monday ? monday[1] : issue.due.toISOString().slice(0, 10)}`;
+}
+
+// A tag's ID in Buttondown, from DIGEST_STORE, or else from Buttondown's tags, listed once a run and stored;
+// null for a town no one has signed up for (Buttondown makes its tag with the first signup).
+async function tagId(env, name, cache) {
+  const stored = await env.DIGEST_STORE.get(`tag/${name}`);
+  if (stored !== null) return stored || null;
+  cache.tags ??= await listAll(env.BUTTONDOWN_SEND_KEY, "/tags?page_size=100", "listing tags", TAG_PAGES);
+  const tag = cache.tags.find((t) => t.name === name);
+  await env.DIGEST_STORE.put(`tag/${name}`, tag ? tag.id : "",
+    tag ? {} : { expirationTtl: NO_TAG_RECHECK_HOURS * 3600 });
+  return tag ? tag.id : null;
 }
 
 // An issue as Buttondown takes an email's body: the HTML as it is, in its "fancy" editor's mode. One
@@ -277,22 +309,18 @@ export async function sendTown(env, host, now, cache) {
     throw new Error(`this week's issue isn't in its feed by its last try (the newest is "${issue.subject}"), so this ` +
       "week isn't sent: the town's Saturday and Sunday builds may not have published, or the week had no meetings and no new minutes");
   }
-  if (late < 0 || late > SEND_WINDOW_HOURS * 3600_000) return { host, done: "not_due", subject: issue.subject };
-  const key = env.BUTTONDOWN_SEND_KEY;
-  // Sent already: an email with this subject, made since shortly before the issue was due. Buttondown
-  // takes a date here, not a time (it refused one on 2026-10-11), so the day before, from its start.
-  if (!cache.recent) {
-    const since = new Date(now - (SEND_WINDOW_HOURS + 24) * 3600_000).toISOString().slice(0, 10);
-    cache.recent = await listAll(key, `/emails?creation_date__start=${encodeURIComponent(since)}&excluded_fields=body`,
-      "listing recent emails");
-  }
-  if (cache.recent.some((e) => e.subject === issue.subject && e.status !== "deleted")) {
-    return { host, done: "already_sent", subject: issue.subject };
-  }
-  cache.tags ??= await listAll(key, "/tags?page_size=100", "listing tags");
-  const tag = cache.tags.find((t) => t.name === tagName(townOf(host), "en"));
+  // Due, or closed within the hour: an issue not sent in its window is said once, in the hour after it.
+  const window = SEND_WINDOW_HOURS * 3600_000;
+  if (late < 0 || late >= window + 3600_000) return { host, done: "not_due", subject: issue.subject };
+  const sentAs = sentKey(host, issue);
+  if ((await env.DIGEST_STORE.get(sentAs)) !== null) return { host, done: "already_sent", subject: issue.subject };
+  const tag = await tagId(env, tagName(townOf(host), "en"), cache);
   // No tag: no one has signed up for this town yet.
   if (!tag) return { host, done: "no_subscribers", subject: issue.subject };
+  if (late > window) {
+    throw new Error(`this week's issue ("${issue.subject}") wasn't sent within ${SEND_WINDOW_HOURS} hours of its time, ` +
+      "so it isn't sent: it came late (the town's Saturday and Sunday builds were late or failed), or each try failed");
+  }
   if (issue.body.includes(ADDRESS_PLACEHOLDER)) {
     throw new Error("the issue's footer has no mailing address yet (MAILING_ADDRESS in the engine's pipeline/digest.py)");
   }
@@ -303,7 +331,7 @@ export async function sendTown(env, host, now, cache) {
     template: TEMPLATE,
     status: "about_to_send",
     // Only the town's own readers: an email without this would go to every town's.
-    filters: { predicate: "and", groups: [], filters: [{ field: "subscriber.tags", operator: "contains", value: tag.id }] },
+    filters: { predicate: "and", groups: [], filters: [{ field: "subscriber.tags", operator: "contains", value: tag }] },
     // The town's site is the archive, and its pages take corrections; comments go through the site's contact.
     archival_mode: "disabled",
     commenting_mode: "disabled",
@@ -311,11 +339,22 @@ export async function sendTown(env, host, now, cache) {
     ...(monday ? { slug: `${townOf(host)}-${monday[1]}` } : {}),
   };
   if (!email.filters.filters.length || !email.filters.filters[0].value) throw new Error("an email without its town's tag");
-  // Buttondown asks each key once to confirm it means to send (API version 2026-04-01).
-  await ok(await buttondown(key, "/emails", {
-    method: "POST", headers: { "X-Buttondown-Live-Dangerously": "true" }, body: JSON.stringify(email),
-  }), "sending");
-  cache.recent.push({ subject: issue.subject, status: "about_to_send" });
+  // Recorded first, so a run stopped after Buttondown has the email doesn't send it again. A send Buttondown
+  // refuses is taken back, to be tried next hour; one whose answer never came isn't, as it may have gone.
+  await env.DIGEST_STORE.put(sentAs, JSON.stringify({ subject: issue.subject, at: now.toISOString() }),
+    { expirationTtl: SENT_KEEP_DAYS * 24 * 3600 });
+  let answer;
+  try {
+    // Buttondown asks each key once to confirm it means to send (API version 2026-04-01).
+    answer = await buttondown(env.BUTTONDOWN_SEND_KEY, "/emails", {
+      method: "POST", headers: { "X-Buttondown-Live-Dangerously": "true" }, body: JSON.stringify(email),
+    });
+  } catch (error) {
+    throw new Error(`sending: ${error.message}. It may have been sent, so it isn't tried again: see Buttondown's ` +
+      `emails, and to send it, delete ${sentAs} from DIGEST_STORE within its window`);
+  }
+  if (!answer.ok) await env.DIGEST_STORE.delete(sentAs);
+  await ok(answer, "sending");
   return { host, done: "sent", subject: issue.subject };
 }
 
@@ -325,6 +364,7 @@ export async function sendDigests(env, now = new Date()) {
   const towns = (env.DIGEST_TOWNS || "").split(/[\s,]+/).filter(Boolean);
   if (!towns.length) return [];
   if (!env.BUTTONDOWN_SEND_KEY) throw new Error("DIGEST_TOWNS names towns, but BUTTONDOWN_SEND_KEY isn't set");
+  if (!env.DIGEST_STORE) throw new Error("DIGEST_TOWNS names towns, but the DIGEST_STORE KV namespace isn't bound");
   const cache = {};
   const results = [];
   const failed = [];
