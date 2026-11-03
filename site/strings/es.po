@@ -3182,20 +3182,20 @@ msgstr "Cada cifra de %(town)s tiene un margen de error (±) porque viene de una
 #: site/templates/board.html
 #, python-format
 msgid ""
-"Each Sunday evening, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
+"Each Sunday morning, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
 "meetings for the week ahead, and what the meetings whose minutes came out decided."
 msgstr ""
 
 #: site/templates/board.html
 #, python-format
 msgid ""
-"Each Sunday evening, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
+"Each Sunday morning, the <a href=\"%(url)s\">weekly digest by email</a> lists every board's "
 "meetings for the week ahead."
 msgstr ""
 
 #: site/templates/digest_signup.html
 msgid ""
-"Each Sunday evening. First we'll email you to confirm your address, and every email has a link to"
+"Each Sunday morning. First we'll email you to confirm your address, and every email has a link to"
 " unsubscribe."
 msgstr ""
 
@@ -3826,8 +3826,10 @@ msgstr ""
 
 #: site/templates/digest_line.html
 #, python-format
-msgid "Free, every Sunday evening. <a href=\"%(issues)s\" hreflang=\"en\">Past issues</a>"
-msgstr "Gratis, cada domingo por la tarde. <a href=\"%(issues)s\" hreflang=\"en\">Resúmenes anteriores</a>"
+msgid "Free, every Sunday morning. <a href=\"%(issues)s\" hreflang=\"en\">Past issues</a>"
+msgstr ""
+"Gratis, cada domingo por la mañana. <a href=\"%(issues)s\" hreflang=\"en\">Resúmenes "
+"anteriores</a>"
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"

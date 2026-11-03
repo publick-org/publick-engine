@@ -20,7 +20,7 @@
     <label for="{{ form_id }}-website">{{ _("Leave this empty") }}</label>
     <input id="{{ form_id }}-website" name="website" type="text" tabindex="-1" autocomplete="off">
   </div>
-  <p class="small" id="{{ form_id }}-note">{% trans issues="/digest/" %}Free, every Sunday evening. <a href="{{ issues }}" hreflang="en">Past issues</a>{% endtrans %}
+  <p class="small" id="{{ form_id }}-note">{% trans issues="/digest/" %}Free, every Sunday morning. <a href="{{ issues }}" hreflang="en">Past issues</a>{% endtrans %}
   {%- if lang != "en" %} · {{ _("For now, the digest is in English.") }}{% endif %}</p>
 </form>
 {% endif %}

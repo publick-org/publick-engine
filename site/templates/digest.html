@@ -29,7 +29,7 @@
 {% if issue.minutes %}
 <h2 id="minutes">{{ _("Minutes posted") }}</h2>
 {# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
-<p>{% trans start=issue.minutes_from | date("plain"), end=issue.sunday | date("plain") %}Minutes this site collected from {{ start }}, to {{ end }}, and what each meeting decided.{% endtrans %}</p>
+<p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}Minutes this site collected from {{ start }}, to {{ end }}, and what each meeting decided.{% endtrans %}</p>
 <div class="credit">
   <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
 </div>
@@ -59,7 +59,7 @@
 {% if issue.recorded %}
 <h2 id="recorded">{{ _("From meetings' recordings") }}</h2>
 {# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
-<p>{% trans start=issue.minutes_from | date("plain"), end=issue.sunday | date("plain") %}Meetings this site summarized from their recordings from {{ start }}, to {{ end }}, before their minutes came.{% endtrans %}</p>
+<p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}Meetings this site summarized from their recordings from {{ start }}, to {{ end }}, before their minutes came.{% endtrans %}</p>
 <div class="credit">
   <p>{{ _("These are written by AI from a machine transcript of each meeting's recording. The minutes are the official record.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
 </div>
