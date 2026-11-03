@@ -229,13 +229,16 @@ class Calendar:
     an upcoming meeting's own page; wants(meeting, store, today), if given, says
     whether that page is worth a request this run. title_body(meeting), if given,
     is the board the calendar's parser reads from a recorded meeting's title, so
-    a record no longer listed is named as a new listing would be (rename())."""
+    a record no longer listed is named as a new listing would be (rename()). unmatched, if given, lists
+    the titles of the last events() that read like meetings but name none of the calendar's boards,
+    kept in the run's status so a board's new committee isn't left out unseen."""
     name: str
     events: Callable[..., list[dict]]
     owns: Callable[[dict], bool]
     details: Callable[..., None] | None = None
     wants: Callable[..., bool] | None = None
     title_body: Callable[[dict], str] | None = None
+    unmatched: list[str] | None = None
 
 
 def matches(settings: dict, title: str) -> bool:
@@ -545,32 +548,41 @@ def adopt_dated(store: dict, meeting: dict) -> None:
 
 
 def ical_calendar(config: dict) -> Calendar:
-    """A school district's (or another body's) calendar feed ([ical_meetings]): its meetings of
-    the boards in `bodies`, from `since` to days_ahead (default 90) days out, one request. A
-    repeating event is each of its meetings in that time. With uid_changes (a feed whose UIDs change
-    each time it's read), a meeting's id is its date and board (ical.dated_id), and one stored under a
-    UID it was read with before moves to it."""
+    """A school district's (or another body's) calendar feed ([ical_meetings]): the meetings of its
+    `board` and `committees` (and `bodies`, ical.body_for), from `since` to days_ahead (default 90)
+    days out, one request. A repeating event is each of its meetings in that time. With uid_changes
+    (a feed whose UIDs change each time it's read), a meeting's id is its date and board
+    (ical.dated_id), and one stored under a UID it was read with before moves to it. Titles in that
+    time that read like a meeting (ical.MEETING_LIKE) but are none of these are its unmatched."""
     settings = config["ical_meetings"]
+    unmatched: list[str] = []
 
     def events(client, today, store):
         last = today + timedelta(days=settings.get("days_ahead", 90))
         ahead = last.isoformat()
         found = []
+        unmatched.clear()
         feed = client.get(settings["ical_url"]).text
         for event in ical.parse_events(feed, until=last, tz=ZoneInfo(config["site"]["timezone"])):
-            meeting = ical.to_meeting(event, settings["bodies"])
-            if meeting and settings.get("uid_changes"):
+            meeting = ical.to_meeting(event, settings.get("bodies", {}), settings.get("board"),
+                                      settings.get("committees", []))
+            if meeting is None:
+                if (settings["since"] <= event["date"] <= ahead and ical.MEETING_LIKE.search(event["title"])
+                        and not ical.NOT_A_MEETING.search(event["title"])):
+                    unmatched.append(event["title"])
+                continue
+            if settings.get("uid_changes"):
                 ids = {m["id"] for m in found}
                 meeting["id"] = ical.dated_id(meeting["date"], meeting["body"])
                 if meeting["id"] in ids:
                     meeting["id"] = ical.dated_id(meeting["date"], meeting["body"], meeting["start_time"] or "0000")
                 adopt_dated(store, meeting)
-            if meeting and settings["since"] <= meeting["date"] <= ahead:
+            if settings["since"] <= meeting["date"] <= ahead:
                 found.append({**meeting, "source_url": meeting["source_url"] or settings["page_url"],
                               "source_name": settings["source_name"]})
         return found
 
-    return Calendar(settings["source_name"], events, lambda m: m.get("source") == ical.SOURCE)
+    return Calendar(settings["source_name"], events, lambda m: m.get("source") == ical.SOURCE, unmatched=unmatched)
 
 
 def schedule_calendar(config: dict) -> Calendar:
@@ -648,6 +660,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             failed.append(calendar.name)
             continue
         checked[calendar.name] = {"updated_at": stamp, "listed": len(events)}
+        if calendar.unmatched:
+            checked[calendar.name]["unmatched"] = sorted(set(calendar.unmatched))
         for event in events:
             seen[event["id"]] = calendar
             event["body"] = known_body(normalize_body(event["body"], aliases), known, config["town"]["name"])

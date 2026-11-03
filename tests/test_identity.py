@@ -283,6 +283,20 @@ def test_a_joint_meeting_posted_under_each_board_is_one_meeting():
     assert joint["id"] == "2026-10-06-joint-city-council-and-school-committee"
 
 
+def test_a_joint_meeting_naming_boards_by_their_letters():
+    """Manchester's joint budget meeting: CivicClerk names both boards in full, the school district's
+    calendar by their letters."""
+    city = record("civicclerk-1999", "Board of Mayor and Aldermen", source="civicclerk", time="18:00",
+                  title="Joint Meeting of the Board of Mayor and Aldermen & Board of School Committee")
+    school = record("ical-1", "Board of School Committee", source="ical", time="18:00",
+                    posted_title="Joint BMA and BOSC Meeting - Budget Discussion")
+    others = [record("2", "Board of Mayor and Aldermen", date="2026-10-01", time="18:00"),
+              record("3", "Board of School Committee", date="2026-10-02", time="18:00")]
+    found = identity.meetings(store_of(city, school, *others), {})
+    joint = next(m for m in found if m["records"][0]["date"] == DAY)
+    assert sorted(r["id"] for r in joint["records"]) == ["civicclerk-1999", "ical-1"]
+
+
 def test_a_board_the_town_names_as_joint_is_that_board():
     """Beverly's alias names the council's joint committee meeting; its title's other names aren't boards to add."""
     found = identity.meetings(store_of(

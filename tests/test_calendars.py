@@ -443,3 +443,18 @@ def test_a_link_for_the_whole_year_is_not_the_meeting_s_agenda(manchester_site):
     item = upcoming[upcoming.index("/meetings/2026-10-08-manchester-development-corporation/"):]
     item = item[:item.index("</li>")]
     assert "Agenda posted" not in item and "No agenda posted yet" in item
+
+
+@pytest.mark.parametrize("name, letters", [
+    ("Board of School Committee", {"bosc", "bsc"}),
+    ("School Committee of the Whole", {"scotw", "scw", "cotw"}),
+    ("Board of Mayor and Aldermen", {"bomaa", "bma", "maa"}),
+    ("School Board", set()),
+])
+def test_a_names_abbreviations(name, letters):
+    assert meeting_names.abbreviations(name) == letters
+
+
+def test_abbreviations_in_a_title_have_two_capitals():
+    assert meeting_names.abbreviated("Joint BMA and BoSC Meeting - Budget") == {"bma", "bosc"}
+    assert meeting_names.abbreviated("Student Advisory- Optional to SC members") == set()

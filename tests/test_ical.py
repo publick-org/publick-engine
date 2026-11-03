@@ -94,6 +94,21 @@ def test_the_meeting_page_says_where_it_s_from(beverly, tmp_path):
     assert m["listing"] == "school district's website"
 
 
+def test_the_about_page_names_the_board(config, beverly, tmp_path):
+    """A feed read by its board and committees, with no bodies."""
+    beverly["meetings"].pop("agenda_center")
+    beverly["ical_meetings"] = {**{k: v for k, v in beverly["ical_meetings"].items() if k != "bodies"},
+                                "board": "School Committee", "committees": ["School Committee of the Whole"]}
+    data = tmp_path / "data"
+    fetch_meetings.run(beverly, FakeDistrict(), data, now=NOW)
+    town = {**copy.deepcopy(config), "ical_meetings": beverly["ical_meetings"]}
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(build_site, "load_config", lambda slug: town)
+        build_site.build("beverly", tmp_path / "site", data_dir=data, now=NOW)
+    about = (tmp_path / "site" / "about" / "index.html").read_text()
+    assert "<strong>School Committee meetings:</strong> Beverly Public Schools" in about
+
+
 # ---- Ids --------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize("uid, expected", [
@@ -194,6 +209,10 @@ def test_meetings_stored_under_uids_move_to_their_dated_ids(westbrook, tmp_path)
     ({"since": "September"}, "since must be a date"),
     ({"bodies": ["School Committee"]}, "bodies must map"),
     ({"uid_changes": "yes"}, "uid_changes must be true or false"),
+    ({"bodies": None}, "needs board"),
+    ({"board": ["School Committee"]}, "board must be the board's name"),
+    ({"board": "School Committee", "committees": "Policy Subcommittee"}, "committees must be a list"),
+    ({"committees": ["School Committee Policy Subcommittee"]}, "committees needs board"),
 ])
 def test_config_is_checked(change, message):
     settings = {"ical_url": ICAL_URL, "page_url": PAGE_URL, "source_name": "Beverly Public Schools",
@@ -201,6 +220,91 @@ def test_config_is_checked(change, message):
     settings = {k: v for k, v in {**settings, **change}.items() if v is not None}
     with pytest.raises(SystemExit, match=message):
         ical.check({"slug": "beverly", "ical_meetings": settings})
+
+
+# ---- A board and its committees, named as the site names them: titles read without a list of them
+
+MANCHESTER = {"board": "Board of School Committee", "committees": [
+    "School Committee Finance and Facilities Committee", "School Committee Student Conduct Committee",
+    "School Committee Teaching and Learning Committee", "Special Committee on Athletics",
+    "School Committee Strategic Plan Ad Hoc Committee", "Committee on Joint School Buildings"]}
+BEVERLY = {"board": "School Committee", "committees": [
+    "School Committee of the Whole", "School Committee Policy Subcommittee",
+    "School Committee Finance and Facilities Subcommittee",
+    "School Committee Curriculum, Instruction and Student Life Subcommittee"]}
+SOMERVILLE = {"board": "School Committee", "committees": [
+    "School Committee Finance and Facilities Subcommittee",
+    "School Committee School Building Facilities and Maintenance Subcommittee"]}
+
+
+@pytest.mark.parametrize("settings, title, body", [
+    # The board in full, without "Board of", or by its letters.
+    (MANCHESTER, "Board of School Committee Meeting - Approval of the Budget", "Board of School Committee"),
+    (MANCHESTER, "BOSC - PUBLIC HEARING - BUDGET", "Board of School Committee"),
+    (MANCHESTER, "Inaugural Meeting of the BOSC", "Board of School Committee"),
+    (SOMERVILLE, "School Committee Executive Session", "School Committee"),
+    # A committee by the words of its name that aren't the board's, in any order, or by its letters.
+    (MANCHESTER, "Finance and Facilities", "School Committee Finance and Facilities Committee"),
+    (MANCHESTER, "Committee on Student Conduct - Non-Public Meeting", "School Committee Student Conduct Committee"),
+    (MANCHESTER, "Teaching and Learning Committee (Was C&I)", "School Committee Teaching and Learning Committee"),
+    (MANCHESTER, "BoSC Special Committee on Athletics Meeting", "Special Committee on Athletics"),
+    (MANCHESTER, "Strategic Plan AD HOC Committee", "School Committee Strategic Plan Ad Hoc Committee"),
+    (MANCHESTER, "Joint School Building Meeting", "Committee on Joint School Buildings"),
+    (BEVERLY, "Curriculum, Instruction & Student Life-Library", "School Committee Curriculum, Instruction and Student Life Subcommittee"),
+    (BEVERLY, "Finance & Facilities Meeting, BMS Library, 502 Cabot Street", "School Committee Finance and Facilities Subcommittee"),
+    (BEVERLY, "Policy Committee Meeting", "School Committee Policy Subcommittee"),
+    (BEVERLY, "School Committee COTW Retreat", "School Committee of the Whole"),
+    # Of two committees whose words a title has, the one named by more of them.
+    (SOMERVILLE, "School Building Facilities and Maintenance Subcommittee", "School Committee School Building Facilities and Maintenance Subcommittee"),
+    # A joint meeting, on the board's calendar, is the board's.
+    (BEVERLY, "Joint Meeting with City Council", "School Committee"),
+    (MANCHESTER, "Joint BMA and BOSC Meeting - Budget Discussion", "Board of School Committee"),
+    # Not a meeting, whoever's: a non-meeting (RSA 91-A:2, I) and office hours.
+    (MANCHESTER, "Non-Meeting of the Board of School Committee - Meeting with Legal Counsel for legal Advise", None),
+    (MANCHESTER, "Teaching and Learning Non Meeting with Legal Counsel", None),
+    (SOMERVILLE, "School Committee Office Hours", None),
+    # Other events, and two letters that aren't an abbreviation of the board's.
+    (BEVERLY, "Student Advisory- Optional to SC members", None),
+    (BEVERLY, "BMS Band Spring Concert, 502 Cabot Street", None),
+    (MANCHESTER, "Memorial Day", None),
+])
+def test_a_title_is_its_boards_or_a_committees(settings, title, body):
+    assert ical.body_for(title, {}, settings["board"], settings["committees"]) == body
+
+
+def test_bodies_names_what_the_rules_dont():
+    """Westbrook's "Ed Programs", for its Educational Programs Committee; and Winooski's board, whose
+    titles name it only as "Board"."""
+    assert ical.body_for("Ed Programs Committee Meeting", {"Ed Programs": "School Committee Educational Programs Committee"},
+                         "School Committee", ["School Committee Educational Programs Committee"]) \
+        == "School Committee Educational Programs Committee"
+    wsd = {"Board Meeting WSD": "School Board"}
+    assert ical.body_for("Regularly Scheduled Board Meeting WSD", wsd, "School Board") == "School Board"
+    assert ical.body_for("Heart of Winooski Board Meeting", wsd, "School Board") is None
+
+
+def test_a_committees_special_meeting():
+    finance = ical.to_meeting({"uid": "1@x", "date": "2026-03-23", "start_time": "17:00", "location": "", "url": None,
+                               "title": "Finance and Facilities Special Committee Meeting - Audit Approval",
+                               "cancelled": False}, {}, MANCHESTER["board"], MANCHESTER["committees"])
+    athletics = ical.to_meeting({"uid": "2@x", "date": "2026-03-23", "start_time": "17:00", "location": "", "url": None,
+                                 "title": "CANCELLED - BoSC Special Committee on Athletics Meeting",
+                                 "cancelled": False}, {}, MANCHESTER["board"], MANCHESTER["committees"])
+    assert (finance["special"], finance["title"]) == (True, "School Committee Finance and Facilities Committee Special Meeting")
+    assert (athletics["special"], athletics["status"]) == (False, "cancelled")
+
+
+def test_titles_like_a_meeting_of_no_listed_board_are_reported(beverly, tmp_path):
+    """With only the Committee of the Whole listed, the two other committees' meetings are reported, and
+    the feed's other events (holidays, early release days) aren't."""
+    beverly["ical_meetings"] = {**{k: v for k, v in beverly["ical_meetings"].items() if k != "bodies"},
+                                "board": "School Committee", "committees": ["School Committee of the Whole"],
+                                "since": "2025-09-01"}
+    status = fetch_meetings.run(beverly, FakeDistrict(), tmp_path, now=NOW)
+    assert status["calendars"]["Beverly Public Schools"]["unmatched"] == [
+        "CANCELED - Curriculum, Instruction & Student Life Meeting", "CANCELED - Finance & Facilities Meeting"]
+    bodies = {m["body"] for m in load_store(tmp_path).values() if m["source"] == "ical"}
+    assert bodies == {"School Committee", "School Committee of the Whole"}
 
 
 # ---- A repeating event (Winooski School District's Google calendar, saved and trimmed: tests/fixtures/ical_google.ics)
