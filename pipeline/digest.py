@@ -35,6 +35,7 @@ The form posts to the site's own /digest/subscribe, which only the network's Wor
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -49,8 +50,18 @@ EVENING_SEND_TIME = time(17, 30)
 # approved at the next one); 90 days let a town's first weeks list minutes from months before
 # (Burlington's "Week of October 12, 2026" had 35, from July on), so 45 since 2026-10-12.
 MINUTES_MAX_AGE = timedelta(days=45)
-# Meetings whose minutes the email lists in full; the rest are on the issue's page, a link away.
-EMAIL_MINUTES = 10
+# The meetings with decisions the email lists; the rest are on the issue's page, a link away.
+EMAIL_MEETINGS = 8
+# A main board's decisions the email lists by title (main_boards in build_site.py); another meeting is its headline
+# alone. The issue's page lists every main decision of every meeting.
+EMAIL_DECISIONS = 5
+# The longest the lead's headline runs in the email's subject, in characters, after it's cut to its first clause; a
+# longer one is cut at a word.
+SUBJECT_LENGTH = 60
+# The longest a board's name runs before the lead's headline in the subject; a longer one is left out.
+SUBJECT_NAME = 30
+# Outcomes that put a matter off rather than settle it (build_site.PUT_OFF), listed after those that settled one.
+PUT_OFF = ("referred", "tabled", "continued")
 # Issues in the feed, newest first.
 FEED_ISSUES = 12
 # Links in the email say where the reader came from, for the page counts (site/static/js/count.js).
@@ -63,6 +74,107 @@ EMAIL_REF = "digest-email"
 MAILING_ADDRESS = "c/o Buttondown, LLC, 406 W Franklin St. #201, Richmond, VA 23221"
 # Buttondown's tag for each reader's own unsubscribe link, filled in as it sends.
 UNSUBSCRIBE_TAG = "{{ unsubscribe_url }}"
+
+
+def meeting_name(m: dict) -> str:
+    """A meeting as the digest names it: its title where that says more than its board, " Meeting" and "Regular"
+    (a board's subcommittee, filed under the board), else its board; with the part of the day, for a board that
+    met twice that day."""
+    title = (m.get("title") or "").removesuffix(" Meeting")
+    extra = title[len(m["body"]):].strip() if title.startswith(m["body"] + " ") else ""
+    # "Regular" says no more than the board's name does.
+    name = title if extra and extra not in ("Regular", "Regular Session") else m["body"]
+    return f"{name} ({m['day_part']})" if m.get("day_part") else name
+
+
+# The most parts of a meeting's place the email gives, separated by commas: "Community Room, Beverly Police Department".
+PLACE_PARTS = 2
+
+
+def short_place(m: dict, town: str) -> str | None:
+    """Where a meeting is, short, for the email's list: its place's name or description (not the street address
+    alone), without the town, its state and ZIP code, which every meeting of the town shares, and at most its first
+    PLACE_PARTS parts. None where the listing doesn't say."""
+    place = (m.get("location_name") or m.get("location") or "").strip()
+    if not place:
+        return None
+    # The town only where it ends the place, or a parenthesis in it: "Beverly Police Department" keeps its name.
+    place = re.sub(rf",\s*{re.escape(town)}(,?\s*[A-Z]{{2}})?(\s+\d{{5}}(-\d{{4}})?)?(?=\s*(\)|$))", "", place).strip(" ,")
+    parts, depth, current = [], 0, ""
+    for ch in place:
+        depth += ch == "("
+        depth -= ch == ")"
+        if ch == "," and depth == 0:
+            parts.append(current.strip())
+            current = ""
+        else:
+            current += ch
+    parts.append(current.strip())
+    return ", ".join(p for p in parts[:PLACE_PARTS] if p) or None
+
+
+def main_decisions(m: dict) -> tuple[list, int]:
+    """A meeting's decisions residents look for, those that settled a matter first, then those that put one off
+    (PUT_OFF), each in the order taken; and how many routine ones there were besides (Decision.main False). A
+    summary that doesn't say which are routine has them all as main."""
+    decided = m["decisions"]["decided"]
+    routine = [d for d in decided if getattr(d, "main", None) is False]
+    if not routine or len(routine) == len(decided):
+        main, routine = list(decided), []
+    else:
+        main = [d for d in decided if getattr(d, "main", None) is not False]
+    settled = [d for d in main if getattr(d, "outcome", None) not in PUT_OFF]
+    return settled + [d for d in main if getattr(d, "outcome", None) in PUT_OFF], len(routine)
+
+
+def decided(issue: dict, main_boards: list[str]) -> dict:
+    """What an issue says was decided: the meetings whose minutes, or else whose recordings, came that week, the
+    strongest first: a main board's (main_boards), then by how many of their main decisions settled a matter, then
+    how many main decisions, then the newest. Meetings that decided nothing are listed apart ("quiet"). The lead is
+    the first, and its title (lead_title) its headline's first clause, for the email's subject (headline())."""
+    entries, quiet = [], []
+    for source, meetings in (("minutes", issue["minutes"]), ("recording", issue["recorded"])):
+        for m in meetings:
+            main, routine = main_decisions(m)
+            entry = {"meeting": m, "name": meeting_name(m), "source": source, "main": main, "routine": routine,
+                     "recommended": m["decisions"]["recommended"], "main_board": m["body"] in main_boards,
+                     "count": len(m["decisions"]["decided"])}
+            (entries if main or entry["recommended"] else quiet).append(entry)
+    settled = lambda e: sum(getattr(d, "outcome", None) not in PUT_OFF for d in e["main"])
+    entries.sort(key=lambda e: (e["main_board"], settled(e), len(e["main"]), len(e["recommended"]), e["meeting"]["date"]),
+                 reverse=True)
+    quiet.sort(key=lambda e: e["meeting"]["date"], reverse=True)
+    lead = entries[0] if entries else None
+    return {"entries": entries, "quiet": quiet, "lead": lead, "lead_title": headline(lead) if lead else None}
+
+
+# Past tenses that don't end in "ed", which a headline may start with (summarize.py asks it to start with the outcome).
+PAST_TENSE = {"overrode", "held", "heard", "set", "sent", "took", "gave", "made", "chose", "kept", "put", "cut", "let",
+              "paid", "sold", "bought", "began", "met", "won", "lost", "struck", "wrote", "drew", "upheld", "withdrew",
+              "swore", "spent", "found", "built", "brought", "laid", "led", "told", "said", "left", "ran", "saw"}
+# Where a headline's first clause ends: "Approved $200,000 soil cleanup at 448 High Street, and asked for ...".
+CLAUSE_END = re.compile(r",\s|;\s|\s(?:and|after|while)\s")
+
+
+def headline(entry: dict, limit: int = SUBJECT_LENGTH) -> str | None:
+    """The lead's headline as a newspaper's: its first clause (the summary's headline leads with what residents
+    look for), cut at a word to at most limit characters; after its board's name where that's at most SUBJECT_NAME
+    characters ("City Council approved ..."), or alone. None for a meeting without a headline."""
+    line = (entry["meeting"].get("preview_line") or "").strip().rstrip(".")
+    if not line:
+        return None
+    end = CLAUSE_END.search(line)
+    if end and len(line[:end.start()].split()) >= 4:
+        line = line[:end.start()]
+    if len(line) > limit:
+        line = line[:limit - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    first = line.split(" ", 1)[0]
+    # Only a name short enough for a subject, and only before what the board did ("Approved", "Overrode"):
+    # "City Council approved ...".
+    if len(entry["name"]) > SUBJECT_NAME or not (first.istitle() and first.isalpha()
+                                                 and (first.endswith("ed") or first.lower() in PAST_TENSE)):
+        return line
+    return f"{entry['name']} {first.lower()}{line[len(first):]}"
 
 
 def signup(config: dict) -> dict | None:

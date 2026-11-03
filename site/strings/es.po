@@ -190,6 +190,13 @@ msgid_plural "%(count)s decisions aren't shown: they couldn't be matched to the 
 msgstr[0] "%(count)s decisión no aparece: no se pudo comprobar con las actas."
 msgstr[1] "%(count)s decisiones no aparecen: no se pudieron comprobar con las actas."
 
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s decision on the meeting's page"
+msgid_plural "%(count)s decisions on the meeting's page"
+msgstr[0] ""
+msgstr[1] ""
+
 #: site/templates/meeting.html
 #, python-format
 msgid "%(count)s item isn't shown: it couldn't be matched to the transcript."
@@ -221,20 +228,13 @@ msgid_plural "%(count)s more decisions"
 msgstr[0] "%(count)s decisión más"
 msgstr[1] "%(count)s decisiones más"
 
-#. %(count)s is how many of a meeting's decisions aren't listed here, 1 or more.
-#: site/templates/digest.html site/templates/digest_email.html
+#. %(count)s is how many of a meeting's decisions the email doesn't list, 1 or more.
+#: site/templates/digest_email.html
 #, python-format
 msgid "%(count)s more decision on the meeting's page"
 msgid_plural "%(count)s more decisions on the meeting's page"
 msgstr[0] ""
 msgstr[1] ""
-
-#: site/templates/digest_email.html
-#, python-format
-msgid "%(count)s more meeting on the site"
-msgid_plural "%(count)s more meetings on the site"
-msgstr[0] "%(count)s reunión más en el sitio"
-msgstr[1] "%(count)s reuniones más en el sitio"
 
 #. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
 #: site/pages/meetings/decisions/index.html
@@ -265,6 +265,15 @@ msgstr[0] ""
 msgstr[1] ""
 "%(count)s votaciones nominales de estas actas no se muestran: su conteo y sus nombres no "
 "coinciden, o uno de los nombres no es de un miembro."
+
+#. %(count)s is how many routine decisions (approving minutes, accepting reports) a meeting made, 1 or
+#. more.
+#: site/templates/digest.html
+#, python-format
+msgid "%(count)s routine decision on the meeting's page"
+msgid_plural "%(count)s routine decisions on the meeting's page"
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/states/ct/schools.html
 #, python-format
@@ -2339,6 +2348,14 @@ msgstr ""
 "tasación antes de la tasación general, del archivo de parcelas de %(before)s del estado, más el "
 "%(percent)s%% de cualquier aumento (año %(year)s de %(years)s). Una baja no se aplica por etapas."
 
+#. %(start)s and %(end)s are dates, such as "October 5, 2026".
+#: site/templates/digest.html
+#, python-format
+msgid ""
+"At the meetings whose minutes this site collected from %(start)s, to %(end)s, and those it "
+"summarized from their recordings before their minutes came."
+msgstr ""
+
 #: pipeline/common_strings.py
 msgid "At-large"
 msgstr "Toda la ciudad"
@@ -2891,7 +2908,7 @@ msgstr "Comité de Personas Mayores"
 msgid "Committee recommendation"
 msgstr "Recomendación de comité"
 
-#: site/pages/meetings/decisions/index.html site/templates/digest_email.html
+#: site/pages/meetings/decisions/index.html site/templates/digest.html
 msgid "Committee recommendations to the City Council"
 msgstr "Recomendaciones de los comités al Concejo Municipal"
 
@@ -3080,7 +3097,7 @@ msgstr "diciembre"
 msgid "Decisions"
 msgstr "Decisiones"
 
-#: site/pages/meetings/decisions/index.html site/templates/digest.html
+#: site/pages/meetings/decisions/index.html
 msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one."
 msgstr ""
 "Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
@@ -3840,10 +3857,6 @@ msgstr "vie"
 msgctxt "weekday"
 msgid "Friday"
 msgstr "viernes"
-
-#: site/templates/digest.html site/templates/digest_email.html
-msgid "From meetings' recordings"
-msgstr "De las grabaciones de las reuniones"
 
 #: site/pages/meetings/decisions/index.html
 #, python-format
@@ -5140,16 +5153,6 @@ msgstr "%(board)s de %(town)s: reuniones desde %(month)s, con sus agendas."
 msgid "Meetings recorded here start in %(month)s."
 msgstr "Las reuniones registradas aquí empiezan en %(month)s."
 
-#. %(start)s and %(end)s are dates, such as "October 5, 2026".
-#: site/templates/digest.html
-#, python-format
-msgid ""
-"Meetings this site summarized from their recordings from %(start)s, to %(end)s, before their "
-"minutes came."
-msgstr ""
-"Reuniones que este sitio resumió a partir de sus grabaciones del %(start)s al %(end)s, antes de "
-"que llegaran sus actas."
-
 #: site/pages/data/index.html
 msgid "Meetings, summaries, and decisions"
 msgstr "Reuniones, resúmenes y decisiones"
@@ -5253,21 +5256,6 @@ msgstr ""
 "reunión. Las recomendaciones de los comités aparecen aparte. Solo son definitivas cuando el "
 "Concejo Municipal vota."
 
-#. in the weekly digest's email; %(count)s is how many meetings' minutes it lists.
-#: site/templates/digest_email.html
-#, python-format
-msgid "Minutes from %(count)s meeting, with what it decided."
-msgid_plural "Minutes from %(count)s meetings, with what they decided."
-msgstr[0] ""
-msgstr[1] ""
-
-#: site/templates/digest_email.html
-#, python-format
-msgid "Minutes from %(count)s more meeting on the site"
-msgid_plural "Minutes from %(count)s more meetings on the site"
-msgstr[0] ""
-msgstr[1] ""
-
 #. %(where)s is where the minutes would be posted, such as "city's Agenda Center"; %(num)s is a number
 #. of days.
 #: site/templates/meeting.html
@@ -5285,7 +5273,7 @@ msgstr[1] ""
 "Las actas todavía no se han publicado, %(num)s días después de la reunión. Dónde se publicarán: "
 "<a href=\"%(url)s\">%(where)s</a>."
 
-#: site/templates/digest.html site/templates/digest_email.html site/templates/macros.html
+#: site/templates/macros.html
 msgid "Minutes posted"
 msgstr "Actas publicadas"
 
@@ -5299,12 +5287,6 @@ msgstr "Actas publicadas en %(where)s (PDF, %(size)s, en inglés)."
 #: pipeline/build_site.py
 msgid "Minutes posted."
 msgstr "Actas publicadas."
-
-#. %(start)s and %(end)s are dates, such as "October 5, 2026".
-#: site/templates/digest.html
-#, python-format
-msgid "Minutes this site collected from %(start)s, to %(end)s, and what each meeting decided."
-msgstr ""
 
 #: site/templates/meeting.html
 msgid "Minutes usually come out after the board approves them at a later meeting."
@@ -5524,8 +5506,12 @@ msgstr ""
 "Todavía no hay decisiones registradas. Esta página se irá llenando a medida que se publiquen "
 "actas."
 
-#: site/templates/digest.html site/templates/digest_email.html
-msgid "No decisions recorded in these minutes."
+#: site/templates/digest.html
+msgid "No decisions recorded"
+msgstr ""
+
+#: site/templates/digest_email.html
+msgid "No decisions recorded:"
 msgstr ""
 
 #: site/pages/streets/index.html
@@ -8647,14 +8633,6 @@ msgstr ""
 "El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
 "oficina."
 
-#: site/templates/digest.html site/templates/digest_email.html
-msgid ""
-"These are written by AI from a machine transcript of each meeting's recording. The minutes are "
-"the official record."
-msgstr ""
-"Esto lo escribe la IA a partir de una transcripción automática de la grabación de cada reunión. "
-"Las actas son el registro oficial."
-
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
 #, python-format
@@ -9196,7 +9174,7 @@ msgstr "Véala en <a href=\"%(url)s\">YouTube</a>."
 msgid "Watch or take part online: <a href=\"%(url)s\">join by Zoom</a>."
 msgstr "Vea o participe en línea: <a href=\"%(url)s\">únase por Zoom</a>."
 
-#: site/templates/digest.html site/templates/digest_email.html
+#: site/templates/digest.html
 msgid "Watch the recording"
 msgstr "Ver la grabación"
 
@@ -9245,13 +9223,12 @@ msgstr "Resumen semanal"
 msgid "Weekly digest · Week of %(when)s"
 msgstr ""
 
-#. in the weekly digest's email; %(count)s is how many meetings it lists from their recordings.
 #: site/templates/digest_email.html
 #, python-format
-msgid "What %(count)s meeting decided, from its recording."
-msgid_plural "What %(count)s meetings decided, from their recordings."
-msgstr[0] "Lo que decidió %(count)s reunión, según su grabación."
-msgstr[1] "Lo que decidieron %(count)s reuniones, según sus grabaciones."
+msgid "What %(count)s more meeting decided, on the site"
+msgid_plural "What %(count)s more meetings decided, on the site"
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/pages/data/index.html
 #, python-format
@@ -9266,12 +9243,6 @@ msgstr ""
 #, python-format
 msgid "What %(site)s is, where its data comes from, and how to report a mistake."
 msgstr "Qué es %(site)s, de dónde vienen sus datos y cómo informar un error."
-
-#: site/templates/digest_email.html
-msgid ""
-"What each meeting decided is written by AI from its minutes. Check the minutes before relying on "
-"it."
-msgstr ""
 
 #: site/pages/data/index.html
 msgid "What it holds"
@@ -9379,7 +9350,7 @@ msgstr ""
 msgid "What this site doesn't cover"
 msgstr "Lo que este sitio no incluye"
 
-#: site/templates/meeting.html
+#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
 msgid "What was decided"
 msgstr "Qué se decidió"
 
@@ -9552,6 +9523,18 @@ msgstr "Palabras que aparecen en las agendas, las actas y sus resúmenes, y qué
 #, python-format
 msgid "Works with screen readers, keyboards, and zoom up to 200%%."
 msgstr "Funciona con lectores de pantalla, teclados y zoom de hasta 200%%."
+
+#: site/templates/digest.html
+msgid ""
+"Written by AI from each meeting's minutes, or from its recording until the minutes come, and "
+"checked against them. The minutes are the official record."
+msgstr ""
+
+#: site/templates/digest_email.html
+msgid ""
+"Written by AI from each meeting's minutes, or from its recording until the minutes come. The "
+"minutes are the official record."
+msgstr ""
 
 #: site/templates/meeting.html
 msgctxt "roll call"
@@ -9792,6 +9775,10 @@ msgid ""
 msgstr ""
 "en las actas, decisions: cada una con su tipo (“decided”, decidida; “recommended”, recomendada; o"
 " “procedural”, de trámite) y su texto;"
+
+#: site/templates/digest.html site/templates/digest_email.html
+msgid "from its recording"
+msgstr ""
 
 #: site/pages/data/index.html
 msgid "headline and summary, in English;"

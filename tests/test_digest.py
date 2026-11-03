@@ -113,7 +113,7 @@ def test_digest_pages(site_dir):
     # The fixture's calendar was last read September 27, so the week's list may be missing meetings.
     assert "hasn't been able to check the city's meeting listings since September 27, 2026" in page
     # The minutes collected so far are the town's history, collected the first day.
-    assert 'id="minutes"' not in page
+    assert 'id="decided"' not in page
     assert 'href="/digest/"' in (site_dir / "index.html").read_text()
     assert 'href="/digest/"' in (site_dir / "about" / "index.html").read_text()
     sitemap = (site_dir / "sitemap.xml").read_text()
@@ -172,21 +172,33 @@ def with_new_minutes(data_dir):
 
 def test_new_minutes_and_their_decisions(with_new_minutes):
     page = (with_new_minutes / "digest" / "2026-10-05" / "index.html").read_text()
-    minutes = page[page.index('id="minutes"'):]
-    assert 'href="/meetings/2026-08-25-city-council/"' in minutes
-    assert "Approved the site plan for 12 Main St" in minutes
-    assert "pulled from each meeting's minutes by AI" in minutes
-    assert "2 more decisions on the meeting's page" in minutes
+    decided = page[page.index('id="decided"'):]
+    assert '<h3><a href="/meetings/2026-08-25-city-council/">City Council</a></h3>' in decided
+    # Its headline, then every main decision as a row with its outcome, said once.
+    assert '<p class="summary">Approved a site plan for 12 Main St.</p>' in decided
+    assert decided.count('<span class="outcome">Approved</span>') == 7
+    assert "The site plan for 19 Main St" in decided
+    # That it's written by AI is said once, above; a meeting checked in full says nothing more.
+    assert decided.count("Written by AI from each meeting's minutes") == 1 and 'class="small checked"' not in decided
     feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
     titles = [t.firstChild.data for t in feed.getElementsByTagName("title")]
-    assert titles.index("Week of October 5, 2026") < titles.index("Week of September 28, 2026")
+    # The week's lead as a headline, for the email's subject; a week without decisions keeps its date.
+    assert titles.index("City Council approved a site plan for 12 Main St") < titles.index("Week of September 28, 2026")
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
-    assert re.search(r'<p style="[^"]*">\d+ meetings? this week\. Minutes from 1 meeting, with what it decided\.</p>', body)
-    assert body.count("written by AI from its minutes") == 1
-    assert "more meeting on the site" not in body
-    # The decisions not listed are a link away.
+    # It leads with the week's strongest meeting, whose headline isn't said again below.
+    lead = re.search(r'<p style="[^"]*font-size:18px[^"]*"><a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
+                     r'\?ref=digest-email" style="[^"]*">City Council</a><span style="[^"]*"> · Aug 25</span><br>'
+                     r'Approved a site plan for 12 Main St\.</p>', body)
+    assert lead and body.count("Approved a site plan for 12 Main St.") == 1
+    assert body.index("<h2") > lead.end()
+    # Where each meeting of the week is.
+    assert "<span style=\"color:#545c65;\"> · City Council Committee Room</span>" in body
+    assert body.count("Written by AI from each meeting's minutes") == 1
+    # A main board's decisions by row, up to EMAIL_DECISIONS, and the rest a link away.
+    assert body.count(">The site plan for ") == digest.EMAIL_DECISIONS
     assert re.search(r'<a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/\?ref=digest-email"'
                      r' style="[^"]*">2 more decisions on the meeting\'s page</a>', body)
+    assert "more meeting decided" not in body
 
 
 def test_the_signup_form_posts_to_the_site_itself(site_dir):
@@ -314,18 +326,17 @@ def test_a_signup_needs_who_keeps_the_addresses(config):
 
 
 def test_the_email_lists_some_meetings_minutes_and_links_the_rest(with_new_minutes, data_dir, monkeypatch):
-    """A week with more meetings' minutes than digest.EMAIL_MINUTES: the email lists that many, and
+    """A week with more meetings' decisions than digest.EMAIL_MEETINGS: the email lists that many, and
     links the issue's page, which lists them all."""
-    monkeypatch.setattr(digest, "EMAIL_MINUTES", 0)
+    monkeypatch.setattr(digest, "EMAIL_MEETINGS", 0)
     out = Path(tempfile.mkdtemp(prefix="publick-digest-")) / "site"
     build_site.build("gloucester", out, data_dir=with_new_minutes.parent / "data", now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
     body = minidom.parse(str(out / "digest" / "feed.xml")).getElementsByTagName("item")[0] \
         .getElementsByTagName("description")[0].firstChild.data
-    assert "Minutes from 1 meeting, with what it decided." in body
-    assert "Approved the site plan for 12 Main St" not in body
-    assert re.search(r'<a href="https://gloucester-ma\.publick\.org/digest/2026-10-05/\?ref=digest-email" style="[^"]*">'
-                     r'Minutes from 1 more meeting on the site</a>', body)
-    assert "Approved the site plan for 12 Main St" in (out / "digest" / "2026-10-05" / "index.html").read_text()
+    assert "The site plan for 14 Main St" not in body
+    assert re.search(r'<a href="https://gloucester-ma\.publick\.org/digest/2026-10-05/\?ref=digest-email#decided" style="[^"]*">'
+                     r'What 1 more meeting decided, on the site</a>', body)
+    assert "The site plan for 14 Main St" in (out / "digest" / "2026-10-05" / "index.html").read_text()
 
 
 @pytest.mark.parametrize("lang, label, placeholder, button, note", [
@@ -354,3 +365,100 @@ def test_the_signup_in_each_language(lang, label, placeholder, button, note):
     # Nothing for a town without the signup.
     with i18n.use(lang):
         assert env.get_template("digest_line.html").render(**{**context, "digest_signup": None}).strip() == ""
+
+
+def decision(text: str, outcome: str = "approved", main: bool | None = True, title: str | None = None):
+    return build_site.Decision(text, outcome=outcome, title=title, main=main)
+
+
+def decided_meeting(body: str, day: str, decided: list, recommended: list | None = None, **extra) -> dict:
+    return {"body": body, "date": day, "title": f"{body} Meeting", "url": f"/meetings/{day}-x/",
+            "decisions": {"decided": decided, "recommended": recommended or [], "procedural": []}, **extra}
+
+
+def test_what_was_decided_puts_the_strongest_meeting_first():
+    """A main board's meeting first, then the one that settled the most; a meeting that decided nothing apart; the lead
+    is the first, as a headline."""
+    council = decided_meeting("City Council", "2026-10-13", [
+        decision("Approved the minutes", main=False), decision("Tabled the parcel sale", "tabled"),
+        decision("Approved the school repairs, 7-0", title="School repairs"), decision("Denied the permit rule", "denied"),
+    ], preview_line="Approved repairs at two schools, and denied a permit rule for student housing.")
+    planning = decided_meeting("Planning Board", "2026-10-14", [decision(f"Approved site plan {n}") for n in range(4)])
+    licensing = decided_meeting("Licensing Board", "2026-10-15", [decision("Approved a license")])
+    quiet = decided_meeting("Conservation Commission", "2026-10-07", [], preview_line="Heard a wetlands update.")
+    recorded = decided_meeting("Board of Health", "2026-10-16", [decision("Approved a fee", main=None)])
+    issue = {"minutes": [licensing, quiet, planning, council], "recorded": [recorded]}
+    found = digest.decided(issue, ["City Council", "School Committee"])
+    assert [e["meeting"]["body"] for e in found["entries"]] == ["City Council", "Planning Board", "Board of Health", "Licensing Board"]
+    assert [e["meeting"]["body"] for e in found["quiet"]] == ["Conservation Commission"]
+    first = found["entries"][0]
+    # Its main decisions, those that settled a matter first; the routine one counted, not listed.
+    assert [str(d) for d in first["main"]] == ["Approved the school repairs, 7-0", "Denied the permit rule", "Tabled the parcel sale"]
+    assert (first["routine"], first["count"], first["source"]) == (1, 4, "minutes")
+    assert found["entries"][2]["source"] == "recording"
+    assert found["lead"] is first
+    assert found["lead_title"] == "City Council approved repairs at two schools"
+    assert digest.decided({"minutes": [quiet], "recorded": []}, [])["lead"] is None
+
+
+def test_main_decisions_without_labels_are_all_of_them():
+    """Summaries from before decisions were labeled main or routine, and those that call every one routine, list all."""
+    m = decided_meeting("City Council", "2026-10-13", [decision("A", main=None), decision("B", "referred", main=None)])
+    assert ([str(d) for d in digest.main_decisions(m)[0]], digest.main_decisions(m)[1]) == (["A", "B"], 0)
+    m = decided_meeting("City Council", "2026-10-13", [decision("A", main=False), decision("B", main=False)])
+    assert digest.main_decisions(m) == (m["decisions"]["decided"], 0)
+
+
+@pytest.mark.parametrize("line, name, expected", [
+    ("Approved $200,000 soil cleanup at 448 High Street, and asked for a draft ban on black plastic takeout containers.",
+     "City Council", "City Council approved $200,000 soil cleanup at 448 High Street"),
+    ("Overrode the mayor's veto of the Boston Avenue zoning amendment after a motion to require permits failed.",
+     "City Council", "City Council overrode the mayor's veto of the Boston Avenue zoning…"),
+    ("PILOT framework sent to committee.", "City Council", "PILOT framework sent to committee"),
+    ("Set October 27 hearings on 37 Enon Street apartments.", "Planning Board", "Planning Board set October 27 hearings on 37 Enon Street apartments"),
+    ("Approved a license.", "City Council Resident Services and Public Engagement Committee", "Approved a license"),
+    ("Tabled it, and more.", "City Council", "City Council tabled it, and more"),
+    ("", "City Council", None),
+])
+def test_the_lead_as_a_headline(line, name, expected):
+    """The lead's headline cut to its first clause, after its board's name where that's short and the headline starts
+    with what the board did."""
+    entry = {"meeting": {"preview_line": line}, "main_board": True, "name": name}
+    assert digest.headline(entry) == expected
+    assert expected is None or len(expected) <= digest.SUBJECT_NAME + 1 + digest.SUBJECT_LENGTH
+
+
+@pytest.mark.parametrize("title, day_part, expected", [
+    ("City Council Regular Meeting", None, "City Council"),
+    ("City Council Meeting", None, "City Council"),
+    ("City Council Committee of the Whole", None, "City Council Committee of the Whole"),
+    ("Special Meeting", None, "City Council"),
+    ("City Council Meeting", "evening", "City Council (evening)"),
+])
+def test_meeting_names(title, day_part, expected):
+    assert digest.meeting_name({"body": "City Council", "title": title, "day_part": day_part}) == expected
+
+
+def test_every_issue_email_is_sendable(with_new_minutes):
+    """Each issue's email has its unsubscribe link and postal address, no section left empty, and stays under the size
+    Gmail cuts an email at (102 KB), past which the footer, with the unsubscribe link, would be hidden."""
+    feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
+    for item in feed.getElementsByTagName("item"):
+        body = item.getElementsByTagName("description")[0].firstChild.data
+        assert len(body.encode()) < 100_000
+        assert digest.UNSUBSCRIBE_TAG in body and digest.MAILING_ADDRESS in body
+        for heading in re.finditer(r"<h2[^>]*>([^<]*)</h2>", body):
+            after = body[heading.end():].split("<h2", 1)[0]
+            assert re.search(r"<a |<td", after), f"an empty section: {heading.group(1)}"
+
+
+@pytest.mark.parametrize("place, expected", [
+    ("Temporary Beverly City Hall, 1st Floor Conference Room, 175 Cabot Street, Beverly, MA", "Temporary Beverly City Hall, 1st Floor Conference Room"),
+    ("Beverly Senior Center (90 Colon Street, Beverly)", "Beverly Senior Center (90 Colon Street)"),
+    ("Community Room, Beverly Police Department, 175 Elliott Street, Beverly", "Community Room, Beverly Police Department"),
+    ("City Hall, Beverly, MA 01915", "City Hall"),
+    ("", None),
+])
+def test_where_a_meeting_is_in_the_email(place, expected):
+    """A meeting's place, short: without the town, its state and ZIP code, and at most its first two parts."""
+    assert digest.short_place({"location": place}, "Beverly") == expected
