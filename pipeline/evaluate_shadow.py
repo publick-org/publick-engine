@@ -66,18 +66,19 @@ def checked(item: dict, record: dict, words: frozenset) -> dict:
 
 def published(item: dict, words: frozenset) -> dict:
     """The network's summary, checked again, with its tokens and its cost at its model's list price
-    ("cost") and as paid ("paid": at the batch price, if it was made in one; None if not recorded)."""
+    ("cost") and as paid ("paid": at the batch price, if it was made in one). Only a summary saved when
+    records carried their tokens and cost has them; for any other, each is None."""
     record = item["record"]
     out = {"model": record.get("model"), "prompt_version": record.get("prompt_version"),
-           "saved_result": (item.get("network_fact_check") or {}).get("result"), **checked(item, record, words)}
+           "saved_result": (item.get("network_fact_check") or {}).get("result"), **checked(item, record, words),
+           "usage": None, "cost": None, "paid": record.get("cost")}
     usage = record.get("usage")
     if usage:
         out["usage"] = usage
         try:
             out["cost"] = round(summarize.cost(usage, evaluate.prices_for(record.get("model") or "")), 6)
         except SystemExit:
-            out["cost"] = None
-        out["paid"] = record.get("cost")
+            pass
     return out
 
 

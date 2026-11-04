@@ -225,7 +225,8 @@ def media(client, source: dict, recording: dict) -> dict | None:
 
 
 def transcript(client, source: dict, recording: dict, storage=None, post=requests.post) -> tuple[str, dict] | None:
-    """The video's transcript and how it was made, or None while it can't be made yet: no key, still live, its
+    """The video's transcript and how it was made (the model; not the tokens it took, since the recording's
+    record is public), or None while it can't be made yet: no key, still live, its
     length not known, or Gemini unavailable for now (the day's requests used up, or busy). The parts answered
     so far are kept in storage (transcripts/<id>.parts.json), so a try cut short goes on from where it
     stopped."""
@@ -246,9 +247,9 @@ def transcript(client, source: dict, recording: dict, storage=None, post=request
             storage.put(recordings.TRANSCRIPT_FOLDER, parts, json.dumps(done).encode("utf-8"))
 
     try:
-        text, usage = gemini.transcribe(post, recording["video_id"], int(recording["seconds"]), recording["title"],
+        text, _ = gemini.transcribe(post, recording["video_id"], int(recording["seconds"]), recording["title"],
                                         recording["date"], key, model, done=done, keep=keep,
                                         start=int(recording.get("video_start") or 0))
     except gemini.Unavailable:
         return None
-    return text, {"model": model, "usage": usage}
+    return text, {"model": model}

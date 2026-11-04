@@ -59,17 +59,25 @@ made again this month, failed_cost, transcript_cost, and translation_cost and tr
 and a batch of drafts as one). Making it reads the one month's lines, never the summaries. A month
 with no lines keeps its row as it is, as do the months before the town had a log.
 
+The summary, transcription, and translation records saved in the town's data folder, and its
+drafts file, carry no cost or token counts (ON_RECORDS; without_costs() takes them out of a record
+as it's saved): the folder is public, and the lines hold each request's. A record saved by an
+older version of the engine may still have them; it's read as it is, and loses them when it's saved
+again.
+
 A town from before the log starts one with the current month, once: a seed object with a line for
 each summary and translation saved this month, and each batch of drafts, at the cost its file
-records, and one seed line with the rest of the month's row (failed, transcript, and replaced costs,
-which no file records). The month's total goes on from what it was. The row comes from the ledger
-the town had: the private store's, which the network's budget step imports from the town's
+records (none, for a record saved without one), and one seed line with the rest of the month's row
+(failed, transcript, and replaced costs, which no file records, and whatever of its cost and
+translation_cost the files' lines don't account for). The month's total goes on from what it was.
+The row comes from the ledger the town had: the private store's, which the network's budget step imports from the town's
 data/summary-costs.json before any town runs (import_ledger), or else that file itself. With the
 private store, the local data/summary-costs.json is deleted once the store has the town's log, so
 the run's data commit takes it out of git.
 
-pipeline.summarize's `ledger --check` compares the lines with the costs the summary and translation
-files record, and lists every difference without changing either.
+pipeline.summarize's `ledger --check` compares the lines with the summary, transcription, and
+translation files saved in each month (and, for a file that records a cost, that cost), and lists
+every difference without changing either.
 
 Nothing here prints what anything cost: the network's run logs are public.
 """
@@ -93,6 +101,9 @@ COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced
 # The kinds of line that count as translation_cost.
 TRANSLATING = ("translation", "draft", "review")
 KINDS = ("summary", "transcript", "failed", "seed") + TRANSLATING
+# What a request cost and the tokens it took, which records saved in the town's data folder don't carry:
+# its lines in the log hold them (the module docstring).
+ON_RECORDS = ("cost", "usage", "replaced_cost", "transcript_cost", "transcript_usage")
 # In data/costs/: nothing in the folder is committed, this file included.
 GITIGNORE = "*\n"
 # The run copies waiting to be uploaded to the private store, under data/costs/.
@@ -106,6 +117,12 @@ PRIVATE_KEYS = ("PRIVATE_ENDPOINT", "PRIVATE_BUCKET", "PRIVATE_ACCESS_KEY_ID", "
 # The network's monthly budget for summaries and translations, and a month with its own
 # (YYYY-MM=amount, several separated by commas). Secrets, so the run logs never show them.
 BUDGET_KEYS = ("SUMMARY_BUDGET", "SUMMARY_BUDGET_MONTH")
+
+
+def without_costs(record: dict) -> dict:
+    """A record as it's saved in the town's data folder: without what its requests cost or the tokens they
+    took (ON_RECORDS)."""
+    return {k: v for k, v in record.items() if k not in ON_RECORDS}
 
 
 class StoreError(RuntimeError):
@@ -388,7 +405,8 @@ def totals(entries: list[dict]) -> dict:
                 translated.add((entry.get("lang"), entry.get("doc")))
             elif kind == "draft":
                 drafts += 1
-    row = {"cost": round(sum(latest.values()), 4), "documents": len(latest)}
+    # A seed's cost is what the summaries' own seed lines didn't account for.
+    row = {"cost": round(sum(latest.values()) + paid["cost"], 4), "documents": len(latest)}
     if translated or drafts or paid["translation_cost"]:
         row.update(translation_cost=round(paid["translation_cost"], 4), translations=len(translated) + drafts)
     for key in ("failed_cost", "transcript_cost", "replaced_cost"):

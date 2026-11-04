@@ -224,15 +224,37 @@ def test_a_translation_cut_off_is_logged_as_failed(tmp_path):
     assert ledger(tmp_path)[MONTH]["translation_cost"] == before["translation_cost"]
 
 
-def old_ledger(tmp_path, month):
-    """The town as the engine before the log left it: its summaries, translations, and drafts, and a
-    ledger whose row for the month is the recount and what no file records; no costs/ folder."""
+def with_recorded_costs(data_dir, month=MONTH):
+    """The town's files as the engine before the log saved them: each summary, translation, and batch of
+    drafts with the cost of its requests, taken from the log's lines."""
+    logged = lines(data_dir, month)
+    for e in logged:
+        if e["kind"] == "summary":
+            file = data_dir / "summaries" / f"{e['doc']}.json"
+            file.write_text(json.dumps({**json.loads(file.read_text()), "cost": e["cost"]}))
+    for file in (data_dir / "summaries").glob("*/*.json"):
+        paid = sum(e["cost"] for e in logged
+                   if e["kind"] in cost_log.TRANSLATING and (e.get("lang"), e.get("doc")) == (file.parent.name, file.stem))
+        file.write_text(json.dumps({**json.loads(file.read_text()), "cost": round(paid, 6)}))
+    for file in (data_dir / "strings").glob("*.json"):
+        saved = json.loads(file.read_text())
+        (batch,) = saved["batches"]
+        batch["cost"] = round(sum(e["cost"] for e in logged
+                                  if e["kind"] in cost_log.TRANSLATING and e.get("lang") == file.stem and "doc" not in e), 6)
+        file.write_text(json.dumps(saved))
+
+
+def old_ledger(tmp_path, month, recorded=True):
+    """The town as the engine before the log left it: its summaries, translations, and drafts, each with
+    its cost (unless not recorded), and a ledger whose row for the month is theirs and what no file
+    records; no costs/ folder."""
     config = spanish_town(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=4, now=FETCHED_AT)
-    shutil.rmtree(tmp_path / "costs")
-    settings = summarize.summary_settings(config)
-    row = {**summarize.recount(tmp_path, settings, month), "failed_cost": 0.25, "transcript_cost": 0.5,
+    if recorded:
+        with_recorded_costs(tmp_path, month)
+    row = {**cost_log.totals(lines(tmp_path, month)), "failed_cost": 0.25, "transcript_cost": 0.5,
            "replaced_cost": 0.125}
+    shutil.rmtree(tmp_path / "costs")
     (tmp_path / summarize.LEDGER).write_text(json.dumps({"2026-08": {"cost": 9.0, "documents": 99}, month: row}))
     return config, row
 
@@ -257,6 +279,22 @@ def test_a_town_from_before_the_log_starts_it_where_its_month_was(tmp_path, monk
     assert after["documents"] == row["documents"] + 1
     assert summarize.month_cost(ledger(tmp_path), MONTH) == pytest.approx(total + REQUEST + TRANSLATION + REVIEW,
                                                                          abs=1e-4)
+
+
+def test_a_town_whose_files_record_no_costs_starts_its_log_where_its_month_was(tmp_path):
+    """Files saved without costs (as every file is now), and a ledger with the month's row, but no log (a
+    town's own folder in a fresh checkout): the log starts from the ledger's row."""
+    config, row = old_ledger(tmp_path, MONTH, recorded=False)
+    settings = summarize.summary_settings(config)
+    log = summarize.open_log(tmp_path, settings, FETCHED_AT)
+    kinds = [e["kind"] for e in lines(tmp_path)]
+    assert kinds.count("summary") == 4 and kinds.count("translation") == 4 and kinds.count("draft") == 1
+    assert all(e["cost"] == 0 for e in lines(tmp_path) if e["kind"] != "seed")
+    assert set(lines(tmp_path)[-1]["totals"]) == {"cost", "translation_cost", "failed_cost", "transcript_cost",
+                                                  "replaced_cost"}
+    assert ledger(tmp_path)[MONTH] == row
+    assert log.month_cost() == pytest.approx(summarize.month_cost({MONTH: row}, MONTH))
+    assert summarize.ledger_differences(tmp_path, settings) == []
 
 
 def test_a_summary_from_before_the_log_made_again_counts_as_replaced(tmp_path, monkeypatch):

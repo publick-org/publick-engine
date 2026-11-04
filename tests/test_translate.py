@@ -7,6 +7,7 @@ import pytest
 
 from conftest import BUILT_AT, FETCHED_AT
 from fakes import FakeAnthropic, FakeCityClient
+from test_summarize import logged
 from pipeline import build_site, fetch_meetings, fetch_minutes, i18n, summarize, translate
 from pipeline.config import load_config
 
@@ -30,6 +31,11 @@ def spanish_town(tmp_path, languages=("en", "es")):
 def translations(tmp_path):
     folder = tmp_path / "summaries" / "es"
     return {f.stem: json.loads(f.read_text()) for f in folder.glob("*.json")} if folder.is_dir() else {}
+
+
+def lines_for(tmp_path, sha, lang="es"):
+    """The cost log's lines for one document's translation into a language: its translations and reviews."""
+    return [e for e in logged(tmp_path) if e.get("lang") == lang and e.get("doc") == sha]
 
 
 def system(call) -> str:
@@ -80,10 +86,14 @@ def test_every_summary_is_translated_and_checked(tmp_path):
     assert result["summarized"] == 16 and result["translated"] == 16 and not result["errors"]
     saved = translations(tmp_path)
     assert len(saved) == 16
-    record = next(r for r in saved.values() if r["kind"] == "minutes")
+    sha, record = next((s, r) for s, r in saved.items() if r["kind"] == "minutes")
     assert record["headline"].startswith("ES ") and record["decisions"] == ["ES aprobó the site plan for 12 Main St, 5-0"]
     assert record["check"] == "ok" and record["review"] == "ok" and record["model"] == "claude-sonnet-5-5"
-    assert record["cost"] == pytest.approx(TRANSLATION + REVIEW) and record["prompt_version"] == translate.VERSION
+    assert record["prompt_version"] == translate.VERSION and record["generated_at"]
+    # What it cost and the tokens it took are in the cost log, not in the saved translation.
+    assert not {"cost", "usage", "replaced_cost"} & set(record)
+    assert [(e["kind"], e["cost"]) for e in lines_for(tmp_path, sha)] == [("translation", TRANSLATION), ("review", REVIEW)]
+    assert all(e["usage"]["input_tokens"] and e["usage"]["output_tokens"] for e in lines_for(tmp_path, sha))
     call = translation_calls(client)[0]
     assert call["model"] == "claude-sonnet-5-5" and "Spanish" in system(call)
     assert call["output_config"]["format"]["type"] == "json_schema" and call["output_config"]["effort"] == "low"
@@ -174,16 +184,15 @@ def test_a_translation_that_fails_its_check_isnt_shown(tmp_path):
     assert summarize.run(config, again, tmp_path, limit=50, now=FETCHED_AT)["translated"] == len(failed)
     assert translations(tmp_path)[sha]["attempts"] == 2 and translate.failed(tmp_path, "es", sha, english, record["kind"])
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
-    # The first try, made the same month and replaced by the second, is still counted.
+    # The first try, made the same month and replaced by the second, is still counted: the log has every
+    # request, the first tries' too, and the ledger's row is made from it. The file records neither.
     second = translations(tmp_path)[sha]
-    assert second["replaced_cost"] == record["cost"]
-    month = summarize.recount(tmp_path, summarize.summary_settings(config), "2026-09")
-    paid = (sum(r["cost"] + r.get("replaced_cost", 0) for r in translations(tmp_path).values())
-            + sum(b["cost"] for b in json.loads(next((tmp_path / "strings").glob("*.json")).read_text()).get("batches", [])))
-    assert month["translation_cost"] == pytest.approx(paid, abs=1e-4)
-    # The log has every request: the first tries' too, and both reviews.
+    assert not {"cost", "usage", "replaced_cost"} & set(second)
+    assert [e["kind"] for e in lines_for(tmp_path, sha)].count("translation") == 2
+    paid = sum(e["cost"] for e in logged(tmp_path) if e["kind"] in ("translation", "review", "draft"))
     row = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     assert row["translation_cost"] == pytest.approx(paid, abs=1e-4)
+    assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
 
 
 def test_the_check_runs_again_when_shown(tmp_path):
@@ -326,7 +335,7 @@ def unreviewed(tmp_path, **changes):
 
 def test_a_review_that_couldnt_be_made_is_asked_again_by_itself(tmp_path):
     """The translation is kept and only its review is sent again; once it passes, it's shown. Its
-    tries (attempts) don't count it, and its cost is recorded once in its file and the log."""
+    tries (attempts) don't count it, and its cost is in the log once, not in its file."""
     config = spanish_town(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
     unreviewed(tmp_path)
@@ -341,7 +350,9 @@ def test_a_review_that_couldnt_be_made_is_asked_again_by_itself(tmp_path):
     for sha, after in translations(tmp_path).items():
         assert after["review"] == "ok" and after["review_retries"] == 1 and after["attempts"] == before[sha]["attempts"]
         assert {f: after[f] for f in translate.FIELDS[after["kind"]]} == {f: before[sha][f] for f in translate.FIELDS[after["kind"]]}
-        assert after["cost"] == pytest.approx(REVIEW) and after["replaced_cost"] == pytest.approx(before[sha]["cost"])
+        assert not {"cost", "usage", "replaced_cost"} & set(after)
+        assert [(e["kind"], e["cost"]) for e in lines_for(tmp_path, sha)] == [
+            ("translation", TRANSLATION), ("review", REVIEW), ("review", REVIEW)]
     assert translate.shown(tmp_path, "es", sha, json.loads((tmp_path / "summaries" / f"{sha}.json").read_text()), after["kind"])
     assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)["translated"] == 0
@@ -686,6 +697,23 @@ def test_a_run_drafts_the_towns_own_text_and_the_site_shows_it(tmp_path, monkeyp
     client = FakeAnthropic()
     assert summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)["drafted_texts"] == 0
     assert not [c for c in client.calls if "translations" in c["output_config"]["format"]["schema"]["properties"]]
+
+
+def test_a_batch_of_drafts_is_saved_without_its_cost_and_the_log_has_its_requests(tmp_path):
+    config = spanish_town(tmp_path)
+    config["strings"] = {}
+    file = translate.strings_path(tmp_path, "es")
+    file.parent.mkdir(parents=True)
+    # A batch saved when batches carried their cost and tokens loses them when the file is saved again.
+    older = {"generated_at": "2026-08-01T06:00:00-04:00", "texts": 3, "usage": {"input_tokens": 9}, "cost": 0.5}
+    file.write_text(json.dumps({"batches": [older], "drafts": {}}))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=0, now=FETCHED_AT)
+    batches = translate.saved_drafts(tmp_path, "es")["batches"]
+    assert batches[0] == {"generated_at": older["generated_at"], "texts": 3}
+    assert len(batches) == 2 and set(batches[1]) == {"generated_at", "texts"}
+    drafted = [e for e in logged(tmp_path) if e.get("lang") == "es" and "doc" not in e]
+    assert [(e["kind"], e["cost"]) for e in drafted] == [("draft", TRANSLATION), ("review", REVIEW)]
+    assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
 
 
 def test_a_draft_that_loses_a_number_isnt_shown(tmp_path):
