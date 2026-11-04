@@ -56,6 +56,8 @@ def test_parse_title_leaves_dates_out_of_the_board(title, body):
     ("Waltham School Committee: FY28 Budget Workshop", "Waltham School Committee"),
     ("Planning Commission Public Hearing: plan amendment", "Planning Commission"),
     ("Conservation Commission: Rapid Response Subcommittee", "Conservation Commission Rapid Response Subcommittee"),
+    # "Agenda" doesn't end a board's name either (Beverly's calendar).
+    ("Human Rights Committee Meeting Agenda", "Human Rights Committee"),
     # A time's colon isn't one.
     ("Board of Health Meeting, 5:30 PM", "Board of Health"),
     ("6:00 PM Licensing Board", "Licensing Board"),
@@ -189,3 +191,12 @@ def test_run_does_not_recheck_past_meetings(config, tmp_path):
 def test_placeholder_location_is_dropped():
     page = (FIXTURES / "civicplus_event.html").read_text().replace("City Council Committee Room", "Event Location")
     assert "location_name" not in civicplus.parse_event_page(page, BASE)
+
+
+def test_an_alias_matches_without_a_trailing_meeting_or_agenda():
+    """Beverly's alias for "Public Services/Committee of the Whole Meeting Agenda", written as the parser
+    once read the name, still matches it as the parser reads it now, without "Meeting Agenda"."""
+    aliases = {"Public Services/Committee of the Whole Meeting Agenda": "City Council Public Services Committee"}
+    for name in ("Public Services/Committee of the Whole", "Public Services/Committee of the Whole Meeting Agenda"):
+        assert fetch_meetings.normalize_body(name, aliases) == "City Council Public Services Committee"
+    assert fetch_meetings.normalize_body("Public Services", aliases) == "Public Services"

@@ -14,6 +14,7 @@ from test_agendacenter import COMMITTEES, PAGE as AGENDA_PAGE
 
 from pipeline import build_site, civicplus, fetch_meetings, identity, listings, network, summarize
 from pipeline.fetch_meetings import load_store
+from pipeline.http import FetchError
 
 BASE = "https://www.cityofmalden.org"
 LIST_PAGE = (FIXTURES / "civicplus_list_2026-10.html").read_text(encoding="utf-8")
@@ -152,7 +153,8 @@ def test_a_town_with_an_agenda_center_reads_event_pages_only_for_their_agenda_li
     malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
     client = FakeMalden(AGENDA_PAGE.replace("09222026-4441", "10062026-4441"))
     fetch_meetings.run(malden, client, tmp_path, now=NOW)
-    assert read_pages(client) == ["6309", "6393", "6394", "6396"]
+    # And yesterday's (6392, October 1), past now: read once for its link (PAST_LINK_DAYS).
+    assert read_pages(client) == ["6309", "6392", "6393", "6394", "6396"]
     # A page with no "Download Agenda" link links no listing.
     store = load_store(tmp_path)
     assert all("agenda_listing" not in m for m in store.values())
@@ -203,6 +205,101 @@ def test_a_calendar_entry_linking_another_boards_agenda_keeps_its_name(malden, t
     assert store["6309"]["agenda_listing"] == "agendacenter-4408"
     assert store["6309"]["body"] == "Malden Housing Authority"
     assert status["renamed"] == 0
+
+
+def past_listing(eid, day, body, title):
+    return {"id": eid, "slug": f"{day}-{eid}", "date": day, "body": body, "title": title,
+            "source_url": f"{BASE}/Calendar.aspx?EID={eid}", "start_time": "17:30", "status": "scheduled",
+            "first_seen": "2026-08-01T07:00:00-04:00", "last_seen": f"{day}T07:00:00-04:00", "listed": True}
+
+
+class GonePages(FakeMalden):
+    """Malden's site, with some event pages gone (404)."""
+
+    def __init__(self, *args, gone=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.gone = set(gone)
+
+    def get(self, url):
+        if "Calendar.aspx?EID=" in url and url.rsplit("=", 1)[1] in self.gone:
+            self.urls.append(url)
+            raise FetchError(f"{url}: HTTP 404", 404)
+        return super().get(url)
+
+
+def test_a_past_listings_page_is_read_once_for_the_agenda_it_links(malden, tmp_path):
+    """The calendar no longer lists September's meetings, so their pages weren't read for the agenda they
+    link. Within fetch_meetings.PAST_LINK_DAYS they are, once each: the climate commission's of September 9
+    is put together with its Agenda Center listing; a page that's gone isn't asked for again; one older than
+    the window isn't read."""
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-06-01", "committees": COMMITTEES}
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps({
+        "6200": past_listing("6200", "2026-09-09", "Climate Action & Sustainability Commission", CLIMATE.replace("&amp;", "&")),
+        "6201": past_listing("6201", "2026-09-10", "Ward 4 Meeting", "Ward 4 Meeting"),
+        "6100": past_listing("6100", "2026-06-10", "Ward 4 Meeting", "Ward 4 Meeting"),
+    }))
+    page = download_agenda("/AgendaCenter/Commission-on-Climate-Action-and-Sustain-59/#_09092026-4408")
+    client = GonePages(AGENDA_PAGE, event_pages={"6200": page}, gone={"6201"})
+    status = fetch_meetings.run(malden, client, tmp_path, now=NOW)
+    assert {"6200", "6201"} <= set(read_pages(client)) and "6100" not in read_pages(client)
+    store = load_store(tmp_path)
+    assert store["6200"]["agenda_listing"] == "agendacenter-4408"
+    assert store["6200"]["body"] == "Commission on Climate Action and Sustainability"
+    assert "agenda_link_checked" in store["6201"] and "agenda_listing" not in store["6201"]
+    assert any("HTTP 404" in e for e in status["errors"])
+    # Read once: the next run reads neither page again.
+    again = GonePages(AGENDA_PAGE, event_pages={"6200": page}, gone={"6201"})
+    fetch_meetings.run(malden, again, tmp_path, now=NOW)
+    assert not {"6200", "6201"} & set(read_pages(again))
+
+
+def test_past_pages_share_the_runs_event_pages(malden, tmp_path):
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01", "committees": COMMITTEES}
+    malden["meetings"]["max_event_pages"] = 7
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(
+        {str(6100 + i): past_listing(str(6100 + i), f"2026-09-{i + 1:02d}", "Ward 4 Meeting", "Ward 4 Meeting")
+         for i in range(5)}))
+    client = FakeMalden(AGENDA_PAGE)
+    fetch_meetings.run(malden, client, tmp_path, now=NOW)
+    # The upcoming meetings' pages first (five), then past listings', newest first: yesterday's (6392) and
+    # September 5's, and no more.
+    pages = read_pages(client)
+    assert len(pages) == 7 and {"6392", "6104"} <= set(pages) and "6103" not in pages
+
+
+def test_a_subcommittees_agenda_takes_the_calendars_name():
+    """Beverly's calendar names the Airport Commission's subcommittee of October 13; its Agenda Center files
+    the agenda under the commission, as "Airport Commission Subcommittee" (agendacenter.body_for). The
+    calendar's listing links it: the agenda takes the calendar's name, which says which subcommittee."""
+    sub = "Beverly Regional Airport Commission Subcommittee on Mission"
+    store = {
+        "3934": {"id": "3934", "date": "2026-10-13", "body": sub, "agenda_listing": "agendacenter-2943"},
+        "agendacenter-2943": {"id": "agendacenter-2943", "source": "agendacenter", "date": "2026-10-13",
+                              "body": "Airport Commission Subcommittee", "subcommittee_of": "Airport Commission"},
+    }
+    calendar = fetch_meetings.Calendar("city calendar", lambda *a: [], lambda m: m["id"].isdigit())
+    assert fetch_meetings.rename(store, [calendar], {}, "Beverly", {}) == 1
+    assert store["agendacenter-2943"]["body"] == store["3934"]["body"] == sub
+    # Linked from two calendar listings, it keeps its own name, and they take it, as any other.
+    store["agendacenter-2943"]["body"] = "Airport Commission Subcommittee"
+    store["3935"] = {**store["3934"], "id": "3935", "body": "Beverly Regional Airport Commission Subcommittee on Access"}
+    fetch_meetings.rename(store, [calendar], {}, "Beverly", {})
+    assert store["agendacenter-2943"]["body"] == "Airport Commission Subcommittee"
+    # A calendar name that names no subcommittee takes the Agenda Center's, as before.
+    store = {
+        "3943": {"id": "3943", "date": "2026-10-16", "body": "Beverly Retirement Board", "agenda_listing": "agendacenter-2955"},
+        "agendacenter-2955": {"id": "agendacenter-2955", "source": "agendacenter", "date": "2026-10-16",
+                              "body": "Contributory Retirement Board", "subcommittee_of": None},
+    }
+    fetch_meetings.rename(store, [calendar], {}, "Beverly", {})
+    assert store["3943"]["body"] == "Contributory Retirement Board"
+
+
+def test_past_links_reach_back_as_far_as_the_report_of_meetings_listed_twice():
+    from pipeline import document_gaps
+    assert fetch_meetings.PAST_LINK_DAYS == document_gaps.WINDOW_DAYS
 
 
 def test_a_listing_no_longer_listed_is_named_as_a_new_one_would_be(malden, tmp_path):

@@ -128,6 +128,9 @@ def parse_title(title: str) -> dict:
         committee = re.sub(r"\s+meeting$", "", pieces[1], flags=re.I)
         body = f"{body} {committee}"
     body = re.sub(r"^regular\s+", "", body, flags=re.I)
+    # The kind of meeting, and "Agenda", which a board's name never ends with ("…Subcommittee on Mission
+    # Meeting Agenda").
+    body = re.sub(r"\s+agenda$", "", body, flags=re.I)
     body = re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$", "", body, flags=re.I)
     body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip() or name
     return {"title": name, "body": body, "status": status, "special": special}
