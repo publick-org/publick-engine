@@ -205,7 +205,7 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
         assert page.index('class="decision-rows"') < page.index('<h2 id="details">') < page.index('<dl class="facts">')
     decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
     # The main decisions first, by title; the meeting below is one line, its decisions folded.
-    main = decisions[decisions.index('<h2 id="main">The main decisions</h2>'):decisions.index('<h2 id="by-meeting">')]
+    main = decisions[decisions.index('<h2 id="main-decisions">The main decisions</h2>'):decisions.index('<h2 id="by-meeting">')]
     assert "Main decision title" in main and "Library Board" not in main
     assert '<summary>Show its 3 decisions</summary>' in decisions
     assert '<div class="topic-filter" role="group"' in decisions and "decisions.js" in decisions

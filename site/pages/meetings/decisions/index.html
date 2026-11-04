@@ -53,7 +53,7 @@
 {% set mains = [] %}
 {% for month, items in group_by(meetings.decided, "month")[:2] %}{% for m in items %}{% for d in m.decisions.decided %}{% if d.main is defined and d.main and d.title %}{% set __ = mains.append((m, d)) %}{% endif %}{% endfor %}{% endfor %}{% endfor %}
 {% if mains %}
-<h2 id="main">{{ _("The main decisions") }}</h2>
+<h2 id="main-decisions">{{ _("The main decisions") }}</h2>
 <ul class="decision-rows main-decisions">
   {% for m, d in mains %}
   <li{% if d.topic %} data-topic="{{ d.topic }}"{% endif %}><span class="outcome">{{ outcome_word(d.outcome) }}{% if d.tally %} <span class="tally">{{ d.tally }}</span>{% endif %}</span>
