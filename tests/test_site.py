@@ -961,7 +961,7 @@ def test_officials_list_is_due_a_check_after_each_election(config):
     assert row["updated_at"] == "2026-09-15"
     row = freshness.officials_row(officials.review(town, date(2028, 2, 1)))
     assert row["stale"] and row["behind"] == "not checked since new terms began in January 2028" and not row["next"]
-    # Checked since: up to date, and the config's next_election has passed (whoever runs the network is warned).
+    # Checked since: up to date, and the config's next_election has passed (a warning is raised).
     town["officials"]["checked"] = "2028-01-04"
     due = officials.review(town, date(2028, 2, 1))
     assert not due["behind"] and due["passed"]

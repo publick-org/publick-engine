@@ -21,7 +21,7 @@ appears, and so how often it's worth checking.
   a week in the months around when a new period usually appears (WINDOW).
 - A check that fails is tried again the next run. Failures are counted per
   step (data/checks.json, written by pipeline.update), and three in a row are
-  reported to whoever runs the network; they don't make the source behind.
+  reported as alerts; they don't make the source behind.
 
 Usage by the pipeline: pipeline.update skips a figure step that isn't due;
 pipeline.freshness reports each rhythm's row.

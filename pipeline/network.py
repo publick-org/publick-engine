@@ -363,7 +363,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         if freshness_report.exists():
             result["sources"] = trim_sources(json.loads(freshness_report.read_text()))
             freshness_report.unlink()
-            # Figure sources whose checks keep failing: not behind yet, but whoever runs the network should know.
+            # Figure sources whose checks keep failing: not behind yet, but worth knowing about.
             result["failing"] = [r["label"] for r in result["sources"] if r.get("failing")]
 
     steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
@@ -474,7 +474,8 @@ def document_coverage(root: Path, name: str) -> dict | None:
 
 
 def fact_checks(data: Path) -> dict:
-    """How the town's summaries fared against their documents (pipeline/factcheck.py), for whoever runs the network: how many summaries each result has ("not_yet": no check saved), how many of them
+    """How the town's summaries fared against their documents (pipeline/factcheck.py), for the
+    status page: how many summaries each result has ("not_yet": no check saved), how many of them
     the site holds something back from, how many decisions or agenda items it leaves out, and how
     many vote counts the documents don't give it takes out of the text."""
     # Imported here, as listings is in activity(): factcheck needs the readers' packages.
@@ -528,7 +529,7 @@ def no_meetings(root: Path, name: str) -> bool:
 
 def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) -> list[dict]:
     """Towns without a good update in the last `hours`, whose figure checks keep failing (not behind
-    yet, but whoever runs the network should know), or that have run and still have no meetings, with what their
+    yet, but worth knowing about), or that have run and still have no meetings, with what their
     last run says went wrong."""
     at = at or datetime.now(timezone.utc)
     rows = []
