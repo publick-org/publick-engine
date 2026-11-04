@@ -34,6 +34,9 @@ def test_parse_title(title, expected):
     ("City Council Regular Meeting October 8, 2026", "City Council"),
     ("Affordable Housing Trust Meeting, November 16, 2026 ( from 10/6/2026 regular meeting)", "Affordable Housing Trust"),
     ("RESCHEDULED TO 10/21/2026 Commission on Disabilities Meeting", "Commission on Disabilities"),
+    # A date without its year after a status word (Beverly's calendar, 2026-10-13).
+    ("RESCHEDULED to 10-14-Beverly Regional Airport Commission Subcommittee on Mission Meeting",
+     "Beverly Regional Airport Commission Subcommittee on Mission"),
     ("City Council Committee on Administration and Finance Co-posted with the Committee of the Whole, "
      "October 8, 2026", "City Council Committee on Administration and Finance"),
     ("City Council Committee on Ordinances, Licenses and Legal Affairs co-posted COW October 15, 2026",
@@ -45,6 +48,19 @@ def test_parse_title(title, expected):
     ("America 250 Committee", "America 250 Committee"),
 ])
 def test_parse_title_leaves_dates_out_of_the_board(title, body):
+    assert civicplus.parse_title(title)["body"] == body
+
+
+# What follows a colon isn't the board's name (Waltham's calendar), unless it names one of its committees.
+@pytest.mark.parametrize("title, body", [
+    ("Waltham School Committee: FY28 Budget Workshop", "Waltham School Committee"),
+    ("Planning Commission Public Hearing: plan amendment", "Planning Commission"),
+    ("Conservation Commission: Rapid Response Subcommittee", "Conservation Commission Rapid Response Subcommittee"),
+    # A time's colon isn't one.
+    ("Board of Health Meeting, 5:30 PM", "Board of Health"),
+    ("6:00 PM Licensing Board", "Licensing Board"),
+])
+def test_parse_title_leaves_what_follows_a_colon_out_of_the_board(title, body):
     assert civicplus.parse_title(title)["body"] == body
 
 

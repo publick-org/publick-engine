@@ -76,6 +76,20 @@ def test_one_meeting_listed_twice_is_no_gap_once_it_is_listed_once(data_dir):
     assert document_gaps.gaps(data_dir, "Beverly", TODAY)["pairs"] == []
 
 
+def test_a_listing_moved_to_another_day_is_no_pair(data_dir):
+    # Beverly's calendar listed the subcommittee on 10-13, "RESCHEDULED to 10-14", the day the commission met.
+    path = data_dir / "meetings" / "meetings.json"
+    store = json.loads(path.read_text())
+    store["3934"] = meeting("3934", "2026-10-13", "Beverly Regional Airport Commission Subcommittee on Mission",
+                            source="calendar", start_time="18:00", status="rescheduled")
+    store["agendacenter-2946"] = meeting("agendacenter-2946", "2026-10-13", "Airport Commission", agendas=AGENDA)
+    path.write_text(json.dumps(store))
+    assert [p["board"] for p in document_gaps.gaps(data_dir, "Beverly", TODAY)["pairs"]] == ["Beverly Retirement Board"]
+    store["3934"]["status"] = "scheduled"
+    path.write_text(json.dumps(store))
+    assert len(document_gaps.gaps(data_dir, "Beverly", TODAY)["pairs"]) == 2
+
+
 def run_record(root, name, gaps, finished="2026-11-02T12:00:00+00:00"):
     (root / "towns" / name / "config").mkdir(parents=True)
     (root / "towns" / name / "config" / f"{name.split('-')[0]}.toml").write_text("")
