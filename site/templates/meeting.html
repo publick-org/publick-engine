@@ -230,8 +230,9 @@
   {% endif %}
 </div>
 
-{# Where and when, how to take part, and where its recordings are: before what the meeting decided for a meeting to
-   come; after it, for one past whose decisions are shown, so they come first (logistics, below). #}
+{# Where and when, how to take part, and where its recordings are. For a meeting to come, where and when are at the
+   top, and how to take part comes after what's on the agenda, so a reader knows what the meeting is about first. For
+   one past whose decisions are shown, all of it comes after them, under "Meeting details". #}
 {% set shown_rs = m.recording_summary if m.status != "cancelled" else none %}
 {% set shown_ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes") != false else none %}
 {% set decided_first = not upcoming and ((shown_ms and shown_ms.get("decisions")) or (not shown_ms and shown_rs and shown_rs.get("decisions"))) %}
@@ -252,11 +253,14 @@
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
 {% elif not documents_only and m.agenda and has_where %}{% set n %}<p>{% trans listing=m.listing %}Location from the {{ listing }}. The posted agenda is the official notice; check it if the two differ.{% endtrans %}</p>{% endset %}{% if upcoming %}<p class="small">{{ n | striptags }}</p>{% else %}{% set __ = about.notes.append(n) %}{% endif %}{% endif %}
 {% endif %}
+{% endset %}
 
 {% set part = config.get("participation", {}).get(m.body_en, {}) %}
 {# The meeting's own recording, where the listing links one (a YouTube video, sometimes from a time in it). #}
 {% set recording = ("https://www.youtube.com/watch?v=" ~ m.video_id ~ (("&t=" ~ m.video_start ~ "s") if m.get("video_start") else "")) if m.get("video_id") else none %}
-{% if upcoming and m.status == "scheduled" %}
+{% set take_part_after_agenda = upcoming and m.status == "scheduled" %}
+{% set take_part %}
+{% if take_part_after_agenda %}
 <h2 id="take-part">{{ _("How to take part") }}</h2>
 {% if m.public_hearing %}
 <div class="notice"><p>{% trans %}<strong>This agenda includes a public hearing.</strong> At a public hearing, residents can speak on the matter before the board decides.{% endtrans %}</p></div>
@@ -278,9 +282,8 @@
 {% elif part.get("video_url") %}
 <p>{% trans body=m.body, url=part.video_url, title=part.video_title %}Recordings of {{ body }} meetings: <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</p>
 {% endif %}
-
 {% endset %}
-{% if not decided_first %}{{ logistics }}{% endif %}
+{% if not decided_first %}{{ logistics }}{% if not take_part_after_agenda %}{{ take_part }}{% endif %}{% endif %}
 
 {# The summary of the meeting's recording (pipeline/recordings.py), in "What was decided": before the minutes' summary,
    the whole of it; after, what was discussed, which the minutes don't give. #}
@@ -494,9 +497,10 @@
 {% endif %}
 {% endif %}
 
-{% if decided_first and logistics | trim %}
+{% if take_part_after_agenda %}{{ take_part }}{% endif %}
+{% if decided_first and (logistics ~ take_part) | trim %}
 <h2 id="details">{{ _("Meeting details") }}</h2>
-{{ logistics }}
+{{ logistics }}{{ take_part }}
 {% endif %}
 
 {# The weekly digest's signup, for a reader who came for one meeting: after the meeting's own content, so it never
