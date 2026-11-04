@@ -14,8 +14,9 @@ robots), so:
   YOUTUBE_API_KEY they're found in the channel's or playlist's RSS feed
   (/feeds/videos.xml?channel_id= or ?playlist_id=), its latest 15, which
   YouTube has also answered with 404 and 500 for every channel for hours.
-- Each video's length, and whether it's still a live stream (or one yet to
-  start), come from the YouTube Data API (videos.list, at
+- Each video's length, whether it's still a live stream (or one yet to
+  start), and whether it's public and processed, come from the YouTube Data
+  API (videos.list, at
   youtube.googleapis.com), with a Google API key of its own
   (YOUTUBE_API_KEY): Gemini's keys are bound to a service account, and such
   a key can't be allowed the YouTube Data API. The key is sent in a header,
@@ -28,6 +29,16 @@ robots), so:
   error, or by Gemini being unavailable, goes on from there. Gemini
   unavailable (the day's requests used up, or busy through every retry)
   isn't a failed try; the video waits for the next run.
+- Gemini reads only public videos. A live stream's recording is often
+  unlisted, or still processing, for hours after the stream ends (South
+  Burlington's City Council stream of 2026-11-02 was published about 14
+  hours after it ended, and Gemini refused it with HTTP 403 until then):
+  until the Data API says it's public and processed, it has no length, and
+  waits. One Gemini still can't open (HTTP 403) waits too, without a failed
+  try, until PUBLIC_WAIT_DAYS after the meeting; after that, a 403 is a
+  failed try, so a key that has lost its permission still shows as errors.
+  A video published again (a new "published" time) gets its tries back
+  (pipeline/fetch_recordings.py).
 
 Without either key, videos are found and matched, and wait to be transcribed.
 
@@ -57,6 +68,7 @@ import json
 import os
 import re
 import xml.etree.ElementTree as ET
+from datetime import date, timedelta
 
 import requests
 
@@ -73,6 +85,8 @@ KEY_ENV = "YOUTUBE_API_KEY"
 NS = {"atom": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
 # fetch_recordings.find() gives find() the town's meetings, for a source that reads their links.
 READS_MEETINGS = True
+# Days after the meeting a video Gemini can't open yet (HTTP 403, not public to it) waits without a failed try.
+PUBLIC_WAIT_DAYS = 2
 DURATION = re.compile(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$")
 
 
@@ -168,11 +182,13 @@ def seconds(duration: str) -> int | None:
 
 
 def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
-    """Each video's length in seconds, or None while it's live or yet to start, from the Data API."""
+    """Each video's length in seconds, from the Data API; None while Gemini can't read it yet: live or yet to
+    start, not public (a stream's recording is often unlisted for hours after it ends, and Gemini reads only
+    public videos), or still being processed."""
     out = {}
     for i in range(0, len(ids), 50):
         try:
-            response = get(VIDEOS, params={"part": "contentDetails,snippet", "id": ",".join(ids[i:i + 50])},
+            response = get(VIDEOS, params={"part": "contentDetails,snippet,status", "id": ",".join(ids[i:i + 50])},
                            headers={"x-goog-api-key": key}, timeout=60)
         except requests.RequestException as e:
             raise FetchError(f"YouTube Data API: {e}") from e
@@ -180,7 +196,10 @@ def details(ids: list[str], key: str, get=requests.get) -> dict[str, dict]:
             raise FetchError(f"YouTube Data API: HTTP {response.status_code}: {response.text[:300]}", response.status_code)
         for item in response.json().get("items") or []:
             live = (item.get("snippet") or {}).get("liveBroadcastContent", "none") != "none"
-            out[item["id"]] = {"seconds": None if live else seconds((item.get("contentDetails") or {}).get("duration"))}
+            status = item.get("status") or {}
+            ready = (not live and status.get("privacyStatus", "public") == "public"
+                     and status.get("uploadStatus", "processed") == "processed")
+            out[item["id"]] = {"seconds": seconds((item.get("contentDetails") or {}).get("duration")) if ready else None}
     return out
 
 
@@ -224,10 +243,12 @@ def media(client, source: dict, recording: dict) -> dict | None:
     return None
 
 
-def transcript(client, source: dict, recording: dict, storage=None, post=requests.post) -> tuple[str, dict] | None:
+def transcript(client, source: dict, recording: dict, storage=None, post=requests.post,
+               today: date | None = None) -> tuple[str, dict] | None:
     """The video's transcript and how it was made (the model; not the tokens it took, since the recording's
     record is public), or None while it can't be made yet: no key, still live, its
-    length not known, or Gemini unavailable for now (the day's requests used up, or busy). The parts answered
+    length not known, Gemini unavailable for now (the day's requests used up, or busy), or the video not
+    public to Gemini yet, up to PUBLIC_WAIT_DAYS after the meeting. The parts answered
     so far are kept in storage (transcripts/<id>.parts.json), so a try cut short goes on from where it
     stopped."""
     key = gemini.api_key()
@@ -252,4 +273,9 @@ def transcript(client, source: dict, recording: dict, storage=None, post=request
                                         start=int(recording.get("video_start") or 0))
     except gemini.Unavailable:
         return None
+    except gemini.NotPublic:
+        # Public, by the Data API, but not to Gemini yet: it waits, a while, without a failed try.
+        if (today or date.today()) - date.fromisoformat(recording["date"]) <= timedelta(days=PUBLIC_WAIT_DAYS):
+            return None
+        raise
     return text, {"model": model}
