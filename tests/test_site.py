@@ -195,16 +195,16 @@ def test_ai_preview_is_labeled_and_linked(site_dir):
     assert "https://www.gloucester-ma.gov/Archive.aspx?ADID=20124" in page
     assert "<script" not in page.split("transcript-body")[1][:2000]
     # The fixture agenda is a scan, so its full text is a labeled AI transcription.
-    assert "Transcribed by AI from the city's PDF. Check the original before relying on it." in page
+    assert "Transcribed by AI from the city's scanned PDF." in page
 
 
 @pytest.mark.parametrize("record, shown, hidden", [
     ({"transcript": "# Minutes\n\nApproved.", "transcript_source": "pdf"},
      "From the city's PDF, word for word.", "Transcribed by AI"),
     ({"transcript": "# Minutes\n\nApproved.", "transcript_source": "ai"},
-     "Transcribed by AI from the city's PDF.", "word for word"),
+     "Transcribed by AI from the city's scanned PDF.", "word for word"),
     # Saved before the source was recorded: those were all transcribed by AI.
-    ({"transcript": "# Minutes\n\nApproved."}, "Transcribed by AI from the city's PDF.", "word for word"),
+    ({"transcript": "# Minutes\n\nApproved."}, "Transcribed by AI from the city's scanned PDF.", "word for word"),
     # A scan, waiting for its transcription.
     ({"plain_text": "", "needs_transcript": True}, "The minutes are a scanned document. A readable version of the full text will be added here",
      "Read the full minutes"),
@@ -455,27 +455,26 @@ def test_decisions_are_sorted_for_residents():
 
 
 def test_summaries_in_lists_say_they_are_ai(site_dir):
-    """A summary shown in a list says it's AI-written, after the summary, where the meeting's own
-    details are; a row without one doesn't. The feed says so in words."""
+    """A list's summaries aren't labeled one by one: the footer says once that they're written by AI, and links how
+    they're checked. A summary not checked would be marked in its row. The feed, whose items are read one at a time,
+    says so in each."""
     home = (site_dir / "index.html").read_text()
     rows = re.findall(r'<li class="meeting-item">.*?</li>', home, re.S)
-    assert rows and all(("meeting-preview" in r) == ("AI summary" in r) for r in rows)
-    # The meeting's page says how it was checked; the list warns only of a summary not checked (the fixture's
-    # documents are scans, checked against their transcription).
-    assert any("AI summary · Agenda posted" in r for r in rows)
-    assert any("AI summary · Minutes posted" in r for r in rows)
-    for row in rows:
-        if "AI summary" in row:
-            assert row.index("meeting-preview") < row.index("AI summary")
+    assert rows and any("meeting-preview" in r for r in rows)
+    # The fixture's documents are scans, checked against their transcription, so no row has a label.
+    assert not any("AI summary" in r for r in rows)
+    assert any("Agenda posted" in r for r in rows) and any("Minutes posted" in r for r in rows)
+    footer = home[home.index('<footer class="site-footer">'):]
+    assert footer.count("Meeting summaries are written by AI") == 1 and 'href="/about/#ai"' in footer
     feed = (site_dir / "feed.xml").read_text()
     for item in re.findall(r"<description>(.*?)</description>", feed)[1:]:
         assert item in ("Agenda posted.", "Minutes posted.") or re.search(
-            r"\(AI summary of the (agenda|minutes)\. Check the original\.\) (Checked against the city's PDF|"
-            r"Partly checked against the city's PDF|Checked against an AI transcription|Not checked)\.$", html.unescape(item))
+            r"\(AI summary of the (agenda|minutes)\.\) (Checked against the city's PDF|"
+            r"Partly checked against the city's PDF|Checked against a transcription of the scan|Not checked)\.$", html.unescape(item))
 
 
 def test_public_hearings_say_their_summary_is_ai(tmp_path):
-    """The public hearings box: the date, the summary on its own line, then "AI summary" under it."""
+    """The public hearings box: the date, then the summary on its own line, without a label (the footer has it)."""
     import shutil
     from conftest import BUILT_AT, DATA_DIR
     data = tmp_path / "data"
@@ -490,8 +489,8 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
     box = home[home.index('class="notice"'):]
     box = box[:box.index("</div>")]
     hearing = re.search(r"<li>.*?</li>", box, re.S).group(0)
-    assert re.search(r'<span class="item-detail">[^<]+</span><span class="meeting-meta">AI summary</span></li>$', hearing)
-    assert hearing.index("<time") < hearing.index("AI summary")
+    assert re.search(r'<time[^>]*>[^<]+</time>[^<]*</span><span class="item-detail">[^<]+</span></li>$', hearing)
+    assert "AI summary" not in hearing
 
 
 def test_public_hearings_leave_out_a_cancelled_meeting(tmp_path):
@@ -962,7 +961,7 @@ def test_officials_list_is_due_a_check_after_each_election(config):
     assert row["updated_at"] == "2026-09-15"
     row = freshness.officials_row(officials.review(town, date(2028, 2, 1)))
     assert row["stale"] and row["behind"] == "not checked since new terms began in January 2028" and not row["next"]
-    # Checked since: up to date, and the config's next_election has passed (whoever runs the network is warned).
+    # Checked since: up to date, and the config's next_election has passed (a warning is raised).
     town["officials"]["checked"] = "2028-01-04"
     due = officials.review(town, date(2028, 2, 1))
     assert not due["behind"] and due["passed"]

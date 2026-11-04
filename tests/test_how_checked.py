@@ -77,7 +77,7 @@ def text(html: str) -> str:
 LINES = {
     "pdf": "Checked against the city's PDF.",
     "partial": "Partly checked against the city's PDF.",
-    "ai": "Checked against an AI transcription.",
+    "ai": "Checked against a transcription of the scan.",
     "none": "Not checked.",
 }
 
@@ -95,8 +95,8 @@ def test_credit_on_the_meeting_page(record, kind, how):
     assert said.startswith("Not checked.") == (how == "none")
     assert '<a href="/about/#checks">How summaries are checked</a>' in credit.group(2)
     assert 'href="/report"' in html
-    if how == "ai":
-        assert "share a mistake" in said
+    # The credit names AI once; the About page says the rest.
+    assert said.count("AI") == 1 and "Check the original" not in said
     if how == "none" and record.get("prompt_version") == 2 and record.get("fact_check"):
         assert "older than the check that matches each decision to the minutes' own words" in said
     elif how == "none":
@@ -109,15 +109,15 @@ def test_no_check_said_without_a_summary():
 
 
 @pytest.mark.parametrize("how, label", [
-    ("pdf", "AI summary"),
-    ("partial", "AI summary"),
-    ("ai", "AI summary"),
-    ("none", "AI summary, not checked"),
-    (None, "AI summary"),
+    ("pdf", None),
+    ("partial", None),
+    ("ai", None),
+    ("none", "Summary not checked"),
+    (None, None),
 ])
 def test_label_in_lists(how, label):
-    """A meeting's line in a list (the home page, a board's page) says its summary is AI's, and warns when it wasn't
-    checked; the meeting's page says how it was."""
+    """A meeting's line in a list (the home page, a board's page) has no label of its own, the footer saying once
+    that summaries are AI's, except a warning when it wasn't checked; the meeting's page says how it was."""
     e = env()
     e.globals["today"] = "2026-10-14"
     m = {"date": "2026-10-07", "start_time": None, "url": "/meetings/x/", "body": "Planning Board", "title": "Planning Board",
@@ -125,7 +125,8 @@ def test_label_in_lists(how, label):
          "status": "scheduled", "remote_url": None, "special": False, "listed": True}
     html = e.from_string('{% from "macros.html" import meeting_item %}{{ meeting_item(m) }}').render(m=m)
     meta = text(re.search(r'<span class="meeting-meta">(.*?)</span>', html, re.S).group(1))
-    assert meta.split(" · ")[0] == label
+    assert "AI" not in meta
+    assert (meta.split(" · ")[0] == label) if label else ("not checked" not in meta)
 
 
 @pytest.mark.parametrize("how", ["pdf", "partial", "ai", "none"])
@@ -135,14 +136,14 @@ def test_in_spanish(how):
     e = env()
     with i18n.use("es"):
         credit = e.from_string('{% from "macros.html" import ai_credit %}{{ ai_credit("minutes", "/a.pdf", "/report", record=r) }}').render(r=record)
-        label = e.from_string('{% from "macros.html" import ai_summary_label %}{{ ai_summary_label(how) }}').render(how=how)
+        label = e.from_string('{% from "macros.html" import unchecked_note %}{{ unchecked_note(how) }}').render(how=how)
         short = build_site.checked_short(how)
     assert {"pdf": "Verificado con el PDF de la ciudad.", "partial": "Verificado en parte con el PDF de la ciudad.",
-            "ai": "Verificado con una transcripción hecha con IA.", "none": "Sin verificar."}[how] in text(credit)
+            "ai": "Verificado con una transcripción del escaneo.", "none": "Sin verificar."}[how] in text(credit)
     assert "Cómo se verifican los resúmenes" in credit
     words = {"pdf": "verificado con el PDF de la ciudad", "partial": "verificado en parte con el PDF de la ciudad",
-             "ai": "verificado con una transcripción hecha con IA", "none": "sin verificar"}[how]
-    assert label == "Resumen hecho con IA, " + words
+             "ai": "verificado con una transcripción del escaneo", "none": "sin verificar"}[how]
+    assert label == ("Resumen sin verificar" if how == "none" else "")
     assert short == words[0].upper() + words[1:]
 
 
@@ -177,8 +178,9 @@ def test_built_site(site_dir):
     assert states
     feed = ET.parse(site_dir / "feed.xml").getroot()
     said = [d.text for d in feed.iter("description") if d.text and "(AI summary of the" in d.text]
-    assert said and all(re.search(r"Check the original\.\) (Checked against the city's PDF|Partly checked against the city's PDF|"
-                                  r"Checked against an AI transcription|Not checked)\.$", d) for d in said)
+    assert said and all(re.search(r"\(AI summary of the [^)]*\) (Checked against the city's PDF|Partly checked against the city's PDF|"
+                                  r"Checked against a transcription of the scan|Checked against the recording's transcript|"
+                                  r"Not checked)\.$", d) for d in said)
     issues = sorted((site_dir / "digest").glob("20*/index.html"))
     # The digest says how a meeting's decisions were checked only where they weren't in full.
     for page in (p.read_text() for p in issues):

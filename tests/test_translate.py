@@ -223,7 +223,7 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     assert "hasn't been translated" not in page
     # Said plainly: translated by AI, with the English it came from one link away.
     path = "/" + str(minutes[0].relative_to(out / "es").parent) + "/"
-    assert f'Traducido automáticamente con IA del <a href="{path}" hreflang="en">resumen en inglés</a>' in page
+    assert f'Traducido automáticamente del <a href="{path}" hreflang="en">resumen en inglés</a>' in page
     assert ", en inglés)." in page and ">Copia guardada<" in page
     english = (out / minutes[0].relative_to(out / "es")).read_text()
     assert "Translated automatically" not in english and "en inglés" not in english

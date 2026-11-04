@@ -120,7 +120,7 @@
 </ul>
 <h2 id="about">{{ _("About these decisions") }}</h2>
 <div class="about-notes">
-  <p>{{ _("Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  <p>{{ _("Decisions are pulled from each meeting's minutes by AI.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {% if meetings.decided | selectattr("decisions_from", "equalto", "recording") | list %}
   <p>{{ _("A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording, until its minutes replace them.") }}</p>
   {% endif %}
