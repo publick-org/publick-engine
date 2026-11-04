@@ -23,6 +23,10 @@ or the API is still busy after the last wait, Unavailable: the parts already
 answered are kept by the caller (done, keep), and the rest are asked for on
 a later run.
 
+A video Gemini can't open (HTTP 403, "The caller does not have permission")
+isn't public yet: NotPublic, not asked again now. The caller waits a while
+for it to be (pipeline/youtube.py).
+
 Gemini's filters sometimes refuse a part of a public meeting outright (HTTP
 400, "Input blocked"), every time it's asked: gemini-3.8-flash refused most
 of South Kingstown's Town Council meeting of 2026-10-26, a debate on its
@@ -139,6 +143,12 @@ class Unavailable(FetchError):
     """The API can't answer for now: the key's requests for the day are used up, or it stayed busy."""
 
 
+class NotPublic(FetchError):
+    """Gemini can't open the video (HTTP 403, "permission"): it isn't public yet, as a live stream's
+    recording often isn't for hours after the stream ends. Asking again later may help; asking again now
+    won't."""
+
+
 class Blocked(FetchError):
     """Gemini's filters refused this part of the video (HTTP 400, "blocked"): asking again won't help."""
 
@@ -163,6 +173,8 @@ def ask(post, body: dict, key: str, sleep=time.sleep) -> tuple[dict, str]:
                 # The day's requests are used up: asking again before tomorrow won't help.
                 if response.status_code == 429 and "per day" in response.text:
                     raise Unavailable(error.args[0], response.status_code)
+                if response.status_code == 403:
+                    raise NotPublic(error.args[0], response.status_code)
                 if response.status_code == 400 and "blocked" in response.text.lower():
                     raise Blocked(error.args[0], response.status_code)
                 if response.status_code not in RETRY_STATUS:

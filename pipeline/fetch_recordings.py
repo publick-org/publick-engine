@@ -17,7 +17,9 @@ Each run:
 
 A recording that fails to be read or transcribed is tried again on the next
 run, up to MAX_TRIES times. One whose platform has no audio for it yet (the
-Internet Archive converting an upload) waits without counting a try.
+Internet Archive converting an upload, a YouTube video not public yet) waits
+without counting a try. One its platform publishes again (a new "published"
+time) gets its tries back.
 
 Usage:
     python -m pipeline.fetch_recordings [--town lowell] [--hours 4] [--find-only]
@@ -96,7 +98,12 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
             if recording is None:
                 recording = store[item["id"]] = {"found_at": stamp}
                 counts["new"] += 1
+            before = recording.get("published")
             recording.update({k: v for k, v in item.items() if k != "media"}, source=i)
+            if before and item.get("published") not in (None, before) and not recording.get("transcript"):
+                # Published again (a stream's recording made public): the tries it failed were of what was there before.
+                recording.pop("tries", None)
+                recording.pop("error", None)
             if not recording.get("meeting") or recording["meeting"] not in meetings:
                 alone = len(per_day[board_day(item)]) == 1
                 meeting, why = recordings.match(recording, meetings, moved, alone=alone)

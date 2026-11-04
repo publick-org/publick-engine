@@ -218,6 +218,39 @@ def test_a_failed_recording_is_tried_again_then_left(config, data_dir, monkeypat
     assert status["errors"] == []
 
 
+def test_a_recording_published_again_gets_its_tries_back(config, data_dir, monkeypatch):
+    # South Burlington's stream of 2026-11-02: refused twice while unlisted, then published the next afternoon.
+    platform = FakePlatform([{**found("1", "City Council", "2026-10-27"), "published": "2026-10-23T15:53:36Z"}])
+    use(monkeypatch, platform)
+
+    def failing(model, media, folder, name, user_agent):
+        raise transcribe.TranscribeError("not readable yet")
+
+    for _ in range(3):
+        fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model", transcriber=failing)
+    assert recordings.load(data_dir)["fake-1"]["tries"] == fetch_recordings.MAX_TRIES
+    # Listed again with the same time: still left.
+    fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True)
+    assert recordings.load(data_dir)["fake-1"]["tries"] == fetch_recordings.MAX_TRIES
+    platform.found[0]["published"] = "2026-10-28T16:29:30Z"
+    calls = []
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model",
+                                  transcriber=fake_transcriber(calls))
+    assert status["transcribed"] == ["fake-1"] and calls == ["fake-1"]
+    recording = recordings.load(data_dir)["fake-1"]
+    assert "tries" not in recording and "error" not in recording
+
+
+def test_a_transcribed_recording_published_again_keeps_its_transcript(config, data_dir, monkeypatch):
+    platform = FakePlatform([{**found("1", "City Council", "2026-10-27"), "published": "2026-10-28T01:00:00Z"}])
+    use(monkeypatch, platform)
+    calls = []
+    fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model", transcriber=fake_transcriber(calls))
+    platform.found[0]["published"] = "2026-10-28T09:00:00Z"
+    fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: "model", transcriber=fake_transcriber(calls))
+    assert calls == ["fake-1"] and recordings.load(data_dir)["fake-1"]["transcript"]
+
+
 def test_find_only_transcribes_nothing(config, data_dir, monkeypatch):
     use(monkeypatch, FakePlatform([found("1", "City Council", "2026-10-27")]))
     status = fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True,
