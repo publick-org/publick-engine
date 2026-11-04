@@ -43,11 +43,11 @@ PROMPTS = {
         translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT, translate.GLOSSARY)),
 }
 
-# (version, hash of the prompt), as of 2026-10-31.
+# (version, hash of the prompt).
 PINNED = {
-    "summary of an agenda (summarize.KINDS)": (5, "22ed04a0cc5534fe"),
-    "summary of minutes (summarize.KINDS)": (5, "6bc35ef9cb410b4b"),
-    "summary of a recording's transcript (summarize.KINDS)": (3, "d25d9fa5f686b484"),
+    "summary of an agenda (summarize.KINDS)": (6, "9578a4a9fbdf38f1"),
+    "summary of minutes (summarize.KINDS)": (6, "39703cc72fdd10b9"),
+    "summary of a recording's transcript (summarize.KINDS)": (4, "170975121fd301b8"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
     "translation (translate.VERSION)": (7, "ce0bd075573fb358"),
     # The town's glossary added to the drafting prompt (2026-10-16) without a bump: it only adds words, and
