@@ -206,16 +206,18 @@ def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: st
                clip: int = CLIP_SECONDS, sleep=time.sleep, done: dict | None = None,
                keep=lambda done: None, start: int = 0) -> tuple[str, dict]:
     """The video's transcript, as transcribe.text() writes one ("[h:mm:ss] ..." a paragraph a line), and the
-    tokens it took (output_tokens counts the model's thoughts too, as they're billed). post(url, json, headers,
-    timeout) is requests.post, or a stand-in.
+    tokens this call's requests took (output_tokens counts the model's thoughts too, as they're billed).
+    post(url, json, headers, timeout) is requests.post, or a stand-in.
 
-    done holds the parts already answered, from an earlier try ({"model", "clip", "parts": {start: lines},
-    "usage"}): they aren't asked for again, except one with a GAP. keep(done) is called after each part, to save them. start is where
-    in the video the meeting starts (a link's &t=): the parts are from there, their times still the video's."""
+    done holds the parts already answered, from an earlier try ({"model", "clip", "parts": {start: lines}}):
+    they aren't asked for again, except one with a GAP. keep(done) is called after each part, to save them;
+    done holds no token counts, since it's kept in the documents bucket (one from before that has them
+    loses them). start is where in the video the meeting starts (a link's &t=): the parts are from there,
+    their times still the video's."""
     if not done or done.get("model") != model or done.get("clip") != clip:
-        done = {"model": model, "clip": clip, "parts": {},
-                "usage": {"requests": 0, "input_tokens": 0, "output_tokens": 0}}
-    usage = done["usage"]
+        done = {"model": model, "clip": clip, "parts": {}}
+    done.pop("usage", None)
+    usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
     for start in range(start, seconds, clip):
         # A part kept with a gap is asked for again: the filters, or FALLBACK, may let it through now.
         if str(start) in done["parts"] and not any(line.endswith(GAP) for line in done["parts"][str(start)]):

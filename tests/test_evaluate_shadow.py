@@ -43,6 +43,16 @@ def run(client, **kwargs):
                                get=FILES.__getitem__, **kwargs)
 
 
+def test_a_published_summary_without_its_tokens_or_cost_has_none():
+    """Summaries saved now carry neither; the published one is still checked, its cost not known."""
+    words = frozenset(SAMPLE["words"])
+    record = {k: v for k, v in SAMPLE["items"][0]["record"].items() if k not in ("usage", "cost")}
+    pub = evaluate_shadow.published({**SAMPLE["items"][0], "record": record}, words)
+    assert pub["usage"] is None and pub["cost"] is None and pub["paid"] is None and pub["result"] == "failed"
+    totals = evaluate_shadow.totals([{"kind": "minutes", "new": pub, "published": pub}])
+    assert totals["all"]["published"]["cost_missing"] == 1 and totals["all"]["published"]["input_tokens"] == 0
+
+
 def test_each_document_is_summarized_again_as_a_run_sends_it():
     client = FakeAnthropic()
     run(client)

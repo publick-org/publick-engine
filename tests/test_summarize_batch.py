@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from conftest import FETCHED_AT
 from fakes import FakeAnthropic
-from test_summarize import HAIKU, LEGISTAR, REQUEST, blank_pdf, haiku, minutes_town, with_minutes
+from test_summarize import HAIKU, LEGISTAR, REQUEST, blank_pdf, haiku, minutes_town, summary_costs, with_minutes
 from test_translate import spanish_town, translations
 
 from pipeline import summarize
@@ -57,7 +57,9 @@ def test_a_daily_run_sends_its_summaries_as_one_batch_and_saves_them_when_collec
     assert not (tmp_path / summarize.BATCH_FILE).exists()
     records = saved(tmp_path)
     # At half the price, checked as they're saved, as one sent alone would be.
-    assert len(records) == 16 and all(r["cost"] == REQUEST / 2 for r in records)
+    costs = summary_costs(tmp_path)
+    assert len(records) == 16 and len(costs) == 16 and all(c == REQUEST / 2 for c in costs.values())
+    assert all("cost" not in r and "usage" not in r for r in records)
     assert all("fact_check" in r for r in records if r.get("is_minutes") is not False)
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]
     assert ledger["cost"] == round(16 * REQUEST / 2, 4) and ledger["documents"] == 16
@@ -90,7 +92,7 @@ def test_a_batch_not_done_in_time_is_cancelled_and_what_it_didnt_make_is_sent_on
     assert any("cancelled" in e for e in result["errors"])
     # Every document made one at a time, at the full price, in the same run.
     assert result["collected"] == 0 and result["summarized"] == 16 and result["remaining"] == 0
-    assert all(r["cost"] == REQUEST for r in saved(tmp_path))
+    assert len(saved(tmp_path)) == 16 and all(c == REQUEST for c in summary_costs(tmp_path).values())
     assert not (tmp_path / summarize.BATCH_FILE).exists()
 
 
@@ -102,7 +104,7 @@ def test_a_request_the_batch_didnt_make_is_sent_one_at_a_time(tmp_path):
     assert result["collected"] == 14 and result["summarized"] == 16
     summary_calls = [c for c in client.calls if "transcript" not in c["output_config"]["format"]["schema"]["properties"]]
     assert len(summary_calls) == 2
-    assert sorted(r["cost"] for r in saved(tmp_path)).count(REQUEST) == 2
+    assert list(summary_costs(tmp_path).values()).count(REQUEST) == 2
     assert sum("not made in the batch (errored: overloaded)" in e for e in result["errors"]) == 1
 
 
@@ -260,8 +262,7 @@ def test_the_batch_sends_the_effort_and_prices_a_long_prompt_at_half_the_long_pr
     assert params["output_config"]["effort"] == "high" and params["output_config"]["format"]["type"] == "json_schema"
     assert collect(config, client, tmp_path)["collected"] == 1
     # Half of each price; the threshold is the same.
-    record = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
-    assert record["cost"] == round((150_000 * 0.25 + 400 * 1.25) / 1e6, 6)
+    assert summary_costs(tmp_path)[sha] == round((150_000 * 0.25 + 400 * 1.25) / 1e6, 6)
 
 
 def test_a_batch_is_priced_as_it_was_sent_though_the_model_has_changed_since(tmp_path):
@@ -272,5 +273,5 @@ def test_a_batch_is_priced_as_it_was_sent_though_the_model_has_changed_since(tmp
     assert json.loads((tmp_path / summarize.BATCH_FILE).read_text())["prices"] == {"input_price": 2.0, "output_price": 10.0}
     collect(haiku(config), client, tmp_path)
     record = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
-    assert record["model"] == "claude-sonnet-5" and record["cost"] == REQUEST / 2
+    assert record["model"] == "claude-sonnet-5" and summary_costs(tmp_path)[sha] == REQUEST / 2
     assert HAIKU["model"] == config["summaries"]["model"]
