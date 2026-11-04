@@ -53,21 +53,20 @@
    city's PDF". #}
 {% macro checked_short(how) -%}
 {%- if how == "pdf" %}{{ _("Checked against the city's PDF") }}{% elif how == "partial" %}{{ _("Partly checked against the city's PDF") }}
-{%- elif how == "ai" %}{{ _("Checked against an AI transcription") }}{% elif how == "recording" %}{{ _("Checked against the recording's transcript") }}
+{%- elif how == "ai" %}{{ _("Checked against a transcription of the scan") }}{% elif how == "recording" %}{{ _("Checked against the recording's transcript") }}
 {%- elif how %}{{ _("Not checked") }}{% endif -%}
-{%- endmacro %}
-
-{# "AI summary", where a list shows a summary's line, with how it was checked (how, factcheck.how_checked). #}
-{% macro ai_summary_label(how) -%}
-{%- if how == "pdf" %}{{ _("AI summary, checked against the city's PDF") }}{% elif how == "partial" %}{{ _("AI summary, partly checked against the city's PDF") }}
-{%- elif how == "ai" %}{{ _("AI summary, checked against an AI transcription") }}{% elif how == "recording" %}{{ _("AI summary of the recording, checked against its transcript") }}
-{%- elif how %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
 {%- endmacro %}
 
 {# The same, in a list of meetings: that the line is AI's, and a warning when it wasn't checked; the meeting's page
    says how it was. #}
 {% macro ai_summary_short(how) -%}
 {%- if how and how not in ["pdf", "partial", "ai", "recording"] %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
+{%- endmacro %}
+
+{# In a list of meetings, a warning beside a summary's line only when it wasn't checked. That the lines are written
+   by AI is said once, in the footer (base.html), and the meeting's page says how each was checked. #}
+{% macro unchecked_note(how) -%}
+{%- if how and how not in ["pdf", "partial", "ai", "recording"] %}{{ _("Summary not checked") }}{% endif -%}
 {%- endmacro %}
 
 {# The credit under AI-written text, in one paragraph: what it was written from, how it was checked
@@ -87,10 +86,10 @@
   {%- else %}{% trans %}Summary written by AI from the <a href="{{ url }}">city's agenda</a>.{% endtrans %}{% endif %}
   {%- if how == "pdf" %} {{ _("Checked against the city's PDF.") }}
   {%- elif how == "partial" %} {{ _("Partly checked against the city's PDF.") }}
-  {%- elif how == "ai" %} {{ _("Checked against an AI transcription.") }} {{ _("Both come from AI, so they can share a mistake.") }}
+  {%- elif how == "ai" %} {{ _("Checked against a transcription of the scan.") }}
   {%- elif how == "recording" %} {{ _("Checked against the transcript.") }}{% endif %}
-  {%- if english_url %} {% trans url=english_url %}Translated automatically by AI from the <a href="{{ url }}" hreflang="en">English summary</a>, and may have errors.{% endtrans %}{% endif %}
-  {{ _("Check the original before relying on it.") }} <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
+  {%- if english_url %} {% trans url=english_url %}Translated automatically from the <a href="{{ url }}" hreflang="en">English summary</a>.{% endtrans %}{% endif %}
+  <a href="/about/#checks">{{ _("How summaries are checked") }}</a></p>
   {% if report_url %}{{ report_button(report_url, _("Report an error in this summary")) }}{% endif %}
 </div>
 {%- endmacro %}
@@ -105,7 +104,7 @@
   {% if rec.get("transcript_source") == "pdf" %}
   <p class="source-note">{{ _("From the city's PDF, word for word.") }}</p>
   {% else %}
-  <p class="source-note">{{ _("Transcribed by AI from the city's PDF. Check the original before relying on it.") }}</p>
+  <p class="source-note">{{ _("Transcribed by AI from the city's scanned PDF.") }}</p>
   {% endif %}
   <div class="transcript-body">{{ rec.transcript | markdown }}</div>
 </details>
@@ -158,8 +157,8 @@
     {% if preview and m.preview_line %}<p class="meeting-preview">{{ m.preview_line }}</p>{% endif %}
     {% set meta = [] %}
     {% if show_date and not posted %}{% set __ = meta.append(m.date | date("weekday") ~ ((", " ~ (m.start_time | time)) if m.start_time else "")) %}{% endif %}
-    {# The line above is written by AI, so say so where it's shown; the meeting's page says how it was checked. #}
-    {% if preview and m.preview_line %}{% set __ = meta.append(ai_summary_short(m.preview_checked)) %}{% endif %}
+    {# The line above is written by AI, which the footer says once for the page; a line not checked says so here. #}
+    {% if preview and m.preview_line and unchecked_note(m.preview_checked) %}{% set __ = meta.append(unchecked_note(m.preview_checked)) %}{% endif %}
     {% if m.minutes_doc %}{% set __ = meta.append(_("Minutes posted")) %}{% elif m.get("decisions_from") == "recording" %}{% set __ = meta.append(_("From the recording")) %}{% elif m.agenda or m.get("documents_url") %}{% set __ = meta.append(_("Agenda posted")) %}{% elif m.date >= today and m.status == "scheduled" %}{% set __ = meta.append(_("No agenda posted yet")) %}{% endif %}
     {# On the home page's "Recently decided", a committee's recommendations aren't final until the governing body votes. #}
     {% if posted and m.get("decisions") and m.decisions.recommended and not m.decisions.decided %}{% set __ = meta.append(_("Committee recommendation")) %}{% endif %}
