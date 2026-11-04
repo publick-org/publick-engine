@@ -74,6 +74,7 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
         except FetchError as e:
             counts["errors"].append(f"{source['platform']} (source {i + 1}): {e}")
             continue
+        kept = []
         for item in found:
             if not item.get("date") or not since <= item["date"] <= today:
                 continue
@@ -86,6 +87,12 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
                                                    "is named in its title")
                     continue
                 item["board"] = board
+            kept.append(item)
+        # The source's recordings of each board's day, a meeting's parts counted as one.
+        per_day = {}
+        for item in kept:
+            per_day.setdefault(board_day(item), set()).add("parts" if item.get("part") else item["id"])
+        for item in kept:
             counts["listed"] += 1
             recording = store.get(item["id"])
             if recording is None:
@@ -98,7 +105,8 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
                 recording.pop("tries", None)
                 recording.pop("error", None)
             if not recording.get("meeting") or recording["meeting"] not in meetings:
-                meeting, why = recordings.match(recording, meetings, moved)
+                alone = len(per_day[board_day(item)]) == 1
+                meeting, why = recordings.match(recording, meetings, moved, alone=alone)
                 recording["meeting"] = meeting
                 if meeting:
                     recording["matched_at"] = stamp
@@ -106,6 +114,10 @@ def find(config: dict, client, store: dict, meetings: dict, moved: dict, since: 
                 else:
                     counts["unmatched"].append(f"{recording['board']} {recording['date']} ({recording['id']}): {why}")
     return counts
+
+
+def board_day(item: dict) -> tuple[str, str]:
+    return " ".join(item["board"].lower().split()), item["date"]
 
 
 def listed_board(item: dict, meetings: dict, moved: dict, town: str = "") -> str | None:

@@ -92,6 +92,21 @@ def test_a_recording_not_matched_and_one_waiting_are_told_apart(config, data_dir
     assert steps[("City Council", "2026-10-29")] == "waiting"
 
 
+def test_a_sitting_is_counted_by_the_meeting_its_recording_is_matched_to(config, data_dir):
+    store = json.loads((data_dir / "meetings" / "meetings.json").read_text())
+    # A public hearing listed just before the planning board's meeting, its id sorting first.
+    hearing = meeting("a-hearing-28", "2026-10-28", "Planning Board", start_time="18:45", end_time="19:00")
+    store["planning-28"].update(start_time="19:00", end_time="21:00")
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps({hearing["id"]: hearing, **store}))
+    recordings.save(data_dir, {**recordings.load(data_dir), "telvue-5": {
+        "id": "telvue-5", "platform": "telvue", "board": "Planning Board", "date": "2026-10-28",
+        "meeting": "planning-28", "found_at": "2026-10-29T05:00:00-04:00", "source": 0, "tries": 1, "error": "x"}})
+    result = coverage.coverage(config, data_dir, today=TODAY)
+    assert result["held"] == 6
+    steps = {(m["board"], m["date"]): m["step"] for m in result["misses"]}
+    assert steps[("Planning Board", "2026-10-28")] == "waiting"
+
+
 def test_a_town_without_recordings(config, data_dir):
     del config["recordings"]
     result = coverage.coverage(config, data_dir, today=TODAY)
