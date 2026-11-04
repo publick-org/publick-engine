@@ -18,7 +18,9 @@ the last WINDOW_DAYS days (not today's, and not cancelled ones):
                 feed or schedule), with no documents, on the day another board
                 whose name shares a word with its own (meeting_names.
                 distinct_words) has a meeting with documents from another
-                source: most likely one meeting listed under two names
+                source: most likely one meeting listed under two names. A
+                listing marked postponed or rescheduled isn't one: it was
+                moved to another day
   waiting       each document reader's meetings still waiting for their
                 documents, from its status file under data/meetings/ (a reader
                 saves only so many documents a run, newest first)
@@ -37,6 +39,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from pipeline import listings
+from pipeline.absences import NOT_HELD
 from pipeline.meeting_names import distinct_words
 
 WINDOW_DAYS = 90
@@ -100,7 +103,10 @@ def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
     pairs = []
     for day, group in sorted(by_day.items()):
         for m in group:
-            if m.get("source", "calendar") not in CALENDARS or has_agenda(m) or has_minutes(m):
+            # A listing moved to another day (postponed, or rescheduled: "RESCHEDULED to 10-14") isn't a
+            # second listing of the meeting held that day.
+            if (m.get("source", "calendar") not in CALENDARS or has_agenda(m) or has_minutes(m)
+                    or m.get("status") in NOT_HELD):
                 continue
             words = distinct_words(m["body"], town)
             other = next((o for o in group if o is not m and o["body"] != m["body"] and (has_agenda(o) or has_minutes(o))

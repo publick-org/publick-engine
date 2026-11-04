@@ -75,6 +75,9 @@ DATE_IN_NAME = re.compile(
     rf"(?:\b{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+\d{{4}}\b)?"
     r"|(?<![\d/.-])\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})(?![\d/.-])"
     r"|(?<!\d)\d{4}-\d{2}-\d{2}(?!\d))", re.I)
+# A date without its year, left after a status word ("RESCHEDULED to 10-14-Beverly Regional Airport
+# Commission"): only after on, for or to, since a name may have numbers of its own ("Ward 3").
+SHORT_DATE = re.compile(r"\b(?:on|for|to)\s+\d{1,2}[/-]\d{1,2}(?![\d/])", re.I)
 # What a clerk writes after a board's name that names one of its committees: "City Council - Ordinance
 # Committee", "City Council - Committee of the Whole" (Lawrence's calendar). The meeting is the committee's.
 OF_BOARD = re.compile(r"^[\w&,/' ]*\b(?:sub)?committee(?: of the whole)?(?:\s+meeting)?$", re.I)
@@ -86,7 +89,7 @@ CO_POSTED = re.compile(r"\s*,?\s*\bco-?posted\b.*$", re.I)
 def board_part(name: str) -> str:
     """A meeting's name without what says when, or who else it's posted for, rather than which board:
     'Planning Board Meeting, December 17, 2026' -> 'Planning Board Meeting'."""
-    name = CO_POSTED.sub("", DATE_IN_NAME.sub(" ", name))
+    name = CO_POSTED.sub("", SHORT_DATE.sub(" ", DATE_IN_NAME.sub(" ", name)))
     return re.sub(r"\s{2,}", " ", re.sub(r"^[\s,\-–:]+|[\s,\-–:]+$", "", name))
 
 
@@ -114,11 +117,12 @@ def parse_title(title: str) -> dict:
         name = tidy_case(name)
     special = bool(re.search(r"\bspecial\b", name, re.I))
     # The board, without what the clerk added after it ("Planning Board - Public
-    # Hearing", "License Board Meeting - Agenda - October 1, 2026") or in brackets
-    # ("Community Preservation Committee (CPC)"), its date (board_part), or the kind
-    # of meeting; but with the committee of it that follows ("City Council - Ordinance
-    # Committee": its Ordinance Committee).
-    pieces = re.split(r"\s+[-–]+\s+", board_part(re.sub(r"\s*\([^)]*\)", "", name)))
+    # Hearing", "License Board Meeting - Agenda - October 1, 2026"), after a colon
+    # ("Waltham School Committee: FY28 Budget Workshop"), or in brackets ("Community
+    # Preservation Committee (CPC)"), its date (board_part), or the kind of meeting;
+    # but with the committee of it that follows ("City Council - Ordinance
+    # Committee", "Conservation Commission: Rapid Response Subcommittee": its committee).
+    pieces = re.split(r"\s+[-–]+\s+|:\s+", board_part(re.sub(r"\s*\([^)]*\)", "", name)))
     body = pieces[0]
     if len(pieces) > 1 and OF_BOARD.match(pieces[1]):
         committee = re.sub(r"\s+meeting$", "", pieces[1], flags=re.I)
