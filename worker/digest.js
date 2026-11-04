@@ -44,6 +44,8 @@
 
 export const API = "https://api.buttondown.com/v1";
 export const SIGNUP_PATH = "/digest/subscribe";
+// The most a signup form's body may be: an address, a language, the honeypot, and room to spare.
+export const MAX_FORM_BYTES = 4096;
 // Every hour of Sunday and Monday, UTC: all of Sunday in every US time zone. Days by name:
 // Cloudflare numbers them 1 (Sunday) to 7, not cron's usual 0 to 6, and refuses a 0.
 export const DIGEST_CRON = "35 * * * SUN,MON";
@@ -200,6 +202,11 @@ export async function subscribe(request, env, url, manifest = null) {
   });
   // Only the town's own pages post here.
   if (request.headers.get("Origin") !== url.origin) return new Response("Forbidden", { status: 403 });
+  // Only what the form sends: a few fields, URL-encoded. Anything else (a file upload, a body of megabytes)
+  // isn't read at all, so a flood of such requests costs nothing to parse.
+  const length = Number(request.headers.get("Content-Length") || 0);
+  const type = request.headers.get("Content-Type") || "";
+  if (length > MAX_FORM_BYTES || !/^application\/x-www-form-urlencoded\b/i.test(type)) return answer("problem");
   let form;
   try {
     form = await request.formData();

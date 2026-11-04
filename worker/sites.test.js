@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 
 import worker from "./index.js";
-import { MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, movedTo, resolve } from "./sites.js";
+import { MANIFEST_REFRESH_MS, MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, movedTo, resolve } from "./sites.js";
+import { MAX_FORM_BYTES } from "./digest.js";
 
 function entry(blob, type = "text/html; charset=utf-8") {
   return { blob, type, size: `content ${blob}`.length };
@@ -75,6 +76,8 @@ test("redirects a folder without its slash, keeping the query", async () => {
   const response = await worker.fetch(get("/about?x=1"), env());
   assert.equal(response.status, 301);
   assert.equal(response.headers.get("Location"), "https://t.publick.org/about/?x=1");
+  assert.equal(response.headers.get("Strict-Transport-Security"), "max-age=31536000");
+  assert.equal(response.headers.get("Cache-Control"), "public, max-age=300");
 });
 
 test("a moved page's address is a permanent redirect to its new one, in each language", async () => {
@@ -124,7 +127,8 @@ test("unknown paths get the site's 404 page", async () => {
     const response = await worker.fetch(get(path), env());
     assert.equal(response.status, 404, path);
     assert.equal(await response.text(), "content missing");
-    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    // Kept briefly, so a scanner's repeats don't each reach the Worker; never for long, in case the page appears.
+    assert.equal(response.headers.get("Cache-Control"), "public, max-age=60");
   }
 });
 
@@ -198,16 +202,51 @@ test("a site in English only ignores the browser's language", async () => {
 test("an unknown hostname has no site", async () => {
   const response = await worker.fetch(new Request("https://other.publick.org/"), env());
   assert.equal(response.status, 404);
+  // A plain answer, with the headers every answer carries, kept briefly.
+  assert.equal(response.headers.get("Strict-Transport-Security"), "max-age=31536000");
+  assert.equal(response.headers.get("Cache-Control"), "public, max-age=60");
+  assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
 });
 
-test("versioned assets are cached for good, everything else briefly", async () => {
+test("assets whose ?v= names their content are cached for good, everything else briefly", async () => {
   const e = env();
-  const versioned = await worker.fetch(get("/static/css/site.css?v=4d569b50fe"), e);
+  // ?v= is the start of the hash of the file's content, which is the blob's name.
+  const versioned = await worker.fetch(get("/static/css/site.css?v=cs"), e);
   assert.match(versioned.headers.get("Cache-Control"), /immutable/);
   const plain = await worker.fetch(get("/static/css/site.css"), e);
   assert.equal(plain.headers.get("Cache-Control"), "public, max-age=300");
   const page = await worker.fetch(get("/"), e);
   assert.equal(page.headers.get("Cache-Control"), "public, max-age=300");
+  // A ?v= that names other content (a build before or after the one served) must not keep this file for good.
+  const other = await worker.fetch(get("/static/css/site.css?v=4d569b50fe"), e);
+  assert.equal(other.status, 200);
+  assert.equal(other.headers.get("Cache-Control"), "public, max-age=300");
+});
+
+test("a request for a newer build's asset has the manifest read again, once in a while", async () => {
+  const e = env();
+  // Read a moment ago: long enough for a request to have it read again.
+  await loadManifest(e, "t.publick.org", Date.now() - MANIFEST_REFRESH_MS - 1);
+  await worker.fetch(get("/static/css/site.css?v=cs"), e);
+  const reads = () => e.SITES.reads.filter((k) => k.endsWith("current.json")).length;
+  assert.equal(reads(), 1);
+  // The site is published again, with a new stylesheet, while this instance still holds the old manifest.
+  const newer = { ...MANIFEST, build: "20261002T120000Z-def",
+                  files: { ...MANIFEST.files, "static/css/site.css": entry("newcss", "text/css; charset=utf-8") } };
+  e.SITES = bucket({ "sites/t.publick.org/current.json": newer, "blobs/newcss": "content newcss" });
+  e.SITES.reads.push("sites/t.publick.org/current.json"); // as counted above
+  const fresh = await worker.fetch(get("/static/css/site.css?v=newc"), e);
+  assert.equal(await fresh.text(), "content newcss");
+  assert.match(fresh.headers.get("Cache-Control"), /immutable/);
+  assert.equal(reads(), 2);
+  // A ?v= no build has (a bot's, or a page of a build long gone) doesn't make the instance read it again at once.
+  const unknown = await worker.fetch(get("/static/css/site.css?v=zzz"), e);
+  assert.equal(unknown.headers.get("Cache-Control"), "public, max-age=300");
+  assert.equal(await unknown.text(), "content newcss");
+  assert.equal(reads(), 2);
+  // Until MANIFEST_REFRESH_MS have passed, by the manifest's own clock.
+  await loadManifest(e, "t.publick.org", Date.now() + MANIFEST_REFRESH_MS + 1, { refresh: true });
+  assert.equal(reads(), 3);
 });
 
 test("HEAD and conditional requests read no file", async () => {
@@ -217,18 +256,34 @@ test("HEAD and conditional requests read no file", async () => {
   assert.equal(head.headers.get("Content-Length"), String("content about".length));
   const cached = await worker.fetch(get("/about/", { headers: { "If-None-Match": '"about"' } }), e);
   assert.equal(cached.status, 304);
-  assert.deepEqual(e.SITES.reads.filter((k) => k.startsWith("blobs/")), []);
+  // The weak tag Cloudflare sends when it compresses the answer, and a list of tags, name the file too.
+  const weak = await worker.fetch(get("/about/", { headers: { "If-None-Match": 'W/"about"' } }), e);
+  assert.equal(weak.status, 304);
+  const listed = await worker.fetch(get("/about/", { headers: { "If-None-Match": '"old", W/"about"' } }), e);
+  assert.equal(listed.status, 304);
+  const other = await worker.fetch(get("/about/", { headers: { "If-None-Match": '"home"' } }), e);
+  assert.equal(other.status, 200);
+  assert.deepEqual(e.SITES.reads.filter((k) => k.startsWith("blobs/")), ["blobs/about"]);
 });
 
 test("only GET and HEAD are allowed", async () => {
   const response = await worker.fetch(get("/", { method: "POST" }), env());
   assert.equal(response.status, 405);
+  assert.equal(response.headers.get("Allow"), "GET, HEAD");
+  assert.equal(response.headers.get("Strict-Transport-Security"), "max-age=31536000");
 });
 
 test("www redirects to the bare hostname", async () => {
   const response = await worker.fetch(new Request("https://www.publick.org/about/"), env());
   assert.equal(response.status, 301);
   assert.equal(response.headers.get("Location"), "https://publick.org/about/");
+  assert.equal(response.headers.get("Strict-Transport-Security"), "max-age=31536000");
+  assert.equal(response.headers.get("Cache-Control"), "public, max-age=300");
+});
+
+test("pages say what they may ask the browser for", async () => {
+  const response = await worker.fetch(get("/"), env());
+  assert.equal(response.headers.get("Permissions-Policy"), "camera=(), microphone=(), geolocation=(self)");
 });
 
 test("a missing file is an outage, not a 404", async () => {
@@ -247,8 +302,15 @@ test("the manifest is reread after its time to live", async () => {
   assert.equal(e.SITES.reads.length, 2);
 });
 
-test("a manifest in another format is refused", async () => {
-  await assert.rejects(loadManifest(env({ ...MANIFEST, format: 2 }), "t.publick.org"), /format 2/);
+test("a manifest in another format is refused, and not read again until its time to live", async () => {
+  const e = env({ ...MANIFEST, format: 2 });
+  await assert.rejects(loadManifest(e, "t.publick.org", 0), /format 2/);
+  await assert.rejects(loadManifest(e, "t.publick.org", 1), /format 2/);
+  assert.equal(e.SITES.reads.length, 1);
+  await assert.rejects(loadManifest(e, "t.publick.org", MANIFEST_TTL_MS + 1), /format 2/);
+  assert.equal(e.SITES.reads.length, 2);
+  const response = await worker.fetch(get("/"), e);
+  assert.equal(response.status, 503);
 });
 
 test("no other site may frame the pages", async () => {
@@ -282,12 +344,17 @@ test("a bucket that fails is a plain 503, and a site read before keeps being ser
   assert.equal(logged.length, 2);
 });
 
-test("made-up hostnames can't grow the manifests kept without limit", async () => {
+test("made-up hostnames can't grow the manifests kept without limit, and push out only the oldest", async () => {
   const e = env();
-  for (let i = 0; i <= MAX_HOSTS + 5; i++) await loadManifest(e, `x${i}.publick.org`, 0);
+  await loadManifest(e, "t.publick.org", 0);
+  for (let i = 0; i < MAX_HOSTS + 5; i++) await loadManifest(e, `x${i}.publick.org`, i + 1);
   const before = e.SITES.reads.length;
-  // The cache was emptied when it was full, so an early hostname is read again.
-  await loadManifest(e, "x0.publick.org", 0);
+  // The hostnames read longest ago made room: the real site, read first, is read again...
+  await loadManifest(e, "t.publick.org", MAX_HOSTS + 10);
+  assert.equal(e.SITES.reads.length, before + 1);
+  // ...and the ones read most recently are still held.
+  await loadManifest(e, `x${MAX_HOSTS + 4}.publick.org`, MAX_HOSTS + 10);
+  await loadManifest(e, `x${MAX_HOSTS - 1}.publick.org`, MAX_HOSTS + 10);
   assert.equal(e.SITES.reads.length, before + 1);
 });
 
@@ -570,6 +637,16 @@ test("a signup from another language's page goes on to that language's answer, w
   } finally {
     fake.restore();
   }
+});
+
+test("a signup that isn't a small URL-encoded form isn't read", async () => {
+  const big = await signUp([], { email: "reader@example.org" }, { Origin: "https://t.publick.org", "Content-Length": String(MAX_FORM_BYTES + 1) });
+  assert.equal(big.response.status, 303);
+  assert.match(big.response.headers.get("Location"), /\/digest\/problem\/$/);
+  assert.equal(big.calls.length, 0);
+  const upload = await signUp([], { email: "reader@example.org" }, { Origin: "https://t.publick.org", "Content-Type": "multipart/form-data; boundary=x" });
+  assert.match(upload.response.headers.get("Location"), /\/digest\/problem\/$/);
+  assert.equal(upload.calls.length, 0);
 });
 
 test("a site without the digest's signup takes no POST", async () => {
