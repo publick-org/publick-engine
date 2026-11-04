@@ -354,6 +354,17 @@ def test_a_live_video_has_no_length_yet():
     assert youtube.details(["a", "b"], "k", get) == {"a": {"seconds": None}, "b": {"seconds": 2700}}
 
 
+def test_a_video_not_public_or_still_processing_has_no_length_yet():
+    def item(id_, privacy="public", upload="processed"):
+        return {"id": id_, "snippet": {"liveBroadcastContent": "none"}, "contentDetails": {"duration": "PT3H30M45S"},
+                "status": {"privacyStatus": privacy, "uploadStatus": upload}}
+    get = FakeHTTP((200, {"items": [item("public"), item("unlisted", privacy="unlisted"),
+                                    item("processing", upload="uploaded")]}))
+    assert youtube.details(["public", "unlisted", "processing"], "k", get) == {
+        "public": {"seconds": 12645}, "unlisted": {"seconds": None}, "processing": {"seconds": None}}
+    assert get.calls[0][1]["params"]["part"] == "contentDetails,snippet,status"
+
+
 def interaction(text, tokens=(1000, 500)):
     return {"status": "completed", "steps": [{"type": "model_output", "content": [{"type": "text", "text": text}]}],
             "usage": {"total_input_tokens": tokens[0], "total_output_tokens": tokens[1]}}
@@ -438,6 +449,30 @@ def test_gemini_paragraphs_start_at_times_inside_a_line():
     text = "[0:00:02] Come to order. Pledge of Allegiance. [0:00:59] Roll call, Mr. Clerk. 11 present. [0:05:00] Moment of silence."
     assert gemini.paragraphs(text, 0, 1200) == [(2.0, "Come to order. Pledge of Allegiance."),
                                                 (59.0, "Roll call, Mr. Clerk. 11 present."), (300.0, "Moment of silence.")]
+
+
+NOT_PUBLIC = (403, {"error": {"message": "The caller does not have permission", "code": "permission_denied"}})
+
+
+def test_a_video_gemini_cant_open_waits_then_fails(monkeypatch):
+    from datetime import date
+
+    from pipeline.http import FetchError
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    video = {"id": "youtube-Ia9lKnd_lTc", "video_id": "Ia9lKnd_lTc", "seconds": 600, "title": "City Council",
+             "date": "2026-11-02"}
+    waits = []
+    # Asked once: asking again straight away won't make it public.
+    post = FakeHTTP(NOT_PUBLIC)
+    with pytest.raises(gemini.NotPublic, match="HTTP 403"):
+        gemini.transcribe(post, "Ia9lKnd_lTc", 600, "x", "2026-11-02", "k", sleep=waits.append)
+    assert len(post.calls) == 1 and waits == []
+    # The day after the meeting, and the next: it waits, no failed try.
+    for today in (date(2026, 11, 3), date(2026, 11, 4)):
+        assert youtube.transcript(None, METHUEN_SCHOOLS, video, post=FakeHTTP(NOT_PUBLIC), today=today) is None
+    # After PUBLIC_WAIT_DAYS, a failed try, with Gemini's answer.
+    with pytest.raises(FetchError, match="permission"):
+        youtube.transcript(None, METHUEN_SCHOOLS, video, post=FakeHTTP(NOT_PUBLIC), today=date(2026, 11, 5))
 
 
 def test_a_youtube_transcript_goes_on_from_the_parts_already_answered(monkeypatch, tmp_path):
