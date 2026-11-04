@@ -11,7 +11,12 @@ Row titles are typed by each board's clerk ("Agenda for PCAC Meeting
 9/16/2026", "CANCELLED: CASC 8/12/26 agenda"), so the board comes from the
 category, and the title only for committees of a category the town lists
 ([meetings.agenda_center.committees]): "Finance Committee Agenda" under City
-Council is the City Council Finance Committee.
+Council is the City Council Finance Committee. A row whose title names a
+subcommittee, under a board whose name doesn't, is the board's subcommittee's
+("Airport Commission Subcommittee"), not the board's: an Agenda Center files
+a board's subcommittees under the board. Which subcommittee comes from the
+city calendar's listing that links the row, where there is one
+(fetch_meetings.rename()), not from the clerk's wording of the title.
 
 An agenda keeps its number when the city posts a revised version; its posted
 time changes, so each version is told apart by both.
@@ -97,18 +102,35 @@ def natural_name(category: str) -> str:
     return f"{m['board']} {m['subject']}" if m else category
 
 
-def body_for(row: dict, aliases: dict, committees: dict) -> str:
-    """The category's board (a town's alias for it, or its name the right way round),
-    or a committee of it named in the row's title."""
-    body = next((target for name, target in aliases.items() if name.lower() == row["category"].lower()),
+# A subcommittee, however it's written ("Sub-Committee", "Sub Committee").
+SUBCOMMITTEE = re.compile(r"\bsub[\s-]?committees?\b", re.I)
+
+
+def board_of(row: dict, aliases: dict) -> str:
+    """The category's board: a town's alias for it, or its name the right way round."""
+    return next((target for name, target in aliases.items() if name.lower() == row["category"].lower()),
                 natural_name(row["category"]))
+
+
+def body_for(row: dict, aliases: dict, committees: dict) -> str:
+    """The category's board (board_of), or a committee of it named in the row's title (committees); else,
+    where the title names a subcommittee and the board's name doesn't, the board's subcommittee ("Airport
+    Commission Subcommittee"), not the board: which of its subcommittees is named by a calendar listing that
+    links the row, where there is one (fetch_meetings.rename())."""
+    body = board_of(row, aliases)
     listed = committees.get(row["category"]) or committees.get(body) or {}
-    return find_board(row["title"], [], listed) or body
+    named = find_board(row["title"], [], listed)
+    if named:
+        return named
+    if SUBCOMMITTEE.search(row["title"]) and not SUBCOMMITTEE.search(body):
+        return f"{body} Subcommittee"
+    return body
 
 
 def to_event(row: dict, aliases: dict | None = None, committees: dict | None = None) -> dict:
     """A row as a meeting record for pipeline.fetch_meetings."""
     parsed = parse_name(row["title"])
+    board = board_of(row, aliases or {})
     body = body_for(row, aliases or {}, committees or {})
     hearing = re.search(r"\bhearings?\b", row["title"], re.I) and not re.search(r"\bmeeting\b", row["title"], re.I)
     kind = "Special Meeting" if parsed["special"] else "Public Hearing" if hearing else "Meeting"
@@ -121,6 +143,8 @@ def to_event(row: dict, aliases: dict | None = None, committees: dict | None = N
         "start_time": None,
         "end_time": None,
         "body": body,
+        # The board whose subcommittee this is, where the row names no more of it than that (body_for).
+        "subcommittee_of": board if body == f"{board} Subcommittee" else None,
         "title": f"{body} {kind}",
         "posted_title": row["title"],
         "status": parsed["status"],

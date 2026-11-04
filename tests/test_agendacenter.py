@@ -104,6 +104,33 @@ def test_an_alias_comes_before_turning_a_name_round():
     assert agendacenter.body_for(row, {"Health, Board of": "Beverly Board of Health"}, {}) == "Beverly Board of Health"
 
 
+def subcommittee_row(category, title):
+    return {"category": category, "title": title, "number": "2943", "date": "2026-10-13", "posted_at": None,
+            "agenda_url": "https://example.gov/AgendaCenter/ViewFile/Agenda/_10132026-2943", "minutes_url": None}
+
+
+# An Agenda Center files a board's subcommittees under the board: Beverly's and Bangor's.
+@pytest.mark.parametrize("category, title, body, of", [
+    ("Airport Commission", "Beverly Regional Airport Subcommittee on Mission Meeting Agenda (PDF)",
+     "Airport Commission Subcommittee", "Airport Commission"),
+    ("Commission on Cultural Development", "Commission on Cultural Development Sub-Committee Meeting Agenda (PDF)",
+     "Commission on Cultural Development Subcommittee", "Commission on Cultural Development"),
+    # The board's own meeting, and a category that's a subcommittee already, stay as they are.
+    ("Airport Commission", "Beverly Regional Airport Commission Meeting Agenda (PDF)", "Airport Commission", None),
+    ("Finance Subcommittee", "Finance Subcommittee Meeting", "Finance Subcommittee", None),
+])
+def test_a_subcommittees_row_is_the_boards_subcommittee(category, title, body, of):
+    event = agendacenter.to_event(subcommittee_row(category, title))
+    assert (event["body"], event["subcommittee_of"]) == (body, of)
+
+
+def test_a_committee_the_town_lists_comes_before_the_subcommittee_rule():
+    committees = {"Conservation Commission": {"Rapid Response Subcommittee": "Conservation Commission Rapid Response Subcommittee"}}
+    row = subcommittee_row("Conservation Commission", "Conservation Commission: Rapid Response Subcommittee Meeting (PDF)")
+    event = agendacenter.to_event(row, {}, committees)
+    assert (event["body"], event["subcommittee_of"]) == ("Conservation Commission Rapid Response Subcommittee", None)
+
+
 def test_an_agenda_made_in_the_builder_is_read_as_its_pdf():
     """An agenda written in the Agenda Center's builder (Lowell's council, Beverly's Council on
     Aging) is linked as a web page, "?html=true"; the same address without it is the PDF."""

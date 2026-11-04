@@ -82,9 +82,17 @@ def save_store(data_dir: Path, store: dict, config: dict) -> None:
     identity.update(data_dir, store, config.get("town", {}).get("name", ""), previous)
 
 
+# What a calendar can write after a board's name that doesn't name it: an alias written with it still
+# matches the name without it, however the parser reads that name ("…Committee of the Whole Meeting Agenda").
+ALIAS_TAIL = re.compile(r"(?:\s+(?:meeting|agenda))+$", re.I)
+
+
 def normalize_body(body: str, aliases: dict) -> str:
+    """The town's name for a board ([meetings.aliases]), compared without case or a trailing "Meeting" or
+    "Agenda" (ALIAS_TAIL), so an alias doesn't depend on whether the parser leaves those words in."""
+    key = ALIAS_TAIL.sub("", body.strip()).lower()
     for name, alias in aliases.items():
-        if body.lower() == name.lower():
+        if key == ALIAS_TAIL.sub("", name.strip()).lower():
             return alias
     return body
 
@@ -104,11 +112,20 @@ def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: di
     no longer lists keeps the name it was recorded with, however the parser, [meetings.aliases] or the
     town's known boards have changed since: its name is read again from its title (Calendar.title_body).
     A listing whose "Download Agenda" link names an Agenda Center listing of the same day (agenda_listing)
-    is named as that listing is, so the two are one meeting (pipeline/listings.py), where the names share
-    a word that isn't only a kind of body (distinct_words): a calendar entry that links another board's
-    agenda keeps its own name. Returns how many were renamed."""
+    shares one name with it, so the two are one meeting (pipeline/listings.py), where the names share a
+    word that isn't only a kind of body (distinct_words): a calendar entry that links another board's
+    agenda keeps its own name. The calendar's listing takes the Agenda Center's name ("Beverly Retirement
+    Board" takes "Contributory Retirement Board"), except where the Agenda Center names no more than a
+    board's subcommittee ("Airport Commission Subcommittee", subcommittee_of: agendacenter.body_for) and
+    the calendar names a subcommittee too ("Beverly Regional Airport Commission Subcommittee on Mission"):
+    then the Agenda Center's listing takes the calendar's, which says which subcommittee, if no other
+    calendar listing links it. Returns how many were renamed."""
     known = identity.known_boards(store, town)
     renamed = 0
+    linkers: dict[str, int] = {}
+    for meeting in store.values():
+        if meeting.get("agenda_listing"):
+            linkers[meeting["agenda_listing"]] = linkers.get(meeting["agenda_listing"], 0) + 1
     for meeting in store.values():
         calendar = next((c for c in town_calendars if c.owns(meeting)), None)
         if calendar is None:
@@ -119,7 +136,12 @@ def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: di
         linked = store.get(meeting.get("agenda_listing") or "")
         if (linked and linked["date"] == meeting["date"] and linked["body"] != body
                 and distinct_words(linked["body"], town) & distinct_words(body, town)):
-            body = linked["body"]
+            if linked.get("subcommittee_of") and agendacenter.SUBCOMMITTEE.search(body):
+                if linkers.get(linked["id"]) == 1:
+                    linked["body"] = body
+                    renamed += 1
+            else:
+                body = linked["body"]
         if body != meeting["body"]:
             meeting["body"] = body
             renamed += 1
@@ -231,7 +253,9 @@ class Calendar:
     is the board the calendar's parser reads from a recorded meeting's title, so
     a record no longer listed is named as a new listing would be (rename()). unmatched, if given, lists
     the titles of the last events() that read like meetings but name none of the calendar's boards,
-    kept in the run's status so a board's new committee isn't left out unseen."""
+    kept in the run's status so a board's new committee isn't left out unseen. past_link(client, meeting,
+    storage, stamp), if given, reads a past meeting's own page for the other listing it links (its agenda
+    in an Agenda Center, agenda_listing), once (PAST_LINK_DAYS)."""
     name: str
     events: Callable[..., list[dict]]
     owns: Callable[[dict], bool]
@@ -239,6 +263,7 @@ class Calendar:
     wants: Callable[..., bool] | None = None
     title_body: Callable[[dict], str] | None = None
     unmatched: list[str] | None = None
+    past_link: Callable[..., None] | None = None
 
 
 def matches(settings: dict, title: str) -> bool:
@@ -251,6 +276,11 @@ def matches(settings: dict, title: str) -> bool:
 # How far ahead a CivicPlus calendar's event pages are read for the Agenda Center listing their
 # "Download Agenda" link names: a board posts its agenda a week or less before it meets.
 AGENDA_LINK_DAYS = 14
+# How far back a calendar's past listings have their event pages read, once each, for the agenda they link
+# (Calendar.past_link): the window of the network's report of meetings listed twice
+# (document_gaps.WINDOW_DAYS). A listing the calendar showed only after its meeting, or recorded before the
+# link was read, is put together with its agenda this way.
+PAST_LINK_DAYS = 90
 
 
 def civicplus_title_body(meeting: dict) -> str:
@@ -315,6 +345,11 @@ def civicplus_list_calendar(config: dict) -> Calendar:
         if found.get("agenda_center_id"):
             meeting["agenda_listing"] = f"agendacenter-{found['agenda_center_id']}"
 
+    def past_link(client, meeting, storage, stamp):
+        found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
+        if found.get("agenda_center_id"):
+            meeting["agenda_listing"] = f"agendacenter-{found['agenda_center_id']}"
+
     def wants_link(meeting, store, today):
         # Only a meeting the next AGENDA_LINK_DAYS days, whose link isn't known yet, and whose board the
         # Agenda Center doesn't list that day by the same name: the rest are put together already.
@@ -327,7 +362,8 @@ def civicplus_list_calendar(config: dict) -> Calendar:
     town = config.get("town", {}).get("name", "")
     owns = lambda m: m.get("source", "calendar") == "calendar" and m["id"].isdigit()
     if "agenda_center" in source:
-        return Calendar("city calendar", events, owns, agenda_link, wants_link, civicplus_title_body)
+        return Calendar("city calendar", events, owns, agenda_link, wants_link, civicplus_title_body,
+                        past_link=past_link)
     return Calendar("city calendar", events, owns, details, title_body=civicplus_title_body)
 
 
@@ -705,7 +741,32 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         except Exception as e:  # one meeting's page doesn't stop the rest, or the save
             errors.append(str(e) if isinstance(e, FetchError) else f"{meeting['id']}: {e!r}")
 
-    renamed = rename(store, calendars(config), aliases, config["town"]["name"], seen)
+    # A past listing's page, read once for the agenda it links, with what's left of the run's pages: newest
+    # first, back PAST_LINK_DAYS, and only one whose board the Agenda Center doesn't list that day by the same
+    # name (wants). A page that's gone (404, 410) isn't asked for again.
+    oldest = (today - timedelta(days=PAST_LINK_DAYS)).isoformat()
+    town_calendars = calendars(config)
+    for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
+        if pages >= source.get("max_event_pages", 40):
+            break
+        if (not oldest <= meeting["date"] < today.isoformat() or meeting.get("agenda_listing")
+                or meeting.get("agenda_link_checked") or not meeting.get("source_url")):
+            continue
+        calendar = next((c for c in town_calendars if c.past_link and c.owns(meeting)), None)
+        if not calendar or (calendar.wants and not calendar.wants(meeting, store, today)):
+            continue
+        try:
+            pages += 1
+            calendar.past_link(client, meeting, storage, stamp)
+            meeting["agenda_link_checked"] = stamp
+        except FetchError as e:
+            if e.status in (404, 410):
+                meeting["agenda_link_checked"] = stamp
+            errors.append(str(e))
+        except Exception as e:  # one meeting's page doesn't stop the rest, or the save
+            errors.append(f"{meeting['id']}: {e!r}")
+
+    renamed = rename(store, town_calendars, aliases, config["town"]["name"], seen)
     save_store(data_dir, store, config)
     names = [c.name for c in calendars(config)]
     checked = {name: c for name, c in checked.items() if name in names}
