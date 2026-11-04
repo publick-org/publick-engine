@@ -279,7 +279,7 @@ def test_malden_cancelled_meeting(malden_site):
 def test_malden_meeting_time_and_place_come_from_its_agenda(malden_site):
     finance = meeting_page(malden_site, "agendacenter-4453")
     assert "6:30 PM" in finance and "Room 105" in finance
-    assert "From the posted agenda, as read by AI." in finance
+    assert "From the posted agenda." in finance
     assert "Not listed on the" not in finance and "calendar" not in finance
     assert "This meeting's agenda in the City of Malden's Agenda Center" in finance
     # Its description is the agenda's summary; the time read from the agenda is the event's for search engines.

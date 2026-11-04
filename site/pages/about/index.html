@@ -192,7 +192,7 @@
 <ul>
   <li>{% trans %}<strong>Checked against the city's PDF</strong>: against the document's own text.{% endtrans %}</li>
   <li>{% trans %}<strong>Partly checked</strong>: some pages are scanned images, and only the pages with text could be checked, so nothing is held back.{% endtrans %}</li>
-  <li>{% trans %}<strong>Checked against an AI transcription</strong>: the PDF is a scanned image, so the summary is compared with AI's reading of it. Both come from AI and can share a mistake, so nothing is held back.{% endtrans %}</li>
+  <li>{% trans %}<strong>Checked against a transcription of the scan</strong>: the PDF is a scanned image, so the summary is compared with AI's reading of it. Both come from AI and can share a mistake, so nothing is held back.{% endtrans %}</li>
   <li>{% trans %}<strong>Not checked</strong>: there was no text to check against, or the summary is older than the check that matches decisions to the minutes' own words.{% endtrans %}</li>
 </ul>
 <p>{% trans %}Scanned agendas and minutes, which screen readers can't read, get a readable version of their full text, transcribed by AI and labeled that way. Where a document's own text can be laid out, the full text is the city's own words instead. Every page links the city's PDF.{% endtrans %}</p>

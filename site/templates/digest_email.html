@@ -45,7 +45,7 @@
 {% endif %}
 {% if issue.meetings %}
 <h2 style="{{ h2 }}">{{ _("Meetings") }}</h2>
-{% if issue.meetings | selectattr("preview_line") | list %}<p style="{{ note }}font-style:italic;">{{ _("The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it.") }}</p>{% endif %}
+{% if issue.meetings | selectattr("preview_line") | list %}<p style="{{ note }}font-style:italic;">{{ _("The line under a meeting is an AI summary of its agenda.") }}</p>{% endif %}
 {% for day, items in issue.days %}
 <p style="margin:22px 0 2px;padding-bottom:4px;border-bottom:1px solid #d6dbe1;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:{{ palette.accent }};">{{ day | date }}</p>
 {% for m in items %}
