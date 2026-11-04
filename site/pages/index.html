@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, meeting_item, ai_summary_short %}
+{% from "macros.html" import calendar_behind_note, day_group, meeting_item, unchecked_note %}
 {# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say.
    It names the town's governing body, as searches for its agendas do ("south kingstown town council agenda"). #}
 {% block title %}{% if config.meetings is defined %}
@@ -40,7 +40,7 @@
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
-    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span><span class="meeting-meta">{{ ai_summary_short(m.preview_checked) }}</span>{% endif %}</li>
+    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span>{% if unchecked_note(m.preview_checked) %}<span class="meeting-meta">{{ unchecked_note(m.preview_checked) }}</span>{% endif %}{% endif %}</li>
     {% endfor %}
   </ul>
 </div>

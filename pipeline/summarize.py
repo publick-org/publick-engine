@@ -101,7 +101,11 @@ SUMMARY_RULES = """Summary rules:
 - Use only what the document says. Do not add background, predictions, opinions, likely outcomes, or categories the document does not use.
 - Neutral tone. No adjectives that judge (such as important, controversial, significant).
 - Plain English at about an 8th-grade reading level. Short sentences, one idea each.
-- Keep names, dollar amounts, dates, and case or application numbers exactly as written."""
+- Keep names, dollar amounts, dates, and case or application numbers exactly as written.
+- Write the way a local reporter writes a brief: say what happened, in the words residents use. Vary how sentences start; don't open each one with "The board", "Members", or "Also".
+- Don't say what didn't happen (such as "No votes were taken" or "The meeting was informational") unless the board was expected to act and didn't.
+- Name at most three things in a row. For more, give the most important ones, or a count ("approved six permits").
+- The summary adds what the headline leaves out. Don't say again what the headline says."""
 
 # What each decision of minutes or a recording is about, for the decisions page to filter by
 # (pipeline/build_site.py TOPIC_NAMES says each one).
@@ -153,10 +157,11 @@ RECENT_MEETING_DAYS = 60
 KINDS = {
     "agenda": {
         # Version 5: the headline leads with what residents look for (projects and their addresses,
-        # new rules, money), for search results and the cards shared on social media. Agendas of
-        # meetings before remake_since keep version 4's: only those a share card shows are made again.
-        "version": 5,
-        "remake_since": "2026-09-08",
+        # new rules, money), for search results and the cards shared on social media. Version 6: the
+        # summary rules on voice, lists, and repeating the headline (SUMMARY_RULES). Agendas of meetings
+        # before remake_since keep the version they have.
+        "version": 6,
+        "remake_since": "2026-11-04",
         "folder": "agendas",
         # Room for a model's thinking at a high effort as well as the summary, which has run to
         # about 2,100 tokens at most; only what's written is paid for.
@@ -189,10 +194,10 @@ Return:
         # without AI (pipeline/factcheck.py). Version 4: the headline leads with what residents look
         # for, as the agenda's (version 5) does. Version 5: each decision with a short title, whether it's
         # main or routine, and its topic (DECISION_LABELS). Minutes of meetings before remake_since keep the
-        # version they have (4, 3, or 2 before 2026-08-04), about 30 days back when version 5 shipped:
-        # they're made again only if wanted, by moving it.
-        "version": 5,
-        "remake_since": "2026-10-01",
+        # version they have. Version 6: the summary rules on voice, lists, and repeating the headline
+        # (SUMMARY_RULES).
+        "version": 6,
+        "remake_since": "2026-11-04",
         "folder": "minutes",
         # Long scanned minutes take the model most of 16,000 tokens before it writes (Beverly's City
         # Council, 2026-03-16, 26 decisions): what isn't used isn't paid for.
@@ -240,7 +245,10 @@ Return:
         # with the transcript's own words for it, checked against the transcript (pipeline/factcheck.py).
         # Version 2: each decision with a title, main or routine, and a topic, as the minutes' (version 5).
         # Version 3: each matter discussed starts with a short name for it ("Law Department funding: ...").
-        "version": 3,
+        # Version 4: the summary rules on voice, lists, and repeating the headline (SUMMARY_RULES). Meetings
+        # before remake_since keep the version they have.
+        "version": 4,
+        "remake_since": "2026-11-04",
         "folder": "transcripts",
         # The document is text (the transcript), not a PDF.
         "text": True,

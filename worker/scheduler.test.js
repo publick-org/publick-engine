@@ -24,7 +24,7 @@ function env(page = statusPage("2026-10-02T11:40:00+00:00"), status = 200) {
     REPOSITORY: "publick-org/publick.org",
     WORKFLOW: "network.yml",
     STATUS_URL: "https://publick.org/status/",
-    ALERT_ASSIGNEE: "maintainer",
+    ALERT_ASSIGNEE: "alerts-account",
     SITES: { fetch: async (url) => (url === "https://publick.org/status/" ? new Response(page, { status }) : new Response("", { status: 404 })) },
   };
 }
@@ -85,7 +85,7 @@ test("no daily run for a day and more opens one issue, assigned", async () => {
   assert.equal(result.stopped, true);
   const issue = calls.find((c) => c.method === "POST" && c.path === "/repos/publick-org/publick.org/issues");
   assert.deepEqual(issue.body.labels, [ALERT_LABEL]);
-  assert.deepEqual(issue.body.assignees, ["maintainer"]);
+  assert.deepEqual(issue.body.assignees, ["alerts-account"]);
   assert.match(issue.body.body, /more than 30 hours/);
 });
 
@@ -514,7 +514,7 @@ test("a site down opens one issue, assigned, naming it", async () => {
   const issue = calls.find((c) => c.method === "POST" && c.path === "/repos/publick-org/publick.org/issues");
   assert.equal(issue.body.title, "malden-ma.publick.org isn't loading");
   assert.deepEqual(issue.body.labels, [DOWN_LABEL]);
-  assert.deepEqual(issue.body.assignees, ["maintainer"]);
+  assert.deepEqual(issue.body.assignees, ["alerts-account"]);
   assert.match(issue.body.body, /^- malden-ma\.publick\.org: HTTP 503$/m);
 });
 

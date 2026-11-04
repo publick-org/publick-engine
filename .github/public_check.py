@@ -2,7 +2,7 @@
 lines read like internal notes rather than public documentation, or that
 commits what running the project costs.
 
-This repository is public (see CLAUDE.md). The patterns are broad on purpose;
+This repository is public (see CONTRIBUTING.md). The patterns are broad on purpose;
 a false positive is cleared by the `public-ok` label.
 
 - The title, description, commit messages, and lines added to Markdown files
@@ -42,7 +42,7 @@ PATTERNS = [
     ("an account plan", r"\b(free|paid)\s+plan\b"),
     ("internal notes", r"\b(roadmap|runbook)\b"),
     ("a credential's lifetime", r"\b(token|key|secret)\b[^.\n]{0,60}\bexpires?\b[^.\n]{0,30}\d{4}"),
-    ("staffing", r"\b(one|single|only one) (person|owner)\b|\bsecond owner\b"),
+    ("people", r"\b(one|single|only one) (person|owner)\b"),
 ]
 COMPILED = [(name, re.compile(rx, re.IGNORECASE)) for name, rx in PATTERNS]
 
@@ -56,7 +56,7 @@ NONZERO = r"\$?(?!0+(?:\.0+)?(?![\d.]))\d"
 AMOUNT = r"\$\s?\d[\d,]*(?:\.\d+)?\s*[km]?\b"
 COST_PATTERNS = [
     ("a cost figure", rf"\b{SPENDING}\b[^\n]{{0,40}}{AMOUNT}|{AMOUNT}[^\n]{{0,30}}\b{SPENDING}\b"),
-    # SUMMARY_BUDGET: "75", budget = 50, max_spend: 20, SUMMARY_BUDGET_MONTH: "2026-01=90", and with the
+    # SUMMARY_BUDGET: "12", budget = 50, max_spend: 20, SUMMARY_BUDGET_MONTH: "2026-01=34", and with the
     # name in quotes ("budget": 50, QUOTED_SETTING).
     ("a budget or cost setting",
      rf"(?<![\w.])([A-Za-z_]*(?:budget|cost|spend|spent|allowance)[A-Za-z_]*)\s*[:=]\s*[\"']?{NONZERO}"),
@@ -84,7 +84,7 @@ TEST_PATHS = re.compile(r"^tests/")
 COST_RECORD_PATHS = re.compile(r"(^|/)summary-costs\.json$|(^|/)data/costs/")
 
 # Files that describe this check, and so quote what it looks for.
-SKIP_FILES = {"CLAUDE.md", "public_check.py", "test_public_check.py"}
+SKIP_FILES = {"CONTRIBUTING.md", "public_check.py", "test_public_check.py"}
 
 
 def git(*args):
@@ -168,7 +168,7 @@ def report(found):
     if not found:
         print("Nothing that reads like internal notes.")
         return 0
-    print("This repository is public. These read like internal notes (see CLAUDE.md):\n")
+    print("This repository is public. These read like internal notes (see CONTRIBUTING.md):\n")
     for f in found:
         print(f"  {f}")
     print("\nReword them or take them out. If one is a false positive, add the `public-ok` label "

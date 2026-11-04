@@ -8,7 +8,7 @@ they were last updated. Figure sources (the tax bill, budget, school figures,
 unemployment, housing) are judged by the period they cover: they're behind
 only when a newer period should have been published by now (pipeline/rhythms.py).
 A figure source whose checks keep failing is marked as failing, for the
-maintainer, without being behind. The list of elected officials, kept by hand,
+network's status page, without being behind. The list of elected officials, kept by hand,
 is behind when it hasn't been checked since the town's last election, or since
 new terms began (pipeline/officials.py, review). This also looks for new agendas and minutes
 still waiting for a summary (a sign the AI summary step is failing); older

@@ -125,12 +125,12 @@ pipeline/                   Python package
                             Each decision's title is held to the document too: one it doesn't support is left off, not its decision.
                             A recording's vote counts are read as a chair says them ("seven in the affirmative, none in the negative")
   evaluate.py               The minutes prompt run against the real model on minutes checked by hand (evals/minutes.json), with the
-                            checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate` (about $1 to $2)
+                            checks, before a prompt change ships: `ANTHROPIC_API_KEY=... python -m pipeline.evaluate`
   evaluate_translations.py  The translation prompt run the same way on summaries from towns in six states (evals/translations.json),
                             each with its town's glossary, scored on the glossary's gold terms and failing under the set's
                             thresholds: `python -m pipeline.evaluate --set translations`
   evaluate_batch.py         The minutes set sent through the Message Batches API at each effort, to measure how long a
-                            batch takes and what a lower effort does: `python -m pipeline.evaluate --set batch` (about $1 an effort)
+                            batch takes and what a lower effort does: `python -m pipeline.evaluate --set batch`
   evaluate_shadow.py        The fact check replay's real agendas and minutes summarized again with a model (`--model`, `--effort`)
                             and checked as the site checks them, beside the published summaries: `python -m pipeline.evaluate --set shadow`
   evaluate_factcheck.py     The fact check replayed, without AI, on real summaries and their PDFs' page text (evals/factcheck/),
