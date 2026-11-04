@@ -164,7 +164,7 @@
 
 <h2 id="data-status">{{ _("Data status") }}</h2>
 {# Translators: "Behind" is the status the table below shows for such a source. #}
-<p>{% trans %}Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; the maintainer is alerted automatically.{% endtrans %}</p>
+<p>{% trans %}Each source, the latest figures this site has, and when it last checked. Meetings and requests are checked every day. Figures that are published monthly or yearly are checked weekly or monthly, and are marked "Behind" only when newer figures should have been published by now; an alert goes out automatically.{% endtrans %}</p>
 <div class="table-wrap" role="region" aria-labelledby="data-status" tabindex="0">
 <table class="data-table">
   <thead><tr><th scope="col">{{ pgettext("data status", "Source") }}</th><th scope="col">{{ pgettext("data status", "Latest") }}</th><th scope="col">{{ _("Last checked") }}</th><th scope="col">{{ pgettext("data status", "Status") }}</th></tr></thead>
@@ -199,7 +199,7 @@
 {% endif %}
 
 {% if site.get("network") %}
-{# The data license, decided 2026-10-01; the full terms are in the network repository's LICENSE. #}
+{# The data license; the full terms are in the network repository's LICENSE. #}
 <h2 id="reuse">{{ _("Reusing what's here") }}</h2>
 {# Translators: %(network)s is the network's name, such as "Publick". #}
 <p>{% trans network=site.network, license="https://creativecommons.org/licenses/by/4.0/" %}The summaries, headlines, decision lists, and data that {{ network }} compiles are free to reuse, even commercially, under the <a href="{{ license }}">Creative Commons Attribution 4.0 license</a> (CC BY 4.0). Please credit them like this, with a link to the document the summary came from:{% endtrans %}</p>
