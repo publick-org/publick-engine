@@ -2051,7 +2051,7 @@ def report_link(site: dict, base_url: str, page_url: str, what: str) -> str:
 def checked_short(how: str | None) -> str:
     """How a summary was checked (factcheck.how_checked), in a few words, as macros.html's checked_short says it."""
     return {"pdf": _("Checked against the city's PDF"), "partial": _("Partly checked against the city's PDF"),
-            "ai": _("Checked against an AI transcription"),
+            "ai": _("Checked against a transcription of the scan"),
             "recording": _("Checked against the recording's transcript")}.get(how, _("Not checked"))
 
 
@@ -2072,7 +2072,7 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
         if m["agenda"]:
             summary = text(m["preview"])
             # How it was checked, after the credit (factcheck.how_checked).
-            credit = _("(AI summary of the agenda. Check the original.)") + " " + checked_short(factcheck.how_checked(m["preview"], "agenda")) + "."
+            credit = _("(AI summary of the agenda.)") + " " + checked_short(factcheck.how_checked(m["preview"], "agenda")) + "."
             items.append((m["agenda"]["fetched_at"], "agenda", _("{board}: agenda for {date}").format(board=m["body"], date=when), m,
                           summary + " " + credit if summary else _("Agenda posted.")))
         rs = m["recording_summary"]
@@ -2085,7 +2085,7 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
         if m["minutes_doc"]:
             ms = m["minutes_summary"] or {}
             summary = text(ms)
-            credit = _("(AI summary of the minutes. Check the original.)") + " " + checked_short(factcheck.how_checked(ms, "minutes")) + "."
+            credit = _("(AI summary of the minutes.)") + " " + checked_short(factcheck.how_checked(ms, "minutes")) + "."
             items.append((m["minutes_doc"]["fetched_at"], "minutes", _("{board}: minutes of {date}").format(board=m["body"], date=when), m,
                           summary + " " + credit if summary else _("Minutes posted.")))
     items.sort(key=lambda i: i[0], reverse=True)

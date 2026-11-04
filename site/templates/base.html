@@ -122,6 +122,7 @@
       {% set network = ('<a href="%s">%s</a>' | safe) % (site.network_url, site.network) if site.get("network_url") else site.get("network") %}
       <p>{% trans town=town.name %}An independent site, not affiliated with or endorsed by the City of {{ town }}.{% endtrans %}
       {%- if network %} {% trans url="/about/#reuse" %}Part of {{ network }}, a network of independent sites publishing the public record of towns and cities, free to <a href="{{ url }}">reuse with credit</a>.{% endtrans %}{% endif %}
+      {%- if config.summaries is defined %} {% trans url="/about/#ai" %}Meeting summaries are written by AI from the city's documents. <a href="{{ url }}">How they're checked</a>.{% endtrans %}{% endif %}
       {%- if data_status | selectattr("stale") | list %} {% trans url="/about/#data-status" %}Some of this site's data is behind: see <a href="{{ url }}">Data status</a>.{% endtrans %}{% endif %}</p>
       {% if lang != "en" and versions %}
       {# On a page in another language: no person checks its translation. #}
