@@ -155,6 +155,8 @@ def test_meeting_pages(site_dir):
     # on the calendar) and the day.
     committee = (site_dir / "meetings" / "2026-10-05-city-council-ordinances-and-administration-committee" / "index.html").read_text()
     assert "<h1>City Council Ordinances &amp; Administration Committee – Oct 5, 2026</h1>" in committee
+    # A meeting to come says where and when at the top, then what's on the agenda, then how to take part.
+    assert committee.index('<dl class="facts">') < committee.index('<h2 id="agenda">') < committee.index('<h2 id="take-part">')
 
 
 def test_home_lists_this_weeks_meetings(site_dir):
