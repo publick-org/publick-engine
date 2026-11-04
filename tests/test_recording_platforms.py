@@ -371,7 +371,8 @@ def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
     assert text == ("[0:00:05] Good evening. The committee will come to order.\n"
                     "[0:12:40] Motion to approve the budget.\n"
                     "[0:21:10] The motion carries 5 to 0. The meeting is adjourned.\n")
-    assert made == {"model": gemini.MODEL, "usage": {"requests": 2, "input_tokens": 2000, "output_tokens": 1000}}
+    # The model, not the tokens it took: the recording's record is public.
+    assert made == {"model": gemini.MODEL}
     first, second = (kwargs["json"] for _, kwargs in post.calls)
     video = first["input"][0]
     assert video["uri"] == "https://www.youtube.com/watch?v=abc"
@@ -449,13 +450,26 @@ def test_a_youtube_transcript_goes_on_from_the_parts_already_answered(monkeypatc
                     (429, {"error": {"message": "Rate limit exceeded: requests per day"}}))
     assert youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post) is None
     kept = json.loads((tmp_path / "meetings" / "transcripts" / "youtube-abc.parts.json").read_text())
-    assert kept["parts"] == {"0": ["[0:00:05] Good evening."]} and kept["usage"]["requests"] == 1
+    # The parts, without token counts: the documents bucket is public.
+    assert kept == {"model": gemini.MODEL, "clip": gemini.CLIP_SECONDS, "parts": {"0": ["[0:00:05] Good evening."]}}
     # The next run asks only for the parts still missing.
     post = FakeHTTP((200, interaction("[0:20:10] Motion to adjourn.")), (200, interaction("[0:40:00] So voted.")))
     text, made = youtube.transcript(None, METHUEN_SCHOOLS, video, storage, post=post)
     assert text == "[0:00:05] Good evening.\n[0:20:10] Motion to adjourn.\n[0:40:00] So voted.\n"
     assert [kwargs["json"]["input"][0]["processing"]["start_offset"] for _, kwargs in post.calls] == ["1200s", "2400s"]
-    assert made["usage"] == {"requests": 3, "input_tokens": 3000, "output_tokens": 1500}
+    assert made == {"model": gemini.MODEL}
+
+
+def test_parts_kept_with_token_counts_lose_them():
+    done = {"model": gemini.MODEL, "clip": 600, "usage": {"requests": 1, "input_tokens": 1, "output_tokens": 1},
+            "parts": {"0": ["[0:00:05] Kept."]}}
+    kept = []
+    text, usage = gemini.transcribe(FakeHTTP((200, interaction("[0:10:05] Now heard."))), "abc", 1200, "x", "2026-10-26",
+                                    "k", clip=600, done=done, keep=lambda d: kept.append(json.loads(json.dumps(d))))
+    assert text == "[0:00:05] Kept.\n[0:10:05] Now heard.\n"
+    # This call's tokens are returned; none are kept with the parts.
+    assert usage == {"requests": 1, "input_tokens": 1000, "output_tokens": 500}
+    assert all("usage" not in d for d in kept)
 
 
 def test_parts_from_another_model_are_asked_for_again():

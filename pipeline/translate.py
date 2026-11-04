@@ -53,7 +53,9 @@ until a new one passes ("previous"). summarize.py runs the translations within t
 summaries, new documents first, and older documents' before the older English
 summaries waiting, which cost about ten times as much; each request is in the
 month's cost log as it's answered (pipeline/cost_log.py), and in the ledger as
-translation_cost. Their system prompts are the same for
+translation_cost. The translations and drafts saved don't say what they cost
+or the tokens they took (cost_log.without_costs()): the log's lines do. Their
+system prompts are the same for
 every request, so they're cached: within a run, each request after the first
 reads its system prompt at a tenth of the price.
 
@@ -83,7 +85,7 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
-from pipeline import glossary
+from pipeline import cost_log, glossary
 from pipeline.files import write_atomic
 
 # The translation prompt's version, saved with each translation. Raise it when the prompt changes
@@ -821,8 +823,9 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
 
 
 def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
+    """Save a translation, without any cost or token counts an older one carried (cost_log.without_costs())."""
     file = path(data_dir, lang, sha256)
-    write_atomic(file, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
+    write_atomic(file, json.dumps(cost_log.without_costs(record), indent=2, ensure_ascii=False) + "\n")
 
 
 def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
@@ -846,10 +849,6 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
     retry = again and before.get("glossary", "") == key and not retry_due(before)
     # What's shown now, which stays shown until a new translation passes.
     showing = shown(data_dir, lang, doc["sha256"], record, kind, terms)
-    # A translation made again in the month the one before it was (a correction, a changed summary) replaces
-    # its file, so what that one cost is carried in this one, for the files to still record it (summarize.recount).
-    earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
-               if before and before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
     answered = []
     try:
         result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
@@ -884,9 +883,6 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         "prompt_version": VERSION,
         "glossary": key,
         "generated_at": now.isoformat(timespec="seconds"),
-        "usage": usage,
-        "cost": round(paid + review_cost, 6),
-        **({"replaced_cost": round(earlier, 6)} if earlier else {}),
     }
     if showing and not (checked == "ok" and reviewed == "ok"):
         out["previous"] = previous_of(showing, kind)
@@ -898,21 +894,14 @@ def review_again(client, config: dict, data_dir: Path, lang: str, kind: str, doc
                  now: datetime, cost, log=None) -> tuple[dict, float]:
     """Ask for the review of a saved translation that has none (review_due()),
     keeping the translation: no new one is paid for. Saved with what the review found (ok, its problems,
-    or why it couldn't be made, again), one more review_retries, and what it cost; a translation saved
-    earlier in the same month carries what that one cost (replaced_cost), as make() does."""
+    or why it couldn't be made, again) and one more review_retries; returns it and what the review cost."""
     source = english(record, kind)
     problems, paid = review_meaning(client, config, lang, [(f, source[f], before.get(f)) for f in source],
                                     cost, log, doc["sha256"])
-    earlier = (before.get("cost", 0.0) + before.get("replaced_cost", 0.0)
-               if before.get("generated_at", "")[:7] == now.strftime("%Y-%m") else 0.0)
-    out = {key: value for key, value in before.items() if key != "replaced_cost"}
-    out.update({
-        "review": "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok",
-        "review_retries": before.get("review_retries", 0) + 1,
-        "generated_at": now.isoformat(timespec="seconds"),
-        "cost": round(paid, 6),
-        **({"replaced_cost": round(earlier, 6)} if earlier else {}),
-    })
+    out = {**before,
+           "review": "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok",
+           "review_retries": before.get("review_retries", 0) + 1,
+           "generated_at": now.isoformat(timespec="seconds")}
     save(data_dir, lang, doc["sha256"], out)
     return out, paid
 
@@ -1014,7 +1003,8 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
 
 def made_in(data_dir: Path, month: str) -> list[tuple[str, str | None, dict]]:
     """What was translated in a month, as the files record it: (language, document's hash, record) for
-    each translation saved in it, and (language, None, batch) for each batch of drafts made in it."""
+    each translation saved in it, and (language, None, batch) for each batch of drafts made in it (its
+    time and how many texts it had; a batch saved when files recorded costs has its cost too)."""
     out = []
     for file in sorted((data_dir / "summaries").glob("*/*.json")):
         record = json.loads(file.read_text(encoding="utf-8"))
@@ -1140,7 +1130,7 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
             log.request(response, "draft", paid, lang=lang, model=tsettings["model"], usage=usage)
         spent += paid
         at = now.isoformat(timespec="seconds")
-        saved["batches"].append({"generated_at": at, "texts": len(batch), "usage": usage, "cost": round(paid, 6)})
+        saved["batches"].append({"generated_at": at, "texts": len(batch)})
         result = json.loads(next(b.text for b in response.content if b.type == "text")) if response.stop_reason == "end_turn" else {}
         out = result.get("translations") or []
         if len(out) != len(batch):
@@ -1151,7 +1141,6 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
         problems, review_cost = review_meaning(client, config, lang, [
             (str(i), en, tr) for i, (en, tr, c) in enumerate(zip(batch, out, checks)) if c == "ok"], cost, log)
         spent += review_cost
-        saved["batches"][-1]["cost"] = round(paid + review_cost, 6)
         for i, (en, tr, checked) in enumerate(zip(batch, out, checks)):
             if checked == "ok" and (UNREVIEWED in problems or str(i) in problems):
                 checked = f"review: {problems.get(str(i)) or problems[UNREVIEWED]}"
@@ -1167,6 +1156,8 @@ def draft_texts(client, config: dict, data_dir: Path, lang: str, texts: list[str
     if done or saved["batches"]:
         file = strings_path(data_dir, lang)
         saved["drafts"] = dict(sorted(saved["drafts"].items()))
+        # Each batch's time and size; the cost log has what its requests cost.
+        saved["batches"] = [cost_log.without_costs(b) for b in saved["batches"]]
         write_atomic(file, json.dumps(saved, indent=1, ensure_ascii=False) + "\n")
     return done, spent
 

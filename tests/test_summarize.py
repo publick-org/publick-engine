@@ -194,25 +194,52 @@ def test_a_document_too_costly_for_the_run_waits_for_one_with_room(tmp_path):
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT, allowance=2.0)["summarized"] == 1
 
 
+def logged(data_dir, month="2026-09"):
+    """The month's cost log lines, from each run's file."""
+    return [json.loads(line) for file in sorted((data_dir / "costs" / month).glob("*.jsonl"))
+            for line in file.read_text().splitlines()]
+
+
+def summary_costs(data_dir, month="2026-09"):
+    """What each document's latest summary cost, by its hash, as the log has it."""
+    return {e["doc"]: e["cost"] for e in logged(data_dir, month) if e["kind"] == "summary"}
+
+
 def test_ledger_counts_this_months_summaries(tmp_path):
     config = with_minutes(tmp_path)
     result = summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())
     assert ledger == {"2026-09": {"cost": round(5 * REQUEST, 4), "documents": 5}}
     assert result["month_cost"] == round(5 * REQUEST, 2)
-    saved = json.loads(next((tmp_path / "summaries").glob("*.json")).read_text())
-    assert saved["cost"] == REQUEST
 
 
-def test_the_recount_prices_summaries_saved_before_costs_were(tmp_path):
+def test_a_saved_summary_has_no_cost_or_tokens_and_the_log_has_its_request(tmp_path):
     config = with_minutes(tmp_path)
-    summarize.run(config, FakeAnthropic(), tmp_path, limit=3, now=FETCHED_AT)
-    for path in (tmp_path / "summaries").glob("*.json"):
-        record = json.loads(path.read_text())
-        del record["cost"]
-        path.write_text(json.dumps(record))
-    row = summarize.recount(tmp_path, summarize.summary_settings(config), "2026-09")
-    assert row == {"cost": round(3 * REQUEST, 4), "documents": 3}
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
+    (file,) = (tmp_path / "summaries").glob("*.json")
+    record = json.loads(file.read_text())
+    assert not {"cost", "usage", "replaced_cost", "transcript_cost", "transcript_usage"} & set(record)
+    assert record["model"] == config["summaries"]["model"] and record["prompt_version"] and record["generated_at"]
+    (line,) = [e for e in logged(tmp_path) if e["kind"] == "summary"]
+    assert line["doc"] == file.stem and line["cost"] == REQUEST
+    assert line["usage"] == {"input_tokens": 1500, "output_tokens": 400}
+
+
+def test_a_record_saved_with_its_cost_is_still_read_and_saved_again_without(tmp_path):
+    config = with_minutes(tmp_path)
+    settings = summarize.summary_settings(config)
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
+    (file,) = (tmp_path / "summaries").glob("*.json")
+    record = json.loads(file.read_text())
+    assert summarize.record_cost(record, settings) is None
+    # As records were saved before: with their tokens, and with their cost too.
+    usage = {"input_tokens": 1500, "output_tokens": 400}
+    assert summarize.record_cost({**record, "usage": usage}, settings) == pytest.approx(REQUEST)
+    assert summarize.record_cost({**record, "usage": usage, "cost": 0.5}, settings) == 0.5
+    file.write_text(json.dumps({**record, "usage": usage, "cost": REQUEST}))
+    assert summarize.ledger_differences(tmp_path, settings) == []
+    summarize.save_record(tmp_path, file.stem, json.loads(file.read_text()))
+    assert json.loads(file.read_text()) == record
 
 
 def test_a_summary_made_again_the_same_month_is_still_counted(tmp_path, monkeypatch):
@@ -396,9 +423,13 @@ def test_a_scan_is_transcribed_a_few_pages_a_request(tmp_path, monkeypatch):
     assert result["transcribed"] == 1 and len(asks) == -(-pages // 2)
     assert "pages 1 to 2 of" in asks[0]["messages"][0]["content"][1]["text"]
     record = saved(tmp_path, sha)
-    assert record["transcript_source"] == "ai" and record["transcript_cost"] > 0
+    assert record["transcript_source"] == "ai" and record["transcribed_at"]
+    assert "transcript_cost" not in record and "transcript_usage" not in record
+    # What it cost is in the log, a line a request.
+    lines = [e for e in logged(tmp_path) if e["kind"] == "transcript"]
+    assert len(lines) == len(asks) and all(e["doc"] == sha and e["cost"] > 0 for e in lines)
     ledger = json.loads((tmp_path / summarize.LEDGER).read_text())
-    assert ledger["2026-09"]["transcript_cost"] == round(record["transcript_cost"], 4)
+    assert ledger["2026-09"]["transcript_cost"] == round(sum(e["cost"] for e in lines), 4)
 
 
 def test_a_summary_made_again_keeps_its_scans_transcription(tmp_path, monkeypatch):
@@ -803,13 +834,14 @@ def test_a_long_prompt_is_priced_at_the_long_prompt_price_in_the_ledger(tmp_path
     sha = minutes_town(tmp_path, LEGISTAR)
     summarize.run(config, FakeAnthropic(input_tokens=150_000), tmp_path, limit=50, now=FETCHED_AT)
     long_price = (150_000 * 0.5 + 400 * 2.5) / 1e6
-    assert saved(tmp_path, sha)["cost"] == round(long_price, 6)
+    assert [e["cost"] for e in logged(tmp_path) if e.get("doc") == sha] == [round(long_price, 6)]
     assert json.loads((tmp_path / summarize.LEDGER).read_text())["2026-09"]["cost"] == round(long_price, 4)
     # At or under the threshold, the usual price.
     config = haiku(load_config("gloucester"))
     sha = minutes_town(tmp_path / "b", LEGISTAR)
     summarize.run(config, FakeAnthropic(input_tokens=100_000), tmp_path / "b", limit=50, now=FETCHED_AT)
-    assert saved(tmp_path / "b", sha)["cost"] == round((100_000 * 0.1 + 400 * 0.5) / 1e6, 6)
+    assert ([e["cost"] for e in logged(tmp_path / "b") if e.get("doc") == sha]
+            == [round((100_000 * 0.1 + 400 * 0.5) / 1e6, 6)])
 
 
 def test_a_transcription_is_priced_request_by_request(tmp_path):

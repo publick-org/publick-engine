@@ -114,7 +114,7 @@ pipeline/                   Python package
   cost_log.py               Each request to the model, written as it's answered, counted once, and each month's totals made
                             from it (the ledger, which the network's budget reads), kept out of git: in the private store
                             (see Cost records), else in data/costs/ and data/summary-costs.json.
-                            `python -m pipeline.summarize ledger --check` compares the logs with the files' recorded costs
+                            `python -m pipeline.summarize ledger --check` compares the logs with the files saved
   translate.py              Summaries in the site's other languages, from the English summary (AI), checked without AI and
                             reviewed by AI -> data/summaries/<language>/, and drafts of the town's own text and names
                             -> data/strings/; run by summarize.py within its budget. `python -m pipeline.translate drafts` lists drafts
@@ -878,10 +878,10 @@ The files remain in the repository's git history. Shrinking the history means re
 
 ## Cost records
 
-What each request to the model costs is written to a log as it's answered, and each month's totals are made from it (`pipeline/cost_log.py`); a network's daily runs share one monthly budget by those totals. A repository whose data is public shouldn't publish them, so they're kept out of git:
+What each request to the model costs is written to a log as it's answered, and each month's totals are made from it (`pipeline/cost_log.py`); a network's daily runs share one monthly budget by those totals. A repository whose data is public shouldn't publish them, so they're kept out of git, and the records saved in a town's data folder don't carry them: a summary, transcription, translation, or batch of drafts keeps its model, prompt version, and time, but not its cost or token counts, and one saved before with them loses them when it's saved again (`cost_log.without_costs`), as does a recording's transcript in `data/meetings/recordings.json`:
 
 - **With a private store**: an S3-compatible bucket that nothing serves, set by the secrets `PRIVATE_ENDPOINT`, `PRIVATE_BUCKET`, `PRIVATE_ACCESS_KEY_ID` and `PRIVATE_SECRET_ACCESS_KEY`. Each town's costs are under `costs/<town>/` (its `[storage]` prefix, or its config's name): one object for each run's lines in a month, and the ledger, `summary-costs.json`. Each line is appended to a copy on disk (`data/costs/pending/`, flushed) and then uploaded, so a run stopped at any moment, even with its machine, has counted every request but the one in flight; a copy that couldn't be uploaded goes up with the job's next step.
-- **Without one**: the same lines in `data/costs/`, whose own `.gitignore` keeps them out of git, and the ledger in `data/summary-costs.json`, as before. A town in its own repository that doesn't want the ledger in git adds `data/summary-costs.json` to its `.gitignore` (its runs then start each month's log again from the summary files).
+- **Without one**: the same lines in `data/costs/`, whose own `.gitignore` keeps them out of git, and the ledger in `data/summary-costs.json`, as before. A town in its own repository that doesn't want the ledger in git adds `data/summary-costs.json` to its `.gitignore` (its runs then start each month's log again, from the summary files, which don't record what they cost: the month's row counts only what that run's machine has logged).
 
 The first run with the private store's keys moves a town's existing `data/summary-costs.json` into the store (the network's budget step imports every town's before any town runs), starts the month's log from it, and deletes the file, so the run's data commit takes it out of git. Its earlier versions stay in the git history.
 

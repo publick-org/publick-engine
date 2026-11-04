@@ -294,7 +294,8 @@ def test_a_platform_that_transcribes_its_own_needs_no_whisper(config, data_dir, 
                                   transcriber=lambda *a: pytest.fail("no ffmpeg"))
     assert status["transcribed"] == ["fake-1"]
     t = recordings.load(data_dir)["fake-1"]["transcript"]
-    assert t["model"] == "gemini-x" and t["words"] == 2
+    # Token counts a platform gives aren't saved: the recordings file is public.
+    assert t["model"] == "gemini-x" and t["words"] == 2 and "usage" not in t
     assert (data_dir / "meetings" / "transcripts" / "fake-1.txt").read_text() == "[0:00:05] Made elsewhere.\n"
 
 

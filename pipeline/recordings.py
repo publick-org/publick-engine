@@ -341,6 +341,11 @@ def load(data_dir: Path) -> dict:
 
 
 def save(data_dir: Path, store: dict) -> None:
+    """Save the town's recordings. A transcript made by a model keeps the model's name, not the tokens it took
+    (one saved before had them, as "usage", and loses them)."""
+    for recording in store.values():
+        if isinstance(recording.get("transcript"), dict):
+            recording["transcript"].pop("usage", None)
     write_atomic(path(data_dir), json.dumps(dict(sorted(store.items())), indent=2, ensure_ascii=False) + "\n")
 
 

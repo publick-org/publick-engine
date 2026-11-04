@@ -43,7 +43,9 @@ Each request paid for is written to the month's cost log as it's answered,
 and each month's totals are made from it (the ledger), which the network reads
 to keep every town's summaries within one monthly budget. Both are kept out of
 git: in the private store with its keys (PRIVATE_*), else in the town's
-data/costs/ and data/summary-costs.json (pipeline/cost_log.py).
+data/costs/ and data/summary-costs.json (pipeline/cost_log.py). The records
+saved in data/summaries/ don't say what they cost or the tokens they took
+(cost_log.without_costs()): the log's lines do.
 A network run gives each town its share for the run in two environment
 variables, each a fraction of the month's budget: PUBLICK_SUMMARY_ALLOWANCE_SHARE,
 for any document, and PUBLICK_SUMMARY_BACKLOG_SHARE, for older documents, with
@@ -61,8 +63,10 @@ Usage:
 
 ledger makes the ledger's rows again from the cost logs (and prints which
 months it made, not what they cost); with --check, it compares each month's log
-with the costs the summary and translation files record, lists each difference
-(by document, without amounts), and changes nothing (exit status 1 if any).
+with the summary, transcription, and translation files saved in it (and the
+cost a file records, for one saved when files recorded them), lists each
+difference (by document, without amounts), and changes nothing (exit status 1
+if any).
 """
 
 from __future__ import annotations
@@ -513,11 +517,20 @@ def is_new(item: tuple[str, dict, dict], now: datetime) -> bool:
     return meeting["date"] >= (now - timedelta(days=RECENT_MEETING_DAYS)).date().isoformat()
 
 
-def record_cost(record: dict, settings: dict) -> float:
-    """What a saved summary cost: as recorded, or from its token counts for one saved before costs were."""
+def record_cost(record: dict, settings: dict) -> float | None:
+    """What a saved summary cost, for one saved when records carried it: as recorded, or from its token
+    counts. None for a record that carries neither (every record saved now: cost_log.without_costs())."""
     if "cost" in record:
         return record["cost"]
-    return cost(record["usage"], settings) if "usage" in record else 0.0
+    return cost(record["usage"], settings) if "usage" in record else None
+
+
+def translation_cost(record: dict) -> float | None:
+    """What a saved translation, or batch of drafts, cost with the ones it replaced that month, for one saved
+    when records carried it; None for one that doesn't."""
+    if "cost" not in record:
+        return None
+    return record["cost"] + record.get("replaced_cost", 0.0)
 
 
 def saved_summaries(data_dir: Path) -> dict[str, dict]:
@@ -527,33 +540,26 @@ def saved_summaries(data_dir: Path) -> dict[str, dict]:
             for file in (sorted(folder.glob("*.json")) if folder.is_dir() else [])}
 
 
-def recount(data_dir: Path, settings: dict, month: str, records: dict[str, dict] | None = None) -> dict:
-    """A month's row of the ledger as the files count it: cost and documents for the summaries saved
-    in it (as their files are now), and translation_cost and translations for the translations and
-    batches of drafts. Reads every summary: for the log's start and its check, not for each request."""
-    records = saved_summaries(data_dir) if records is None else records
-    made = [r for r in records.values() if r.get("generated_at", "")[:7] == month]
-    row = {"cost": round(sum(record_cost(r, settings) for r in made), 4), "documents": len(made)}
-    translated = translate.made_in(data_dir, month)
-    if translated:
-        row.update(translation_cost=round(sum(r.get("cost", 0.0) + r.get("replaced_cost", 0.0) for _, _, r in translated), 4),
-                   translations=len(translated))
-    return row
-
-
 def seed_lines(data_dir: Path, settings: dict, month: str, at: str, row: dict) -> list[dict]:
     """The lines a town's first cost log starts with (pipeline/cost_log.py): each summary and translation
-    saved this month and each batch of drafts made in it, at the cost its file records, and a seed line
-    with the rest of the month's row of the ledger it had (row), which no file records, at the time given."""
+    saved this month and each batch of drafts made in it, at the cost its file records (0 for one saved
+    without a cost), and a seed line with the rest of the month's row of the ledger it had (row), which no
+    file records, at the time given: its failed, transcript, and replaced costs, and whatever of its cost
+    and translation_cost the files' costs don't account for. So the month's row goes on from the ledger's,
+    whether or not the files record costs."""
     made = sorted(((sha, r) for sha, r in saved_summaries(data_dir).items() if r.get("generated_at", "")[:7] == month),
                   key=lambda item: item[1]["generated_at"])
     lines = [{"at": r["generated_at"], "kind": "summary", "key": f"seed:{sha}", "doc": sha, "model": r.get("model"),
-              "cost": round(record_cost(r, settings), 6)} for sha, r in made]
+              "cost": round(record_cost(r, settings) or 0.0, 6)} for sha, r in made]
     for i, (lang, sha, r) in enumerate(translate.made_in(data_dir, month)):
         lines.append({"at": r["generated_at"], "kind": "translation" if sha else "draft",
                       "key": f"seed:{lang}:{sha or f'drafts-{i}'}", **({"doc": sha} if sha else {}), "lang": lang,
-                      "cost": round(r.get("cost", 0.0) + r.get("replaced_cost", 0.0), 6)})
+                      "cost": round(translation_cost(r) or 0.0, 6)})
     rest = {k: row[k] for k in ("failed_cost", "transcript_cost", "replaced_cost") if row.get(k)}
+    for key, kinds in (("cost", ("summary",)), ("translation_cost", ("translation", "draft"))):
+        left = round(row.get(key, 0.0) - sum(line["cost"] for line in lines if line["kind"] in kinds), 6)
+        if left > 0:
+            rest[key] = left
     if rest:
         lines.append({"at": at, "kind": "seed", "key": "seed", "totals": rest,
                       "cost": round(sum(rest.values()), 6)})
@@ -577,14 +583,15 @@ SAME_COST = 1e-5
 
 
 def ledger_differences(data_dir: Path, settings: dict, only: list[str] | None = None, store=None) -> list[str]:
-    """Where each month's cost log (or only these months') and the costs recorded in the town's files
-    disagree, one line each; nothing is changed. Each summary saved in the month is its document's
-    latest summary line, at its cost; each transcription made in it (from its transcribed_at) costs
-    what its lines do; each translation (with the earlier ones it replaced) costs what its translation
-    and review lines do, and each language's drafts what theirs do; a line with no file saved in the
-    month is one too, unless the file was made again in a later month. And the ledger's row is the
-    one the log makes. Each difference is said without its amounts: the check's output may be a public
-    run log."""
+    """Where each month's cost log (or only these months') and the town's files disagree, one line each;
+    nothing is changed. Each summary saved in the month has its document's latest summary line; each
+    transcription made in it (from its transcribed_at) has transcript lines; each translation has its
+    translation and review lines, and each language's drafts theirs; a line with no file saved in the
+    month is a difference too, unless the file was made again in a later month. A file saved when files
+    recorded their cost (record_cost(), translation_cost()) is also compared at that cost: the summary
+    line's, all of the transcription's lines', all of the translation's (with the earlier ones it
+    replaced) or the drafts'. And the ledger's row is the one the log makes. Each difference is said
+    without its amounts: the check's output may be a public run log."""
     store = store or cost_log.LocalStore(data_dir)
     records = saved_summaries(data_dir)
     ledger = cost_log.load_ledger(store)
@@ -607,13 +614,14 @@ def ledger_differences(data_dir: Path, settings: dict, only: list[str] | None = 
                 translated[key] = translated.get(key, 0.0) + e["cost"]
 
         def compare(what, recorded: dict, logged: dict, later) -> None:
+            """recorded: each file saved in the month, at the cost it records (None if it records none)."""
             for key in sorted(set(recorded) | set(logged), key=str):
                 if key not in logged:
-                    out.append(f"{month}: {what(key)} has a cost in its file and isn't in the log")
+                    out.append(f"{month}: {what(key)} has a file saved this month and isn't in the log")
                 elif key not in recorded:
                     if not later(key):
                         out.append(f"{month}: {what(key)} is in the log, with no file saved this month")
-                elif abs(recorded[key] - logged[key]) > SAME_COST:
+                elif recorded[key] is not None and abs(recorded[key] - logged[key]) > SAME_COST:
                     out.append(f"{month}: {what(key)} has one cost in its file and another in the log")
 
         def made_later(at: str) -> bool:
@@ -623,12 +631,14 @@ def ledger_differences(data_dir: Path, settings: dict, only: list[str] | None = 
                 {sha: record_cost(r, settings) for sha, r in records.items() if r.get("generated_at", "")[:7] == month},
                 latest, lambda sha: made_later(records.get(sha, {}).get("generated_at", "")))
         compare(lambda sha: f"the transcription of {sha}",
-                {sha: r.get("transcript_cost", 0.0) for sha, r in records.items()
+                {sha: r.get("transcript_cost") for sha, r in records.items()
                  if r.get("transcribed_at", "")[:7] == month},
                 transcribed, lambda sha: made_later(records.get(sha, {}).get("transcribed_at", "")))
-        recorded: dict[tuple, float] = {}
+        recorded: dict[tuple, float | None] = {}
         for lang, sha, r in translate.made_in(data_dir, month):
-            recorded[(lang, sha)] = recorded.get((lang, sha), 0.0) + r.get("cost", 0.0) + r.get("replaced_cost", 0.0)
+            # A language's batches of drafts are one key: compared at a cost only if each records one.
+            paid, before = translation_cost(r), recorded.get((lang, sha), 0.0)
+            recorded[(lang, sha)] = None if paid is None or before is None else before + paid
         compare(lambda key: f"the {key[0]} translation of {key[1]}" if key[1] else f"the {key[0]} drafts",
                 recorded, translated,
                 lambda key: bool(key[1]) and made_later((translate.saved(data_dir, key[0], key[1]) or {}).get("generated_at", "")))
@@ -826,8 +836,10 @@ def own_text(record: dict, pdf: bytes) -> dict:
 
 
 def save_record(data_dir: Path, sha256: str, record: dict) -> None:
+    """Save a document's record, without any cost or token counts an older one carried: the folder is
+    public, and the cost log has each request's (cost_log.without_costs())."""
     path = summaries_dir(data_dir) / f"{sha256}.json"
-    write_atomic(path, json.dumps(record, indent=2, ensure_ascii=False) + "\n")
+    write_atomic(path, json.dumps(cost_log.without_costs(record), indent=2, ensure_ascii=False) + "\n")
 
 
 def summarized_documents(data_dir: Path) -> list[tuple[str, dict, dict, dict]]:
@@ -901,8 +913,7 @@ def missing_prices(settings: dict) -> str | None:
 
 # What a model's transcription of a scan leaves in its document's record, with the plain text and note saved
 # before it (own_text()).
-TRANSCRIPTION = ("transcript", "transcript_source", "transcript_pages", "transcript_usage", "transcript_cost",
-                 "transcribed_at", "plain_text", "text_note")
+TRANSCRIPTION = ("transcript", "transcript_source", "transcript_pages", "transcribed_at", "plain_text", "text_note")
 
 
 def kept_transcription(data_dir: Path, sha256: str) -> dict:
@@ -931,8 +942,6 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
         "model": settings["model"],
         "prompt_version": KINDS[kind]["version"],
         "generated_at": now.isoformat(timespec="seconds"),
-        "usage": usage,
-        "cost": round(paid, 6),
         # A scan's transcription, kept: the document's own text still replaces it where it can be used.
         **kept_transcription(data_dir, doc["sha256"]),
     }
@@ -1505,8 +1514,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
         spent += paid
         spent_backlog += paid
         record = {**record, "transcript": text, "transcript_source": "ai", "transcript_pages": usage["pages"],
-                  "transcript_usage": {k: usage[k] for k in ("input_tokens", "output_tokens")},
-                  "transcript_cost": round(paid, 6), "transcribed_at": now.isoformat(timespec="seconds")}
+                  "transcribed_at": now.isoformat(timespec="seconds")}
         record.pop("needs_transcript", None)
         try:
             if record.get("is_minutes") is not False:
@@ -1594,7 +1602,7 @@ def main() -> int:
     parser.add_argument("--data", type=Path, default=DATA_DIR)
     parser.add_argument("--limit", type=int, help="max documents this run")
     parser.add_argument("--check", action="store_true",
-                        help="with ledger: compare the cost logs with the costs the files record, and list each difference")
+                        help="with ledger: compare the cost logs with the files saved, and list each difference")
     parser.add_argument("--month", action="append", help="with ledger --check: only this month (YYYY-MM); repeatable")
     args = parser.parse_args()
     if args.command == "ledger":
