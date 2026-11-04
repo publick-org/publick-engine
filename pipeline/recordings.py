@@ -311,9 +311,31 @@ def same_board(a: str, b: str) -> bool:
     return " ".join(a.lower().split()) == " ".join(b.lower().split())
 
 
-def match(recording: dict, meetings: dict, moved: dict | None = None) -> tuple[str | None, str]:
+def hhmm_minutes(time: str) -> int:
+    hours, minutes = time.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
+def sitting(same: list[dict]) -> dict | None:
+    """Of a board's meetings one day, the main one if they're one sitting: each listed as ending when the next
+    starts (Methuen's City Council of 2026-11-02, a public hearing 18:45 to 19:00 and the regular meeting
+    19:00 to 21:00), which a station records as one. The main one is the one listed as running longest. None
+    if any is listed without both times, or with a gap or an overlap: meetings listed by their start times
+    alone are as often recorded apart."""
+    if any(not (m.get("start_time") and m.get("end_time")) for m in same):
+        return None
+    timed = sorted(same, key=lambda m: m["start_time"])
+    if any(a["end_time"] != b["start_time"] for a, b in zip(timed, timed[1:])):
+        return None
+    return max(timed, key=lambda m: (hhmm_minutes(m["end_time"]) - hhmm_minutes(m["start_time"]), m["start_time"]))
+
+
+def match(recording: dict, meetings: dict, moved: dict | None = None, alone: bool = False) -> tuple[str | None, str]:
     """The id of the recording's meeting, or None, and why: the meeting whose listing the platform names
-    ("listing", a CivicClerk event's record), else the board's one meeting that day that wasn't cancelled."""
+    ("listing", a CivicClerk event's record), else the board's one meeting that day that wasn't cancelled.
+    Where the board has several that day, the main one of their sitting (sitting()), if alone: the recording
+    is its source's only one of the board that day (its parts counted as one), so it isn't one of a recording
+    each."""
     listing = recording.get("listing")
     if listing:
         found = meetings.get((moved or {}).get(listing, listing))
@@ -326,6 +348,9 @@ def match(recording: dict, meetings: dict, moved: dict | None = None) -> tuple[s
             and m.get("status") != "cancelled"]
     if len(same) == 1:
         return same[0]["id"], "matched"
+    main = sitting(same) if alone and len(same) > 1 else None
+    if main:
+        return main["id"], "matched"
     return None, "no meeting listed" if not same else f"{len(same)} meetings that day"
 
 

@@ -107,6 +107,53 @@ def test_match_is_the_boards_one_meeting_that_day(data_dir):
     assert recordings.match({"board": "Licensing Board", "date": "2026-10-22"}, meetings)[0] is None
 
 
+def sitting_meetings():
+    # Methuen's City Council of 2026-11-02: a public hearing just before the regular meeting.
+    return {m["id"]: m for m in [
+        meeting("hearing", "City Council", "2026-11-02", start_time="18:45", end_time="19:00"),
+        meeting("regular", "City Council", "2026-11-02", start_time="19:00", end_time="21:00"),
+    ]}
+
+
+def test_one_recording_of_a_sitting_is_matched_to_its_main_meeting():
+    meetings = sitting_meetings()
+    recording = {"board": "City Council", "date": "2026-11-02"}
+    assert recordings.match(recording, meetings, alone=True) == ("regular", "matched")
+    # Not when the source has more than one recording of the board that day: one may be each meeting's.
+    assert recordings.match(recording, meetings) == (None, "2 meetings that day")
+
+
+@pytest.mark.parametrize("times", [
+    [("18:00", None), ("19:00", None)],            # start times alone: as often recorded apart
+    [("18:45", "19:00"), ("19:30", "21:00")],      # a gap between them
+    [("18:45", "19:30"), ("19:00", "21:00")],      # listed as overlapping
+    [("10:00", "11:00"), ("19:00", "21:00")],      # morning and evening
+])
+def test_meetings_not_one_sitting_are_left_unmatched(times):
+    meetings = {f"m{i}": meeting(f"m{i}", "City Council", "2026-11-02", start_time=start, end_time=end)
+                for i, (start, end) in enumerate(times)}
+    assert recordings.match({"board": "City Council", "date": "2026-11-02"}, meetings, alone=True) == (
+        None, "2 meetings that day")
+
+
+def test_a_run_matches_each_sources_one_recording_of_a_sitting(config, tmp_path, monkeypatch):
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(sitting_meetings()))
+    one = found("one", "City Council", "2026-11-02")
+    # Another source with a recording of each meeting: neither is matched.
+    each = [found("a", "City Council", "2026-11-02"), found("b", "City Council", "2026-11-02")]
+    # A sitting recorded in parts is still one recording.
+    parts = [{**found(f"p{n}", "City Council", "2026-11-02"), "part": n} for n in (1, 2)]
+    platforms = [FakePlatform([one]), FakePlatform(each), FakePlatform(parts)]
+    config["recordings"]["sources"] = [{"platform": f"fake{i}", "boards": {"City Council": "1"}} for i in range(3)]
+    monkeypatch.setattr(recordings, "platform", lambda name: platforms[int(name[-1])])
+    status = fetch_recordings.run(config, None, tmp_path, now=datetime(2026, 11, 3, 6, 0, tzinfo=TZ), find_only=True)
+    store = recordings.load(tmp_path)
+    assert {k: r["meeting"] for k, r in store.items()} == {
+        "fake-one": "regular", "fake-a": None, "fake-b": None, "fake-p1": "regular", "fake-p2": "regular"}
+    assert len(status["unmatched"]) == 2
+
+
 def test_a_run_transcribes_new_meetings_newest_first(config, data_dir, monkeypatch):
     platform = FakePlatform([
         found("1", "City Council", "2026-10-27"),

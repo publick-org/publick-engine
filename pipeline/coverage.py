@@ -132,7 +132,9 @@ def coverage(config: dict, data_dir: Path, today: date | None = None, days: int 
     counts = {s: 0 for s in STEPS}
     out = {"since": since, "until": until, "held": 0, "next_day": 0, "steps": counts, "misses": []}
     seen = set()
-    for m in sorted(meetings.values(), key=lambda m: (m["date"], m["body"])):
+    # A board's meetings one day are counted once: by the one its recordings are matched to, where one is
+    # (the main meeting of a sitting, recordings.sitting()).
+    for m in sorted(meetings.values(), key=lambda m: (m["date"], m["body"], not grouped.get(m["id"]), m["id"])):
         if not since <= m["date"] <= until or m.get("status") == "cancelled" or not m.get("listed", True):
             continue
         if not is_main(m, boards):
