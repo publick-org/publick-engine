@@ -68,6 +68,8 @@ def test_new_prompt_version_regenerates(tmp_path, monkeypatch):
     config = setup(tmp_path)
     summarize.run(config, FakeAnthropic(), tmp_path, limit=5, now=FETCHED_AT)
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    # Every meeting\'s agenda, not only those on or after remake_since.
+    monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
     again = FakeAnthropic()
     assert summarize.run(config, again, tmp_path, limit=5, now=FETCHED_AT)["summarized"] == 1
 
@@ -84,6 +86,8 @@ def test_another_model_makes_new_summaries_and_keeps_those_already_made(tmp_path
     assert summarize.cached(tmp_path, sha, "agenda")["model"] == "claude-sonnet-5"
     # A new prompt version is made with the model configured now, which its record names.
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    # Every meeting\'s agenda, not only those on or after remake_since.
+    monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
     assert summarize.run(config, again, tmp_path, limit=5, now=FETCHED_AT)["summarized"] == 1
     assert again.calls[0]["model"] == "another-model"
     assert summarize.cached(tmp_path, sha, "agenda")["model"] == "another-model"
@@ -127,6 +131,8 @@ def test_site_keeps_older_summary_until_replaced(tmp_path, monkeypatch):
     store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
     sha = next(m["agendas"][-1]["sha256"] for m in store.values() if m.get("agendas"))
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    # Every meeting\'s agenda, not only those on or after remake_since.
+    monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
     assert summarize.cached(tmp_path, sha, "agenda") is None
     assert summarize.cached(tmp_path, sha, "agenda", current=False)["summary"]
     assert summarize.cached(tmp_path, sha, "minutes", current=False) is None
@@ -404,6 +410,8 @@ def test_a_summary_made_again_keeps_its_scans_transcription(tmp_path, monkeypatc
     first = saved(tmp_path, sha)
     assert first["transcript_source"] == "ai"
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    # Every meeting\'s agenda, not only those on or after remake_since.
+    monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
     client = FakeAnthropic()
     result = summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
     assert result["summarized"] == 1 and result["transcribed"] == 0 and transcription_requests(client) == []

@@ -178,6 +178,8 @@ def test_a_summary_made_again_twice_counts_each_once(tmp_path, monkeypatch):
     summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
     for _ in range(2):
         monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+        # Every meeting\'s agenda, not only those on or after remake_since.
+        monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
         summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)
     assert ledger(tmp_path)[MONTH] == {"cost": REQUEST, "documents": 1, "replaced_cost": round(2 * REQUEST, 4)}
     assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
@@ -264,6 +266,8 @@ def test_a_summary_from_before_the_log_made_again_counts_as_replaced(tmp_path, m
     config["site"]["languages"] = ["en"]
     summarize.open_log(tmp_path, summarize.summary_settings(config), FETCHED_AT)
     monkeypatch.setitem(summarize.KINDS["agenda"], "version", summarize.KINDS["agenda"]["version"] + 1)
+    # Every meeting\'s agenda, not only those on or after remake_since.
+    monkeypatch.delitem(summarize.KINDS["agenda"], "remake_since", raising=False)
     # The upcoming meeting's agenda, summarized first before the log, is first again.
     assert summarize.run(config, FakeAnthropic(), tmp_path, limit=1, now=FETCHED_AT)["summarized"] == 1
     after = ledger(tmp_path)[MONTH]

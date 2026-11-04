@@ -15,7 +15,7 @@
 // the morning does no harm: a start with nothing due does nothing.
 //
 // If no town's daily run has finished for STALE_HOURS (the status page's
-// last-daily-run), it opens an issue, assigned to the maintainer, so a network
+// last-daily-run), it opens an issue, assigned to ALERT_ASSIGNEE, so a network
 // that has stopped altogether still reaches someone; it closes the issue when
 // runs finish again.
 //
@@ -234,7 +234,7 @@ function downBody(down, now) {
   const list = down.map((s) => `- ${s.host}: ${s.problem}`).join("\n");
   return `These Publick sites aren't loading, as of ${now.toISOString().slice(0, 16).replace("T", " ")} UTC ` +
     "(each tried twice, through the sites Worker):\n\n" + list + "\n\n" +
-    "See the publick-sites Worker's logs on Cloudflare, and the RUNBOOK's rollback. The scheduler checks every hour, " +
+    "See the publick-sites Worker's logs on Cloudflare; `python -m pipeline.deploy rollback` restores a site's previous build. The scheduler checks every hour, " +
     "keeps this list up to date, and closes this issue when every site loads again.";
 }
 

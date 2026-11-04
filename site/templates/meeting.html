@@ -249,9 +249,9 @@
   {% elif not m.start_time and not documents_only %}<div><dt>{{ _("Time") }}</dt><dd>{{ pgettext("meeting time", "Not listed") }}</dd></div>{% endif %}
   {% if m.end_time %}<div><dt>{{ _("Scheduled until") }}</dt><dd>{{ m.end_time | time }}</dd></div>{% endif %}
 </dl>
-{% if m.from_agenda %}<p class="small">{{ _("From the posted agenda, as read by AI. The agenda is the official notice; check it before you go.") }}</p>
+{% if m.from_agenda %}<p class="small">{{ _("From the posted agenda.") }}</p>
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
-{% elif not documents_only and m.agenda and has_where %}{% set n %}<p>{% trans listing=m.listing %}Location from the {{ listing }}. The posted agenda is the official notice; check it if the two differ.{% endtrans %}</p>{% endset %}{% if upcoming %}<p class="small">{{ n | striptags }}</p>{% else %}{% set __ = about.notes.append(n) %}{% endif %}{% endif %}
+{% elif not documents_only and m.agenda and has_where %}{% set n %}<p>{% trans listing=m.listing %}Location from the {{ listing }}.{% endtrans %}</p>{% endset %}{% if upcoming %}<p class="small">{{ n | striptags }}</p>{% else %}{% set __ = about.notes.append(n) %}{% endif %}{% endif %}
 {% endif %}
 {% endset %}
 
@@ -274,7 +274,7 @@
   {# Translators: %(title)s is a local TV station or video channel. #}
   {% if recording %}<li>{% trans url=recording %}Watch it on <a href="{{ url }}">YouTube</a>.{% endtrans %}</li>
   {% elif part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
-  {% if m.agenda or m.documents_url %}<li>{% trans url=m.agenda.source_url if m.agenda else m.documents_url %}The <a href="{{ url }}">posted agenda</a> is the official notice. It may give instructions for public comment.{% endtrans %}</li>{% endif %}
+  {% if m.agenda or m.documents_url %}<li>{% trans url=m.agenda.source_url if m.agenda else m.documents_url %}The <a href="{{ url }}">posted agenda</a> is the official notice and may say how to comment.{% endtrans %}</li>{% endif %}
   {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts about this board, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
 </ul>
 {% elif recording and m.status != "cancelled" %}
@@ -466,7 +466,7 @@
 {% set n %}<p>{% trans where=m.agenda.get("posted_on") or _("the city website"), size=m.agenda.bytes | filesize %}Agenda posted on {{ where }} (PDF, {{ size }}).{% endtrans %} {% trans url=document_url('agendas', m.agenda.file), iso=m.agenda.fetched_at, when=m.agenda.fetched_at | timestamp %}<a href="{{ url }}">Saved copy</a>, saved <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</p>
 {% if m.agenda.has_text == false %}
 {# Translators: %(who)s is who posted the agenda: "The city" or a school district's name. #}
-<p>{% trans who=m.agenda.get("posted_by") or _("The city") %}{{ who }} posted this as a scanned image.{% endtrans %}{% if m.preview %} {{ _("The full text above is a readable version.") }}{% endif %}</p>
+<p>{% trans who=m.agenda.get("posted_by") or _("The city") %}{{ who }} posted this as a scanned image.{% endtrans %}</p>
 {% endif %}
 {% if m.agendas | length > 1 %}
 <p>{{ _("Earlier versions of this agenda:") }}</p>

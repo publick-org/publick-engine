@@ -965,16 +965,16 @@ msgid "%(who)s posted this as a scanned image."
 msgstr "%(who)s publicó esto como una imagen escaneada."
 
 #: pipeline/build_site.py
-msgid "(AI summary of the agenda. Check the original.)"
-msgstr "(Resumen de la agenda hecho con IA. Revise el original.)"
+msgid "(AI summary of the agenda.)"
+msgstr "(Resumen de la agenda hecho con IA.)"
 
 #: pipeline/build_site.py
 msgid "(AI summary of the meeting's recording. The minutes will follow.)"
 msgstr "(Resumen de la grabación de la reunión hecho con IA. Las actas vendrán después.)"
 
 #: pipeline/build_site.py
-msgid "(AI summary of the minutes. Check the original.)"
-msgstr "(Resumen de las actas hecho con IA. Revise el original.)"
+msgid "(AI summary of the minutes.)"
+msgstr "(Resumen de las actas hecho con IA.)"
 
 #. a seat elected by several districts, such as "(Districts 1, 2 and 3)": %(wards)s is all but the last
 #. district, %(last)s the last.
@@ -1450,11 +1450,11 @@ msgstr ""
 
 #: site/pages/about/index.html
 msgid ""
-"<strong>Checked against an AI transcription</strong>: the PDF is a scanned image, so the summary "
-"is compared with AI's reading of it. Both come from AI and can share a mistake, so nothing is "
-"held back."
+"<strong>Checked against a transcription of the scan</strong>: the PDF is a scanned image, so the "
+"summary is compared with AI's reading of it. Both come from AI and can share a mistake, so "
+"nothing is held back."
 msgstr ""
-"<strong>Verificado con una transcripción hecha con IA</strong>: el PDF es una imagen escaneada, "
+"<strong>Verificado con una transcripción del escaneo</strong>: el PDF es una imagen escaneada, "
 "así que el resumen se compara con una lectura hecha con IA. Las dos vienen de la IA y pueden "
 "tener el mismo error, así que no se omite nada."
 
@@ -1877,9 +1877,7 @@ msgid "A month, %(years)s"
 msgstr "Al mes, %(years)s"
 
 #: site/templates/digest_index.html
-msgid ""
-"A new issue every Sunday. It's made from the meetings and minutes on this site, with no new AI "
-"writing."
+msgid "A new issue every Sunday, made from the meetings and minutes on this site."
 msgstr ""
 
 #: pipeline/common_strings.py
@@ -1941,24 +1939,8 @@ msgid "AI summary"
 msgstr "Resumen hecho con IA"
 
 #: site/templates/macros.html
-msgid "AI summary of the recording, checked against its transcript"
-msgstr "Resumen de la grabación hecho con IA, verificado con su transcripción"
-
-#: site/templates/macros.html
-msgid "AI summary, checked against an AI transcription"
-msgstr "Resumen hecho con IA, verificado con una transcripción hecha con IA"
-
-#: site/templates/macros.html
-msgid "AI summary, checked against the city's PDF"
-msgstr "Resumen hecho con IA, verificado con el PDF de la ciudad"
-
-#: site/templates/macros.html
 msgid "AI summary, not checked"
 msgstr "Resumen hecho con IA, sin verificar"
-
-#: site/templates/macros.html
-msgid "AI summary, partly checked against the city's PDF"
-msgstr "Resumen hecho con IA, verificado en parte con el PDF de la ciudad"
 
 #: pipeline/build_site.py site/pages/about/accessibility/index.html site/pages/about/index.html
 #: site/pages/data/index.html site/templates/base.html
@@ -2505,10 +2487,6 @@ msgstr "Juntas y comités"
 msgid "Bond ratings"
 msgstr "Calificaciones crediticias"
 
-#: site/templates/macros.html
-msgid "Both come from AI, so they can share a mistake."
-msgstr "Las dos vienen de la IA, así que pueden tener el mismo error."
-
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
@@ -2662,10 +2640,6 @@ msgstr "Cambio"
 msgid "Changes since posting"
 msgstr "Cambios desde que se publicó"
 
-#: site/templates/macros.html
-msgid "Check the original before relying on it."
-msgstr "Revise el original antes de basarse en él."
-
 #: site/templates/digest_answer.html
 msgid "Check your email"
 msgstr "Revise su correo electrónico"
@@ -2705,12 +2679,12 @@ msgstr ""
 "esta nota se quita hasta que se revise de nuevo."
 
 #: pipeline/build_site.py site/templates/macros.html
-msgid "Checked against an AI transcription"
-msgstr "Verificado con una transcripción hecha con IA"
+msgid "Checked against a transcription of the scan"
+msgstr "Verificado con una transcripción del escaneo"
 
 #: site/templates/macros.html
-msgid "Checked against an AI transcription."
-msgstr "Verificado con una transcripción hecha con IA."
+msgid "Checked against a transcription of the scan."
+msgstr "Verificado con una transcripción del escaneo."
 
 #: pipeline/build_site.py site/templates/macros.html
 msgid "Checked against the city's PDF"
@@ -3098,10 +3072,8 @@ msgid "Decisions"
 msgstr "Decisiones"
 
 #: site/pages/meetings/decisions/index.html
-msgid "Decisions are pulled from each meeting's minutes by AI. Check the minutes before relying on one."
-msgstr ""
-"Las decisiones se sacan de las actas de cada reunión con inteligencia artificial (IA). Revise las"
-" actas antes de basarse en una."
+msgid "Decisions are pulled from each meeting's minutes by AI."
+msgstr "Las decisiones se sacan de las actas de cada reunión con IA."
 
 #: site/pages/meetings/decisions/index.html
 msgid "Decisions on"
@@ -3302,14 +3274,13 @@ msgstr ""
 msgid ""
 "Each source, the latest figures this site has, and when it last checked. Meetings and requests "
 "are checked every day. Figures that are published monthly or yearly are checked weekly or "
-"monthly, and are marked \"Behind\" only when newer figures should have been published by now; the"
-" maintainer is alerted automatically."
+"monthly, and are marked \"Behind\" only when newer figures should have been published by now; an "
+"alert goes out automatically."
 msgstr ""
 "Cada fuente, las cifras más recientes que tiene este sitio y cuándo las revisó por última vez. "
 "Las reuniones y las solicitudes se revisan todos los días. Las cifras que se publican cada mes o "
 "cada año se revisan cada semana o cada mes, y se marcan como “Atrasado” solo cuando ya deberían "
-"haberse publicado cifras más nuevas; en ese caso, el encargado del sitio recibe un aviso "
-"automático."
+"haberse publicado cifras más nuevas; en ese caso, se envía un aviso automáticamente."
 
 #: site/pages/meetings/glossary/index.html
 msgid ""
@@ -3978,10 +3949,8 @@ msgstr ""
 "completos."
 
 #: site/templates/meeting.html
-msgid "From the posted agenda, as read by AI. The agenda is the official notice; check it before you go."
-msgstr ""
-"Datos tomados de la agenda publicada, leída por inteligencia artificial (IA). La agenda es el "
-"aviso oficial; revísela antes de ir."
+msgid "From the posted agenda."
+msgstr "Según la agenda publicada."
 
 #: site/pages/meetings/decisions/index.html site/templates/macros.html
 msgid "From the recording"
@@ -4760,10 +4729,8 @@ msgstr "El lugar cambió de %(old)s a %(new)s."
 #. %(listing)s is where the meeting is listed, such as "city calendar".
 #: site/templates/meeting.html
 #, python-format
-msgid ""
-"Location from the %(listing)s. The posted agenda is the official notice; check it if the two "
-"differ."
-msgstr "Lugar según el %(listing)s. La agenda publicada es el aviso oficial; revísela si no coinciden."
+msgid "Location from the %(listing)s."
+msgstr "Lugar según el %(listing)s."
 
 #: site/pages/311/methodology/index.html
 msgid "Locations shown"
@@ -5078,6 +5045,15 @@ msgstr ""
 "Los resúmenes de las reuniones se escriben con IA (%(model)s, de Anthropic). Ninguna persona los "
 "revisa antes de publicarlos. El documento de la ciudad es el registro oficial, y cada resumen "
 "enlaza a él."
+
+#: site/templates/base.html
+#, python-format
+msgid ""
+"Meeting summaries are written by AI from the city's documents. <a href=\"%(url)s\">How they're "
+"checked</a>."
+msgstr ""
+"Los resúmenes de las reuniones están hechos con IA a partir de los documentos de la ciudad. <a "
+"href=\"%(url)s\">Cómo se verifican</a>."
 
 #: pipeline/build_site.py pipeline/meeting_calendar.py site/pages/about/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
@@ -7653,6 +7629,10 @@ msgid "Summary by %(network)s, AI-generated from the city's agenda."
 msgstr "Resumen de %(network)s, hecho con IA a partir de la agenda de la ciudad."
 
 #: site/templates/macros.html
+msgid "Summary not checked"
+msgstr "Resumen sin verificar"
+
+#: site/templates/macros.html
 #, python-format
 msgid ""
 "Summary written by AI from a machine transcript of the <a href=\"%(url)s\">meeting's "
@@ -7819,12 +7799,10 @@ msgstr "El <a href=\"%(url)s\">calendario de la ciudad</a> tiene la lista comple
 
 #: site/templates/meeting.html
 #, python-format
-msgid ""
-"The <a href=\"%(url)s\">posted agenda</a> is the official notice. It may give instructions for "
-"public comment."
+msgid "The <a href=\"%(url)s\">posted agenda</a> is the official notice and may say how to comment."
 msgstr ""
-"La <a href=\"%(url)s\">agenda publicada</a> es el aviso oficial. Puede incluir instrucciones para"
-" los comentarios del público."
+"La <a href=\"%(url)s\">agenda publicada</a> es el aviso oficial y puede decir cómo hacer "
+"comentarios."
 
 #: site/states/vt/schools.html
 msgid ""
@@ -8332,10 +8310,6 @@ msgstr ""
 msgid "The full terms are in the <a href=\"%(url)s\">network's license</a>."
 msgstr "Las condiciones completas están en la <a href=\"%(url)s\">licencia de la red</a>."
 
-#: site/templates/meeting.html
-msgid "The full text above is a readable version."
-msgstr "El texto completo de arriba es una versión legible."
-
 #: site/templates/macros.html
 msgid "The full text is in the city's PDF, linked below."
 msgstr "El texto completo está en el PDF de la ciudad; el enlace está abajo."
@@ -8379,7 +8353,7 @@ msgid "The license, and where its terms are."
 msgstr "La licencia, y dónde están sus condiciones."
 
 #: site/templates/digest_email.html
-msgid "The line under a meeting is an AI summary of its agenda. Check the agenda before relying on it."
+msgid "The line under a meeting is an AI summary of its agenda."
 msgstr ""
 
 #: site/pages/meetings/decisions/index.html
@@ -8903,17 +8877,13 @@ msgid "Traffic Commission"
 msgstr "Comisión de Tránsito"
 
 #: site/templates/macros.html
-msgid "Transcribed by AI from the city's PDF. Check the original before relying on it."
-msgstr "Transcrito con IA a partir del PDF de la ciudad. Revise el original antes de basarse en él."
+msgid "Transcribed by AI from the city's scanned PDF."
+msgstr "Transcrito con IA a partir del PDF escaneado de la ciudad."
 
 #: site/templates/macros.html
 #, python-format
-msgid ""
-"Translated automatically by AI from the <a href=\"%(url)s\" hreflang=\"en\">English summary</a>, "
-"and may have errors."
-msgstr ""
-"Traducido automáticamente con IA del <a href=\"%(url)s\" hreflang=\"en\">resumen en inglés</a>; "
-"puede tener errores."
+msgid "Translated automatically from the <a href=\"%(url)s\" hreflang=\"en\">English summary</a>."
+msgstr "Traducido automáticamente del <a href=\"%(url)s\" hreflang=\"en\">resumen en inglés</a>."
 
 #: pipeline/common_strings.py
 msgid "Treasurer"

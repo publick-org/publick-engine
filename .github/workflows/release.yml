@@ -15,7 +15,7 @@
 #   major       v1.4.0 -> v2.0.0 (any one), for a change that needs every
 #               town's config edited; @v1 towns stay on v1 until they move
 #   no release  left out
-# A pull request that changes only Markdown files (the README, the roadmap) is
+# A pull request that changes only Markdown files (such as the README) is
 # left out too, without a label. With nothing left, nothing is released.
 #
 # A release published by hand (Releases -> Draft a new release) still moves its

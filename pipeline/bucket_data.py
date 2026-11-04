@@ -19,9 +19,9 @@ after requests.json is saved here, so it's never ahead of it).
   town's last status says it had requests (the bucket unreachable, or the
   file lost), rather than upload an empty history over it.
 
-They're public, as they were in git: requests.json keeps SeeClickFix's full
-addresses for the street lookup (decided 2026-10-03), and the pages show only
-the block. Setting DOCUMENTS_LOCAL=1 (the tests do) keeps them in data/ alone.
+They're public, as they were in git: requests.json holds the requests as
+SeeClickFix publishes them, which the street lookup reads, and the pages show
+only the block. Setting DOCUMENTS_LOCAL=1 (the tests do) keeps them in data/ alone.
 """
 
 from __future__ import annotations

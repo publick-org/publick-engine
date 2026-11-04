@@ -86,7 +86,7 @@ Each summary's record keeps the result under "fact_check" ({"version",
 "source", "result", "problems"}, and for minutes with quotes, "pages", one
 entry per decision, a page number or null), made when the run reads the
 document's text (pipeline/summarize.py) and again when VERSION changes.
-python -m pipeline.factcheck lists the problems for the maintainer.
+python -m pipeline.factcheck lists the problems it found.
 """
 
 from __future__ import annotations
@@ -1142,7 +1142,7 @@ def kind_of(record: dict) -> str:
 
 
 def report(data_dir: Path) -> str:
-    """Every summary whose check found something, for the maintainer."""
+    """Every summary whose check found something."""
     lines, counts = [], {}
     for file in sorted((data_dir / "summaries").glob("*.json")):
         record = json.loads(file.read_text(encoding="utf-8"))
