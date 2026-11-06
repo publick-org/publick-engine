@@ -34,9 +34,11 @@ import { SIGNUP_PATH, subscribe } from "./digest.js";
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
 export const MANIFEST_TTL_MS = 60_000;
-// Hostnames whose manifest (or lack of one) an instance remembers: every site, with room to spare.
-// Requests for made-up hostnames (*.publick.org reaches this Worker) can't grow it without limit.
-export const MAX_HOSTS = 1000;
+// How much of the sites' manifests an instance keeps, counted in files listed (a hostname with no site, or a
+// manifest it can't read, counts as one): about 225 bytes of memory each once parsed, so about 34 MB of the
+// instance's 128 MB, however many sites there are. The site used longest ago makes room, so requests for
+// made-up hostnames (*.publick.org reaches this Worker) push out only each other and sites nobody is reading.
+export const MAX_CACHED_FILES = 150_000;
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const SHORT = "public, max-age=300";
 
@@ -44,7 +46,8 @@ const SHORT = "public, max-age=300";
 // a newer build's asset (route()): one read in this many milliseconds, however many such requests come.
 export const MANIFEST_REFRESH_MS = 5_000;
 
-const manifests = new Map(); // hostname -> {manifest, fetchedAt, error}, oldest read first
+const manifests = new Map(); // hostname -> {manifest, fetchedAt, error, weight}, used longest ago first
+let cachedFiles = 0; // the sum of the weights in manifests
 // The cookie that remembers the language a visitor chose with the switch.
 export const LANG_COOKIE = "lang";
 const YEAR = 365 * 24 * 60 * 60;
@@ -55,6 +58,9 @@ const YEAR = 365 * 24 * 60 * 60;
 export async function loadManifest(env, host, now = Date.now(), { refresh = false } = {}) {
   const cached = manifests.get(host);
   if (cached && now - cached.fetchedAt < (refresh ? MANIFEST_REFRESH_MS : MANIFEST_TTL_MS)) {
+    // Used now: to the back of the queue for eviction.
+    manifests.delete(host);
+    manifests.set(host, cached);
     if (cached.error) throw cached.error;
     return cached.manifest;
   }
@@ -75,16 +81,26 @@ export async function loadManifest(env, host, now = Date.now(), { refresh = fals
     error = new Error(`${host}: manifest format ${manifest.format}, this Worker reads ${FORMAT}`);
     manifest = null;
   }
-  // The hostname read longest ago makes room, so a made-up hostname never empties the whole map.
-  manifests.delete(host);
-  if (manifests.size >= MAX_HOSTS) manifests.delete(manifests.keys().next().value);
-  manifests.set(host, { manifest, fetchedAt: now, error });
+  const weight = Math.max(1, Object.keys(manifest?.files || {}).length);
+  forget(host);
+  // The sites used longest ago make room; one site larger than the whole allowance is still kept, alone.
+  while (manifests.size && cachedFiles + weight > MAX_CACHED_FILES) forget(manifests.keys().next().value);
+  manifests.set(host, { manifest, fetchedAt: now, error, weight });
+  cachedFiles += weight;
   if (error) throw error;
   return manifest;
 }
 
+function forget(host) {
+  const cached = manifests.get(host);
+  if (!cached) return;
+  manifests.delete(host);
+  cachedFiles -= cached.weight;
+}
+
 export function clearManifests() {
   manifests.clear();
+  cachedFiles = 0;
 }
 
 // Whether the manifest lists a file: its own keys only, so a path like /constructor isn't
@@ -293,6 +309,17 @@ async function route(request, env, ctx) {
   }
   let manifest = await loadManifest(env, host);
   if (!manifest) return plain("No site here.", 404);
+  // A ?v= this manifest doesn't know, on a file it lists or on one it doesn't have yet: for up to a minute
+  // after a publish, a page from an instance that has read the new build links its assets by a version, or
+  // names a file, that an instance still on the old build hasn't got. Read the manifest again (at most once
+  // in MANIFEST_REFRESH_MS, whatever the request asks), so the new file is served, rather than the old one
+  // as if it were the new one for good (cacheControl), or a 404 the browser keeps for a minute.
+  if (url.searchParams.has("v")) {
+    const { key } = resolve(manifest.files, url.pathname);
+    if (!key || !listed(manifest.files, key) || !versionMatches(url, manifest.files[key])) {
+      manifest = (await loadManifest(env, host, Date.now(), { refresh: true })) || manifest;
+    }
+  }
   const target = movedTo(manifest.redirects, url.pathname);
   // Only to another page of the site: "//other.site/" would leave it.
   if (target && /^\/(?![/\\])/.test(target)) return moved(`${url.origin}${target}${url.search}`);
@@ -317,21 +344,7 @@ async function route(request, env, ctx) {
       if (lang !== "en" && manifest.files[`${lang}/index.html`]) return redirect(`/${lang}/${url.search}`, { Vary: vary });
     }
   }
-  if (key && listed(manifest.files, key)) {
-    let entry = manifest.files[key];
-    // A ?v= this manifest doesn't know: for up to a minute after a publish, a page from an instance that has
-    // read the new build links its assets by a version an instance still on the old build hasn't got. Read
-    // the manifest again (at most once in MANIFEST_REFRESH_MS, whatever the request asks), so the new file
-    // is served, and never the old one as if it were the new one for good (cacheControl).
-    if (url.searchParams.has("v") && !versionMatches(url, entry)) {
-      const fresh = await loadManifest(env, host, Date.now(), { refresh: true });
-      if (fresh && listed(fresh.files, key)) {
-        manifest = fresh;
-        entry = fresh.files[key];
-      }
-    }
-    return serve(request, env, ctx, url, key, entry, 200, vary);
-  }
+  if (key && listed(manifest.files, key)) return serve(request, env, ctx, url, key, manifest.files[key], 200, vary);
   const folder = url.pathname.split("/")[1];
   const notFound = /^[a-z]{2}$/.test(folder) && manifest.files[`${folder}/404.html`] ? `${folder}/404.html` : "404.html";
   const missing = manifest.files[notFound];

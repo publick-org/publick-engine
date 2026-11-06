@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 
 import worker from "./index.js";
-import { MANIFEST_REFRESH_MS, MANIFEST_TTL_MS, MAX_HOSTS, clearManifests, loadManifest, movedTo, resolve } from "./sites.js";
+import { MANIFEST_REFRESH_MS, MANIFEST_TTL_MS, MAX_CACHED_FILES, clearManifests, loadManifest, movedTo, resolve } from "./sites.js";
 import { MAX_FORM_BYTES } from "./digest.js";
 
 function entry(blob, type = "text/html; charset=utf-8") {
@@ -249,6 +249,24 @@ test("a request for a newer build's asset has the manifest read again, once in a
   assert.equal(reads(), 3);
 });
 
+test("a file a newer build added, asked for by its version, has the manifest read again instead of a 404", async () => {
+  const e = env();
+  await loadManifest(e, "t.publick.org", Date.now() - MANIFEST_REFRESH_MS - 1);
+  const newer = { ...MANIFEST, build: "20261002T120000Z-def",
+                  files: { ...MANIFEST.files, "static/js/new.js": entry("newjs", "text/javascript; charset=utf-8") } };
+  e.SITES = bucket({ "sites/t.publick.org/current.json": newer, "blobs/newjs": "content newjs", "blobs/missing": "content missing" });
+  const response = await worker.fetch(get("/static/js/new.js?v=newj"), e);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "content newjs");
+  assert.match(response.headers.get("Cache-Control"), /immutable/);
+  // Without a ?v=, a file the manifest doesn't list is a 404 at once, with no read.
+  const reads = () => e.SITES.reads.filter((k) => k.endsWith("current.json")).length;
+  const before = reads();
+  const missing = await worker.fetch(get("/static/js/gone.js"), e);
+  assert.equal(missing.status, 404);
+  assert.equal(reads(), before);
+});
+
 test("HEAD and conditional requests read no file", async () => {
   const e = env();
   const head = await worker.fetch(get("/about/", { method: "HEAD" }), e);
@@ -344,18 +362,37 @@ test("a bucket that fails is a plain 503, and a site read before keeps being ser
   assert.equal(logged.length, 2);
 });
 
-test("made-up hostnames can't grow the manifests kept without limit, and push out only the oldest", async () => {
+test("the manifests kept are bounded by the files they list, and the site used longest ago makes room", async () => {
+  // Three sites that fill the allowance between them, and a fourth that needs one of them gone.
+  const third = Math.floor(MAX_CACHED_FILES / 3);
+  const big = (host) => ({ ...MANIFEST, domain: host,
+                           files: Object.fromEntries(Array.from({ length: third }, (_, i) => [`p${i}/index.html`, entry(`b${i}`)])) });
+  const e = { SITES: bucket(Object.fromEntries(["a", "b", "c", "d"].map((h) => [`sites/${h}.publick.org/current.json`, big(h)]))) };
+  const reads = () => e.SITES.reads.length;
+  for (const [i, h] of ["a", "b", "c"].entries()) await loadManifest(e, `${h}.publick.org`, i);
+  assert.equal(reads(), 3);
+  // a is used again, so b is now the one used longest ago, and makes room for d.
+  await loadManifest(e, "a.publick.org", 3);
+  await loadManifest(e, "d.publick.org", 4);
+  assert.equal(reads(), 4);
+  for (const h of ["a", "c", "d"]) await loadManifest(e, `${h}.publick.org`, 5);
+  assert.equal(reads(), 4);
+  await loadManifest(e, "b.publick.org", 5);
+  assert.equal(reads(), 5);
+});
+
+test("made-up hostnames are remembered as having no site, and push out only what's used least", async () => {
   const e = env();
   await loadManifest(e, "t.publick.org", 0);
-  for (let i = 0; i < MAX_HOSTS + 5; i++) await loadManifest(e, `x${i}.publick.org`, i + 1);
+  for (let i = 0; i < 1000; i++) {
+    await loadManifest(e, `x${i}.publick.org`, 1);
+    // The real site, read through all of this, stays held.
+    if (i % 100 === 0) await loadManifest(e, "t.publick.org", 1);
+  }
   const before = e.SITES.reads.length;
-  // The hostnames read longest ago made room: the real site, read first, is read again...
-  await loadManifest(e, "t.publick.org", MAX_HOSTS + 10);
-  assert.equal(e.SITES.reads.length, before + 1);
-  // ...and the ones read most recently are still held.
-  await loadManifest(e, `x${MAX_HOSTS + 4}.publick.org`, MAX_HOSTS + 10);
-  await loadManifest(e, `x${MAX_HOSTS - 1}.publick.org`, MAX_HOSTS + 10);
-  assert.equal(e.SITES.reads.length, before + 1);
+  await loadManifest(e, "t.publick.org", 2);
+  await loadManifest(e, "x0.publick.org", 2);
+  assert.equal(e.SITES.reads.length, before);
 });
 
 test("a file's content is kept in the data center's cache after its first read", async () => {
@@ -647,6 +684,33 @@ test("a signup that isn't a small URL-encoded form isn't read", async () => {
   const upload = await signUp([], { email: "reader@example.org" }, { Origin: "https://t.publick.org", "Content-Type": "multipart/form-data; boundary=x" });
   assert.match(upload.response.headers.get("Location"), /\/digest\/problem\/$/);
   assert.equal(upload.calls.length, 0);
+});
+
+test("a signup body longer than the form's, sent with no length, stops being read at the limit", async () => {
+  const fake = fakeButtondown([]);
+  try {
+    let sent = 0;
+    const body = new ReadableStream({
+      pull(controller) {
+        // A form's start, then more than MAX_FORM_BYTES of padding, a kilobyte at a time.
+        if (sent > MAX_FORM_BYTES * 4) return controller.close();
+        const chunk = sent === 0 ? "email=reader%40example.org&x=" : "a".repeat(1024);
+        sent += chunk.length;
+        controller.enqueue(new TextEncoder().encode(chunk));
+      },
+    });
+    const request = new Request("https://t.publick.org/digest/subscribe", {
+      method: "POST", body, duplex: "half",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Origin: "https://t.publick.org" },
+    });
+    assert.equal(request.headers.get("Content-Length"), null);
+    const response = await worker.fetch(request, { ...env(SIGNUP_MANIFEST), BUTTONDOWN_SUBSCRIBE_KEY: "subscribe-key" });
+    assert.match(response.headers.get("Location"), /\/digest\/problem\/$/);
+    assert.equal(fake.calls.length, 0);
+    assert.ok(sent < MAX_FORM_BYTES * 2, `read ${sent} bytes`);
+  } finally {
+    fake.restore();
+  }
 });
 
 test("a site without the digest's signup takes no POST", async () => {

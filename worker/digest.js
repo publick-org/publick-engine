@@ -192,6 +192,31 @@ export function answerPrefix(lang, manifest) {
   return /^[a-z]{2}$/.test(code) && code !== "en" && manifest?.files?.[`${code}/digest/thanks/index.html`] ? `/${code}` : "";
 }
 
+// A URL-encoded body of at most MAX_FORM_BYTES, read no further than that: its fields, or null if it's longer.
+export async function smallForm(request) {
+  if (!request.body) return new URLSearchParams();
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_FORM_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new URLSearchParams(new TextDecoder().decode(bytes));
+}
+
 // The answer to the signup form: on to the town's "check your email" page, or its "that didn't work" page, in
 // the language of the page the form was on, where the site has them in it (answerPrefix).
 export async function subscribe(request, env, url, manifest = null) {
@@ -203,16 +228,18 @@ export async function subscribe(request, env, url, manifest = null) {
   // Only the town's own pages post here.
   if (request.headers.get("Origin") !== url.origin) return new Response("Forbidden", { status: 403 });
   // Only what the form sends: a few fields, URL-encoded. Anything else (a file upload, a body of megabytes)
-  // isn't read at all, so a flood of such requests costs nothing to parse.
+  // isn't parsed: a body that says it's too long isn't read, and one that turns out longer (sent in chunks,
+  // with no Content-Length) stops being read at MAX_FORM_BYTES.
   const length = Number(request.headers.get("Content-Length") || 0);
   const type = request.headers.get("Content-Type") || "";
   if (length > MAX_FORM_BYTES || !/^application\/x-www-form-urlencoded\b/i.test(type)) return answer("problem");
   let form;
   try {
-    form = await request.formData();
+    form = await smallForm(request);
   } catch {
     return answer("problem");
   }
+  if (!form) return answer("problem");
   prefix = answerPrefix(form.get("lang"), manifest);
   // A field people don't see, which bots fill in: answered as if done, and nothing sent.
   if (form.get("website")) return answer("thanks");
