@@ -79,6 +79,23 @@ ENGLISH_ONLY_FOLDERS = {"digest"}
 EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
 
 
+def content_version(path: Path) -> str:
+    """The first characters of the hash of a file's content: the ?v= its URL carries, which the network's
+    Worker checks against the file it serves before letting browsers keep it for good (worker/sites.js)."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:10]
+
+
+def version_static_urls(stylesheet: Path, out_static: Path) -> None:
+    """Rewrites a stylesheet's url(/static/...) references with ?v=<the file's content version>, so the
+    fonts it loads are cached as the pages' other assets are: for a year, by a URL that changes with the
+    file. A file the stylesheet names that isn't there is left as written."""
+    def versioned_url(m: re.Match) -> str:
+        target = out_static / m.group(2)
+        return m.group(0) if not target.is_file() else f"{m.group(1)}?v={content_version(target)}{m.group(3)}"
+    css = stylesheet.read_text(encoding="utf-8")
+    stylesheet.write_text(re.sub(r"(url\(/static/([^)?#\s\"']+))([)\"'])", versioned_url, css), encoding="utf-8")
+
+
 def url_for(rel_path: Path) -> str:
     """Map a page file path to its public URL path, e.g. 311/index.html -> /311/."""
     parts = rel_path.parts
@@ -1632,6 +1649,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
             with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
                 f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
+        version_static_urls(out_static / "css" / "site.css", out_static)
 
     env = Environment(
         loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR, STATES_DIR]),
@@ -1672,11 +1690,10 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # A label saved in a state's data in English (a budget function, a type of parcel), as shown.
     env.globals["data_label"] = i18n.label
     # Versioned asset URLs, so a browser never pairs new pages with an old cached stylesheet.
-    css_version = hashlib.sha256((out_static / "css" / "site.css").read_bytes()).hexdigest()[:10]
+    css_version = content_version(out_static / "css" / "site.css")
     def versioned(path: str) -> str:
         """'/static/js/map.js' -> '/static/js/map.js?v=<hash>'."""
-        digest = hashlib.sha256((out_static / path.removeprefix("/static/")).read_bytes()).hexdigest()[:10]
-        return f"{path}?v={digest}"
+        return f"{path}?v={content_version(out_static / path.removeprefix('/static/'))}"
     env.filters["versioned"] = versioned
     env.globals["report_link"] = lambda page_url, what: report_link(site, base_url + prefix, page_url, what)
     # A state's own template (site/states/<state>/<name>); a part a state doesn't have is included with "ignore missing".

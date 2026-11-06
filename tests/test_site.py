@@ -1212,3 +1212,16 @@ def test_the_footer(site_dir, config):
     assert f'href="{config["town"]["official_site"]}"' in footer and "City of Gloucester website" in footer
     assert "Updated <time" not in footer
     assert '<time class="topline-date"' in home[:home.index("<main")]
+
+
+def test_fonts_are_linked_by_content_version(site_dir):
+    """The stylesheet's fonts and the pages' preloads carry ?v=<content hash>, as the scripts do, so they're
+    cached for a year by a URL that changes with the file (worker/sites.js cacheControl)."""
+    css = (site_dir / "static" / "css" / "site.css").read_text()
+    fonts = re.findall(r"url\(/static/fonts/([^)?]+)\?v=([0-9a-f]{10})\)", css)
+    assert fonts and not re.search(r"url\(/static/fonts/[^)?]+\)", css)
+    for name, version in fonts:
+        assert build_site.content_version(site_dir / "static" / "fonts" / name) == version
+    home = (site_dir / "index.html").read_text()
+    assert re.search(r'<link rel="preload" href="/static/fonts/public-sans-400\.woff2\?v=[0-9a-f]{10}" as="font"', home)
+    assert '/static/fonts/public-sans-400.woff2"' not in home
