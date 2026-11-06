@@ -151,8 +151,20 @@ def combined(store: dict, listing_of=lambda m: m.get("source", "calendar"), ledg
             m = dict(records[0])
         m.update(slug=meeting["id"], addresses=meeting["addresses"], unplaced=meeting["unplaced"], body=meeting["body"],
                  body_names=meeting["body_names"])
+        if m.get("minutes"):
+            m["minutes"] = not_agendas(m)
         out[records[0]["id"]] = m
     return out, moved
+
+
+def not_agendas(meeting: dict) -> list[dict]:
+    """The meeting's minutes, less any file it also has as an agenda. A city can post the agenda again
+    where the minutes go (Lowell's Agenda Center did for its Board of Parks, 2026-10-28): that file is the
+    agenda, and the minutes aren't posted yet. Left out here, it isn't summarized a second time as
+    minutes, counted as minutes posted, or shown as them; the real minutes, a different file, come in
+    as any minutes do."""
+    agendas = {d["sha256"] for d in meeting.get("agendas", [])}
+    return [d for d in meeting.get("minutes", []) if d["sha256"] not in agendas]
 
 
 def read(data_dir: Path, listing_of=lambda m: m.get("source", "calendar"), town: str = "") -> tuple[dict, dict]:
