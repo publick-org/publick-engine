@@ -34,20 +34,36 @@ import { SIGNUP_PATH, subscribe } from "./digest.js";
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
 export const MANIFEST_TTL_MS = 60_000;
-// Hostnames whose manifest (or lack of one) an instance remembers: every site, with room to spare.
-// Requests for made-up hostnames (*.publick.org reaches this Worker) can't grow it without limit.
-export const MAX_HOSTS = 1000;
+// How much of the sites' manifests an instance keeps, counted in files listed (a hostname with no site, or a
+// manifest it can't read, counts as one): about 225 bytes of memory each once parsed, so about 34 MB of the
+// instance's 128 MB, however many sites there are. The site used longest ago makes room, so requests for
+// made-up hostnames (*.publick.org reaches this Worker) push out only each other and sites nobody is reading.
+export const MAX_CACHED_FILES = 150_000;
 const IMMUTABLE = "public, max-age=31536000, immutable";
 const SHORT = "public, max-age=300";
 
-const manifests = new Map(); // hostname -> {manifest, fetchedAt}
+// How soon after reading a site's manifest an instance may read it again for a request that asks for
+// a newer build's asset (route()): one read in this many milliseconds, however many such requests come.
+export const MANIFEST_REFRESH_MS = 5_000;
+
+const manifests = new Map(); // hostname -> {manifest, fetchedAt, error, weight}, used longest ago first
+let cachedFiles = 0; // the sum of the weights in manifests
 // The cookie that remembers the language a visitor chose with the switch.
 export const LANG_COOKIE = "lang";
 const YEAR = 365 * 24 * 60 * 60;
 
-export async function loadManifest(env, host, now = Date.now()) {
+// The site's manifest, read from the bucket at most once per MANIFEST_TTL_MS (refresh: read now, unless
+// it was read within MANIFEST_REFRESH_MS). A manifest in a format this Worker doesn't read is remembered
+// as such for as long, so a site stuck that way costs one read per TTL, not one per request.
+export async function loadManifest(env, host, now = Date.now(), { refresh = false } = {}) {
   const cached = manifests.get(host);
-  if (cached && now - cached.fetchedAt < MANIFEST_TTL_MS) return cached.manifest;
+  if (cached && now - cached.fetchedAt < (refresh ? MANIFEST_REFRESH_MS : MANIFEST_TTL_MS)) {
+    // Used now: to the back of the queue for eviction.
+    manifests.delete(host);
+    manifests.set(host, cached);
+    if (cached.error) throw cached.error;
+    return cached.manifest;
+  }
   let manifest;
   try {
     const object = await env.SITES.get(`sites/${host}/current.json`);
@@ -60,16 +76,31 @@ export async function loadManifest(env, host, now = Date.now()) {
     }
     throw error;
   }
+  let error = null;
   if (manifest && manifest.format !== FORMAT) {
-    throw new Error(`${host}: manifest format ${manifest.format}, this Worker reads ${FORMAT}`);
+    error = new Error(`${host}: manifest format ${manifest.format}, this Worker reads ${FORMAT}`);
+    manifest = null;
   }
-  if (!cached && manifests.size >= MAX_HOSTS) manifests.clear();
-  manifests.set(host, { manifest, fetchedAt: now });
+  const weight = Math.max(1, Object.keys(manifest?.files || {}).length);
+  forget(host);
+  // The sites used longest ago make room; one site larger than the whole allowance is still kept, alone.
+  while (manifests.size && cachedFiles + weight > MAX_CACHED_FILES) forget(manifests.keys().next().value);
+  manifests.set(host, { manifest, fetchedAt: now, error, weight });
+  cachedFiles += weight;
+  if (error) throw error;
   return manifest;
+}
+
+function forget(host) {
+  const cached = manifests.get(host);
+  if (!cached) return;
+  manifests.delete(host);
+  cachedFiles -= cached.weight;
 }
 
 export function clearManifests() {
   manifests.clear();
+  cachedFiles = 0;
 }
 
 // Whether the manifest lists a file: its own keys only, so a path like /constructor isn't
@@ -136,12 +167,32 @@ const HSTS = "max-age=31536000";
 // No other site may show these pages in a frame (the pages' own CSP is a <meta> tag, which can't
 // say so). X-Frame-Options for browsers that don't read frame-ancestors.
 const FRAMING = { "Content-Security-Policy": "frame-ancestors 'self'", "X-Frame-Options": "SAMEORIGIN" };
+// What the pages may ask the browser for: a visitor's location, for the ward lookup (site/static/js/wards.js),
+// and nothing else, on these pages or in anything they frame.
+const PERMISSIONS = "camera=(), microphone=(), geolocation=(self)";
+// A page that isn't there, or the plain answers below: kept briefly, so a scanner's repeats don't each
+// reach this Worker.
+const BRIEF = "public, max-age=60";
 
 // A plain answer for when the site can't be served right now, with a hint to try again.
 export function unavailable() {
   return new Response("This page is temporarily unavailable. Please try again in a minute.", {
     status: 503,
     headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Retry-After": "60" },
+  });
+}
+
+// A plain answer in words, with the headers every answer carries.
+function plain(text, status, headers = {}) {
+  return new Response(text, {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": status === 404 ? BRIEF : "no-store",
+      "Strict-Transport-Security": HSTS,
+      "X-Content-Type-Options": "nosniff",
+      ...headers,
+    },
   });
 }
 
@@ -185,25 +236,45 @@ function redirect(location, headers = {}) {
   });
 }
 
-function cacheControl(key, url) {
-  // Engine assets are linked with ?v=<hash of their content>, so that URL never changes meaning.
-  if (key.startsWith("static/") && url.searchParams.has("v")) return IMMUTABLE;
-  return SHORT;
+// Whether a URL's ?v= names the file it's served: the pages link assets with ?v=<the first characters of
+// the hash of the file's content> (pipeline/build_site.py versioned), and a blob is named by that hash.
+// A ?v= that doesn't match asks for another build's file: a page of the build before, still open in a
+// browser, or of the build after, served by a page from an instance that has read it (route()).
+export function versionMatches(url, entry) {
+  const v = url.searchParams.get("v");
+  return Boolean(v) && entry.blob.startsWith(v);
+}
+
+function cacheControl(url, entry, status) {
+  if (status === 404) return BRIEF;
+  if (status !== 200) return "no-store";
+  // A URL whose ?v= names its content never changes meaning, so browsers may keep the file for good.
+  // One that doesn't match is kept only briefly: it must not keep the wrong file under that name.
+  return versionMatches(url, entry) ? IMMUTABLE : SHORT;
+}
+
+// Whether an If-None-Match header names the file: any of its tags, weak ones as Cloudflare makes them when
+// it compresses the answer on the way out (W/"..."), which is what browsers then send back.
+export function unchanged(request, entry) {
+  const header = request.headers.get("If-None-Match");
+  if (!header) return false;
+  return header.split(",").map((tag) => tag.trim().replace(/^W\//, "")).some((tag) => tag === `"${entry.blob}"` || tag === "*");
 }
 
 async function serve(request, env, ctx, url, key, entry, status, vary = null) {
   const headers = new Headers({
     "Content-Type": entry.type,
-    "Cache-Control": status === 200 ? cacheControl(key, url) : "no-store",
+    "Cache-Control": cacheControl(url, entry, status),
     ETag: `"${entry.blob}"`,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Strict-Transport-Security": HSTS,
+    "Permissions-Policy": PERMISSIONS,
     ...FRAMING,
   });
   // A page another language's visitors are redirected from depends on who asks.
   if (vary) headers.set("Vary", vary);
-  if (status === 200 && request.headers.get("If-None-Match") === `"${entry.blob}"`) {
+  if (status === 200 && unchanged(request, entry)) {
     return new Response(null, { status: 304, headers });
   }
   headers.set("Content-Length", String(entry.size));
@@ -230,19 +301,30 @@ async function route(request, env, ctx) {
     if (manifest && manifest.files["digest/thanks/index.html"]) return subscribe(request, env, url, manifest);
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return new Response("Method not allowed", { status: 405, headers: { Allow: "GET, HEAD" } });
+    return plain("Method not allowed", 405, { Allow: "GET, HEAD" });
   }
   const host = url.hostname.toLowerCase();
   if (host.startsWith("www.")) {
-    return Response.redirect(`${url.protocol}//${host.slice(4)}${url.pathname}${url.search}`, 301);
+    return moved(`${url.protocol}//${host.slice(4)}${url.pathname}${url.search}`);
   }
-  const manifest = await loadManifest(env, host);
-  if (!manifest) return new Response("No site here.", { status: 404 });
+  let manifest = await loadManifest(env, host);
+  if (!manifest) return plain("No site here.", 404);
+  // A ?v= this manifest doesn't know, on a file it lists or on one it doesn't have yet: for up to a minute
+  // after a publish, a page from an instance that has read the new build links its assets by a version, or
+  // names a file, that an instance still on the old build hasn't got. Read the manifest again (at most once
+  // in MANIFEST_REFRESH_MS, whatever the request asks), so the new file is served, rather than the old one
+  // as if it were the new one for good (cacheControl), or a 404 the browser keeps for a minute.
+  if (url.searchParams.has("v")) {
+    const { key } = resolve(manifest.files, url.pathname);
+    if (!key || !listed(manifest.files, key) || !versionMatches(url, manifest.files[key])) {
+      manifest = (await loadManifest(env, host, Date.now(), { refresh: true })) || manifest;
+    }
+  }
   const target = movedTo(manifest.redirects, url.pathname);
   // Only to another page of the site: "//other.site/" would leave it.
   if (target && /^\/(?![/\\])/.test(target)) return moved(`${url.origin}${target}${url.search}`);
   const { key, redirect: canonical } = resolve(manifest.files, url.pathname);
-  if (canonical) return Response.redirect(`${url.origin}${canonical}${url.search}`, 301);
+  if (canonical) return moved(`${url.origin}${canonical}${url.search}`);
   const languages = siteLanguages(manifest.files);
   let vary = null;
   if (languages.length) {
@@ -267,5 +349,5 @@ async function route(request, env, ctx) {
   const notFound = /^[a-z]{2}$/.test(folder) && manifest.files[`${folder}/404.html`] ? `${folder}/404.html` : "404.html";
   const missing = manifest.files[notFound];
   if (missing) return serve(request, env, ctx, url, notFound, missing, 404);
-  return new Response("Not found", { status: 404 });
+  return plain("Not found", 404);
 }
