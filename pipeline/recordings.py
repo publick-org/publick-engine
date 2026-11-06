@@ -58,9 +58,9 @@ import hashlib
 import importlib
 import json
 import re
-from datetime import date
 from pathlib import Path
 
+from pipeline import dates
 from pipeline.files import write_atomic
 
 FILE = "recordings.json"
@@ -132,33 +132,10 @@ def check(config: dict) -> None:
 
 # ---- What a recording's title says ---------------------------------------------------------------------
 
-MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-MONTH = r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?"
-DATE_PATTERNS = (
-    # 2026-10-27
-    (re.compile(r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)"), ("y", "m", "d")),
-    # 10/27/2026, 10-27-26, 10.27.2026, and "Council -10/19/2026": a dash before the date that
-    # follows no digit is a separator, not part of a longer date.
-    (re.compile(r"(?<![\d/.])(?<!\d-)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?![\d/.-])"), ("m", "d", "y")),
-    # October 27, 2026; Oct. 27th 2026
-    (re.compile(MONTH + r"\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})(?!\d)", re.I), ("b", "d", "y")),
-    # 27 October 2026
-    (re.compile(r"(?<!\d)(\d{1,2})\s+" + MONTH + r",?\s+(\d{4})(?!\d)", re.I), ("d", "b", "y")),
-)
-
-
 def title_date(title: str) -> str | None:
-    """The first date a title gives, as YYYY-MM-DD, or None."""
-    for pattern, order in DATE_PATTERNS:
-        for m in pattern.finditer(title or ""):
-            parts = dict(zip(order, m.groups()))
-            year = int(parts["y"]) + (2000 if len(parts["y"]) == 2 else 0)
-            month = MONTHS.index(parts["b"][:3].lower()) + 1 if "b" in parts else int(parts["m"])
-            try:
-                return date(year, month, int(parts["d"])).isoformat()
-            except ValueError:
-                continue
-    return None
+    """The first date a title gives, as YYYY-MM-DD, or None (pipeline/dates.py)."""
+    day = dates.find_date(title)
+    return day.isoformat() if day else None
 
 
 def board_for_title(title: str, boards: dict | str) -> str | None:

@@ -48,6 +48,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from pipeline import dates
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
@@ -59,19 +60,14 @@ FILE_URL = "https://drive.google.com/uc?export=download&id={id}"
 VIEW_URL = "https://drive.google.com/file/d/{id}/view"
 ENTRY = re.compile(r'<div class="flip-entry" id="entry-([\w-]+)".*?<a href="https://drive\.google\.com/([a-z]+)/'
                    r'.*?<div class="flip-entry-title">(.*?)</div>', re.S)
-# "9_9_26", "10_08_25", "6_17_2026", at the end of the name.
-DATE_IN_NAME = re.compile(r"(\d{1,2})_(\d{1,2})_(\d{4}|\d{2})\s*(?:\.pdf)?\s*$", re.I)
+# What may follow a file's date at the end of its name: "SC Agenda 4_8_26.pdf".
+AFTER_THE_DATE = re.compile(r"\s*(?:\.pdf)?\s*", re.I)
 SCHOOL_YEAR = re.compile(r"\b(\d{4})-(\d{4})\b")
 # Words in a file name that describe the document, not which meeting it is.
 DOCUMENT_WORDS = re.compile(r"\b(?:agenda|minutes|revised|amended|special|online|sub-?committee)\b", re.I)
 LEFT_OUT = re.compile(r"\b(?:ES|executive session|joint)\b", re.I)
-MONTHS = {name: n for n, name in enumerate(["january", "february", "march", "april", "may", "june", "july", "august",
-                                              "september", "october", "november", "december"], 1)}
 # "School Committee - " or "Building and Finance Subcommittee - " starts a committee's dates.
 SCHEDULE_ENTRY = re.compile(r"([A-Z][A-Za-z& ]*?(?:Committee|Subcommittee)) ?- ")
-# A folder a meeting: "10-5-26", "8-24-2026", "3/23/26", or "September 8, 2025", anywhere in the name.
-NUMERIC_DATE = re.compile(r"(?<![\d.])(\d{1,2})[-/](\d{1,2})[-/](\d{4}|\d{2})(?![\d/-])")
-LONG_DATE = re.compile(r"\b([A-Za-z]+)\.? (\d{1,2}),? (\d{4})\b")
 CANCELLED = re.compile(r"\bcancell?ed\b", re.I)
 NOTICE = re.compile(r"\bnotice\b", re.I)
 AGENDA = re.compile(r"\bagenda\b", re.I)
@@ -97,15 +93,11 @@ def parse_name(name: str, abbreviations: list[str]) -> dict | None:
     'Governance Workshop'. abbreviations are the committees' short names in
     file names ('SC', 'B&F'), removed before the variant is read."""
     text = re.sub(r"\s+", " ", name).strip()
-    found = DATE_IN_NAME.search(text)
-    if not found:
+    found = dates.find_dates(text)
+    if not found or not AFTER_THE_DATE.fullmatch(text[found[-1].end:]):
         return None
-    month, day, year = (int(n) for n in found.groups())
-    try:
-        when = date(year + 2000 if year < 100 else year, month, day)
-    except ValueError:
-        return None
-    words = text[:found.start()]
+    when = found[-1].day
+    words = text[:found[-1].start]
     rest = DOCUMENT_WORDS.sub(" ", words)
     for short in sorted(abbreviations, key=len, reverse=True):
         rest = re.sub(rf"(?<!\w){re.escape(short)}(?!\w)", " ", rest, flags=re.I)
@@ -119,17 +111,10 @@ def parse_name(name: str, abbreviations: list[str]) -> dict | None:
 
 
 def find_date(text: str) -> str | None:
-    """The first date in a folder or file name: '04 10-5-26', '01 September 8, 2025', 'CANCELED MEETING 3/23/26'."""
-    if found := NUMERIC_DATE.search(text):
-        month, day, year = (int(n) for n in found.groups())
-    elif (found := LONG_DATE.search(text)) and found.group(1).lower() in MONTHS:
-        month, day, year = MONTHS[found.group(1).lower()], int(found.group(2)), int(found.group(3))
-    else:
-        return None
-    try:
-        return date(year + 2000 if year < 100 else year, month, day).isoformat()
-    except ValueError:
-        return None
+    """The first date in a folder or file name (pipeline/dates.py): '04 10-5-26', '01 September 8, 2025',
+    'CANCELED MEETING 3/23/26'."""
+    day = dates.find_date(text)
+    return day.isoformat() if day else None
 
 
 def start_time(text: str) -> str | None:
@@ -234,8 +219,8 @@ def parse_schedule(page: str) -> list[tuple[str, str]]:
         end = entries[i + 1].start() if i + 1 < len(entries) else len(text)
         month, pending = None, []
         for token in re.findall(r"[A-Za-z]+|\d+", text[entry.end():end].split("|")[0]):
-            if token.lower() in MONTHS:
-                month = MONTHS[token.lower()]
+            if number := dates.month_number(token, exact=True):
+                month = number
             elif token.isdigit() and len(token) == 4:
                 for m, d in pending:
                     try:

@@ -98,11 +98,9 @@ from __future__ import annotations
 import html
 import json
 import re
-from datetime import date
 from urllib.parse import unquote, urljoin
 
-from pipeline import finalsite
-from pipeline.filelist import DATE_IN_TITLE, MONTHS
+from pipeline import dates, finalsite
 from pipeline.meeting_names import find_board, parse_name, words
 
 SOURCE = "page"
@@ -122,18 +120,8 @@ BLOCK_TAG = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br|section|header|article|t
 # announcements run to 125 characters ("The Policy Committee will meet on Wednesday, October 28, 2026
 # at 5:00 PM in room 114 at Central Office (117 Stroudwater Street)").
 HEADING_LENGTH = 160
-# "2026-10-13", and without zeros, "2026-9-16" (Manchester School District's file names).
-ISO_DATE = re.compile(r"(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)")
-# "10/13/26", "9/8/2026": month, day and year in figures, the year of two digits taken as 20xx. Not a
-# fraction or a part of a longer run of figures and slashes ("8/10", "1/2/3/4").
-NUMERIC_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])")
-# "10-14-2026", "9-9-2026": month, day, and a four-digit year (two digits after dashes could be a
-# phone number's).
-DASHED_DATE = re.compile(r"(?<![\d./-])(\d{1,2})-(\d{1,2})-(\d{4})(?![\d-])")
 # A link that redirects to the document it names: an Apptegy short link ("https://aptg.co/Lj5CdR").
 SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
-# A date in figures, month first, with dots: "10.07.26", "05.06.2026" (Bristol Public Schools' minutes).
-DOTTED_DATE = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(?![\d.])")
 # A Google Drive folder: a link to a meeting's files, never itself saved.
 DRIVE_FOLDER = re.compile(r"^https://drive\.google\.com/drive/(?:u/\d+/)?folders/", re.I)
 # "6:00 PM", "6 p.m.", "6:30pm": a meeting's time, where an entry gives one.
@@ -148,31 +136,13 @@ def text(fragment: str) -> str:
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", fragment)).split())
 
 
-def find_date(value: str) -> re.Match | None:
-    """The first date in a text, written out, as yyyy-mm-dd (or yyyy-m-d), as m/d/yy (or m/d/yyyy), as mm.dd.yy, or as
-    mm-dd-yyyy."""
-    found = [m for m in (ISO_DATE.search(value), DATE_IN_TITLE.search(value), NUMERIC_DATE.search(value),
-                         DOTTED_DATE.search(value), DASHED_DATE.search(value)) if m]
-    return min(found, key=lambda m: m.start()) if found else None
-
-
-def date_value(found: re.Match) -> str | None:
-    try:
-        if found.re is ISO_DATE:
-            return date(*(int(g) for g in found.groups())).isoformat()
-        if found.re is NUMERIC_DATE:
-            month, day, year = (int(g) for g in found.groups())
-            return date(year + (2000 if year < 100 else 0), month, day).isoformat()
-        if found.re is DASHED_DATE:
-            month, day, year = (int(g) for g in found.groups())
-            return date(year, month, day).isoformat()
-        if found.re is DOTTED_DATE:
-            month, day, year = (int(g) for g in found.groups())
-            return date(year + 2000 if year < 100 else year, month, day).isoformat()
-        month, day, year = found.groups()
-        return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
-    except ValueError:
-        return None
+def find_date(value: str) -> dates.Found | None:
+    """The first date in a text (pipeline/dates.py): "2026-9-16" (Manchester School District's file
+    names), "10/13/26", "10-14-2026" (Winooski School District's labels), "05.06.2026" (Bristol Public
+    Schools' minutes), "Sept. 2, 2026". A page's figures with dashes and a two-digit year could be a
+    phone number's, so not "10-14-26"."""
+    found = dates.find_dates(value, short_dashed_years=False)
+    return found[0] if found else None
 
 
 def time_of(value: str) -> str | None:
@@ -191,8 +161,8 @@ def links_in(fragment: str, page_url: str) -> list[dict]:
 
 def only_a_date(label: str) -> bool:
     """Whether a link's label is a date and nothing else ("January 14, 2026", "2026-01-14")."""
-    day = find_date(label)
-    return bool(day) and not re.sub(r"[\W_]+", "", without(label, day))
+    dated = find_date(label)
+    return bool(dated) and not re.sub(r"[\W_]+", "", without(label, dated))
 
 
 def row_links(row: str, headings: list[str], page_url: str) -> list[dict]:
@@ -213,8 +183,8 @@ def row_links(row: str, headings: list[str], page_url: str) -> list[dict]:
             for i, link, dated in by_cell]
 
 
-def without(value: str, found: re.Match | None) -> str:
-    return value if found is None else value[:found.start()] + " " + value[found.end():]
+def without(value: str, found: dates.Found | None) -> str:
+    return value if found is None else value[:found.start] + " " + value[found.end:]
 
 
 def tidy(value: str) -> str:
@@ -424,9 +394,9 @@ def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> 
                 headings = cells
             continue
         raw = text(row.group(1))
-        day = find_date(raw)
-        found.append({"start": row.start(), "date": date_value(day) if day else None,
-                      "name": row_name(row.group(1), headings, name_columns), "time": time_of(without(raw, day)),
+        dated = find_date(raw)
+        found.append({"start": row.start(), "date": dated.day.isoformat() if dated else None,
+                      "name": row_name(row.group(1), headings, name_columns), "time": time_of(without(raw, dated)),
                       "links": links, "raw": raw})
     outside = ROW.sub(lambda m: " " * len(m.group(0)), page)
     heading, buffer = None, []
@@ -437,10 +407,10 @@ def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> 
         nonlocal heading
         line = " ".join(" ".join(buffer).split())
         buffer.clear()
-        day = find_date(line) if len(line) <= HEADING_LENGTH else None
-        if day:
-            rest = without(line, day)
-            heading = {"start": at, "date": date_value(day), "name": tidy(rest), "time": time_of(rest), "links": [],
+        dated = find_date(line) if len(line) <= HEADING_LENGTH else None
+        if dated:
+            rest = without(line, dated)
+            heading = {"start": at, "date": dated.day.isoformat(), "name": tidy(rest), "time": time_of(rest), "links": [],
                        "raw": line}
             found.append(heading)
 
@@ -457,10 +427,10 @@ def entries(page: str, page_url: str, name_columns: list[str] | None = None) -> 
             if url.startswith(("#", "mailto:", "tel:", "javascript:")):
                 continue
             target = {"url": urljoin(page_url, url), "text": label}
-            day = find_date(label)
-            if day:
-                rest = without(label, day)
-                found.append({"start": token.start(), "date": date_value(day), "name": tidy(DOCUMENT_WORDS.sub(" ", rest)),
+            dated = find_date(label)
+            if dated:
+                rest = without(label, dated)
+                found.append({"start": token.start(), "date": dated.day.isoformat(), "name": tidy(DOCUMENT_WORDS.sub(" ", rest)),
                               "time": time_of(rest), "links": [target], "raw": label})
             elif heading and (finalsite.is_document(target["url"]) or finalsite.recording(target["url"])):
                 heading["links"].append(target)
@@ -610,9 +580,9 @@ def minutes_in_agenda(page: str) -> list[tuple[str, str]]:
             url = html.unescape(href)
             wrapped = GOOGLE_REDIRECT.match(url)
             url = unquote(wrapped.group(1)) if wrapped else url
-            day = find_date(text(label))
-            if day and date_value(day) and finalsite.is_document(url):
-                found.append((date_value(day), url))
+            dated = find_date(text(label))
+            if dated and finalsite.is_document(url):
+                found.append((dated.day.isoformat(), url))
     return found
 
 

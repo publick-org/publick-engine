@@ -86,29 +86,33 @@ def run(town, tmp_path, client=None, now=NOW):
     ("03.18.26- Special BOE Meeting Minutes", "2026-03-18"),
 ])
 def test_dates(value, expected):
-    assert linkpage.date_value(linkpage.find_date(value)) == expected
+    assert day_of(value) == expected
+
+
+def day_of(value: str) -> str | None:
+    found = linkpage.find_date(value)
+    return found.day.isoformat() if found else None
 
 
 def test_no_date():
     assert linkpage.find_date("October Additional Resources") is None
-    assert linkpage.date_value(linkpage.find_date("2026-02-30")) is None
+    assert linkpage.find_date("2026-02-30") is None
     # A day and month without a year, a fraction, or figures and slashes that aren't one date.
     for value in ("Rescheduled from 8/10", "1/2 day", "Policy 1/2/3/4", "13/1/26 Agenda"):
-        found = linkpage.find_date(value)
-        assert found is None or linkpage.date_value(found) is None, value
-    assert linkpage.date_value(linkpage.find_date("Agenda 2-30-2026")) is None
+        assert linkpage.find_date(value) is None, value
+    assert linkpage.find_date("Agenda 2-30-2026") is None
 
 
-@pytest.mark.parametrize("value", [
-    # Not month, day and year: a two-digit year, a phone number, part of a yyyy-mm-dd date, a file's version.
-    "Agenda 10-14-26", "Call 802-655-6410", "2026-10-14", "Budget v1.10-14-2026",
+@pytest.mark.parametrize("value, expected", [
+    # Not month, day and year: a two-digit year after dashes (on a page, as often a phone number's), a
+    # phone number, part of a yyyy-mm-dd date, a file's version.
+    ("Agenda 10-14-26", None), ("Call 802-655-6410", None), ("2026-10-14", "2026-10-14"), ("Budget v1.10-14-2026", None),
 ])
-def test_figures_that_arent_a_month_day_and_year(value):
-    found = linkpage.find_date(value)
-    assert found is None or found.re not in (linkpage.NUMERIC_DATE, linkpage.DASHED_DATE)
+def test_figures_that_arent_a_month_day_and_year(value, expected):
+    assert day_of(value) == expected
     # Not a date: a version number, or a date without its year.
     assert linkpage.find_date("Policy 6114.3 revised") is None and linkpage.find_date("Version 1.2.3.4") is None
-    assert linkpage.date_value(linkpage.find_date("13.02.26 Minutes")) is None
+    assert linkpage.find_date("13.02.26 Minutes") is None
 
 
 @pytest.mark.parametrize("value, expected", [
@@ -878,7 +882,7 @@ MANSD_BOARD = {"board": "Board of School Committee", "source_name": "Manchester 
     ("0. 2026-8-31 BOSC Retreat Agenda", "2026-08-31"), ("2026-10-13 BOSC Minutes", "2026-10-13"),
 ])
 def test_iso_dates_without_zeros(value, expected):
-    assert linkpage.date_value(linkpage.find_date(value)) == expected
+    assert day_of(value) == expected
 
 
 def test_an_apptegy_document_folder():

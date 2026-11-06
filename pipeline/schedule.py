@@ -12,42 +12,25 @@ from __future__ import annotations
 
 import html
 import re
-from datetime import date, datetime
 
+from pipeline import dates
 from pipeline.meeting_names import find_board
 
 SOURCE = "schedule"
-# A month, written out or short ("November", "Nov.", "Sept.").
-MONTHS = (r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?"
-          r"|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)")
-DATE = re.compile(rf"\b(?P<month>{MONTHS})\.?\s+(?P<day>\d{{1,2}})(?:st|nd|rd|th)?,?\s+(?P<year>\d{{4}})\b"
-                  r"|(?<![\d/])(?P<m>\d{1,2})/(?P<d>\d{1,2})/(?P<y>\d{4}|\d{2})(?![\d/])"
-                  # "11-9-2026": with dashes, only a four-digit year, so "2026-11-09" and phone numbers aren't read.
-                  r"|(?<![\d./-])(?P<dm>\d{1,2})-(?P<dd>\d{1,2})-(?P<dy>\d{4})(?![\d-])")
-
-
 def page_text(page: str) -> str:
     text = re.sub(r"<script.*?</script>|<style.*?</style>", " ", page, flags=re.S | re.I)
     return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", text)).split())
 
 
 def parse_dates(page: str) -> list[tuple[str, str]]:
-    """(date, the words after it up to the next date) for every date on the page."""
+    """(date, the words after it up to the next date) for every date on the page (pipeline/dates.py).
+    Not "11-11-26": on a page, figures with dashes and a two-digit year are as often something else."""
     text = page_text(page)
-    found = list(DATE.finditer(text))
+    found = dates.find_dates(text, short_dashed_years=False)
     out = []
-    for i, m in enumerate(found):
-        try:
-            if m.group("month"):
-                day = datetime.strptime(f"{m['month'][:3]} {m['day']} {m['year']}", "%b %d %Y").date()
-            elif m.group("dm"):
-                day = date(int(m["dy"]), int(m["dm"]), int(m["dd"]))
-            else:
-                day = date(int(m["y"]) + (2000 if len(m["y"]) == 2 else 0), int(m["m"]), int(m["d"]))
-        except ValueError:
-            continue
-        end = found[i + 1].start() if i + 1 < len(found) else min(len(text), m.end() + 80)
-        out.append((day.isoformat(), text[m.end():end].strip(" -–—,")))
+    for i, dated in enumerate(found):
+        end = found[i + 1].start if i + 1 < len(found) else min(len(text), dated.end + 80)
+        out.append((dated.day.isoformat(), text[dated.end:end].strip(" -–—,")))
     return out
 
 

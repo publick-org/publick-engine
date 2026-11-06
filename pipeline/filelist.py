@@ -40,6 +40,7 @@ import re
 from datetime import date, datetime
 from urllib.parse import urljoin
 
+from pipeline import dates
 from pipeline.meeting_names import parse_name, words
 
 SOURCE = "filelist"
@@ -52,11 +53,6 @@ TITLE_ATTR = re.compile(r'title="([^"]*)"')
 VIDEO = re.compile(r'data-video="([^"]+)"')
 BUTTON = re.compile(r"<button.*?</button>", re.S)
 
-MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-# "October 6, 2026", "Feb 11, 2026", "Sept. 9 2026", "November 10,2025".
-DATE_IN_TITLE = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*(\d{1,2}),?\s*(\d{4})\b", re.I)
-# "BOAAminutes3.11.26.pdf", "IWWCAgenda9-2-26.pdf": the file name's date, for a title without one.
-DATE_IN_NAME = re.compile(r"(?<!\d)(\d{1,2})[._-](\d{1,2})[._-](\d{4}|\d{2})(?!\d)")
 
 SECTION = re.compile(r"<section>\s*<h1>(.*?)</h1>(.*?)</section>", re.S)
 ARTICLE = re.compile(r"<article[^>]*>(.*?)</article>", re.S)
@@ -124,20 +120,12 @@ def kind_of(title: str) -> str | None:
 
 
 def date_of(title: str, filename: str = "") -> str | None:
-    """The meeting's date, from the title's last date, or else the file name's
-    ('Minutes of Regular Meeting- Match 11, 2026' is BOAAminutes3.11.26.pdf)."""
-    found = list(DATE_IN_TITLE.finditer(title))
-    try:
-        if found:
-            month, day, year = found[-1].groups()
-            return date(int(year), MONTHS.index(month[:3].lower()) + 1, int(day)).isoformat()
-        named = DATE_IN_NAME.search(filename)
-        if named:
-            month, day, year = (int(n) for n in named.groups())
-            return date(year + 2000 if year < 100 else year, month, day).isoformat()
-    except ValueError:
-        pass
-    return None
+    """The meeting's date, from the title's last date ("October 6, 2026", "Sept. 9 2026", "November
+    10,2025"), or else the file name's ('Minutes of Regular Meeting- Match 11, 2026' is
+    BOAAminutes3.11.26.pdf; IWWCAgenda9-2-26.pdf). Dates as pipeline/dates.py reads them."""
+    found = dates.find_dates(title)
+    day = found[-1].day if found else dates.find_date(filename)
+    return day.isoformat() if day else None
 
 
 def parse_title(title: str, filename: str = "") -> dict | None:
