@@ -1,0 +1,91 @@
+# A town's site: everything about the town, read by the Publick engine
+# (github.com/publick-org/publick-engine). The engine's docs/configuration.md
+# explains each table.
+#
+# Each comment that begins "To fill in" is something left for you. The site
+# checks fail while any is left, so the site isn't published until each is
+# done: fill it in, then delete its comment.
+
+[site]
+# To fill in: the site's name, address, and contact address. name_prefix is
+#   shown in dark ink and name_suffix in the accent color; together they make
+#   the name. Pick a name of your own: the Publick name and icon are for the
+#   Publick network's sites.
+name = "Yourtown Civic Guide"
+name_prefix = "Yourtown "
+name_suffix = "Civic Guide"
+domain = "yourtown.example.org"
+tagline = "Public data on how Yourtown decides and spends. Updated daily."
+# One line under the name at the top of every page.
+masthead = "An independent guide to town government in Yourtown"
+# The site's own repository: its "Source code and data" link, and where
+# corrections go when there's no contact_email.
+repo_url = "https://github.com/your-account/yourtown"
+# Shown on the About and Accessibility pages, and used by "Report an error".
+contact_email = "you@example.org"
+timezone = "America/New_York"
+# Sent with every request to the town's websites, so they know who's asking.
+user_agent = "yourtown.example.org (+https://yourtown.example.org/about/)"
+
+[town]
+# To fill in: the town, its state, and the town government's website.
+#   state_abbr picks the state's figures for the budget and schools sections,
+#   where the engine has them (docs/states.md).
+name = "Yourtown"
+state = "Massachusetts"
+state_abbr = "MA"
+official_site = "https://www.example.gov"
+
+# The site's sections, in the menu's order. Each is a folder under the engine's
+# site/pages/<slug>/, served at https://<domain>/<slug>/. List only sections the
+# town has a source for: the build stops on one it can't fill.
+#
+# To fill in: a section for each source you add below. Start with meetings
+#   (docs/meetings.md). Then, as you find their sources: 311, officials,
+#   housing, and in a state the engine has figures for, schools and budget
+#   (docs/configuration.md lists each).
+#
+# [[sections]]
+# slug = "meetings"
+# title = "Meetings"
+# summary = "Every board and committee meeting on the town calendar, with agendas and minutes."
+# status = "live"
+#
+# [[sections]]
+# slug = "officials"
+# title = "Who represents you"
+# nav = "Officials"
+# summary = "The town's elected officials, by office, and how to reach them."
+# status = "live"
+
+[[sections]]
+slug = "about"
+title = "About"
+summary = "Data sources, update schedule, and corrections."
+status = "live"
+
+# Meetings, for a town whose website runs on CivicPlus: its address, the
+# calendar's RSS feed (the RSS link on its calendar page), and its Archive
+# Center, where minutes are collected from minutes_since on. Other platforms
+# each have a table of their own: docs/meetings.md.
+#
+# [meetings]
+# base_url = "https://www.example.gov"
+# calendar_feed = "RSSFeed.aspx?ModID=58&CID=All-calendar.xml"
+#
+# [archive]
+# index = "Archive.aspx"
+# minutes_since = "2026-01-01"
+
+# Who represents you: the Officials page, with the section "officials". Kept by
+# hand from the town's own website; checked is the day you last checked it.
+#
+# [officials]
+# checked = "2026-01-01"
+#
+# [[officials.bodies]]
+# name = "Town Council"
+# url = "https://www.example.gov/council"
+# members = [
+#   { name = "Full Name", seat = "At-large", term_ends = "2028-01", email = "council@example.gov" },
+# ]
