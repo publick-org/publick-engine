@@ -987,6 +987,28 @@ def test_officials_list_is_due_a_check_after_each_election(config):
         officials.review(town, date(2028, 1, 11))
 
 
+def test_an_appointed_boards_later_terms_dont_put_off_the_check_after_an_election():
+    """Central Falls's council was elected on 2026-11-03 and its config gives its members no term ends; the
+    appointed School Board's end in 2028 and 2029. The list is due a check after the election, not in 2028.
+    A term that ends within a few months of the election is one it fills, and still sets the day."""
+    from datetime import date
+    from pipeline import officials
+    town = {"slug": "central-falls", "officials": {"next_election": "2026-11-03", "checked": "2026-11-01", "bodies": [
+        {"name": "City Council", "members": [{"name": "Avery Example", "seat": "At-large"}]},
+        {"name": "School Board", "members": [{"name": "Blair Example", "seat": "Appointed", "term_ends": "2028-12"},
+                                             {"name": "Casey Example", "seat": "Appointed", "term_ends": "2029-12"}]}]}}
+    due = officials.review(town, date(2026, 11, 10))
+    assert due["due"] == date(2026, 11, 3) and due["terms"] is None and due["behind"] and due["unrecorded"]
+    town["officials"]["bodies"][0]["members"][0]["term_ends"] = "2027-01"
+    due = officials.review(town, date(2026, 11, 10))
+    assert due["due"] == date(2027, 1, 1) and due["terms"] == date(2027, 1, 1) and not due["behind"]
+    # The last month that counts: six after the election's.
+    town["officials"]["bodies"][0]["members"][0]["term_ends"] = "2027-05"
+    assert officials.review(town, date(2026, 11, 10))["terms"] == date(2027, 5, 1)
+    town["officials"]["bodies"][0]["members"][0]["term_ends"] = "2027-06"
+    assert officials.review(town, date(2026, 11, 10))["terms"] is None
+
+
 def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_path, monkeypatch):
     import copy
     from datetime import datetime
