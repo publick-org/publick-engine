@@ -987,6 +987,41 @@ def test_officials_list_is_due_a_check_after_each_election(config):
         officials.review(town, date(2028, 1, 11))
 
 
+def test_officials_appointed_body_terms_dont_set_when_a_list_is_due(config, data_dir):
+    """Central Falls: the City Council was on the ballot, with no term_ends (none is published), and the
+    School Board, appointed by the mayor, has members whose terms end years later. The list is due a check
+    on the election's day, not when the School Board's terms end."""
+    import copy
+    from pipeline import freshness, officials
+    town = copy.deepcopy(config)
+    mayor, council, school = town["officials"]["bodies"]
+    for m in mayor["members"] + council["members"]:
+        m.pop("term_ends", None)
+    school["members"] = [{"name": "Harper Example", "seat": "Appointed", "role": "Chair", "term_ends": "2029-12"},
+                         {"name": "Jamie Example", "seat": "Appointed"},
+                         {"name": "Indy Example", "seat": "Student", "term_ends": "2028-12"}]
+    town["officials"].update(next_election="2026-11-03", checked="2026-11-01")
+    # Not marked appointed, the School Board's terms would make the list due in December 2028.
+    assert officials.review(town, date(2026, 11, 20))["due"] == date(2028, 12, 1)
+    school["appointed"] = True
+    due = officials.review(town, date(2026, 11, 20))
+    assert due["due"] == date(2026, 11, 3) and due["terms"] is None and due["behind"] and due["unrecorded"]
+    assert freshness.officials_row(due)["behind"] == "not checked since the election of November 3, 2026"
+    assert officials.load(town, data_dir, today=date(2026, 11, 20))["out_of_date"]["due"] == date(2026, 11, 3)
+    assert not officials.review(town, date(2026, 11, 9))["behind"]
+    # An elected body's terms still set it: new terms begin in January 2027, while the School Board's are uncounted.
+    council["members"][0]["term_ends"] = "2027-01"
+    due = officials.review(town, date(2026, 11, 20))
+    assert due["due"] == due["terms"] == date(2027, 1, 1) and not due["behind"]
+    # With no elected member's term after the election, the appointed terms still don't count.
+    council["members"][0]["term_ends"] = "2026-01"
+    assert officials.review(town, date(2026, 11, 20))["due"] == date(2026, 11, 3)
+    # Each body is elected unless its config says otherwise: true or false, nothing else.
+    school["appointed"] = "yes"
+    with pytest.raises(SystemExit, match="appointed for the School Committee"):
+        officials.load(town, data_dir, today=date(2026, 11, 20))
+
+
 def test_officials_page_says_a_list_may_be_out_of_date(config, data_dir, tmp_path, monkeypatch):
     import copy
     from datetime import datetime

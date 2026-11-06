@@ -9,8 +9,12 @@ A list kept by hand goes out of date at each election, so a town's config
 names its next municipal election ([officials] next_election). The list is
 due a check once the election is held, or once new terms begin, if that's
 later (the first month a member's term ends on or after the election's month,
-from the members' own term_ends). A list not checked by then, GRACE_DAYS
-after, is behind: the About page's data status, the network's status page,
+from the members' own term_ends). A body appointed rather than elected
+([[officials.bodies]] appointed = true, such as Central Falls' School Board,
+named by the mayor) isn't on the ballot: its members' terms don't say when the
+elected ones begin, so they aren't counted, and a town whose elected members
+have no term_ends is due on the election's day. A list not checked by then,
+GRACE_DAYS after, is behind: the About page's data status, the network's status page,
 and the daily alert say so, and the Officials page says some members may
 have changed (review, pipeline/freshness.py).
 
@@ -32,7 +36,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 MEMBER_FIELDS = {"name", "seat", "ward", "wards", "role", "term_ends", "email", "phone", "url"}
-BODY_FIELDS = {"name", "board", "url", "note", "members", "incoming"}
+BODY_FIELDS = {"name", "board", "url", "note", "members", "incoming", "appointed"}
 INCOMING_FIELDS = {"takes_office", "members"}
 # Days after a list is due a check (the election, or new terms) before it counts as behind.
 GRACE_DAYS = 7
@@ -106,6 +110,9 @@ def load(config: dict, data_dir: Path, boards: dict[str, str] | None = None, tod
         if unknown or not body.get("name") or not body.get("members"):
             raise SystemExit(f"Each [[officials.bodies]] in {where} needs a name and members"
                              + (f"; unknown {', '.join(sorted(unknown))}" if unknown else "") + ".")
+        if not isinstance(body.get("appointed", False), bool):
+            raise SystemExit(f"appointed for the {body['name']} in {where} must be true (a body appointed rather than "
+                             f"elected) or false.")
         sitting = [checked_member(m, body["name"], wards, config) for m in body["members"]]
         coming = incoming(body, where)
         if coming:
@@ -217,9 +224,10 @@ def elected(sitting: list, arriving: list, day: date) -> dict:
 def review(config: dict, today: date) -> dict | None:
     """When the list is due a check, from the town's next municipal election ([officials] next_election),
     or None for a town that doesn't give one. Due on the election's day, or on the first day of the month
-    new terms begin, if that's later: the first month a member's term ends on or after the election's
-    month. Behind when it wasn't checked on or after that day, GRACE_DAYS after it; passed when it was,
-    and the election is over, so the config's next_election should move to the one after.
+    new terms begin, if that's later: the first month a member of an elected body's term ends on or after
+    the election's month (an appointed body's terms don't follow the election). Behind when it wasn't
+    checked on or after that day, GRACE_DAYS after it; passed when it was, and the election is over, so
+    the config's next_election should move to the one after.
 
     Members recorded as incoming, and not checked since they took office, are due a check that day
     instead (seated): the page lists them from then on, and the officers a body chooses as it organizes
@@ -244,6 +252,7 @@ def review(config: dict, today: date) -> dict | None:
         return {"election": election, "terms": None, "seated": seated, "due": seated, "checked": checked,
                 "behind": today >= seated + timedelta(days=GRACE_DAYS), "unrecorded": unrecorded, "passed": False}
     ends = sorted(date.fromisoformat(f"{m['term_ends']}-01") for body in table.get("bodies", [])
+                  if body.get("appointed") is not True
                   for m in body.get("members", []) if re.fullmatch(r"\d{4}-\d{2}", str(m.get("term_ends", ""))))
     terms = next((d for d in ends if d >= election.replace(day=1)), None)
     due = max(election, terms) if terms else election
