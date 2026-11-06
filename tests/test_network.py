@@ -653,3 +653,27 @@ def test_collecting_only_a_ready_batch_leaves_a_running_one_and_the_site(tmp_pat
     assert [c["name"] for c in calls] == ["Collect summaries"]
     assert calls[0]["env"]["PUBLICK_SUMMARY_COLLECT"] == "ready"
     assert result["ok"] and not result["collected"] and not result["deployed"]
+
+
+def test_a_ready_batch_followed_by_the_next_one_publishes_the_town_again(tmp_path, monkeypatch):
+    """Collecting a batch that has ended may send the next (the reviews of the translations it saved): the
+    batch file is then another batch's, and the town is built and published with what was collected."""
+    calls = []
+
+    def fake(name, cmd, env, cwd, timeout):
+        calls.append(name)
+        if name == "Collect summaries":
+            (data / network.SUMMARY_BATCH).write_text(json.dumps({"id": "batch-2"}))
+        return {"name": name, "ok": True, "error": None, "seconds": 0.0}
+
+    monkeypatch.setattr(network, "step", fake)
+    for k in network.FETCH_KEYS + network.PUBLISH_KEYS:
+        monkeypatch.setenv(k, "x")
+    root = make_root(tmp_path)
+    data = root / "towns" / "gloucester-ma" / "data"
+    data.mkdir()
+    (data / network.SUMMARY_BATCH).write_text(json.dumps({"id": "batch-1"}))
+    result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True,
+                              ready_only=True)
+    assert calls == ["Collect summaries", "Build site", "Check site", "Publish site", "Check live site"]
+    assert result["collected"] and result["deployed"]

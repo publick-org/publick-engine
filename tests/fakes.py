@@ -209,6 +209,8 @@ class FakeAnthropic:
         message_id = lambda: f"msg_{uuid.uuid4().hex[:24]}"
         # Each batch's requests' params, in the order sent.
         self.batches_sent = []
+        # Each batch's requests' custom_ids, in the same order.
+        self.batch_ids = []
         self.cancelled = []
         outer = self
 
@@ -245,12 +247,13 @@ class FakeAnthropic:
             def get_final_message(self):
                 return respond(self.kwargs)
 
-        def translate(kwargs):
+        def translate(kwargs, record=True):
             """A "translation" of the English summary in the request: each text marked ES, numbers kept
             (or dropped, for a translation that fails its check)."""
             import json
             import re
-            outer.calls.append(kwargs)
+            if record:
+                outer.calls.append(kwargs)
             text = kwargs["messages"][0]["content"]
 
             def es(t):
@@ -286,6 +289,7 @@ class FakeAnthropic:
 
             def create(self, requests):
                 outer.batches_sent.append([r["params"] for r in requests])
+                outer.batch_ids.append([r["custom_id"] for r in requests])
                 return SimpleNamespace(id=f"batch-{len(outer.batches_sent)}")
 
             def retrieve(self, batch_id):
@@ -297,14 +301,17 @@ class FakeAnthropic:
                 outer.cancelled.append(batch_id)
 
             def results(self, batch_id):
-                requests = outer.batches_sent[int(batch_id.removeprefix("batch-")) - 1]
+                n = int(batch_id.removeprefix("batch-")) - 1
+                requests, ids = outer.batches_sent[n], outer.batch_ids[n]
                 out = []
                 for i, params in enumerate(requests):
                     kind = "canceled" if batch_id in outer.cancelled else (batch_results or {}).get(i, "succeeded")
-                    result = (SimpleNamespace(type="succeeded", message=respond(params, record=False))
+                    # A translation or its review has a system prompt; a summary's request is the document.
+                    answer = translate if "system" in params and not isinstance(params["system"], str) else respond
+                    result = (SimpleNamespace(type="succeeded", message=answer(params, record=False))
                               if kind == "succeeded" else
                               SimpleNamespace(type=kind, error=SimpleNamespace(error=SimpleNamespace(message="overloaded"))))
-                    out.append(SimpleNamespace(custom_id=f"doc-{i}", result=result))
+                    out.append(SimpleNamespace(custom_id=ids[i], result=result))
                 # In any order, as the API gives them.
                 return reversed(out)
 

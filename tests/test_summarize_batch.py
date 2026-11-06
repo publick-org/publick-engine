@@ -7,9 +7,11 @@ from datetime import datetime, timedelta, timezone
 from conftest import FETCHED_AT
 from fakes import FakeAnthropic
 from test_summarize import HAIKU, LEGISTAR, REQUEST, blank_pdf, haiku, minutes_town, summary_costs, with_minutes
-from test_translate import spanish_town, translations
+from test_summarize import logged
+from test_translate import (REVIEW, TRANSLATION, english_of, lines_for, review_calls, spanish_town, summary_translation_calls,
+                            translations)
 
-from pipeline import summarize
+from pipeline import summarize, translate
 from pipeline.config import load_config
 
 SENT = datetime(2026, 9, 26, 16, 0, tzinfo=timezone.utc)
@@ -180,14 +182,86 @@ def test_a_summary_cut_off_in_the_batch_is_paid_for_and_counted_as_a_try(tmp_pat
     assert result["summarized"] == 0
 
 
-def test_new_summaries_from_the_batch_are_translated_when_collected(tmp_path):
+def test_new_summaries_are_translated_in_the_next_batch_and_reviewed_in_the_one_after(tmp_path):
+    """Collecting the summaries sends their translations as the next batch, at half the price; collecting
+    those sends their reviews; each translation is shown once its review passes. None is sent alone."""
     config = spanish_town(tmp_path)
     client = FakeAnthropic()
     first(config, client, tmp_path)
     assert translations(tmp_path) == {}
     result = collect(config, client, tmp_path)
-    assert result["collected"] == 16 and result["translated"] == 16
+    assert result["collected"] == 16 and result["translated"] == 0 and result["queued_translations"] == 16
+    pending = json.loads((tmp_path / summarize.BATCH_FILE).read_text())
+    assert pending["id"] == "batch-2" and {d["type"] for d in pending["documents"]} == {"translation"}
+    assert summary_translation_calls(client) == [] and translations(tmp_path) == {}
+
+    # The next collecting run saves them, each waiting for its review, and sends the reviews.
+    result = collect(config, client, tmp_path)
+    assert result["translated"] == 16 and result["queued_translations"] == 16
+    assert all(r["review"] == translate.WAITING and r["check"] == "ok" for r in translations(tmp_path).values())
+    assert {d["type"] for d in json.loads((tmp_path / summarize.BATCH_FILE).read_text())["documents"]} == {"review"}
+    assert not any(translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), r["kind"])
+                   for sha, r in translations(tmp_path).items())
+
+    # And the one after, the reviews: each translation is shown, and nothing more is sent.
+    result = collect(config, client, tmp_path)
+    assert result["translated"] == 16 and result["queued_translations"] == 0
+    assert not (tmp_path / summarize.BATCH_FILE).exists()
+    for sha, record in translations(tmp_path).items():
+        assert record["review"] == "ok" and "review_retries" not in record and record["attempts"] == 1
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"])
+        # Each at half its model's price, logged once under the batch's id.
+        lines = lines_for(tmp_path, sha)
+        assert [(e["kind"], e["cost"]) for e in lines] == [("translation", TRANSLATION / 2), ("review", REVIEW / 2)]
+        assert lines[0]["key"].startswith("batch-2:") and lines[1]["key"].startswith("batch-3:")
+    assert summary_translation_calls(client) == [] and review_calls(client) == []
+    assert summarize.ledger_differences(tmp_path, summarize.summary_settings(config)) == []
+
+
+def test_a_daily_runs_batch_has_the_translations_of_summaries_already_made(tmp_path):
+    """Summaries made before Spanish was turned on: the daily run's batch has their translations, counted in
+    its budget at half their estimate until collected, and not those of a summary made again in it."""
+    config = spanish_town(tmp_path, languages=("en",))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    config["site"]["languages"] = ["en", "es"]
+    client = FakeAnthropic()
+    result = first(config, client, tmp_path)
+    assert result["queued"] == 0 and result["queued_translations"] == 16 and summary_translation_calls(client) == []
+    assert 0 < result["estimated_cost"]
+    result = collect(config, client, tmp_path)
+    assert result["translated"] == 16 and result["queued_translations"] == 16
     assert len(translations(tmp_path)) == 16
+
+
+def test_a_translation_the_batch_didnt_make_waits_for_the_next_batch(tmp_path):
+    config = spanish_town(tmp_path, languages=("en",))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    config["site"]["languages"] = ["en", "es"]
+    client = FakeAnthropic(batch_results={0: "errored"})
+    first(config, client, tmp_path)
+    missed = json.loads((tmp_path / summarize.BATCH_FILE).read_text())["documents"][0]["doc"]["sha256"]
+    result = collect(config, client, tmp_path)
+    assert result["translated"] == 15 and any("not made in the batch" in e for e in result["errors"])
+    assert missed not in translations(tmp_path) and summary_translation_calls(client) == []
+    # Sent again in the batch the collecting run sends, with the others' reviews: not paid for twice.
+    again = json.loads((tmp_path / summarize.BATCH_FILE).read_text())["documents"]
+    assert [d["type"] for d in again if d["doc"]["sha256"] == missed] == ["translation"]
+    assert sum(d["type"] == "review" for d in again) == 15
+    assert not any(e["kind"] == "failed" for e in logged(tmp_path))
+
+
+def test_a_translation_whose_english_changed_while_its_batch_was_out_isnt_saved(tmp_path):
+    config = spanish_town(tmp_path, languages=("en",))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    config["site"]["languages"] = ["en", "es"]
+    client = FakeAnthropic()
+    first(config, client, tmp_path)
+    sha = json.loads((tmp_path / summarize.BATCH_FILE).read_text())["documents"][0]["doc"]["sha256"]
+    english = english_of(tmp_path, sha)
+    (tmp_path / "summaries" / f"{sha}.json").write_text(json.dumps({**english, "headline": "Another headline."}))
+    result = collect(config, client, tmp_path)
+    assert result["translated"] == 15 and sha not in translations(tmp_path)
+    assert [e["kind"] for e in lines_for(tmp_path, sha)] == ["failed"]
 
 
 def test_a_long_document_is_estimated_at_half_price_in_the_batch(tmp_path):
@@ -275,3 +349,23 @@ def test_a_batch_is_priced_as_it_was_sent_though_the_model_has_changed_since(tmp
     record = json.loads((tmp_path / "summaries" / f"{sha}.json").read_text())
     assert record["model"] == "claude-sonnet-5" and summary_costs(tmp_path)[sha] == REQUEST / 2
     assert HAIKU["model"] == config["summaries"]["model"]
+
+
+def test_a_document_whose_summary_is_made_again_has_no_translation_in_the_batch(tmp_path, monkeypatch):
+    """Its translation would be of the summary about to be replaced: it waits for the new one."""
+    config = spanish_town(tmp_path, languages=("en",))
+    summarize.run(config, FakeAnthropic(), tmp_path, limit=50, now=FETCHED_AT)
+    config["site"]["languages"] = ["en", "es"]
+    # The minutes' summaries from an older prompt, all to be made again.
+    monkeypatch.delitem(summarize.KINDS["minutes"], "remake_since", raising=False)
+    for file in (tmp_path / "summaries").glob("*.json"):
+        record = json.loads(file.read_text())
+        if record.get("kind") == "minutes":
+            file.write_text(json.dumps({**record, "prompt_version": 0}))
+    client = FakeAnthropic()
+    first(config, client, tmp_path)
+    documents = json.loads((tmp_path / summarize.BATCH_FILE).read_text())["documents"]
+    remade = {d["doc"]["sha256"] for d in documents if not d.get("type")}
+    translated = {d["doc"]["sha256"] for d in documents if d.get("type")}
+    assert remade and translated and not remade & translated
+    assert {d["kind"] for d in documents if d.get("type")} == {"agenda"}

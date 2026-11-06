@@ -322,14 +322,43 @@ class ReviewDown(FakeAnthropic):
         self.messages.create = failing
 
 
+def test_a_correction_has_only_what_it_changed_reviewed(tmp_path):
+    """The entries a review passed are kept with the translation: the review of its correction is given only
+    the entries it didn't pass, so what was right isn't paid for again."""
+    config = spanish_town(tmp_path)
+    summarize.run(config, FakeAnthropic(review_problems=[{"id": "headline", "problem": "a wrong word"}]), tmp_path,
+                  limit=50, now=FETCHED_AT)
+    first = translations(tmp_path)
+    assert all(r["review"] == "headline: a wrong word" and r["reviewed"] for r in first.values())
+    client = FakeAnthropic()
+    summarize.run(config, client, tmp_path, limit=50, now=FETCHED_AT)
+    reviews = [c for c in client.calls if system(c).startswith("You check")]
+    assert reviews and all('"id": "headline"' in c["messages"][0]["content"]
+                           and '"id": "summary"' not in c["messages"][0]["content"] for c in reviews)
+    for sha, record in translations(tmp_path).items():
+        assert record["review"] == "ok" and record["attempts"] == 2
+        assert set(first[sha]["reviewed"]) < set(record["reviewed"])
+        assert translate.shown(tmp_path, "es", sha, english_of(tmp_path, sha), record["kind"])
+
+
+def test_text_a_review_flagged_once_isnt_passed_where_it_comes_again():
+    """A headline that is also an agenda item, flagged as one and not the other, isn't taken as reviewed."""
+    pairs = [("headline", "Wastewater plan", "Plan de aguas"), ("items", ["Wastewater plan", "Budget"],
+                                                                 ["Plan de aguas", "Presupuesto"])]
+    keys = translate.reviewed_keys(pairs, {"headline": "a wrong word"})
+    assert keys == [translate.entry_key("Budget", "Presupuesto")]
+    assert translate.reviewed_keys(pairs, {translate.UNREVIEWED: "overloaded"}, frozenset(keys)) == keys
+
+
 def review_calls(client):
     """The reviews of summaries' translations, not of the town's own text."""
     return [c for c in client.calls if system(c).startswith("You check") and '"id": "headline"' in c["messages"][0]["content"]]
 
 
 def unreviewed(tmp_path, **changes):
-    """Every saved translation as if its review couldn't be made."""
+    """Every saved translation as if its review couldn't be made: without the entries a review passed."""
     for sha, record in translations(tmp_path).items():
+        record.pop("reviewed", None)
         translate.path(tmp_path, "es", sha).write_text(json.dumps({**record, "review": "not reviewed: overloaded", **changes}))
 
 

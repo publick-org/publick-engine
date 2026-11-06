@@ -2,10 +2,11 @@
 
 A town with Spanish pages ([site] languages) gets each English summary of an
 agenda or minutes in Spanish too: translated from the English summary (never
-from the PDF again) by Claude Sonnet 5.5 at low effort, unless [summaries]
-translation_model says otherwise. (Claude Haiku 4.5 did it until version 4,
-and more of its translations failed the checks than passed them, so it cost
-more per translation shown.) The rules are the summaries' own: only what
+from the PDF again) by the model [summaries] translation_model names, at its
+translation_effort, or by Claude Sonnet 5.5 at low effort without one (a
+network gives its towns theirs in defaults/network.toml). (Claude Haiku 4.5
+did it until version 4, and more of its translations failed the checks than
+passed them, so it cost more per translation shown.) The rules are the summaries' own: only what
 the summary says, neutral, plain, with names, addresses, amounts, dates, and
 vote counts kept.
 
@@ -21,8 +22,9 @@ or billion, times their a.m. or p.m., names are kept as written (a word of the
 glossary is no one's name), what happened isn't turned round (a "not" lost,
 approved as denied, tabled as approved, unanimous changed), and each glossary
 term the English uses is written as the glossary gives it. Then, for a translation that passes, a second
-request (Claude Sonnet 5.5 unless [summaries] translation_review_model says
-otherwise) reviews its meaning against the English, knowing the translator's
+request (the model [summaries] translation_review_model names, Claude Sonnet
+5.5 without one, at low effort unless translation_review_effort says otherwise)
+reviews its meaning against the English, knowing the translator's
 rules and words: adjourned shown as dissolved, a guessed gender, a
 mistranslated board. A translation that fails either is made again once
 (ATTEMPTS), as a correction: the model gets its first translation and what
@@ -31,7 +33,16 @@ was wrong with it. A translation that passes the check but has no review
 and passes now) has its review asked again by itself, the translation kept,
 up to REVIEW_RETRIES times; one the review then flags is made again as any
 other. Then it's kept, so it isn't paid for again, but not shown:
-the page shows the English summary, and says so.
+the page shows the English summary, and says so. Each translation keeps the
+entries its review passed (as entry_key()s, "reviewed"), and no review is paid
+for again for an entry still written the same way: a correction that keeps what
+was right has only what it changed reviewed.
+
+A network's daily runs send translations and their reviews in each town's
+batch, with its summaries, at half the price (pipeline/summarize.py; see
+"Translations in a batch" below): a translation is made in one batch and
+reviewed in the town's next, so its Spanish is shown about a day after the
+English.
 
 Each translation is its own record, data/summaries/<language>/<document's
 SHA-256>.json, holding the hash of the English it came from. Turning a
@@ -289,11 +300,12 @@ def passes(data_dir: Path, found: dict, record: dict, kind: str, lang: str, term
 def review_due(data_dir: Path, found: dict | None, record: dict, kind: str, lang: str, terms: list[dict] = ()) -> bool:
     """Whether a saved translation waits only for its review: made from this English, not one to make again
     (REMAKE_BELOW), it passes the check without AI as it is now, it has no review (UNREVIEWED: one couldn't be
-    made, or the check failed when it was made), and it has review-only tries left (REVIEW_RETRIES). Its tries
-    (ATTEMPTS) don't count these: no translation is made."""
+    made, or the check failed when it was made, or it's WAITING for a batch's), and it has review-only tries
+    left (REVIEW_RETRIES; one WAITING always has). Its tries (ATTEMPTS) don't count these: no translation is
+    made."""
     return (made_from(found, record, kind) and not to_remake(found)
             and found.get("review", "").startswith(UNREVIEWED)
-            and found.get("review_retries", 0) < REVIEW_RETRIES
+            and (found.get("review_retries", 0) < REVIEW_RETRIES or found.get("review") == WAITING)
             and check(english(record, kind), found, kind, lang, town_words(data_dir), terms) == "ok")
 
 
@@ -789,13 +801,10 @@ def schema(kind: str, names: tuple | None = None) -> dict:
     return {"type": "object", "properties": props, "required": list(names), "additionalProperties": False}
 
 
-def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
-              previous: dict | None = None, problems: str = "", on_response=None,
-              names: dict[str, str] | None = None) -> tuple[dict, dict]:
-    """The model's translation of one English summary, and the tokens it used. previous: an
-    earlier translation that failed a check, to correct, and problems: what was wrong with it.
-    on_response, if given, is called with the response and its tokens as soon as it's answered.
-    names: the town's names in the language (town_names()); without them, its config's [strings]."""
+def translation_params(config: dict, lang: str, kind: str, record: dict, meeting: dict,
+                       previous: dict | None = None, problems: str = "", names: dict[str, str] | None = None) -> dict:
+    """The request that translates one English summary, as it's sent on its own or in a batch (see
+    translate())."""
     source = english(record, kind)
     names = config.get("strings", {}).get(lang, {}) if names is None else names
     prompt = PROMPT.format(kind=kind, title=meeting["title"], date=meeting["date"], language=LANGUAGE_NAMES[lang],
@@ -804,22 +813,37 @@ def translate(client, config: dict, lang: str, kind: str, record: dict, meeting:
     if previous:
         prompt += CORRECT.format(previous=json.dumps({f: previous.get(f) for f in source}, ensure_ascii=False, indent=1),
                                  problems=problems)
-    response = client.messages.create(
-        model=settings(config)["model"],
-        max_tokens=MAX_TOKENS,
-        timeout=REQUEST_TIMEOUT,
-        system=cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
-                                    glossary=glossary_text(glossary.entries(config), lang))),
-        messages=[{"role": "user", "content": prompt}],
-        output_config=output_config(config, schema(kind, tuple(source))),
-    )
+    return {
+        "model": settings(config)["model"],
+        "max_tokens": MAX_TOKENS,
+        "system": cached(SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
+                                       glossary=glossary_text(glossary.entries(config), lang))),
+        "messages": [{"role": "user", "content": prompt}],
+        "output_config": output_config(config, schema(kind, tuple(source))),
+    }
+
+
+def translation_result(response) -> tuple[dict, dict]:
+    """A translation response's result and its tokens; StoppedEarly if it didn't finish."""
     usage = usage_of(response)
-    if on_response:
-        on_response(response, usage)
     if response.stop_reason != "end_turn":
         from pipeline.summarize import StoppedEarly, stop_reason
         raise StoppedEarly(stop_reason(response), usage)
     return json.loads(next(b.text for b in response.content if b.type == "text")), usage
+
+
+def translate(client, config: dict, lang: str, kind: str, record: dict, meeting: dict,
+              previous: dict | None = None, problems: str = "", on_response=None,
+              names: dict[str, str] | None = None) -> tuple[dict, dict]:
+    """The model's translation of one English summary, and the tokens it used. previous: an
+    earlier translation that failed a check, to correct, and problems: what was wrong with it.
+    on_response, if given, is called with the response and its tokens as soon as it's answered.
+    names: the town's names in the language (town_names()); without them, its config's [strings]."""
+    response = client.messages.create(**translation_params(config, lang, kind, record, meeting, previous, problems, names),
+                                      timeout=REQUEST_TIMEOUT)
+    if on_response:
+        on_response(response, usage_of(response))
+    return translation_result(response)
 
 
 def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
@@ -828,31 +852,100 @@ def save(data_dir: Path, lang: str, sha256: str, record: dict) -> None:
     write_atomic(file, json.dumps(cost_log.without_costs(record), indent=2, ensure_ascii=False) + "\n")
 
 
-def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
-         now: datetime, cost, log=None) -> tuple[dict, float]:
-    """Translate one summary, check it, have the AI review its meaning if it passes, and save it.
-    A second try corrects the first: the model gets it and what was wrong with it.
-    Returns the saved record and what it cost. log: the month's cost log (pipeline/cost_log.py), which
-    gets each request as it's answered: the translation (failed, if it stopped early or can't be read)
-    and its review."""
-    source = english(record, kind)
+def attempt(data_dir: Path, config: dict, lang: str, kind: str, doc: dict, record: dict) -> dict:
+    """What making this summary's translation now starts from: the translation saved before ("before"),
+    what was wrong with it, for the model to correct ("wrong"), and whether this is another try of the
+    same translation ("retry")."""
     terms = glossary.entries(config)
-    key = glossary_key(terms, lang)
     before = saved(data_dir, lang, doc["sha256"])
-    if review_due(data_dir, before, record, kind, lang, terms):
-        return review_again(client, config, data_dir, lang, kind, doc, record, before, now, cost, log)
     # Made again because it failed (whichever prompt version made it): corrected, and counted as another try.
     again = made_from(before, record, kind) and not to_remake(before)
     wrong = what_failed(data_dir, before, record, kind, lang, terms) if again else None
     # A translation made again because the glossary changed, or after failing with a prompt older than
     # RETRY_BELOW, has its own tries.
-    retry = again and before.get("glossary", "") == key and not retry_due(before)
-    # What's shown now, which stays shown until a new translation passes.
+    retry = again and before.get("glossary", "") == glossary_key(terms, lang) and not retry_due(before)
+    return {"before": before or {}, "wrong": wrong, "retry": retry}
+
+
+def entry_key(en, tr) -> str:
+    """One entry of a translation (a text, or an entry of a list) and its English, as a key: the same
+    English translated the same way has the same key, whichever document it's in."""
+    return hashlib.sha256(json.dumps([en, tr], ensure_ascii=False).encode()).hexdigest()[:16]
+
+
+def entries(source: dict, translated: dict) -> list[tuple[str, object, object]]:
+    """The (id, English, translation) of each part of a translation, as the review is given them."""
+    return [(f, source[f], translated.get(f)) for f in source]
+
+
+def reviewed_keys(pairs: list[tuple[str, object, object]], problems: dict[str, str], known=frozenset()) -> list[str]:
+    """The keys (entry_key()) of the entries the review passed, or an earlier review had (known): every entry
+    of pairs the review found nothing wrong with, none when it couldn't be made."""
+    rows = review_rows(pairs)
+    if UNREVIEWED in problems:
+        return sorted({k for _, k in rows if k in known})
+    # The same English and translation twice (a headline that is also an agenda item), flagged once: not passed.
+    flagged = {k for row, k in rows if row["id"] in problems}
+    return sorted({k for _, k in rows} - flagged)
+
+
+def made(data_dir: Path, config: dict, lang: str, kind: str, doc: dict, record: dict, start: dict, result: dict,
+         checked: str, reviewed: str, keys: list[str], now: datetime) -> dict:
+    """Save a translation just made, from what it started from (attempt()), what the check found, and what
+    the review found and the entries it passed (keys); and return it."""
+    terms = glossary.entries(config)
+    before = start["before"]
     showing = shown(data_dir, lang, doc["sha256"], record, kind, terms)
+    out = {
+        **{field: result.get(field) for field in english(record, kind)},
+        "language": lang,
+        "kind": kind,
+        "source_sha256": doc["sha256"],
+        "source_hash": source_hash(record, kind),
+        "check": checked,
+        "review": reviewed,
+        "attempts": before.get("attempts", 1) + 1 if start["retry"] else 1,
+        "model": settings(config)["model"],
+        "prompt_version": VERSION,
+        "glossary": glossary_key(terms, lang),
+        "generated_at": now.isoformat(timespec="seconds"),
+    }
+    if keys:
+        out["reviewed"] = keys
+    if showing and not (checked == "ok" and reviewed == "ok"):
+        out["previous"] = previous_of(showing, kind)
+    save(data_dir, lang, doc["sha256"], out)
+    return out
+
+
+def known(found: dict | None) -> frozenset:
+    """The entries of a saved translation a review passed (entry_key()), which no review is paid for again:
+    none for one made again because its prompt is older than REMAKE_BELOW, which is suspected of what no
+    check sees."""
+    if not found or to_remake(found):
+        return frozenset()
+    return frozenset(found.get("reviewed", ()))
+
+
+def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict,
+         now: datetime, cost, log=None) -> tuple[dict, float]:
+    """Translate one summary, check it, have the AI review its meaning if it passes, and save it.
+    A second try corrects the first: the model gets it and what was wrong with it. The review is given
+    only the entries no earlier review of this summary's translation passed as they are (known()): a
+    correction that keeps what was right pays for the review of what it changed.
+    Returns the saved record and what it cost. log: the month's cost log (pipeline/cost_log.py), which
+    gets each request as it's answered: the translation (failed, if it stopped early or can't be read)
+    and its review."""
+    source = english(record, kind)
+    terms = glossary.entries(config)
+    before = saved(data_dir, lang, doc["sha256"])
+    if review_due(data_dir, before, record, kind, lang, terms):
+        return review_again(client, config, data_dir, lang, kind, doc, record, before, now, cost, log)
+    start = attempt(data_dir, config, lang, kind, doc, record)
     answered = []
     try:
-        result, usage = translate(client, config, lang, kind, record, meeting, before if wrong else None, wrong or "",
-                                  lambda response, usage: answered.append((response, usage)),
+        result, usage = translate(client, config, lang, kind, record, meeting, before if start["wrong"] else None,
+                                  start["wrong"] or "", lambda response, usage: answered.append((response, usage)),
                                   town_names(config, data_dir, lang))
     except Exception:
         if answered and log:
@@ -865,45 +958,44 @@ def make(client, config: dict, data_dir: Path, lang: str, kind: str, meeting: di
         log.request(answered[0][0], "translation", paid, doc=doc["sha256"], lang=lang, model=settings(config)["model"],
                     usage=usage)
     checked = check(source, result, kind, lang, town_words(data_dir), terms)
+    pairs = entries(source, result)
     reviewed, review_cost = "not reviewed: the check failed", 0.0
+    keys = sorted(k for _, k in review_rows(pairs) if k in known(before))
     if checked == "ok":
-        problems, review_cost = review_meaning(client, config, lang, [(f, source[f], result.get(f)) for f in source],
-                                               cost, log, doc["sha256"])
+        problems, review_cost = review_meaning(client, config, lang, pairs, cost, log, doc["sha256"], known(before))
         reviewed = "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok"
-    out = {
-        **{field: result.get(field) for field in source},
-        "language": lang,
-        "kind": kind,
-        "source_sha256": doc["sha256"],
-        "source_hash": source_hash(record, kind),
-        "check": checked,
-        "review": reviewed,
-        "attempts": before.get("attempts", 1) + 1 if retry else 1,
-        "model": settings(config)["model"],
-        "prompt_version": VERSION,
-        "glossary": key,
-        "generated_at": now.isoformat(timespec="seconds"),
-    }
-    if showing and not (checked == "ok" and reviewed == "ok"):
-        out["previous"] = previous_of(showing, kind)
-    save(data_dir, lang, doc["sha256"], out)
+        keys = reviewed_keys(pairs, problems, known(before))
+    out = made(data_dir, config, lang, kind, doc, record, start, result, checked, reviewed, keys, now)
     return out, paid + review_cost
+
+
+def reviewed_again(data_dir: Path, lang: str, kind: str, doc: dict, record: dict, before: dict, problems: dict[str, str],
+                   now: datetime) -> dict:
+    """Save a saved translation with what its review, asked again, found; and return it. A review that was
+    waiting for a batch (WAITING) isn't counted as another try (REVIEW_RETRIES)."""
+    pairs = entries(english(record, kind), before)
+    out = {**before,
+           "review": "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok",
+           "review_retries": before.get("review_retries", 0) + (0 if before.get("review") == WAITING else 1),
+           "generated_at": now.isoformat(timespec="seconds")}
+    keys = reviewed_keys(pairs, problems, known(before))
+    if keys:
+        out["reviewed"] = keys
+    if not out["review_retries"]:
+        out.pop("review_retries")
+    save(data_dir, lang, doc["sha256"], out)
+    return out
 
 
 def review_again(client, config: dict, data_dir: Path, lang: str, kind: str, doc: dict, record: dict, before: dict,
                  now: datetime, cost, log=None) -> tuple[dict, float]:
     """Ask for the review of a saved translation that has none (review_due()),
     keeping the translation: no new one is paid for. Saved with what the review found (ok, its problems,
-    or why it couldn't be made, again) and one more review_retries; returns it and what the review cost."""
-    source = english(record, kind)
-    problems, paid = review_meaning(client, config, lang, [(f, source[f], before.get(f)) for f in source],
-                                    cost, log, doc["sha256"])
-    out = {**before,
-           "review": "; ".join(f"{key}: {problem}" for key, problem in problems.items()) or "ok",
-           "review_retries": before.get("review_retries", 0) + 1,
-           "generated_at": now.isoformat(timespec="seconds")}
-    save(data_dir, lang, doc["sha256"], out)
-    return out, paid
+    or why it couldn't be made, again) and one more review_retries, unless it was WAITING for a batch;
+    returns it and what the review cost."""
+    problems, paid = review_meaning(client, config, lang, entries(english(record, kind), before), cost, log,
+                                    doc["sha256"], known(before))
+    return reviewed_again(data_dir, lang, kind, doc, record, before, problems, now), paid
 
 
 # ---- The AI's review of a translation's meaning ----------------------------------
@@ -949,40 +1041,76 @@ def review_settings(config: dict) -> dict:
 UNREVIEWED = "not reviewed"
 
 
+def review_rows(pairs: list[tuple[str, object, object]]) -> list[tuple[dict, str]]:
+    """The rows a review is given, from pairs (id, English, translation), where a text may be a list of texts
+    (its entries' ids are "<id> 1", "<id> 2", ...), each with its entry_key()."""
+    rows = []
+    for key, en, tr in pairs:
+        if isinstance(en, list):
+            rows += [({"id": f"{key} {i + 1}", "english": a, "translation": b}, entry_key(a, b))
+                     for i, (a, b) in enumerate(zip(en, tr if isinstance(tr, list) else []))]
+        elif en:
+            rows.append(({"id": key, "english": en, "translation": tr}, entry_key(en, tr)))
+    return rows
+
+
+# The review's answer: each problem found, by the id of its row.
+REVIEW_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["problems"],
+    "properties": {"problems": {"type": "array", "items": {
+        "type": "object", "additionalProperties": False, "required": ["id", "problem", "is_error"],
+        "properties": {"id": {"type": "string"}, "problem": {"type": "string"}, "is_error": {"type": "boolean"}}}}}}
+
+
+def review_params(config: dict, lang: str, rows: list[dict]) -> dict:
+    """The request that reviews these rows (review_rows()), as it's sent on its own or in a batch."""
+    rsettings = review_settings(config)
+    return {
+        "model": rsettings["model"],
+        "max_tokens": 4000,
+        "system": cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
+                                              glossary=glossary_text(glossary.entries(config), lang))),
+        "messages": [{"role": "user", "content": REVIEW_PROMPT.format(
+            language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
+        "output_config": {"effort": rsettings["effort"], "format": {"type": "json_schema", "schema": REVIEW_SCHEMA}},
+    }
+
+
+def review_found(response) -> dict[str, str]:
+    """The problems a review's response found, {id: problem}, empty if none; {UNREVIEWED: why} if it
+    stopped before it was done."""
+    if response.stop_reason != "end_turn":
+        return {UNREVIEWED: f"stopped ({response.stop_reason})"}
+    problems: dict[str, str] = {}
+    for p in json.loads(next(b.text for b in response.content if b.type == "text"))["problems"]:
+        # An entry that, written out, found nothing wrong ("this is faithful") isn't a problem.
+        if not p["is_error"]:
+            continue
+        problems[p["id"]] = f"{problems[p['id']]}; {p['problem']}" if p["id"] in problems else p["problem"]
+    return problems
+
+
+def unreviewed_rows(pairs: list[tuple[str, object, object]], known=frozenset()) -> list[dict]:
+    """The rows a review is paid for: those whose entry no earlier review passed as it is (known)."""
+    return [row for row, k in review_rows(pairs) if k not in known]
+
+
 def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, object, object]], cost, log=None,
-                   doc: str | None = None) -> tuple[dict[str, str], float]:
+                   doc: str | None = None, known=frozenset()) -> tuple[dict[str, str], float]:
     """The AI's review of translations' meaning. pairs: (id, English, translation), where a text
-    may be a list of texts (its entries' ids are "<id> 1", "<id> 2", ...). Returns the problems
-    found, {id: problem}, empty if none, and what the review cost. A review that can't be made
+    may be a list of texts (its entries' ids are "<id> 1", "<id> 2", ...). An entry an earlier review
+    passed as it is (known: their entry_key()s) isn't sent again; with none left, nothing is. Returns the
+    problems found, {id: problem}, empty if none, and what the review cost. A review that can't be made
     returns {UNREVIEWED: why}, so nothing it didn't review is shown. log: the month's cost log, which
     gets the request as it's answered, with doc, the hash of the document whose translation it is."""
     rsettings = review_settings(config)
     if rsettings["input_price"] is None or rsettings["output_price"] is None:
         return {UNREVIEWED: "[summaries] needs translation_review_input_price and translation_review_output_price"}, 0.0
-    rows = []
-    for key, en, tr in pairs:
-        if isinstance(en, list):
-            rows += [{"id": f"{key} {i + 1}", "english": a, "translation": b}
-                     for i, (a, b) in enumerate(zip(en, tr if isinstance(tr, list) else []))]
-        elif en:
-            rows.append({"id": key, "english": en, "translation": tr})
+    rows = unreviewed_rows(pairs, known)
     if not rows:
         return {}, 0.0
     try:
-        response = client.messages.create(
-            model=rsettings["model"],
-            max_tokens=4000,
-            system=cached(REVIEW_SYSTEM.format(language=LANGUAGE_NAMES[lang], readers=READERS[lang],
-                                               glossary=glossary_text(glossary.entries(config), lang))),
-            messages=[{"role": "user", "content": REVIEW_PROMPT.format(
-                language=LANGUAGE_NAMES[lang], pairs=json.dumps(rows, ensure_ascii=False, indent=1))}],
-            output_config={"effort": rsettings["effort"], "format": {"type": "json_schema", "schema": {
-                "type": "object", "additionalProperties": False, "required": ["problems"],
-                "properties": {"problems": {"type": "array", "items": {
-                    "type": "object", "additionalProperties": False, "required": ["id", "problem", "is_error"],
-                    "properties": {"id": {"type": "string"}, "problem": {"type": "string"},
-                                   "is_error": {"type": "boolean"}}}}}}}},
-        )
+        response = client.messages.create(**review_params(config, lang, rows))
     except Exception as e:
         if out_of_credit(e):
             raise
@@ -990,15 +1118,85 @@ def review_meaning(client, config: dict, lang: str, pairs: list[tuple[str, objec
     paid = cost(usage_of(response), rsettings)
     if log:
         log.request(response, "review", paid, doc=doc, lang=lang, model=rsettings["model"], usage=usage_of(response))
-    if response.stop_reason != "end_turn":
-        return {UNREVIEWED: f"stopped ({response.stop_reason})"}, paid
-    problems: dict[str, str] = {}
-    for p in json.loads(next(b.text for b in response.content if b.type == "text"))["problems"]:
-        # An entry that, written out, found nothing wrong ("this is faithful") isn't a problem.
-        if not p["is_error"]:
-            continue
-        problems[p["id"]] = f"{problems[p['id']]}; {p['problem']}" if p["id"] in problems else p["problem"]
-    return problems, paid
+    return review_found(response), paid
+
+
+# ---- Translations in a batch -------------------------------------------------------
+#
+# A network's daily runs send translations as they send summaries: in the town's batch (pipeline/summarize.py),
+# at half the price. A translation and its review can't be in the same batch, since the review needs the
+# translation, so one made in a batch that passes the check is saved WAITING for its review, which goes in the
+# town's next batch; it's shown once that review passes, and corrected in the batch after that if it doesn't.
+
+# The review of a translation made in a batch, until the next batch has it. Not a review that couldn't be
+# made, so it's not counted against REVIEW_RETRIES.
+WAITING = f"{UNREVIEWED}: waiting for its review in the next batch"
+
+
+def batch_request(config: dict, data_dir: Path, lang: str, kind: str, meeting: dict, doc: dict, record: dict) -> dict | None:
+    """The one request a batch sends for this summary's translation into lang now: its review, for a saved
+    translation that waits only for one (review_due()), else the translation (a correction, after one
+    that failed). {"type": "review" or "translation", "params": the request, "model", "prices"}; None
+    when a review is due with every entry already reviewed (review_again() then pays for nothing)."""
+    terms = glossary.entries(config)
+    before = saved(data_dir, lang, doc["sha256"])
+    if review_due(data_dir, before, record, kind, lang, terms):
+        rsettings = review_settings(config)
+        rows = unreviewed_rows(entries(english(record, kind), before), known(before))
+        if not rows:
+            return None
+        return {"type": "review", "params": review_params(config, lang, rows), "model": rsettings["model"],
+                "prices": {k: rsettings[k] for k in ("input_price", "output_price")}}
+    start = attempt(data_dir, config, lang, kind, doc, record)
+    tsettings = settings(config)
+    return {"type": "translation", "model": tsettings["model"],
+            "prices": {k: tsettings[k] for k in ("input_price", "output_price")},
+            "params": translation_params(config, lang, kind, record, meeting, before if start["wrong"] else None,
+                                         start["wrong"] or "", town_names(config, data_dir, lang))}
+
+
+def estimated_cost(request: dict, prices: dict, cost) -> float:
+    """What a batch_request() is likely to cost at these prices, before the batch's discount: its whole
+    prompt, about 3.5 characters a token, uncached, and for a translation's answer twice the summary's
+    tokens and room to think; for a review, BATCH_REVIEW_OUTPUT tokens."""
+    params = request["params"]
+    prompt = len(json.dumps([params["system"], params["messages"]], ensure_ascii=False)) / 3.5
+    content = len(params["messages"][0]["content"]) / 3.5
+    output = BATCH_REVIEW_OUTPUT if request["type"] == "review" else 2 * content + BATCH_THINKING
+    return cost({"input_tokens": int(prompt), "output_tokens": int(output)}, prices)
+
+
+# For the estimate a batch's translations are counted at in the run's budget, until they're collected: a
+# review's answer, and the thinking a translation does, in tokens.
+BATCH_REVIEW_OUTPUT = 1500
+BATCH_THINKING = 2000
+
+
+def collected(config: dict, data_dir: Path, entry: dict, record: dict, kind: str, meeting: dict, doc: dict,
+              message, now: datetime) -> tuple[dict, dict]:
+    """Save what a batch made for a summary's translation (entry: what batch_request() gave, as the batch's
+    file keeps it; message: the batch's response): a translation, checked and saved WAITING for its review
+    (or failing the check), or a translation's review. Returns the saved record and the response's tokens;
+    StoppedEarly for a translation that didn't finish, which isn't saved."""
+    lang = entry["lang"]
+    terms = glossary.entries(config)
+    if entry["type"] == "review":
+        before = saved(data_dir, lang, doc["sha256"])
+        return reviewed_again(data_dir, lang, kind, doc, record, before, review_found(message), now), usage_of(message)
+    result, usage = translation_result(message)
+    source = english(record, kind)
+    start = attempt(data_dir, config, lang, kind, doc, record)
+    checked = check(source, result, kind, lang, town_words(data_dir), terms)
+    pairs = entries(source, result)
+    # The entries an earlier review passed as they are: the batch's review isn't asked for them.
+    keys = sorted(k for _, k in review_rows(pairs) if k in known(start["before"]))
+    if checked == "ok" and not unreviewed_rows(pairs, known(start["before"])):
+        reviewed = "ok"
+    else:
+        reviewed = WAITING if checked == "ok" else "not reviewed: the check failed"
+    out = made(data_dir, {**config, "summaries": {**config.get("summaries", {}), "translation_model": entry["model"]}},
+               lang, kind, doc, record, start, result, checked, reviewed, keys, now)
+    return out, usage
 
 
 def made_in(data_dir: Path, month: str) -> list[tuple[str, str | None, dict]]:
