@@ -638,3 +638,36 @@ def test_a_board_listed_under_two_names_has_one_page(malden, tmp_path):
     assert "url=/meetings/boards/tree-board/" in moved and "This board's page has moved" in moved
     assert json.loads((out / build_site.REDIRECTS_FILE).read_text())["/meetings/boards/malden-tree-board/"] == "/meetings/boards/tree-board/"
     assert "/meetings/boards/malden-tree-board/" not in (out / "sitemap.xml").read_text()
+
+
+@pytest.mark.parametrize("lang", ["en", "es"])
+def test_moved_pages_of_two_meetings_on_one_day_have_titles_of_their_own(lang):
+    """A board that meets twice in a day, each meeting with a moved page (an earlier listing's address):
+    the moved pages' titles tell the meetings apart as the meetings' own pages do, by start time or by
+    order, so a site's titles stay unique (site_checks: test_every_page_has_accessible_structure)."""
+    from jinja2 import Environment, FileSystemLoader
+
+    from pipeline import i18n
+    e = Environment(loader=FileSystemLoader(str(build_site.SITE_DIR / "templates")), autoescape=True,
+                    trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.i18n"])
+    e.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True, pgettext=i18n.pgettext, npgettext=i18n.npgettext)
+    e.policies["ext.i18n.trimmed"] = True
+    e.filters.update(date=build_site.format_date, time=build_site.format_time)
+    template = e.get_template("moved.html")
+
+    def title(meeting, part=None):
+        # The block alone: the template sets m from meeting at its top, which a block call skips.
+        context = template.new_context({"meeting": meeting, "m": meeting, "part": part})
+        return "".join(template.blocks["title"](context)).strip()
+
+    base = {"body": "Council on Aging", "date": "2026-11-10", "same_day": True, "day_part": None}
+    with i18n.use(lang):
+        by_time = [title({**base, "start_time": "09:30"}), title({**base, "start_time": "14:00"})]
+        by_order = [title({**base, "start_time": None, "day_part": _part}) for _part in ("1 of 2", "2 of 2")]
+        alone = title({**base, "same_day": False, "start_time": "09:30"})
+        listings = [title({**base, "start_time": "14:00"}, part=n) for n in (1, 2)]
+    assert len(set(by_time)) == 2 and len(set(by_order)) == 2 and len(set(listings)) == 2
+    assert ("2:00 PM" in by_time[1]) if lang == "en" else ("2:00" in by_time[1])
+    assert "(2 of 2)" in by_order[1]
+    # A board's only meeting that day keeps the plain title, with no time.
+    assert "9:30" not in alone and alone.startswith("Council on Aging")

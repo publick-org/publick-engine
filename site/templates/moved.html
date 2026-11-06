@@ -6,10 +6,16 @@
 {% block title %}{% if board is defined %}
 {#- Translators: the title of a board's page that has moved; %(board)s is a board's name, such as "City Council". -#}
 {% trans board=board.name %}{{ board }} meetings: moved{% endtrans %}
-{%- elif part %}
+{%- else %}
+{#- The day, and which of the board's meetings that day, as the meeting's own page tells them apart
+    (build_site: same_day, day_part), so two meetings' moved pages never share a title. -#}
+{%- set when = m.date | date %}
+{%- if m.day_part %}{% set when = when ~ " (" ~ m.day_part ~ ")" %}
+{%- elif m.same_day and m.start_time %}{% set when = when ~ ", " ~ (m.start_time | time) %}{% endif %}
+{%- if part %}
 {#- Translators: the title of a page that has moved; %(body)s is a board, %(when)s a date, and %(part)s which of the meeting's other listings it was, such as "2". -#}
-{% trans body=m.body, when=m.date | date, part=part %}{{ body }}, {{ when }}: moved (listing {{ part }}){% endtrans %}
-{%- else %}{% trans body=m.body, when=m.date | date %}{{ body }}, {{ when }}: moved{% endtrans %}{% endif %}{% endblock %}
+{% trans body=m.body, when=when, part=part %}{{ body }}, {{ when }}: moved (listing {{ part }}){% endtrans %}
+{%- else %}{% trans body=m.body, when=when %}{{ body }}, {{ when }}: moved{% endtrans %}{% endif %}{% endif %}{% endblock %}
 {% block head %}<meta name="robots" content="noindex">
 <meta http-equiv="refresh" content="0; url={{ moved_to }}">{% endblock %}
 {% block content %}
