@@ -21,7 +21,10 @@ and name in them is in the document's own text.
   count or in words ("3 in favor, 0 opposed"), or, for a
   count with no one against, when the document says the vote was unanimous
   or all in favor. A count the model made by counting names in a roll call
-  can't be checked this way, so it's noted ("tally"), not failed.
+  can't be checked this way, so it's noted ("tally"), not failed. Nor can a
+  count that says no one voted against beside words that say someone did
+  ("8 to 0, with 1 opposed", a chair's slip copied from a recording): which
+  part is right can't be told, so it's noted too, and left out.
 - A name is a capitalized word that isn't an ordinary English word, one with
   capitals inside ("McCallum", "O'Brien"), or any capitalized word after a
   title or "moved by" ("Councilor Hall") (pipeline/translate.py's names()),
@@ -75,6 +78,14 @@ text (scanned pages in a typed document) can only be checked on what has text
 is weaker, since both come from the model: in both, what isn't found is
 listed, but the result is "weak", not "failed".
 
+A recording's machine transcript can mishear a street's name ("38 Stanley
+Street" for Standley Street). In a recording's summary, an address whose
+street isn't one of the town's, but is one letter from exactly one of them
+with the same street type, is noted ("spelling") with the town's spelling,
+which the site shows instead (shown()). The town's streets are the Census
+Bureau's, from pipeline/fetch_addresses.py; a town without them has no such
+check.
+
 Each decision whose quote is found also gets the page it's on, for the site
 to cite ("p. 3", linking the PDF at that page): the page the quote starts on,
 where every place the quote is found is on the same page. Checked against a
@@ -110,11 +121,12 @@ from pipeline import translate
 # of its passage; an ordinal run into the next word. 8: a count a chair says in a recording ("seven in the
 # affirmative, none in the negative"). 9: each decision's title, against the document. 10: a PDF's ligatures,
 # Legistar's labels after their values, glyph numbers as no text, a quote's sentences joined without "...", and
-# more of the minutes' words for continued, referred and denied.
-VERSION = 10
+# more of the minutes' words for continued, referred and denied. 11: a count with no one against beside someone
+# opposed; a recording's misheard street names.
+VERSION = 11
 
 # What's noted, not failed (see check() and shown()).
-NOTED = ("tally", "away", "unanchored")
+NOTED = ("tally", "away", "unanchored", "spelling")
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
           "recording": ("headline", "summary", "decisions", "discussion")}
@@ -144,6 +156,10 @@ TALLY = re.compile(r"(?<![\d$#.,/-])(\d{1,2})\s*[-–]\s*(\d{1,2})(?:\s*[-–]\s
 UNANIMOUS = re.compile(r"unanim|all\s+(?:members\s+)?(?:present\s+)?(?:voted\s+)?in\s+favor|all\s+present\s+in\s+favor|"
                        r"all\s+voted\s+(?:yes|aye|in\s+favor)|without\s+objection|all\s+ayes", re.I)
 # Words that make an amount approximate, or a total.
+# A count with no one against, and then someone against: "8 to 0 with 1 opposed", "5-0, one opposed".
+CONTRADICTED = re.compile(r"(?<![\d$#.,/-])\d{1,2}\s*(?:[-–]|to)\s*0(?![\d/]|[.,]\d)(?:\s*[-–]\s*\d{1,2})?[,;]?\s*"
+                          r"(?:with\s+|and\s+)?(?:[1-9]\d?|one|two|three|four|five|six|seven|eight|nine)\s+"
+                          r"(?:opposed|against|nays?|noes|no(?![\w-])|voting\s+no|dissent\w*)", re.I)
 APPROXIMATE = re.compile(r"\b(?:about|approximately|nearly|almost|over|more\s+than|less\s+than|under|roughly|around)\s*\$?$", re.I)
 # A US state's name: places a summary may spell out where the document abbreviates ("MA", "Mass.").
 STATES = {"Massachusetts", "Connecticut", "Hampshire", "Maine", "Vermont", "Rhode", "Island", "York", "Jersey"}
@@ -331,8 +347,11 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
     doc_dates = document_dates(doc) if doc_dates is None else doc_dates
     doc_money = money(doc) if doc_money is None else doc_money
     doc_scaled = scaled_amounts(doc) if doc_scaled is None else doc_scaled
-    tallies = [(m.start(), m.end(), m) for m in TALLY.finditer(text)]
-    spans = [(s, e) for s, e, _ in tallies]
+    contradicted = [(m.start(), m.end(), m) for m in CONTRADICTED.finditer(text)]
+    spans = [(s, e) for s, e, _ in contradicted]
+    problems += [{"kind": "tally", "what": m.group(0)} for _, _, m in contradicted]
+    tallies = [(m.start(), m.end(), m) for m in TALLY.finditer(text) if not any(s <= m.start() < e for s, e, _ in contradicted)]
+    spans += [(s, e) for s, e, _ in tallies]
     for s, e, m in tallies:
         if not tally_found(m, doc):
             problems.append({"kind": "tally", "what": m.group(0)})
@@ -390,11 +409,51 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
     return problems
 
 
-def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset()) -> dict:
+def one_letter_apart(a: str, b: str) -> bool:
+    """Whether two words differ by one letter added, dropped, or changed ("STANLEY", "STANDLEY")."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) == 1
+    short, long = sorted((a, b), key=len)
+    return any(long[:i] + long[i + 1:] == short for i in range(len(long)))
+
+
+# The shortest street name misheard names are matched to: shorter ones ("Elm", "Oak") are too near each other.
+SPELLING_MIN = 5
+
+
+def misheard_streets(text: str, streets: frozenset[str]) -> list[dict]:
+    """The addresses in a text whose street isn't one of the town's (streets: street_key()s), but is one letter from
+    exactly one of them of the same type: each with the town's spelling ("fix")."""
+    from pipeline.streets import ADDRESS_IN_TEXT, HOUSE_NUMBER, street_key  # pipeline.streets imports seeclickfix
+    names = {k.rsplit(" ", 1)[0] for k in streets}
+    out = []
+    for m in ADDRESS_IN_TEXT.finditer(text):
+        key = street_key(m.group(0))
+        if not key or key in streets:
+            continue
+        name, suffix = key.rsplit(" ", 1)
+        if name in names or len(name.replace(" ", "")) < SPELLING_MIN:
+            continue
+        near = [k for k in streets if k.endswith(f" {suffix}") and one_letter_apart(k.rsplit(" ", 1)[0], name)]
+        if len(near) != 1:
+            continue
+        number = HOUSE_NUMBER.match(m.group(0)).group(0)
+        # The summary's own words for the street type ("Street", "St."), after the town's name for the street.
+        written = m.group(0)[len(number):].split()
+        fixed = " ".join(w.capitalize() for w in near[0].rsplit(" ", 1)[0].split())
+        out.append({"kind": "spelling", "what": m.group(0), "fix": f"{number}{fixed} {written[-1]}"})
+    return out
+
+
+def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset(),
+          streets: frozenset[str] = frozenset()) -> dict:
     """The fact check of a summary against its document's text, page by page (None for a PDF
     with no text at all). A scan is checked against the model's transcription, if it has one. A
     recording's summary is checked against its machine transcript (pages: the transcript, whole), as
-    strictly as a PDF's against its text: what isn't in the transcript isn't shown."""
+    strictly as a PDF's against its text: what isn't in the transcript isn't shown. streets are the town's
+    (pipeline.streets.street_key()), for a recording's misheard street names (misheard_streets())."""
     # A PDF's ligatures ("ﬁ", "ﬂ") are one character in its text, where a summary has two: "certiﬁcation",
     # "Ofﬁcers" and "Grifﬁn" are read as "certification", "Officers" and "Griffin" (NFKC, which also reads
     # "…" as "...", and a non-breaking space as a space).
@@ -419,8 +478,11 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     for field in FIELDS[kind]:
         entries = record.get(field) or ([] if field in ("items", "decisions", "discussion") else "")
         for i, text in enumerate(entries if isinstance(entries, list) else [entries]):
+            entry = {"entry": i + 1} if isinstance(entries, list) else {}
             for p in check_text(text, doc, *found[:3], words, *found[3:]):
-                problems.append({"field": field, **({"entry": i + 1} if isinstance(entries, list) else {}), **p})
+                problems.append({"field": field, **entry, **p})
+            if kind == "recording" and streets:
+                problems += [{"field": field, **entry, **p} for p in misheard_streets(text, streets)]
     # Each decision's title (summarize.DECISION_LABELS), held to the document as the decisions are: a title with a
     # number or name the document doesn't have isn't shown, and the decision is shown without it (shown()).
     # It never fails the summary.
@@ -428,6 +490,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for p in check_text(title or "", doc, *found[:3], words, *found[3:]):
             if p["kind"] != "tally":
                 problems.append({"field": "decision_titles", "entry": i + 1, **p})
+        if kind == "recording" and streets:
+            problems += [{"field": "decision_titles", "entry": i + 1, **p} for p in misheard_streets(title or "", streets)]
     on_page = None
     if kind in QUOTED and "decision_evidence" in record:
         located = Located(doc)
@@ -1050,7 +1114,10 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
       something else: then the check has found the model wrong in this summary, and what it
       could only note isn't shown either;
     - wherever it was checked, a vote count the document doesn't give (near its decision's quote,
-      for a decision with one) is left out of the text;
+      for a decision with one), or one that says no one was against beside someone who was, is left
+      out of the text;
+    - a recording's misheard street name ("spelling") is shown as the town spells it, in a
+      translation too;
     - each decision shown has its page and the quote found there under "decision_pages" ([page,
       quote], or [None, None] where the page isn't known), where the check gave them.
     Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
@@ -1065,7 +1132,14 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
         field = p["field"]
         if field not in out or not out[field] or field == "decision_titles":
             continue
-        if p["kind"] == "tally":
+        if p["kind"] == "spelling":
+            fix = lambda t: t.replace(p["what"], p["fix"])  # noqa: E731
+            if isinstance(out[field], list):
+                i = p["entry"] - 1
+                out[field] = [fix(t) if j == i and t else t for j, t in enumerate(out[field])]
+            else:
+                out[field] = fix(out[field])
+        elif p["kind"] == "tally":
             if isinstance(out[field], list):
                 i = p["entry"] - 1
                 if i < len(out[field]):
@@ -1084,10 +1158,14 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                                     for j, e in enumerate(evidence) if j + 1 not in gone]
     # And each one's title, whether it's main, and its topic (summarize.split_decisions), beside the decisions
     # shown; a translation's titles are its own, or none.
-    untitled = {p.get("entry") for p in fc["problems"] if p["field"] == "decision_titles"}
+    untitled = {p.get("entry") for p in fc["problems"] if p["field"] == "decision_titles" and p["kind"] != "spelling"}
+    respelled = [p for p in fc["problems"] if p["field"] == "decision_titles" and p["kind"] == "spelling"]
     for field in ("decision_titles", "decision_main", "decision_topics"):
         values = (record if english or field != "decision_titles" else display).get(field) or []
         if values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
+            if field == "decision_titles":
+                values = [functools.reduce(lambda t, q: t.replace(q["what"], q["fix"]) if t else t,
+                                           [q for q in respelled if q["entry"] == j + 1], v) for j, v in enumerate(values)]
             out[field] = [None if field == "decision_titles" and j + 1 in untitled else v
                           for j, v in enumerate(values) if j + 1 not in gone]
         else:

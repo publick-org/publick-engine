@@ -109,3 +109,22 @@ def test_a_meeting_in_parts_is_summarized_from_every_part(config, data_dir):
     assert sent.startswith("Part 1: City Council - October 27, 2026\n[0:00:05]")
     assert "Part 2: Part 2\n[0:00:01] The second part." in sent
 
+
+
+def test_a_recordings_streets_are_held_to_the_towns(config, tmp_path):
+    # The town's address ranges (pipeline/fetch_addresses.py) give its streets as the Census writes them.
+    (tmp_path / "addresses.json").write_text(json.dumps({"year": 2025, "streets": {"Standley St": {"ranges": []},
+                                                                                     "Enon St": {"ranges": []}}}))
+    assert summarize.town_streets(tmp_path) == {"STANDLEY ST", "ENON ST"}
+    assert summarize.town_streets(tmp_path / "elsewhere") == frozenset()
+    transcript = b"[0:10:00] I move to set the public hearing at 38 Stanley Street for November 17th. 7 to nothing."
+    record = {"kind": "recording", "headline": "", "summary": "",
+              "decisions": ["Set a November 17 public hearing on the 38 Stanley Street site plan review."],
+              "decision_evidence": [{"outcome": "other", "quote": "I move to set the public hearing at 38 Stanley Street"}]}
+    meeting = {"body": "Planning Board"}
+    checked = summarize.check_recording(config, meeting, record, transcript, frozenset(), tmp_path)
+    assert factcheck.shown(checked, checked, "recording")["decisions"] == [
+        "Set a November 17 public hearing on the 38 Standley Street site plan review."]
+    # A town without address ranges is checked as before.
+    checked = summarize.check_recording(config, meeting, record, transcript, frozenset())
+    assert not [p for p in checked["fact_check"]["problems"] if p["kind"] == "spelling"]

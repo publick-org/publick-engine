@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import functools
 import io
 import json
 import math
@@ -86,11 +87,12 @@ from zoneinfo import ZoneInfo
 
 from pypdf import PdfReader
 
-from pipeline import cost_log, factcheck, glossary, listings, pdftext, transcribe, translate, votes
+from pipeline import cost_log, factcheck, fetch_addresses, glossary, listings, pdftext, transcribe, translate, votes
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.files import write_atomic
 from pipeline.http import FetchError
+from pipeline.streets import street_key
 
 TRANSCRIPT_RULES = """Transcript rules:
 - Copy the document's text character for character. Do not reword, correct, modernize, or change the spelling of anything (for example, keep "Councilor" if that is how it is written).
@@ -947,7 +949,7 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
     }
     if KINDS[kind].get("text"):
         # A recording's transcript: no roll calls are read from it (pipeline/votes.py reads the minutes').
-        record = check_recording(config, meeting, record, pdf, words)
+        record = check_recording(config, meeting, record, pdf, words, data_dir)
     else:
         record = votes.read(own_text(record, pdf), pdf, votes.members_for(config, meeting["body"]))
         if record.get("is_minutes") is not False:
@@ -961,14 +963,31 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
     return new
 
 
-def check_recording(config: dict, meeting: dict, record: dict, transcript: bytes, words) -> dict:
+def town_streets(data_dir: Path | None) -> frozenset[str]:
+    """The town's streets (pipeline.streets.street_key()s), from its address ranges (pipeline/fetch_addresses.py),
+    for a recording's misheard street names; none for a town without them."""
+    path = data_dir / fetch_addresses.FILE if data_dir else None
+    if not path or not path.exists():
+        return frozenset()
+    return _streets(path, path.stat().st_mtime_ns)
+
+
+@functools.lru_cache(maxsize=4)
+def _streets(path: Path, _mtime: int) -> frozenset[str]:
+    names = json.loads(path.read_text(encoding="utf-8")).get("streets") or {}
+    return frozenset(k for name in names if (k := street_key(name)))
+
+
+def check_recording(config: dict, meeting: dict, record: dict, transcript: bytes, words, data_dir: Path | None = None) -> dict:
     """A recording's summary with its fact check against the transcript, without its times
     (pipeline/factcheck.py). The board's members' names, which the summary spells from their list where the
-    transcript mishears them, are taken as words, not checked as names."""
+    transcript mishears them, are taken as words, not checked as names; its addresses are held to the town's
+    street names, where the town has them (town_streets())."""
     members = {w.lower() for name in votes.members_for(config, meeting["body"]) for w in re.findall(r"[\w'’-]+", name)}
     text = transcribe.untimed(transcript.decode("utf-8"))
     taken = frozenset(set(words) | translate.summary_words(record) | members)
-    return {**record, "transcript_source": "recording", "fact_check": factcheck.check(record, "recording", [text], taken)}
+    return {**record, "transcript_source": "recording",
+            "fact_check": factcheck.check(record, "recording", [text], taken, town_streets(data_dir))}
 
 
 def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:
@@ -1437,7 +1456,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
                 continue
             try:
                 save_record(data_dir, doc["sha256"], check_recording(config, meeting, record, document(storage, kind, doc),
-                                                                     words))
+                                                                     words, data_dir))
             except Exception as e:  # free, and tried again next run; the rest go on
                 errors.append(f"{kind} {doc['id']}: its transcript couldn't be read ({e})")
                 continue
