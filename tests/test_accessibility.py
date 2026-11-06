@@ -8,6 +8,7 @@ finds a subset of accessibility problems; manual keyboard and screen reader
 checks are still needed when new sections are added.
 """
 
+import re
 import time
 
 import pytest
@@ -310,7 +311,8 @@ def test_the_signup_moves_nothing_on_a_phone(browser, server_url, path, form_id)
     on a meeting's page it's after the meeting's own content, so it never moves that down."""
     context = browser.new_context(viewport=VIEWPORTS["phone"])
     page = context.new_page()
-    page.route("**/*.woff2", lambda route: route.abort())
+    # The fonts are linked with ?v=<content version>, so the pattern takes a query too.
+    page.route(re.compile(r"\.woff2(\?|$)"), lambda route: route.abort())
     page.goto(server_url + path)
     page.wait_for_load_state("load")
     shifts = page.evaluate(LAYOUT_SHIFTS)

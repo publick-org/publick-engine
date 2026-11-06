@@ -2,6 +2,7 @@
 left out, even when data for them is on disk, and every link still resolves."""
 
 import copy
+import re
 
 import pytest
 from conftest import BUILT_AT
@@ -173,7 +174,9 @@ def test_town_colors_are_added_to_the_stylesheet(tmp_path, data_dir, monkeypatch
 
 
 def test_a_town_without_colors_serves_the_engine_stylesheet(site_dir):
-    assert (site_dir / "static" / "css" / "site.css").read_bytes() == (build_site.STATIC_DIR / "css" / "site.css").read_bytes()
+    # The engine's stylesheet as it is, but for the content versions the build adds to the files it names.
+    built = re.sub(r"\?v=[0-9a-f]{10}", "", (site_dir / "static" / "css" / "site.css").read_text())
+    assert built == (build_site.STATIC_DIR / "css" / "site.css").read_text()
     assert ".brand span { color: var(--network); }" in (site_dir / "static" / "css" / "site.css").read_text()
 
 
