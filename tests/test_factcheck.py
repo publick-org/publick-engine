@@ -742,3 +742,64 @@ def test_a_page_of_glyph_numbers_has_no_text_to_check():
     record = {"kind": "minutes", "headline": "Approved park namings at Saint Louis Park.", "summary": "", "decisions": []}
     assert factcheck.check(record, "minutes", [glyphs, glyphs])["result"] == "unchecked"
     assert factcheck.check(record, "minutes", [glyphs, MINUTES])["source"] == "partial"
+
+
+def test_a_count_with_no_one_against_beside_someone_opposed_is_left_out():
+    # Gloucester's City Council, 2026-10-27, as its recording's chair said it: "Ayes have it 8 to 0, 1 opposed."
+    doc = ("to recommend that the City Council adopt a residential tax classification factor of 0.9973 that equates to a "
+           "commercial industrial CIP shift of 1.03 for fiscal year 2027, and I so move. ... Ayes have it 8 to 0, 1 opposed.")
+    text = "Approved a residential tax factor of 0.9973, a 1.03 shift to commercial and industrial property, for fiscal 2027, 8 to 0 with 1 opposed."
+    record = {"kind": "recording", "headline": "", "summary": "", "decisions": [text],
+              "decision_evidence": [{"outcome": "approved", "quote": doc}]}
+    fc = factcheck.check(record, "recording", [doc])
+    assert ("tally", "8 to 0 with 1 opposed") in [(p["kind"], p["what"]) for p in fc["problems"]]
+    assert fc["result"] == "ok"          # noted, not failed
+    record["fact_check"] = fc
+    assert factcheck.shown(record, record, "recording")["decisions"] == [
+        "Approved a residential tax factor of 0.9973, a 1.03 shift to commercial and industrial property, for fiscal 2027."]
+    for consistent in ("Approved the plan, 8 to 0.", "Approved the plan, 8-1, with 1 opposed.", "Approved the plan 5-0; one no-show."):
+        assert not factcheck.CONTRADICTED.search(consistent), consistent
+    for contradicted in ("Approved the plan, 5-0, one opposed.", "Approved the plan 7 to 0 and 2 against."):
+        assert factcheck.CONTRADICTED.search(contradicted), contradicted
+
+
+STREETS = frozenset({"STANDLEY ST", "OLD STANDLEY ST", "ENON ST", "BLAINE ST", "MAPLE AVE", "MAPLE ST", "BROWN ST",
+                     "BROWNE ST"})
+
+
+def test_a_recordings_misheard_street_is_shown_as_the_town_spells_it():
+    # Beverly's Planning Board, 2026-10-27: the transcript has "38 Stanley Street"; the street is Standley Street.
+    doc = "I move to set the public hearing for the OSRD site plan review at 38 Stanley Street for November 17th. 7 to nothing."
+    record = {"kind": "recording", "headline": "", "summary": "",
+              "decisions": ["Set a November 17 public hearing on the 38 Stanley Street site plan review."],
+              "decision_titles": ["Public hearing date for 38 Stanley Street"],
+              "decision_evidence": [{"outcome": "other", "quote": doc}]}
+    fc = factcheck.check(record, "recording", [doc], streets=STREETS)
+    assert [(p["field"], p["kind"], p["what"], p["fix"]) for p in fc["problems"] if p["kind"] == "spelling"] == [
+        ("decisions", "spelling", "38 Stanley Street", "38 Standley Street"),
+        ("decision_titles", "spelling", "38 Stanley Street", "38 Standley Street")]
+    assert fc["result"] == "ok"
+    record["fact_check"] = fc
+    shown = factcheck.shown(record, record, "recording")
+    assert shown["decisions"] == ["Set a November 17 public hearing on the 38 Standley Street site plan review."]
+    assert shown["decision_titles"] == ["Public hearing date for 38 Standley Street"]
+    # In a translation too: a street's name isn't translated.
+    spanish = {**record, "decisions": ["Fijó una audiencia pública el 17 de noviembre sobre 38 Stanley Street."],
+               "decision_titles": ["Audiencia para 38 Stanley Street"]}
+    assert factcheck.shown(spanish, record, "recording")["decisions"] == [
+        "Fijó una audiencia pública el 17 de noviembre sobre 38 Standley Street."]
+
+
+def test_only_a_clear_misspelling_is_respelled():
+    fixes = lambda text: [(p["what"], p["fix"]) for p in factcheck.misheard_streets(text, STREETS)]
+    assert fixes("Approved a garage at 6 Blane St.") == [("6 Blane St", "6 Blaine St")]
+    assert fixes("A plan for 37 Enon Street.") == []            # one of the town's
+    # Blane is a street of the town's too, with another type: "Blane Street" may be new, not misheard.
+    assert factcheck.misheard_streets("A garage at 6 Blane Street.", STREETS | {"BLANE RD"}) == []
+    assert fixes("A plan for 9 Browns Street.") == []           # one letter from two streets
+    assert fixes("A plan for 9 Mapel Avenue.") == []            # two letters from Maple
+    assert fixes("A plan for 12 Elmm Street.") == []            # too short to match
+    # Only a recording's: minutes and agendas are the city's own words.
+    record = {"kind": "minutes", "headline": "", "summary": "", "decisions": ["Approved a garage at 6 Blane Street."]}
+    assert not [p for p in factcheck.check(record, "minutes", ["6 Blane Street garage approved."], streets=STREETS)["problems"]
+                if p["kind"] == "spelling"]
