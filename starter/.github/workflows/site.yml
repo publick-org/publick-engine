@@ -1,0 +1,36 @@
+# Fetches the town's data each morning, then builds, checks, and publishes the site
+# on GitHub Pages, with the Publick engine's workflow at the version pinned below
+# (the engine's docs/stand-alone.md).
+name: Update and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Daily data refresh, early morning Eastern time.
+  schedule:
+    - cron: "23 10 * * *"
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: Which data to update
+        type: choice
+        options: [all, meetings, "311"]
+        default: all
+
+# One run at a time, so two data commits never race.
+concurrency:
+  group: update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  site:
+    uses: publick-org/publick-engine/.github/workflows/town.yml@v1
+    with:
+      town: town   # config/town.toml; change both if you rename the file
+      sources: ${{ inputs.sources || 'all' }}
+    secrets: inherit
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
