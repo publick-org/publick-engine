@@ -24,7 +24,14 @@ summary, before the older documents still waiting for one. An older document
 summarized in the run is translated after, if the budget allows.
 
 A daily run of the network sends a town's summaries as one batch (the Message
-Batches API), at half the price, instead of one at a time (PUBLICK_SUMMARY_BATCH=1).
+Batches API), at half the price, instead of one at a time (PUBLICK_SUMMARY_BATCH=1),
+with the translations that need making or reviewing, but not those of a document
+whose summary is in the batch. The run that collects the batch sends the next
+one, with the reviews of the translations it saved and the translations of the
+summaries it saved, for a later collecting run or the town's next run to collect
+(translate.py's "Translations in a batch"): a translation isn't shown until its
+review passes, so a new document's Spanish comes about a day after its English.
+A translation the batch didn't make waits for the town's next batch.
 The batch's id and documents are kept in data/summary-batch.json, and the job
 collects its results once its other towns are done (PUBLICK_SUMMARY_COLLECT=1,
 from pipeline.network run --collect), up to BATCH_WAIT after it was sent;
@@ -1033,14 +1040,18 @@ def batch_spent(data_dir: Path, pending: dict) -> tuple[float, float]:
 
 
 def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, dict, dict, bytes]], older: set[str],
-               sent_at: datetime, spent_before: float, backlog_before: float) -> dict:
-    """Send the documents' summaries as one batch and keep what it needs to be collected in data/: each
-    document's meeting and file; and, out of git (BATCH_SPENT), what the run had spent before it, so the
-    run that collects it goes on from there."""
+               sent_at: datetime, spent_before: float, backlog_before: float,
+               translations: list[tuple[str, dict, dict, dict, str, dict]] = ()) -> dict:
+    """Send the documents' summaries, and the translations' requests (kind, meeting, document, English
+    record, language, and translate.batch_request()), as one batch and keep what it needs to be collected
+    in data/: each document's meeting and file, and each translation's language, what it is (a translation
+    or its review), the English it's of, and its model's prices; and, out of git (BATCH_SPENT), what the
+    run had spent before it, so the run that collects it goes on from there."""
     created = client.messages.batches.create(requests=[
         {"custom_id": f"doc-{i}", "params": summary_request(settings["model"], kind, pdf, meeting["title"], meeting["date"],
                                                             settings.get("effort"), meeting.get("members"))}
-        for i, (kind, meeting, doc, pdf) in enumerate(queued)])
+        for i, (kind, meeting, doc, pdf) in enumerate(queued)] + [
+        {"custom_id": f"tr-{i}", "params": request["params"]} for i, (*_, request) in enumerate(translations)])
     pending = {
         "id": created.id, "sent_at": sent_at.isoformat(timespec="seconds"), "model": settings["model"],
         # The prices the batch's model was sent at, so it's priced so when collected, whatever the settings by then.
@@ -1048,7 +1059,12 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
         "documents": [{"custom_id": f"doc-{i}", "kind": kind, "older": doc["sha256"] in older,
                        "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
                        "doc": {k: doc[k] for k in ("id", "sha256", "file", "source_url", "parts") if k in doc}}
-                      for i, (kind, meeting, doc, _) in enumerate(queued)],
+                      for i, (kind, meeting, doc, _) in enumerate(queued)] + [
+            {"custom_id": f"tr-{i}", "type": request["type"], "lang": lang, "kind": kind, "older": doc["sha256"] in older,
+             "source_hash": translate.source_hash(record, kind), "model": request["model"], "prices": request["prices"],
+             "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
+             "doc": {k: doc[k] for k in ("id", "sha256") if k in doc}}
+            for i, (kind, meeting, doc, record, lang, request) in enumerate(translations)],
     }
     write_atomic(cost_log.ignored(data_dir) / BATCH_SPENT, json.dumps(
         {"id": created.id, "spent_before": round(spent_before, 6), "backlog_before": round(backlog_before, 6)}) + "\n")
@@ -1066,9 +1082,12 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
     is, and "not_ready" says so.
 
     Each request paid for is logged under the batch's id and its custom_id, so a batch collected again
-    (a run stopped before it was done with it) counts only what it hadn't yet, in the log and in "paid"."""
+    (a run stopped before it was done with it) counts only what it hadn't yet, in the log and in "paid".
+
+    A translation or review the batch made is saved as translate.collected() says, and counted in
+    "translated"; one it didn't make is left for the town's next batch."""
     pending = load_batch(data_dir)
-    out = {"done": 0, "failed": 0, "paid": 0.0, "paid_backlog": 0.0,
+    out = {"done": 0, "failed": 0, "paid": 0.0, "paid_backlog": 0.0, "translated": 0,
            "tokens": {"input_tokens": 0, "output_tokens": 0}, "errors": [], "waiting": set()}
     if not pending:
         return out
@@ -1106,6 +1125,8 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
     for entry in pending["documents"]:
         kind, meeting, doc = entry["kind"], entry["meeting"], entry["doc"]
         key = cost_log.batch_key(pending["id"], entry["custom_id"])
+        if entry.get("type"):
+            continue
 
         def paid_for(new: bool, paid: float) -> bool:
             """Count a request this collecting logged (new); one already logged was counted before."""
@@ -1163,8 +1184,60 @@ def collect_batch(config: dict, client, data_dir: Path, storage, settings: dict,
         for k in out["tokens"]:
             out["tokens"][k] += usage[k]
         out["done"] += 1
+    collect_translations(config, data_dir, pending, results, now, log, out)
     (data_dir / BATCH_FILE).unlink()
     return out
+
+
+def collect_translations(config: dict, data_dir: Path, pending: dict, results: dict, now: datetime,
+                         log: cost_log.Log, out: dict) -> None:
+    """The translations and reviews a collected batch made (its entries with a "type"), each saved as
+    translate.collected() says, at half its model's prices, into out (collect_batch()'s). One already in
+    the cost log was saved by an earlier collecting of the same batch, and is left. One the batch didn't
+    make, or made for an English summary that has changed since, is left for the town's next batch."""
+    entries = [e for e in pending["documents"] if e.get("type")]
+    if not entries:
+        return
+    documents = {doc["sha256"]: (kind, meeting, doc, record) for kind, meeting, doc, record in summarized_documents(data_dir)}
+    for entry in entries:
+        lang, what, sha = entry["lang"], entry["type"], entry["doc"]["sha256"]
+        key = cost_log.batch_key(pending["id"], entry["custom_id"])
+        if key in log.keys:
+            continue
+        name = f"{lang} {what} of {entry['kind']} {entry['doc']['id']}"
+        result = results.get(entry["custom_id"])
+        if result is None or result.type != "succeeded":
+            # Not made, and not paid for.
+            out["errors"].append(f"{name}: not made in the batch ({result.type if result else 'missing'}); "
+                                 "sent in the town's next batch")
+            continue
+        usage = translate.usage_of(result.message)
+        paid = cost(usage, at_batch_price(entry["prices"]))
+
+        def failed(why: str) -> None:
+            """Paid for, though nothing is saved."""
+            if log.add("failed", key, paid, doc=sha, lang=lang, model=entry["model"], usage=usage):
+                out["paid"] += paid
+                if entry["older"]:
+                    out["paid_backlog"] += paid
+            out["failed"] += 1
+            out["errors"].append(f"{name}: {why}")
+
+        found = documents.get(sha)
+        if not found or translate.source_hash(found[3], found[0]) != entry["source_hash"]:
+            failed("its English summary has changed since it was sent; made again from the new one")
+            continue
+        kind, meeting, doc, record = found
+        try:
+            translate.collected(config, data_dir, entry, record, kind, meeting, doc, result.message, now)
+        except Exception as e:  # cut off (StoppedEarly), or an answer that can't be read: made again later
+            failed(str(e))
+            continue
+        if log.add(what, key, paid, doc=sha, lang=lang, model=entry["model"], usage=usage):
+            out["paid"] += paid
+            if entry["older"]:
+                out["paid_backlog"] += paid
+        out["translated"] += 1
 
 
 def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None = None,
@@ -1197,7 +1270,8 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # The words the fact check takes as no one's name, as the town's summaries use them.
     words = translate.town_words(data_dir)
     pending = load_batch(data_dir)
-    nothing = {"summarized": 0, "collected": 0, "queued": 0, "laid_out": 0, "transcribed": 0, "translated": 0,
+    nothing = {"summarized": 0, "collected": 0, "queued": 0, "queued_translations": 0, "laid_out": 0, "transcribed": 0,
+               "translated": 0,
                "drafted_texts": 0, "remaining": 0, "failed": 0, "errors": [], "stopped": None,
                "estimated_cost": 0.0, "month_cost": None, **tokens}
     if collecting and not pending:
@@ -1206,7 +1280,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # Each request paid for is logged as it's answered, and the month's ledger made from the log
     # (pipeline/cost_log.py), so a run stopped at any point has counted all it paid for but the request in flight.
     log = open_log(data_dir, settings, now, config)
-    collected, waiting = 0, set()
+    collected, waiting, collected_translations = 0, set(), 0
     unpriced = missing_prices(settings)
     if pending and not unpriced:
         got = collect_batch(config, client, data_dir, storage, settings, now, words, log, clock, sleep,
@@ -1216,6 +1290,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             log.close()
             return {**nothing, "errors": got["errors"], "stopped": "the batch isn't done yet"}
         collected, waiting, failed = got["done"], got["waiting"], got["failed"]
+        collected_translations = got.get("translated", 0)
         errors += got["errors"]
         for k in tokens:
             tokens[k] += got["tokens"][k]
@@ -1230,10 +1305,12 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             if doc_key(t) not in waiting]
     # Every document still waiting, for the run's count of what's left.
     waiting_count = len(todo)
+    # Documents whose summary is to be made again, whose translations of the summary they have now wait for it.
+    resummarized = {doc_key(t) for t in todo}
     if collecting:
         # Only what the batch didn't make is sent one at a time; any other document waiting goes in the next
         # run's batch, at half the price, rather than at the full price now.
-        retry = {d["doc"]["sha256"] for d in pending["documents"]}
+        retry = {d["doc"]["sha256"] for d in pending["documents"] if not d.get("type")}
         todo = [t for t in todo if doc_key(t) in retry]
     new = [t for t in todo if is_new(t, now)]
     backlog = [t for t in todo if not is_new(t, now)]
@@ -1241,6 +1318,13 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # With batch, the documents that fit in one; and while an earlier batch is still out, none.
     batching = batch and not waiting and not collecting
     queued, queued_bytes, queued_cost, queued_backlog = [], 0, {}, 0.0
+    # The translations that need it go in the batch too: in the daily run's, with its summaries, and in the
+    # collecting run's, sent once it has collected the batch, with the reviews of the translations it made
+    # and the translations of the summaries it saved (translate.py's "Translations in a batch"). Not while a
+    # batch is still out: one that couldn't be collected, or wasn't (a run without prices).
+    batching_translations = (batch or collecting) and not waiting and not (data_dir / BATCH_FILE).exists()
+    queued_translations, queued_translation_keys = [], set()
+    queued_translation_cost, queued_translation_backlog = 0.0, 0.0
     work = (new + backlog)[:limit]
     # Translations come right after the new documents' summaries, new documents' first: an older
     # summary already on the site waits for its translation no longer than a new one.
@@ -1278,7 +1362,7 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
 
     def translations(only_new: bool) -> None:
         """Translate the summaries that need it, new documents' or the rest, within this run's budget."""
-        nonlocal spent, spent_backlog, translated, failed, stopped
+        nonlocal spent, spent_backlog, translated, failed, stopped, queued_translation_cost, queued_translation_backlog
         langs = translate.languages(config)
         if not langs:
             return
@@ -1289,16 +1373,39 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             return
         # The town's glossary, whose terms each translation writes as it gives them (pipeline/glossary.py).
         terms = glossary.entries(config)
+        # Documents that wait in a batch not collected, and, when translations go in a batch, those whose
+        # summary is to be made again (in this batch, or a later one): their translations wait for them.
+        held = waiting | (resummarized if batching_translations else set())
         for kind, meeting, doc, record in summarized_documents(data_dir):
-            if is_new((kind, meeting, doc), now) != only_new:
+            if is_new((kind, meeting, doc), now) != only_new or doc["sha256"] in held:
                 continue
             for lang in langs:
+                if (doc["sha256"], lang) in queued_translation_keys:
+                    continue
                 if translate.current(data_dir, lang, doc["sha256"], record, kind, terms):
                     continue
                 if (spent >= settings["max_cost_per_run"] or (allowance is not None and spent >= allowance)
                         or (not only_new and backlog_allowance is not None and spent_backlog >= backlog_allowance)):
                     stopped = stopped or "translations wait: this run's budget for them is spent"
                     return
+                request = translate.batch_request(config, data_dir, lang, kind, meeting, doc, record) if batching_translations else None
+                if request:
+                    # Counted at its estimate until the batch is collected, as the batch's summaries are.
+                    estimate = translate.estimated_cost(request, request["prices"], cost) * BATCH_PRICE
+                    room = [settings["max_cost_per_run"] - spent] + ([allowance - spent] if allowance is not None else [])
+                    if not only_new and backlog_allowance is not None:
+                        room.append(backlog_allowance - spent_backlog)
+                    if estimate > min(room):
+                        stopped = stopped or "translations wait: this run's budget for them is spent"
+                        return
+                    queued_translations.append((kind, meeting, doc, record, lang, request))
+                    queued_translation_keys.add((doc["sha256"], lang))
+                    queued_translation_cost += estimate
+                    spent += estimate
+                    if not only_new:
+                        spent_backlog += estimate
+                        queued_translation_backlog += estimate
+                    continue
                 try:
                     _, paid = translate.make(client, config, data_dir, lang, kind, meeting, doc, record, now, cost, log)
                 except StoppedEarly as e:
@@ -1421,23 +1528,6 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             continue
         if not one(kind, meeting, doc, pdf):
             break
-    if queued:
-        try:
-            send_batch(client, data_dir, settings, queued, older, clock(),
-                       spent - sum(queued_cost.values()), spent_backlog - queued_backlog)
-        except Exception as e:
-            # Sent one at a time instead, within the run's limits at their own price.
-            errors.append(f"the batch of {len(queued)} summaries couldn't be sent ({e}); sent one at a time")
-            spent -= sum(queued_cost.values())
-            spent_backlog -= queued_backlog
-            for kind, meeting, doc, pdf in queued:
-                estimate = queued_cost[doc["sha256"]] / BATCH_PRICE
-                if estimate > min([settings["max_cost_per_run"] - spent] + ([allowance - spent] if allowance is not None else [])):
-                    too_costly.append(f"{kind} {doc['id']}")
-                    continue
-                if not one(kind, meeting, doc, pdf):
-                    break
-            queued = []
     if too_costly:
         stopped = stopped or (f"{len(too_costly)} waiting for a run with room for them: " + ", ".join(too_costly[:5])
                                + (", ..." if len(too_costly) > 5 else ""))
@@ -1483,6 +1573,27 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
     # The translations of older documents summarized in this run, from what's left of the budget for them.
     if not stopped:
         translations(only_new=False)
+    if queued or queued_translations:
+        try:
+            send_batch(client, data_dir, settings, queued, older, clock(),
+                       spent - sum(queued_cost.values()) - queued_translation_cost,
+                       spent_backlog - queued_backlog - queued_translation_backlog, queued_translations)
+        except Exception as e:
+            # The summaries are sent one at a time instead, within the run's limits at their own price; the
+            # translations wait for the next batch.
+            errors.append(f"the batch of {len(queued)} summaries and {len(queued_translations)} translations couldn't "
+                          f"be sent ({e}); the summaries sent one at a time")
+            spent -= sum(queued_cost.values()) + queued_translation_cost
+            spent_backlog -= queued_backlog + queued_translation_backlog
+            queued_translations = []
+            for kind, meeting, doc, pdf in queued:
+                estimate = queued_cost[doc["sha256"]] / BATCH_PRICE
+                if estimate > min([settings["max_cost_per_run"] - spent] + ([allowance - spent] if allowance is not None else [])):
+                    too_costly.append(f"{kind} {doc['id']}")
+                    continue
+                if not one(kind, meeting, doc, pdf):
+                    break
+            queued = []
     # Then the model's transcription of scans, which screen readers can't read, only once
     # every summary waiting is done, and from what's left of this run's budget, as for the backlog.
     transcribed = 0
@@ -1550,14 +1661,15 @@ def run(config: dict, client, data_dir: Path, limit: int, now: datetime | None =
             tokens[k] += usage[k]
         transcribed += 1
     log.close()
-    return {"summarized": done + collected, "collected": collected, "queued": len(queued), "laid_out": laid_out,
-            "transcribed": transcribed, "translated": translated, "drafted_texts": drafted_texts,
+    return {"summarized": done + collected, "collected": collected, "queued": len(queued),
+            "queued_translations": len(queued_translations), "laid_out": laid_out,
+            "transcribed": transcribed, "translated": translated + collected_translations, "drafted_texts": drafted_texts,
             "remaining": max(waiting_count - done, 0), "failed": failed, "errors": errors, "stopped": stopped,
             "estimated_cost": round(spent, 2), "month_cost": round(log.month_cost(), 2), **tokens}
 
 
 # What a run made, or sent to be made: a run that made any of these didn't fail.
-MADE = ("summarized", "queued", "transcribed", "translated", "drafted_texts")
+MADE = ("summarized", "queued", "queued_translations", "transcribed", "translated", "drafted_texts")
 
 
 def exit_status(summary: dict, collecting: bool = False) -> int:
@@ -1570,7 +1682,7 @@ def exit_status(summary: dict, collecting: bool = False) -> int:
     meant never to do."""
     if collecting or not summary["failed"]:
         return 0
-    return 0 if any(summary[k] for k in MADE) else 1
+    return 0 if any(summary.get(k) for k in MADE) else 1
 
 
 def dollars(name: str) -> float | None:

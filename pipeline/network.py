@@ -24,10 +24,13 @@ without a good update (published, with fresh data) in the last day or so, and
 those whose figure checks keep failing, for the one daily alert. A run that only builds, as for a pull request, fails if
 any town does.
 
-run --collect is the end of a daily job: a town whose fetch sent its summaries as
-one batch (pipeline.summarize, PUBLICK_SUMMARY_BATCH) has them collected, and
-whatever the batch didn't make sent one at a time, then is built, checked, and
-published again with them. A town with no batch waiting is left as it is. With
+run --collect is the end of a daily job: a town whose fetch sent its summaries
+and translations as one batch (pipeline.summarize, PUBLICK_SUMMARY_BATCH) has
+them collected, and whatever summary the batch didn't make sent one at a time,
+then is built, checked, and published again with them. Collecting may send the
+town's next batch, with the reviews of the translations it saved and the
+translations of the summaries it saved; that one is collected later in the job
+or by the town's next run. A town with no batch waiting is left as it is. With
 --ready, between the job's towns, only a batch already ended is collected; one
 still running is left for later, and the town isn't built again.
 
@@ -309,8 +312,17 @@ def trim_sources(rows: list[dict]) -> list[dict]:
             for r in rows]
 
 
-# The town's summaries sent as one batch, waiting to be collected (pipeline/summarize.py's BATCH_FILE).
+# The town's summaries and translations sent as one batch, waiting to be collected (pipeline/summarize.py's
+# BATCH_FILE).
 SUMMARY_BATCH = "summary-batch.json"
+
+
+def batch_id(path: Path) -> str | None:
+    """The id of the batch a town's batch file holds; None if it can't be read."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("id")
+    except (OSError, ValueError):
+        return None
 # The keys collecting it needs: the model's, the document bucket's, to read each document again, and the
 # private store's and the budget's, for its costs.
 COLLECT_KEYS = ("ANTHROPIC_API_KEY", "STORAGE_ACCESS_KEY_ID", "STORAGE_SECRET_ACCESS_KEY", *PRIVATE_KEYS, *BUDGET_KEYS)
@@ -330,14 +342,18 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
     steps = result["steps"]
     data_before = folder_bytes(town_dir / "data")
     if collect:
-        if not (town_dir / "data" / SUMMARY_BATCH).exists():
+        batch_file = town_dir / "data" / SUMMARY_BATCH
+        if not batch_file.exists():
             # No batch waiting: the town's site is as its run left it.
             result.update(ok=True, finished_at=now(), collected=False)
             return result
+        sent = batch_id(batch_file)
         steps.append(step("Collect summaries", [python, "-m", "pipeline.summarize", "--town", town],
                           {**keyed(env, COLLECT_KEYS), "PUBLICK_SUMMARY_COLLECT": "ready" if ready_only else "1"},
                           town_dir, step_timeout))
-        if ready_only and (town_dir / "data" / SUMMARY_BATCH).exists():
+        # Collected, a batch may be followed by another, with the next step of its translations (the reviews
+        # of those it made): the town is built again all the same.
+        if ready_only and batch_file.exists() and batch_id(batch_file) == sent:
             # Still running: collected later, and the site stays as its run published it.
             result.update(ok=steps[-1]["ok"], finished_at=now(), collected=False)
             return result
