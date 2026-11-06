@@ -29,10 +29,11 @@ pipeline/fetch_sharpschool_meetings.py.
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
+from pipeline import dates
 from pipeline.meeting_names import words
 
 SOURCE = "sharpschool"
@@ -40,8 +41,6 @@ SERVICE = "/portal/svc/ContentItemSvc.asmx/GetItemList"
 
 # The library's script on the page: its folder's id and its settings.
 LIBRARY = re.compile(r"new ContentItemListUI\('(\d+)',\s*null,\s*'\[\]',\s*(\{.*?\}),\s*selectMultiSwitch", re.S)
-# "09.10.26 Minutes Regular Meeting", "9-10-2026 ...".
-DATE = re.compile(r"^\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})\b\s*(.*)$", re.S)
 MINUTES = re.compile(r"\bminutes?\b", re.I)
 # A start time at the end of the name: "515", "5:15", "5:15 PM", "530pm".
 TIME = re.compile(r"\s+(\d{1,2}):?(\d{2})\s*(?:([ap])\.?\s*m\.?)?\s*$", re.I)
@@ -101,16 +100,14 @@ def start_time(hour: int, minute: int, half: str | None) -> str | None:
 def parse_name(name: str) -> dict | None:
     """A file's meeting from its name: '03.30.26 Minutes Special Meeting 515' ->
     {"date": "2026-03-30", "kind": "Special Meeting", "start_time": "17:15", "special": True};
-    None for a name without a date or without "minutes"."""
-    found = DATE.match(name)
-    if not found or not MINUTES.search(found.group(4)):
+    None for a name that doesn't start with a date ("09.10.26", "9-10-2026") or doesn't say "minutes"."""
+    found = dates.find_dates(name)
+    if not found or name[:found[0].start].strip():
         return None
-    month, day, year, rest = found.groups()
-    year = int(year) + (2000 if len(year) == 2 else 0)
-    try:
-        day_iso = date(year, int(month), int(day)).isoformat()
-    except ValueError:
+    rest = name[found[0].end:]
+    if not MINUTES.search(rest):
         return None
+    day_iso = found[0].day.isoformat()
     rest = " ".join(MINUTES.sub(" ", rest).split())
     clock = TIME.search(f" {rest}")
     time = start_time(int(clock.group(1)), int(clock.group(2)), clock.group(3)) if clock else None

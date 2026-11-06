@@ -33,7 +33,8 @@ import html
 import re
 from urllib.parse import parse_qs, unquote, urljoin, urlparse
 
-from pipeline.filelist import DATE_IN_TITLE, date_of
+from pipeline import dates
+from pipeline.filelist import date_of
 from pipeline.meeting_names import find_board, parse_name
 
 SOURCE = "finalsite"
@@ -93,7 +94,7 @@ def parse_title(title: str, bodies: dict) -> dict | None:
     names ("Operations Committee" -> "Board of Education Operations Committee"); the longest
     one in the title wins, as for calendars (pipeline.meeting_names)."""
     day = date_of(title)
-    name = DATE_IN_TITLE.sub(" ", title)
+    name = dates.without_dates(title)
     body = find_board(name, [], bodies) if day else None
     if not body:
         return None

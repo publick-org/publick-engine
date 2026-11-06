@@ -50,7 +50,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import finalsite
+from pipeline import dates, finalsite
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import (
@@ -80,8 +80,8 @@ def new_meeting(store: dict, post: dict, info: dict, settings: dict, stamp: str,
     return meeting
 
 
-# A date in the schedule, 'M/D/YY' or 'M/D/YYYY', and a weekday after it: '1/19/27 (Tues.)'.
-SCHEDULE_DATE = re.compile(r"(?<![\d/])(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})(?![\d/])(?:\s*\([A-Za-z.]+\))?")
+# The weekday after a date in the schedule: '1/19/27 (Tues.)'.
+SCHEDULE_WEEKDAY = re.compile(r"^\s*\([A-Za-z.]+\)")
 SCHEDULE_MONTH = re.compile(r"\b(?:JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\b")
 
 
@@ -91,15 +91,11 @@ def parse_schedule(page: str) -> list[tuple[str, str]]:
     text = re.sub(r"<script.*?</script>|<style.*?</style>", " ", page, flags=re.S | re.I)
     text = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", text)).split())
     found = []
-    dates = list(SCHEDULE_DATE.finditer(text))
-    for i, d in enumerate(dates):
-        end = dates[i + 1].start() if i + 1 < len(dates) else min(len(text), d.end() + 80)
-        name = SCHEDULE_MONTH.split(text[d.end():end])[0].strip(" -")
-        year = int(d.group(3)) + (2000 if len(d.group(3)) == 2 else 0)
-        try:
-            found.append((name, date(year, int(d.group(1)), int(d.group(2))).isoformat()))
-        except ValueError:
-            continue
+    days = dates.find_dates(text, short_dashed_years=False)
+    for i, d in enumerate(days):
+        end = days[i + 1].start if i + 1 < len(days) else min(len(text), d.end + 80)
+        name = SCHEDULE_MONTH.split(SCHEDULE_WEEKDAY.sub("", text[d.end:end]))[0].strip(" -")
+        found.append((name, d.day.isoformat()))
     return found
 
 

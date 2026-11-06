@@ -21,6 +21,8 @@ from urllib.parse import urljoin, urlsplit
 
 import feedparser
 
+from pipeline import dates
+
 TIME_PREFIX = re.compile(r"^\s*\d{1,2}:\d{2}\s*[AP]\.?M\.?\s*[-–:]?\s*", re.I)
 TIME_SUFFIX = re.compile(r",?\s*\d{1,2}:\d{2}\s*[AP]\.?M\.?\s*$", re.I)
 PLACEHOLDER_LOCATIONS = {"", "event location"}
@@ -64,20 +66,6 @@ def without_status(text: str) -> str:
     return text
 
 
-# A date written into a meeting's name, which isn't part of the board's: "Planning Board Meeting,
-# December 17, 2026", "Board of Health Meeting 10/13/2026", or what's left of "RESCHEDULED TO
-# 10/21/2026 Commission on Disabilities Meeting" once its status word is taken out.
-MONTHS = (r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?"
-          r"|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)")
-WEEKDAYS = r"(?:mon|tue|tues|wed|wednes|thu|thur|thurs|fri|sat|satur|sun)(?:day)?"
-DATE_IN_NAME = re.compile(
-    rf"(?:\b(?:on|for|to)\s+)?(?:\b{WEEKDAYS}\.?,?\s+)?"
-    rf"(?:\b{MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+\d{{4}}\b)?"
-    r"|(?<![\d/.-])\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})(?![\d/.-])"
-    r"|(?<!\d)\d{4}-\d{2}-\d{2}(?!\d))", re.I)
-# A date without its year, left after a status word ("RESCHEDULED to 10-14-Beverly Regional Airport
-# Commission"): only after on, for or to, since a name may have numbers of its own ("Ward 3").
-SHORT_DATE = re.compile(r"\b(?:on|for|to)\s+\d{1,2}[/-]\d{1,2}(?![\d/])", re.I)
 # What a clerk writes after a board's name that names one of its committees: "City Council - Ordinance
 # Committee", "City Council - Committee of the Whole" (Lawrence's calendar). The meeting is the committee's.
 OF_BOARD = re.compile(r"^[\w&,/' ]*\b(?:sub)?committee(?: of the whole)?(?:\s+meeting)?$", re.I)
@@ -88,8 +76,11 @@ CO_POSTED = re.compile(r"\s*,?\s*\bco-?posted\b.*$", re.I)
 
 def board_part(name: str) -> str:
     """A meeting's name without what says when, or who else it's posted for, rather than which board:
-    'Planning Board Meeting, December 17, 2026' -> 'Planning Board Meeting'."""
-    name = CO_POSTED.sub("", SHORT_DATE.sub(" ", DATE_IN_NAME.sub(" ", name)))
+    'Planning Board Meeting, December 17, 2026' -> 'Planning Board Meeting'. A date written into a
+    name isn't part of the board's: "Board of Health Meeting 10/13/2026", or what's left of
+    "RESCHEDULED TO 10/21/2026 Commission on Disabilities Meeting" or "RESCHEDULED to 10-14-Beverly
+    Regional Airport Commission" once its status word is taken out; with or without its year."""
+    name = CO_POSTED.sub("", dates.without_dates(name, yearless=True))
     return re.sub(r"\s{2,}", " ", re.sub(r"^[\s,\-–:]+|[\s,\-–:]+$", "", name))
 
 
@@ -329,37 +320,11 @@ def parse_list(page: str, base_url: str) -> list[dict]:
 
 # ---- Archive Center -------------------------------------------------------
 
-MONTH_DATE = re.compile(r"\b([A-Z][a-zA-Z]{2,8})\.?\s*(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b")
-ISO_DATE = re.compile(r"(?<!\d)(\d{4})[-_.](\d{2})[-_.](\d{2})(?!\d)")
-NUMERIC_DATE = re.compile(r"(?<!\d)(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?!\d)")
-
-
 def parse_title_date(title: str) -> str | None:
     """Find the meeting date in an archive item title such as 'May 21, 2026 REVISED'
     or 'Affordable Housing Trust Minutes 3-9-2026'. Returns YYYY-MM-DD or None."""
-    m = MONTH_DATE.search(title)
-    if m:
-        month = m.group(1).capitalize()
-        for fmt in ("%B %d %Y", "%b %d %Y"):
-            try:
-                return datetime.strptime(f"{month} {m.group(2)} {m.group(3)}", fmt).date().isoformat()
-            except ValueError:
-                pass
-    m = ISO_DATE.search(title)
-    if m:
-        try:
-            return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3))).date().isoformat()
-        except ValueError:
-            return None
-    m = NUMERIC_DATE.search(title)
-    if m:
-        year = int(m.group(3))
-        year = year + 2000 if year < 100 else year
-        try:
-            return datetime(year, int(m.group(1)), int(m.group(2))).date().isoformat()
-        except ValueError:
-            return None
-    return None
+    day = dates.find_date(title)
+    return day.isoformat() if day else None
 
 
 def parse_archive_index(page: str, base_url: str) -> list[dict]:

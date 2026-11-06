@@ -248,7 +248,8 @@ NOW_OCTOBER = datetime(2026, 10, 6, 7, 0, tzinfo=ZoneInfo("America/New_York"))
     ("02 September 22, 2025 (Dingley Bldg)", "2025-09-22"),
     ("21 CANCELED MEETING 3/23/26", "2026-03-23"),
     ("03b 7-29-26 Minutes SD.pdf", "2026-07-29"),
-    ("06 LHS School Committee Report 9.21.26.pdf", None),
+    # With dots, as other readers' dates are (pipeline/dates.py).
+    ("06 LHS School Committee Minutes 9.21.26.pdf", "2026-09-21"),
     ("10a BDA.pdf", None),
 ])
 def test_dates_in_folder_and_file_names(name, day):
