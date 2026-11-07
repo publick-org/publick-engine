@@ -130,7 +130,7 @@ def test_street_lookup_offers_the_feeds(site_dir):
 
 def test_alerts_pages_and_privacy_for_a_town_with_alerts(site_dir):
     """[alerts] follow in the test town's config: the pages the form and its emails lead to, and the About page."""
-    for page in ("thanks", "problem", "confirm", "manage"):
+    for page in ("thanks", "problem", "confirm", "manage", "wrong"):
         html = (site_dir / "alerts" / page / "index.html").read_text()
         assert '<meta name="robots" content="noindex">' in html
     confirm = (site_dir / "alerts" / "confirm" / "index.html").read_text()

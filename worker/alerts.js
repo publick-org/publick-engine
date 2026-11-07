@@ -172,7 +172,9 @@ export function alertEmail(env, site, origin, email, items, manage, unsubscribe)
     const when = new Date(`${mention.date}T12:00:00Z`).toLocaleDateString("en-US", WHEN);
     const what = mention.kind === "agenda" ? `agenda for ${when}` : `minutes of ${when}`;
     const link = `${origin}${mention.url}?ref=alert-email`;
-    return { key, mention, what, link, name: label(key, mention) };
+    // A line that isn't about the address: its page (alerts.html) is counted, and leads to the corrections.
+    const wrong = `${origin}/alerts/wrong/?ref=alert-email`;
+    return { key, mention, what, link, wrong, name: label(key, mention) };
   });
   const names = [...new Set(lines.map((l) => l.name))];
   const subject = names.length === 1
@@ -180,11 +182,12 @@ export function alertEmail(env, site, origin, email, items, manage, unsubscribe)
     : `${names.length} addresses you follow came up`;
   const end = footer(env, manage);
   const text = `New on ${site}, for the addresses you follow:\n\n`
-    + lines.map((l) => `${l.name}\n${l.mention.board}, ${l.what}\n“${l.mention.line}”\n${l.link}`).join("\n\n")
+    + lines.map((l) => `${l.name}\n${l.mention.board}, ${l.what}\n“${l.mention.line}”\n${l.link}\nNot about this address? ${l.wrong}`).join("\n\n")
     + `\n\nLines are as the documents give them.\n\n${end.text}`;
   const html = `<p>New on ${escapeHtml(site)}, for the addresses you follow:</p>`
     + lines.map((l) => `<p><strong>${escapeHtml(l.name)}</strong><br>${escapeHtml(l.mention.board)}, `
-      + `<a href="${escapeHtml(l.link)}">${escapeHtml(l.what)}</a><br>“${escapeHtml(l.mention.line)}”</p>`).join("")
+      + `<a href="${escapeHtml(l.link)}">${escapeHtml(l.what)}</a><br>“${escapeHtml(l.mention.line)}”<br>`
+      + `<small><a href="${escapeHtml(l.wrong)}">Not about this address?</a></small></p>`).join("")
     + `<p style="font-size:13px;color:#545c65">Lines are as the documents give them.</p>${end.html}`;
   return { to: email, subject, text, html, unsubscribe };
 }

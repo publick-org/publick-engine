@@ -1900,8 +1900,9 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
     if english and common["alerts"]:
         # Where the follow form leads (worker/alerts.js), and the pages its emails link; not for search engines.
-        for page in ("thanks", "problem", "confirm", "manage"):
-            render("alerts.html", f"/alerts/{page}/", page=page)
+        for page in ("thanks", "problem", "confirm", "manage", "wrong"):
+            render("alerts.html", f"/alerts/{page}/", page=page,
+                   report=report_link(config["site"], base_url, "/alerts/wrong/", _("An address alert")))
     if documents and english:
         # "source": where the decision was read, the minutes or, until they're summarized, the meeting's recording.
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url",

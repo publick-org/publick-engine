@@ -2208,6 +2208,14 @@ msgstr ""
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
 
+#: pipeline/build_site.py
+msgid "An address alert"
+msgstr ""
+
+#: site/templates/alerts.html
+msgid "An alert that wasn't about the address"
+msgstr ""
+
 #: site/pages/data/index.html
 msgid "An identifier that doesn't change, and the meeting's page on this site."
 msgstr "Un identificador que no cambia, y la página de la reunión en este sitio."
@@ -7831,6 +7839,10 @@ msgstr "Pruebas"
 msgid "Text and controls meet contrast requirements."
 msgstr "El texto y los controles cumplen los requisitos de contraste."
 
+#: site/templates/alerts.html
+msgid "Thank you: this is counted, and helps find addresses in the documents more accurately."
+msgstr ""
+
 #: site/templates/digest_answer.html
 msgid "That didn't go through"
 msgstr "No se pudo completar"
@@ -8977,6 +8989,13 @@ msgstr ""
 #, python-format
 msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
 msgstr "El título cambió de “%(old)s” a “%(new)s”."
+
+#: site/templates/alerts.html
+#, python-format
+msgid ""
+"To say what was wrong, <a href=\"%(url)s\">send a correction</a>. The alerts' lines are found in "
+"the documents' own text, without AI."
+msgstr ""
 
 #: site/states/ct/budget.html site/states/nh/budget.html site/states/ri/budget.html
 #: site/states/vt/budget.html

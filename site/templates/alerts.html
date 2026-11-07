@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% from "macros.html" import contact %}
 {# Address alerts' pages (worker/alerts.js): where the street lookup's follow form leads ("thanks", "problem"), and the
-   pages its emails link: confirming a follow ("confirm") and a reader's own page of what they follow ("manage"). The
+   pages its emails link: confirming a follow ("confirm"), a reader's own page of what they follow ("manage"), and
+   where a line that wasn't about the address is counted ("wrong"). The
    last two read their token from the link, and post it with site/static/js/alerts.js. In English for now. #}
 {% set titles = {"thanks": _("Check your email to start your alert"), "problem": _("Your alert couldn't be set up"),
-                 "confirm": _("Confirm your alert"), "manage": _("Your address alerts")} %}
+                 "confirm": _("Confirm your alert"), "manage": _("Your address alerts"),
+                 "wrong": _("An alert that wasn't about the address")} %}
 {% block title %}{{ titles[page] }}{% endblock %}
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block content %}
@@ -19,6 +21,10 @@
   {% elif page == "problem" %}
   <p class="lede">{% trans max=25 %}The alert couldn't be set up just now. Check that the house number and your email address are written correctly, and try again. An address can follow at most {{ max }} addresses.{% endtrans %}</p>
   <p>{% trans contact=contact(site) %}If it keeps happening, {{ contact }}.{% endtrans %}</p>
+  {% elif page == "wrong" %}
+  {# Its visits are counted (an alert's line that wasn't about the address), as the page's own count. #}
+  <p class="lede">{{ _("Thank you: this is counted, and helps find addresses in the documents more accurately.") }}</p>
+  <p>{% trans url=report %}To say what was wrong, <a href="{{ url }}">send a correction</a>. The alerts' lines are found in the documents' own text, without AI.{% endtrans %}</p>
   {% elif page == "confirm" %}
   <p class="lede">{{ _("Confirm to get an email when a new agenda or minutes line names the address: at most one a day, and only when it comes up.") }}</p>
   {% endif %}

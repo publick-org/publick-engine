@@ -185,6 +185,7 @@ test("a send emails each reader once, with what they follow, and not again that 
   assert.match(one.TextBody, /62 Main Street\nPlanning Board, agenda for November 7, 2026\n“A site plan at 62 MAIN ST”\nhttps:\/\/salem-ma\.publick\.org\/meetings\/2026-11-05-planning-board\/\?ref=alert-email/);
   assert.match(one.TextBody, /7 High Street\nZoning Board, minutes of November 7, 2026/);
   assert.match(one.TextBody, /PO Box 1, Salem, MA/);
+  assert.match(one.TextBody, /Not about this address\? https:\/\/salem-ma\.publick\.org\/alerts\/wrong\/\?ref=alert-email/);
   assert.equal(byReader["two@example.org"].Subject, "62 Main Street: Planning Board");
   const unsubscribeHeader = one.Headers.find((h) => h.Name === "List-Unsubscribe").Value;
   assert.match(unsubscribeHeader, /^<https:\/\/salem-ma\.publick\.org\/alerts\/unsubscribe\?m=/);
