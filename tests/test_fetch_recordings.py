@@ -251,6 +251,32 @@ def test_a_transcribed_recording_published_again_keeps_its_transcript(config, da
     assert calls == ["fake-1"] and recordings.load(data_dir)["fake-1"]["transcript"]
 
 
+class FakeGemini(FakePlatform):
+    """A platform that makes its own transcripts, as YouTube's by Gemini: refused (HTTP 403) while refusing."""
+
+    def __init__(self, found):
+        super().__init__(found)
+        self.refusing = True
+
+    def transcript(self, client, source, recording, storage=None, today=None):
+        if self.refusing:
+            recording["refused_at"] = today.isoformat()
+            return None
+        return "[0:00:05] Call to order.\n", {"model": "a-model"}
+
+
+def test_videos_gemini_refuses_are_listed_and_the_day_kept_until_transcribed(config, data_dir, monkeypatch):
+    platform = FakeGemini([found("1", "City Council", "2026-10-27")])
+    use(monkeypatch, platform)
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: pytest.fail("Gemini, not Whisper"))
+    assert status["refused"] == ["fake-1"] and status["not_ready"] == [] and status["errors"] == []
+    assert recordings.load(data_dir)["fake-1"]["refused_at"] == "2026-10-29"
+    platform.refusing = False
+    status = fetch_recordings.run(config, None, data_dir, now=NOW, load_model=lambda: pytest.fail("Gemini, not Whisper"))
+    assert status["refused"] == [] and status["transcribed"] == ["fake-1"]
+    assert "refused_at" not in recordings.load(data_dir)["fake-1"]
+
+
 def test_find_only_transcribes_nothing(config, data_dir, monkeypatch):
     use(monkeypatch, FakePlatform([found("1", "City Council", "2026-10-27")]))
     status = fetch_recordings.run(config, None, data_dir, now=NOW, find_only=True,
@@ -364,7 +390,7 @@ class FakeTranscribingPlatform(FakePlatform):
     def media(self, client, source, recording):
         return None
 
-    def transcript(self, client, source, recording, storage=None):
+    def transcript(self, client, source, recording, storage=None, today=None):
         return ("[0:00:05] Made elsewhere.\n", {"model": "gemini-x", "usage": {"requests": 1}}) if self.ready else None
 
 

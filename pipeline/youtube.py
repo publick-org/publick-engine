@@ -37,6 +37,9 @@ robots), so:
   waits. One Gemini still can't open (HTTP 403) waits too, without a failed
   try, until PUBLIC_WAIT_DAYS after the meeting; after that, a 403 is a
   failed try, so a key that has lost its permission still shows as errors.
+  The day Gemini last refused it is kept (refused_at) until it's
+  transcribed: the network's daily alert names Gemini when it refuses
+  several towns' public videos and transcribes none (pipeline/network.py).
   A video published again (a new "published" time) gets its tries back
   (pipeline/fetch_recordings.py).
 
@@ -274,8 +277,11 @@ def transcript(client, source: dict, recording: dict, storage=None, post=request
     except gemini.Unavailable:
         return None
     except gemini.NotPublic:
-        # Public, by the Data API, but not to Gemini yet: it waits, a while, without a failed try.
-        if (today or date.today()) - date.fromisoformat(recording["date"]) <= timedelta(days=PUBLIC_WAIT_DAYS):
+        # Public, by the Data API, but not to Gemini yet: it waits, a while, without a failed try. The day is
+        # kept (refused_at), for the network's alert: many refused at once, and none answered, is the key.
+        today = today or date.today()
+        recording["refused_at"] = today.isoformat()
+        if today - date.fromisoformat(recording["date"]) <= timedelta(days=PUBLIC_WAIT_DAYS):
             return None
         raise
     return text, {"model": model}

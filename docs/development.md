@@ -119,7 +119,8 @@ pipeline/                   Python package
   common_strings.py         Boards, roles, seats, and summaries many towns share, translated once in site/strings/
   deploy.py                 Publishes a built site to the sites bucket, for the Worker to serve; rollback and prune
   network.py                Runs many towns from one repository (towns/<town>-<state>/): plan (the towns that are due),
-                            run a batch, report, behind (the daily alert), budget (the summary budget's shares),
+                            run a batch, report, behind (the daily alert, with a row for Gemini when it refuses many towns'
+                            public YouTube videos and transcribes none), budget (the summary budget's shares),
                             states (statewide sources), canaries (the towns an engine move checks on every page);
                             a fetching run writes each town's result to its data/run.json,
                             with a few counts for the network homepage (boards followed, meetings in the next 14 days)

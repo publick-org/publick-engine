@@ -163,7 +163,7 @@ def transcribe_one(config: dict, client, recording: dict, storage, model, user_a
     name = recording["id"]
     if hasattr(module, "transcript"):
         # A platform that makes its own (YouTube's, by Gemini).
-        made = module.transcript(client, source, recording, storage)
+        made = module.transcript(client, source, recording, storage, today=date.fromisoformat(stamp[:10]))
         if not made:
             return False
         words = made[0].encode("utf-8")
@@ -173,6 +173,7 @@ def transcribe_one(config: dict, client, recording: dict, storage, model, user_a
             "words": transcribe.word_count(made[0]), "seconds": recording.get("seconds"), "transcribed_at": stamp,
             **made[1]}
         recording.pop("error", None)
+        recording.pop("refused_at", None)
         return True
     media = module.media(client, source, recording)
     if not media:
@@ -212,7 +213,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, hours
 
     boards = main_boards(config)
     todo = [] if find_only else to_transcribe(store, meetings, since, lambda m: coverage.is_main(m, boards))
-    started, done, waiting, not_ready, errors = clock(), [], [], [], list(counts["errors"])
+    started, done, waiting, not_ready, refused, errors = clock(), [], [], [], [], list(counts["errors"])
     storage, model = open_documents(config, data_dir), None
     for recording in todo:
         if hours is not None and clock() - started + likely_seconds(recording) > hours * 3600:
@@ -228,12 +229,16 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, hours
             if transcribe_one(config, client, recording, storage, whisper, config["site"]["user_agent"], stamp,
                               transcriber):
                 done.append(recording["id"])
+            elif recording.get("refused_at") == today:
+                refused.append(recording["id"])
             else:
                 not_ready.append(recording["id"])
         except (FetchError, transcribe.TranscribeError) as e:
             recording["tries"] = recording.get("tries", 0) + 1
             recording["error"] = str(e)
             errors.append(f"{recording['id']} ({recording['board']} {recording['date']}): {e}")
+            if recording.get("refused_at") == today:
+                refused.append(recording["id"])
         recordings.save(data_dir, store)
 
     status = {
@@ -248,6 +253,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, hours
         "waiting": waiting,
         # Matched, but their platform has no audio for them yet (still processing the upload).
         "not_ready": not_ready,
+        # YouTube videos public by the Data API that Gemini refused (HTTP 403) this run (youtube.transcript).
+        "refused": refused,
         "requests": getattr(client, "request_count", None),
         "errors": errors,
     }
