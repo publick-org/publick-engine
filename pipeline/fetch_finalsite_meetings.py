@@ -258,6 +258,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "posts_listed": len(posts),
         "posts_read": len(batch),
         "posts_waiting": len(to_read) - len(batch),
+        # The newest meeting date of the posts left for a later run (pipeline/waiting.py).
+        "waiting_newest": to_read[len(batch)][1]["date"] if len(to_read) > len(batch) else None,
         "meetings_created": created,
         "scheduled_meetings_added": scheduled,
         "documents_added": counts["added"],

@@ -60,9 +60,13 @@ def has_minutes(meeting: dict) -> bool:
     return bool(meeting.get("minutes") or meeting.get("minutes_url"))
 
 
-def waiting(data_dir: Path) -> dict[str, int]:
-    """Each reader's meetings or documents waiting for a later run, by its status file's name."""
-    out = {}
+def waiting(data_dir: Path, since: str = "") -> tuple[dict[str, dict], dict[str, dict]]:
+    """Each reader's meetings or documents waiting for a later run, by its status file's name, with their unit
+    ("<unit>_waiting": meetings, documents, posts): those whose newest meeting ("waiting_newest",
+    pipeline/waiting.py) is on or after since, the report's window, and those older, apart. A reader that
+    doesn't give its newest is counted in the window. Older ones are a new town's first reading of its past
+    meetings, which shrinks every run: counted with the window's, they'd hide a reader that's stuck."""
+    window, older = {}, {}
     for path in sorted((data_dir / "meetings").glob("*status.json")):
         if path.name in NOT_DOCUMENTS:
             continue
@@ -70,11 +74,17 @@ def waiting(data_dir: Path) -> dict[str, int]:
             status = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        count = sum(v for k, v in status.items() if k.endswith("_waiting") and isinstance(v, int)
-                    and not isinstance(v, bool))
-        if count:
-            out[path.name.removesuffix(".json")] = count
-    return out
+        counted = [(k.removesuffix("_waiting"), v) for k, v in status.items()
+                   if k.endswith("_waiting") and isinstance(v, int) and not isinstance(v, bool) and v]
+        if not counted:
+            continue
+        unit, count = counted[0][0], sum(v for _, v in counted)
+        newest = status.get("waiting_newest")
+        if newest and newest < since:
+            older[path.name.removesuffix(".json")] = {"count": count, "unit": unit, "newest": newest}
+        else:
+            window[path.name.removesuffix(".json")] = {"count": count, "unit": unit}
+    return window, older
 
 
 def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
@@ -126,5 +136,5 @@ def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
         "no_documents": no_documents[:MAX_LISTED],
         "no_minutes": no_minutes[:MAX_LISTED],
         "pairs": pairs[:MAX_LISTED],
-        "waiting": waiting(data_dir),
+        **dict(zip(("waiting", "backlog"), waiting(data_dir, since))),
     }

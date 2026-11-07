@@ -60,6 +60,7 @@ from pipeline.fetch_finalsite_meetings import update_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, merge, save_json, save_store, slugify, unique_slug
 from pipeline.filelist import title_for
 from pipeline.http import FetchError, PoliteClient
+from pipeline.waiting import Waiting
 
 STATUS_FILE = "page_status.json"
 
@@ -216,7 +217,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         listed.add(meeting["id"])
 
     counts = {"added": 0, "changed": 0, "checked": 0}
-    limit, waiting = settings.get("max_documents_per_run", 60), 0
+    limit, waiting = settings.get("max_documents_per_run", 60), Waiting()
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
         if meeting.get("source") != linkpage.SOURCE or meeting["date"] < since:
             continue
@@ -224,9 +225,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if meeting["id"] not in listed and meeting["date"] >= today and meeting.get("listed", True):
             merge(meeting, {"listed": False}, stamp, track=True)
         if counts["added"] + counts["changed"] >= limit:
-            waiting += sum(1 for kind, field in (("agenda", "agendas"), ("minutes", "minutes"))
-                           if meeting.get(f"{kind}_url") and not meeting.get(field)
-                           and not (kind == "agenda" and meeting["status"] == "cancelled"))
+            waiting.add(meeting["date"], sum(1 for kind, field in (("agenda", "agendas"), ("minutes", "minutes"))
+                                             if meeting.get(f"{kind}_url") and not meeting.get(field)
+                                             and not (kind == "agenda" and meeting["status"] == "cancelled")))
             continue
         # Saved as posted by whoever posts its page ("the Manchester School District website").
         update_documents(client, meeting, storage, {**settings, "source_name": meeting.get("source_name") or settings["source_name"]},
@@ -241,7 +242,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "documents_added": counts["added"],
         "documents_changed": counts["changed"],
         "documents_rechecked": counts["checked"],
-        "documents_waiting": waiting,
+        **waiting.status("documents"),
         "requests": getattr(client, "request_count", None),
         # Entries with a document but no date, or no board: add the board to [page_meetings.bodies] if it's one.
         "unrecognized": sorted(set(unrecognized)),

@@ -144,9 +144,14 @@ def test_documents_limited_per_run(town, tmp_path):
     town["opengov_meetings"]["max_documents_per_run"] = 2
     status, store, _ = run(town, tmp_path)
     assert status["documents_added"] == 2 and status["meetings_waiting"] >= 1
+    # The newest meeting left for a later run: everything waiting is that day or older.
+    left = [m for m in store.values() if not m.get("page_checked") and m["status"] != "cancelled"]
+    assert status["waiting_newest"] == max(m["date"] for m in left)
     for _ in range(3):
         status, store, _ = run(town, tmp_path)
     assert sum(len(m.get("agendas", [])) + len(m.get("minutes", [])) for m in store.values()) == 6
+    # Every page read: one due only a check for changes isn't waiting for its documents.
+    assert status["meetings_waiting"] == 0 and status["waiting_newest"] is None
 
 
 def test_a_file_that_isnt_a_pdf(town, tmp_path):

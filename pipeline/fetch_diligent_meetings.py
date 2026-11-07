@@ -41,6 +41,7 @@ from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, merge, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
 from pipeline.filelist import title_for
 from pipeline.http import FetchError, PoliteClient
+from pipeline.waiting import Waiting
 
 STATUS_FILE = "diligent_status.json"
 POSTED_ON = "Diligent Community"
@@ -154,7 +155,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         listed.add(meeting["id"])
 
     errors, counts = [], {"added": 0, "changed": 0, "checked": 0}
-    limit, waiting = settings.get("max_documents_per_run", 60), 0
+    limit, waiting = settings.get("max_documents_per_run", 60), Waiting()
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
         if meeting.get("source") != diligent.SOURCE or meeting["date"] < since:
             continue
@@ -164,7 +165,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if meeting["id"] not in listed or not wants_documents(meeting, today, recent):
             continue
         if counts["added"] + counts["changed"] >= limit:
-            waiting += 1
+            waiting.add(meeting["date"])
             continue
         try:
             listing = json.loads(client.get(diligent.documents_url(settings, meeting["id"].split("-", 1)[1])).text)
@@ -195,7 +196,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "documents_added": counts["added"],
         "documents_changed": counts["changed"],
         "meetings_checked": counts["checked"],
-        "meetings_waiting": waiting,
+        **waiting.status("meetings"),
         "requests": getattr(client, "request_count", None),
         # Meetings with no board: add their name or type to [diligent_meetings.bodies] if they're a board's.
         "unrecognized": sorted(set(unrecognized)),

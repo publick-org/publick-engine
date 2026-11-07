@@ -772,6 +772,13 @@ GAPS = {
 }
 
 
+def waits(found: dict | None) -> list[tuple[int, str, str]]:
+    """A run record's readers waiting (document_gaps.waiting()), as (count, unit, reader): "290 meetings
+    (opengov)". A record from before units were kept gives counts alone, read as meetings."""
+    return [(w, "meetings", k.removesuffix("_status")) if isinstance(w, int)
+            else (w["count"], w["unit"], k.removesuffix("_status")) for k, w in (found or {}).items()]
+
+
 def documents_text(root: Path, at: datetime | None = None) -> str:
     """The network's recent meetings missing their agendas and minutes, from each town's run record
     (run.json, "documents"): how many boards and meetings each kind of gap has, and the towns with the
@@ -798,9 +805,14 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
         total = sum(g["counts"].get(key, 0) for _, g in counted)
         towns = sum(1 for _, g in counted if g["counts"].get(key))
         lines.append(f"| {label} | {total} | {towns} |")
-    behind = [(n, sum(g.get("waiting", {}).values())) for n, g in counted if g.get("waiting")]
+    behind = [(n, waits(g.get("waiting"))) for n, g in counted if g.get("waiting")]
     if behind:
-        lines.append(f"| Meetings waiting for their documents | {sum(w for _, w in behind)} | {len(behind)} |")
+        units: dict[str, int] = {}
+        for _, w in behind:
+            for count, unit, _reader in w:
+                units[unit] = units.get(unit, 0) + count
+        lines.append(f"| Waiting for their documents, in this window | "
+                     f"{', '.join(f'{c} {u}' for u, c in sorted(units.items()))} | {len(behind)} |")
 
     def score(g: dict) -> int:
         return g["counts"].get("no_documents", 0) * 3 + g["counts"].get("pairs", 0) * 2 + g["counts"].get("no_minutes", 0)
@@ -818,10 +830,15 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
                 some("no_documents", lambda b: f"{b['board']} ({b['meetings']})"),
                 some("pairs", lambda p: f"{p['date']} {p['board']} / {p['other']}"),
                 some("no_minutes", lambda b: f"{b['board']} ({b['meetings']})"),
-                ", ".join(f"{n} ({k.removesuffix('_status')})" for k, n in g.get("waiting", {}).items()),
+                ", ".join(f"{c} {u} ({r})" for c, u, r in waits(g.get("waiting"))),
             ]) + " |")
         if len(listed) > COVERAGE_TOWNS:
             lines.append(f"\nAnd {len(listed) - COVERAGE_TOWNS} more towns.")
+    older = [(n, waits(g["backlog"])) for n, g in counted if g.get("backlog")]
+    if older:
+        named = "; ".join(f"{n}, " + ", ".join(f"{c} {u} ({r})" for c, u, r in w) for n, w in older[:COVERAGE_TOWNS])
+        lines += ["", f"Still reading meetings older than the window, as a new town's first runs do: {named}"
+                  + (f"; and {len(older) - COVERAGE_TOWNS} more towns." if len(older) > COVERAGE_TOWNS else ".")]
     if uncounted:
         lines += ["", f"Not counted (no run record with a count from the last {COVERAGE_HOURS} hours): "
                   f"{len(uncounted)} towns" + (f": {', '.join(uncounted)}." if len(uncounted) <= 25 else ".")]

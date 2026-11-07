@@ -64,8 +64,19 @@ def test_each_kind_of_gap_is_found(data_dir):
     assert gaps["no_minutes"] == [{"board": "Licensing Board", "meetings": 2}]
     assert gaps["pairs"] == [{"date": "2026-10-16", "board": "Beverly Retirement Board",
                               "other": "Contributory Retirement Board"}]
-    assert gaps["waiting"] == {"opengov_status": 290}
+    assert gaps["waiting"] == {"opengov_status": {"count": 290, "unit": "meetings"}} and gaps["backlog"] == {}
     assert gaps["counts"] == {"no_documents": 1, "no_minutes": 1, "pairs": 1}
+
+
+def test_a_readers_backlog_older_than_the_window_is_counted_apart_by_its_unit(data_dir):
+    """Pawtucket's opengov and Manchester's page reader, set up with since = 2026-01-01, reading their first
+    months: what they leave is all older than the window, and shrinks every run."""
+    meetings = data_dir / "meetings"
+    (meetings / "opengov_status.json").write_text(json.dumps({"meetings_waiting": 198, "waiting_newest": "2026-06-30"}))
+    (meetings / "page_status.json").write_text(json.dumps({"documents_waiting": 94, "waiting_newest": "2026-10-20"}))
+    gaps = document_gaps.gaps(data_dir, "Beverly", TODAY)
+    assert gaps["waiting"] == {"page_status": {"count": 94, "unit": "documents"}}
+    assert gaps["backlog"] == {"opengov_status": {"count": 198, "unit": "meetings", "newest": "2026-06-30"}}
 
 
 def test_one_meeting_listed_twice_is_no_gap_once_it_is_listed_once(data_dir):
@@ -110,11 +121,25 @@ def test_the_network_report_adds_up_the_run_records(tmp_path, data_dir):
     assert f"in {towns} towns: **{gaps['held'] * towns}**" in text
     assert f"| Boards with no agenda or minutes | {towns - 1} | {towns - 1} |" in text
     assert f"| Meetings likely listed twice | {towns - 1} | {towns - 1} |" in text
-    assert f"| Meetings waiting for their documents | {290 * (towns - 1)} | {towns - 1} |" in text
+    assert f"| Waiting for their documents, in this window | {290 * (towns - 1)} meetings | {towns - 1} |" in text
     assert ("| town00-ma | Board of Water Commissioners (3) | 2026-10-16 Beverly Retirement Board / Contributory "
-            "Retirement Board | Licensing Board (2) | 290 (opengov) |") in text
+            "Retirement Board | Licensing Board (2) | 290 meetings (opengov) |") in text
     # The report's length doesn't grow with the network, and a town with nothing to look at isn't listed.
     assert text.count("| town") == network.COVERAGE_TOWNS
     assert "And 2 more towns." in text
     assert "clean-ma" not in text
     assert "Not counted (no run record with a count from the last 48 hours): 1 towns: stale-ma." in text
+    assert "Still reading meetings older than the window" not in text
+
+
+def test_the_report_labels_units_counts_a_backlog_apart_and_reads_older_records(tmp_path, data_dir):
+    gaps = document_gaps.gaps(data_dir, "Beverly", TODAY)
+    run_record(tmp_path / "net", "pawtucket-ri", {**gaps, "waiting": {},
+               "backlog": {"opengov_status": {"count": 198, "unit": "meetings", "newest": "2026-06-30"}}})
+    run_record(tmp_path / "net", "manchester-nh", {**gaps, "waiting": {"page_status": {"count": 94, "unit": "documents"}}})
+    # A run record from before units were kept: its count read as meetings.
+    run_record(tmp_path / "net", "lowell-ma", {**gaps, "waiting": {"opengov_status": 12}})
+    text = network.documents_text(tmp_path / "net", at=datetime(2026, 11, 2, 13, tzinfo=timezone.utc))
+    assert "| Waiting for their documents, in this window | 94 documents, 12 meetings | 2 |" in text
+    assert "| 94 documents (page) |" in text and "| 12 meetings (opengov) |" in text
+    assert "Still reading meetings older than the window, as a new town's first runs do: pawtucket-ri, 198 meetings (opengov)." in text
