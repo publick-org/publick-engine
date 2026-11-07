@@ -203,6 +203,13 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.fetch_permits --town "$TOWN"
 
+      # Each body's members looked for on its own page, weekly: a member the page doesn't name is a lead
+      # for a person (pipeline/check_officials.py). It never changes the list.
+      - name: Check officials
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.check_officials --town "$TOWN"
+
       # With a [storage] table: move PDFs still saved in data/meetings to the bucket.
       # Does nothing for a town without one.
       - name: Move saved documents to storage

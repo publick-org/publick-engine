@@ -99,6 +99,8 @@ SOURCES = [
     # new year, or the ward file changes; a town without ward seats skips it.
     Source("Fetch address ranges", "pipeline.fetch_addresses", "figures", table="officials"),
     Source("Fetch building permits", "pipeline.fetch_permits", "figures", table="permits"),
+    # Each body's members looked for on its own page, weekly: what doesn't match goes to the network's issue.
+    Source("Check officials", "pipeline.check_officials", "meetings", table="officials"),
     Source("Move saved documents to storage", "pipeline.documents", "meetings", args=("upload",), secrets=STORAGE),
     Source("Fetch 311 requests", "pipeline.fetch_311", "311", secrets=STORAGE, table="seeclickfix"),
     # A town's 311 requests from its Socrata open data portal, instead of SeeClickFix.

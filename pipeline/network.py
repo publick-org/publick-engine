@@ -412,6 +412,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["fact_checks"] = fact_checks(town_dir / "data")
         result["recordings"] = recording_coverage(root, name)
         result["documents"] = document_coverage(root, name)
+        result["officials"] = officials_leads(town_dir / "data")
         write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
         republished(town_dir / "data" / RUN_RECORD, result)
@@ -487,6 +488,17 @@ def document_coverage(root: Path, name: str) -> dict | None:
     except Exception as e:  # a count for the report; never a reason for the town's run to fail
         print(f"::warning::{name}: documents coverage not counted: {e}")
         return None
+
+
+def officials_leads(data: Path) -> dict | None:
+    """The town's officials to look at, from its last weekly check (pipeline/check_officials.py), for the
+    network's report (officials_text()), which reads only run records. None before its first check."""
+    from pipeline import check_officials
+    path = data / check_officials.RESULT_FILE
+    if not path.exists():
+        return None
+    checked = json.loads(path.read_text(encoding="utf-8"))
+    return {"checked_at": checked["checked_at"], "leads": check_officials.leads(checked)}
 
 
 def fact_checks(data: Path) -> dict:
@@ -770,6 +782,40 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
     return "\n".join(lines) + "\n"
 
 
+def officials_text(root: Path) -> str:
+    """The network's officials lists to look at, from each town's run record (run.json, "officials"): a
+    member the body's own page doesn't name, a page that names none of its members, or one that couldn't
+    be read. Empty when there's nothing to look at, and the issue is closed. Its length doesn't grow with
+    the network: COVERAGE_TOWNS towns are named, and the rest counted."""
+    listed, unchecked = [], []
+    for name in town_dirs(root):
+        path = root / TOWNS / name / "data" / RUN_RECORD
+        checked = (json.loads(path.read_text()) if path.exists() else {}).get("officials")
+        if not checked:
+            unchecked.append(name)
+        elif checked["leads"]:
+            listed.append((name, checked))
+    if not listed:
+        return ""
+    lines = [f"{len(listed)} of the network's towns have officials to look at. Each body's members, as the "
+             "town's config lists them, are looked for weekly on the body's own page (its `url`). A member the "
+             "page doesn't name may have left, or be named another way there; a page that names none of the "
+             "members probably doesn't list them, and a better `url` for the body fixes that. Nothing is changed "
+             "by itself: once the list or the `url` is fixed, the town's next run checks it again.", "",
+             "| Town | Body | Not named on its page | Page | Checked |", "|---|---|---|---|---|"]
+    for name, checked in listed[:COVERAGE_TOWNS]:
+        for lead in checked["leads"]:
+            what = (f"(couldn't be read: {lead['error']})" if "error" in lead
+                    else "(names none of its members)" if lead.get("none")
+                    else ", ".join(lead["missing"][:5]) + (f", and {len(lead['missing']) - 5} more" if len(lead["missing"]) > 5 else ""))
+            lines.append(f"| {name} | {lead['name']} | {what} | [page]({lead['url']}) | {checked['checked_at'][:10]} |")
+    if len(listed) > COVERAGE_TOWNS:
+        lines.append(f"\nAnd {len(listed) - COVERAGE_TOWNS} more towns.")
+    if unchecked:
+        lines += ["", f"Not checked yet: {len(unchecked)} towns" + (f": {', '.join(unchecked)}." if len(unchecked) <= 25 else ".")]
+    return "\n".join(lines) + "\n"
+
+
 def newly_behind_text(rows: list[dict], previous: str) -> str:
     """A comment for the daily alert naming the towns that aren't in its table yet (previous is the
     issue's text before this run): an edit to the issue sends no email, a comment does. Nothing
@@ -956,6 +1002,9 @@ def main() -> int:
     dc = sub.add_parser("documents", help="the last 90 days' meetings missing their agendas and minutes, from the "
                                           "run records")
     dc.add_argument("--root", type=Path, default=Path.cwd())
+    oc = sub.add_parser("officials", help="the officials lists whose members their bodies' own pages don't all name, "
+                                          "from the run records")
+    oc.add_argument("--root", type=Path, default=Path.cwd())
     st = sub.add_parser("states")
     st.add_argument("--root", type=Path, default=Path.cwd())
     m = sub.add_parser("budget")
@@ -1011,6 +1060,9 @@ def main() -> int:
         return 0
     if args.command == "documents":
         print(documents_text(args.root.resolve()), end="")
+        return 0
+    if args.command == "officials":
+        print(officials_text(args.root.resolve()), end="")
         return 0
     if args.command == "states":
         print(json.dumps(refresh_states(args.root.resolve()), indent=2))
