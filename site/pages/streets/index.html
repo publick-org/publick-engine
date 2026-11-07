@@ -12,13 +12,13 @@
 </div>
 
 <form class="search-form" role="search" action="/streets/" method="get">
-  <label for="street-q">{{ _("Street name") }}</label>
+  <label for="street-q">{{ _("Street or address") }}</label>
   <div class="search-row">
     <input id="street-q" name="q" type="search" list="street-names" autocomplete="off" spellcheck="false" aria-describedby="street-hint">
     <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
   </div>
   {# Translators: %(example)s is a street's name. #}
-  <p class="small" id="street-hint">{% if street_example %}{% trans example=street_example %}Enter the street, not a full address, such as "{{ example }}".{% endtrans %}{% else %}{{ _("Enter the street, not a full address.") }}{% endif %} {{ _("Short forms like St and Ave work too.") }}</p>
+  <p class="small" id="street-hint">{% if street_example %}{% trans example=street_example %}A street or an address, such as "{{ example }}".{% endtrans %}{% else %}{{ _("A street or an address.") }}{% endif %}</p>
   <datalist id="street-names"></datalist>
 </form>
 
@@ -38,10 +38,8 @@
   "mentions_one": ngettext("{n} agenda and minutes mention", "{n} agenda and minutes mentions", 1),
   "mentions_other": ngettext("{n} agenda and minutes mention", "{n} agenda and minutes mentions", 2),
   "meetings_head": _("On agendas and minutes"),
-  "follow_head": _("Follow it"),
-  "follow_street": _("Each new agenda or minutes line naming {street}"),
-  "follow_one": _("Or one address:"),
-  "follow_note": _("These are feeds: add one to a feed reader to see each new mention. A line the same board has listed before isn't repeated."),
+  "follow_feeds": _("Feeds:"),
+  "whole_street": _("All of {street}"),
 }) %}
 {% endif %}
 {% if config.permits is defined %}
@@ -65,12 +63,13 @@
    in every language. #}
 {% if alerts %}
 {% set ignored = strings.update({
-  "follow_email_head": _("Or get an email"),
-  "follow_number": _("House number on {street}"),
-  "follow_email": _("Your email address"),
+  "follow_label": _("Email me when {address} is on an agenda"),
+  "follow_placeholder": _("Email address"),
   "follow_button": _("Email me"),
   "follow_trap": _("Leave this empty"),
-  "follow_email_note": _("We'll email you to confirm. Then, at most one email a day, only when a new agenda or minutes line names the address. You can stop at any time."),
+  "follow_note": _("At most once a day."),
+  "follow_privacy": _("What's kept"),
+  "follow_ask": _("To get emails about one address, look it up:"),
 }) %}
 {% endif %}
 {# A street's ward, from the Officials page's address box, for a town that has it. #}
