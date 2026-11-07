@@ -504,6 +504,35 @@ def test_counted_and_summarized_once(tmp_path):
     assert [d["sha256"] for _, _, d in pending] == ["b" * 64]
 
 
+def save_store(data_dir, store):
+    (data_dir / "meetings").mkdir()
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+
+
+def test_an_agenda_posted_again_as_the_minutes_is_the_agenda(tmp_path):
+    """Lowell's Agenda Center gave its Board of Parks agenda of 2026-10-28 as the meeting's minutes too: the
+    meeting has no minutes yet, and the file is summarized once, as its agenda. Its real minutes come in as
+    any do."""
+    doc = lambda sha: {"sha256": sha * 64, "fetched_at": "2026-10-29T07:00:00", "file": f"{sha}.pdf", "bytes": 1}
+    store = store_of(record("agendacenter-4077", source="agendacenter", date="2026-10-28",
+                            agendas=[doc("a")], minutes=[doc("a")]))
+    assert listings.combined(store)[0]["agendacenter-4077"]["minutes"] == []
+    save_store(tmp_path, store)
+    assert [(k, d["sha256"]) for k, _, d in summarize.pending_documents(tmp_path, "2026-11-06", "a-model")] == [("agenda", "a" * 64)]
+
+    store["agendacenter-4077"]["minutes"].append(doc("b"))
+    assert [d["sha256"] for d in listings.combined(store)[0]["agendacenter-4077"]["minutes"]] == ["b" * 64]
+
+
+def test_a_file_one_meeting_has_as_its_agenda_and_another_as_its_minutes_is_summarized_once(tmp_path):
+    """A summary is saved by its file's hash: made as an agenda and as minutes, each would replace the other
+    every run. It's made as the agenda."""
+    doc = {"sha256": "a" * 64, "fetched_at": "2026-10-29T07:00:00", "file": "a.pdf", "bytes": 1}
+    save_store(tmp_path, store_of(record("1", date="2026-10-28", minutes=[doc]),
+                                  record("2", body="Conservation Commission", date="2026-11-04", agendas=[doc])))
+    assert [(k, m["id"]) for k, m, _ in summarize.pending_documents(tmp_path, "2026-11-06", "a-model")] == [("agenda", "2")]
+
+
 @pytest.mark.parametrize("name, expected", [
     ("Open Space and Recreation Committee", "Open Space & Recreation Committee"),
     ("Malden Cultural Council", "Cultural Council"),

@@ -487,18 +487,25 @@ def pending_documents(data_dir: Path, today: str, model: str, since: str | None 
     first), then agendas for past meetings."""
     # A meeting listed in more than one place is summarized once, from its current agenda.
     store, _ = listings.read(data_dir)
+    # Older meetings keep their records and documents, without a summary.
+    meetings = [m for m in store.values() if not since or m["date"] >= since]
+    # One file, one summary: a summary is saved by its file's hash, so a file one meeting has as its agenda
+    # and another as its minutes would be made as each kind in turn, every run. It's made as the first kind
+    # (DOCUMENT_FIELDS) any meeting has it as.
+    first = {}
+    for kind, field in DOCUMENT_FIELDS:
+        for meeting in meetings:
+            if meeting.get(field):
+                first.setdefault(meeting[field][-1]["sha256"], kind)
     todo, seen = [], set()
-    for meeting in store.values():
-        # Older meetings keep their records and documents, without a summary.
-        if since and meeting["date"] < since:
-            continue
+    for meeting in meetings:
         for kind, field in DOCUMENT_FIELDS:
             # A recording is summarized only until the minutes come.
             if not meeting.get(field) or (kind == "recording" and meeting.get("minutes")):
                 continue
             doc = meeting[field][-1]
             # Several meetings can share one document; process it once.
-            if (doc["sha256"] in seen or too_large(doc) or too_long(data_dir, doc)
+            if (doc["sha256"] in seen or first[doc["sha256"]] != kind or too_large(doc) or too_long(data_dir, doc)
                     or summary_gave_up(data_dir, doc, kind, model)):
                 continue
             record = cached(data_dir, doc["sha256"], kind)
