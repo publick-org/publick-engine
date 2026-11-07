@@ -1225,3 +1225,20 @@ def test_fonts_are_linked_by_content_version(site_dir):
     home = (site_dir / "index.html").read_text()
     assert re.search(r'<link rel="preload" href="/static/fonts/public-sans-400\.woff2\?v=[0-9a-f]{10}" as="font"', home)
     assert '/static/fonts/public-sans-400.woff2"' not in home
+
+
+def test_about_page_for_a_calendar_without_an_archive_center(tmp_path, monkeypatch):
+    """A CivicPlus town whose meetings come from its calendar alone ([meetings] without [archive]) builds, and its
+    About page names the calendar as the meetings' source, not an Archive Center it doesn't read."""
+    from conftest import BUILT_AT
+    from pipeline.config import load_config
+    town = load_config("gloucester")
+    town["sections"] = [s for s in town["sections"] if s["slug"] in ("meetings", "about")]
+    for table in ("archive", "drive_meetings", "seeclickfix", "permits", "finance", "schools", "housing", "labor",
+                  "freshness", "storage", "officials"):
+        town.pop(table, None)
+    monkeypatch.setattr(build_site, "load_config", lambda slug: town)
+    build_site.build("gloucester", tmp_path / "site", data_dir=tmp_path / "data", now=BUILT_AT)
+    about = (tmp_path / "site" / "about" / "index.html").read_text()
+    assert "<strong>Meetings:</strong> the city's" in about
+    assert "Archive Center" not in about
