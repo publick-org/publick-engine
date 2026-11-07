@@ -9,8 +9,9 @@ transcript as any recording's is (pipeline/summarize.py).
 A meeting runs for hours, and its transcript is longer than one response can
 be, so the video is asked for CLIP_SECONDS at a time (the request's
 start_offset and end_offset, in seconds), each part's paragraphs with their
-time in the video. The offsets are strings of seconds ("1200s"), as the API
-takes them. The picture isn't needed: it's sampled as rarely as the API
+time in the video, and a last part shorter than MIN_LAST_PART is asked for
+with the one before it, since the API refuses a part with no frame in it. The
+offsets are strings of seconds ("1200s"), as the API takes them. The picture isn't needed: it's sampled as rarely as the API
 allows (FPS). The model thinks as little as it can (THINKING): its thoughts
 add nothing to a transcript, and at the model's default level it has
 answered a part full of speech with nothing.
@@ -55,6 +56,10 @@ API = "https://generativelanguage.googleapis.com/v1beta/interactions"
 KEY_ENV = "GEMINI_API_KEY"
 MODEL = "gemini-3.8-flash"
 CLIP_SECONDS = 20 * 60
+# A video's last part shorter than this is asked for with the part before it. The API refuses a part with no frame
+# in it (HTTP 400, "Request contains an invalid argument"): Lowell's Conservation Commission of 2026-10-28, 40:01
+# long, was asked for 0:40:00 to 0:40:01 and refused every time. A minute is several frames (FPS).
+MIN_LAST_PART = 60
 # Frames a second of the picture: as few as can be asked for, since only what's said is wanted.
 FPS = 0.1
 # The lowest level gemini-3.8-flash offers ("minimal" isn't, for it).
@@ -214,6 +219,15 @@ def piece(post, video_id: str, start: int, end: int, title: str, date: str, key:
     return [f"[{stamp(t)}] {words}" for t, words in paragraphs(text, start, end)]
 
 
+def parts(start: int, seconds: int, clip: int = CLIP_SECONDS) -> list[tuple[int, int]]:
+    """The video's parts, from start to its end, clip seconds each, a last one shorter than MIN_LAST_PART
+    joined to the one before: (0, 1200), (1200, 2401) for a video of 40:01."""
+    out = [(at, min(at + clip, seconds)) for at in range(start, seconds, clip)]
+    if len(out) > 1 and out[-1][1] - out[-1][0] < MIN_LAST_PART:
+        out[-2:] = [(out[-2][0], seconds)]
+    return out
+
+
 def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: str, model: str = MODEL,
                clip: int = CLIP_SECONDS, sleep=time.sleep, done: dict | None = None,
                keep=lambda done: None, start: int = 0) -> tuple[str, dict]:
@@ -230,11 +244,10 @@ def transcribe(post, video_id: str, seconds: int, title: str, date: str, key: st
         done = {"model": model, "clip": clip, "parts": {}}
     done.pop("usage", None)
     usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0}
-    for start in range(start, seconds, clip):
+    for start, end in parts(start, seconds, clip):
         # A part kept with a gap is asked for again: the filters, or FALLBACK, may let it through now.
         if str(start) in done["parts"] and not any(line.endswith(GAP) for line in done["parts"][str(start)]):
             continue
-        end = min(start + clip, seconds)
         done["parts"][str(start)] = piece(post, video_id, start, end, title, date, key, model, sleep, usage)
         keep(done)
     lines = [line for start in sorted(done["parts"], key=int) for line in done["parts"][start]]
