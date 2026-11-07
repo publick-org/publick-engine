@@ -52,6 +52,20 @@ RECENT_DAYS = 30
 KINDS = ("agenda", "minutes")
 
 
+def alerts(config: dict) -> dict | None:
+    """The address alerts' settings ([alerts] in the town's config), or None when they're off: follow = true
+    puts a form on the street lookup to be emailed when an address comes up (worker/alerts.js sends them),
+    with the email service's name (provider) and privacy policy (privacy_url) for the About page."""
+    settings = config.get("alerts", {})
+    if not settings.get("follow"):
+        return None
+    missing = [key for key in ("provider", "privacy_url") if not settings.get(key)]
+    if missing:
+        raise SystemExit(f"[alerts] follow in config/{config.get('slug', 'the town')}.toml needs {' and '.join(missing)}: "
+                         "the service that sends the emails, and its privacy policy, for the About page.")
+    return {"provider": settings["provider"], "privacy_url": settings["privacy_url"]}
+
+
 def clip(text: str, limit: int = LINE_CHARS) -> str:
     """Shorten to a whole word within limit characters."""
     text = " ".join(text.split())
@@ -254,12 +268,15 @@ def write_feeds(site: Path | None, found: list[dict], config: dict, base_url: st
     return out
 
 
-def recent(found: list[dict], built_at: datetime, days: int = RECENT_DAYS) -> dict:
-    """The new mentions posted in the last days, newest first, for /streets/mentions.json: each with its
-    addresses ('62 MAIN ST') or, with no house number, its streets, its board and document, its meeting
-    and when the document was posted, and its line."""
+def recent(found: list[dict], built_at: datetime, days: int = RECENT_DAYS, site: str = "") -> dict:
+    """The new mentions posted in the last days, newest first, for /streets/mentions.json, with the site's
+    name: each with its addresses ('62 MAIN ST') and their names ('62 Main Street') or, with no house
+    number, its streets, its board and document, its meeting and when the document was posted, and its
+    line."""
     since = (built_at - timedelta(days=days)).isoformat()
-    items = [{"addresses": [address_key(n, s) for s, n in x["new"]], "streets": x["street_new"], "board": x["body_en"], "kind": x["kind"],
+    items = [{"addresses": [address_key(n, s) for s, n in x["new"]],
+              "names": [f"{n} {streets_mod.street_name(s)}" for s, n in x["new"]],
+              "streets": x["street_new"], "board": x["body_en"], "kind": x["kind"],
               "date": x["date"], "url": x["url"], "posted": x["posted"], "address": x["address"], "line": x["line"]}
              for x in found if (x["new"] or x["street_new"]) and x["posted"] >= since]
-    return {"format": 1, "days": days, "mentions": sorted(items, key=lambda i: i["posted"], reverse=True)}
+    return {"format": 1, "site": site, "days": days, "mentions": sorted(items, key=lambda i: i["posted"], reverse=True)}

@@ -76,7 +76,7 @@ const SENT_KEEP_DAYS = 120;
 const NO_TAG_RECHECK_HOURS = 24;
 // Pages of Buttondown's tags read before the run fails rather than miss a town's tag: 100 a page.
 const TAG_PAGES = 100;
-const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
+export const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()",;:]+\.[^\s@<>()",;:]+$/;
 
 function buttondown(key, path, init = {}) {
   return fetch(path.startsWith("https://") ? path : `${API}${path}`, {

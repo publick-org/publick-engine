@@ -19,8 +19,10 @@
 // cookie, over the browser's, for the homepage. Every other address is served
 // as asked, so a shared link opens in the language it was shared in.
 //
-// The one address that takes a POST is the weekly digest's signup form's
-// (digest.js), on a site whose digest has a signup (its digest/thanks/ page).
+// The addresses that take a POST are the weekly digest's signup form's
+// (digest.js), on a site whose digest has a signup (its digest/thanks/ page),
+// and the address alerts' (alerts.js), on a site with alerts (its alerts/thanks/
+// page) and the alerts' database.
 //
 // Under load: each file's content (a blob, named by its hash, so it never
 // changes) is kept in the data center's cache (the Cache API) after its first
@@ -30,6 +32,7 @@
 // plain "try again shortly" (503), never Cloudflare's error page.
 
 import { SIGNUP_PATH, subscribe } from "./digest.js";
+import { PATHS as ALERTS_PATHS, route as alerts } from "./alerts.js";
 
 export const FORMAT = 1;
 // How long a Worker instance reuses a site's manifest before reading it again.
@@ -299,6 +302,10 @@ async function route(request, env, ctx) {
   if (request.method === "POST" && url.pathname === SIGNUP_PATH) {
     const manifest = await loadManifest(env, url.hostname.toLowerCase());
     if (manifest && manifest.files["digest/thanks/index.html"]) return subscribe(request, env, url, manifest);
+  }
+  if (request.method === "POST" && ALERTS_PATHS.includes(url.pathname)) {
+    const answer = await alerts(request, env, url, await loadManifest(env, url.hostname.toLowerCase()), ctx);
+    if (answer) return answer;
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
     return plain("Method not allowed", 405, { Allow: "GET, HEAD" });

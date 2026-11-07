@@ -76,7 +76,7 @@ NETWORK_ENV = "PUBLICK_NETWORK_DIR"
 LAYERS = "defaults"
 
 # Every table a town's config may have (the table of them in docs/configuration.md).
-TABLES = {"site", "town", "sections", "analytics", "digest", "meetings", "archive", "schedule_meetings", "ical_meetings",
+TABLES = {"site", "town", "sections", "analytics", "digest", "alerts", "meetings", "archive", "schedule_meetings", "ical_meetings",
           "finalsite_meetings", "drive_meetings", "page_meetings", "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
           "sharpschool_meetings", "boardbook_meetings", "recordings", "seeclickfix", "socrata_311",
           "storage", "summaries", "participation", "glossary", "terms", "schools", "finance", "housing", "labor",
@@ -107,6 +107,7 @@ LAYER_KEYS = {
                   "translation_review_output_price": NUMBER, "translation_review_effort": EFFORT},
     "freshness": {"summary_grace_days": NUMBER, "grace_months": NUMBER},
     "digest": {"signup": bool, "provider": str, "privacy_url": str},
+    "alerts": {"provider": str, "privacy_url": str},
     "seeclickfix": {"open311_base": str, "api_base": str, "request_delay": NUMBER, "recent_days": int,
                     "max_details_per_run": int, "time_budget_seconds": NUMBER, "catch_up_requests": int,
                     "listing_delay": NUMBER, "listing_refused_hours": NUMBER,

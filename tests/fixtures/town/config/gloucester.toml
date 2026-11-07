@@ -97,6 +97,12 @@ signup = true
 provider = "Buttondown"
 privacy_url = "https://buttondown.com/legal/privacy"
 
+[alerts]
+follow = true
+provider = "Postmark"
+privacy_url = "https://postmarkapp.com/privacy-policy"
+
+
 # Public meetings, from the city's CivicPlus calendar.
 [meetings]
 base_url = "https://www.gloucester-ma.gov"

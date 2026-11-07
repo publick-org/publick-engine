@@ -45,7 +45,7 @@ def page(site: Path, url: str) -> str:
 
 
 def test_every_page_in_both_languages(built, site_dir):
-    """Every page but the weekly digest's, which is in English for now (pipeline/digest.py), except the pages
+    """Every page but the weekly digest's and the address alerts', which are in English for now, except the pages
     its signup form leads to, as the form is on every language's pages."""
     out, urls, _ = built
     english = sorted(p.relative_to(site_dir) for p in site_dir.rglob("*.html"))
@@ -53,7 +53,7 @@ def test_every_page_in_both_languages(built, site_dir):
     answers = {("digest", "thanks", "index.html"), ("digest", "problem", "index.html")}
     for rel in english:
         assert (out / rel).exists(), rel
-        assert (out / "es" / rel).exists() == (rel.parts[0] != "digest" or rel.parts in answers), f"es/{rel}"
+        assert (out / "es" / rel).exists() == (rel.parts[0] not in build_site.ENGLISH_ONLY_FOLDERS or rel.parts in answers), f"es/{rel}"
     digest = page(out, "/digest/")
     assert "hreflang" not in digest and "language-switch" not in digest
     assert 'href="/digest/"' in page(out, "/") and "/es/digest/" not in page(out, "/es/")

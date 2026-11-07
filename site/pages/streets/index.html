@@ -61,12 +61,24 @@
   "closed": pgettext("311 request", "Closed"),
 }) %}
 {% endif %}
+{# Address alerts' follow form (worker/alerts.js), on the English pages for now (data-follow, below); its wording
+   in every language. #}
+{% if alerts %}
+{% set ignored = strings.update({
+  "follow_email_head": _("Or get an email"),
+  "follow_number": _("House number on {street}"),
+  "follow_email": _("Your email address"),
+  "follow_button": _("Email me"),
+  "follow_trap": _("Leave this empty"),
+  "follow_email_note": _("We'll email you to confirm. Then, at most one email a day, only when a new agenda or minutes line names the address. You can stop at any time."),
+}) %}
+{% endif %}
 {# A street's ward, from the Officials page's address box, for a town that has it. #}
 {% if addresses %}
 {# Translators: a link under a street's results, to the page that finds its ward or district; keep {street} as it is. #}
 {% set ignored = strings.update({"ward_link": _("Which district is {street} in?") if areas == "districts" else _("Which ward is {street} in?")}) %}
 {% endif %}
-<div id="street" data-index="{{ streets_url }}"{% if addresses %} data-ward-page="{{ addresses.page }}"{% endif %} data-strings='{{ strings | tojson }}' data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
+<div id="street" data-index="{{ streets_url }}"{% if alerts and lang == "en" %} data-follow="/alerts/follow"{% endif %}{% if addresses %} data-ward-page="{{ addresses.page }}"{% endif %} data-strings='{{ strings | tojson }}' data-sources="{{ ((["meetings"] if config.meetings is defined and meeting_links.documents else []) + (["permits"] if config.permits is defined else []) + (["requests"] if config.seeclickfix is defined else [])) | join(" ") }}">
   <p id="street-status" role="status" aria-live="polite"></p>
   <div id="street-results"></div>
 </div>

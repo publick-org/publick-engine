@@ -119,9 +119,33 @@ def test_recent_new_mentions():
     assert recent["format"] == 1 and recent["days"] == 25
     # Newest first; the carried-over agenda isn't new, and the 1st is past the 25 days.
     assert [(m["board"], m["addresses"]) for m in recent["mentions"]] == [("Planning Board", ["7 HIGH ST"])]
+    assert recent["mentions"][0]["names"] == ["7 High Street"]
     assert json.loads(json.dumps(recent)) == recent
 
 
 def test_street_lookup_offers_the_feeds(site_dir):
     page = (site_dir / "streets" / "index.html").read_text()
     assert "follow_head" in page and "/static/js/streets.js?v=" in page
+
+
+def test_alerts_pages_and_privacy_for_a_town_with_alerts(site_dir):
+    """[alerts] follow in the test town's config: the pages the form and its emails lead to, and the About page."""
+    for page in ("thanks", "problem", "confirm", "manage"):
+        html = (site_dir / "alerts" / page / "index.html").read_text()
+        assert '<meta name="robots" content="noindex">' in html
+    confirm = (site_dir / "alerts" / "confirm" / "index.html").read_text()
+    assert 'action="/alerts/confirm"' in confirm and "/static/js/alerts.js?v=" in confirm
+    # In English for now: no Spanish alerts pages, and the follow form only on the English street lookup.
+    assert not (site_dir / "es" / "alerts").exists()
+    assert 'data-follow="/alerts/follow"' in (site_dir / "streets" / "index.html").read_text()
+    about = (site_dir / "about" / "index.html").read_text()
+    assert "Another exception is an email alert for an address" in about and "https://postmarkapp.com/privacy-policy" in about
+
+
+def test_alerts_need_their_email_service():
+    import pytest
+    assert mentions.alerts({}) is None and mentions.alerts({"alerts": {"follow": False}}) is None
+    with pytest.raises(SystemExit, match="provider and privacy_url"):
+        mentions.alerts({"slug": "salem", "alerts": {"follow": True}})
+    assert mentions.alerts({"alerts": {"follow": True, "provider": "Postmark", "privacy_url": "https://p.example"}}) == {
+        "provider": "Postmark", "privacy_url": "https://p.example"}
