@@ -25,9 +25,10 @@ import argparse
 import copy
 import json
 import re
+from datetime import date
 from pathlib import Path
 
-from pipeline import identity, recordings
+from pipeline import dates, identity, recordings
 
 # Listings that give a meeting's time and place, before ones that give only its documents.
 DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "boardbook", "opengov", "meetingdocs", "sharpschool", "archive")
@@ -152,19 +153,41 @@ def combined(store: dict, listing_of=lambda m: m.get("source", "calendar"), ledg
         m.update(slug=meeting["id"], addresses=meeting["addresses"], unplaced=meeting["unplaced"], body=meeting["body"],
                  body_names=meeting["body_names"])
         if m.get("minutes"):
-            m["minutes"] = not_agendas(m)
+            m["minutes"] = its_minutes(m)
         out[records[0]["id"]] = m
     return out, moved
 
 
-def not_agendas(meeting: dict) -> list[dict]:
-    """The meeting's minutes, less any file it also has as an agenda. A city can post the agenda again
-    where the minutes go (Lowell's Agenda Center did for its Board of Parks, 2026-10-28): that file is the
-    agenda, and the minutes aren't posted yet. Left out here, it isn't summarized a second time as
-    minutes, counted as minutes posted, or shown as them; the real minutes, a different file, come in
-    as any minutes do."""
+# Days between a meeting and the date its minutes' own name gives beyond which they're another meeting's.
+MINUTES_DAYS_APART = 60
+
+
+def its_minutes(meeting: dict) -> list[dict]:
+    """The meeting's minutes, less any that aren't its own:
+
+    - a file it also has as an agenda. A city can post the agenda again where the minutes go (Lowell's
+      Agenda Center did for its Board of Parks, 2026-10-28): that file is the agenda, and the minutes
+      aren't posted yet. Left out here, it isn't summarized a second time as minutes, counted as minutes
+      posted, or shown as them;
+    - minutes whose own name (their file's name, or their title) dates them more than MINUTES_DAYS_APART
+      from the meeting: a link to another meeting's, as Waltham's schools page gave its Budget Workshop of
+      2026-10-28 ("10-9-24 Minutes - Reg. meeting.pdf"). A name a year off on the same day is the meeting's,
+      its year mistyped ("Regular Planning Board Meeting January 13 2025" for 2026's). A meeting known only
+      from its minutes (one with no agenda, such as an Archive Center's) keeps them: they're what it is.
+
+    The real minutes, a different file, come in as any minutes do."""
     agendas = {d["sha256"] for d in meeting.get("agendas", [])}
-    return [d for d in meeting.get("minutes", []) if d["sha256"] not in agendas]
+    held = date.fromisoformat(meeting["date"])
+    return [d for d in meeting.get("minutes", [])
+            if d["sha256"] not in agendas and not (agendas and dated_elsewhere(d, held))]
+
+
+def dated_elsewhere(doc: dict, held: date) -> bool:
+    """Whether a document's own name dates it to another meeting than the one held that day."""
+    named = dates.find_date(doc.get("original_filename") or doc.get("title"))
+    if named is None or abs((named - held).days) <= MINUTES_DAYS_APART:
+        return False
+    return not ((named.month, named.day) == (held.month, held.day) and abs(named.year - held.year) == 1)
 
 
 def read(data_dir: Path, listing_of=lambda m: m.get("source", "calendar"), town: str = "") -> tuple[dict, dict]:

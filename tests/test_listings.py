@@ -524,6 +524,34 @@ def test_an_agenda_posted_again_as_the_minutes_is_the_agenda(tmp_path):
     assert [d["sha256"] for d in listings.combined(store)[0]["agendacenter-4077"]["minutes"]] == ["b" * 64]
 
 
+@pytest.mark.parametrize("name, held, kept", [
+    ("10-9-24 Minutes - Reg. meeting.pdf", "2026-10-28", False),                 # Waltham's Budget Workshop
+    ("Regular Planning Board Meeting January 13 2025", "2026-01-13", True),      # a year mistyped: Beverly's
+    ("Regular Planning Board Meeting January 13 2025", "2026-10-28", False),
+    ("Minutes 10-28-26.pdf", "2026-10-28", True),
+    ("Board of Commissioners Meeting Recalled from 10-8-26", "2026-10-28", True),  # weeks off: kept
+    ("Approved minutes.pdf", "2026-10-28", True),                                # no date: kept
+])
+def test_minutes_whose_own_name_dates_them_to_another_meeting_are_not_its_minutes(name, held, kept):
+    doc = {"sha256": "m" * 64, "fetched_at": "2026-10-29T07:00:00", "file": "m.pdf", "bytes": 1, "original_filename": name}
+    agenda = {**doc, "sha256": "a" * 64, "original_filename": "Budget Workshop.pdf"}
+    store = store_of(record("page-1", "School Committee", date=held, source="page", agendas=[agenda], minutes=[doc]))
+    assert bool(listings.combined(store)[0]["page-1"]["minutes"]) is kept
+    # A meeting known only from its minutes keeps them, whatever their name says.
+    del store["page-1"]["agendas"]
+    assert listings.combined(store)[0]["page-1"]["minutes"] == [doc]
+
+
+def test_a_minutes_title_dates_them_when_their_file_has_no_name():
+    doc = {"sha256": "m" * 64, "fetched_at": "2026-01-14T07:00:00", "file": "m.pdf", "bytes": 1,
+           "title": "Board of Assessors Regular Meeting 01/13/2025"}
+    agenda = {**doc, "sha256": "a" * 64, "title": "Board of Assessors agenda"}
+    store = store_of(record("agendacenter-1", "Board of Assessors", date="2026-01-13", agendas=[agenda], minutes=[doc]))
+    assert listings.combined(store)[0]["agendacenter-1"]["minutes"] == [doc]
+    store["agendacenter-1"]["minutes"][0] = {**doc, "title": "Board of Assessors Regular Meeting 06/02/2025"}
+    assert listings.combined(store)[0]["agendacenter-1"]["minutes"] == []
+
+
 def test_a_file_one_meeting_has_as_its_agenda_and_another_as_its_minutes_is_summarized_once(tmp_path):
     """A summary is saved by its file's hash: made as an agenda and as minutes, each would replace the other
     every run. It's made as the agenda."""
