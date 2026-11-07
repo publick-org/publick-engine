@@ -47,6 +47,7 @@ from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, merge, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
 from pipeline.filelist import title_for
 from pipeline.http import FetchError, PoliteClient
+from pipeline.waiting import Waiting
 
 STATUS_FILE = "opengov_status.json"
 POSTED_ON = "the Open Meetings portal"
@@ -196,7 +197,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         meeting["last_seen"] = stamp
         listed.add(meeting["id"])
 
-    counts, waiting, checked = {"added": 0}, 0, 0
+    counts, waiting, checked = {"added": 0}, Waiting(), 0
     limit = settings.get("max_documents_per_run", 60)
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
         if meeting.get("source") != opengov.SOURCE or meeting["date"] < since:
@@ -209,7 +210,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if not wants_page(meeting, today, recent):
             continue
         if counts["added"] >= limit:
-            waiting += 1
+            # A page already read, due only a check for changes, isn't waiting for its documents.
+            if not meeting.get("page_checked"):
+                waiting.add(meeting["date"])
             continue
         meeting_id = int(meeting["id"].split("-", 1)[1])
         try:
@@ -238,7 +241,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         if complete:
             meeting["page_checked"] = stamp
         else:
-            waiting += 1
+            waiting.add(meeting["date"])
 
     videos = link_videos(client, store, settings, today, recent, errors) if settings.get("dockets") else 0
 
@@ -249,7 +252,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "meetings_created": created,
         "pages_read": checked,
         "documents_added": counts["added"],
-        "meetings_waiting": waiting,
+        **waiting.status("meetings"),
         "videos_linked": videos,
         "requests": getattr(client, "request_count", None),
         "not_meetings": {str(k): v for k, v in sorted(not_meetings.items())},

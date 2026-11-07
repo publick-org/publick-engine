@@ -36,6 +36,7 @@ from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, merge, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
 from pipeline.filelist import title_for
 from pipeline.http import FetchError, PoliteClient
+from pipeline.waiting import Waiting
 
 STATUS_FILE = "meetingdocs_status.json"
 
@@ -145,7 +146,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         listed[meeting["id"]] = item
 
     errors, counts = [], {"added": 0, "changed": 0}
-    limit, waiting = settings.get("max_documents_per_run", 60), 0
+    limit, waiting = settings.get("max_documents_per_run", 60), Waiting()
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"]), reverse=True):
         if meeting.get("source") != meetingdocs.SOURCE or meeting["date"] < since:
             continue
@@ -161,7 +162,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             if kind not in item:
                 continue
             if counts["added"] + counts["changed"] >= limit:
-                waiting += 1
+                waiting.add(meeting["date"])
                 continue
             try:
                 save_document(client, meeting, kind, item[kind], storage, settings, stamp, counts)
@@ -177,7 +178,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "meetings_created": created,
         "documents_added": counts["added"],
         "documents_changed": counts["changed"],
-        "documents_waiting": waiting,
+        **waiting.status("documents"),
         "requests": getattr(client, "request_count", None),
         # Titles with no board: add them, or words in them, to [meetingdocs_meetings.bodies] if they're a board's.
         "unrecognized": sorted(set(unrecognized)),

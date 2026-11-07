@@ -34,7 +34,9 @@ pipeline/                   Python package
                             matched; not found; no source) -> the run record (run.json), which network.py recordings adds up
   document_gaps.py          Each daily run: the last 90 days' meetings missing documents (boards with no agenda or minutes,
                             agendas but no minutes, a calendar listing likely of a meeting listed under another name, and
-                            readers' meetings waiting) -> the run record (run.json), which network.py documents adds up
+                            readers' meetings or documents waiting, by unit, those older than the window apart) -> the
+                            run record (run.json), which network.py documents adds up
+  waiting.py                What a meetings reader leaves for a later run, and the newest meeting it's for, for its status file
   summarize.py              Daily: agenda and minutes PDFs -> summaries (AI), and full text for scans (AI) -> data/summaries/,
                             each decision of minutes and recordings with a short title, main or routine, and a topic;
                             new documents first, with each request's cost in the cost log (cost_log.py); in a network's
