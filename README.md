@@ -64,27 +64,33 @@ from the Publick network's public file host.
 
 ## Start a site for your town
 
-1. **Make the copy your town's.** In `my-town/config/`, rename the config file to
-   your town's name, and in it:
-   - change `[site]`: the `name`, `domain`, `contact_email`, `user_agent`, and
-     `repo_url` (your site's repository, where its "Source code and data" link
-     goes), and remove `network`. The Publick name and "P" icon identify the
-     Publick network's sites, so a site outside it uses its own.
-   - delete `[analytics]`, `[storage]` and `[digest]`, which point at the Publick
-     network's own accounts. You can add your own later.
-   - empty `data/`, and work through the rest of the file for your town:
-     [Configuring a town](docs/configuration.md) goes through it table by table.
-2. **Fetch your town's data and build**, from `my-town/`, with
-   `PYTHONPATH=../publick-engine`:
+1. **Copy the starter.** From the engine's folder:
 
    ```sh
+   cp -r starter ../yourtown
+   ```
+
+   It's a town's repository with nothing in it yet: a config to fill in,
+   `config/town.toml`, and the workflow that publishes the site.
+2. **Fill in the config.** Each `# To fill in:` comment in it is something to
+   do: the site's name and address, the town, and a section for each source
+   you find, starting with meetings ([Meeting sources](docs/meetings.md)).
+   [Configuring a town](docs/configuration.md) goes through every table, and
+   the sample's `tests/fixtures/town/config/gloucester.toml` shows a town with
+   every section. The site checks don't pass, so the site isn't published,
+   while any is left. Pick a name of your own: the Publick name and "P" icon
+   are for the Publick network's sites.
+3. **Fetch your town's data and build**, from `yourtown/`:
+
+   ```sh
+   export PYTHONPATH=../publick-engine
    python -m pipeline.fetch_meetings && python -m pipeline.fetch_minutes
    python -m pipeline.build_site --no-share-cards && python -m http.server -d _site 8000
    ```
 
    [Configuring a town](docs/configuration.md#starting-a-site-for-another-town)
    lists the command for each other source.
-3. **Publish it** from a GitHub repository of its own, updated each morning and
+4. **Publish it** from a GitHub repository of its own, updated each morning and
    served free on GitHub Pages: [Running a town on its own](docs/stand-alone.md).
 
 If a step doesn't work for your town, please
@@ -104,4 +110,4 @@ instructions improve with each town that tries them.
 
 ## Data and licenses
 
-The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources. On the Publick network, what Publick makes (summaries, headlines, decision lists, compiled data) is under CC BY 4.0, as the network repository's [`LICENSE`](https://github.com/publick-org/publick.org/blob/main/LICENSE) says. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/), or from a city's open data portal under its own license. Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).
+The code is under the [MIT License](LICENSE). Data keeps the terms of its source; each town's `data/README.md` lists its sources (`python -m pipeline.data_readme` writes it from the town's config and data folder). On the Publick network, what Publick makes (summaries, headlines, decision lists, compiled data) is under CC BY 4.0, as the network repository's [`LICENSE`](https://github.com/publick-org/publick.org/blob/main/LICENSE) says. 311 data comes from [SeeClickFix](https://seeclickfix.com) under [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/), or from a city's open data portal under its own license. Other sources are listed on the site's [About page](https://gloucester-ma.publick.org/about/).

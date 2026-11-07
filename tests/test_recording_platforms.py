@@ -395,6 +395,28 @@ def test_gemini_transcribes_a_video_a_part_at_a_time(monkeypatch):
     assert post.calls[0][1]["headers"]["x-goog-api-key"] == "test-key"
 
 
+@pytest.mark.parametrize("start, seconds, expected", [
+    (0, 2401, [(0, 1200), (1200, 2401)]),                 # Lowell's 40:01: no part of a second
+    (0, 2459, [(0, 1200), (1200, 2459)]),
+    (0, 2460, [(0, 1200), (1200, 2400), (2400, 2460)]),   # a minute is a part of its own
+    (0, 2400, [(0, 1200), (1200, 2400)]),
+    (0, 30, [(0, 30)]),                                   # a video shorter than a minute is one part
+    (300, 1530, [(300, 1530)]),                           # from where the meeting starts in the video
+])
+def test_gemini_never_asks_for_a_last_part_too_short_to_have_a_frame(start, seconds, expected):
+    assert gemini.parts(start, seconds) == expected
+
+
+def test_a_video_whose_last_second_was_refused_is_transcribed_from_the_parts_kept():
+    """Lowell's 2026-10-28: its first two parts were answered and kept, and 0:40:00 to 0:40:01 refused (400) twice.
+    Asked again, the parts kept are the whole video, and nothing is asked."""
+    done = {"model": gemini.MODEL, "clip": gemini.CLIP_SECONDS,
+            "parts": {"0": ["[0:00:05] Call to order."], "1200": ["[0:39:50] Adjourned."]}}
+    text, usage = gemini.transcribe(FakeHTTP(), "-3u6b6KOhQQ", 2401, "x", "2026-10-28", "k", done=done,
+                                    sleep=lambda s: pytest.fail("a part was asked for"))
+    assert text == "[0:00:05] Call to order.\n[0:39:50] Adjourned.\n" and usage["requests"] == 0
+
+
 def test_gemini_errors_are_a_failed_try():
     from pipeline.http import FetchError
     waits = []
