@@ -9,10 +9,11 @@ A list kept by hand goes out of date at each election, so a town's config
 names its next municipal election ([officials] next_election). The list is
 due a check once the election is held, or once new terms begin, if that's
 later (the first month a member's term ends on or after the election's month,
-from the members' own term_ends). A list not checked by then, GRACE_DAYS
-after, is behind: the About page's data status, the network's status page,
-and the daily alert say so, and the Officials page says some members may
-have changed (review, pipeline/freshness.py).
+and within TERMS_WITHIN_MONTHS of it, from the members' own term_ends). A
+list not checked by then, GRACE_DAYS after, is behind: the About page's data
+status, the network's status page, and the daily alert say so, and the
+Officials page says some members may have changed (review,
+pipeline/freshness.py).
 
 Members elected before they take office are recorded with their body as
 incoming: the day they take office ([officials.bodies.incoming] takes_office)
@@ -40,6 +41,11 @@ GRACE_DAYS = 7
 # and the status pages; not the Officials page, whose sitting members are still right until new terms begin).
 # Ahead of the members taking office, which can be days later (Bangor's council is sworn in the next Monday).
 RESULTS_DAYS = 2
+# Months after an election's month within which the terms it fills begin: a November election's members take office
+# in December or January, Vermont's of March in April. A term that ends later is a seat that wasn't on the ballot,
+# such as an appointed board's, and doesn't make the list due later: with the elected bodies giving no term ends,
+# an appointed school board's ending in two years made Central Falls's list due then, not after its election.
+TERMS_WITHIN_MONTHS = 6
 
 
 def slugify(text: str) -> str:
@@ -218,8 +224,9 @@ def review(config: dict, today: date) -> dict | None:
     """When the list is due a check, from the town's next municipal election ([officials] next_election),
     or None for a town that doesn't give one. Due on the election's day, or on the first day of the month
     new terms begin, if that's later: the first month a member's term ends on or after the election's
-    month. Behind when it wasn't checked on or after that day, GRACE_DAYS after it; passed when it was,
-    and the election is over, so the config's next_election should move to the one after.
+    month, and within TERMS_WITHIN_MONTHS of it. Behind when it wasn't checked on or after that day,
+    GRACE_DAYS after it; passed when it was, and the election is over, so the config's next_election
+    should move to the one after.
 
     Members recorded as incoming, and not checked since they took office, are due a check that day
     instead (seated): the page lists them from then on, and the officers a body chooses as it organizes
@@ -245,7 +252,9 @@ def review(config: dict, today: date) -> dict | None:
                 "behind": today >= seated + timedelta(days=GRACE_DAYS), "unrecorded": unrecorded, "passed": False}
     ends = sorted(date.fromisoformat(f"{m['term_ends']}-01") for body in table.get("bodies", [])
                   for m in body.get("members", []) if re.fullmatch(r"\d{4}-\d{2}", str(m.get("term_ends", ""))))
-    terms = next((d for d in ends if d >= election.replace(day=1)), None)
+    first, months = election.replace(day=1), election.month - 1 + TERMS_WITHIN_MONTHS
+    last = date(election.year + months // 12, months % 12 + 1, 1)
+    terms = next((d for d in ends if first <= d <= last), None)
     due = max(election, terms) if terms else election
     return {"election": election, "terms": terms if terms and terms > election else None, "seated": None, "due": due,
             "checked": checked, "behind": checked < due and today >= due + timedelta(days=GRACE_DAYS),
