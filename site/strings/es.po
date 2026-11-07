@@ -2208,6 +2208,14 @@ msgstr ""
 msgid "Amounts are not adjusted for inflation."
 msgstr "Las cantidades no están ajustadas por inflación."
 
+#: pipeline/build_site.py
+msgid "An address alert"
+msgstr ""
+
+#: site/templates/alerts.html
+msgid "An alert that wasn't about the address"
+msgstr ""
+
 #: site/pages/data/index.html
 msgid "An identifier that doesn't change, and the meeting's page on this site."
 msgstr "Un identificador que no cambia, y la página de la reunión en este sitio."
@@ -2259,6 +2267,18 @@ msgstr ""
 #, python-format
 msgid "Another %(num)s were closed without being acknowledged first."
 msgstr "Otras %(num)s se cerraron sin haberse confirmado antes."
+
+#. %(provider)s is the email service that sends the alerts, such as "Postmark".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"Another exception is an email alert for an address, if you ask for one on the street lookup: your"
+" email address, the town, the addresses you follow and the language are kept in this site's own "
+"database until you stop them all, which every email links. An alert you don't confirm is deleted "
+"after %(unconfirmed)s days. The emails are sent by %(provider)s (<a href=\"%(url)s\">its privacy "
+"policy</a>), and don't record whether you open them or which links you click. Your IP address "
+"isn't kept."
+msgstr ""
 
 #: pipeline/states/ma/housing.py
 msgid "Apartment buildings (4 or more units)"
@@ -2490,9 +2510,9 @@ msgstr "Calificaciones crediticias"
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
-#: site/pages/meetings/search/index.html site/templates/board.html site/templates/category.html
-#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
-#: site/templates/ward.html
+#: site/pages/meetings/search/index.html site/templates/alerts.html site/templates/board.html
+#: site/templates/category.html site/templates/digest.html site/templates/digest_answer.html
+#: site/templates/meeting.html site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -2643,6 +2663,10 @@ msgstr "Cambios desde que se publicó"
 #: site/templates/digest_answer.html
 msgid "Check your email"
 msgstr "Revise su correo electrónico"
+
+#: site/templates/alerts.html
+msgid "Check your email to start your alert"
+msgstr ""
 
 #: site/pages/officials/index.html
 #, python-format
@@ -2911,6 +2935,20 @@ msgstr "No se incluyen los eventos comunitarios."
 msgid "Condominiums"
 msgstr "Condominios"
 
+#: site/templates/alerts.html
+msgid "Confirm"
+msgstr ""
+
+#: site/templates/alerts.html
+msgid ""
+"Confirm to get an email when a new agenda or minutes line names the address: at most one a day, "
+"and only when it comes up."
+msgstr ""
+
+#: site/templates/alerts.html
+msgid "Confirm your alert"
+msgstr ""
+
 #: site/states/ct/budget.html
 msgid "Connecticut doesn't publish an average bill."
 msgstr "Connecticut no publica una factura promedio."
@@ -3140,6 +3178,15 @@ msgid ""
 msgstr ""
 "Los distritos usan los límites de %(year)s de %(publisher)s. Las diferencias entre distritos "
 "reflejan con qué frecuencia los residentes informan problemas y también cómo responde la ciudad."
+
+#: site/templates/alerts.html
+msgid "Done. You won't get any more alerts, and nothing about you is kept."
+msgstr ""
+
+#: site/templates/alerts.html
+#, python-brace-format
+msgid "Done. You'll get an email when {address} comes up."
+msgstr ""
 
 #: site/templates/charts.html
 msgid "Download CSV"
@@ -3468,6 +3515,10 @@ msgstr "Comisión Electoral"
 #: site/templates/digest_form.html site/templates/digest_line.html
 msgid "Email address"
 msgstr "Correo electrónico"
+
+#: site/pages/streets/index.html
+msgid "Email me"
+msgstr ""
 
 #: site/pages/index.html
 msgid "Email or text alerts from the city"
@@ -4131,6 +4182,11 @@ msgstr "Educación, vivienda principal"
 msgid "Homestead tax rate"
 msgstr "Tasa de vivienda principal"
 
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "House number on {street}"
+msgstr ""
+
 #: pipeline/build_site.py site/pages/about/index.html site/pages/housing/index.html
 msgid "Housing"
 msgstr "Vivienda"
@@ -4286,6 +4342,12 @@ msgstr "Comisión de Derechos Humanos"
 msgid "Human services"
 msgstr "Servicios humanos"
 
+#: site/templates/alerts.html
+msgid ""
+"If it isn't there in a few minutes, check your spam folder. If you already follow the address, "
+"there's nothing more to do."
+msgstr ""
+
 #: site/templates/digest_answer.html
 msgid ""
 "If it isn't there in a few minutes, check your spam folder. If you're already signed up, there's "
@@ -4296,7 +4358,7 @@ msgstr ""
 
 #. %(contact)s is how to reach the site, such as "email news@example.org or open an issue on the
 #. project's public issue tracker".
-#: site/templates/digest_answer.html
+#: site/templates/alerts.html site/templates/digest_answer.html
 #, python-format
 msgid "If it keeps happening, %(contact)s."
 msgstr "Si sigue pasando, %(contact)s."
@@ -4663,7 +4725,7 @@ msgstr "Últimos datos"
 msgid "Latest request on SeeClickFix"
 msgstr "Última solicitud en SeeClickFix"
 
-#: site/templates/digest_form.html site/templates/digest_line.html
+#: site/pages/streets/index.html site/templates/digest_form.html site/templates/digest_line.html
 msgid "Leave this empty"
 msgstr "Deje esto en blanco"
 
@@ -5824,6 +5886,10 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 #, python-format
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
+
+#: site/pages/streets/index.html
+msgid "Or get an email"
+msgstr ""
 
 #: site/pages/streets/index.html
 msgid "Or one address:"
@@ -7558,6 +7624,14 @@ msgstr "Aún se están recopilando los datos"
 msgid "Still open"
 msgstr "Aún abiertas"
 
+#: site/templates/alerts.html
+msgid "Stop"
+msgstr ""
+
+#: site/templates/alerts.html
+msgid "Stop every alert"
+msgstr ""
+
 #: pipeline/common_strings.py
 msgid "Street Light"
 msgstr "Luz de la calle"
@@ -7765,9 +7839,17 @@ msgstr "Pruebas"
 msgid "Text and controls meet contrast requirements."
 msgstr "El texto y los controles cumplen los requisitos de contraste."
 
+#: site/templates/alerts.html
+msgid "Thank you: this is counted, and helps find addresses in the documents more accurately."
+msgstr ""
+
 #: site/templates/digest_answer.html
 msgid "That didn't go through"
 msgstr "No se pudo completar"
+
+#: site/templates/alerts.html
+msgid "That didn't go through. Please try again later."
+msgstr ""
 
 #: site/pages/officials/index.html
 #, python-format
@@ -7927,6 +8009,13 @@ msgid "The agenda's summary was taken down while a reported error is checked; th
 msgstr ""
 "El resumen de la agenda se retiró mientras se revisa un error que se nos informó; la agenda está "
 "enlazada abajo."
+
+#: site/templates/alerts.html
+#, python-format
+msgid ""
+"The alert couldn't be set up just now. Check that the house number and your email address are "
+"written correctly, and try again. An address can follow at most %(max)s addresses."
+msgstr ""
 
 #: site/states/ct/budget.html
 #, python-format
@@ -8512,6 +8601,17 @@ msgstr ""
 "El valor tasado neto de todo lo que gravó la ciudad en el año fiscal %(year)s fue de %(total)s, "
 "después de exenciones como las de personas mayores y veteranos."
 
+#: site/pages/about/index.html
+#, python-format
+msgid ""
+"The one exception is an email alert for an address, if you ask for one on the street lookup: your"
+" email address, the town, the addresses you follow and the language are kept in this site's own "
+"database until you stop them all, which every email links. An alert you don't confirm is deleted "
+"after %(unconfirmed)s days. The emails are sent by %(provider)s (<a href=\"%(url)s\">its privacy "
+"policy</a>), and don't record whether you open them or which links you click. Your IP address "
+"isn't kept."
+msgstr ""
+
 #. %(provider)s is the email service that sends the digest, such as "Buttondown".
 #: site/pages/about/index.html
 #, python-format
@@ -8657,6 +8757,10 @@ msgstr ""
 msgid "This board's page has moved"
 msgstr "La página de esta junta cambió de lugar"
 
+#: site/templates/alerts.html
+msgid "This link has expired or was already used. Follow the address again from the street lookup."
+msgstr ""
+
 #: site/pages/311/repeat-locations/index.html
 msgid "This list will appear after the next data update."
 msgstr "Esta lista aparecerá después de la próxima actualización de datos."
@@ -8751,6 +8855,10 @@ msgstr "La página de esta reunión cambió de lugar"
 #: site/pages/404.html
 msgid "This page doesn't exist. It may have moved, or the link may have a typo."
 msgstr "Esta página no existe. Puede que se haya movido o que el enlace tenga un error."
+
+#: site/templates/alerts.html
+msgid "This page needs JavaScript."
+msgstr ""
 
 #: site/templates/base.html
 #, python-format
@@ -8881,6 +8989,13 @@ msgstr ""
 #, python-format
 msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
 msgstr "El título cambió de “%(old)s” a “%(new)s”."
+
+#: site/templates/alerts.html
+#, python-format
+msgid ""
+"To say what was wrong, <a href=\"%(url)s\">send a correction</a>. The alerts' lines are found in "
+"the documents' own text, without AI."
+msgstr ""
 
 #: site/states/ct/budget.html site/states/nh/budget.html site/states/ri/budget.html
 #: site/states/vt/budget.html
@@ -9183,6 +9298,12 @@ msgstr "Ver la grabación"
 msgid "We count visits so we know which pages are useful. That's all."
 msgstr "Contamos las visitas para saber qué páginas son útiles. Nada más."
 
+#: site/pages/streets/index.html
+msgid ""
+"We'll email you to confirm. Then, at most one email a day, only when a new agenda or minutes line"
+" names the address. You can stop at any time."
+msgstr ""
+
 #: site/templates/digest_answer.html
 msgid ""
 "We've sent you an email. Open the link in it to confirm your address, and the digest will start "
@@ -9190,6 +9311,12 @@ msgid ""
 msgstr ""
 "Le enviamos un correo electrónico. Abra el enlace que contiene para confirmar su dirección, y el "
 "resumen empezará a llegarle el próximo domingo."
+
+#: site/templates/alerts.html
+msgid ""
+"We've sent you an email. Open the link in it to confirm, and you'll get an email when a new "
+"agenda or minutes line names the address."
+msgstr ""
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -9385,6 +9512,10 @@ msgstr "Qué pasa en su calle"
 msgid "What's happening on your street?"
 msgstr "¿Qué pasa en su calle?"
 
+#: site/templates/alerts.html
+msgid "What's kept, and for how long"
+msgstr ""
+
 #: site/templates/meeting.html
 msgid "What's on the agenda"
 msgstr "Qué incluye la agenda"
@@ -9564,6 +9695,10 @@ msgstr ""
 msgid "You can also <a href=\"/meetings/search/\">search agendas and minutes</a>."
 msgstr "También puede <a href=\"/meetings/search/\">buscar en agendas y actas</a>."
 
+#: site/templates/alerts.html
+msgid "You don't follow any addresses."
+msgstr ""
+
 #: site/templates/digest_email.html
 #, python-format
 msgid ""
@@ -9586,11 +9721,19 @@ msgstr "Usted está en el Precinto {ward}."
 msgid "You're in Ward {ward}."
 msgstr "Usted está en el Distrito {ward}."
 
+#: site/templates/alerts.html
+msgid "Your address alerts"
+msgstr ""
+
 #: site/templates/digest_answer.html
 msgid "Your address couldn't be signed up just now. Check that it's written correctly, and try again."
 msgstr ""
 "No se pudo suscribir su dirección en este momento. Revise que esté bien escrita y vuelva a "
 "intentarlo."
+
+#: site/templates/alerts.html
+msgid "Your alert couldn't be set up"
+msgstr ""
 
 #: site/pages/officials/index.html
 msgid ""
@@ -9615,6 +9758,10 @@ msgid ""
 msgstr ""
 "Su navegador le pedirá permiso primero. Su ubicación se compara con el mapa de distritos en su "
 "propio dispositivo. No se envía a Publick ni a nadie más, y no se guarda."
+
+#: site/pages/streets/index.html
+msgid "Your email address"
+msgstr ""
 
 #: site/pages/officials/index.html
 msgid "Your location isn't available. You can find your district on the map or in the list below."
@@ -9655,7 +9802,7 @@ msgstr ""
 "Su ubicación no está en ninguno de los distritos de {town}. Puede buscar su distrito en el mapa o"
 " en la lista de abajo."
 
-#: pipeline/build_site.py site/pages/streets/index.html
+#: pipeline/build_site.py site/pages/streets/index.html site/templates/alerts.html
 msgid "Your street"
 msgstr "Su calle"
 

@@ -150,7 +150,8 @@ worker/                     The Cloudflare Workers: index.js serves every site p
                             checks every site loads each hour, and sends the weekly digest (the logic in
                             scheduler.js); digest.js signs readers up for the
                             weekly digest's email, and sends it, through Buttondown; digest-test.js sends
-                            an issue to test addresses alone, by hand; search.js submits each new town's
+                            an issue to test addresses alone, by hand; alerts.js takes the street lookup's
+                            follow form and sends address alerts (its D1 schema in alerts.sql); search.js submits each new town's
                             sitemap to Google Search Console; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
@@ -196,7 +197,7 @@ The engine's own tests run from this repository, offline, against saved Gloucest
 ```sh
 ruff check .                                                # the lint CI runs first (ruff.toml)
 python -m pytest
-node --test worker/sites.test.js worker/scheduler.test.js   # the Workers' tests (Node 22)
+node --test worker/sites.test.js worker/scheduler.test.js worker/alerts.test.js   # the Workers' tests (Node 22)
 ```
 
 The fact check (`pipeline/factcheck.py`) is also replayed on real summaries. `evals/factcheck/sample.json.gz` holds 45 summaries from each town of the network (316 decisions and agenda items: agendas and minutes, every meeting platform, each prompt version, scans checked against their transcription, and summaries the check passed, failed, and found weak), each with its PDF's page text as `factcheck.pages()` reads it and the words a run gives the check, but not the PDF. `evals/factcheck/expected.json` is what the check made of each: its result, its problems, and what the site shows of the headline, the summary, and each decision or item. `tests/test_factcheck_replay.py` checks every summary again and fails on any whose result changed, saying which decision or item is now shown or hidden, and why. When the change is intended, accept it, and commit the new `expected.json` with it, so the diff shows what it does:

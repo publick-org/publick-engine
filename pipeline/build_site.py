@@ -74,7 +74,7 @@ UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 # Page folders built for every town, whether or not they are in the navigation.
 SHARED_FOLDERS = {"streets", "data"}
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
-ENGLISH_ONLY_FOLDERS = {"digest"}
+ENGLISH_ONLY_FOLDERS = {"digest", "alerts"}
 # Their pages built in every language all the same: where the digest's signup form leads, as the form is on
 # every language's pages (site/templates/digest_line.html).
 EVERY_LANGUAGE_PAGES = {"/digest/thanks/", "/digest/problem/"}
@@ -1793,6 +1793,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   addresses=addresses and {"year": addresses["year"], "url": addresses_url, "page": f"{prefix}/officials/"},
                   streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
+                  # Address alerts' follow form, on the street lookup's English pages for now (worker/alerts.js).
+                  alerts=documents and mentions_mod.alerts(config),
                   built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
                   headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard),
                   site_nav=lambda url: site_nav(url, sections, street_sources, documents),
@@ -1896,6 +1898,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         # pages; not for search engines.
         for outcome in ("thanks", "problem"):
             render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
+    if english and common["alerts"]:
+        # Where the follow form leads (worker/alerts.js), and the pages its emails link; not for search engines.
+        for page in ("thanks", "problem", "confirm", "manage", "wrong"):
+            render("alerts.html", f"/alerts/{page}/", page=page,
+                   report=report_link(config["site"], base_url, "/alerts/wrong/", _("An address alert")))
     if documents and english:
         # "source": where the decision was read, the minutes or, until they're summarized, the meeting's recording.
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url",
@@ -1962,7 +1969,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if feeds:
             mentions_mod.write_feeds(out_dir, found, config, base_url)
             (out_dir / "streets" / "mentions.json").write_text(
-                json.dumps(mentions_mod.recent(found, built_at), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+                json.dumps(mentions_mod.recent(found, built_at, site=config["site"]["name"]), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return urls
 
 

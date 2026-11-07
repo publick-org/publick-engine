@@ -89,7 +89,34 @@
       wrap.appendChild(one);
     }
     wrap.appendChild(el("p", t("follow_note"), { "class": "small" }));
+    var action = root.getAttribute("data-follow");
+    if (action) wrap.appendChild(followForm(action, s));
     return wrap;
+  }
+
+  // An email for one address on the street (worker/alerts.js), for a town with alerts: laid out as the
+  // digest's signup form is (site/templates/digest_form.html), with its hidden field for bots.
+  function followForm(action, s) {
+    var form = el("form", "", { method: "post", action: action, "class": "search-form follow-form" });
+    form.appendChild(el("h4", t("follow_email_head")));
+    function field(name, label, attrs, button) {
+      form.appendChild(el("label", label, { "for": "follow-" + name }));
+      var row = el("div", "", { "class": "search-row" });
+      row.appendChild(el("input", "", Object.assign({ id: "follow-" + name, name: name, required: "", "aria-describedby": "follow-note" }, attrs)));
+      if (button) row.appendChild(button);
+      form.appendChild(row);
+    }
+    field("number", t("follow_number", { street: s.name }), { inputmode: "numeric", autocomplete: "off", maxlength: "7", pattern: "[0-9]{1,6}[A-Za-z]?" });
+    field("email", t("follow_email"), { type: "email", maxlength: "254", autocomplete: "email" },
+      el("button", t("follow_button"), { "class": "button button-primary", type: "submit" }));
+    form.appendChild(el("input", "", { type: "hidden", name: "street", value: s.key }));
+    form.appendChild(el("input", "", { type: "hidden", name: "lang", value: document.documentElement.lang || "en" }));
+    var trap = el("div", "", { hidden: "" });
+    trap.appendChild(el("label", t("follow_trap"), { "for": "follow-website" }));
+    trap.appendChild(el("input", "", { id: "follow-website", name: "website", type: "text", tabindex: "-1", autocomplete: "off" }));
+    form.appendChild(trap);
+    form.appendChild(el("p", t("follow_email_note"), { "class": "small", id: "follow-note" }));
+    return form;
   }
 
   function show(key, s) {
@@ -108,7 +135,7 @@
       p.appendChild(el("a", t("ward_link", { street: s.name }), { href: wardPage + "#address=" + encodeURIComponent(s.name) }));
       results.appendChild(p);
     }
-    if (s.feed) results.appendChild(follow(s));
+    if (s.feed) results.appendChild(follow(Object.assign({ key: key }, s)));
     if (sources.indexOf("meetings") >= 0) results.appendChild(section(t("meetings_head"), s.meetings_total, s.meetings.length, s.meetings.map(function (m) {
       return item(m.board, m.url, date(m.date) + " · " + m.doc, m.line);
     })));

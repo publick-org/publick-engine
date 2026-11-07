@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "macros.html" import contact %}
+{# Address alerts' pages (worker/alerts.js): where the street lookup's follow form leads ("thanks", "problem"), and the
+   pages its emails link: confirming a follow ("confirm"), a reader's own page of what they follow ("manage"), and
+   where a line that wasn't about the address is counted ("wrong"). The
+   last two read their token from the link, and post it with site/static/js/alerts.js. In English for now. #}
+{% set titles = {"thanks": _("Check your email to start your alert"), "problem": _("Your alert couldn't be set up"),
+                 "confirm": _("Confirm your alert"), "manage": _("Your address alerts"),
+                 "wrong": _("An alert that wasn't about the address")} %}
+{% block title %}{{ titles[page] }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
+  <ol><li><a href="/streets/">{{ _("Your street") }}</a></li></ol>
+</nav>
+<div class="page-head">
+  <h1>{{ self.title() }}</h1>
+  {% if page == "thanks" %}
+  <p class="lede">{{ _("We've sent you an email. Open the link in it to confirm, and you'll get an email when a new agenda or minutes line names the address.") }}</p>
+  <p>{{ _("If it isn't there in a few minutes, check your spam folder. If you already follow the address, there's nothing more to do.") }}</p>
+  {% elif page == "problem" %}
+  <p class="lede">{% trans max=25 %}The alert couldn't be set up just now. Check that the house number and your email address are written correctly, and try again. An address can follow at most {{ max }} addresses.{% endtrans %}</p>
+  <p>{% trans contact=contact(site) %}If it keeps happening, {{ contact }}.{% endtrans %}</p>
+  {% elif page == "wrong" %}
+  {# Its visits are counted (an alert's line that wasn't about the address), as the page's own count. #}
+  <p class="lede">{{ _("Thank you: this is counted, and helps find addresses in the documents more accurately.") }}</p>
+  <p>{% trans url=report %}To say what was wrong, <a href="{{ url }}">send a correction</a>. The alerts' lines are found in the documents' own text, without AI.{% endtrans %}</p>
+  {% elif page == "confirm" %}
+  <p class="lede">{{ _("Confirm to get an email when a new agenda or minutes line names the address: at most one a day, and only when it comes up.") }}</p>
+  {% endif %}
+</div>
+{% if page in ("confirm", "manage") %}
+{% set strings = {
+  "confirmed": _("Done. You'll get an email when {address} comes up."),
+  "not_found": _("This link has expired or was already used. Follow the address again from the street lookup."),
+  "failed": _("That didn't go through. Please try again later."),
+  "none": _("You don't follow any addresses."),
+  "remove": _("Stop"),
+  "remove_all": _("Stop every alert"),
+  "removed_all": _("Done. You won't get any more alerts, and nothing about you is kept."),
+} %}
+<div id="alerts" data-page="{{ page }}" data-strings='{{ strings | tojson }}'>
+  {% if page == "confirm" %}
+  <form id="alerts-confirm" method="post" action="/alerts/confirm">
+    <input type="hidden" name="t" value="">
+    <button class="button button-primary" type="submit">{{ _("Confirm") }}</button>
+  </form>
+  {% else %}
+  <ul id="alerts-follows" class="plain-list"></ul>
+  <form id="alerts-stop-all" method="post" action="/alerts/manage" hidden>
+    <button class="button" type="submit">{{ strings.remove_all }}</button>
+  </form>
+  {% endif %}
+  <p id="alerts-status" role="status" aria-live="polite"></p>
+</div>
+<noscript><p>{{ _("This page needs JavaScript.") }}</p></noscript>
+<script src="{{ "/static/js/alerts.js" | versioned }}" defer></script>
+{% endif %}
+<p><a href="/about/#privacy">{{ _("What's kept, and for how long") }}</a></p>
+{% endblock %}
