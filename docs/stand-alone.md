@@ -16,7 +16,7 @@ site/static/...               Any other file that replaces or adds to the engine
 .github/workflows/site.yml    Calls the engine's workflow (below)
 ```
 
-and a workflow that calls this repository's, pinned to a version:
+The engine's [`starter/`](../starter) folder is such a repository, with a config to fill in: copy it to start one. Its workflow calls this repository's, pinned to a version:
 
 ```yaml
 name: Update and deploy

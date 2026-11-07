@@ -130,6 +130,7 @@ site/static/vendor/leaflet/ Leaflet 1.9.4 map library, self-hosted (BSD-2-Clause
 tests/                      The engine's tests: pipeline, structure, link, and accessibility checks (offline)
 tests/fixtures/town/        The tests' town: Gloucester's config, ward file, and share image
 site_checks/                Checks for one town's built site, run by the town workflow before deploying
+starter/                    A new town's repository, ready to copy: a config to fill in, and the workflow that publishes it
 evals/minutes.json          Minutes checked by hand, decision by decision, for pipeline/evaluate.py
 evals/factcheck/            Real summaries with their PDFs' page text, and what the fact check made of each, for pipeline/evaluate_factcheck.py
 worker/                     The Cloudflare Workers: index.js serves every site published with deploy.py, by hostname
@@ -142,7 +143,7 @@ worker/                     The Cloudflare Workers: index.js serves every site p
                             sitemap to Google Search Console; *.test.js are their tests
 .github/workflows/town.yml  The daily update, build, check, and deploy that town repositories call
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
-.github/workflows/release.yml   The daily release (see Versions)
+.github/workflows/release.yml   The daily release (see stand-alone.md, Versions)
 .github/workflows/evaluate.yml  The minutes and translation sets against the model, on a pull request labeled `evaluate`
                                 that changes a summary prompt, the fact check, or the translator (never on any other)
 .github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes

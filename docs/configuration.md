@@ -6,8 +6,8 @@ A town's site is set by one file, `config/<town>.toml`: its name and address, wh
 
 Each town gets its own `config/<town>.toml`, its own `data/`, and its own site address, in its own repository or in a folder of a network repository (publick.org's checklist is [ADDING-A-TOWN.md](https://github.com/publick-org/publick.org/blob/main/ADDING-A-TOWN.md), which starts with `pipeline/new_town.py`: it writes the town's folder, with what public sources answer and the rest marked `# To fill in:`, which the site checks fail on until each is done). The code stays here.
 
-1. **Create the town's repository** with the layout under [A town in its own repository](stand-alone.md#a-town-in-its-own-repository): an empty `data/`, and the workflow file with `town` set. In a network, add its folder instead.
-2. **Write `config/<town>.toml`**, starting from a copy of [`tests/fixtures/town/config/gloucester.toml`](../tests/fixtures/town/config/gloucester.toml). `[site]`, `[town]` and `[[sections]]` are required. Every other table is one data source. Leave out a table the town doesn't have and the command that fetches it does nothing:
+1. **Create the town's repository** from a copy of the engine's [`starter/`](../starter) folder, which has the layout under [A town in its own repository](stand-alone.md#a-town-in-its-own-repository): a config to fill in, and the workflow file with `town` set. In a network, add its folder instead.
+2. **Write `config/<town>.toml`**, starting from the starter's [`config/town.toml`](../starter/config/town.toml): each `# To fill in:` comment in it is left for you, and the site checks fail until none is. [`tests/fixtures/town/config/gloucester.toml`](../tests/fixtures/town/config/gloucester.toml) is a town with every section. `[site]`, `[town]` and `[[sections]]` are required. Every other table is one data source. Leave out a table the town doesn't have and the command that fetches it does nothing:
 
    | Table | Source | Works for |
    |---|---|---|
