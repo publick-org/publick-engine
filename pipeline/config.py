@@ -75,7 +75,7 @@ NETWORK_ENV = "PUBLICK_NETWORK_DIR"
 # The network's shared settings, in its repository: defaults/network.toml, defaults/states/<st>.toml.
 LAYERS = "defaults"
 
-# Every table a town's config may have (the table of them in docs/configuration.md).
+# Every table a town's config may have (the README's table of them, under "Starting a site for another town").
 TABLES = {"site", "town", "sections", "analytics", "digest", "meetings", "archive", "schedule_meetings", "ical_meetings",
           "finalsite_meetings", "drive_meetings", "page_meetings", "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
           "sharpschool_meetings", "boardbook_meetings", "recordings", "seeclickfix", "socrata_311",

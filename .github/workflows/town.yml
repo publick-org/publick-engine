@@ -1,5 +1,5 @@
 # The daily update, test, build, and deploy for one town's site. Each town's
-# repository calls this from its own workflow (see docs/stand-alone.md), pinned to an engine
+# repository calls this from its own workflow (see README), pinned to an engine
 # version; the engine code used is the same version as this file.
 name: Town site
 
@@ -143,7 +143,7 @@ jobs:
         continue-on-error: true
         run: python -m pipeline.summarize --town "$TOWN"
         # The private store's keys, if the town has one, keep the summaries' costs out of git; without
-        # them, they're kept in data/costs/ (out of git too) and data/summary-costs.json (docs/storage.md, Cost records).
+        # them, they're kept in data/costs/ (out of git too) and data/summary-costs.json (engine README).
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
