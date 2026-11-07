@@ -65,6 +65,25 @@ def test_a_member_is_looked_for_by_surname(name, expected):
     assert check_officials.surname(name) == expected
 
 
+@pytest.mark.parametrize("name, page", [
+    ("Lizsandra Paneto Gullon", "Board Member Lizandra Paneto"),
+    ("Amanda Grady Sexton", "Councilor Amanda Sexton"),
+    ("Crystal Marie De Jesus Lara", "Student Representative Crystal De Jesus"),
+])
+def test_a_page_may_give_one_of_two_surnames(name, page):
+    assert check_officials.named(name, check_officials.plain(page))
+
+
+def test_a_particle_is_part_of_the_surname_not_a_name_of_its_own():
+    assert check_officials.surnames("Gregory Del Rosario") == ["rosario"]
+    assert not check_officials.named("Gregory Del Rosario", check_officials.plain("Del Taco on Main Street"))
+
+
+def test_a_pages_photos_name_members_in_their_alt_text():
+    text = check_officials.page_text('<img src="a.png" alt="Chair Dorian Rave"><img alt=\'Board Member Vallejo\' src="b.png">')
+    assert check_officials.named("Dorian Rave", text) and check_officials.named("Ana Vallejo", text)
+
+
 def test_a_surname_counts_only_as_a_word_of_its_own():
     text = check_officials.page_text("<p>Councilor Boyerson and Mr. Dexter-Smith</p>")
     assert not check_officials.named("Dan Boyer", text) and not check_officials.named("Dana Dexter", text)
@@ -107,6 +126,22 @@ def test_a_page_whose_names_come_from_its_scripts_is_read_in_a_browser(tmp_path)
     result = check_officials.run(town(), client, tmp_path, NOW, browser=browser)
     assert asked == [SCHOOL] and check_officials.leads(result) == []
     assert [b["read"] for b in result["bodies"]] == ["page", "page", "browser"]
+
+
+def test_the_browser_opens_collapsed_sections_and_reads_photos_alt_text(tmp_path):
+    """As Apptegy's sites do: the members' section loads what's in it only once it's opened."""
+    pytest.importorskip("playwright.sync_api")
+    page = tmp_path / "members.html"
+    page.write_text("""<!doctype html><html><body><main>
+<button aria-expanded="false" onclick="this.setAttribute('aria-expanded', 'true');
+  document.getElementById('list').textContent = 'Riley Example, Chair';">Members</button>
+<div id="list"></div><img src="data:," alt="Board Member Casey Sample">
+<a href="https://elsewhere.example/" aria-expanded="false">Another site</a></main></body></html>""")
+    try:
+        text = check_officials.rendered(page.as_uri(), "test")
+    except FetchError as e:
+        pytest.skip(f"no browser to run: {e}")
+    assert check_officials.named("Riley Example", text) and check_officials.named("Casey Sample", text)
 
 
 def test_incoming_members_are_looked_for_once_they_take_office(tmp_path):

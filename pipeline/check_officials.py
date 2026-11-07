@@ -12,9 +12,12 @@ config. The network's report (pipeline/network.py officials) lists every town's
 leads in one issue.
 
 Surnames, not whole names: a page writes "Dan" for "Daniel", or leaves out a
-middle initial, and both still match. A page that names none of the members as
-first fetched is read again in a browser, if one is installed, since many
-school districts' pages fill in their members with JavaScript.
+middle initial, and both still match; of a name of three words, either of the
+last two, since a page often gives one of two surnames. Images' alt text counts,
+since a page of members' photos often names them only there. A page that names
+none of the members as first fetched is read again in a browser, if one is
+installed, with its collapsed sections opened: many school districts' pages
+fill in their members with JavaScript, some only once a section is opened.
 
 It runs when the last check is CHECK_DAYS old, or when a body's members or page
 differ from those last checked (a person fixed the list: the lead goes away
@@ -57,22 +60,45 @@ def plain(text: str) -> str:
 
 
 def page_text(page: str) -> str:
-    """A page's words, as plain() writes them, without its scripts and styles."""
+    """A page's words, as plain() writes them, without its scripts and styles, and with its images' alt
+    text: a page of members' photos often names them only there ("Chair Dorian Rave")."""
     page = re.sub(r"(?is)<(script|style|noscript|template)\b.*?</\1\s*>", " ", page)
+    page = re.sub(r"""(?is)<img\b[^>]*?\balt\s*=\s*("([^"]*)"|'([^']*)')[^>]*>""",
+                  lambda m: f" {m.group(2) or m.group(3) or ''} ", page)
     return plain(html.unescape(re.sub(r"<[^>]+>", " ", page)))
+
+
+# Words that begin a surname of two ("De Jesus", "Van Gorder", "St. Hilaire"), not a name of their own.
+PARTICLES = {"de", "del", "della", "da", "di", "du", "la", "le", "van", "von", "st", "ste", "mac", "bin"}
+
+
+def name_words(name: str) -> list[str]:
+    """The words of a member's name, without a nickname in quotes or parentheses, initials, or suffixes."""
+    words = re.findall(r"[a-z][a-z'\-]*", re.sub(r'"[^"]*"|\([^)]*\)', " ", plain(name)))
+    return [w.strip("'-") for w in words if len(w.strip("'-")) > 1 and w.strip("'-") not in SUFFIXES]
 
 
 def surname(name: str) -> str:
     """'Jacqueline "Nikki" O'Toole' -> "o'toole"; 'David P. "D.J." Beauregard, Jr.' -> "beauregard"."""
-    words = re.findall(r"[a-z][a-z'\-]*", re.sub(r'"[^"]*"', " ", plain(name)))
-    words = [w for w in words if w.strip("'-") not in SUFFIXES]
-    return words[-1].strip("'-") if words else plain(name)
+    words = name_words(name)
+    return words[-1] if words else plain(name)
+
+
+def surnames(name: str) -> list[str]:
+    """The words a page may name the member by: the surname, and, for a name of three words or more, the
+    one before it, since a page often gives one of two surnames ("Lizandra Paneto" for Lizsandra Paneto
+    Gullon, "Amanda Sexton" for Amanda Grady Sexton). A middle name written out counts too, so a member
+    whose middle name is a word elsewhere on the page reads as named."""
+    words = name_words(name)
+    if len(words) >= 3 and words[-2] not in PARTICLES:
+        return [words[-1], words[-2]]
+    return [surname(name)]
 
 
 def named(name: str, text: str) -> bool:
-    """Whether the page's text (page_text()) names the member: their surname, as a word of its own ("Dexter"
-    isn't named by "Dexter-Smith" or "O'Dexter"; "Dexter's" names Dexter)."""
-    return re.search(rf"(?<![a-z'\-]){re.escape(surname(name))}(?![a-z\-])", text) is not None
+    """Whether the page's text (page_text()) names the member by one of their surnames(), as a word of its
+    own ("Dexter" isn't named by "Dexter-Smith" or "O'Dexter"; "Dexter's" names Dexter)."""
+    return any(re.search(rf"(?<![a-z'\-]){re.escape(word)}(?![a-z\-])", text) for word in surnames(name))
 
 
 def members(body: dict, where: str, today: date) -> list[str]:
@@ -82,8 +108,17 @@ def members(body: dict, where: str, today: date) -> list[str]:
     return [m["name"] for m in sitting]
 
 
+# The page's own collapsed sections (an accordion of members, as Apptegy's sites have), as accessible markup
+# marks them, opened before it's read: some load what's in them only then. Links that go elsewhere are left.
+COLLAPSED = ':is(button, summary, [role="button"], a[href="#"], a:not([href]))[aria-expanded="false"]'
+MOST_OPENED = 30
+# The page's text as a reader sees it, with its images' alt text (page_text()).
+READ = """() => document.body.innerText + " " + [...document.images].map(i => i.alt || "").join(" ")"""
+
+
 def rendered(url: str, user_agent: str) -> str | None:
-    """The page's text once its scripts have run, from a browser; None if no browser is installed."""
+    """The page's text once its scripts have run and its collapsed sections are open, from a browser; None
+    if no browser is installed."""
     try:
         from playwright.sync_api import Error, sync_playwright
     except ImportError:
@@ -94,7 +129,14 @@ def rendered(url: str, user_agent: str) -> str | None:
             try:
                 page = browser.new_page(user_agent=user_agent)
                 page.goto(url, wait_until="networkidle", timeout=BROWSER_TIMEOUT_MS)
-                return plain(page.inner_text("body"))
+                collapsed = page.locator(COLLAPSED)
+                for i in range(min(collapsed.count(), MOST_OPENED)):
+                    try:
+                        collapsed.nth(i).click(timeout=3_000)
+                    except Error:
+                        continue    # hidden, or covered: what's in it stays unread
+                page.wait_for_load_state("networkidle", timeout=BROWSER_TIMEOUT_MS)
+                return plain(page.evaluate(READ))
             finally:
                 browser.close()
     except Error as e:
