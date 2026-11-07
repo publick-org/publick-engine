@@ -93,12 +93,9 @@
 {# The section's heading names the field. #}
 <form class="line-form" role="search" action="/streets/" method="get">
   <div class="search-row">
-    <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-labelledby="your-street" aria-describedby="home-street-hint">
+    <input id="home-street" name="q" type="search" autocomplete="off" spellcheck="false" aria-labelledby="your-street" placeholder="{{ _('Street or address') }}">
     <button class="button button-primary" type="submit">{{ _("Look up") }}</button>
   </div>
-  {# Translators: %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311 requests"; %(example)s is a street's name. #}
-  <p class="small" id="home-street-hint">{% if street_example %}{% trans sources=street_sources | capitalize_first, example=street_example %}{{ sources }} on any street, such as "{{ example }}".{% endtrans %}
-  {%- else %}{% trans sources=street_sources | capitalize_first %}{{ sources }} on any street.{% endtrans %}{% endif %}</p>
 </form>
 {% endif %}
 
@@ -127,7 +124,7 @@
 {% if config.meetings is defined %}
 {% set keep_up %}
   {% if lang == "en" and not digest_signup %}<li><a href="/digest/">{{ _("Weekly digest") }}</a></li>{% endif %}
-  {% if alerts and lang == "en" %}<li><a href="/streets/">{{ _("Email me when an address is on an agenda") }}</a></li>{% endif %}
+  {% if alerts and lang == "en" %}<li><a href="/streets/">{{ _("Email me when my street is on an agenda") }}</a></li>{% endif %}
   {% if meeting_links.documents %}<li><a href="{{ feed_url }}">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   <li><a href="{{ calendar_url }}">{{ _("Meetings calendar for your calendar app") }}</a></li>
   {% if meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}

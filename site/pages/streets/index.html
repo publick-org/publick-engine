@@ -63,13 +63,11 @@
    in every language. #}
 {% if alerts %}
 {% set ignored = strings.update({
-  "follow_label": _("Email me when {address} is on an agenda"),
+  "follow_lead": _("Email me about"),
+  "follow_number": _("House number, or empty for the whole street"),
   "follow_placeholder": _("Email address"),
   "follow_button": _("Email me"),
   "follow_trap": _("Leave this empty"),
-  "follow_note": _("At most once a day."),
-  "follow_privacy": _("What's kept"),
-  "follow_ask": _("To get emails about one address, look it up:"),
 }) %}
 {% endif %}
 {# A street's ward, from the Officials page's address box, for a town that has it. #}

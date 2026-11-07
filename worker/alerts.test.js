@@ -183,7 +183,7 @@ test("a send emails each reader once, with what they follow, and not again that 
   const byReader = Object.fromEntries(sent.map((m) => [m.To, m]));
   assert.deepEqual(Object.keys(byReader).sort(), ["one@example.org", "two@example.org"]);
   const one = byReader["one@example.org"];
-  assert.equal(one.Subject, "2 addresses you follow came up");
+  assert.equal(one.Subject, "2 of your alerts came up");
   assert.match(one.TextBody, /62 Main Street\nPlanning Board, agenda for November 7, 2026\n“A site plan at 62 MAIN ST”\nhttps:\/\/salem-ma\.publick\.org\/meetings\/2026-11-05-planning-board\/\?ref=alert-email/);
   assert.match(one.TextBody, /7 High Street\nZoning Board, minutes of November 7, 2026/);
   assert.match(one.TextBody, /PO Box 1, Salem, MA/);
@@ -272,6 +272,44 @@ test("each email is from its site, at the town's own address when ALERTS_FROM is
   env.ALERTS_FROM = "@alerts.example.org";
   await follow(followForm(), env, new URL(`${ORIGIN}/alerts/follow`), manifest(), new Date(), postmark());
   assert.equal(sent[0].From, '"Salem Publick" <salem@alerts.example.org>');
+});
+
+test("a follow without a house number is the whole street's, exactly that street", async () => {
+  const url = new URL(`${ORIGIN}/alerts/follow`);
+  await follow(followForm({ email: "street@example.org", number: "" }), env, url, manifest(), new Date(), postmark());
+  const [row] = env.ALERTS_DB.rows("SELECT kind, key FROM follows");
+  assert.deepEqual(row, { kind: "street", key: "MAIN ST" });
+  assert.equal(sent[0].Subject, "Confirm: follow Main St");
+  const token = new URL(sent[0].TextBody.match(/https:\S+confirm\S+/)[0]).searchParams.get("t");
+  const confirmed = await (await confirm(form("/alerts/confirm", { t: token }), env, new URL(`${ORIGIN}/alerts/confirm`))).json();
+  assert.equal(confirmed.name, "Main St");
+  // Following both the street and an address on it: each line once.
+  await followAndConfirm("both@example.org", "62");
+  await follow(followForm({ email: "both@example.org", number: "" }), env, url, manifest(), new Date(), postmark());
+  const both = new URL(sent.at(-1).TextBody.match(/https:\S+confirm\S+/)[0]).searchParams.get("t");
+  await confirm(form("/alerts/confirm", { t: both }), env, new URL(`${ORIGIN}/alerts/confirm`));
+  const sendUrl = new URL(`${ORIGIN}/alerts/send`);
+  await send(hook(), env, sendUrl, manifest(), new Date("2026-11-06T10:00:00Z"), postmark());
+  mentionsJson = MENTIONS([
+    mention("2026-11-07T04:00:00-05:00", ["62 MAIN ST"]),
+    mention("2026-11-07T04:00:00-05:00", ["5 NORTH MAIN ST"], { board: "Zoning Board" }),
+    { ...mention("2026-11-07T04:00:00-05:00", []), addresses: [], names: [], streets: ["MAIN ST"], board: "City Council",
+      line: "Paving Main Street", address: "Main Street" },
+  ]);
+  sent = [];
+  await send(hook(), env, sendUrl, manifest(), new Date("2026-11-07T10:00:00Z"), postmark());
+  const byReader = Object.fromEntries(sent.map((m) => [m.To, m]));
+  const street = byReader["street@example.org"].TextBody;
+  assert.match(street, /62 Main Street\nPlanning Board/);
+  assert.match(street, /Main St\nCity Council/);
+  // North Main Street isn't Main Street.
+  assert.doesNotMatch(street, /North Main|Zoning Board/);
+  const twice = byReader["both@example.org"].TextBody.match(/A site plan at 62 MAIN ST/g);
+  assert.equal(twice.length, 1);
+  // The reader's page names each kind.
+  const page = await (await manage(form("/alerts/manage", { m: await readerToken(env, "both@example.org") }), env,
+    new URL(`${ORIGIN}/alerts/manage`))).json();
+  assert.deepEqual(page.follows.map((f) => f.name), ["62 Main St", "Main St"]);
 });
 
 test("street keys as names and folders", () => {

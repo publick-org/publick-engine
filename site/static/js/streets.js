@@ -76,37 +76,32 @@
   // A house number at the start of the query ("55 Commercial St"): the address an alert can follow.
   var number = ((query.match(/^\s*#?(\d{1,6}[A-Za-z]?)\s+\S/) || [])[1] || "").toUpperCase();
 
-  // Email alerts for an address (worker/alerts.js), as one line like the digest's signup (digest_line.html): a label,
-  // the email field and its button, and a short note. For a street alone, one line saying to look up the address.
-  function followLine(action, s) {
-    var address = s.name;
-    var form = el("form", "", { "class": "line-form", id: "follow", method: "post", action: action });
-    var row = el("div", "", { "class": "line-row" });
-    row.appendChild(el("label", t("follow_label", { address: address }), { "for": "follow-email" }));
-    var field = el("div", "", { "class": "search-row" });
-    field.appendChild(el("input", "", { id: "follow-email", name: "email", type: "email", required: "", maxlength: "254",
-      autocomplete: "email", placeholder: t("follow_placeholder"), "aria-describedby": "follow-note" }));
-    field.appendChild(el("button", t("follow_button"), { "class": "button button-primary", type: "submit" }));
-    row.appendChild(field);
+  // Email alerts (worker/alerts.js) as one sentence with the house number in it: "Email me about [#] Commercial Street".
+  // Empty, it follows the whole street; with a number, that address (filled in on an address's results). Then the
+  // email field and its button, as the digest's signup has them (digest_line.html).
+  function followForm(action, s) {
+    var form = el("form", "", { "class": "line-form follow-form", id: "follow", method: "post", action: action });
+    var sentence = el("p", "", { "class": "follow-sentence" });
+    sentence.appendChild(el("span", t("follow_lead"), { "class": "follow-lead" }));
+    var address = el("span", "", { "class": "address-unit" });
+    address.appendChild(el("input", "", { id: "follow-number", name: "number", inputmode: "numeric", autocomplete: "off",
+      maxlength: "7", pattern: "[0-9]{1,6}[A-Za-z]?", placeholder: "#", "aria-label": t("follow_number"), value: number }));
+    address.appendChild(el("span", s.street || s.name));
+    sentence.appendChild(address);
+    form.appendChild(sentence);
+    var row = el("div", "", { "class": "search-row" });
+    row.appendChild(el("input", "", { id: "follow-email", name: "email", type: "email", required: "", maxlength: "254",
+      autocomplete: "email", placeholder: t("follow_placeholder"), "aria-label": t("follow_placeholder") }));
+    row.appendChild(el("button", t("follow_button"), { "class": "button button-primary", type: "submit" }));
     form.appendChild(row);
-    [["number", number], ["street", s.key], ["lang", document.documentElement.lang || "en"]].forEach(function (f) {
+    [["street", s.key], ["lang", document.documentElement.lang || "en"]].forEach(function (f) {
       form.appendChild(el("input", "", { type: "hidden", name: f[0], value: f[1] }));
     });
     var trap = el("div", "", { hidden: "" });
     trap.appendChild(el("label", t("follow_trap"), { "for": "follow-website" }));
     trap.appendChild(el("input", "", { id: "follow-website", name: "website", type: "text", tabindex: "-1", autocomplete: "off" }));
     form.appendChild(trap);
-    var note = el("p", t("follow_note") + " ", { "class": "small", id: "follow-note" });
-    note.appendChild(el("a", t("follow_privacy"), { href: "/about/#privacy" }));
-    form.appendChild(note);
     return form;
-  }
-
-  function followAsk(s) {
-    var example = (s.addresses && s.addresses.length ? s.addresses[0][0] : "1") + " " + s.name;
-    var p = el("p", t("follow_ask") + " ", { "class": "small" });
-    p.appendChild(el("a", example, { href: window.location.pathname + "?q=" + encodeURIComponent(example) }));
-    return p;
   }
 
   // The street's feed, and each address's on it (pipeline/mentions.py), as one line at the end.
@@ -186,7 +181,7 @@
       return item(m.board, m.url, date(m.date) + " · " + m.doc, m.line);
     })));
     var action = root.getAttribute("data-follow");
-    if (action && s.feed) results.appendChild(number ? followLine(action, Object.assign({ key: key }, s)) : followAsk(s));
+    if (action && s.feed) results.appendChild(followForm(action, Object.assign({ key: key }, s)));
     if (sources.indexOf("permits") >= 0) results.appendChild(section(t("permits_head"), s.permits_total, s.permits.length, s.permits.map(function (p) {
       var detail = [p.type, date(p.date), p.status].concat(p.cost ? [t("estimated", { amount: money(p.cost) })] : []).join(" · ");
       return item(p.address, null, detail, p.work);
