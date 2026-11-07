@@ -8,6 +8,7 @@ The engine's layout, how to build and test it locally, and how to add a section.
 pipeline/                   Python package
   config.py                 Finds the town's repository and loads config/<town>.toml, over a network's shared
                             settings (defaults/network.toml, defaults/states/<st>.toml); show prints the result
+  data_readme.py            By hand: the town's data/README.md, each data file with its source and license, from its config
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
   fetch_meetings.py         Daily: city calendars (CivicPlus, a CivicPlus Agenda Center, CivicClerk, Legistar, PrimeGov, DotNetNuke, a calendar with a documents page),
                             a school district's calendar feed or page of dates -> data/meetings/
