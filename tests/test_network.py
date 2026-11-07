@@ -412,6 +412,53 @@ def test_behind_lists_towns_without_a_good_update(tmp_path):
     assert network.behind(root, 30, at)[0]["problems"] == ["Average tax bill (Mass. DLS): checks failing"]
 
 
+def test_the_alert_names_gemini_when_it_refuses_many_towns_public_videos_and_transcribes_none(tmp_path):
+    from datetime import datetime, timezone
+    root = make_root(tmp_path)
+    at = datetime(2026, 11, 7, 12, 0, tzinfo=timezone.utc)
+    good = dict(finished_at="2026-11-07T09:00:00+00:00", last_good_at="2026-11-07T09:00:00+00:00", steps=[])
+
+    def gemini(name, refused, transcribed=0, when="2026-11-07T08:00:00+00:00"):
+        write_record(root, name, **good, gemini={"at": when, "refused": refused, "transcribed": transcribed,
+                                                 "last_transcribed_at": "2026-11-05T08:00:00+00:00"})
+
+    gemini("gloucester-ma", 2)
+    gemini("manchester-nh", 1)
+    gemini("salem-ma", 0)
+    rows = network.gemini_refusals(root, 30, at)
+    assert rows == [{"folder": "Gemini (YouTube recordings)", "last_good_at": "2026-11-05T08:00:00+00:00",
+                     "last_run_at": "2026-11-07T08:00:00+00:00",
+                     "problems": ["refused 3 YouTube videos the Data API reads as public, in 2 towns, and transcribed "
+                                  "none: its key may have lost permission"]}]
+    assert network.behind(root, 30, at) == rows
+    # Any video transcribed: the key works, and the ones refused aren't public to Gemini yet.
+    gemini("salem-ma", 0, transcribed=1)
+    assert network.gemini_refusals(root, 30, at) == []
+    # One town's, however many: its videos, not the key.
+    gemini("salem-ma", 0)
+    gemini("manchester-nh", 0)
+    gemini("gloucester-ma", 5)
+    assert network.gemini_refusals(root, 30, at) == []
+    # A run record older than the alert's hours isn't counted.
+    gemini("manchester-nh", 4, when="2026-11-05T08:00:00+00:00")
+    assert network.gemini_refusals(root, 30, at) == []
+
+
+def test_a_towns_run_record_keeps_how_gemini_answered(tmp_path):
+    data = tmp_path / "data"
+    (data / "meetings").mkdir(parents=True)
+    assert network.gemini_counts(data) is None
+    (data / "meetings" / "recordings_status.json").write_text(json.dumps(
+        {"updated_at": "2026-11-07T08:00:00-05:00", "refused": ["youtube-a", "youtube-b"],
+         "transcribed": ["youtube-c", "telvue-1"]}))
+    (data / "meetings" / "recordings.json").write_text(json.dumps({
+        "youtube-c": {"platform": "youtube", "transcript": {"transcribed_at": "2026-11-07T08:00:00-05:00"}},
+        "youtube-d": {"platform": "youtube", "transcript": {"transcribed_at": "2026-11-01T08:00:00-05:00"}},
+        "telvue-1": {"platform": "telvue", "transcript": {"transcribed_at": "2026-11-07T09:00:00-05:00"}}}))
+    assert network.gemini_counts(data) == {"at": "2026-11-07T08:00:00-05:00", "refused": 2, "transcribed": 1,
+                                           "last_transcribed_at": "2026-11-07T08:00:00-05:00"}
+
+
 def test_behind_lists_a_town_with_no_meetings_even_after_a_good_update(tmp_path):
     # A city's site that never answers: the meeting fetch is optional, so the run is good, but the
     # town has no meetings at all (Laconia, NH, on its first runs).

@@ -412,6 +412,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         result["fact_checks"] = fact_checks(town_dir / "data")
         result["recordings"] = recording_coverage(root, name)
         result["documents"] = document_coverage(root, name)
+        result["gemini"] = gemini_counts(town_dir / "data")
         result["officials"] = officials_leads(town_dir / "data")
         write_atomic(record, json.dumps(result, indent=2) + "\n")
     elif result["deployed"] and (town_dir / "data" / RUN_RECORD).is_file():
@@ -501,6 +502,23 @@ def officials_leads(data: Path) -> dict | None:
     return {"checked_at": checked["checked_at"], "leads": check_officials.leads(checked)}
 
 
+def gemini_counts(data: Path) -> dict | None:
+    """The town's YouTube recordings as Gemini last answered them, for the daily alert (gemini_refusals()),
+    which reads only run records: the videos it refused in the last recordings run (HTTP 403, though the
+    Data API reads them as public), those it transcribed then, and when it last transcribed one. None for a
+    town whose recordings run hasn't asked Gemini."""
+    path = data / "meetings" / "recordings_status.json"
+    status = json.loads(path.read_text()) if path.exists() else {}
+    store = data / "meetings" / "recordings.json"
+    made = [r["transcript"]["transcribed_at"] for r in (json.loads(store.read_text()) if store.exists() else {}).values()
+            if r.get("platform") == "youtube" and (r.get("transcript") or {}).get("transcribed_at")]
+    refused, transcribed = status.get("refused") or [], [i for i in status.get("transcribed") or [] if i.startswith("youtube-")]
+    if not (refused or transcribed or made):
+        return None
+    return {"at": status.get("updated_at"), "refused": len(refused), "transcribed": len(transcribed),
+            "last_transcribed_at": max(made, default=None)}
+
+
 def fact_checks(data: Path) -> dict:
     """How the town's summaries fared against their documents (pipeline/factcheck.py), for the
     status page: how many summaries each result has ("not_yet": no check saved), how many of them
@@ -575,7 +593,7 @@ def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) 
         problems += [f"{label}: checks failing" for label in record.get("failing") or []]
         rows.append({"folder": name, "last_good_at": last, "last_run_at": record.get("finished_at"),
                      "problems": problems})
-    return rows + failing_states(root)
+    return rows + failing_states(root) + gemini_refusals(root, hours, at)
 
 
 def town_config(root: Path, name: str) -> dict:
@@ -615,6 +633,34 @@ def refresh_states(root: Path, now: datetime | None = None) -> dict:
             continue
         write_atomic(status_path, json.dumps(status, indent=2) + "\n")
     return results
+
+
+# The daily alert names Gemini when, in the towns' runs of the last `hours`, it refused at least this many YouTube
+# videos the Data API reads as public, in at least GEMINI_REFUSED_TOWNS towns, and transcribed none. One video,
+# or one town's, is a video not public to Gemini yet; many towns' at once, with nothing answered, is its key.
+GEMINI_REFUSED = 3
+GEMINI_REFUSED_TOWNS = 2
+
+
+def gemini_refusals(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) -> list[dict]:
+    """A row for the daily alert when Gemini refuses many towns' public YouTube videos and transcribes none
+    (GEMINI_REFUSED), from the towns' run records ("gemini", gemini_counts()): one row, not one per town."""
+    at = at or datetime.now(timezone.utc)
+    counted = []
+    for name in town_dirs(root):
+        path = root / TOWNS / name / "data" / RUN_RECORD
+        gemini = (json.loads(path.read_text()) if path.exists() else {}).get("gemini")
+        if gemini and gemini.get("at") and datetime.fromisoformat(gemini["at"]) >= at - timedelta(hours=hours):
+            counted.append(gemini)
+    refused = sum(g["refused"] for g in counted)
+    towns = sum(1 for g in counted if g["refused"])
+    if refused < GEMINI_REFUSED or towns < GEMINI_REFUSED_TOWNS or any(g["transcribed"] for g in counted):
+        return []
+    return [{"folder": "Gemini (YouTube recordings)",
+             "last_good_at": max((g["last_transcribed_at"] for g in counted if g.get("last_transcribed_at")), default=None),
+             "last_run_at": max(g["at"] for g in counted),
+             "problems": [f"refused {refused} YouTube videos the Data API reads as public, in {towns} towns, and "
+                          "transcribed none: its key may have lost permission"]}]
 
 
 def failing_states(root: Path) -> list[dict]:

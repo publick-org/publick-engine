@@ -492,6 +492,8 @@ def test_a_video_gemini_cant_open_waits_then_fails(monkeypatch):
     # The day after the meeting, and the next: it waits, no failed try.
     for today in (date(2026, 11, 3), date(2026, 11, 4)):
         assert youtube.transcript(None, METHUEN_SCHOOLS, video, post=FakeHTTP(NOT_PUBLIC), today=today) is None
+        # The day it was refused is kept, for the network's alert.
+        assert video["refused_at"] == today.isoformat()
     # After PUBLIC_WAIT_DAYS, a failed try, with Gemini's answer.
     with pytest.raises(FetchError, match="permission"):
         youtube.transcript(None, METHUEN_SCHOOLS, video, post=FakeHTTP(NOT_PUBLIC), today=date(2026, 11, 5))
