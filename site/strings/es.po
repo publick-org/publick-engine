@@ -1908,6 +1908,16 @@ msgstr ""
 msgid "A revised agenda was posted."
 msgstr "Se publicó una agenda revisada."
 
+#. %(example)s is a street's name.
+#: site/pages/streets/index.html
+#, python-format
+msgid "A street or an address, such as \"%(example)s\"."
+msgstr ""
+
+#: site/pages/streets/index.html
+msgid "A street or an address."
+msgstr ""
+
 #. "Not enough data" is what a typical time shows when there are too few requests; use the same words
 #. as its translation.
 #: site/pages/311/index.html
@@ -2174,6 +2184,11 @@ msgstr "Todas las viviendas"
 msgid "All meetings"
 msgstr "Todas las reuniones"
 
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "All of {street}"
+msgstr ""
+
 #: site/pages/311/index.html
 msgid "All repeat locations"
 msgstr "Todos los lugares con solicitudes repetidas"
@@ -2349,6 +2364,10 @@ msgstr ""
 "octubre de %(revaluation)s, como en las facturas de impuestos: el valor de cada casa aquí es su "
 "tasación antes de la tasación general, del archivo de parcelas de %(before)s del estado, más el "
 "%(percent)s%% de cualquier aumento (año %(year)s de %(years)s). Una baja no se aplica por etapas."
+
+#: site/pages/streets/index.html
+msgid "At most once a day."
+msgstr ""
 
 #. %(start)s and %(end)s are dates, such as "October 5, 2026".
 #: site/templates/digest.html
@@ -3297,11 +3316,6 @@ msgstr ""
 " de julio de %(start)s, cuando empezó el año fiscal. La mediana es de %(communities)s ciudades y "
 "pueblos de Rhode Island."
 
-#: site/pages/streets/index.html
-#, python-brace-format
-msgid "Each new agenda or minutes line naming {street}"
-msgstr "Cada nueva línea de agenda o acta que nombre {street}"
-
 #: site/states/ri/budget.html
 msgid ""
 "Each rate is the property tax in dollars for each $1,000 of assessed value. Rhode Island lets a "
@@ -3512,12 +3526,21 @@ msgstr ""
 msgid "Election Commission"
 msgstr "Comisión Electoral"
 
-#: site/templates/digest_form.html site/templates/digest_line.html
+#: site/pages/streets/index.html site/templates/digest_form.html site/templates/digest_line.html
 msgid "Email address"
 msgstr "Correo electrónico"
 
 #: site/pages/streets/index.html
 msgid "Email me"
+msgstr ""
+
+#: site/pages/index.html
+msgid "Email me when an address is on an agenda"
+msgstr ""
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Email me when {address} is on an agenda"
 msgstr ""
 
 #: site/pages/index.html
@@ -3541,16 +3564,6 @@ msgstr "Escriba una dirección, como 12 Main St."
 #: site/pages/meetings/search/index.html
 msgid "Enter a word to search for."
 msgstr "Escriba una palabra para buscar."
-
-#. %(example)s is a street's name.
-#: site/pages/streets/index.html
-#, python-format
-msgid "Enter the street, not a full address, such as \"%(example)s\"."
-msgstr "Escriba la calle, no la dirección completa; por ejemplo, “%(example)s”."
-
-#: site/pages/streets/index.html
-msgid "Enter the street, not a full address."
-msgstr "Escriba la calle, no la dirección completa."
 
 #: site/states/vt/budget.html
 msgid "Equalized value"
@@ -3688,6 +3701,10 @@ msgstr "febrero"
 msgid "Federal aid"
 msgstr "Ayuda federal"
 
+#: site/pages/streets/index.html
+msgid "Feeds:"
+msgstr ""
+
 #: site/pages/data/index.html
 msgid "Field"
 msgstr "Campo"
@@ -3815,10 +3832,6 @@ msgstr ""
 #: site/pages/index.html
 msgid "Follow City Hall updates by RSS"
 msgstr "Siga las novedades de la Alcaldía por RSS"
-
-#: site/pages/streets/index.html
-msgid "Follow it"
-msgstr "Seguirla"
 
 #: site/templates/digest_index.html
 msgid "Follow the weekly digest by RSS"
@@ -4181,11 +4194,6 @@ msgstr "Educación, vivienda principal"
 #: site/states/vt/budget.html
 msgid "Homestead tax rate"
 msgstr "Tasa de vivienda principal"
-
-#: site/pages/streets/index.html
-#, python-brace-format
-msgid "House number on {street}"
-msgstr ""
 
 #: pipeline/build_site.py site/pages/about/index.html site/pages/housing/index.html
 msgid "Housing"
@@ -5887,14 +5895,6 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
 
-#: site/pages/streets/index.html
-msgid "Or get an email"
-msgstr ""
-
-#: site/pages/streets/index.html
-msgid "Or one address:"
-msgstr "O una sola dirección:"
-
 #: pipeline/common_strings.py pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Other"
 msgstr "Otros"
@@ -6833,10 +6833,6 @@ msgstr ""
 "Evaluación Estatal de New Hampshire (NH SAS). Las cifras son de todos los grados evaluados "
 "juntos: los grados 3 a 8 y el grado 11, cuyos resultados vienen del SAT."
 
-#: site/pages/streets/index.html
-msgid "Short forms like St and Ave work too."
-msgstr "También puede usar abreviaturas como St y Ave."
-
 #: site/templates/meeting.html
 #, python-format
 msgid "Show %(count)s more item"
@@ -7637,8 +7633,8 @@ msgid "Street Light"
 msgstr "Luz de la calle"
 
 #: site/pages/streets/index.html
-msgid "Street name"
-msgstr "Nombre de la calle"
+msgid "Street or address"
+msgstr ""
 
 #: pipeline/common_strings.py
 msgid "Streetlight Out"
@@ -8730,14 +8726,6 @@ msgstr ""
 "El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
 "oficina."
 
-#: site/pages/streets/index.html
-msgid ""
-"These are feeds: add one to a feed reader to see each new mention. A line the same board has "
-"listed before isn't repeated."
-msgstr ""
-"Son fuentes RSS: añada una a su lector de fuentes para ver cada nueva mención. Una línea que la "
-"misma junta ya publicó antes no se repite."
-
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
 #, python-format
@@ -8989,6 +8977,10 @@ msgstr ""
 #, python-format
 msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
 msgstr "El título cambió de “%(old)s” a “%(new)s”."
+
+#: site/pages/streets/index.html
+msgid "To get emails about one address, look it up:"
+msgstr ""
 
 #: site/templates/alerts.html
 #, python-format
@@ -9298,12 +9290,6 @@ msgstr "Ver la grabación"
 msgid "We count visits so we know which pages are useful. That's all."
 msgstr "Contamos las visitas para saber qué páginas son útiles. Nada más."
 
-#: site/pages/streets/index.html
-msgid ""
-"We'll email you to confirm. Then, at most one email a day, only when a new agenda or minutes line"
-" names the address. You can stop at any time."
-msgstr ""
-
 #: site/templates/digest_answer.html
 msgid ""
 "We've sent you an email. Open the link in it to confirm your address, and the digest will start "
@@ -9511,6 +9497,10 @@ msgstr "Qué pasa en su calle"
 #: site/pages/index.html
 msgid "What's happening on your street?"
 msgstr "¿Qué pasa en su calle?"
+
+#: site/pages/streets/index.html
+msgid "What's kept"
+msgstr ""
 
 #: site/templates/alerts.html
 msgid "What's kept, and for how long"
@@ -9758,10 +9748,6 @@ msgid ""
 msgstr ""
 "Su navegador le pedirá permiso primero. Su ubicación se compara con el mapa de distritos en su "
 "propio dispositivo. No se envía a Publick ni a nadie más, y no se guarda."
-
-#: site/pages/streets/index.html
-msgid "Your email address"
-msgstr ""
 
 #: site/pages/officials/index.html
 msgid "Your location isn't available. You can find your district on the map or in the list below."

@@ -125,7 +125,7 @@ def test_recent_new_mentions():
 
 def test_street_lookup_offers_the_feeds(site_dir):
     page = (site_dir / "streets" / "index.html").read_text()
-    assert "follow_head" in page and "/static/js/streets.js?v=" in page
+    assert "follow_feeds" in page and "whole_street" in page and "/static/js/streets.js?v=" in page
 
 
 def test_alerts_pages_and_privacy_for_a_town_with_alerts(site_dir):

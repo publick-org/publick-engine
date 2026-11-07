@@ -73,53 +73,95 @@
     return li;
   }
 
-  // The street's feed, and each address's on it that the documents name (pipeline/mentions.py).
-  function follow(s) {
-    var wrap = document.createDocumentFragment();
-    wrap.appendChild(el("h3", t("follow_head")));
-    var p = el("p");
-    p.appendChild(el("a", t("follow_street", { street: s.name }), { href: s.feed, type: "application/rss+xml" }));
-    wrap.appendChild(p);
-    if (s.addresses && s.addresses.length) {
-      var one = el("p", t("follow_one") + " ");
-      s.addresses.forEach(function (a, i) {
-        if (i) one.appendChild(document.createTextNode(" · "));
-        one.appendChild(el("a", a[0] + " " + s.name, { href: a[1], type: "application/rss+xml" }));
-      });
-      wrap.appendChild(one);
-    }
-    wrap.appendChild(el("p", t("follow_note"), { "class": "small" }));
-    var action = root.getAttribute("data-follow");
-    if (action) wrap.appendChild(followForm(action, s));
-    return wrap;
-  }
+  // A house number at the start of the query ("55 Commercial St"): the address an alert can follow.
+  var number = ((query.match(/^\s*#?(\d{1,6}[A-Za-z]?)\s+\S/) || [])[1] || "").toUpperCase();
 
-  // An email for one address on the street (worker/alerts.js), for a town with alerts: laid out as the
-  // digest's signup form is (site/templates/digest_form.html), with its hidden field for bots.
-  function followForm(action, s) {
-    var form = el("form", "", { method: "post", action: action, "class": "search-form follow-form" });
-    form.appendChild(el("h4", t("follow_email_head")));
-    function field(name, label, attrs, button) {
-      form.appendChild(el("label", label, { "for": "follow-" + name }));
-      var row = el("div", "", { "class": "search-row" });
-      row.appendChild(el("input", "", Object.assign({ id: "follow-" + name, name: name, required: "", "aria-describedby": "follow-note" }, attrs)));
-      if (button) row.appendChild(button);
-      form.appendChild(row);
-    }
-    field("number", t("follow_number", { street: s.name }), { inputmode: "numeric", autocomplete: "off", maxlength: "7", pattern: "[0-9]{1,6}[A-Za-z]?" });
-    field("email", t("follow_email"), { type: "email", maxlength: "254", autocomplete: "email" },
-      el("button", t("follow_button"), { "class": "button button-primary", type: "submit" }));
-    form.appendChild(el("input", "", { type: "hidden", name: "street", value: s.key }));
-    form.appendChild(el("input", "", { type: "hidden", name: "lang", value: document.documentElement.lang || "en" }));
+  // Email alerts for an address (worker/alerts.js), as one line like the digest's signup (digest_line.html): a label,
+  // the email field and its button, and a short note. For a street alone, one line saying to look up the address.
+  function followLine(action, s) {
+    var address = s.name;
+    var form = el("form", "", { "class": "line-form", id: "follow", method: "post", action: action });
+    var row = el("div", "", { "class": "line-row" });
+    row.appendChild(el("label", t("follow_label", { address: address }), { "for": "follow-email" }));
+    var field = el("div", "", { "class": "search-row" });
+    field.appendChild(el("input", "", { id: "follow-email", name: "email", type: "email", required: "", maxlength: "254",
+      autocomplete: "email", placeholder: t("follow_placeholder"), "aria-describedby": "follow-note" }));
+    field.appendChild(el("button", t("follow_button"), { "class": "button button-primary", type: "submit" }));
+    row.appendChild(field);
+    form.appendChild(row);
+    [["number", number], ["street", s.key], ["lang", document.documentElement.lang || "en"]].forEach(function (f) {
+      form.appendChild(el("input", "", { type: "hidden", name: f[0], value: f[1] }));
+    });
     var trap = el("div", "", { hidden: "" });
     trap.appendChild(el("label", t("follow_trap"), { "for": "follow-website" }));
     trap.appendChild(el("input", "", { id: "follow-website", name: "website", type: "text", tabindex: "-1", autocomplete: "off" }));
     form.appendChild(trap);
-    form.appendChild(el("p", t("follow_email_note"), { "class": "small", id: "follow-note" }));
+    var note = el("p", t("follow_note") + " ", { "class": "small", id: "follow-note" });
+    note.appendChild(el("a", t("follow_privacy"), { href: "/about/#privacy" }));
+    form.appendChild(note);
     return form;
   }
 
+  function followAsk(s) {
+    var example = (s.addresses && s.addresses.length ? s.addresses[0][0] : "1") + " " + s.name;
+    var p = el("p", t("follow_ask") + " ", { "class": "small" });
+    p.appendChild(el("a", example, { href: window.location.pathname + "?q=" + encodeURIComponent(example) }));
+    return p;
+  }
+
+  // The street's feed, and each address's on it (pipeline/mentions.py), as one line at the end.
+  function feeds(s) {
+    var p = el("p", t("follow_feeds") + " ", { "class": "small" });
+    var street = s.street || s.name;
+    (s.street ? [] : [[street, s.feed]]).concat((s.addresses || []).map(function (a) { return [a[0] + " " + street, a[1]]; }))
+      .forEach(function (f, i) {
+        if (i) p.appendChild(document.createTextNode(" · "));
+        p.appendChild(el("a", s.street ? f[0] : (i ? f[0].split(" ")[0] : f[0]), { href: f[1], type: "application/rss+xml", "aria-label": f[0] }));
+      });
+    return p;
+  }
+
+  // For an address ("55 Commercial St"), only what's about it: the lines, permits and 311 requests whose house
+  // numbers, before the street's first word, include it. A range counts each number on its side of the street
+  // ("53-57" is 53, 55 and 57) and a list each one ("171 & 281R"), as the feeds do (pipeline/mentions.py numbers()).
+  // The street stays one link away.
+  var MAX_RANGE = 25;
+  function numbersIn(written) {
+    var out = [];
+    written.toUpperCase().split(/\s*[&\/,]\s*|\s+/).forEach(function (part) {
+      var ends = part.split(/\s*[-–]\s*/).filter(Boolean);
+      if (ends.length === 2 && /^\d+$/.test(ends[0]) && /^\d+$/.test(ends[1]) && +ends[0] < +ends[1]) {
+        var first = +ends[0], last = +ends[1], step = first % 2 === last % 2 ? 2 : 1;
+        if ((last - first) / step + 1 <= MAX_RANGE) { for (var n = first; n <= last; n += step) out.push(String(n)); }
+        else out.push(ends[0], ends[1]);
+      } else out = out.concat(ends);
+    });
+    return out.map(function (n) { return n.replace(/^0+(?=\d)/, ""); });
+  }
+  function atAddress(s) {
+    var word = s.name.split(" ")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    var group = "(\\d+[A-Za-z]?(?:\\s*(?:[-–\\/&,]|and)\\s*\\d+[A-Za-z]?)*)";
+    var named = new RegExp("(?:^|[^0-9A-Za-z])" + group + "\\s+" + word + "\\b", "gi");
+    var starts = new RegExp("^\\s*" + group + "\\b", "i");
+    function names(text) {
+      var m; named.lastIndex = 0;
+      while ((m = named.exec(text))) { if (numbersIn(m[1].replace(/\band\b/gi, "&")).indexOf(number) >= 0) return true; }
+      return false;
+    }
+    function at(address) { var m = starts.exec(address); return !!m && numbersIn(m[1].replace(/\band\b/gi, "&")).indexOf(number) >= 0; }
+    var meetings = s.meetings.filter(function (m) { return names(m.line); });
+    var permits = s.permits.filter(function (p) { return at(p.address); });
+    var requests = s.requests.filter(function (r) { return at(r.address); });
+    return Object.assign({}, s, {
+      name: number + " " + s.name, street: s.name,
+      meetings: meetings, meetings_total: meetings.length, permits: permits, permits_total: permits.length,
+      requests: requests, requests_total: requests.length,
+      addresses: (s.addresses || []).filter(function (a) { return a[0] === number; }),
+    });
+  }
+
   function show(key, s) {
+    if (number) s = atAddress(s);
     results.textContent = "";
     var counts = [];
     function count(key, n) { return t(n === 1 ? key + "_one" : key + "_other", { n: n }); }
@@ -128,6 +170,11 @@
     if (sources.indexOf("requests") >= 0) counts.push(count("requests", s.requests_total));
     status.textContent = t("counts", { street: s.name, counts: counts.join(", ") });
     results.appendChild(el("h2", s.name, { id: "street-name" }));
+    if (s.street) {
+      var whole = el("p");
+      whole.appendChild(el("a", t("whole_street", { street: s.street }), { href: window.location.pathname + "?q=" + encodeURIComponent(s.street) }));
+      results.appendChild(whole);
+    }
     // The street's ward, on the Officials page: the street goes after "#", which isn't sent with the request.
     var wardPage = root.getAttribute("data-ward-page");
     if (wardPage) {
@@ -135,10 +182,11 @@
       p.appendChild(el("a", t("ward_link", { street: s.name }), { href: wardPage + "#address=" + encodeURIComponent(s.name) }));
       results.appendChild(p);
     }
-    if (s.feed) results.appendChild(follow(Object.assign({ key: key }, s)));
     if (sources.indexOf("meetings") >= 0) results.appendChild(section(t("meetings_head"), s.meetings_total, s.meetings.length, s.meetings.map(function (m) {
       return item(m.board, m.url, date(m.date) + " · " + m.doc, m.line);
     })));
+    var action = root.getAttribute("data-follow");
+    if (action && s.feed) results.appendChild(number ? followLine(action, Object.assign({ key: key }, s)) : followAsk(s));
     if (sources.indexOf("permits") >= 0) results.appendChild(section(t("permits_head"), s.permits_total, s.permits.length, s.permits.map(function (p) {
       var detail = [p.type, date(p.date), p.status].concat(p.cost ? [t("estimated", { amount: money(p.cost) })] : []).join(" · ");
       return item(p.address, null, detail, p.work);
@@ -146,6 +194,7 @@
     if (sources.indexOf("requests") >= 0) results.appendChild(section(t("requests_head"), s.requests_total, s.requests.length, s.requests.map(function (r) {
       return item(r.category, r.url, [r.address, date(r.date), t(r.status === "open" ? "open" : "closed")].join(" · "));
     })));
+    if (s.feed) results.appendChild(feeds(s));
   }
 
   function suggest(matches, streets) {

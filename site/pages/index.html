@@ -127,6 +127,7 @@
 {% if config.meetings is defined %}
 {% set keep_up %}
   {% if lang == "en" and not digest_signup %}<li><a href="/digest/">{{ _("Weekly digest") }}</a></li>{% endif %}
+  {% if alerts and lang == "en" %}<li><a href="/streets/">{{ _("Email me when an address is on an agenda") }}</a></li>{% endif %}
   {% if meeting_links.documents %}<li><a href="{{ feed_url }}">{{ _("Follow City Hall updates by RSS") }}</a></li>{% endif %}
   <li><a href="{{ calendar_url }}">{{ _("Meetings calendar for your calendar app") }}</a></li>
   {% if meeting_links.notify %}<li><a href="{{ meeting_links.notify }}">{{ _("Email or text alerts from the city") }}</a></li>{% endif %}
