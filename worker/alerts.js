@@ -26,8 +26,9 @@
 // the town, the followed key and the language, and nothing else: no IP address, no opens or clicks.
 //
 // Environment: ALERTS_DB (D1, schema in alerts.sql), POSTMARK_TOKEN (a Postmark server's token, a
-// secret), ALERTS_FROM (the sending address, "alerts@alerts.example.org"; each email is from its site's
-// name at it, "Salem Publick <alerts@...>"), ALERTS_HOOK_SECRET and
+// secret), ALERTS_FROM (the sending address, "alerts@alerts.example.org", or a domain alone,
+// "@alerts.example.org", for an address for each town there; each email is from its site's name at it,
+// "Salem Publick" <salem@...>), ALERTS_HOOK_SECRET and
 // ALERTS_TOKEN_SECRET (secrets),
 // optionally ALERTS_STREAM (Postmark's message stream, "outbound" by default), ALERTS_MAILING_ADDRESS
 // (the footer's postal address) and SIGNUP_LIMITER (digest.js).
@@ -115,14 +116,17 @@ function escapeHtml(text) {
 // Postmark's error for a recipient it won't send to: one that bounced for good or marked an email as spam.
 export const INACTIVE = 406;
 
-// "Salem Publick" and ALERTS_FROM -> "Salem Publick <alerts@...>"; an ALERTS_FROM with its own name as it is.
-export function sender(env, name) {
-  const from = String(env.ALERTS_FROM || "");
-  if (from.includes("<") || !name) return from;
-  return `"${String(name).replace(/["\\\r\n]/g, "")}" <${from}>`;
+// An email's From: its site's name at ALERTS_FROM ("Salem Publick" <alerts@...>). An ALERTS_FROM that is a
+// domain alone ("@alerts.example.org") gives each town its own address there, its name without the state
+// (salem-ma -> "Salem Publick" <salem@alerts.example.org>). One with its own name is used as it is.
+export function sender(env, name, town = "") {
+  let from = String(env.ALERTS_FROM || "");
+  if (from.includes("<")) return from;
+  if (from.startsWith("@")) from = `${String(town).replace(/-[a-z]{2}$/, "").replace(/[^a-z0-9-]/g, "") || "alerts"}${from}`;
+  return name ? `"${String(name).replace(/["\\\r\n]/g, "")}" <${from}>` : from;
 }
 
-// Sends emails ({to, from, subject, text, html, unsubscribe}) through the provider: Postmark's batch API.
+// Sends emails ({to, from, town, subject, text, html, unsubscribe}) through the provider: Postmark's batch API.
 // Another provider is another function here. Returns {failed, inactive}: the addresses not accepted, to try
 // again later, and those the provider won't send to again, whose alerts are stopped.
 export async function sendEmails(env, emails, fetchImpl = fetch) {
@@ -133,7 +137,7 @@ export async function sendEmails(env, emails, fetchImpl = fetch) {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json", "X-Postmark-Server-Token": env.POSTMARK_TOKEN },
       body: JSON.stringify(chunk.map((e) => ({
-        From: sender(env, e.from), To: e.to, Subject: e.subject, TextBody: e.text, HtmlBody: e.html,
+        From: sender(env, e.from, e.town), To: e.to, Subject: e.subject, TextBody: e.text, HtmlBody: e.html,
         MessageStream: env.ALERTS_STREAM || "outbound", TrackOpens: false, TrackLinks: "None",
         Headers: e.unsubscribe ? [{ Name: "List-Unsubscribe", Value: `<${e.unsubscribe}>` },
           { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" }] : [],
@@ -173,7 +177,7 @@ export function confirmEmail(env, site, origin, email, label, token) {
     + `<p><a href="${escapeHtml(link)}">Confirm to start</a></p>`
     + `<p style="font-size:13px;color:#545c65">If it wasn't you, do nothing: nothing is sent, and the request is deleted in ${UNCONFIRMED_DAYS} days.`
     + (env.ALERTS_MAILING_ADDRESS ? `<br>Publick · ${escapeHtml(env.ALERTS_MAILING_ADDRESS)}` : "") + "</p>";
-  return { to: email, from: site, subject: `Confirm: follow ${label}`, text, html };
+  return { to: email, from: site, town: townOf(new URL(origin).hostname), subject: `Confirm: follow ${label}`, text, html };
 }
 
 // "62 MAIN ST" -> "62 Main Street", as the site writes it (mentions.json gives each address's name).
@@ -205,7 +209,7 @@ export function alertEmail(env, site, origin, email, items, manage, unsubscribe)
       + `<a href="${escapeHtml(l.link)}">${escapeHtml(l.what)}</a><br>“${escapeHtml(l.mention.line)}”<br>`
       + `<small><a href="${escapeHtml(l.wrong)}">Not about this address?</a></small></p>`).join("")
     + `<p style="font-size:13px;color:#545c65">Lines are as the documents give them.</p>${end.html}`;
-  return { to: email, from: site, subject, text, html, unsubscribe };
+  return { to: email, from: site, town: townOf(new URL(origin).hostname), subject, text, html, unsubscribe };
 }
 
 // ---- The forms ----------------------------------------------------------------

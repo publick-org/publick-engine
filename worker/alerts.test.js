@@ -7,7 +7,7 @@ import { beforeEach, test } from "node:test";
 
 import worker from "./index.js";
 import {
-  CONFIRMS_PER_DAY, MAX_FOLLOWS, UNCONFIRMED_DAYS, confirm, follow, hashed, manage, readerToken, send, slug, streetLabel, unsubscribe,
+  CONFIRMS_PER_DAY, MAX_FOLLOWS, sender, UNCONFIRMED_DAYS, confirm, follow, hashed, manage, readerToken, send, slug, streetLabel, unsubscribe,
 } from "./alerts.js";
 import { clearManifests } from "./sites.js";
 
@@ -261,6 +261,17 @@ test("an unconfirmed follow is deleted after UNCONFIRMED_DAYS", async () => {
   const later = new Date(Date.parse("2026-11-01T10:00:00Z") + (UNCONFIRMED_DAYS + 1) * 86_400_000);
   await send(hook(), env, new URL(`${ORIGIN}/alerts/send`), manifest(), later, postmark());
   assert.deepEqual(env.ALERTS_DB.rows("SELECT * FROM follows"), []);
+});
+
+test("each email is from its site, at the town's own address when ALERTS_FROM is a domain", async () => {
+  assert.equal(sender({ ALERTS_FROM: "@alerts.example.org" }, "Salem Publick", "salem-ma"), '"Salem Publick" <salem@alerts.example.org>');
+  assert.equal(sender({ ALERTS_FROM: "@alerts.example.org" }, "South Burlington Publick", "south-burlington-vt"),
+    '"South Burlington Publick" <south-burlington@alerts.example.org>');
+  assert.equal(sender({ ALERTS_FROM: "alerts@alerts.example.org" }, "Salem Publick", "salem-ma"), '"Salem Publick" <alerts@alerts.example.org>');
+  assert.equal(sender({ ALERTS_FROM: "Publick <a@example.org>" }, "Salem Publick", "salem-ma"), "Publick <a@example.org>");
+  env.ALERTS_FROM = "@alerts.example.org";
+  await follow(followForm(), env, new URL(`${ORIGIN}/alerts/follow`), manifest(), new Date(), postmark());
+  assert.equal(sent[0].From, '"Salem Publick" <salem@alerts.example.org>');
 });
 
 test("street keys as names and folders", () => {
