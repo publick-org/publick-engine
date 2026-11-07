@@ -95,6 +95,9 @@ pipeline/                   Python package
   make_share_image.py       Draws the share image (and PNG icons for a town with its own icon)
   share_cards.py            Each recent and upcoming meeting's share card, drawn by build_site.py (Playwright)
   streets.py                Street-name matching for the street lookup
+  mentions.py               Each build: the addresses on agendas and minutes (which lines are items, not headers), the house
+                            numbers each stands for, which are new, and each street's and address's feed -> /streets/feeds/,
+                            /streets/mentions.json
   freshness.py              Daily: whether each data source is still updating (fails a single town's run when one isn't)
   absences.py               Why something isn't shown, for the pages to say: a meeting's minutes, agenda or summary, a calendar
                             or a section's sources behind, a section the town doesn't have

@@ -73,6 +73,25 @@
     return li;
   }
 
+  // The street's feed, and each address's on it that the documents name (pipeline/mentions.py).
+  function follow(s) {
+    var wrap = document.createDocumentFragment();
+    wrap.appendChild(el("h3", t("follow_head")));
+    var p = el("p");
+    p.appendChild(el("a", t("follow_street", { street: s.name }), { href: s.feed, type: "application/rss+xml" }));
+    wrap.appendChild(p);
+    if (s.addresses && s.addresses.length) {
+      var one = el("p", t("follow_one") + " ");
+      s.addresses.forEach(function (a, i) {
+        if (i) one.appendChild(document.createTextNode(" · "));
+        one.appendChild(el("a", a[0] + " " + s.name, { href: a[1], type: "application/rss+xml" }));
+      });
+      wrap.appendChild(one);
+    }
+    wrap.appendChild(el("p", t("follow_note"), { "class": "small" }));
+    return wrap;
+  }
+
   function show(key, s) {
     results.textContent = "";
     var counts = [];
@@ -89,6 +108,7 @@
       p.appendChild(el("a", t("ward_link", { street: s.name }), { href: wardPage + "#address=" + encodeURIComponent(s.name) }));
       results.appendChild(p);
     }
+    if (s.feed) results.appendChild(follow(s));
     if (sources.indexOf("meetings") >= 0) results.appendChild(section(t("meetings_head"), s.meetings_total, s.meetings.length, s.meetings.map(function (m) {
       return item(m.board, m.url, date(m.date) + " · " + m.doc, m.line);
     })));

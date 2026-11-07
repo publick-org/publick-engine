@@ -46,6 +46,7 @@ from pipeline import factcheck
 from pipeline import listings
 from pipeline import meeting_calendar
 from pipeline import meeting_names
+from pipeline import mentions as mentions_mod
 from pipeline.meeting_names import words
 from pipeline import i18n
 from pipeline import fetch_addresses
@@ -1736,8 +1737,14 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     for r in requests_311:
         r["sensitive"] = sensitive(r["category"], sensitive_categories)
     localize_categories(requests_311, tr)
+    # The addresses on agendas and minutes (pipeline/mentions.py), for the street lookup and its feeds, which
+    # are in English: their lines are the documents' own.
+    found = mentions_mod.new(mentions_mod.find(meetings["all"], config["town"], doc_text))
     streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
-                           sensitive_categories=sensitive_categories)
+                           sensitive_categories=sensitive_categories, found=found)
+    feeds = mentions_mod.write_feeds(None, found, config, base_url) if "streets" in built_folders and documents else {}
+    for key, feed in feeds.items():
+        streets["streets"][key].update(feed)
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
     # Who represents you: the Officials page, and its ward map's shapes.
@@ -1952,74 +1959,35 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     if "streets" in built_folders:
         (out_dir / "streets").mkdir(parents=True, exist_ok=True)
         (out_dir / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
+        if feeds:
+            mentions_mod.write_feeds(out_dir, found, config, base_url)
+            (out_dir / "streets" / "mentions.json").write_text(
+                json.dumps(mentions_mod.recent(found, built_at), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return urls
 
 
-# An address alone on its line in this many meetings' documents is where they meet (street_index).
-VENUE_MEETINGS = 3
-
 
 def street_index(meetings: list[dict], permits: list[dict], requests: list[dict], today: date, town: dict,
-                 prefix: str = "", limit: int = 30, sensitive_categories: list[str] | tuple = ()) -> dict:
+                 prefix: str = "", limit: int = 30, sensitive_categories: list[str] | tuple = (),
+                 found: list[dict] | None = None) -> dict:
     """Everything the site knows about each street: agenda and minutes mentions,
     building and demolition permits, and 311 requests from the past year (a sensitive
     category's to the block: seeclickfix.sensitive). prefix is the language's (/es) for
-    links to meetings."""
+    links to meetings. found: the meetings' address mentions (mentions.find), when already found."""
     streets: dict = defaultdict(lambda: {"meetings": [], "permits": [], "requests": []})
 
     def place(address: str) -> tuple[str, list[str]]:
         number = streets_mod.HOUSE_NUMBER.match(address.upper() + " ")
         return (number.group(0).strip() if number else ""), streets_mod.street_keys(address, town["name"])
 
-    # Meeting places (City Hall, the high school library) head every agenda; they aren't news.
-    venues = {(num, key) for m in meetings for num, keys in [place(m.get("address") or "")] for key in keys}
-
-    def line_with(text: str, address: str) -> str:
-        line = next((l for l in text.splitlines() if address in l), address)
-        return clip(re.sub(r"[#*_>|]+", " ", line).strip(), 200)
-
-    # A line naming the meeting room, or a mailing address ("2 Dale Ave, Gloucester, MA"),
-    # is the document's header, not an agenda item.
-    venue_line = re.compile(r"\b(?:conference room|meeting room|auditorium|council chambers?|city hall|held at)\b"
-                            rf"|,\s*{re.escape(town['name'])},?\s*{re.escape(town['state_abbr'])}\b", re.I)
-    # An address followed by another town and its state ("11 Azsr Ct, Halethorpe MD") is an
-    # applicant's own address, not a street in this town.
-    elsewhere = re.compile(r",\s*([A-Z][A-Za-z.'’]*(?:\s+[A-Z][A-Za-z.'’]*){0,2}),?\s+[A-Z]{2}\b")
-    # An address alone on its line ("191 Cabot Street", "4 FAIRFIELD BOULEVARD", perhaps with the
-    # town, state, and zip code) in the documents of several meetings is where a board meets or
-    # its letterhead, not news, wherever else it appears.
-    own_place = re.compile(rf"\b(?:{re.escape(town['name'])}|{re.escape(town['state_abbr'])})\b|[\W\d_]", re.I)
-    alone = defaultdict(set)
-    for m in meetings:
-        for doc in (m["preview"], m["minutes_summary"]):
-            text = doc_text(doc)
-            for address in streets_mod.addresses_in(text):
-                line, flat = (re.sub(r"\s+", " ", s) for s in (line_with(text, address), address))
-                if not own_place.sub("", line.replace(flat, "", 1)):
-                    num, keys = place(address)
-                    for key in keys:
-                        alone[(num, key)].add(m["url"])
-    venues |= {where for where, urls in alone.items() if len(urls) >= VENUE_MEETINGS}
-
-    def in_another_town(text: str, address: str) -> bool:
-        line = line_with(text, address)
-        after = elsewhere.match(line[line.find(address) + len(address):])
-        return bool(after) and after.group(1).lower() != town["name"].lower()
-
-    for m in meetings:
-        for kind, doc in ((_("Agenda"), m["preview"]), (_("Minutes"), m["minutes_summary"])):
-            text = doc_text(doc)
-            for address in streets_mod.addresses_in(text):
-                num, keys = place(address)
-                if venue_line.search(line_with(text, address)) or in_another_town(text, address):
-                    continue
-                for key in keys:
-                    if (num, key) in venues:
-                        continue
-                    entries = streets[key]["meetings"]
-                    if not any(e["url"] == prefix + m["url"] and e["doc"] == kind for e in entries):
-                        entries.append({"url": prefix + m["url"], "date": m["date"], "board": m["body"], "doc": kind,
-                                        "line": line_with(text, address)})
+    # Which lines are items, not headers or letterheads, is pipeline/mentions.py's.
+    labels = {"agenda": _("Agenda"), "minutes": _("Minutes")}
+    for x in (found if found is not None else mentions_mod.find(meetings, town, doc_text)):
+        for key in x["streets"]:
+            entries = streets[key]["meetings"]
+            if not any(e["url"] == prefix + x["url"] and e["doc"] == labels[x["kind"]] for e in entries):
+                entries.append({"url": prefix + x["url"], "date": x["date"], "board": x["body"], "doc": labels[x["kind"]],
+                                "line": x["line"]})
     for p in permits:
         num, keys = place(p["address"])
         for key in keys:

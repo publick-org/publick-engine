@@ -3199,6 +3199,16 @@ msgstr ""
 msgid "Each agenda and minutes"
 msgstr "Cada agenda y acta"
 
+#: pipeline/mentions.py
+#, python-brace-format
+msgid "Each agenda and set of minutes that names an address on {street}, in {town}."
+msgstr "Cada agenda y acta que nombra una dirección de {street}, en {town}."
+
+#: pipeline/mentions.py
+#, python-brace-format
+msgid "Each agenda and set of minutes that names {address}, in {town}."
+msgstr "Cada agenda y acta que nombra {address}, en {town}."
+
 #: site/states/ma/budget.html
 msgid "Each figure is certified as of July 1, the start of that year."
 msgstr "Cada cifra se certifica al 1 de julio, el inicio de ese año."
@@ -3239,6 +3249,11 @@ msgstr ""
 "según la División de Finanzas Municipales, dividida entre su población estimada por el Censo al 1"
 " de julio de %(start)s, cuando empezó el año fiscal. La mediana es de %(communities)s ciudades y "
 "pueblos de Rhode Island."
+
+#: site/pages/streets/index.html
+#, python-brace-format
+msgid "Each new agenda or minutes line naming {street}"
+msgstr "Cada nueva línea de agenda o acta que nombre {street}"
 
 #: site/states/ri/budget.html
 msgid ""
@@ -3749,6 +3764,10 @@ msgstr ""
 #: site/pages/index.html
 msgid "Follow City Hall updates by RSS"
 msgstr "Siga las novedades de la Alcaldía por RSS"
+
+#: site/pages/streets/index.html
+msgid "Follow it"
+msgstr "Seguirla"
 
 #: site/templates/digest_index.html
 msgid "Follow the weekly digest by RSS"
@@ -5805,6 +5824,10 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 #, python-format
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
+
+#: site/pages/streets/index.html
+msgid "Or one address:"
+msgstr "O una sola dirección:"
 
 #: pipeline/common_strings.py pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Other"
@@ -8607,6 +8630,14 @@ msgstr ""
 "El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
 "oficina."
 
+#: site/pages/streets/index.html
+msgid ""
+"These are feeds: add one to a feed reader to see each new mention. A line the same board has "
+"listed before isn't repeated."
+msgstr ""
+"Son fuentes RSS: añada una a su lector de fuentes para ver cada nueva mención. Una línea que la "
+"misma junta ya publicó antes no se repite."
+
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
 #, python-format
@@ -9908,12 +9939,12 @@ msgstr "{address}. Enviada el {date}."
 msgid "{arrow} {amount}{unit} from {since}"
 msgstr "{arrow} {amount}{unit} desde {since}"
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py pipeline/mentions.py
 #, python-brace-format
 msgid "{board}: agenda for {date}"
 msgstr "{board}: agenda del {date}"
 
-#: pipeline/build_site.py
+#: pipeline/build_site.py pipeline/mentions.py
 #, python-brace-format
 msgid "{board}: minutes of {date}"
 msgstr "{board}: actas del {date}"
