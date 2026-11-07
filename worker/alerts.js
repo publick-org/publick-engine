@@ -1,9 +1,10 @@
-// Email alerts for followed addresses: a reader follows an address on the street lookup and is emailed
-// when a new agenda or minutes line names it (pipeline/mentions.py finds them; the build lists the last
+// Email alerts for followed streets and addresses: a reader follows a street, or one address on it, on the
+// street lookup and is emailed when a new agenda or minutes line names it (pipeline/mentions.py finds them; the build lists the last
 // 30 days' in /streets/mentions.json). Answered by the sites Worker (sites.js), on a site whose build has
 // the alerts pages (alerts/thanks/), with its D1 database (ALERTS_DB) and email key (POSTMARK_TOKEN).
 //
-// Following: the street lookup's form posts the house number, the street and an address to FOLLOW_PATH.
+// Following: the street lookup's form posts the street, a house number or none (the whole street), and an
+// email address to FOLLOW_PATH.
 // The follow is kept unconfirmed and the address is emailed a link to confirm it: a page whose button
 // posts to CONFIRM_PATH, so a mail scanner opening the link confirms nothing. Every answer is the same
 // "check your email" page, so the form never says whether an address follows anything. An address may
@@ -180,35 +181,43 @@ export function confirmEmail(env, site, origin, email, label, token) {
   return { to: email, from: site, town: townOf(new URL(origin).hostname), subject: `Confirm: follow ${label}`, text, html };
 }
 
-// "62 MAIN ST" -> "62 Main Street", as the site writes it (mentions.json gives each address's name).
-function label(key, mention) {
-  return mention?.names?.[mention.addresses.indexOf(key)] || key;
+// An address's key's street: "62 MAIN ST" -> "MAIN ST" (a house number has no space).
+export function streetOf(addressKey) {
+  return addressKey.slice(addressKey.indexOf(" ") + 1);
+}
+
+// What a line of the email is headed with: the address it names, as the site writes it (mentions.json gives each
+// address's name), "62 Main Street"; for a street followed, the first address on it the line names, or the street.
+function label(kind, key, mention) {
+  const addresses = mention.addresses || [], names = mention.names || [];
+  const at = kind === "street" ? addresses.findIndex((a) => streetOf(a) === key) : addresses.indexOf(key);
+  return names[at] || (kind === "street" ? streetLabel(key) : keyLabel(key));
 }
 
 const WHEN = { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" };
 
 export function alertEmail(env, site, origin, email, items, manage, unsubscribe) {
-  const lines = items.map(({ key, mention }) => {
+  const lines = items.map(({ kind, key, mention }) => {
     const when = new Date(`${mention.date}T12:00:00Z`).toLocaleDateString("en-US", WHEN);
     const what = mention.kind === "agenda" ? `agenda for ${when}` : `minutes of ${when}`;
     const link = `${origin}${mention.url}?ref=alert-email`;
     // A line that isn't about the address: its page (alerts.html) is counted, and leads to the corrections.
     const wrong = `${origin}/alerts/wrong/?ref=alert-email`;
-    return { key, mention, what, link, wrong, name: label(key, mention) };
+    return { key, mention, what, link, wrong, name: label(kind, key, mention) };
   });
   const names = [...new Set(lines.map((l) => l.name))];
   const subject = names.length === 1
     ? `${names[0]}: ${lines[0].mention.board}${lines.length > 1 ? ` and ${lines.length - 1} more` : ""}`
-    : `${names.length} addresses you follow came up`;
+    : `${names.length} of your alerts came up`;
   const end = footer(env, manage);
-  const text = `New on ${site}, for the addresses you follow:\n\n`
+  const text = `New on ${site}:\n\n`
     + lines.map((l) => `${l.name}\n${l.mention.board}, ${l.what}\n“${l.mention.line}”\n${l.link}\nNot about this address? ${l.wrong}`).join("\n\n")
-    + `\n\nLines are as the documents give them.\n\n${end.text}`;
-  const html = `<p>New on ${escapeHtml(site)}, for the addresses you follow:</p>`
+    + `\n\n${end.text}`;
+  const html = `<p>New on ${escapeHtml(site)}:</p>`
     + lines.map((l) => `<p><strong>${escapeHtml(l.name)}</strong><br>${escapeHtml(l.mention.board)}, `
       + `<a href="${escapeHtml(l.link)}">${escapeHtml(l.what)}</a><br>“${escapeHtml(l.mention.line)}”<br>`
       + `<small><a href="${escapeHtml(l.wrong)}">Not about this address?</a></small></p>`).join("")
-    + `<p style="font-size:13px;color:#545c65">Lines are as the documents give them.</p>${end.html}`;
+    + end.html;
   return { to: email, from: site, town: townOf(new URL(origin).hostname), subject, text, html, unsubscribe };
 }
 
@@ -236,6 +245,11 @@ export async function readerToken(env, email) {
   return token;
 }
 
+// A follow as a name: an address's key "62 MAIN ST" -> "62 Main St", a street's "MAIN ST" -> "Main St".
+export function followLabel(kind, key) {
+  return kind === "street" ? streetLabel(key) : keyLabel(key);
+}
+
 // "62 MAIN ST" -> "62 Main St".
 export function keyLabel(key) {
   const [number, ...street] = String(key).split(" ");
@@ -258,7 +272,8 @@ export async function follow(request, env, url, manifest, now = new Date(), fetc
   const number = String(fields.get("number") || "").trim().toUpperCase();
   const street = String(fields.get("street") || "").trim().toUpperCase();
   const lang = LANGUAGES.includes(fields.get("lang")) ? fields.get("lang") : LANGUAGES[0];
-  if (email.length > 254 || !EMAIL.test(email) || !NUMBER.test(number) || !STREET.test(street)) return answer("problem");
+  // With a house number, that address; without, the whole street.
+  if (email.length > 254 || !EMAIL.test(email) || (number && !NUMBER.test(number)) || !STREET.test(street)) return answer("problem");
   // A street the documents name: one with a feed.
   if (!manifest.files[`streets/feeds/${slug(street)}.xml`]) return answer("problem");
   if (!(await withinLimits(env, request, email))) return answer("problem");
@@ -268,9 +283,10 @@ export async function follow(request, env, url, manifest, now = new Date(), fetc
   }
   const db = env.ALERTS_DB;
   const town = townOf(url.hostname);
-  const key = `${number} ${street}`;
-  const row = await db.prepare("SELECT confirmed_at FROM follows WHERE email = ?1 AND town = ?2 AND kind = 'address' AND key = ?3")
-    .bind(email, town, key).first();
+  const kind = number ? "address" : "street";
+  const key = number ? `${number} ${street}` : street;
+  const row = await db.prepare("SELECT confirmed_at FROM follows WHERE email = ?1 AND town = ?2 AND kind = ?3 AND key = ?4")
+    .bind(email, town, kind, key).first();
   if (row?.confirmed_at) return answer("thanks");
   if (!row) {
     const { count } = await db.prepare("SELECT COUNT(*) AS count FROM follows WHERE email = ?1").bind(email).first();
@@ -281,12 +297,12 @@ export async function follow(request, env, url, manifest, now = new Date(), fetc
     .bind(email, daysAgo(now, 1)).first();
   if (asked >= CONFIRMS_PER_DAY) return answer("thanks");
   const token = newToken();
-  await db.prepare(`INSERT INTO follows (email, town, kind, key, lang, token, created_at) VALUES (?1, ?2, 'address', ?3, ?4, ?5, ?6)
+  await db.prepare(`INSERT INTO follows (email, town, kind, key, lang, token, created_at) VALUES (?1, ?2, ?7, ?3, ?4, ?5, ?6)
     ON CONFLICT (email, town, kind, key) DO UPDATE SET token = ?5, created_at = ?6, lang = ?4`)
-    .bind(email, town, key, lang, await hashed(token), now.toISOString()).run();
+    .bind(email, town, key, lang, await hashed(token), now.toISOString(), kind).run();
   const mentions = await readMentions(env, manifest).catch(() => null);
   const site = mentions?.site || url.hostname;
-  const name = `${number} ${streetLabel(street)}`;
+  const name = followLabel(kind, key);
   const { failed, inactive } = await sendEmails(env, [confirmEmail(env, site, url.origin, email, name, token)], fetchImpl);
   // An address the provider won't send to can't confirm: its follow isn't kept.
   if (inactive.length) await db.prepare("DELETE FROM follows WHERE email = ?1 AND confirmed_at IS NULL").bind(email).run();
@@ -298,11 +314,11 @@ export async function confirm(request, env, url) {
   const token = fields?.get("t");
   if (!token) return json({ ok: false }, 400);
   const db = env.ALERTS_DB;
-  const row = await db.prepare("SELECT email, key FROM follows WHERE token = ?1").bind(await hashed(token)).first();
+  const row = await db.prepare("SELECT email, kind, key FROM follows WHERE token = ?1").bind(await hashed(token)).first();
   if (!row) return json({ ok: false }, 404);
   await db.prepare("UPDATE follows SET confirmed_at = COALESCE(confirmed_at, ?2) WHERE token = ?1")
     .bind(await hashed(token), new Date().toISOString()).run();
-  return json({ ok: true, key: row.key, name: keyLabel(row.key) });
+  return json({ ok: true, key: row.key, name: followLabel(row.kind, row.key) });
 }
 
 // The reader's page: {follows: [{town, key}]} for "list", and removes one ("remove": "<town>|<key>") or
@@ -322,8 +338,8 @@ export async function manage(request, env, url) {
     await db.prepare("DELETE FROM follows WHERE email = ?1 AND town = ?2 AND key = ?3").bind(reader.email, town, key).run();
   }
   const { results } = await db.prepare(
-    "SELECT town, key FROM follows WHERE email = ?1 AND confirmed_at IS NOT NULL ORDER BY town, key").bind(reader.email).all();
-  return json({ ok: true, follows: results.map((f) => ({ ...f, name: keyLabel(f.key) })) });
+    "SELECT town, kind, key FROM follows WHERE email = ?1 AND confirmed_at IS NOT NULL ORDER BY town, kind, key").bind(reader.email).all();
+  return json({ ok: true, follows: results.map((f) => ({ town: f.town, key: f.key, name: followLabel(f.kind, f.key) })) });
 }
 
 async function forget(db, email) {
@@ -366,27 +382,39 @@ export async function send(request, env, url, manifest, now = new Date(), fetchI
   const through = last?.through || now.toISOString();
   // Times are compared as times: a document's carries its town's offset ("-05:00"), a send's is UTC.
   const after = Date.parse(through);
-  const fresh = mentions.mentions.filter((m) => Date.parse(m.posted) > after && m.addresses?.length);
+  const fresh = mentions.mentions.filter((m) => Date.parse(m.posted) > after && (m.addresses?.length || m.streets?.length));
   const newest = new Date(Math.max(after, ...mentions.mentions.map((m) => Date.parse(m.posted)))).toISOString();
   if (!fresh.length) {
     await db.prepare("INSERT INTO sends (town, through, day) VALUES (?1, ?2, NULL) ON CONFLICT (town) DO UPDATE SET through = ?2")
       .bind(town, newest).run();
     return json({ ok: true, sent: 0, mentions: 0 });
   }
-  const byKey = new Map();
-  for (const m of fresh) for (const key of m.addresses) byKey.set(key, [...(byKey.get(key) || []), m]);
-  const keys = [...byKey.keys()];
+  // Each mention by the addresses it names, and by its streets: every address's street, exactly ("62 NORTH MAIN ST"
+  // is on NORTH MAIN ST, not MAIN ST), and a mention's streets with no house number.
+  const byKey = { address: new Map(), street: new Map() };
+  const add = (kind, key, m) => byKey[kind].set(key, [...new Set([...(byKey[kind].get(key) || []), m])]);
+  for (const m of fresh) {
+    for (const key of m.addresses || []) { add("address", key, m); add("street", streetOf(key), m); }
+    for (const street of m.streets || []) add("street", street, m);
+  }
+  // Each reader's mentions, once each, however many of their follows name it.
   const readers = new Map();
-  for (let i = 0; i < keys.length; i += BOUND) {
-    const chunk = keys.slice(i, i + BOUND);
-    const { results } = await db.prepare(`SELECT email, key FROM follows WHERE town = ?1 AND kind = 'address'
-      AND confirmed_at IS NOT NULL AND key IN (${chunk.map((_, n) => `?${n + 2}`).join(", ")})`).bind(town, ...chunk).all();
-    for (const { email, key } of results) {
-      for (const mention of byKey.get(key)) readers.set(email, [...(readers.get(email) || []), { key, mention }]);
+  for (const kind of ["address", "street"]) {
+    const keys = [...byKey[kind].keys()];
+    for (let i = 0; i < keys.length; i += BOUND) {
+      const chunk = keys.slice(i, i + BOUND);
+      const { results } = await db.prepare(`SELECT email, key FROM follows WHERE town = ?1 AND kind = ?2
+        AND confirmed_at IS NOT NULL AND key IN (${chunk.map((_, n) => `?${n + 3}`).join(", ")})`).bind(town, kind, ...chunk).all();
+      for (const { email, key } of results) {
+        const items = readers.get(email) || new Map();
+        for (const mention of byKey[kind].get(key)) if (!items.has(mention)) items.set(mention, { kind, key, mention });
+        readers.set(email, items);
+      }
     }
   }
   const emails = [];
-  for (const [email, items] of readers) {
+  for (const [email, found] of readers) {
+    const items = [...found.values()];
     // Recorded before it's sent: a send tried again the same day skips whoever has it.
     const { meta } = await db.prepare("INSERT OR IGNORE INTO deliveries (email, town, day) VALUES (?1, ?2, ?3)")
       .bind(email, town, today).run();

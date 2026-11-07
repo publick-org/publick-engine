@@ -664,8 +664,7 @@ def test_street_lookup_example_is_one_of_the_towns_own_streets(site_dir):
     from pipeline.build_site import example_street
     example = example_street(index)
     assert example in {s["name"] for s in index["streets"].values()}
-    for page in (site_dir / "index.html", site_dir / "streets" / "index.html"):
-        assert f'such as "{example}"' in page.read_text()
+    assert f'such as "{example}"' in (site_dir / "streets" / "index.html").read_text()
     assert "Pleasant Street" not in (site_dir / "streets" / "index.html").read_text()
 
 

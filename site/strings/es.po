@@ -584,18 +584,6 @@ msgstr "%(sources)s de una calle, según registros públicos."
 msgid "%(sources)s on any street in %(town)s, from public records."
 msgstr "%(sources)s en cualquier calle de %(town)s, según registros públicos."
 
-#. %(sources)s lists what the street lookup finds, such as "Agendas and minutes, permits and 311
-#. requests"; %(example)s is a street's name.
-#: site/pages/index.html
-#, python-format
-msgid "%(sources)s on any street, such as \"%(example)s\"."
-msgstr "%(sources)s de cualquier calle, como “%(example)s”."
-
-#: site/pages/index.html
-#, python-format
-msgid "%(sources)s on any street."
-msgstr "%(sources)s de cualquier calle."
-
 #. %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community".
 #: site/templates/meeting.html
 #, python-format
@@ -2365,10 +2353,6 @@ msgstr ""
 "tasación antes de la tasación general, del archivo de parcelas de %(before)s del estado, más el "
 "%(percent)s%% de cualquier aumento (año %(year)s de %(years)s). Una baja no se aplica por etapas."
 
-#: site/pages/streets/index.html
-msgid "At most once a day."
-msgstr ""
-
 #. %(start)s and %(end)s are dates, such as "October 5, 2026".
 #: site/templates/digest.html
 #, python-format
@@ -3534,13 +3518,12 @@ msgstr "Correo electrónico"
 msgid "Email me"
 msgstr ""
 
-#: site/pages/index.html
-msgid "Email me when an address is on an agenda"
+#: site/pages/streets/index.html
+msgid "Email me about"
 msgstr ""
 
-#: site/pages/streets/index.html
-#, python-brace-format
-msgid "Email me when {address} is on an agenda"
+#: site/pages/index.html
+msgid "Email me when my street is on an agenda"
 msgstr ""
 
 #: site/pages/index.html
@@ -4194,6 +4177,10 @@ msgstr "Educación, vivienda principal"
 #: site/states/vt/budget.html
 msgid "Homestead tax rate"
 msgstr "Tasa de vivienda principal"
+
+#: site/pages/streets/index.html
+msgid "House number, or empty for the whole street"
+msgstr ""
 
 #: pipeline/build_site.py site/pages/about/index.html site/pages/housing/index.html
 msgid "Housing"
@@ -7632,7 +7619,7 @@ msgstr ""
 msgid "Street Light"
 msgstr "Luz de la calle"
 
-#: site/pages/streets/index.html
+#: site/pages/index.html site/pages/streets/index.html
 msgid "Street or address"
 msgstr ""
 
@@ -8978,10 +8965,6 @@ msgstr ""
 msgid "Title changed from \"%(old)s\" to \"%(new)s\"."
 msgstr "El título cambió de “%(old)s” a “%(new)s”."
 
-#: site/pages/streets/index.html
-msgid "To get emails about one address, look it up:"
-msgstr ""
-
 #: site/templates/alerts.html
 #, python-format
 msgid ""
@@ -9497,10 +9480,6 @@ msgstr "Qué pasa en su calle"
 #: site/pages/index.html
 msgid "What's happening on your street?"
 msgstr "¿Qué pasa en su calle?"
-
-#: site/pages/streets/index.html
-msgid "What's kept"
-msgstr ""
 
 #: site/templates/alerts.html
 msgid "What's kept, and for how long"

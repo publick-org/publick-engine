@@ -64,13 +64,14 @@ def test_pages_name_the_new_town_only(new_town_site):
     assert "SeeClickFix" not in about and "Division of Local Services" not in about
     assert "goatcounter" not in about.lower()
     # The street lookup offers only what the town has.
-    assert "Agenda items on any street" in home
+    assert 'placeholder="Street or address"' in home
     streets = (new_town_site / "streets" / "index.html").read_text()
+    assert "Agenda items for one street" in streets
     assert 'data-sources="meetings"' in streets and "311" not in streets
 
 
 def test_gloucester_street_lookup_names_every_source(site_dir):
-    assert "Agenda items, building permits, and 311 requests on any street" in (site_dir / "index.html").read_text()
+    assert "Agenda items, building permits, and 311 requests for one street" in (site_dir / "streets" / "index.html").read_text()
     assert 'data-sources="meetings permits requests"' in (site_dir / "streets" / "index.html").read_text()
 
 
