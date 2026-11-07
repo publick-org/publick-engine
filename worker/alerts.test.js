@@ -66,7 +66,7 @@ beforeEach(() => {
   sent = [];
   mentionsJson = MENTIONS([]);
   env = {
-    ALERTS_DB: new FakeD1(), POSTMARK_TOKEN: "pm", ALERTS_FROM: "Publick alerts <alerts@alerts.example.org>",
+    ALERTS_DB: new FakeD1(), POSTMARK_TOKEN: "pm", ALERTS_FROM: "alerts@alerts.example.org",
     ALERTS_HOOK_SECRET: HOOK, ALERTS_TOKEN_SECRET: "token-secret", ALERTS_MAILING_ADDRESS: "PO Box 1, Salem, MA",
     SITES: { get: async (key) => (key === "blobs/mentions" ? { text: async () => mentionsJson } : null) },
   };
@@ -98,6 +98,8 @@ test("a follow is kept unconfirmed and the address is asked to confirm", async (
   assert.equal(sent.length, 1);
   assert.equal(sent[0].To, "reader@example.org");
   assert.equal(sent[0].Subject, "Confirm: follow 62 Main St");
+  // From the site's name, from mentions.json.
+  assert.equal(sent[0].From, '"Salem Publick" <alerts@alerts.example.org>');
   assert.equal(sent[0].TrackOpens, false);
   assert.equal(sent[0].TrackLinks, "None");
   // The link's token is stored only as its hash.
@@ -207,13 +209,31 @@ test("an email the provider refuses is tried on the next publish, and one it too
   await send(hook(), env, url, manifest(), new Date("2026-11-06T10:00:00Z"), postmark());
   mentionsJson = MENTIONS([mention("2026-11-07T04:00:00-05:00", ["62 MAIN ST"])]);
   sent = [];
-  const refuseTwo = postmark((messages) => messages.map((m) => ({ ErrorCode: m.To === "two@example.org" ? 406 : 0 })));
+  const refuseTwo = postmark((messages) => messages.map((m) => ({ ErrorCode: m.To === "two@example.org" ? 405 : 0 })));
   const first = await send(hook(), env, url, manifest(), new Date("2026-11-07T10:00:00Z"), refuseTwo);
   assert.equal(first.status, 502);
   sent = [];
   const again = await (await send(hook(), env, url, manifest(), new Date("2026-11-07T11:00:00Z"), postmark())).json();
   assert.deepEqual(sent.map((m) => m.To), ["two@example.org"]);
   assert.equal(again.sent, 1);
+});
+
+test("a reader the provider won't send to is removed, not tried again", async () => {
+  await followAndConfirm("gone@example.org");
+  await followAndConfirm("here@example.org");
+  const url = new URL(`${ORIGIN}/alerts/send`);
+  await send(hook(), env, url, manifest(), new Date("2026-11-06T10:00:00Z"), postmark());
+  mentionsJson = MENTIONS([mention("2026-11-07T04:00:00-05:00", ["62 MAIN ST"])]);
+  const bounced = postmark((messages) => messages.map((m) => ({ ErrorCode: m.To === "gone@example.org" ? 406 : 0 })));
+  const answer = await (await send(hook(), env, url, manifest(), new Date("2026-11-07T10:00:00Z"), bounced)).json();
+  assert.deepEqual([answer.ok, answer.sent, answer.removed], [true, 1, 1]);
+  assert.deepEqual(env.ALERTS_DB.rows("SELECT DISTINCT email FROM follows"), [{ email: "here@example.org" }]);
+  assert.deepEqual(env.ALERTS_DB.rows("SELECT email FROM readers"), [{ email: "here@example.org" }]);
+  // A follow for an address the provider won't send to isn't kept.
+  const refused = postmark((messages) => messages.map(() => ({ ErrorCode: 406 })));
+  const again = await follow(followForm({ email: "gone@example.org" }), env, new URL(`${ORIGIN}/alerts/follow`), manifest(), new Date(), refused);
+  assert.equal(again.headers.get("Location"), `${ORIGIN}/alerts/problem/`);
+  assert.equal(env.ALERTS_DB.rows("SELECT * FROM follows WHERE email = 'gone@example.org'").length, 0);
 });
 
 test("a reader's links are the same in every email, list their follows, and remove them", async () => {

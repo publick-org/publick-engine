@@ -26,7 +26,8 @@
 // the town, the followed key and the language, and nothing else: no IP address, no opens or clicks.
 //
 // Environment: ALERTS_DB (D1, schema in alerts.sql), POSTMARK_TOKEN (a Postmark server's token, a
-// secret), ALERTS_FROM ("Publick alerts <alerts@alerts.example.org>"), ALERTS_HOOK_SECRET and
+// secret), ALERTS_FROM (the sending address, "alerts@alerts.example.org"; each email is from its site's
+// name at it, "Salem Publick <alerts@...>"), ALERTS_HOOK_SECRET and
 // ALERTS_TOKEN_SECRET (secrets),
 // optionally ALERTS_STREAM (Postmark's message stream, "outbound" by default), ALERTS_MAILING_ADDRESS
 // (the footer's postal address) and SIGNUP_LIMITER (digest.js).
@@ -111,17 +112,28 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-// Sends emails ({to, subject, text, html, unsubscribe}) through the provider: Postmark's batch API.
-// Another provider is another function here. Returns the addresses that weren't accepted.
+// Postmark's error for a recipient it won't send to: one that bounced for good or marked an email as spam.
+export const INACTIVE = 406;
+
+// "Salem Publick" and ALERTS_FROM -> "Salem Publick <alerts@...>"; an ALERTS_FROM with its own name as it is.
+export function sender(env, name) {
+  const from = String(env.ALERTS_FROM || "");
+  if (from.includes("<") || !name) return from;
+  return `"${String(name).replace(/["\\\r\n]/g, "")}" <${from}>`;
+}
+
+// Sends emails ({to, from, subject, text, html, unsubscribe}) through the provider: Postmark's batch API.
+// Another provider is another function here. Returns {failed, inactive}: the addresses not accepted, to try
+// again later, and those the provider won't send to again, whose alerts are stopped.
 export async function sendEmails(env, emails, fetchImpl = fetch) {
-  const failed = [];
+  const failed = [], inactive = [];
   for (let i = 0; i < emails.length; i += BATCH) {
     const chunk = emails.slice(i, i + BATCH);
     const response = await fetchImpl("https://api.postmarkapp.com/email/batch", {
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json", "X-Postmark-Server-Token": env.POSTMARK_TOKEN },
       body: JSON.stringify(chunk.map((e) => ({
-        From: env.ALERTS_FROM, To: e.to, Subject: e.subject, TextBody: e.text, HtmlBody: e.html,
+        From: sender(env, e.from), To: e.to, Subject: e.subject, TextBody: e.text, HtmlBody: e.html,
         MessageStream: env.ALERTS_STREAM || "outbound", TrackOpens: false, TrackLinks: "None",
         Headers: e.unsubscribe ? [{ Name: "List-Unsubscribe", Value: `<${e.unsubscribe}>` },
           { Name: "List-Unsubscribe-Post", Value: "List-Unsubscribe=One-Click" }] : [],
@@ -134,9 +146,13 @@ export async function sendEmails(env, emails, fetchImpl = fetch) {
       continue;
     }
     const results = await response.json();
-    chunk.forEach((e, n) => { if (!results[n] || results[n].ErrorCode !== 0) failed.push(e.to); });
+    chunk.forEach((e, n) => {
+      const code = results[n]?.ErrorCode;
+      if (code === INACTIVE) inactive.push(e.to);
+      else if (code !== 0) failed.push(e.to);
+    });
   }
-  return failed;
+  return { failed, inactive };
 }
 
 function footer(env, manage) {
@@ -157,7 +173,7 @@ export function confirmEmail(env, site, origin, email, label, token) {
     + `<p><a href="${escapeHtml(link)}">Confirm to start</a></p>`
     + `<p style="font-size:13px;color:#545c65">If it wasn't you, do nothing: nothing is sent, and the request is deleted in ${UNCONFIRMED_DAYS} days.`
     + (env.ALERTS_MAILING_ADDRESS ? `<br>Publick · ${escapeHtml(env.ALERTS_MAILING_ADDRESS)}` : "") + "</p>";
-  return { to: email, subject: `Confirm: follow ${label}`, text, html };
+  return { to: email, from: site, subject: `Confirm: follow ${label}`, text, html };
 }
 
 // "62 MAIN ST" -> "62 Main Street", as the site writes it (mentions.json gives each address's name).
@@ -189,7 +205,7 @@ export function alertEmail(env, site, origin, email, items, manage, unsubscribe)
       + `<a href="${escapeHtml(l.link)}">${escapeHtml(l.what)}</a><br>“${escapeHtml(l.mention.line)}”<br>`
       + `<small><a href="${escapeHtml(l.wrong)}">Not about this address?</a></small></p>`).join("")
     + `<p style="font-size:13px;color:#545c65">Lines are as the documents give them.</p>${end.html}`;
-  return { to: email, subject, text, html, unsubscribe };
+  return { to: email, from: site, subject, text, html, unsubscribe };
 }
 
 // ---- The forms ----------------------------------------------------------------
@@ -267,8 +283,10 @@ export async function follow(request, env, url, manifest, now = new Date(), fetc
   const mentions = await readMentions(env, manifest).catch(() => null);
   const site = mentions?.site || url.hostname;
   const name = `${number} ${streetLabel(street)}`;
-  const failed = await sendEmails(env, [confirmEmail(env, site, url.origin, email, name, token)], fetchImpl);
-  return answer(failed.length ? "problem" : "thanks");
+  const { failed, inactive } = await sendEmails(env, [confirmEmail(env, site, url.origin, email, name, token)], fetchImpl);
+  // An address the provider won't send to can't confirm: its follow isn't kept.
+  if (inactive.length) await db.prepare("DELETE FROM follows WHERE email = ?1 AND confirmed_at IS NULL").bind(email).run();
+  return answer(failed.length || inactive.length ? "problem" : "thanks");
 }
 
 export async function confirm(request, env, url) {
@@ -375,18 +393,22 @@ export async function send(request, env, url, manifest, now = new Date(), fetchI
     items.sort((a, b) => Date.parse(b.mention.posted) - Date.parse(a.mention.posted));
     emails.push(alertEmail(env, mentions.site || url.hostname, url.origin, email, items, manageLink, unsubscribeLink));
   }
-  const failed = await sendEmails(env, emails, fetchImpl);
+  const { failed, inactive } = await sendEmails(env, emails, fetchImpl);
+  // A reader the provider won't send to again (a bounce for good, a spam complaint): their alerts stop, and
+  // everything about them is deleted.
+  for (const email of inactive) await forget(db, email);
+  if (inactive.length) console.error(`Alerts for ${town}: ${inactive.length} readers the provider won't send to were removed`);
   if (failed.length) {
     // Taken back, so the next publish today tries them again.
     for (const email of failed) {
       await db.prepare("DELETE FROM deliveries WHERE email = ?1 AND town = ?2 AND day = ?3").bind(email, town, today).run();
     }
     console.error(`Alerts for ${town}: ${failed.length} of ${emails.length} emails weren't accepted; tried again on the next publish`);
-    return json({ ok: false, sent: emails.length - failed.length, failed: failed.length }, 502);
+    return json({ ok: false, sent: emails.length - failed.length - inactive.length, failed: failed.length, removed: inactive.length }, 502);
   }
   await db.prepare("INSERT INTO sends (town, through, day) VALUES (?1, ?2, ?3) ON CONFLICT (town) DO UPDATE SET through = ?2, day = ?3")
     .bind(town, newest, today).run();
-  return json({ ok: true, sent: emails.length, mentions: fresh.length });
+  return json({ ok: true, sent: emails.length - inactive.length, removed: inactive.length, mentions: fresh.length });
 }
 
 export async function route(request, env, url, manifest, ctx) {
