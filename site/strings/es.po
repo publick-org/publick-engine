@@ -204,11 +204,20 @@ msgid_plural "%(count)s items aren't shown: they couldn't be matched to the tran
 msgstr[0] "%(count)s elemento no aparece: no se pudo comprobar con la transcripción."
 msgstr[1] "%(count)s elementos no aparecen: no se pudieron comprobar con la transcripción."
 
+#. "This week" in the weekly digest; %(count)s is how many of the week's meetings take place, then how
+#. many on each day, such as "2 Monday, 5 Tuesday".
 #. %(count)s is how many meetings an issue of the digest lists.
 #: site/templates/digest_email.html site/templates/digest_index.html
 #, python-format
 msgid "%(count)s meeting"
 msgid_plural "%(count)s meetings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s meeting without an agenda yet"
+msgid_plural "%(count)s meetings without an agenda yet"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -996,7 +1005,8 @@ msgstr ""
 "suben de golpe y la tasa baja en proporción, así que una tasa más baja no significa por sí sola "
 "facturas más bajas."
 
-#. after the meetings a line of the weekly digest's glance names; %(count)s is how many more it has.
+#. after the meetings a line of the weekly digest's "This week" names; %(count)s is how many more there
+#. are.
 #: site/templates/digest_email.html
 #, python-format
 msgid ", and %(count)s more"
@@ -1243,15 +1253,6 @@ msgstr "<a href=\"%(url)s\">Vea la grabación</a> de esta reunión en YouTube."
 #: site/pages/streets/index.html
 msgid "<a href=\"/311/methodology/\">How the 311 numbers work</a>."
 msgstr "<a href=\"/311/methodology/\">Cómo funcionan los números del 311</a>."
-
-#. the weekly digest's glance; %(count)s is how many of the week's meetings take place. Then how many
-#. are on each day, such as "Mon 2 · Tue 5".
-#: site/templates/digest_email.html
-#, python-format
-msgid "<b>%(count)s meeting</b> this week"
-msgid_plural "<b>%(count)s meetings</b> this week"
-msgstr[0] ""
-msgstr[1] ""
 
 #. %(board)s is a board's name, such as "Board of Education". %(source)s is the district, such as
 #. "Bristol Public Schools". %(since)s is a month, such as "January 2024".
@@ -3117,22 +3118,6 @@ msgctxt "month"
 msgid "December"
 msgstr "diciembre"
 
-#: site/templates/digest_email.html
-#, python-format
-msgid "Decided at %(count)s meeting"
-msgid_plural "Decided at %(count)s meetings"
-msgstr[0] ""
-msgstr[1] ""
-
-#. the weekly digest's glance; %(count)s is how many meetings' decisions it lists, followed by one of
-#. them, such as "City Council approved repairs at two schools".
-#: site/templates/digest_email.html
-#, python-format
-msgid "Decided at %(count)s meeting:"
-msgid_plural "Decided at %(count)s meetings, among them:"
-msgstr[0] ""
-msgstr[1] ""
-
 #: pipeline/build_site.py site/pages/meetings/decisions/index.html
 msgid "Decisions"
 msgstr "Decisiones"
@@ -3140,6 +3125,22 @@ msgstr "Decisiones"
 #: site/pages/meetings/decisions/index.html
 msgid "Decisions are pulled from each meeting's minutes by AI."
 msgstr "Las decisiones se sacan de las actas de cada reunión con IA."
+
+#: site/templates/digest_email.html
+#, python-format
+msgid "Decisions from %(count)s meeting"
+msgid_plural "Decisions from %(count)s meetings"
+msgstr[0] ""
+msgstr[1] ""
+
+#. "This week" in the weekly digest; %(count)s is how many meetings' decisions the email lists, then
+#. one of them, such as "City Council approved repairs at two schools".
+#: site/templates/digest_email.html
+#, python-format
+msgid "Decisions from %(count)s meeting:"
+msgid_plural "Decisions from %(count)s meetings, including:"
+msgstr[0] ""
+msgstr[1] ""
 
 #: site/pages/meetings/decisions/index.html
 msgid "Decisions on"
@@ -5567,11 +5568,6 @@ msgstr "Todavía no hay agenda"
 msgid "No agenda posted yet."
 msgstr "Todavía no se ha publicado la agenda."
 
-#. the weekly digest's glance; %(count)s is how many of the week's meetings have no agenda yet.
-#: site/templates/digest_email.html
-msgid "No agenda posted yet:"
-msgstr ""
-
 #. {since} is a time, such as "last week" or "August 2025".
 #: pipeline/build_site.py
 #, python-brace-format
@@ -5600,7 +5596,11 @@ msgstr ""
 msgid "No exact match. Did you mean one of these?"
 msgstr "No hay una coincidencia exacta. ¿Quiso decir una de estas?"
 
-#: site/templates/digest.html site/templates/digest_email.html
+#: site/templates/digest_email.html
+msgid "No meetings are listed for this week"
+msgstr ""
+
+#: site/templates/digest.html
 msgid "No meetings are listed for this week."
 msgstr ""
 
@@ -5616,7 +5616,7 @@ msgid "No meetings match {query}. Try fewer or different words."
 msgstr "Ninguna reunión coincide con {query}. Pruebe con menos palabras o con otras."
 
 #: site/templates/digest_email.html
-msgid "No meetings take place this week."
+msgid "No meetings take place this week"
 msgstr ""
 
 #: site/pages/meetings/past/index.html
@@ -5811,10 +5811,11 @@ msgstr "Octubre de %(year)s"
 msgid "Of revenue, fiscal year %(year)s"
 msgstr "De los ingresos, año fiscal %(year)s"
 
-#. the weekly digest's glance, before the meetings that were cancelled, postponed, or taken off the
-#. town's listing.
+#. "This week" in the weekly digest, before the meetings cancelled, postponed, or taken off the town's
+#. listing that day; %(day)s is a weekday.
 #: site/templates/digest_email.html
-msgid "Off the schedule:"
+#, python-format
+msgid "Off the schedule %(day)s:"
 msgstr ""
 
 #: pipeline/build_site.py
@@ -6284,9 +6285,12 @@ msgstr "Tasas del impuesto a la propiedad"
 msgid "Property tax share"
 msgstr "Parte del impuesto a la propiedad"
 
+#. "This week" in the weekly digest, before the meetings with a public hearing that day; %(day)s is a
+#. weekday.
 #: site/templates/digest_email.html
-msgid "Public hearing:"
-msgid_plural "Public hearings:"
+#, python-format
+msgid "Public hearing %(day)s:"
+msgid_plural "Public hearings %(day)s:"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -8493,10 +8497,6 @@ msgstr ""
 msgid "The license, and where its terms are."
 msgstr "La licencia, y dónde están sus condiciones."
 
-#: site/templates/digest_email.html
-msgid "The line under a meeting is an AI summary of its agenda."
-msgstr ""
-
 #: site/pages/meetings/decisions/index.html
 msgid "The main decisions"
 msgstr "Las decisiones principales"
@@ -8950,13 +8950,10 @@ msgstr ""
 msgid "This summary is shown in English: its automatic translation didn't pass our checks."
 msgstr "Este resumen aparece en inglés: su traducción automática no pasó nuestras revisiones."
 
-#: pipeline/build_site.py
+#. the heading of the short list at the top of the weekly digest's email.
+#: pipeline/build_site.py site/templates/digest_email.html
 msgid "This week"
 msgstr "Esta semana"
-
-#: site/templates/digest_email.html
-msgid "This week at a glance"
-msgstr ""
 
 #: site/pages/index.html
 #, python-format
@@ -9954,10 +9951,6 @@ msgstr "la semana pasada"
 #: pipeline/build_site.py
 msgid "last year"
 msgstr "el año pasado"
-
-#: site/templates/digest_email.html
-msgid "listed below."
-msgstr ""
 
 #. %(count)s is how many meetings' minutes an issue of the digest lists.
 #: site/templates/digest_index.html

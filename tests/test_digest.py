@@ -145,13 +145,14 @@ def test_digest_feed(site_dir):
     assert "<style" not in body and 'style="' in body and "#011536" in body
     assert "Gloucester <span" in body and "Weekly digest · Week of September 28, 2026" in body
     assert "<script" not in body and "<nav" not in body
-    # It starts with the week at a glance: the meetings that take place, by day, and those that won't, by name.
-    glance = body[body.index("This week at a glance"):body.index("<h2")]
-    assert "<b>8 meetings</b> this week: Mon 2 · Tue 2 · Wed 2 · Thu 2." in glance
-    assert re.search(r'<b>Off the schedule:</b> <a href="https://gloucester-ma\.publick\.org/meetings/2026-09-28-licensing-board/'
-                     r'\?ref=digest-email" style="[^"]*">Licensing Board Special</a> \(Monday\), ', glance)
-    # Once, above the meetings, that their lines are written by AI.
-    assert body.count("is an AI summary of its agenda") == 1 and "(AI summary)" not in body
+    # It starts with "This week", a short list: the meetings that take place, by day, and those that won't, by name.
+    glance = body[body.index("This week</p>"):body.index("<h2")]
+    assert ">8 meetings: 2 Monday, 2 Tuesday, 2 Wednesday, 2 Thursday</li>" in glance
+    assert re.search(r'>Off the schedule Monday: <a href="https://gloucester-ma\.publick\.org/meetings/2026-09-28-licensing-board/'
+                     r'\?ref=digest-email" style="[^"]*">Licensing Board Special</a></li>', glance)
+    assert ">Off the schedule Tuesday: <a " in glance
+    # The agenda lines go without a note above them.
+    assert "is an AI summary of its agenda" not in body and "(AI summary)" not in body
 
 
 @pytest.fixture(scope="module")
@@ -189,11 +190,11 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     # The week's lead as a headline, for the email's subject; a week without decisions keeps its date.
     assert titles.index("City Council approved a site plan for 12 Main St") < titles.index("Week of September 28, 2026")
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
-    # Its glance names the week's lead, as the subject does, and links its meeting; what was decided there is below.
-    glance = body[body.index("This week at a glance"):body.index("<h2")]
-    assert re.search(r'<b>Decided at 1 meeting:</b> <a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
-                     r'\?ref=digest-email" style="[^"]*">City Council approved a site plan for 12 Main St</a>\.', glance)
-    assert "<b>No agenda posted yet:</b> 1 meeting</p>" in glance
+    # "This week" names the week's lead, as the subject does, and links its meeting; what was decided there is below.
+    glance = body[body.index("This week</p>"):body.index("<h2")]
+    assert re.search(r'>Decisions from 1 meeting: <a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
+                     r'\?ref=digest-email" style="[^"]*">City Council approved a site plan for 12 Main St</a></li>', glance)
+    assert ">1 meeting without an agenda yet</li>" in glance
     decided = body[body.index("What was decided"):]
     assert decided.count("<p style=\"margin:2px 0 0;\">Approved a site plan for 12 Main St.</p>") == 1
     # Where each meeting of the week is.

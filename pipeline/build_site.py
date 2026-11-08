@@ -175,8 +175,6 @@ def format_date(value: str | date, fmt: str = "long") -> str:
         return str(d.day)
     if fmt == "weekday":
         return weekday_name(d)
-    if fmt == "weekday_short":
-        return weekday_name(d, short=True)
     if fmt == "weekday_month_day":
         # A day this year, such as "Thursday, October 1": the list's format with the full names.
         return _("{weekday}, {month} {day}").format(weekday=weekday_name(d), month=month_name(d.month), day=d.day)
