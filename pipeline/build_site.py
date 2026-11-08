@@ -175,6 +175,8 @@ def format_date(value: str | date, fmt: str = "long") -> str:
         return str(d.day)
     if fmt == "weekday":
         return weekday_name(d)
+    if fmt == "weekday_short":
+        return weekday_name(d, short=True)
     if fmt == "weekday_month_day":
         # A day this year, such as "Thursday, October 1": the list's format with the full names.
         return _("{weekday}, {month} {day}").format(weekday=weekday_name(d), month=month_name(d.month), day=d.day)
@@ -1885,6 +1887,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for issue in issues:
             # What was decided, the strongest first, and the week's lead (digest.decided()).
             issue["decided"] = digest.decided(issue, main_boards(config))
+            # The week at a glance, for the top of the email (digest.glance()).
+            issue["glance"] = digest.glance(issue)
             issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
             render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
             issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF,

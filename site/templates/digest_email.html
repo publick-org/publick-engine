@@ -3,7 +3,7 @@
    stylesheet; every link in full. It's sent with none of the email provider's template around it
    (worker/digest.js), so its footer has what the law asks for: a link to unsubscribe (unsubscribe,
    the provider's tag for each reader's own) and a postal address (mailing_address, pipeline/digest.py).
-   It leads with the week's strongest meeting's headline (digest.decided()); then the week's meetings,
+   It starts with the week at a glance (digest.glance()); then the week's meetings,
    each with where it is (digest.short_place()); then what was decided, the strongest meeting first: a main board's
    and the lead's main decisions by their titles with their outcomes (up to shown_decisions,
    digest.EMAIL_DECISIONS), another meeting by its headline, each linking the rest; up to shown (digest.EMAIL_MEETINGS) meetings, then a
@@ -31,15 +31,37 @@
     </td>
   </tr>
 </table>
-{# The lead: the week's strongest meeting's headline (digest.decided()), or, in a week with no decisions, what's inside. #}
+{# The week at a glance (digest.glance()), each line a fact from the sections below: how many meetings, and on
+   which days; the public hearings; what was decided, with the week's lead (digest.decided(), the email's subject);
+   and the meetings without an agenda yet, or off the schedule. Up to g.names meetings named on a line. #}
 {% set dz = issue.decided %}
-{% if dz.lead and dz.lead.meeting.preview_line %}
-<p style="margin:18px 0 0;font-size:18px;line-height:1.45;"><a href="{{ site_url }}{{ dz.lead.meeting.url }}{{ q }}" style="{{ link }}">{{ dz.lead.name }}</a><span style="color:#545c65;font-size:15px;"> · {{ dz.lead.meeting.date | date("mon_day") }}</span><br>{{ dz.lead.meeting.preview_line }}</p>
-{% else %}
-<p style="margin:18px 0 0;font-size:17px;">
-{%- if issue.meetings %}{# Translators: the start of the weekly digest's email; %(count)s is how many meetings it lists. #}{% trans count=issue.meetings | length %}{{ count }} meeting this week.{% pluralize %}{{ count }} meetings this week.{% endtrans %}{% else %}{{ _("No meetings are listed for this week.") }}{% endif -%}
-</p>
-{% endif %}
+{% set g = issue.glance %}
+{% set row = "margin:6px 0 0;font-size:15px;line-height:1.45;" %}
+{% set name_link = "color:" ~ palette.primary_dark ~ ";text-decoration:underline;" %}
+{% macro named(items) -%}
+{%- for m in items[:g.names] %}<a href="{{ site_url }}{{ m.url }}{{ q }}" style="{{ name_link }}">{{ meeting_name(m) }}</a> ({{ m.date | date("weekday") }}){% if not loop.last %}, {% endif %}{% endfor -%}
+{# Translators: after the meetings a line of the weekly digest's glance names; %(count)s is how many more it has. #}
+{%- if items | length > g.names %}{% trans count=items | length - g.names %}, and {{ count }} more{% pluralize %}, and {{ count }} more{% endtrans %}{% endif -%}
+{%- endmacro %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:18px 0 0;">
+  <tr><td bgcolor="#f2f4f7" style="background:#f2f4f7;border-left:4px solid {{ palette.primary_dark }};padding:12px 16px 14px;">
+    <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:{{ palette.accent }};">{{ _("This week at a glance") }}</p>
+    <p style="{{ row }}">
+    {%- if g.live %}{# Translators: the weekly digest's glance; %(count)s is how many of the week's meetings take place. Then how many are on each day, such as "Mon 2 · Tue 5". #}{% trans count=g.live | length %}<b>{{ count }} meeting</b> this week{% pluralize %}<b>{{ count }} meetings</b> this week{% endtrans %}
+    {%- if g.per_day | length > 1 %}: {% for day, n in g.per_day %}{{ day | date("weekday_short") }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}.
+    {%- elif issue.meetings %}{{ _("No meetings take place this week.") }}{% else %}{{ _("No meetings are listed for this week.") }}{% endif -%}
+    </p>
+    {% if g.hearings %}<p style="{{ row }}"><b>{% trans count=g.hearings | length %}Public hearing:{% pluralize %}Public hearings:{% endtrans %}</b> {{ named(g.hearings) }}</p>{% endif %}
+    {% if g.decided %}<p style="{{ row }}">
+    {%- if dz.lead_title %}{# Translators: the weekly digest's glance; %(count)s is how many meetings' decisions it lists, followed by one of them, such as "City Council approved repairs at two schools". #}<b>{% trans count=g.decided | length %}Decided at {{ count }} meeting:{% pluralize %}Decided at {{ count }} meetings, among them:{% endtrans %}</b> <a href="{{ site_url }}{{ dz.lead.meeting.url }}{{ q }}" style="{{ name_link }}">{{ dz.lead_title }}</a>.
+    {%- else %}<b>{% trans count=g.decided | length %}Decided at {{ count }} meeting{% pluralize %}Decided at {{ count }} meetings{% endtrans %}</b>, {{ _("listed below.") }}{% endif -%}
+    </p>{% endif %}
+    {# Translators: the weekly digest's glance; %(count)s is how many of the week's meetings have no agenda yet. #}
+    {% if g.no_agenda %}<p style="{{ row }}"><b>{{ _("No agenda posted yet:") }}</b> {% trans count=g.no_agenda %}{{ count }} meeting{% pluralize %}{{ count }} meetings{% endtrans %}</p>{% endif %}
+    {# Translators: the weekly digest's glance, before the meetings that were cancelled, postponed, or taken off the town's listing. #}
+    {% if g.off %}<p style="{{ row }}"><b>{{ _("Off the schedule:") }}</b> {{ named(g.off) }}</p>{% endif %}
+  </td></tr>
+</table>
 {% if meetings.calendar_behind and issue.end >= today %}
 <p style="margin:16px 0 0;padding:10px 14px;background:#fff3d1;border-left:4px solid #b88300;color:#5c3d00;font-size:15px;">{% if meetings.calendar_behind.since %}{% trans when=meetings.calendar_behind.since | date("plain") %}This site hasn't been able to check the city's meeting listings since {{ when }}, so meetings may be missing here.{% endtrans %}{% else %}{{ _("This site hasn't been able to check the city's meeting listings yet, so meetings may be missing here.") }}{% endif %}</p>
 {% endif %}
@@ -65,7 +87,7 @@
 {% set m = e.meeting %}
 {% set rows = e.main[:shown_decisions] if e.main_board or e is sameas dz.lead else [] %}
 <p style="margin:20px 0 0;"><a href="{{ site_url }}{{ m.url }}{{ q }}" style="{{ link }}">{{ e.name }}</a><span style="color:#545c65;"> · {{ m.date | date("mon_day") }}{% if e.source == "recording" %} · {{ _("from its recording") }}{% endif %}</span></p>
-{% if m.preview_line and e is not sameas dz.lead %}<p style="margin:2px 0 0;">{{ m.preview_line }}</p>{% endif %}
+{% if m.preview_line %}<p style="margin:2px 0 0;">{{ m.preview_line }}</p>{% endif %}
 {% if rows %}
 <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0 0;width:100%;">
   {% for d in rows %}
