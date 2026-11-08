@@ -80,7 +80,7 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import requests
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, fetch_place, legistar, primegov
+from pipeline import agendacenter, civicclerk, civicplus, fetch_place, legistar, meeting_sources, primegov
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
@@ -1132,8 +1132,8 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.comment(f"The {board} posts with the other boards (\"{board}\").")
     else:
         c.blank()
-        c.fill_in(1, "the School Committee's meetings: where the district posts them ([ical_meetings], "
-                  "[page_meetings], [finalsite_meetings], [drive_meetings], [diligent_meetings], [boardbook_meetings], [opengov_meetings]), named in the Meetings section's "
+        c.fill_in(1, "the School Committee's meetings: where the district posts them ("
+                  + ", ".join(f"[{t}]" for t in meeting_sources.TABLES) + "), named in the Meetings section's "
                   "summary and in [freshness] sources; a platform the engine doesn't read is left out and said so "
                   "(ADDING-A-TOWN.md, step 1).")
 

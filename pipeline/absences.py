@@ -23,16 +23,17 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from pipeline import meeting_sources
 from pipeline.fetch_minutes import LINKED
 
 # Statuses of a meeting that wasn't held as listed: it has no minutes to wait for.
 NOT_HELD = ("cancelled", "postponed", "rescheduled")
 # Sources that never carry a meeting's documents: a school district's calendar
 # feed, and a page of the year's dates ([schedule_meetings]).
-NO_DOCUMENTS = ("ical", "schedule")
+NO_DOCUMENTS = meeting_sources.DATES_ONLY
 # Sources of a board's documents other than the city's own listings (a school district's website or
 # portal, the state's Open Meetings portal), each with a [<source>_meetings] table.
-SCHOOL_SOURCES = ("finalsite", "drive", "page", "diligent", "boardbook", "opengov", "meetingdocs", "sharpschool")
+SCHOOL_SOURCES = meeting_sources.DOCUMENTS
 # Which of a meeting's sources of minutes its page names, when more than one collects them for its date:
 # the board's own website or portal (a school district's, whose [<source>_meetings] table lists only its
 # own boards' meetings) before the city's systems, and the city's posting of the meeting itself (Agenda

@@ -41,6 +41,7 @@ from pipeline import common_strings
 from pipeline import digest
 from pipeline import dnn
 from pipeline import legistar
+from pipeline import meeting_sources
 from pipeline import primegov
 from pipeline import factcheck
 from pipeline import listings
@@ -661,12 +662,7 @@ def glossary_for(meeting: dict, entries: list[dict]) -> list[dict]:
 # Where each source lists a meeting, for sentences like "Not listed on the city calendar".
 LISTINGS = {"civicclerk": N_("city's meeting portal"), "legistar": N_("city's meeting portal"),
             "primegov": N_("city's meeting portal"), "agendacenter": N_("city's Agenda Center"),
-            "finalsite": N_("school district's website"), "ical": N_("school district's website"),
-            "page": N_("school district's website"), "diligent": N_("school district's meeting portal"),
-            "boardbook": N_("school district's meeting portal"),
-            "opengov": N_("state's Open Meetings portal"), "meetingdocs": N_("city's events calendar"),
-            "sharpschool": N_("school district's website"),
-            "schedule": N_("published schedule")}
+            **meeting_sources.LISTINGS}
 CALENDAR = N_("city calendar")
 
 
@@ -1091,13 +1087,7 @@ def meeting_links(config: dict) -> dict:
         # A town whose every meeting comes from Rhode Island's Open Meetings portal: no reader of
         # the city's own in [meetings], so its pages name the portal as the source of them all.
         "opengov_only": opengov_only,
-        "schools": [{"name": config[t]["source_name"], "url": config[t]["page_url"]}
-                    for t in ("drive_meetings", "finalsite_meetings", "page_meetings", "diligent_meetings", "opengov_meetings",
-                              "meetingdocs_meetings", "sharpschool_meetings", "boardbook_meetings", "ical_meetings")
-                    if t in config and not (t == "opengov_meetings" and opengov_only)]
-                   + page_sources(config)
-                   + ([{"name": config["schedule_meetings"]["source_name"], "url": config["schedule_meetings"]["url"]}]
-                      if "schedule_meetings" in config else []),
+        "schools": meeting_sources.posted_by(config, leave_out=("opengov",) if opengov_only else ()) + page_sources(config),
     }
 
 
@@ -1105,10 +1095,7 @@ def page_sources(config: dict) -> list[dict]:
     """Who posts the pages of [page_meetings.pages] that name their own source_name, each once, with its first
     page (Manchester's school district folders, where the table's own source is a city department), unless
     another table names that source already."""
-    named = {config[t]["source_name"] for t in ("drive_meetings", "finalsite_meetings", "page_meetings",
-                                                "diligent_meetings", "opengov_meetings", "meetingdocs_meetings",
-                                                "sharpschool_meetings", "boardbook_meetings", "ical_meetings")
-             if t in config and config[t].get("source_name")}
+    named = {config[t]["source_name"] for t in meeting_sources.TABLES if t in config and config[t].get("source_name")}
     found = []
     for url, page in (config.get("page_meetings") or {}).get("pages", {}).items():
         name = page.get("source_name") if isinstance(page, dict) else None

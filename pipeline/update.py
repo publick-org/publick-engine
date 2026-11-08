@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pipeline import cost_log, rhythms, source_311
+from pipeline import cost_log, meeting_sources, rhythms, source_311
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, load_config
 
 
@@ -70,22 +70,8 @@ SOURCES = [
     # Minutes from the Archive Center ([archive]), or linked from Agenda Center, CivicClerk, Legistar, PrimeGov and file list
     # meetings ([meetings]); the step does nothing for a town with none of them.
     Source("Fetch minutes", "pipeline.fetch_minutes", "meetings", secrets=STORAGE, table="meetings"),
-    Source("Fetch School Committee documents", "pipeline.fetch_drive_meetings", "meetings", secrets=STORAGE,
-           table="drive_meetings"),
-    Source("Fetch school board meetings", "pipeline.fetch_finalsite_meetings", "meetings", secrets=STORAGE,
-           table="finalsite_meetings"),
-    Source("Fetch school board documents", "pipeline.fetch_page_meetings", "meetings", secrets=STORAGE,
-           table="page_meetings"),
-    Source("Fetch Diligent Community meetings", "pipeline.fetch_diligent_meetings", "meetings", secrets=STORAGE,
-           table="diligent_meetings"),
-    Source("Fetch BoardBook meetings", "pipeline.fetch_boardbook_meetings", "meetings", secrets=STORAGE,
-           table="boardbook_meetings"),
-    Source("Fetch Open Meetings portal meetings", "pipeline.fetch_opengov_meetings", "meetings", secrets=STORAGE,
-           table="opengov_meetings"),
-    Source("Fetch the city's meeting documents", "pipeline.fetch_meetingdocs_meetings", "meetings", secrets=STORAGE,
-           table="meetingdocs_meetings"),
-    Source("Fetch the school district's minutes library", "pipeline.fetch_sharpschool_meetings", "meetings", secrets=STORAGE,
-           table="sharpschool_meetings"),
+    # Each meeting source with a reader of its own (pipeline/meeting_sources.py), in its order there.
+    *(Source(s.step, s.module, "meetings", secrets=STORAGE, table=s.table) for s in meeting_sources.READERS),
     Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY", *STORAGE, *COSTS),
            table="summaries"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
