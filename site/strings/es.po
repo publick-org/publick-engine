@@ -10060,6 +10060,10 @@ msgid "published schedule"
 msgstr "calendario publicado"
 
 #: pipeline/meeting_sources.py
+msgid "school district's Google Drive"
+msgstr "Google Drive del distrito escolar"
+
+#: pipeline/meeting_sources.py
 msgid "school district's meeting portal"
 msgstr "portal de reuniones del distrito escolar"
 

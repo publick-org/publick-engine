@@ -34,9 +34,9 @@ def N_(message: str) -> str:
 class MeetingSource:
     # The `source` each meeting it lists carries ("diligent").
     source: str
-    # Where it lists a meeting, for "Not listed on the ..." on a meeting's page. None: the city
-    # calendar's wording (build_site.CALENDAR).
-    listing: str | None
+    # Where it lists a meeting, for "on the ..." on a meeting's and a board's page ("Removed from the ...",
+    # "No upcoming meetings are listed on the ..."). Without it, a listing would read as the city calendar's.
+    listing: str
     # The daily update's step that reads it, and the module the step runs (python -m), for a source
     # with a reader of its own; None for one pipeline/fetch_meetings.py reads with the city's.
     step: str | None = None
@@ -54,7 +54,8 @@ class MeetingSource:
 
 
 SOURCES = (
-    MeetingSource("drive", None, "Fetch School Committee documents", "pipeline.fetch_drive_meetings"),
+    MeetingSource("drive", N_("school district's Google Drive"), "Fetch School Committee documents",
+                  "pipeline.fetch_drive_meetings"),
     MeetingSource("finalsite", N_("school district's website"), "Fetch school board meetings",
                   "pipeline.fetch_finalsite_meetings", "pipeline.finalsite"),
     MeetingSource("page", N_("school district's website"), "Fetch school board documents",
@@ -79,8 +80,8 @@ TABLES = tuple(s.table for s in SOURCES)
 # The sources whose listings carry documents, in the order they rank, and those that only date a meeting.
 DOCUMENTS = tuple(s.source for s in SOURCES if s.documents)
 DATES_ONLY = tuple(s.source for s in SOURCES if not s.documents)
-# Where each lists a meeting, for those that say it some other way than the city calendar's wording.
-LISTINGS = {s.source: s.listing for s in SOURCES if s.listing}
+# Where each lists a meeting.
+LISTINGS = {s.source: s.listing for s in SOURCES}
 # The sources with a reader of their own: one update step each.
 READERS = tuple(s for s in SOURCES if s.module)
 
