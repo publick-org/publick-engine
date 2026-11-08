@@ -154,6 +154,29 @@ def decided(issue: dict, main_boards: list[str]) -> dict:
     return {"entries": entries, "quiet": quiet, "lead": lead, "lead_title": headline(lead) if lead else None}
 
 
+# The most meetings a line of the email's glance names; the rest are counted ("and 2 more").
+GLANCE_NAMES = 3
+
+
+def glance(issue: dict) -> dict:
+    """The week at a glance, for the top of the email, from what the issue already lists: the meetings that take
+    place ("live") and how many fall on each day; those with a public hearing on their agenda; those that won't take
+    place as listed (cancelled, postponed, or removed from the town's listing); how many still have no agenda; and the
+    meetings whose decisions came in (issue["decided"], from decided())."""
+    off = [m for m in issue["meetings"] if m["status"] in ("cancelled", "postponed") or not m.get("listed", True)]
+    live = [m for m in issue["meetings"] if id(m) not in {id(o) for o in off}]
+    return {
+        "live": live,
+        "per_day": [(day, sum(m["date"] == day for m in live)) for day in sorted({m["date"] for m in live})],
+        "hearings": [m for m in live if m.get("public_hearing")],
+        "off": off,
+        # As the email's list says "No agenda posted yet" under a meeting.
+        "no_agenda": sum(m["status"] == "scheduled" and not (m.get("agenda") or m.get("documents_url")) for m in live),
+        "decided": issue["decided"]["entries"],
+        "names": GLANCE_NAMES,
+    }
+
+
 # Past tenses that don't end in "ed", which a headline may start with (summarize.py asks it to start with the outcome).
 PAST_TENSE = {"overrode", "held", "heard", "set", "sent", "took", "gave", "made", "chose", "kept", "put", "cut", "let",
               "paid", "sold", "bought", "began", "met", "won", "lost", "struck", "wrote", "drew", "upheld", "withdrew",

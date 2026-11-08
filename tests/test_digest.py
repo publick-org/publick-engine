@@ -145,9 +145,14 @@ def test_digest_feed(site_dir):
     assert "<style" not in body and 'style="' in body and "#011536" in body
     assert "Gloucester <span" in body and "Weekly digest · Week of September 28, 2026" in body
     assert "<script" not in body and "<nav" not in body
-    # It says what's inside first, and once, above the meetings, that their lines are written by AI.
-    assert re.search(r'<p style="[^"]*">10 meetings this week\.</p>', body)
-    assert body.count("is an AI summary of its agenda") == 1 and "(AI summary)" not in body
+    # It starts with "This week", a short list: the meetings that take place, by day, and those that won't, by name.
+    glance = body[body.index("This week</p>"):body.index("<h2")]
+    assert ">8 meetings: 2 Monday, 2 Tuesday, 2 Wednesday, 2 Thursday</li>" in glance
+    assert re.search(r'>Off the schedule Monday: <a href="https://gloucester-ma\.publick\.org/meetings/2026-09-28-licensing-board/'
+                     r'\?ref=digest-email" style="[^"]*">Licensing Board Special</a></li>', glance)
+    assert ">Off the schedule Tuesday: <a " in glance
+    # The agenda lines go without a note above them.
+    assert "is an AI summary of its agenda" not in body and "(AI summary)" not in body
 
 
 @pytest.fixture(scope="module")
@@ -185,12 +190,13 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     # The week's lead as a headline, for the email's subject; a week without decisions keeps its date.
     assert titles.index("City Council approved a site plan for 12 Main St") < titles.index("Week of September 28, 2026")
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
-    # It leads with the week's strongest meeting, whose headline isn't said again below.
-    lead = re.search(r'<p style="[^"]*font-size:18px[^"]*"><a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
-                     r'\?ref=digest-email" style="[^"]*">City Council</a><span style="[^"]*"> · Aug 25</span><br>'
-                     r'Approved a site plan for 12 Main St\.</p>', body)
-    assert lead and body.count("Approved a site plan for 12 Main St.") == 1
-    assert body.index("<h2") > lead.end()
+    # "This week" names the week's lead, as the subject does, and links its meeting; what was decided there is below.
+    glance = body[body.index("This week</p>"):body.index("<h2")]
+    assert re.search(r'>Decisions from 1 meeting: <a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
+                     r'\?ref=digest-email" style="[^"]*">City Council approved a site plan for 12 Main St</a></li>', glance)
+    assert ">1 meeting without an agenda yet</li>" in glance
+    decided = body[body.index("What was decided"):]
+    assert decided.count("<p style=\"margin:2px 0 0;\">Approved a site plan for 12 Main St.</p>") == 1
     # Where each meeting of the week is.
     assert "<span style=\"color:#545c65;\"> · City Council Committee Room</span>" in body
     assert body.count("Written by AI from each meeting's minutes") == 1
@@ -399,6 +405,23 @@ def test_what_was_decided_puts_the_strongest_meeting_first():
     assert found["lead"] is first
     assert found["lead_title"] == "City Council approved repairs at two schools"
     assert digest.decided({"minutes": [quiet], "recorded": []}, [])["lead"] is None
+
+
+def test_the_week_at_a_glance():
+    """The meetings that take place, by day; the public hearings among them; those that won't take place as listed;
+    how many have no agenda yet; and the meetings whose decisions came in."""
+    meeting = lambda day, status="scheduled", **extra: {"date": day, "status": status, "listed": True, **extra}
+    week = [meeting("2026-11-09", agenda=[{}]), meeting("2026-11-09", listed=False),
+            meeting("2026-11-10", public_hearing=True, agenda=[{}]), meeting("2026-11-10", "cancelled"),
+            meeting("2026-11-10", documents_url="https://example.org/"), meeting("2026-11-12"),
+            meeting("2026-11-13", "postponed")]
+    entry = {"meeting": meeting("2026-10-14")}
+    found = digest.glance({"meetings": week, "decided": {"entries": [entry], "quiet": []}})
+    assert found["live"] == [week[0], week[2], week[4], week[5]]
+    assert found["per_day"] == [("2026-11-09", 1), ("2026-11-10", 2), ("2026-11-12", 1)]
+    assert found["hearings"] == [week[2]]
+    assert found["off"] == [week[1], week[3], week[6]]
+    assert found["no_agenda"] == 1 and found["decided"] == [entry]
 
 
 def test_main_decisions_without_labels_are_all_of_them():
