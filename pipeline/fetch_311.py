@@ -114,6 +114,16 @@ def load_store(data_dir: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
 
 
+def refuse_empty(store: dict, data_dir: Path) -> None:
+    """Stop when the town's saved requests are missing (requests.json gone, or its bucket's copy
+    answering 404) but its last status says it had some: never start again from nothing, and save
+    that over the town's history. Every 311 step that writes calls this first."""
+    path = store_dir(data_dir) / "status.json"
+    had = json.loads(path.read_text(encoding="utf-8")).get("requests_total") if path.exists() else None
+    if not store and had:
+        raise FetchError(f"the town's {had} saved 311 requests are missing (data/311/requests.json, or its bucket's copy)")
+
+
 def load_state(data_dir: Path) -> dict | None:
     path = store_dir(data_dir) / "sync.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -486,11 +496,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
     # The bucket's copy, if the town keeps one there, is the latest: what the last run saved.
     bucket_data.pull(config, data_dir, refresh=True)
     store = load_store(data_dir)
-    status_path = store_dir(data_dir) / "status.json"
-    had = json.loads(status_path.read_text(encoding="utf-8")).get("requests_total") if status_path.exists() else None
-    if not store and had and not backfill_from:
-        # Never start again from nothing, and save that over the town's history.
-        raise FetchError(f"the town's {had} saved 311 requests are missing (data/311/requests.json, or its bucket's copy)")
+    if not backfill_from:
+        refuse_empty(store, data_dir)
 
     state = load_state(data_dir)
     if state is None:
@@ -622,7 +629,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None,
         "seconds": round(time.monotonic() - started, 1),
         "errors": errors,
     }
-    save_json(status_path, summary)
+    save_json(store_dir(data_dir) / "status.json", summary)
     if refused:
         # What was fetched is saved; the step fails, so the run says 311 is behind.
         raise FetchError(errors[-1], 403)
