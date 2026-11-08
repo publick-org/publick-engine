@@ -23,8 +23,12 @@ import feedparser
 
 from pipeline import dates
 
-TIME_PREFIX = re.compile(r"^\s*\d{1,2}:\d{2}\s*[AP]\.?M\.?\s*[-–:]?\s*", re.I)
-TIME_SUFFIX = re.compile(r",?\s*\d{1,2}:\d{2}\s*[AP]\.?M\.?\s*$", re.I)
+# A time of day: "6:30 PM", "6:30pm", "10:00 a.m.", "6 PM", or "6:30" with neither.
+CLOCK = r"(?:\d{1,2}(?::\d{2}(?!\d))?\s*[AP]\.?\s?M\.?(?![a-z])|\d{1,2}:\d{2}(?!\d))"
+# One at the start or end of a meeting's name says when, not which board: "6:30 Licensing Board Meeting",
+# "Planning Board, 7:00 PM". The meeting's time is the listing's own.
+TIME_PREFIX = re.compile(rf"^\s*(?:at\s+)?{CLOCK}\s*[-–:,@]?\s*", re.I)
+TIME_SUFFIX = re.compile(rf"[\s,\-–:@]*(?:\bat\s+)?{CLOCK}\s*$", re.I)
 PLACEHOLDER_LOCATIONS = {"", "event location"}
 STATUS_WORDS = {
     "cancelled": re.compile(r"\bcancell?ed\b", re.I),
@@ -79,8 +83,10 @@ def board_part(name: str) -> str:
     'Planning Board Meeting, December 17, 2026' -> 'Planning Board Meeting'. A date written into a
     name isn't part of the board's: "Board of Health Meeting 10/13/2026", or what's left of
     "RESCHEDULED TO 10/21/2026 Commission on Disabilities Meeting" or "RESCHEDULED to 10-14-Beverly
-    Regional Airport Commission" once its status word is taken out; with or without its year."""
+    Regional Airport Commission" once its status word is taken out; with or without its year. Nor is
+    a time at its start or end ("6:30 Licensing Board Meeting"), after its date is taken out."""
     name = CO_POSTED.sub("", dates.without_dates(name, yearless=True))
+    name = TIME_PREFIX.sub("", TIME_SUFFIX.sub("", name))
     return re.sub(r"\s{2,}", " ", re.sub(r"^[\s,\-–:]+|[\s,\-–:]+$", "", name))
 
 
