@@ -48,7 +48,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import dates
+from pipeline import dates, identity
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import load_store, meetings_dir, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug
@@ -258,6 +258,13 @@ def update_schedule(store: dict, page: str, settings: dict, today: date, stamp: 
     return added
 
 
+def own_variant(variant: str, body: str, town: str) -> str:
+    """A file's variant, unless it only names the file's board again ("School Committee" in a School
+    Committee folder's "School Committee Agenda 9_23_26"): that says nothing about which meeting it is,
+    and would keep it from the board's meeting that day."""
+    return "" if variant and identity.board_key(variant, town) == identity.board_key(body, town) else variant
+
+
 def find_meeting(store: dict, body: str, day: str, variant: str) -> dict | None:
     return next((m for m in store.values()
                  if m["date"] == day and slugify(m["body"]) == slugify(body) and m.get("variant", "") == variant), None)
@@ -362,6 +369,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         except FetchError as e:
             errors.append(str(e))
             continue
+        info = {**info, "variant": own_variant(info["variant"], body, config["town"]["name"])}
         meeting = find_meeting(store, body, info["date"], info["variant"])
         if meeting is None:
             meeting = new_meeting(store, f"drive-{file['id']}", body, info, settings, stamp)

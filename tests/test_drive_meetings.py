@@ -36,6 +36,30 @@ def test_file_names(name, date, variant, revised, special):
     assert not info["left_out"]
 
 
+def test_a_file_naming_its_board_again_joins_the_boards_scheduled_meeting(tmp_path):
+    """Gloucester's "School Committee: School Committee" agenda of 2026-09-23 made a second meeting beside the
+    one from the district's schedule: a variant that only names the board again isn't one."""
+    config = load_config("gloucester")
+    settings = config["drive_meetings"]
+    del settings["schedule_url"]
+    save_json(tmp_path / "meetings" / "meetings.json", {"schedule-school-committee-2026-09-23": {
+        "id": "schedule-school-committee-2026-09-23", "source": "drive", "date": "2026-09-23", "body": "School Committee",
+        "title": "School Committee", "variant": "", "slug": "2026-09-23-school-committee",
+        "first_seen": "2026-09-01T08:00:00-04:00"}})
+    drive = MadeUpDrive({
+        settings["agendas_folder"]: [("sca", "School Committee Agendas", True)],
+        settings["minutes_folder"]: [],
+        "sca": [("again", "School Committee Agenda 9_23_26.pdf"), ("ws", "SC Governance Workshop Agenda 9_23_26.pdf")],
+    })
+    fetch_drive_meetings.run(config, drive, tmp_path, now=NOW)
+    store = json.loads((tmp_path / "meetings" / "meetings.json").read_text())
+    assert [a["id"] for a in store["schedule-school-committee-2026-09-23"]["agendas"]] == ["again"]
+    # A variant that says which meeting it is is still a meeting of its own.
+    assert sorted(m["title"] for m in store.values()) == ["School Committee", "School Committee: Governance Workshop"]
+    assert fetch_drive_meetings.own_variant("Gloucester School Committee", "School Committee", "Gloucester") == ""
+    assert fetch_drive_meetings.own_variant("Governance Workshop", "School Committee", "Gloucester") == "Governance Workshop"
+
+
 def test_names_without_a_date_or_left_out():
     assert parse_name("B & F Agenda 6_17_2.pdf", SHORT) is None
     assert parse_name("SC Agenda 13_40_26.pdf", SHORT) is None
