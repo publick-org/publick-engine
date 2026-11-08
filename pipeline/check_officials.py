@@ -23,6 +23,13 @@ It runs when the last check is CHECK_DAYS old, or when a body's members or page
 differ from those last checked (a person fixed the list: the lead goes away
 with the next run); --force checks anyway.
 
+A page that can't be read (a timeout, a server that refuses the runners for a
+while) is tried again by the next run, at least RETRY_HOURS later, rather than a
+week later, and until then its body keeps what its last read found. It's a lead
+for a person only once it has failed for UNREAD_DAYS running: a city's site that
+is down for a morning isn't something to look at, and the network's issue stays
+the length of what's really wrong.
+
 Usage:
     python -m pipeline.check_officials [--town gloucester] [--force]
 """
@@ -46,6 +53,10 @@ from pipeline.http import FetchError, PoliteClient
 
 RESULT_FILE = "officials_check.json"
 CHECK_DAYS = 7
+# A page that couldn't be read is tried again by the first run this many hours later...
+RETRY_HOURS = 20
+# ...and is a lead once it has failed this many days running.
+UNREAD_DAYS = 7
 # Endings that aren't a surname: "David P. Beauregard, Jr." is looked for as "beauregard".
 SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
 BROWSER_TIMEOUT_MS = 45_000
@@ -147,7 +158,10 @@ def due(config: dict, previous: dict, now: datetime) -> bool:
     """Whether to check: the last check is CHECK_DAYS old, or a body's members or page changed since."""
     if not previous.get("checked_at"):
         return True
-    if now - datetime.fromisoformat(previous["checked_at"]) >= timedelta(days=CHECK_DAYS):
+    since = now - datetime.fromisoformat(previous["checked_at"])
+    if since >= timedelta(days=CHECK_DAYS):
+        return True
+    if since >= timedelta(hours=RETRY_HOURS) and any(b.get("error") for b in previous.get("bodies", [])):
         return True
     where, today = f"config/{config['slug']}.toml", now.date()
     listed = {(b["name"], b["url"], tuple(members(b, where, today)))
@@ -163,6 +177,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
     if not force and not due(config, previous, now):
         return {"skipped": f"checked {previous['checked_at']}"}
     where, user_agent = f"config/{config['slug']}.toml", config["site"]["user_agent"]
+    stamp = now.isoformat(timespec="seconds")
+    last = {(b["name"], b["url"]): b for b in previous.get("bodies", [])}
     bodies, pages = [], {}
     for body in config["officials"].get("bodies", []):
         if not body.get("url"):
@@ -178,25 +194,40 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
             if not any(named(n, text) for n in names) and (shown := browser(body["url"], user_agent)) is not None:
                 text, result["read"] = shown, "browser"
             result["missing"] = [n for n in names if not named(n, text)]
+            result["read_at"] = stamp
         except FetchError as e:
             result["error"] = str(e)
+            before = last.get((body["name"], body["url"]), {})
+            result["failing_since"] = (before.get("failing_since") or previous["checked_at"]) if before.get("error") else stamp
+            # What the page's last read found stands until it's read again, if the members are the same.
+            if "missing" in before and before["members"] == names:
+                result.update({k: before[k] for k in ("read", "missing", "read_at") if k in before})
         bodies.append(result)
-    data = {"checked_at": now.isoformat(timespec="seconds"), "bodies": bodies}
+    data = {"checked_at": stamp, "bodies": bodies}
     write_atomic(path, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     return data
 
 
+def unread_too_long(body: dict, checked_at: str) -> bool:
+    """Whether the body's page has failed for UNREAD_DAYS running, as of the check at checked_at."""
+    since = body.get("failing_since") or checked_at
+    return datetime.fromisoformat(checked_at) - datetime.fromisoformat(since) >= timedelta(days=UNREAD_DAYS)
+
+
 def leads(data: dict) -> list[dict]:
-    """The bodies a person should look at, from a check's result: a page that couldn't be read
-    (error), names none of the members (none), or doesn't name some of them (missing)."""
+    """The bodies a person should look at, from a check's result: a page that couldn't be read for
+    UNREAD_DAYS (error, since), names none of the members (none), or doesn't name some of them
+    (missing). A page that couldn't be read for less time leads by what its last read found."""
     out = []
     for b in data.get("bodies", []):
         lead = {"name": b["name"], "url": b["url"]}
-        if b.get("error"):
-            out.append({**lead, "error": b["error"]})
-        elif b["missing"] and len(b["missing"]) == len(b["members"]):
+        if b.get("error") and unread_too_long(b, data["checked_at"]):
+            out.append({**lead, "error": b["error"], "since": b.get("failing_since") or data["checked_at"]})
+        elif not b.get("missing"):
+            continue
+        elif len(b["missing"]) == len(b["members"]):
             out.append({**lead, "none": True})
-        elif b["missing"]:
+        else:
             out.append({**lead, "missing": b["missing"]})
     return out
 
@@ -215,6 +246,10 @@ def main() -> int:
     if "skipped" in result:
         print(f"::notice::Officials not checked: {result['skipped']}.")
         return 0
+    for body in result["bodies"]:
+        if body.get("error") and not unread_too_long(body, result["checked_at"]):
+            print(f"::notice::The {body['name']}'s page couldn't be read, since {body['failing_since'][:10]}; "
+                  f"the next run tries again ({body['error']}).")
     for lead in leads(result):
         what = (f"couldn't be read: {lead['error']}" if "error" in lead else "names none of its members"
                 if lead.get("none") else f"doesn't name {', '.join(lead['missing'])}")

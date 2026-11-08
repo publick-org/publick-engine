@@ -108,11 +108,51 @@ def test_a_member_the_page_doesnt_name_a_page_that_names_none_and_one_that_cant_
     assert check_officials.leads(result) == [
         {"name": "City Council", "url": COUNCIL, "missing": ["Bryce Kaw-uh"]},
         {"name": "School Committee", "url": SCHOOL, "none": True}]
+    # The council's page can't be read: what its last read found stands, and it isn't a lead itself...
     client = Pages({COUNCIL: FetchError(f"{COUNCIL}: HTTP 403", 403), SCHOOL: "<p>Riley Example, Casey Sample</p>"})
-    result = check_officials.run(town(), client, tmp_path, NOW, force=True, browser=no_browser)
+    later = NOW + timedelta(days=1)
+    result = check_officials.run(town(), client, tmp_path, later, force=True, browser=no_browser)
+    assert check_officials.leads(result) == [{"name": "City Council", "url": COUNCIL, "missing": ["Bryce Kaw-uh"]}]
+    council = result["bodies"][1]
+    assert council["error"] == f"{COUNCIL}: HTTP 403" and council["failing_since"] == later.isoformat()
+    assert council["read_at"] == NOW.isoformat()
+    # ...until it has failed for a week running, tried again by each daily run.
+    for day in range(2, 9):
+        result = check_officials.run(town(), client, tmp_path, NOW + timedelta(days=day), browser=no_browser)
+        assert "skipped" not in result
     assert check_officials.leads(result) == [
-        {"name": "Mayor", "url": COUNCIL, "error": f"{COUNCIL}: HTTP 403"},
-        {"name": "City Council", "url": COUNCIL, "error": f"{COUNCIL}: HTTP 403"}]
+        {"name": "Mayor", "url": COUNCIL, "error": f"{COUNCIL}: HTTP 403", "since": later.isoformat()},
+        {"name": "City Council", "url": COUNCIL, "error": f"{COUNCIL}: HTTP 403", "since": later.isoformat()}]
+    # Read again: the lead is what the page says now.
+    client.pages[COUNCIL] = COUNCIL_PAGE
+    result = check_officials.run(town(), client, tmp_path, NOW + timedelta(days=9), browser=no_browser)
+    assert check_officials.leads(result) == [] and not any("failing_since" in b for b in result["bodies"])
+
+
+def test_a_page_that_cant_be_read_is_tried_again_the_next_day_not_the_next_week(tmp_path):
+    client = Pages({COUNCIL: FetchError(f"{COUNCIL}: timed out"), SCHOOL: "<p>Riley Example, Casey Sample</p>"})
+    config = town()
+    first = check_officials.run(config, client, tmp_path, NOW, browser=no_browser)
+    # Never read: nothing to lead by yet, and not a lead until a week has passed.
+    assert check_officials.leads(first) == []
+    assert "skipped" in check_officials.run(config, client, tmp_path, NOW + timedelta(hours=12), browser=no_browser)
+    client.pages[COUNCIL] = COUNCIL_PAGE
+    result = check_officials.run(config, client, tmp_path, NOW + timedelta(hours=20), browser=no_browser)
+    assert "skipped" not in result and check_officials.leads(result) == []
+    # Every page read: weekly again.
+    assert "skipped" in check_officials.run(config, client, tmp_path, NOW + timedelta(days=2), browser=no_browser)
+
+
+def test_a_check_saved_before_failures_were_dated_counts_from_that_check(tmp_path):
+    (tmp_path / check_officials.RESULT_FILE).write_text(json.dumps({"checked_at": NOW.isoformat(), "bodies": [
+        {"name": "Mayor", "url": COUNCIL, "members": ["Morgan Example"], "error": f"{COUNCIL}: timed out"}]}))
+    assert check_officials.leads(json.loads((tmp_path / check_officials.RESULT_FILE).read_text())) == []
+    client = Pages({COUNCIL: FetchError(f"{COUNCIL}: timed out"), SCHOOL: "<p>Riley Example, Casey Sample</p>"})
+    result = check_officials.run(town(), client, tmp_path, NOW + timedelta(days=1), browser=no_browser)
+    assert result["bodies"][0]["failing_since"] == NOW.isoformat()
+    result = check_officials.run(town(), client, tmp_path, NOW + timedelta(days=7), browser=no_browser)
+    # The council, not in the older check, counts from its own first failure.
+    assert [(lead["name"], lead["since"]) for lead in check_officials.leads(result)] == [("Mayor", NOW.isoformat())]
 
 
 def test_a_page_whose_names_come_from_its_scripts_is_read_in_a_browser(tmp_path):
@@ -189,7 +229,8 @@ def test_the_network_lists_every_towns_leads_in_one_issue(tmp_path):
         {"name": "Board of Mayor and Aldermen", "url": COUNCIL, "missing": ["Bryce Kaw-uh", "Dan Goonan"]},
         {"name": "Board of School Committee", "url": SCHOOL, "missing": [f"Member {i}" for i in range(1, 8)]}]})
     record(tmp_path, "central-falls-ri", {"checked_at": "2026-11-09T07:00:00-05:00", "leads": [
-        {"name": "City Council", "url": "https://cf.example", "error": "https://cf.example: HTTP 403"}]})
+        {"name": "City Council", "url": "https://cf.example", "error": "https://cf.example: HTTP 403",
+         "since": "2026-11-02T07:00:00-05:00"}]})
     record(tmp_path, "gloucester-ma", {"checked_at": "2026-11-09T07:00:00-05:00", "leads": []})
     record(tmp_path, "salem-ma")
     text = network.officials_text(tmp_path)
@@ -197,7 +238,7 @@ def test_the_network_lists_every_towns_leads_in_one_issue(tmp_path):
     assert f"| manchester-nh | Board of Mayor and Aldermen | Bryce Kaw-uh, Dan Goonan | [page]({COUNCIL}) | 2026-11-08 |" in text
     assert "| Member 1, Member 2, Member 3, Member 4, Member 5, and 2 more |" in text
     assert f"| beverly-ma | School Committee | (names none of its members) | [page]({SCHOOL}) | 2026-11-09 |" in text
-    assert "| central-falls-ri | City Council | (couldn't be read: https://cf.example: HTTP 403) |" in text
+    assert "| central-falls-ri | City Council | (couldn't be read since 2026-11-02: https://cf.example: HTTP 403) |" in text
     assert "Not checked yet: 1 towns: salem-ma." in text
     # Nothing to look at: no text, and the workflow closes the issue.
     for name in ("beverly-ma", "manchester-nh", "central-falls-ri"):
