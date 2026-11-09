@@ -15,7 +15,8 @@ the last WINDOW_DAYS days (not today's, and not cancelled ones):
                 (minutes come weeks after a meeting, once the board approves
                 them)
   pairs         a meeting only a calendar lists (a city calendar, a district's
-                feed or schedule), with no documents, on the day another board
+                feed or schedule), with no documents, left apart from the
+                meeting it most likely is (pipeline/identity.py, rule 5), on the day another board
                 whose name shares a word with its own (meeting_names.
                 distinct_words) has a meeting with documents from another
                 source: most likely one meeting listed under two names. A
@@ -38,7 +39,7 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
-from pipeline import listings
+from pipeline import identity, listings
 from pipeline.absences import NOT_HELD
 from pipeline.meeting_names import distinct_words
 
@@ -46,8 +47,9 @@ WINDOW_DAYS = 90
 MINUTES_DAYS = 45
 MIN_MEETINGS = 2
 MAX_LISTED = 20
-# Sources that list a meeting's date and time, with no documents of their own.
-CALENDARS = ("calendar", "ical", "schedule")
+# Sources that list a meeting's date and time, with no documents of their own; and a Drive reader's
+# entries from a district's schedule (from_schedule).
+CALENDARS = identity.CALENDARS
 # Status files of readers that don't save documents.
 NOT_DOCUMENTS = ("recordings_status.json",)
 
@@ -115,7 +117,7 @@ def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
         for m in group:
             # A listing moved to another day (postponed, or rescheduled: "RESCHEDULED to 10-14") isn't a
             # second listing of the meeting held that day.
-            if (m.get("source", "calendar") not in CALENDARS or has_agenda(m) or has_minutes(m)
+            if ((m.get("source", "calendar") not in CALENDARS and not m.get("from_schedule")) or has_agenda(m) or has_minutes(m)
                     or m.get("status") in NOT_HELD):
                 continue
             words = distinct_words(m["body"], town)

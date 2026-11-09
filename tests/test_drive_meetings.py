@@ -207,6 +207,8 @@ def test_schedule_changes(tmp_path):
     today = NOW.date()
     assert update_schedule(store, page, settings, today, "t1") == 2
     assert update_schedule(store, page, settings, today, "t2") == 0
+    # Each only dates its meeting until its documents come (pipeline/identity.py, rule 5).
+    assert all(m["from_schedule"] for m in store.values())
     # October 28 moves to October 29: the old date is marked as no longer listed, not deleted.
     moved = page.replace("28th", "29th")
     assert update_schedule(store, moved, settings, today, "t3") == 1

@@ -101,6 +101,21 @@ def test_a_listing_moved_to_another_day_is_no_pair(data_dir):
     assert len(document_gaps.gaps(data_dir, "Beverly", TODAY)["pairs"]) == 2
 
 
+def test_a_meeting_only_a_districts_schedule_lists_is_a_pair(data_dir):
+    """A Drive reader's entry from the district's schedule only dates its meeting, as a calendar's does: one
+    that rule 5 (pipeline/identity.py) can't tell is the same meeting is listed for a person."""
+    path = data_dir / "meetings" / "meetings.json"
+    store = json.loads(path.read_text())
+    store["schedule-b-and-f-2026-10-21"] = meeting("schedule-b-and-f-2026-10-21", "2026-10-21",
+                                                   "School Committee Building & Finance Subcommittee",
+                                                   source="drive", from_schedule=True)
+    store["agendacenter-3000"] = meeting("agendacenter-3000", "2026-10-21", "School Building Committee", agendas=AGENDA)
+    path.write_text(json.dumps(store))
+    pairs = document_gaps.gaps(data_dir, "Beverly", TODAY)["pairs"]
+    assert {"date": "2026-10-21", "board": "School Committee Building & Finance Subcommittee",
+            "other": "School Building Committee"} in pairs
+
+
 def run_record(root, name, gaps, finished="2026-11-02T12:00:00+00:00"):
     (root / "towns" / name / "config").mkdir(parents=True)
     (root / "towns" / name / "config" / f"{name.split('-')[0]}.toml").write_text("")
