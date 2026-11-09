@@ -53,7 +53,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import finalsite, linkpage
+from pipeline import apptegy, finalsite, linkpage
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_finalsite_meetings import update_documents
@@ -145,12 +145,12 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             try:
                 for _ in range(3):   # a short link to another short link, at most
                     target = client.location(target) or target
-                    if not linkpage.SHORT_LINK.match(target):
+                    if not apptegy.SHORT_LINK.match(target):
                         break
             except FetchError as e:
                 errors.append(f"{url}: {e}")
                 return None
-            if target == url or linkpage.SHORT_LINK.match(target):
+            if target == url or apptegy.SHORT_LINK.match(target):
                 errors.append(f"{url}: doesn't lead to a file")
                 return None
             known[url] = target
@@ -160,7 +160,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     def pages_of(page: str, url: str) -> list[tuple[str, str]]:
         # An Apptegy folder of years: its years from since on, each a page read with it.
         read = []
-        for year_url in linkpage.year_folders(page, url, since):
+        for year_url in apptegy.year_folders(page, url, since):
             try:
                 read.append((client.get(year_url).text, year_url))
             except FetchError as e:
