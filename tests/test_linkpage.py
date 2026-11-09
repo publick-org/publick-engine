@@ -14,7 +14,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeLinkPage
 
-from pipeline import build_site, fetch_page_meetings, finalsite, linkpage
+from pipeline import apptegy, build_site, fetch_page_meetings, finalsite, linkpage
 from pipeline.fetch_meetings import load_store
 
 NOW = datetime(2026, 10, 12, 7, 0, tzinfo=TZ)
@@ -502,13 +502,13 @@ def biddeford_page() -> str:
 
 
 def test_an_apptegy_pages_columns_by_their_headings():
-    columns = linkpage.apptegy_columns(biddeford_page())
+    columns = apptegy.columns(biddeford_page())
     assert list(columns) == ["School Committee", "Standing Committee on Finance/Building & Grounds",
                              "Advisory Committee on Curriculum", "Advisory Committee on Policy"]
     assert "October 28, 2026(7:00pm)" in columns["School Committee"]
     assert "October 28, 2026" not in columns["Advisory Committee on Policy"]
-    assert linkpage.apptegy_columns(westbrook_page()) == {}  # its content has no columns with headings
-    assert linkpage.apptegy_structure("<html><body>No script</body></html>") is None
+    assert apptegy.columns(westbrook_page()) == {}  # its content has no columns with headings
+    assert apptegy.structure("<html><body>No script</body></html>") is None
 
 
 def test_each_column_is_its_boards():
@@ -886,21 +886,21 @@ def test_iso_dates_without_zeros(value, expected):
 
 
 def test_an_apptegy_document_folder():
-    items = linkpage.apptegy_folder(MANSD_PAGES[MANSD_AGENDAS_2026])
+    items = apptegy.folder(MANSD_PAGES[MANSD_AGENDAS_2026])
     assert [i["file_name"] for i in items][:2] == ["2026-9-14 BOSC Agenda", "2026-10-26 BOSC Agenda - PH on Donation"]
     # Its agendas, newest first, as links: the memo isn't one.
     links = linkpage.LINK.findall(linkpage.as_links(MANSD_PAGES[MANSD_AGENDAS_2026], {}))
     assert [label for _, label in links] == ["2026-10-26 BOSC Agenda - Revised", "2026-10-26 BOSC Agenda",
                                              "2026-10-26 BOSC Agenda - PH on Donation", "2026-9-14 BOSC Agenda"]
     # A page that isn't a folder is read as it is.
-    assert linkpage.apptegy_folder("<html><a href='x.pdf'>Agenda</a></html>") is None
+    assert apptegy.folder("<html><a href='x.pdf'>Agenda</a></html>") is None
     assert linkpage.as_links("<p>page</p>", {}) == "<p>page</p>"
 
 
 def test_an_apptegy_folder_of_years_from_since_on():
-    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2026-01-01") == [MANSD_AGENDAS_2026]
-    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2025-07-01") == [MANSD_AGENDAS_2026, MANSD_AGENDAS_2025]
-    assert linkpage.year_folders(MANSD_PAGES[MANSD_AGENDAS_2026], MANSD_AGENDAS_2026, "2026-01-01") == []
+    assert apptegy.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2026-01-01") == [MANSD_AGENDAS_2026]
+    assert apptegy.year_folders(MANSD_PAGES[MANSD_AGENDAS], MANSD_AGENDAS, "2025-07-01") == [MANSD_AGENDAS_2026, MANSD_AGENDAS_2025]
+    assert apptegy.year_folders(MANSD_PAGES[MANSD_AGENDAS_2026], MANSD_AGENDAS_2026, "2026-01-01") == []
 
 
 def test_a_boards_folders_of_agendas_and_minutes():
