@@ -371,3 +371,10 @@ def test_closed_requests_older_than_the_pages_show_are_dropped(config, data):
     for card in (full, kept):
         card.pop("requests_recorded"), card.pop("fetched_at")
     assert kept == full and kept["data_since"] == max("2025-01-01", start)
+
+
+def test_missing_saved_requests_stop_the_scorecard(config, data):
+    fetch_socrata_311.run(config, FakeSocrata(), data, now=NOW)
+    (data / "311" / "requests.json").unlink()
+    with pytest.raises(FetchError, match="saved 311 requests are missing"):
+        compute_311.compute(config, data, now=NOW)

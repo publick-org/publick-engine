@@ -117,3 +117,23 @@ def test_fetch_never_starts_again_from_nothing(config, keys, tmp_path):
     with pytest.raises(FetchError, match="saved 311 requests are missing"):
         fetch_311.run(config, FakeSeeClickFix(), tmp_path, now=FETCHED_AT, detail_limit=0)
     assert not keys.objects and before
+
+
+def test_scorecard_never_computed_from_nothing(config, keys, tmp_path, monkeypatch, capsys):
+    """The bucket's requests answering 404 (lost, or not read): compute_311 stops rather than
+    upload a scorecard of no requests over the real one."""
+    from pipeline import compute_311
+    shutil.copytree(REAL_DATA_DIR / "static", tmp_path / "static")
+    fetch_311.run(config, FakeSeeClickFix(), tmp_path, now=FETCHED_AT, detail_limit=0)
+    monkeypatch.setattr("sys.argv", ["compute_311", "--town", "gloucester", "--data", str(tmp_path)])
+    compute_311.main()
+    scorecard = bucket_data.key(config, "311/scorecard.json")
+    before = keys.objects[scorecard]
+    assert json.loads(before[0])["requests_recorded"] > 0
+    del keys.objects[bucket_data.key(config, "311/requests.json")]
+    (tmp_path / "311" / "requests.json").unlink()
+    with pytest.raises(SystemExit) as stopped:
+        compute_311.main()
+    assert stopped.value.code == 1
+    assert "::error::311 scorecard: the town's 114 saved 311 requests are missing" in capsys.readouterr().out
+    assert keys.objects[scorecard] == before

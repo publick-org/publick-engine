@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -23,9 +24,10 @@ from zoneinfo import ZoneInfo
 
 from pipeline import bucket_data, source_311
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
-from pipeline.fetch_311 import load_store, save_json, store_dir, tag_wards
+from pipeline.fetch_311 import load_store, refuse_empty, save_json, store_dir, tag_wards
 from pipeline.fetch_meetings import slugify
 from pipeline.geo import PrecinctLookup
+from pipeline.http import FetchError
 from pipeline.i18n import N_
 from pipeline.seeclickfix import COARSE_DIGITS, block_address, sensitive, street_address
 
@@ -283,6 +285,8 @@ def compute(config: dict, data_dir: Path, now: datetime | None = None) -> dict:
     tz = ZoneInfo(config["site"]["timezone"])
     now = now or datetime.now(tz)
     store = load_store(data_dir)
+    # A scorecard worked out from no requests would be uploaded over the real one.
+    refuse_empty(store, data_dir)
     records = [r for r in store.values() if not r.get("removed") and r.get("created_at")]
     source = source_311.describe(config)
     settings = source["settings"]
@@ -411,7 +415,11 @@ def main() -> None:
         return
     # A town that keeps its 311 files in its bucket (pipeline/bucket_data.py): read, and saved back.
     bucket_data.pull(config, args.data)
-    scorecard = compute(config, args.data)
+    try:
+        scorecard = compute(config, args.data)
+    except FetchError as e:
+        print(f"::error::311 scorecard: {e}")
+        sys.exit(1)
     save_json(store_dir(args.data) / "scorecard.json", scorecard)
     bucket_data.push(config, args.data, "311/scorecard.json")
     print(f"Scorecard: {scorecard['overall']['received']} requests in the last year, {scorecard['backlog']['open']} open")

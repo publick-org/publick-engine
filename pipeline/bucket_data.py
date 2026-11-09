@@ -15,9 +15,10 @@ after requests.json is saved here, so it's never ahead of it).
   is left as it is.
 - Writing needs the bucket's keys: fetch_311 and compute_311 upload what they
   saved. fetch_311 first replaces any local copy with the bucket's, so a run
-  never builds on an older copy, and refuses to start from nothing when the
-  town's last status says it had requests (the bucket unreachable, or the
-  file lost), rather than upload an empty history over it.
+  never builds on an older copy. Each of them refuses to start from nothing
+  when the town's last status says it had requests (the bucket unreachable,
+  or the file lost), rather than upload an empty history or scorecard over
+  the real one (fetch_311.refuse_empty).
 
 They're public, as they were in git: requests.json holds the requests as
 SeeClickFix publishes them, which the street lookup reads, and the pages show

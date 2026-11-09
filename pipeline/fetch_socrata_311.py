@@ -41,7 +41,7 @@ from zoneinfo import ZoneInfo
 from pipeline import bucket_data, socrata
 from pipeline.compute_311 import chart_start
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
-from pipeline.fetch_311 import iso, load_state, load_store, save, save_json, store_dir
+from pipeline.fetch_311 import iso, load_state, load_store, refuse_empty, save, save_json, store_dir
 from pipeline.http import FetchError, HostLimiter, PoliteClient
 
 # Rows a page. Socrata serves up to 50,000; smaller pages keep each request quick, and a stop cheap.
@@ -143,10 +143,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, max_p
     store = load_store(data_dir)
     status_path = store_dir(data_dir) / "status.json"
     status = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
-    if not store and status.get("requests_total"):
-        # Never start again from nothing, and save that over the town's history.
-        raise FetchError(f"the town's {status['requests_total']} saved 311 requests are missing "
-                         "(data/311/requests.json, or its bucket's copy)")
+    refuse_empty(store, data_dir)
     state = load_state(data_dir) or {"cursor": None, "since": since, "backfill": None}
     if since < state["since"]:
         # since moved earlier: the months between, read once by id, with any months still to be read from an
