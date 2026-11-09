@@ -41,13 +41,26 @@ The listings of one board on one day are put into meetings by these rules, in th
      couldn't be told which it is (unplaced); a meeting already identified that way becomes so
      when the second meeting it could be is found. If it could be none of them, it's a meeting of
      its own.
+  5. Across boards: a meeting only calendars list (a city calendar, a district's feed or page of
+     dates, a Drive reader's entry from the district's schedule), with no documents, joins the one
+     meeting that day, from another source, with documents, of a board its name names another
+     way (named_apart): the same words that tell a board from others, and the same kind of body.
+     Gloucester's district schedule lists its "School Committee Building & Finance Subcommittee",
+     and the city calendar, having renamed it, posts that meeting's agenda as the "Gloucester
+     Schools Building & Finance Subcommittee"; Beverly's calendar lists the "Financial Forecast
+     Committee" at 6:30 PM, and its Agenda Center the "Financial Forecasting Committee" with the
+     agenda. The meeting is kept under the board of the one identified first, with the other's
+     board as also_boards, so the next run places either's listings with it. A time both give
+     must agree; where it could be two meetings, it's left apart, and document_gaps lists the
+     pair for a person.
 
 The decision is kept in data/meetings/identities.json, written with the meetings
 (save_store in pipeline/fetch_meetings.py), and never made again: a listing found the next
 day joins the meeting it matches, and one already placed stays where it is. But an agenda's
 summary is made after its listing is placed: a meeting none of whose listings gives a time, whose
 agenda's time is found to be that of the board's only other meeting that day, is that meeting
-(rule 1, join_at_agenda_time). The one identified first keeps its address, and the other's leads
+(rule 1, join_at_agenda_time); and two meetings identified apart are one when rule 5 finds them one
+board's under two names (join_listed_elsewhere). The one identified first keeps its address, and the other's leads
 to it, as below. Each meeting is kept under its id, which is its page's address, fixed when it's
 first identified:
 
@@ -86,7 +99,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from pipeline.files import write_atomic
-from pipeline.meeting_names import abbreviated, abbreviations, words
+from pipeline.meeting_names import abbreviated, abbreviations, distinct_words, words
 
 LEDGER = "identities.json"
 
@@ -99,6 +112,13 @@ SAME_MEETING = {"special", "hearing"}
 PLURALS = {"committees": "committee", "subcommittees": "subcommittee", "hearings": "hearing", "workshops": "workshop"}
 # Words a Drive file's variant can have that say nothing of which meeting it is.
 PLAIN_VARIANT = {"meeting", "mtg", "regular", "agenda", "minutes", "and", "the", "of", "a"}
+# Sources that list a meeting's date (and maybe its time) with no documents of their own: a city calendar, a
+# district's calendar feed, a page of dates. A Drive reader's entry from the district's schedule
+# (from_schedule) is one too.
+CALENDARS = ("calendar", "ical", "schedule")
+# The words a board's name ends with that say what kind of body it is: "... Subcommittee" isn't "... Board".
+BODY_KINDS = {"committee", "subcommittee", "board", "commission", "council", "authority", "trust", "department",
+              "commissioner", "association", "task", "force"}
 # A start time as an agenda's summary gives it (pipeline/summarize.py), as build_site.from_agenda reads it.
 HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
@@ -207,15 +227,26 @@ class Listing:
         names = [known.get(k, k) for k in self.boards]
         board_words = {w for name in [m["body"], *names] for w in words(name).split()} | ({"joint"} if joint else set())
         self.kind = listing_kind(m, {PLURALS.get(w, w) for w in board_words})
+        self.documented = bool(m.get("agendas") or m.get("minutes"))
+        self.dates_only = not self.documented and (self.source in CALENDARS or bool(m.get("from_schedule")))
 
 
 class Cluster:
     """The listings of one meeting, while they're being placed."""
 
-    def __init__(self, listings: list[Listing], meeting: str | None = None, unplaced: bool = False):
+    def __init__(self, listings: list[Listing], meeting: str | None = None, unplaced: bool = False,
+                 board: str | None = None, also_boards: set[str] | None = None):
         self.listings = listings
         self.meeting = meeting
         self.unplaced = unplaced
+        # The board it's kept under (its first listing's, unless kept otherwise), and other boards whose
+        # listings it took because they name it another way (rule 5).
+        self._board = board
+        self.also_boards = set(also_boards or ())
+
+    @property
+    def board(self) -> str:
+        return self._board or self.first.board
 
     @property
     def times(self) -> set[str]:
@@ -339,6 +370,50 @@ def join_at_agenda_time(clusters: list[Cluster]) -> list[tuple[Cluster, Cluster]
     return joined
 
 
+def body_kind(board: str) -> str | None:
+    """The kind of body a board's name says it is, by its last word that names one: 'school committee building
+    and finance subcommittee' -> 'subcommittee'; 'planning board' -> 'board'."""
+    return next((w for w in reversed(board.split()) if w in BODY_KINDS), None)
+
+
+def named_apart(a: str, b: str, town: str) -> bool:
+    """Whether two boards' names (board keys) name one board two ways: the same words that tell a board from
+    others (meeting_names.distinct_words: the district's "School Committee Building & Finance Subcommittee"
+    and the city calendar's "Gloucester Schools Building & Finance Subcommittee"), and the same kind of body,
+    so a board's subcommittee isn't the board ("Planning Board", "Planning Board Subcommittee")."""
+    if " + " in a or " + " in b:
+        return False
+    words_a = distinct_words(a, town)
+    return bool(words_a) and words_a == distinct_words(b, town) and body_kind(a) is not None and body_kind(a) == body_kind(b)
+
+
+def join_listed_elsewhere(clusters: list[Cluster], town: str) -> list[tuple[Cluster, Cluster]]:
+    """Rule 5: a meeting only calendars list, with no documents, and the one meeting that day of a board named
+    another way (named_apart) with documents, from another source, are one: the city calendar renamed the
+    board, and a district's schedule kept its name. A time where both give one must agree. Where the board
+    could be two meetings that day, they're left apart, and document_gaps lists them as a pair to look at.
+    clusters: one day's meetings, every board's. The meeting identified first keeps its address. Returns
+    (gone, home) pairs, home having gone's listings."""
+    joined = []
+    live = list(clusters)
+    for c in sorted(clusters, key=lambda c: c.first.order):
+        if c not in live or c.unplaced or not all(x.dates_only for x in c.listings):
+            continue
+        could = [o for o in live if o is not c and not o.unplaced and o.board != c.board
+                 and any(x.documented for x in o.listings) and not (o.sources & c.sources)
+                 and not (c.times and o.starts and not c.times & o.starts)
+                 and named_apart(c.board, o.board, town)]
+        if len(could) != 1:
+            continue
+        home, gone = sorted((c, could[0]), key=lambda k: (k.meeting is None, k.first.order))
+        home._board = home.board
+        home.also_boards |= {gone.board} | gone.also_boards
+        home.listings += gone.listings
+        live.remove(gone)
+        joined.append((gone, home))
+    return joined
+
+
 def load(data_dir: Path) -> dict | None:
     """The kept identities, or None if this town has none yet."""
     path = data_dir / "meetings" / LEDGER
@@ -353,11 +428,14 @@ def slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower().replace("&", "and")).strip("-")
 
 
-def display_body(records: list[dict], known: dict[str, str], town: str) -> str:
+def display_body(records: list[dict], known: dict[str, str], town: str, board: str | None = None) -> str:
     """The board a meeting is shown under: the board's name as first recorded (known_boards), so
     'Waltham Historical Commission' on the calendar and 'Historical Commission' in the Agenda Center
     are one board, with one page; or, for a joint meeting posted under each of its boards, 'Joint
-    City Council and School Committee'."""
+    City Council and School Committee'. board: the board a meeting of one board named two ways is kept
+    under (rule 5), whose name it's shown under."""
+    if board:
+        return known.get(board) or next(m["body"] for m in records if board_key(m["body"], town) == board)
     first = min(records, key=first_recorded)
     if len({board_key(m["body"], town) for m in records}) == 1:
         return known.get(board_key(first["body"], town), first["body"])
@@ -400,7 +478,8 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
     # day (or board), moves with them.
     for mid, entry in sorted(ledger.get("meetings", {}).items()):
         xs = sorted((listing[i] for i in entry.get("listings", []) if i in listing and i not in placed), key=lambda x: x.order)
-        fit = [x for x in xs if (x.date, x.board) == (entry["date"], entry["board"])]
+        boards = {entry["board"], *entry.get("also_boards", [])}
+        fit = [x for x in xs if x.date == entry["date"] and x.board in boards]
         if xs and not fit:
             fit = [x for x in xs if (x.date, x.board) == (xs[0].date, xs[0].board)]
             entry = {**entry, "date": xs[0].date, "board": xs[0].board}
@@ -421,8 +500,12 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
     kept: dict[tuple, list[Cluster]] = defaultdict(list)
     for mid, e in sorted(meetings.items()):
         if e["listings"]:
-            kept[(e["date"], e["board"])].append(Cluster([listing[i] for i in e["listings"]], mid, e.get("unplaced", False)))
+            c = Cluster([listing[i] for i in e["listings"]], mid, e.get("unplaced", False), e["board"], set(e.get("also_boards", [])))
+            # Under each board it's kept for, so a listing of either is placed with it.
+            for board in [e["board"], *e.get("also_boards", [])]:
+                kept[(e["date"], board)].append(c)
     created: list[Cluster] = []
+    on_day: dict[str, list[Cluster]] = defaultdict(list)
     for day in sorted(set(days) | set(kept)):
         existing = kept[day]
         new = cluster_day(existing, days[day]) if days[day] else []
@@ -434,14 +517,28 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
                 e = meetings.pop(c.meeting)
                 meetings[home.meeting]["addresses"] = meetings[home.meeting].get("addresses", []) + [c.meeting] + e.get("addresses", [])
         created += [c for c in new if c not in gone]
-        for c in existing:
-            if c in gone:
-                continue
-            meetings[c.meeting]["listings"] = [x.id for x in sorted(c.listings, key=lambda x: x.order)]
-            if c.unplaced:
-                meetings[c.meeting]["unplaced"] = True
-            else:
-                meetings[c.meeting].pop("unplaced", None)
+        for c in [*existing, *new]:
+            if c not in gone and all(o is not c for o in on_day[day[0]]):
+                on_day[day[0]].append(c)
+    # 5. A meeting only calendars list, and the board's meeting with documents under another of its names.
+    for date in sorted(on_day):
+        for gone, home in join_listed_elsewhere(on_day[date], town):
+            if gone in created:
+                created.remove(gone)
+            elif gone.meeting:
+                # Its address leads to the meeting it's part of (home, identified first, has one too).
+                e = meetings.pop(gone.meeting)
+                meetings[home.meeting]["addresses"] = meetings[home.meeting].get("addresses", []) + [gone.meeting] + e.get("addresses", [])
+            on_day[date].remove(gone)
+    for c in (c for date in sorted(on_day) for c in on_day[date] if c.meeting in meetings):
+        e = meetings[c.meeting]
+        e["listings"] = [x.id for x in sorted(c.listings, key=lambda x: x.order)]
+        if c.also_boards:
+            e["board"], e["also_boards"] = c.board, sorted(c.also_boards)
+        if c.unplaced:
+            e["unplaced"] = True
+        else:
+            e.pop("unplaced", None)
 
     # Addresses: every page address already given, and every listing's own (published as a meeting's
     # page or a moved page before identities were kept), are never given to another meeting.
@@ -454,7 +551,7 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
         if first_time and xs[0].id in own and own[xs[0].id] not in taken:
             mid = own[xs[0].id]
         else:
-            natural = f"{xs[0].date}-{slugify(display_body([x.record for x in xs], known, town))}"
+            natural = f"{xs[0].date}-{slugify(display_body([x.record for x in xs], known, town, c.board if c.also_boards else None))}"
             free = lambda s: s not in taken and (s not in reserved or s in mine)
             time = min(c.times, default=None)
             candidates = [natural] + ([f"{natural}-{time.replace(':', '')}"] if time else [])
@@ -464,7 +561,9 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
                 mid = f"{natural}-{n}" if free(f"{natural}-{n}") else None
                 n += 1
         taken.add(mid)
-        entry = {"date": xs[0].date, "board": xs[0].board, "listings": [x.id for x in xs]}
+        entry = {"date": xs[0].date, "board": c.board, "listings": [x.id for x in xs]}
+        if c.also_boards:
+            entry["also_boards"] = sorted(c.also_boards)
         if first_time:
             # In the order the meeting's page lists its listings, as their moved pages were numbered.
             from pipeline.listings import posted
@@ -508,7 +607,7 @@ def meetings(store: dict, ledger: dict | None, town: str = "", times: dict[str, 
             continue
         kinds = {Listing(m, known, town).kind for m in records}
         out.append({"id": mid, "records": records, "addresses": e.get("addresses", []), "unplaced": e.get("unplaced", False),
-                    "body": display_body(records, known, town), "body_names": sorted({n for m in records
+                    "body": display_body(records, known, town, e["board"] if e.get("also_boards") else None), "body_names": sorted({n for m in records
                                                         for n in full["boards"].get(board_key(m["body"], town), [m["body"]])}),
                     "kinds_differ": len(kinds) > 1, "kinds_apart": any((a ^ b) - SAME_MEETING for a in kinds for b in kinds)})
     return out

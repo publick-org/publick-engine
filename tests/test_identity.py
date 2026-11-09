@@ -448,3 +448,90 @@ def test_a_run_places_listings_by_their_agendas_times(tmp_path):
     identity.update(tmp_path, store, "")
     assert grouping(identity.load(tmp_path)) == {"2026-11-02-conservation-commission": ["659", "agendacenter-383"],
                                                  "2026-11-02-conservation-commission-2": ["agendacenter-376"]}
+
+
+# ---- Rule 5: a board named two ways ----------------------------------------------
+
+AGENDA_DOC = [{"id": "a1", "sha256": "0" * 64}]
+# Gloucester, 2026-11-09: the district's schedule kept the subcommittee's name, and the city calendar
+# renamed it, posting its agenda.
+SCHEDULED = record("schedule-school-committee-building-and-finance-subcommittee-2026-11-09",
+                   body="School Committee Building & Finance Subcommittee", date="2026-11-09", source="drive",
+                   from_schedule=True, seen="2026-09-27T16:52:30")
+RENAMED = record("13023", body="Gloucester Schools Building & Finance Subcommittee", date="2026-11-09", time="17:00",
+                 agendas=AGENDA_DOC, seen="2026-11-05T04:39:38")
+
+
+def test_a_meeting_only_a_schedule_lists_joins_its_board_named_another_way():
+    _, ledger = arrive([SCHEDULED], [RENAMED], town="Gloucester")
+    assert grouping(ledger) == {"2026-11-09-school-committee-building-and-finance-subcommittee": [RENAMED["id"], SCHEDULED["id"]]}
+    entry = ledger["meetings"]["2026-11-09-school-committee-building-and-finance-subcommittee"]
+    assert entry["board"] == "school committee building and finance subcommittee"
+    assert entry["also_boards"] == ["school building and finance subcommittee"]
+    # Kept so from run to run, and a later listing of either name is placed with it.
+    store = store_of(SCHEDULED, RENAMED)
+    assert identity.assign(store, ledger, "Gloucester") == ledger
+    # Shown under the board it's kept under, not as a joint meeting of its two names.
+    shown = identity.meetings(store, ledger, "Gloucester")
+    assert [(m["body"], m["body_names"]) for m in shown] == [("School Committee Building & Finance Subcommittee", [
+        "Gloucester Schools Building & Finance Subcommittee", "School Committee Building & Finance Subcommittee"])]
+    repost = record("13030", body="Gloucester Schools Building & Finance Subcommittee", date="2026-11-09", time="17:00",
+                    seen="2026-11-06T04:00:00")
+    store["13030"] = repost
+    after = identity.assign(store, ledger, "Gloucester")
+    assert grouping(after) == {"2026-11-09-school-committee-building-and-finance-subcommittee": sorted([RENAMED["id"], "13030", SCHEDULED["id"]])}
+
+
+def test_two_meetings_already_identified_apart_become_one_and_the_seconds_address_leads_there():
+    # Identified apart before rule 5: the meeting identified first keeps its address.
+    before = {"meetings": {
+        "2026-11-09-school-committee-building-and-finance-subcommittee": {
+            "date": "2026-11-09", "board": "school committee building and finance subcommittee", "listings": [SCHEDULED["id"]]},
+        "2026-11-09-gloucester-schools-building-and-finance-subcommittee": {
+            "date": "2026-11-09", "board": "school building and finance subcommittee", "listings": [RENAMED["id"]]}}}
+    ledger = identity.assign(store_of(SCHEDULED, RENAMED), before, "Gloucester")
+    assert list(ledger["meetings"]) == ["2026-11-09-school-committee-building-and-finance-subcommittee"]
+    assert ledger["meetings"]["2026-11-09-school-committee-building-and-finance-subcommittee"]["addresses"] == [
+        "2026-11-09-gloucester-schools-building-and-finance-subcommittee"]
+
+
+def test_a_calendar_listing_joins_the_agenda_of_its_board_named_another_way():
+    """Beverly, 2026-11-30: the calendar's "Financial Forecast Committee" at 6:30 PM, the Agenda Center's
+    "Financial Forecasting Committee" with the agenda."""
+    calendar = record("3972", body="Financial Forecast Committee", date="2026-11-30", time="18:30")
+    agenda = record("agendacenter-2996", body="Financial Forecasting Committee", date="2026-11-30", source="agendacenter",
+                    agendas=AGENDA_DOC, seen="2026-10-02T07:00:00")
+    _, ledger = arrive([calendar], [agenda], town="Beverly")
+    assert grouping(ledger) == {"2026-11-30-financial-forecast-committee": ["3972", "agendacenter-2996"]}
+
+
+@pytest.mark.parametrize("why, scheduled, other", [
+    # A board's subcommittee isn't the board.
+    ("another kind of body", record("s", body="Planning Board", source="drive", from_schedule=True),
+     record("c", body="Planning Board Subcommittee", source="calendar", agendas=AGENDA_DOC)),
+    # Words that tell the boards apart.
+    ("other words", record("s", body="School Committee Building & Finance Subcommittee", source="drive", from_schedule=True),
+     record("c", body="School Committee Policy Subcommittee", agendas=AGENDA_DOC)),
+    # The same source's two listings are two meetings.
+    ("the same source", record("s", body="Financial Forecast Committee"),
+     record("c", body="Financial Forecasting Committee", agendas=AGENDA_DOC)),
+    # Times that disagree.
+    ("another time", record("s", body="Financial Forecast Committee", time="18:30"),
+     record("c", body="Financial Forecasting Committee", source="agendacenter", time="10:00", agendas=AGENDA_DOC)),
+    # Neither has documents: nothing says which board's meeting it is.
+    ("no documents", record("s", body="Financial Forecast Committee"),
+     record("c", body="Financial Forecasting Committee", source="ical")),
+    # The listing has documents of its own: it's a meeting with its own record of what was posted.
+    ("documents of its own", record("s", body="Financial Forecast Committee", agendas=AGENDA_DOC),
+     record("c", body="Financial Forecasting Committee", source="agendacenter", agendas=AGENDA_DOC)),
+])
+def test_a_board_named_another_way_isnt_joined_when(why, scheduled, other):
+    assert len(meetings_of(scheduled, other)) == 2, why
+
+
+def test_a_board_named_another_way_that_could_be_either_of_two_meetings_is_left_apart():
+    scheduled = record("s", body="Financial Forecast Committee", source="drive", from_schedule=True)
+    morning = record("c1", body="Financial Forecasting Committee", source="agendacenter", time="09:00", agendas=AGENDA_DOC)
+    evening = record("c2", body="Financial Forecasting Committee", source="agendacenter", time="18:30", agendas=AGENDA_DOC,
+                     seen="2026-10-02T07:00:00")
+    assert len(meetings_of(scheduled, morning, evening)) == 3

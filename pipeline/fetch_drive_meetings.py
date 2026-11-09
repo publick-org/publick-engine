@@ -243,7 +243,7 @@ def update_schedule(store: dict, page: str, settings: dict, today: date, stamp: 
         meeting = find_meeting(store, body, day, "")
         if meeting is None:
             new_meeting(store, f"schedule-{slugify(body)}-{day}", body, {"date": day, "variant": "", "special": False},
-                        settings, stamp, source_url=settings["schedule_url"])
+                        settings, stamp, source_url=settings["schedule_url"])["from_schedule"] = True
             added += 1
         elif not meeting.get("listed", True) and meeting["id"].startswith("schedule-"):
             record_change(meeting, "listed", False, True, stamp)
@@ -322,6 +322,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     settings = config["drive_meetings"]
     since = settings["since"]
     store = load_store(data_dir)
+    # A meeting first recorded from the district's schedule only dates it (pipeline/identity.py, rule 5),
+    # until its documents are posted: those recorded before it was marked are marked here.
+    for m in store.values():
+        if m["id"].startswith("schedule-"):
+            m.setdefault("from_schedule", True)
     storage = open_documents(config, data_dir)
     known = {doc["id"] for m in store.values() for field in ("agendas", "minutes") for doc in m.get(field, [])}
     scheduled = (update_schedule(store, client.get(settings["schedule_url"]).text, settings, now.date(), stamp)
