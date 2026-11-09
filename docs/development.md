@@ -108,7 +108,7 @@ pipeline/                   Python package
                             can't be read for a week, tried again each run until then) the run record keeps for
                             network.py officials, one issue for a person; it never changes the list
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
-  civicplus.py, agendacenter.py, civicclerk.py, legistar.py, primegov.py, dnn.py, filelist.py, finalsite.py, ical.py, linkpage.py, schedule.py, seeclickfix.py, socrata.py   Source parsers
+  civicplus.py, agendacenter.py, civicclerk.py, legistar.py, primegov.py, dnn.py, filelist.py, finalsite.py, ical.py, linkpage.py, apptegy.py (Apptegy pages: column layouts, document folders, short links), schedule.py, seeclickfix.py, socrata.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   dates.py                  Dates in titles, file names, labels and pages, read the same way by every source parser
   geo.py                    Ward/precinct point-in-polygon lookup
