@@ -1995,6 +1995,11 @@ msgstr ""
 "Por ahora se conoce el tiempo de confirmación de %(checked)s de las %(received)s solicitudes. Los"
 " datos de las demás se están buscando."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Added: “%(text)s”."
+msgstr "Agregado: “%(text)s”."
+
 #. %(old)s and %(new)s are street addresses, or "not listed" when the listing gave none.
 #: site/templates/macros.html
 #, python-format
@@ -2982,6 +2987,12 @@ msgstr "Imprevistos"
 msgctxt "decision outcome"
 msgid "Continued"
 msgstr "Aplazado"
+
+#. %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them.
+#: site/templates/meeting.html
+#, python-format
+msgid "Corrected “%(old)s” to “%(new)s”."
+msgstr "Se corrigió “%(old)s” a “%(new)s”."
 
 #: pipeline/build_site.py
 #, python-brace-format
@@ -5942,6 +5953,16 @@ msgstr ""
 "Nuestra corrección de lo que publica la ciudad, con el motivo, la prueba y el día en que se "
 "verificó."
 
+#: site/pages/data/index.html
+msgid ""
+"Our corrections of its summaries: the reason, the evidence, the day each was checked, and what it"
+" changed (the words replaced, or the decision taken off or added). The summaries given here are "
+"as corrected."
+msgstr ""
+"Nuestras correcciones de sus resúmenes: el motivo, la evidencia, el día en que se revisó cada una"
+" y lo que cambió (las palabras reemplazadas, o la decisión quitada o agregada). Los resúmenes que"
+" se dan aquí son los corregidos."
+
 #: site/templates/category.html
 msgid "Outside"
 msgstr "Fuera de los distritos"
@@ -6413,6 +6434,11 @@ msgstr "Dejó de aparecer en el %(listing)s."
 #, python-format
 msgid "Removed from the %(source)s schedule"
 msgstr "Ya no está en el calendario de %(source)s"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Removed: “%(text)s”."
+msgstr "Quitado: “%(text)s”."
 
 #: site/pages/housing/index.html
 msgid "Rented"

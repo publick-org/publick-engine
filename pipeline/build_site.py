@@ -385,8 +385,11 @@ class Decision(str):
     before it ("body"), for the pages to say the outcome and the count beside the decision."""
 
     def __new__(cls, text: str, page: int | None = None, quote: str | None = None, outcome: str | None = None,
-                title: str | None = None, main: bool | None = None, topic: str | None = None):
+                title: str | None = None, main: bool | None = None, topic: str | None = None,
+                corrected: str | None = None):
         decision = super().__new__(cls, text)
+        # Where the correction that changed or added it is said (its meeting page's #corrections), or None.
+        decision.corrected = corrected
         decision.page, decision.quote, decision.outcome = page, quote, outcome
         decision.body, decision.tally = split_tally(text)
         # Its short title, whether it's one residents look for (None: not known), and its topic, where the summary
@@ -757,9 +760,9 @@ def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str
     and the problems found are returned for the build to report."""
     problems = []
     for c in corrections:
-        found = [m for m in meetings
-                 if c.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
-                 or (m["date"] == c.get("date") and words(m["body"]) == words(c.get("board", "")))]
+        if summary_correction(c):
+            continue
+        found = matching_meetings(meetings, c)
         what = f"{c.get('board', c.get('meeting'))} {c.get('date', '')}".strip()
         if len(found) != 1:
             problems.append(f"Correction for {what}: {len(found)} meetings match it, so it isn't shown.")
@@ -777,6 +780,219 @@ def apply_corrections(meetings: list[dict], corrections: list[dict]) -> list[str
         if c.get("start_time"):
             m["listed_time"] = m["listed_time"] or m["start_time"]
             m["start_time"] = c["start_time"]
+    return problems
+
+
+def matching_meetings(meetings: list[dict], entry: dict) -> list[dict]:
+    """The meetings a correction or a withheld summary names: by its record's `meeting` id (or one of its
+    listings'), or by `board` and `date`."""
+    return [m for m in meetings
+            if entry.get("meeting") in [m["id"], *(x["id"] for x in m.get("listings", []))]
+            or (m["date"] == str(entry.get("date")) and words(m["body"]) == words(entry.get("board", "")))]
+
+
+# What a correction of a meeting's summary does ([[meetings.corrections]]), one each: `replaces` words in its
+# summaries `with` others, takes a decision off its decisions (`remove_decision`, words of that decision), or adds one
+# (`add_decision`). A correction of the city's listing gives `doubtful` or `start_time` instead.
+SUMMARY_FIXES = ("replaces", "remove_decision", "add_decision")
+LISTING_FIXES = ("doubtful", "start_time")
+# A summary's text, and its lists of entries, where the words a correction replaces are looked for.
+SUMMARY_TEXTS = ("headline", "summary")
+SUMMARY_LISTS = ("decisions", "items", "discussion", "decision_titles")
+# Lists kept beside a summary's decisions, one entry each, which follow them when one is taken off or added.
+BESIDE_DECISIONS = ("decision_titles", "decision_main", "decision_topics", "decision_pages", "decision_outcomes")
+
+
+def summary_correction(c: dict) -> bool:
+    """Whether a [[meetings.corrections]] entry corrects a meeting's summary rather than the city's listing."""
+    return any(key in c for key in SUMMARY_FIXES)
+
+
+def summary_corrections(meetings: list[dict], corrections: list[dict]) -> tuple[dict[str, list[dict]], list[str]]:
+    """The corrections of meetings' summaries, by the id of the meeting each names, and the problems found: one that
+    names no meeting, or more than one, isn't shown. An entry that doesn't say what it corrects, or says more than
+    one thing, stops the build, so a pull request with a typo fails rather than showing half a correction."""
+    by_meeting, problems = defaultdict(list), []
+    for c in corrections:
+        if not summary_correction(c):
+            continue
+        what = f"{c.get('board', c.get('meeting'))} {c.get('date', '')}".strip()
+        fixes = [key for key in SUMMARY_FIXES + LISTING_FIXES if key in c]
+        if len(fixes) != 1:
+            raise SystemExit(f"[[meetings.corrections]] {what}: give one of replaces, remove_decision, or add_decision "
+                             f"(one correction an entry), not {' and '.join(fixes)}.")
+        fix = fixes[0]
+        if not c.get(fix) or not isinstance(c[fix], str) or (fix == "replaces" and not (c.get("with") and isinstance(c["with"], str))):
+            raise SystemExit(f"[[meetings.corrections]] {what}: {fix} needs words" + (", and `with` the words that "
+                             "replace them." if fix == "replaces" else "."))
+        if not c.get("note") or not c.get("checked"):
+            raise SystemExit(f"[[meetings.corrections]] {what}: a correction needs its `note` and the date it was `checked`.")
+        found = matching_meetings(meetings, c)
+        if len(found) != 1:
+            problems.append(f"Correction for {what}: {len(found)} meetings match it, so it isn't shown.")
+            continue
+        by_meeting[found[0]["id"]].append(c)
+    return by_meeting, problems
+
+
+def decisions_kind(m: dict, minutes_en: dict | None, recording_en: dict | None) -> str | None:
+    """Where a meeting's decisions are read from: its minutes, or until they're summarized, its recording."""
+    if minutes_en and minutes_en.get("is_minutes", True):
+        return "minutes"
+    if recording_en and m["status"] != "cancelled":
+        return "recording"
+    return None
+
+
+def squeezed(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def corrected_decision(d, text: str, corrected: str, title: str | None = None):
+    """A decision with its text corrected, marked so its pages link to the correction; its page, quote, outcome,
+    and labels as they were, and its title too where it's given."""
+    if not isinstance(d, Decision):
+        return text
+    return Decision(text, d.page, d.quote, d.outcome, d.title if title is None else title, d.main, d.topic,
+                    corrected=corrected)
+
+
+def replace_words(record: dict | None, old: str, new: str, corrected: str) -> tuple[dict | None, int]:
+    """A summary with every `old` in its text and its lists' entries replaced by `new` (whitespace as one
+    space), and how many entries had it. A decision changed is marked corrected, and its title is changed too."""
+    if not record:
+        return record, 0
+    has = lambda t: isinstance(t, str) and old in squeezed(t)  # noqa: E731
+    swap = lambda t: squeezed(t).replace(old, new)  # noqa: E731
+    out, found = dict(record), 0
+    for field in SUMMARY_TEXTS:
+        if has(out.get(field)):
+            out[field], found = swap(out[field]), found + 1
+    for field in SUMMARY_LISTS:
+        if not isinstance(out.get(field), list):
+            continue
+        entries = []
+        for entry in out[field]:
+            title = entry.title if isinstance(entry, Decision) else None
+            if has(entry) or has(title):
+                found += 1
+                entry = corrected_decision(entry, swap(entry) if has(entry) else str(entry), corrected,
+                                           swap(title) if has(title) else None)
+            entries.append(entry)
+        out[field] = entries
+    return out, found
+
+
+def shown_in_english(shown: dict, english: dict) -> dict:
+    """A summary shown in English on another language's page, as in_language() shows one not translated: the English,
+    with each decision's page, quote, outcome, labels, and correction as shown, where the decisions line up."""
+    out = {**english, "english": True}
+    texts, decisions = english.get("decisions") or [], (shown or {}).get("decisions") or []
+    titles = english.get("decision_titles")
+    titles = titles if isinstance(titles, list) and len(titles) == len(texts) else [None] * len(texts)
+    if len(decisions) == len(texts):
+        out["decisions"] = [Decision(text, d.page, d.quote, d.outcome, title if isinstance(title, str) else None, d.main,
+                                     d.topic, d.corrected) if isinstance(d, Decision) else text
+                            for text, d, title in zip(texts, decisions, titles)]
+    return out
+
+
+def decision_index(record: dict | None, text: str) -> list[int]:
+    """The decisions of a summary that have these words."""
+    return [i for i, d in enumerate((record or {}).get("decisions") or []) if squeezed(text) in squeezed(d)]
+
+
+def without_decision(record: dict, i: int) -> dict:
+    """A summary without its i-th decision, and without that decision's entry in the lists kept beside them."""
+    n = len(record["decisions"])
+    out = dict(record)
+    for field in ("decisions", *BESIDE_DECISIONS):
+        if isinstance(out.get(field), list) and len(out[field]) == n:
+            out[field] = out[field][:i] + out[field][i + 1:]
+    return out
+
+
+def with_decision(record: dict | None, text) -> dict:
+    """A summary with a decision added after its others, with an empty entry in each list kept beside them."""
+    out = dict(record or {})
+    n = len(out.get("decisions") or [])
+    for field in BESIDE_DECISIONS:
+        if isinstance(out.get(field), list) and len(out[field]) == n:
+            out[field] = out[field] + [None]
+    out["decisions"] = list(out.get("decisions") or []) + [text]
+    return out
+
+
+SUMMARY_KINDS = {"agenda": "preview", "minutes": "minutes_summary", "recording": "recording_summary"}
+
+
+def correct_summaries(m: dict, corrections: list[dict], raw: dict, english: dict) -> list[str]:
+    """Apply a meeting's corrections of its summaries ([[meetings.corrections]]) to them as shown (m["preview"],
+    m["minutes_summary"], m["recording_summary"]) and in English (english, by the same keys), each listed in
+    m["summary_corrections"] for its page to say, with the reason, the evidence, and what changed. raw: each
+    kind's saved record, for when it was made. A correction is checked against the summary as it was on its
+    `checked` date: one made again since, words no longer in it, or a meeting with no decisions to correct, and it
+    isn't shown; the problems found are returned for the build to report."""
+    m["summary_corrections"] = []
+    problems = []
+    corrected = f"{m['url']}#corrections"
+    for c in corrections:
+        what = f"Correction for {m['body_en']} {m['date']}"
+        checked = str(c["checked"])
+        if "replaces" in c:
+            old, new = squeezed(c["replaces"]), squeezed(c["with"])
+            kinds = [k for k, key in SUMMARY_KINDS.items() if replace_words(english.get(key), old, new, corrected)[1]]
+            if not kinds:
+                problems.append(f"{what}: \"{old}\" isn't in its summaries any more, so it isn't shown. Remove it, or "
+                                "check it again.")
+                continue
+        else:
+            kind = decisions_kind(m, english.get("minutes_summary"), english.get("recording_summary"))
+            if not kind:
+                problems.append(f"{what}: the meeting has no decisions from its minutes or recording, so it isn't shown.")
+                continue
+            kinds = [kind]
+        remade = [k for k in kinds if ((raw.get(k) or {}).get("generated_at") or "")[:10] > checked]
+        if remade:
+            problems.append(f"{what}: its {remade[0]} summary was made again after the correction was checked on "
+                            f"{checked}, so it isn't shown. Check it again.")
+            continue
+        shown = {"note": c["note"], "evidence": c.get("evidence"), "checked": checked}
+        if "replaces" in c:
+            for key in SUMMARY_KINDS.values():
+                before = english.get(key)
+                english[key], in_english = replace_words(before, old, new, corrected)
+                fixed, in_language = replace_words(m.get(key), old, new, corrected)
+                if in_language < in_english:
+                    # A translation in its own words: the summary is shown corrected in English, as one not translated is.
+                    fixed = replace_words(shown_in_english(m[key], before), old, new, corrected)[0]
+                m[key] = fixed
+            shown.update(replaced=old, replaced_with=new)
+        elif "remove_decision" in c:
+            key = SUMMARY_KINDS[kind]
+            found = decision_index(english[key], c["remove_decision"])
+            if len(found) != 1:
+                problems.append(f"{what}: {len(found)} of its decisions have \"{squeezed(c['remove_decision'])}\", so "
+                                "it isn't shown. Name one.")
+                continue
+            i = found[0]
+            # The decision as shown, where the shown decisions line up with the English ones; else in English.
+            lined_up = len((m[key] or {}).get("decisions") or []) == len(english[key]["decisions"])
+            shown["removed"] = str((m[key] if lined_up else english[key])["decisions"][i])
+            english[key] = without_decision(english[key], i)
+            if lined_up:
+                m[key] = without_decision(m[key], i)
+        else:
+            key = SUMMARY_KINDS[kind]
+            text = squeezed(c["add_decision"])
+            if any(squeezed(d) == text for d in english[key].get("decisions") or []):
+                problems.append(f"{what}: its summary already has \"{text}\", so it isn't added again. Remove it.")
+                continue
+            in_language = squeezed(c.get("add_decision_shown") or text)
+            english[key] = with_decision(english[key], text)
+            m[key] = with_decision(m[key], Decision(in_language, outcome=outcome_from_text(text), corrected=corrected))
+            shown["added"] = in_language
+        m["summary_corrections"].append(shown)
     return problems
 
 
@@ -823,6 +1039,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     store, _moved = listings.read(data_dir, lambda m: _(LISTINGS.get(m.get("source", "calendar"), CALENDAR)), town)
     meetings = sorted(store.values(), key=lambda m: (m["date"], m.get("start_time") or "", m["body"], m["id"]))
     taken_down = withheld_summaries(meetings, withheld or [])
+    fixes, problems = summary_corrections(meetings, corrections or [])
     optional = dict(start_time=None, end_time=None, location="", location_name="", address="",
                     remote_url=None, agendas=[], history=[], status="scheduled", special=False, listed=True,
                     source="calendar", source_url=None, correction=None)
@@ -915,16 +1132,19 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         for shown, en, raw in ((ms, ms_en, ms_raw), (m["recording_summary"], english["recording_summary"], rs_raw)):
             if shown and shown.get("decisions"):
                 shown["decisions"] = decisions_shown(shown, en, raw)
+        # Publick's corrections of its summaries, said on its page ([[meetings.corrections]]), before anything is
+        # read from them.
+        problems += correct_summaries(m, fixes.get(m["id"], []), {"agenda": pv_raw, "minutes": ms_raw, "recording": rs_raw},
+                                      english)
+        ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         # The meeting's decisions, for the decisions page and the digest: the minutes', or until they're summarized,
         # those heard in the recording ("decisions_from").
-        m["decisions_from"] = None
+        m["decisions_from"] = decisions_kind(m, ms_en, english["recording_summary"])
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
-        if ms_en and ms_en.get("is_minutes", True):
-            m["decisions_from"] = "minutes"
+        if m["decisions_from"] == "minutes":
             for d, shown in zip(ms_en.get("decisions", []), ms.get("decisions", [])):
                 sorted_decisions[decision_kind(d)].append(shown)
-        elif english["recording_summary"] and m["status"] != "cancelled":
-            m["decisions_from"] = "recording"
+        elif m["decisions_from"] == "recording":
             rs_en, rs = english["recording_summary"], m["recording_summary"]
             for d, shown in zip(rs_en.get("decisions", []), rs.get("decisions", [])):
                 sorted_decisions[decision_kind(d)].append(shown)
@@ -942,7 +1162,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
 
     roll_call_coverage(meetings)
 
-    for problem in apply_corrections(meetings, corrections or []):
+    problems += apply_corrections(meetings, corrections or [])
+    for problem in problems:
         if i18n.language() == "en":
             print(f"::warning::{problem}")
 
@@ -998,6 +1219,8 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
     decided = [m for m in past if m["decisions"]["decided"] or m["decisions"]["recommended"]]
     return {
         "all": meetings,
+        # The corrections not shown (apply_corrections(), correct_summaries()), for the build to report.
+        "correction_problems": problems,
         "upcoming": upcoming,
         "this_week": [m for m in upcoming if m["date"] < week_end],
         # On the meetings page, a meeting after this week with no agenda yet is one short line, under "Later";
@@ -1467,6 +1690,9 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
         meetings["governing_body"] = tr.board(meetings["governing_body"])
     for correction in meetings.get("corrections", []):
         correction["note"] = tr(correction["note"])
+        # A decision added by a correction, in this language; it's sorted by its English.
+        if correction.get("add_decision"):
+            correction["add_decision_shown"] = tr(correction["add_decision"])
     return config
 
 
@@ -1514,7 +1740,8 @@ def languages(config: dict) -> list[str]:
 
 
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
-          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None, share_cards: bool = False) -> dict[str, str | None]:
+          town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None, share_cards: bool = False,
+          problems: list | None = None) -> dict[str, str | None]:
     """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built,
     each with the day it last changed (for the sitemap) or None.
 
@@ -1523,7 +1750,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     saved PDFs, the feed) are written once, with the English. missing, if given, gets each
     other language's town texts that have no translation in the config's [strings.<language>]:
     {"config": the config's own text, "data": names from the city's data}. share_cards draws each recent
-    meeting's card for social media (pipeline/share_cards.py), which needs Playwright."""
+    meeting's card for social media (pipeline/share_cards.py), which needs Playwright. problems, if given, gets
+    the town's [[meetings.corrections]] not shown, each a sentence (load_meetings()'s correction_problems)."""
     config = load_config(town)
     # The 311 files a town keeps in its bucket, not git (pipeline/bucket_data.py), when they're not here.
     bucket_data.pull(config, data_dir)
@@ -1533,7 +1761,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
-            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards, redirects))
+            urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards, redirects,
+                                       problems if lang == "en" else None))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, redirects)
@@ -1542,9 +1771,10 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
                    town_static: Path, tr: TownStrings, share_cards: bool = False,
-                   redirects: dict[str, str] | None = None) -> dict[str, str | None]:
+                   redirects: dict[str, str] | None = None, problems: list | None = None) -> dict[str, str | None]:
     """One language's pages, and with English the files every language shares. redirects, if given,
-    gets each moved page's address, to the address it sends readers to (write_support_files)."""
+    gets each moved page's address, to the address it sends readers to (write_support_files). problems, if
+    given, gets the corrections not shown."""
     town = config["slug"]
     site = config["site"]
     # Where this language's pages are: "" for English, "/es" for Spanish.
@@ -1571,6 +1801,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), terms,
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []), config["town"]["name"], vote_members)
+    if problems is not None:
+        problems.extend(meetings["correction_problems"])
     # A board's name alone in this language, for its pages' titles (the pages show its English name too),
     # unless another board's is the same: then with its English name after it, as elsewhere.
     alone = defaultdict(set)
@@ -2179,6 +2411,11 @@ def meetings_export(meetings: list[dict], config: dict, base_url: str, built_at:
             "remote_url": m["remote_url"], "recording_url": recording, "listing_url": m["source_url"],
             "correction": {"note": c["note"], "evidence_url": c["evidence"], "checked": c["checked"],
                            "doubtful": c["doubtful"]} if c else None,
+            # Our corrections of its summaries: the minutes' summary below is as corrected.
+            "summary_corrections": [{"note": x["note"], "evidence_url": x["evidence"], "checked": x["checked"],
+                                     "replaced": x.get("replaced"), "replaced_with": x.get("replaced_with"),
+                                     "removed_decision": x.get("removed"), "added_decision": x.get("added")}
+                                    for x in m.get("summary_corrections", [])],
             "agenda": export_document(m, "agenda", saved_url),
             "minutes": export_document(m, "minutes", saved_url),
         })
@@ -2271,10 +2508,14 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=TOWN_DIR / "_site", help="output directory")
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="data directory")
     parser.add_argument("--no-share-cards", action="store_true", help="give meetings the town's share image, without Playwright")
+    parser.add_argument("--report", type=Path, help="write the corrections not shown here, as JSON, for the network's daily alert")
     args = parser.parse_args()
     missing: dict = {}
-    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards)
+    problems: list = []
+    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards, problems=problems)
     print(f"Built {len(urls)} pages into {args.out}")
+    if args.report:
+        args.report.write_text(json.dumps({"corrections": problems}, indent=2) + "\n", encoding="utf-8")
     for lang, texts in missing.items():
         if texts.get("drafted"):
             print(f"::notice::{i18n.LANGUAGES[lang]}: {len(texts.get('drafted', []))} texts are shown from machine drafts not yet "

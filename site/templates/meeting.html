@@ -527,6 +527,13 @@
 <h2 id="about"><span id="source"></span>{{ _("About this page") }}</h2>
 <div class="about-notes">
 {% for n in about.notes %}{{ n }}{% endfor %}
+{# Publick's corrections of this meeting's summaries ([[meetings.corrections]]), one line each. #}
+{% for c in m.summary_corrections %}
+{# Translators: %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them. #}
+<p{% if loop.first %} id="corrections"{% endif %}>{% if c.get("replaced") %}{% trans old=c.replaced, new=c.replaced_with %}Corrected “{{ old }}” to “{{ new }}”.{% endtrans %}
+{%- elif c.get("removed") %}{% trans text=c.removed.rstrip(".") %}Removed: “{{ text }}”.{% endtrans %}
+{%- elif c.get("added") %}{% trans text=c.added.rstrip(".") %}Added: “{{ text }}”.{% endtrans %}{% endif %} {{ c.note }}{% if c.evidence %} {% trans url=c.evidence %}<a href="{{ url }}">How we know</a>.{% endtrans %}{% endif %}</p>
+{% endfor %}
 {# Translators: %(site)s is this website's name. #}
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
 {% if m.get("unplaced") %}

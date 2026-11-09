@@ -382,8 +382,15 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
             # Figure sources whose checks keep failing: not behind yet, but worth knowing about.
             result["failing"] = [r["label"] for r in result["sources"] if r.get("failing")]
 
-    steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site)],
+    build_report = town_dir / ".build-report.json"
+    build_report.unlink(missing_ok=True)
+    steps.append(step("Build site", [python, "-m", "pipeline.build_site", "--town", town, "--out", str(site),
+                                     "--report", str(build_report)],
                       keyed(env), town_dir, BUILD_TIMEOUT))
+    if build_report.exists():
+        # The town's corrections not shown (a summary made again, a listing changed), for the daily alert.
+        result["corrections"] = json.loads(build_report.read_text()).get("corrections", [])
+        build_report.unlink()
     if steps[-1]["ok"]:
         # The browser checks take most of a town's time, so they run on every core (pytest-xdist).
         steps.append(step("Check site", [python, "-m", "pytest", "-p", "no:cacheprovider", "-q", "-n", "auto",
@@ -440,6 +447,9 @@ def republished(path: Path, result: dict) -> None:
     record["ok"] = all(s["ok"] for s in record["steps"])
     record["published_at"] = result["finished_at"]
     record["published_engine"] = result["engine"]
+    # A correction fixed and published since is no longer listed.
+    if "corrections" in result:
+        record["corrections"] = result["corrections"]
     if good(record):
         record["last_good_at"] = result["finished_at"]
     write_atomic(path, json.dumps(record, indent=2) + "\n")
@@ -573,10 +583,15 @@ def no_meetings(root: Path, name: str) -> bool:
     return not (stored.get("meetings") if isinstance(stored, dict) else stored)
 
 
+# The corrections not shown that the daily alert lists for a town; the rest are counted.
+CORRECTIONS_LISTED = 3
+
+
 def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) -> list[dict]:
     """Towns without a good update in the last `hours`, whose figure checks keep failing (not behind
-    yet, but worth knowing about), or that have run and still have no meetings, with what their
-    last run says went wrong."""
+    yet, but worth knowing about), that have run and still have no meetings, or with a correction its
+    build didn't show ([[meetings.corrections]]: its summary made again, its listing changed), with what
+    their last run says went wrong."""
     at = at or datetime.now(timezone.utc)
     rows = []
     for name in town_dirs(root):
@@ -585,12 +600,17 @@ def behind(root: Path, hours: float = BEHIND_HOURS, at: datetime | None = None) 
         last = last_good(record)
         empty = no_meetings(root, name)
         if (last and datetime.fromisoformat(last) >= at - timedelta(hours=hours) and not record.get("failing")
-                and not empty):
+                and not empty and not record.get("corrections")):
             continue
         problems = ["no meetings: none has ever been fetched"] if empty else []
         problems += [s["name"] for s in record.get("steps", []) if not s["ok"]]
         problems += [f"{r['label']} behind" for r in record.get("sources") or [] if r.get("stale")]
         problems += [f"{label}: checks failing" for label in record.get("failing") or []]
+        # A few of its corrections not shown, and how many more: the town's build log has each.
+        corrections = [c.replace("|", "\\|") for c in record.get("corrections") or []]
+        problems += [f"not shown: {c}" for c in corrections[:CORRECTIONS_LISTED]]
+        if len(corrections) > CORRECTIONS_LISTED:
+            problems.append(f"and {len(corrections) - CORRECTIONS_LISTED} more corrections not shown")
         rows.append({"folder": name, "last_good_at": last, "last_run_at": record.get("finished_at"),
                      "problems": problems})
     return rows + failing_states(root) + gemini_refusals(root, hours, at)
@@ -680,7 +700,8 @@ def behind_text(rows: list[dict], hours: float) -> str:
     if not rows:
         return ""
     lines = [f"{len(rows)} of the network's towns need attention: no good update (published, with fresh data) "
-             f"in the last {hours:g} hours, or a figure source whose checks keep failing. This issue is updated "
+             f"in the last {hours:g} hours, a figure source whose checks keep failing, or a correction that's no longer "
+             f"shown and needs checking again. This issue is updated "
              f"after each daily run and closed when every town is caught up.", "", "| Town | Last good update | Last run | What went wrong |", "|---|---|---|---|"]
     for r in rows:
         lines.append(f"| {r['folder']} | {r['last_good_at'] or 'never'} | {r['last_run_at'] or 'never'} | "
