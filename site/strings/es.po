@@ -1997,8 +1997,8 @@ msgstr ""
 
 #: site/templates/meeting.html
 #, python-format
-msgid "Added to the decisions: “%(text)s”."
-msgstr "Se agregó a las decisiones: “%(text)s”."
+msgid "Added: “%(text)s”."
+msgstr "Agregado: “%(text)s”."
 
 #. %(old)s and %(new)s are street addresses, or "not listed" when the listing gave none.
 #: site/templates/macros.html
@@ -2699,7 +2699,7 @@ msgstr ""
 #: site/pages/meetings/index.html site/states/ct/budget.html site/states/ct/schools.html
 #: site/states/ma/budget.html site/states/ma/schools.html site/states/me/budget.html
 #: site/states/nh/budget.html site/states/ri/budget.html site/states/ri/schools.html
-#: site/states/vt/budget.html site/states/vt/schools.html site/templates/meeting.html
+#: site/states/vt/budget.html site/states/vt/schools.html
 #, python-format
 msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>."
@@ -2988,12 +2988,11 @@ msgctxt "decision outcome"
 msgid "Continued"
 msgstr "Aplazado"
 
-#. beside a meeting's decision that this website corrected or added by hand; it links to the
-#. correction.
-#: site/templates/macros.html
-msgctxt "decision"
-msgid "Corrected"
-msgstr "Corregida"
+#. %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them.
+#: site/templates/meeting.html
+#, python-format
+msgid "Corrected “%(old)s” to “%(new)s”."
+msgstr "Se corrigió “%(old)s” a “%(new)s”."
 
 #: pipeline/build_site.py
 #, python-brace-format
@@ -3003,11 +3002,6 @@ msgstr "Corrección: {page}"
 #: site/pages/about/index.html
 msgid "Corrections and contact"
 msgstr "Correcciones y contacto"
-
-#: site/templates/meeting.html
-#, python-format
-msgid "Corrections from %(site)s"
-msgstr "Correcciones de %(site)s"
 
 #: site/states/nh/schools.html
 msgid "Cost per pupil"
@@ -4411,10 +4405,6 @@ msgid ""
 msgstr ""
 "Si algo es difícil de usar, %(contact)s, e incluya la dirección de la página. Si necesita la "
 "información en otro formato, pídanosla."
-
-#: site/templates/meeting.html
-msgid "If the summary is made again, a correction comes down until it's checked again."
-msgstr "Si el resumen se vuelve a hacer, la corrección se retira hasta que se revise de nuevo."
 
 #: site/pages/about/index.html
 msgid ""
@@ -6445,6 +6435,11 @@ msgstr "Dejó de aparecer en el %(listing)s."
 msgid "Removed from the %(source)s schedule"
 msgstr "Ya no está en el calendario de %(source)s"
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Removed: “%(text)s”."
+msgstr "Quitado: “%(text)s”."
+
 #: site/pages/housing/index.html
 msgid "Rented"
 msgstr "Alquiladas"
@@ -7846,11 +7841,6 @@ msgctxt "decision outcome"
 msgid "Tabled"
 msgstr "Sobre la mesa"
 
-#: site/templates/meeting.html
-#, python-format
-msgid "Taken off the decisions: “%(text)s”."
-msgstr "Se quitó de las decisiones: “%(text)s”."
-
 #: pipeline/states/ct/tax_bill.py pipeline/states/me/tax_bill.py pipeline/states/nh/tax_bill.py
 #: pipeline/states/vt/tax_bill.py
 msgid "Tax bill (calculated)"
@@ -8784,13 +8774,6 @@ msgstr ""
 " libremente, incluso con fines comerciales, bajo la <a href=\"%(license)s\">licencia Creative "
 "Commons Atribución 4.0</a> (CC BY 4.0). Por favor, dé crédito así, con un enlace al documento del"
 " que se tomó el resumen:"
-
-#. %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them, in
-#. the summary's language.
-#: site/templates/meeting.html
-#, python-format
-msgid "The summary said “%(old)s”; it now says “%(new)s”."
-msgstr "El resumen decía “%(old)s”; ahora dice “%(new)s”."
 
 #: site/pages/data/index.html
 msgid "The town's name, state, and this site's address."

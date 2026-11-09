@@ -201,23 +201,6 @@
     <p class="small">{% trans iso=m.correction.checked, when=m.correction.checked | date %}Checked <time datetime="{{ iso }}">{{ when }}</time>. If the city changes this listing, this note comes down until it's checked again.{% endtrans %}</p>
   </div>
   {% endif %}
-  {% if m.summary_corrections %}
-  {# Publick's corrections of this meeting's summaries ([[meetings.corrections]]): each with its reason, its evidence,
-     and what it changed. The decisions it changed or added link here ("Corrected"). #}
-  <div class="notice" id="corrections">
-    {# Translators: %(site)s is this website's name. #}
-    <p><strong>{% if m.summary_corrections | length == 1 %}{% trans site=site.name %}A correction from {{ site }}{% endtrans %}{% else %}{% trans site=site.name %}Corrections from {{ site }}{% endtrans %}{% endif %}</strong></p>
-    {% for c in m.summary_corrections %}
-    {# Translators: %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them, in the summary's language. #}
-    <p>{% if c.get("replaced") %}{% trans old=c.replaced, new=c.replaced_with %}The summary said “{{ old }}”; it now says “{{ new }}”.{% endtrans %}
-    {%- elif c.get("removed") %}{% trans text=c.removed.rstrip(".") %}Taken off the decisions: “{{ text }}”.{% endtrans %}
-    {%- elif c.get("added") %}{% trans text=c.added.rstrip(".") %}Added to the decisions: “{{ text }}”.{% endtrans %}{% endif %}
-    {{ c.note }}{% if c.evidence %} {% trans url=c.evidence %}<a href="{{ url }}">How we know</a>.{% endtrans %}{% endif %}
-    <span class="small">{% trans iso=c.checked, when=c.checked | date %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}</span></p>
-    {% endfor %}
-    <p class="small">{{ _("If the summary is made again, a correction comes down until it's checked again.") }}</p>
-  </div>
-  {% endif %}
   {% set upcoming = m.date >= built_at.date().isoformat() %}
   {% if m.remote_url and upcoming %}
   <div class="actions"><a class="button button-primary" href="{{ m.remote_url }}">{{ _("Join online (Zoom)") }}</a></div>
@@ -544,6 +527,13 @@
 <h2 id="about"><span id="source"></span>{{ _("About this page") }}</h2>
 <div class="about-notes">
 {% for n in about.notes %}{{ n }}{% endfor %}
+{# Publick's corrections of this meeting's summaries ([[meetings.corrections]]), one line each. #}
+{% for c in m.summary_corrections %}
+{# Translators: %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them. #}
+<p{% if loop.first %} id="corrections"{% endif %}>{% if c.get("replaced") %}{% trans old=c.replaced, new=c.replaced_with %}Corrected “{{ old }}” to “{{ new }}”.{% endtrans %}
+{%- elif c.get("removed") %}{% trans text=c.removed.rstrip(".") %}Removed: “{{ text }}”.{% endtrans %}
+{%- elif c.get("added") %}{% trans text=c.added.rstrip(".") %}Added: “{{ text }}”.{% endtrans %}{% endif %} {{ c.note }}{% if c.evidence %} {% trans url=c.evidence %}<a href="{{ url }}">How we know</a>.{% endtrans %}{% endif %}</p>
+{% endfor %}
 {# Translators: %(site)s is this website's name. #}
 {% set recorded %}{% trans site=site.name, iso=m.first_seen, when=m.first_seen | timestamp %}First recorded by {{ site }} on <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endset %}
 {% if m.get("unplaced") %}

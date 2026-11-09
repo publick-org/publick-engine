@@ -10,7 +10,7 @@
    link to the issue's page; and the meetings that decided nothing, one line. What was decided says once,
    above its lines, that they're written by AI; how a line was checked is said only where it wasn't in full. Each link says it's from the email (?ref=,
    digest.EMAIL_REF), for the page counts. Meetings are named as digest.meeting_name() names them. #}
-{% from "macros.html" import meeting_flags, checked_short, outcome_word, corrected_mark %}
+{% from "macros.html" import meeting_flags, checked_short, outcome_word %}
 {% set q = "?ref=" ~ ref %}
 {% set issue_url = site_url ~ issue.url ~ q %}
 {% set sans = "font-family:Public Sans,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" %}
@@ -90,7 +90,7 @@
   {% set parts = split_tally(d) %}
   <tr>
     <td style="width:92px;padding:4px 10px 4px 0;vertical-align:top;font-size:14px;font-weight:700;color:#3d444c;white-space:nowrap;">{{ outcome_word(d.outcome) }}{% if parts[1] %} <span style="font-weight:400;color:#545c65;">{{ parts[1] }}</span>{% endif %}</td>
-    <td style="padding:4px 0;vertical-align:top;font-size:15px;line-height:1.45;">{{ d.title if d.title else (without_outcome_verb(parts[0], d.outcome, true) | decision) }}{{ corrected_mark(d, "color:#545c65;font-size:13px;", site_url) }}</td>
+    <td style="padding:4px 0;vertical-align:top;font-size:15px;line-height:1.45;">{{ d.title if d.title else (without_outcome_verb(parts[0], d.outcome, true) | decision) }}</td>
   </tr>
   {% endfor %}
 </table>

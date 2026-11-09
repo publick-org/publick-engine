@@ -291,8 +291,6 @@ main .decision-list > li { max-width: none; margin: 0; }
 .decision-meeting details.expand { margin-top: 0.5rem; border-top: 0; padding: 0; }
 /* A decision's page in its minutes, after it ("p. 3", macros.html cite): kept on one line. */
 .cite { font-size: 0.875em; white-space: nowrap; }
-/* A decision Publick corrected or added by hand, linking to the correction on its meeting's page (macros.html corrected_mark). */
-.corrected { font-size: 0.875em; white-space: nowrap; }
 
 /* A meeting's decisions, one a row: the outcome and vote count in a narrow column, then the decision (macros.html
    decision_rows), like the time column of a list of meetings. */
