@@ -28,17 +28,17 @@ import re
 from datetime import date
 from pathlib import Path
 
-from pipeline import dates, identity, recordings
+from pipeline import dates, identity, meeting_sources, recordings
 
 # Listings that give a meeting's time and place, before ones that give only its documents.
-DOCUMENT_SOURCES = ("agendacenter", "drive", "finalsite", "page", "diligent", "boardbook", "opengov", "meetingdocs", "sharpschool", "archive")
+DOCUMENT_SOURCES = ("agendacenter", *meeting_sources.DOCUMENTS, "archive")
 # Where a meeting's listings disagree on a link (its agenda, documents or minutes), the one listed last here
 # is linked: listings that only date a meeting (a city calendar, a district's calendar feed, a page of
 # the year's dates) first, then the city's document systems, then the board's own website or portal (a
 # school district's, which posts its own board's agendas). The meeting page lists its listings in this
 # order too. Within a source, its listings are in the order it posted them (number()).
-LISTING_ORDER = ("calendar", "ical", "schedule", "agendacenter", "civicclerk", "legistar", "primegov", "filelist", "archive",
-                 "drive", "finalsite", "page", "diligent", "boardbook", "opengov", "meetingdocs", "sharpschool")
+LISTING_ORDER = ("calendar", *meeting_sources.DATES_ONLY, "agendacenter", "civicclerk", "legistar", "primegov", "filelist", "archive",
+                 *meeting_sources.DOCUMENTS)
 STATUS_ORDER = ("cancelled", "postponed", "rescheduled")
 
 

@@ -10,6 +10,9 @@ pipeline/                   Python package
                             settings (defaults/network.toml, defaults/states/<st>.toml); show prints the result
   data_readme.py            By hand: the town's data/README.md, each data file with its source and license, from its config
   update.py                 Daily: runs every fetch below for one town, each in its own process (town.yml runs the same list step by step)
+  meeting_sources.py        The meeting sources with a [<source>_meetings] table of their own, in the order they rank: each
+                            one's update step, config check, listing wording and place in a meeting's listings are read
+                            from here. A new one is its reader, an entry here, and its step in town.yml
   fetch_meetings.py         Daily: city calendars (CivicPlus, a CivicPlus Agenda Center, CivicClerk, Legistar, PrimeGov, DotNetNuke, a calendar with a documents page),
                             a school district's calendar feed or page of dates -> data/meetings/
   listings.py               One meeting listed in more than one place (a calendar and an Agenda Center, a repost) shown as one;

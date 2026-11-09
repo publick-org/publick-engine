@@ -9883,7 +9883,7 @@ msgstr "Centro de Agendas de la ciudad"
 msgid "city's Archive Center"
 msgstr "Centro de Archivos de la ciudad"
 
-#: pipeline/build_site.py site/templates/meeting.html
+#: pipeline/meeting_sources.py site/templates/meeting.html
 msgid "city's events calendar"
 msgstr "calendario de eventos de la ciudad"
 
@@ -10055,19 +10055,23 @@ msgctxt "year's count"
 msgid "partly estimated"
 msgstr "estimado en parte"
 
-#: pipeline/build_site.py
+#: pipeline/meeting_sources.py
 msgid "published schedule"
 msgstr "calendario publicado"
 
-#: pipeline/build_site.py
+#: pipeline/meeting_sources.py
+msgid "school district's Google Drive"
+msgstr "Google Drive del distrito escolar"
+
+#: pipeline/meeting_sources.py
 msgid "school district's meeting portal"
 msgstr "portal de reuniones del distrito escolar"
 
-#: pipeline/build_site.py
+#: pipeline/meeting_sources.py
 msgid "school district's website"
 msgstr "sitio web del distrito escolar"
 
-#: pipeline/build_site.py site/templates/meeting.html
+#: pipeline/meeting_sources.py site/templates/meeting.html
 msgid "state's Open Meetings portal"
 msgstr "portal de Reuniones Abiertas del estado"
 
