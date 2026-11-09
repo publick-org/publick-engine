@@ -48,8 +48,14 @@ def test_the_orders_follow_the_list():
 
 
 def test_each_source_says_where_it_lists_a_meeting():
+    """Each source's own wording, never the city calendar's (a Drive folder's listings once read "on the city
+    calendar"), and translated."""
+    from pipeline import i18n
     for source in meeting_sources.SOURCES:
-        assert build_site.LISTINGS.get(source.source, build_site.CALENDAR) == (source.listing or build_site.CALENDAR)
+        assert source.listing and source.listing != build_site.CALENDAR
+        assert build_site.LISTINGS[source.source] == source.listing
+        with i18n.use("es"):
+            assert i18n._(source.listing) != source.listing, f"{source.listing!r} has no Spanish in site/strings/es.po"
 
 
 def test_who_posts_the_meetings_in_the_order_they_rank():
