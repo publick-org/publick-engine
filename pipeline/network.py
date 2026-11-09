@@ -848,7 +848,7 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
 def officials_text(root: Path) -> str:
     """The network's officials lists to look at, from each town's run record (run.json, "officials"): a
     member the body's own page doesn't name, a page that names none of its members, or one that couldn't
-    be read. Empty when there's nothing to look at, and the issue is closed. Its length doesn't grow with
+    be read for a week (check_officials.UNREAD_DAYS). Empty when there's nothing to look at, and the issue is closed. Its length doesn't grow with
     the network: COVERAGE_TOWNS towns are named, and the rest counted."""
     listed, unchecked = [], []
     for name in town_dirs(root):
@@ -868,7 +868,7 @@ def officials_text(root: Path) -> str:
              "| Town | Body | Not named on its page | Page | Checked |", "|---|---|---|---|---|"]
     for name, checked in listed[:COVERAGE_TOWNS]:
         for lead in checked["leads"]:
-            what = (f"(couldn't be read: {lead['error']})" if "error" in lead
+            what = (f"(couldn't be read since {lead['since'][:10]}: {lead['error']})" if "error" in lead
                     else "(names none of its members)" if lead.get("none")
                     else ", ".join(lead["missing"][:5]) + (f", and {len(lead['missing']) - 5} more" if len(lead["missing"]) > 5 else ""))
             lines.append(f"| {name} | {lead['name']} | {what} | [page]({lead['url']}) | {checked['checked_at'][:10]} |")

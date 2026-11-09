@@ -105,8 +105,8 @@ pipeline/                   Python package
   check_officials.py        Weekly: each body's members looked for by surname on the body's own page (its url, with its
                             images' alt text; in a browser, collapsed sections opened, when its names come from scripts)
                             -> data/officials_check.json, whose leads (a member not named, a page naming none, one that
-                            can't be read) the run record keeps for network.py officials, one issue for a person; it
-                            never changes the list
+                            can't be read for a week, tried again each run until then) the run record keeps for
+                            network.py officials, one issue for a person; it never changes the list
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
   civicplus.py, agendacenter.py, civicclerk.py, legistar.py, primegov.py, dnn.py, filelist.py, finalsite.py, ical.py, linkpage.py, schedule.py, seeclickfix.py, socrata.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
