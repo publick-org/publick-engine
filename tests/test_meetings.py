@@ -7,7 +7,7 @@ import pytest
 
 from conftest import FETCHED_AT, FIXTURES
 from fakes import FakeCityClient
-from pipeline import civicplus, fetch_meetings
+from pipeline import civicplus, fetch_meetings, meeting_names
 from pipeline.config import load_config
 
 BASE = "https://www.gloucester-ma.gov"
@@ -49,6 +49,30 @@ def test_parse_title(title, expected):
 ])
 def test_parse_title_leaves_dates_out_of_the_board(title, body):
     assert civicplus.parse_title(title)["body"] == body
+
+
+# A time at the start or end of a name says when, not which board (Gloucester's calendar, 2026-11-08:
+# "6:30 Licensing Board Meeting" was recorded under a board "6:30 Licensing Board"), however it's written.
+@pytest.mark.parametrize("title, body", [
+    ("6:30 Licensing Board Meeting", "Licensing Board"),
+    ("6:30pm - Licensing Board", "Licensing Board"),
+    ("6 PM Licensing Board", "Licensing Board"),
+    ("10:00 a.m. Planning Board", "Planning Board"),
+    ("November 9, 2026 Gloucester Schools Building & Finance Subcommittee Meeting",
+     "Gloucester Schools Building & Finance Subcommittee"),
+    ("November 9, 2026 6:30 PM Licensing Board Meeting", "Licensing Board"),
+    ("Planning Board, 7:00 PM", "Planning Board"),
+    ("City Council at 7 pm", "City Council"),
+    # A number that isn't a time stays.
+    ("Ward 6 Neighborhood Association", "Ward 6 Neighborhood Association"),
+    ("Route 128 Committee", "Route 128 Committee"),
+    ("Committee of 100", "Committee of 100"),
+    ("6 Amenities Board", "6 Amenities Board"),
+])
+def test_a_time_isnt_part_of_the_board(title, body):
+    assert civicplus.parse_title(title)["body"] == body
+    # The other platforms' names too (meeting_names.parse_name, through board_part).
+    assert meeting_names.parse_name(title)["body"] == body
 
 
 # What follows a colon isn't the board's name (Waltham's calendar), unless it names one of its committees.
