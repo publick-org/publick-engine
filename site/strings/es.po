@@ -1995,6 +1995,11 @@ msgstr ""
 "Por ahora se conoce el tiempo de confirmación de %(checked)s de las %(received)s solicitudes. Los"
 " datos de las demás se están buscando."
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Added to the decisions: “%(text)s”."
+msgstr "Se agregó a las decisiones: “%(text)s”."
+
 #. %(old)s and %(new)s are street addresses, or "not listed" when the listing gave none.
 #: site/templates/macros.html
 #, python-format
@@ -2694,7 +2699,7 @@ msgstr ""
 #: site/pages/meetings/index.html site/states/ct/budget.html site/states/ct/schools.html
 #: site/states/ma/budget.html site/states/ma/schools.html site/states/me/budget.html
 #: site/states/nh/budget.html site/states/ri/budget.html site/states/ri/schools.html
-#: site/states/vt/budget.html site/states/vt/schools.html
+#: site/states/vt/budget.html site/states/vt/schools.html site/templates/meeting.html
 #, python-format
 msgid "Checked <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Revisado el <time datetime=\"%(iso)s\">%(when)s</time>."
@@ -2983,6 +2988,13 @@ msgctxt "decision outcome"
 msgid "Continued"
 msgstr "Aplazado"
 
+#. beside a meeting's decision that this website corrected or added by hand; it links to the
+#. correction.
+#: site/templates/macros.html
+msgctxt "decision"
+msgid "Corrected"
+msgstr "Corregida"
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "Correction: {page}"
@@ -2991,6 +3003,11 @@ msgstr "Corrección: {page}"
 #: site/pages/about/index.html
 msgid "Corrections and contact"
 msgstr "Correcciones y contacto"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "Corrections from %(site)s"
+msgstr "Correcciones de %(site)s"
 
 #: site/states/nh/schools.html
 msgid "Cost per pupil"
@@ -4394,6 +4411,10 @@ msgid ""
 msgstr ""
 "Si algo es difícil de usar, %(contact)s, e incluya la dirección de la página. Si necesita la "
 "información en otro formato, pídanosla."
+
+#: site/templates/meeting.html
+msgid "If the summary is made again, a correction comes down until it's checked again."
+msgstr "Si el resumen se vuelve a hacer, la corrección se retira hasta que se revise de nuevo."
 
 #: site/pages/about/index.html
 msgid ""
@@ -5941,6 +5962,16 @@ msgid "Our correction of the city's listing, with the reason, the evidence, and 
 msgstr ""
 "Nuestra corrección de lo que publica la ciudad, con el motivo, la prueba y el día en que se "
 "verificó."
+
+#: site/pages/data/index.html
+msgid ""
+"Our corrections of its summaries: the reason, the evidence, the day each was checked, and what it"
+" changed (the words replaced, or the decision taken off or added). The summaries given here are "
+"as corrected."
+msgstr ""
+"Nuestras correcciones de sus resúmenes: el motivo, la evidencia, el día en que se revisó cada una"
+" y lo que cambió (las palabras reemplazadas, o la decisión quitada o agregada). Los resúmenes que"
+" se dan aquí son los corregidos."
 
 #: site/templates/category.html
 msgid "Outside"
@@ -7815,6 +7846,11 @@ msgctxt "decision outcome"
 msgid "Tabled"
 msgstr "Sobre la mesa"
 
+#: site/templates/meeting.html
+#, python-format
+msgid "Taken off the decisions: “%(text)s”."
+msgstr "Se quitó de las decisiones: “%(text)s”."
+
 #: pipeline/states/ct/tax_bill.py pipeline/states/me/tax_bill.py pipeline/states/nh/tax_bill.py
 #: pipeline/states/vt/tax_bill.py
 msgid "Tax bill (calculated)"
@@ -8748,6 +8784,13 @@ msgstr ""
 " libremente, incluso con fines comerciales, bajo la <a href=\"%(license)s\">licencia Creative "
 "Commons Atribución 4.0</a> (CC BY 4.0). Por favor, dé crédito así, con un enlace al documento del"
 " que se tomó el resumen:"
+
+#. %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them, in
+#. the summary's language.
+#: site/templates/meeting.html
+#, python-format
+msgid "The summary said “%(old)s”; it now says “%(new)s”."
+msgstr "El resumen decía “%(old)s”; ahora dice “%(new)s”."
 
 #: site/pages/data/index.html
 msgid "The town's name, state, and this site's address."

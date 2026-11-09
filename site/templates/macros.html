@@ -288,7 +288,7 @@
     <span class="decision-text"{% if english %} lang="en"{% endif %}>{% if title and not adds_to(title, body) %}<strong class="decision-title">{{ title }}</strong>{{ cite(doc, d) if doc else "" }}
     {%- elif title %}<strong class="decision-title">{{ title }}</strong> <span class="decision-detail">{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}</span>
     {%- elif untitled %}<strong class="decision-title">{{ link(text, english) if link else text }}</strong>{{ cite(doc, d) if doc else "" }}
-    {%- else %}{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}{% endif %}</span></li>
+    {%- else %}{{ link(text, english) if link else text }}{{ cite(doc, d) if doc else "" }}{% endif %}{{ corrected_mark(d) }}</span></li>
   {% endfor %}
 </ul>
 {%- endmacro %}
@@ -315,6 +315,15 @@
 {% else %}
 {{ decision_rows(doc, items, english, link, titled=true) }}
 {% endif %}
+{%- endmacro %}
+
+{#- A decision Publick corrected or added ([[meetings.corrections]], build_site.correct_summaries()): a link to the
+    correction on its meeting's page, with the reason and the evidence. site_url and style, for the digest's email. -#}
+{% macro corrected_mark(d, style=none, site_url="") -%}
+{%- if d.corrected is defined and d.corrected %} <a class="corrected" href="{{ site_url }}{{ d.corrected }}"
+{%- if page_lang != "en" %} lang="{{ page_lang }}"{% endif %}{% if style %} style="{{ style }}"{% endif %}>
+{#- Translators: beside a meeting's decision that this website corrected or added by hand; it links to the correction. #}
+{{- pgettext("decision", "Corrected") }}</a>{% endif -%}
 {%- endmacro %}
 
 {% macro cite(doc, d, style=none, site_url="") -%}
