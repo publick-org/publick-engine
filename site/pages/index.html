@@ -33,14 +33,14 @@
   <h2 id="coming-up">{{ _("Coming up") }}</h2>
   <a href="/meetings/">{{ _("All meetings") }}</a>
 </div>
-{# Only a hearing that's still on: a cancelled or postponed one has no "How to take part" to link to. #}
+{# Only a hearing that's still on: a cancelled or postponed one has no "How to take part" for residents to use. #}
 {% set hearings = meetings.upcoming | selectattr("public_hearing") | selectattr("status", "equalto", "scheduled") | list %}
 {% if hearings %}
 <div class="notice">
   <h3>{% trans count=hearings | length %}Public hearing: residents can speak{% pluralize %}Public hearings: residents can speak{% endtrans %}</h3>
   <ul class="plain-list">
     {% for m in hearings[:5] %}
-    <li><a href="{{ m.url }}#take-part">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span>{% if unchecked_note(m.preview_checked) %}<span class="meeting-meta">{{ unchecked_note(m.preview_checked) }}</span>{% endif %}{% endif %}</li>
+    <li><a href="{{ m.url }}">{{ m.body }}</a><span class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date }}</time>{% if m.start_time %}, {{ m.start_time | time }}{% endif %}</span>{% if m.preview_line %}<span class="item-detail">{{ m.preview_line }}</span>{% if unchecked_note(m.preview_checked) %}<span class="meeting-meta">{{ unchecked_note(m.preview_checked) }}</span>{% endif %}{% endif %}</li>
     {% endfor %}
   </ul>
 </div>
