@@ -495,7 +495,8 @@ def test_public_hearings_say_their_summary_is_ai(tmp_path):
 
 def test_public_hearings_leave_out_a_cancelled_meeting(tmp_path):
     """A hearing the city has cancelled isn't offered as one residents can speak at: its page has no
-    "How to take part" for the box to link to (Burlington, 2026-10-13)."""
+    "How to take part" (Burlington, 2026-10-13). Each link opens the meeting's page at the top, not
+    partway down at that section."""
     import shutil
     from conftest import BUILT_AT, DATA_DIR
     data = tmp_path / "data"
@@ -510,7 +511,9 @@ def test_public_hearings_leave_out_a_cancelled_meeting(tmp_path):
         build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
         home = (tmp_path / "site" / "index.html").read_text()
         box = home[home.index('class="notice"'):]
-        return re.findall(r'href="([^"]+)#take-part"', box[:box.index("</div>")])
+        box = box[:box.index("</div>")]
+        assert "#take-part" not in box
+        return re.findall(r'<li><a href="([^"#]+)"', box)
 
     before = hearings()
     assert before
