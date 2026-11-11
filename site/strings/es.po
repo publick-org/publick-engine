@@ -512,6 +512,12 @@ msgstr "%(num)s sin actualizar en más de un año"
 msgid "%(office)s %(name)s"
 msgstr "%(office)s: %(name)s"
 
+#. the title of a page that has moved; %(page)s is its name, such as "Search".
+#: site/templates/moved.html
+#, python-format
+msgid "%(page)s: moved"
+msgstr "%(page)s: página trasladada"
+
 #: site/states/ma/budget.html
 #, python-format
 msgid "%(pct)s%% of the maximum"
@@ -756,13 +762,6 @@ msgstr "%(town)s, %(state)s: solicitudes al 311, %(category)s"
 #, python-format
 msgid "%(town)s, %(state)s FY %(year)s city budget: revenue and spending"
 msgstr "%(town)s, %(state)s: presupuesto municipal del año fiscal %(year)s, ingresos y gastos"
-
-#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
-#. such as "MA".
-#: site/pages/meetings/search/index.html
-#, python-format
-msgid "%(town)s, %(state)s agendas and minutes: search"
-msgstr "%(town)s, %(state)s: buscar en agendas y actas"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -1852,14 +1851,6 @@ msgstr ""
 msgid "A correction from %(site)s"
 msgstr "Una corrección de %(site)s"
 
-#: site/pages/meetings/search/index.html
-msgid ""
-"A document's text is added once it has been read, usually the morning after it's posted. Scanned "
-"pages may be missed."
-msgstr ""
-"El texto de un documento se agrega después de leerlo, por lo general la mañana después de que se "
-"publica. Es posible que no se lean algunas páginas escaneadas."
-
 #: site/pages/meetings/decisions/index.html
 msgid ""
 "A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording,"
@@ -1915,6 +1906,10 @@ msgstr ""
 #: site/pages/streets/index.html
 msgid "A street or an address."
 msgstr ""
+
+#: site/pages/search/index.html site/templates/macros.html
+msgid "A street, project, topic, or official"
+msgstr "Una calle, un proyecto, un tema o un funcionario"
 
 #. "Not enough data" is what a typical time shows when there are too few requests; use the same words
 #. as its translation.
@@ -2120,6 +2115,12 @@ msgstr "Las agendas vienen del <a href=\"%(url)s\">Centro de Agendas</a> de la c
 #: pipeline/common_strings.py
 msgid "Airport Commission"
 msgstr "Comisión del Aeropuerto"
+
+#. the search's messages and labels. {query} is what was searched for, in quotation marks, and {n} a
+#. number; keep each {name} as it is.
+#: site/pages/search/index.html
+msgid "All"
+msgstr "Todo"
 
 #: site/pages/index.html
 msgid "All decisions"
@@ -2528,9 +2529,9 @@ msgstr "Calificaciones crediticias"
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
-#: site/pages/meetings/search/index.html site/templates/alerts.html site/templates/board.html
-#: site/templates/category.html site/templates/digest.html site/templates/digest_answer.html
-#: site/templates/meeting.html site/templates/ward.html
+#: site/templates/alerts.html site/templates/board.html site/templates/category.html
+#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
+#: site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -3035,15 +3036,6 @@ msgstr ""
 msgid "County"
 msgstr "Condado"
 
-#: site/pages/meetings/search/index.html
-#, python-format
-msgid "Covers meetings since <time datetime=\"%(iso)s\">%(when)s</time>."
-msgstr "Incluye las reuniones desde el <time datetime=\"%(iso)s\">%(when)s</time>."
-
-#: site/pages/meetings/search/index.html
-msgid "Covers meetings."
-msgstr "Incluye las reuniones."
-
 #: site/pages/data/index.html
 msgid "Credit"
 msgstr "Crédito"
@@ -3065,6 +3057,11 @@ msgid "DESE updates each figure once a year."
 msgstr "El DESE actualiza cada cifra una vez al año."
 
 #: site/pages/data/index.html
+msgid "Data"
+msgstr "Datos"
+
+#: pipeline/build_site.py
+msgctxt "menu"
 msgid "Data"
 msgstr "Datos"
 
@@ -3129,7 +3126,7 @@ msgctxt "month"
 msgid "December"
 msgstr "diciembre"
 
-#: pipeline/build_site.py site/pages/meetings/decisions/index.html
+#: pipeline/build_site.py site/pages/meetings/decisions/index.html site/pages/search/index.html
 msgid "Decisions"
 msgstr "Decisiones"
 
@@ -3249,6 +3246,11 @@ msgstr ""
 #: site/pages/data/index.html
 msgid "Download meetings.json"
 msgstr "Descargar meetings.json"
+
+#: pipeline/build_site.py
+msgctxt "menu"
+msgid "Downloads"
+msgstr "Descargas"
 
 #: site/pages/housing/index.html
 #, python-format
@@ -3580,10 +3582,6 @@ msgstr "Inglés"
 #: site/pages/officials/index.html
 msgid "Enter a street address, such as 12 Main St."
 msgstr "Escriba una dirección, como 12 Main St."
-
-#: site/pages/meetings/search/index.html
-msgid "Enter a word to search for."
-msgstr "Escriba una palabra para buscar."
 
 #: site/states/vt/budget.html
 msgid "Equalized value"
@@ -4163,6 +4161,11 @@ msgstr "Comisión del Distrito Histórico"
 msgid "Historical Commission"
 msgstr "Comisión Histórica"
 
+#: pipeline/build_site.py
+msgctxt "menu"
+msgid "Home"
+msgstr "Inicio"
+
 #: site/pages/housing/index.html
 msgid ""
 "Home value is what owners estimate their home would sell for. Rent is gross rent, including "
@@ -4652,6 +4655,11 @@ msgstr "Se aprobó el <time datetime=\"%(iso)s\">%(when)s</time>."
 #, python-format
 msgid "It's held online only: %(place)s."
 msgstr "Se realiza solo en línea: %(place)s."
+
+#: site/templates/moved.html
+#, python-format
+msgid "It's now at <a href=\"%(url)s\">%(page)s</a>."
+msgstr "Ahora está en <a href=\"%(url)s\">%(page)s</a>."
 
 #. a roll call's item in the minutes, by its paper number, such as "Item 224-26".
 #: site/templates/meeting.html
@@ -5170,7 +5178,7 @@ msgstr ""
 
 #: pipeline/build_site.py pipeline/meeting_calendar.py site/pages/about/index.html
 #: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
-#: site/pages/meetings/past/index.html site/pages/meetings/search/index.html site/templates/board.html
+#: site/pages/meetings/past/index.html site/pages/search/index.html site/templates/board.html
 #: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
@@ -5426,6 +5434,11 @@ msgctxt "roll call"
 msgid "Nay"
 msgstr "En contra"
 
+#: pipeline/build_site.py
+msgctxt "menu"
+msgid "Neighborhood"
+msgstr "Vecindario"
+
 #: site/pages/311/methodology/index.html
 msgctxt "311 status"
 msgid "New"
@@ -5619,13 +5632,6 @@ msgstr ""
 msgid "No meetings have been recorded yet."
 msgstr "Todavía no hay reuniones registradas."
 
-#. the search's messages. {query} is what was searched for, in quotation marks; keep each {name} as it
-#. is.
-#: site/pages/meetings/search/index.html
-#, python-brace-format
-msgid "No meetings match {query}. Try fewer or different words."
-msgstr "Ninguna reunión coincide con {query}. Pruebe con menos palabras o con otras."
-
 #: site/templates/digest_email.html
 msgid "No meetings take place this week"
 msgstr ""
@@ -5771,6 +5777,11 @@ msgstr "No aparece en el %(listing)s"
 #: site/templates/meeting.html
 msgid "Not recorded in this vote"
 msgstr "No consta en esta votación"
+
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "Nothing on the site matches {query}. Try fewer or different words."
+msgstr "Nada en el sitio coincide con {query}. Pruebe con menos palabras o con otras."
 
 #: site/pages/about/index.html
 msgid "Nothing that identifies you is kept, not even your IP address."
@@ -5991,6 +6002,10 @@ msgstr "Página no encontrada"
 #, python-brace-format
 msgid "Page: {url}"
 msgstr "Página: {url}"
+
+#: site/pages/search/index.html
+msgid "Pages"
+msgstr "Páginas"
 
 #: site/pages/about/accessibility/index.html
 msgid "Pages work without JavaScript."
@@ -6385,7 +6400,7 @@ msgstr "Recomendado"
 msgid "Recorded back to %(since)s."
 msgstr "Registradas desde el %(since)s."
 
-#: pipeline/build_site.py site/templates/meeting.html
+#: site/templates/meeting.html
 msgid "Recording"
 msgstr "Grabación"
 
@@ -6738,43 +6753,70 @@ msgstr ""
 "Las escuelas cerraron en la primavera de 2020 y muchas dieron clases a distancia en 2020–21, lo "
 "que afecta esos años."
 
-#: site/templates/macros.html
+#: pipeline/build_site.py site/pages/search/index.html site/templates/macros.html
 msgid "Search"
 msgstr "Buscar"
 
-#: site/templates/macros.html
-msgid "Search agendas and minutes"
-msgstr "Buscar en agendas y actas"
+#: pipeline/build_site.py
+msgctxt "menu"
+msgid "Search"
+msgstr "Buscar"
 
-#: site/pages/meetings/search/index.html
+#. the page's title in search results: %(site)s is the site's name, such as "Gloucester Publick".
+#. %(site)s is the site's name, such as "Gloucester Publick".
+#: site/pages/search/index.html site/templates/macros.html
+#, python-format
+msgid "Search %(site)s"
+msgstr "Buscar en %(site)s"
+
+#: site/pages/search/index.html
+#, python-format
+msgid "Search %(town)s's meetings and the rest of the site."
+msgstr "Busque en las reuniones de %(town)s y en el resto del sitio."
+
+#. %(town)s is the town's name.
+#: site/pages/search/index.html
+#, python-format
+msgid "Search %(town)s's meetings, decisions, agendas, and minutes, and the rest of the site."
+msgstr "Busque en las reuniones, decisiones, agendas y actas de %(town)s, y en el resto del sitio."
+
+#: site/pages/search/index.html
 msgid "Search couldn't load. Please try again later."
 msgstr "No se pudo cargar la búsqueda. Inténtelo de nuevo más tarde."
 
-#: site/pages/meetings/search/index.html
-msgid "Search meetings"
-msgstr "Buscar reuniones"
+#: site/pages/search/index.html
+msgid "Search needs JavaScript. The menu at the top of the page leads to every part of the site."
+msgstr "La búsqueda necesita JavaScript. El menú de arriba lleva a todas las partes del sitio."
 
-#: site/pages/meetings/search/index.html
-msgid ""
-"Search needs JavaScript. You can browse <a href=\"/meetings/boards/\">boards and committees</a> "
-"or <a href=\"/meetings/past/\">past meetings</a> instead."
-msgstr ""
-"La búsqueda necesita JavaScript. En su lugar, puede ver las <a href=\"/meetings/boards/\">juntas "
-"y comités</a> o las <a href=\"/meetings/past/\">reuniones pasadas</a>."
-
-#: site/pages/meetings/search/index.html
-msgid "Search the full text of agendas and minutes, plus board names and dates."
-msgstr ""
-"Busque en el texto completo de las agendas y actas, y también en los nombres de las juntas y las "
-"fechas."
-
-#. %(town)s is the town's name.
-#: site/pages/meetings/search/index.html
+#: site/pages/search/index.html
 #, python-format
-msgid "Search the text of %(town)s agendas and minutes."
-msgstr "Busque en el texto de las agendas y actas de %(town)s."
+msgid "Searches all of %(site)s: its meetings, and every other page, from officials to the budget."
+msgstr ""
+"Busca en todo %(site)s: sus reuniones y todas las demás páginas, desde los funcionarios hasta el "
+"presupuesto."
 
-#: site/pages/meetings/search/index.html
+#: site/pages/search/index.html
+#, python-format
+msgid ""
+"Searches all of %(site)s: meetings and what they decided, their agendas and minutes, and every "
+"other page, from officials to the budget."
+msgstr ""
+"Busca en todo %(site)s: las reuniones y lo que decidieron, sus agendas y actas, y todas las demás"
+" páginas, desde los funcionarios hasta el presupuesto."
+
+#: site/templates/macros.html
+msgid "Searches the whole site: its meetings and every other page."
+msgstr "Busca en todo el sitio: sus reuniones y todas las demás páginas."
+
+#: site/templates/macros.html
+msgid ""
+"Searches the whole site: what was decided at meetings, their agendas and minutes, and every other"
+" page."
+msgstr ""
+"Busca en todo el sitio: lo que se decidió en las reuniones, sus agendas y actas, y todas las "
+"demás páginas."
+
+#: site/pages/search/index.html
 msgid "Searching…"
 msgstr "Buscando…"
 
@@ -6896,6 +6938,10 @@ msgstr ""
 "Evaluación Estatal de New Hampshire (NH SAS). Las cifras son de todos los grados evaluados "
 "juntos: los grados 3 a 8 y el grado 11, cuyos resultados vienen del SAT."
 
+#: site/pages/search/index.html
+msgid "Show"
+msgstr "Mostrar"
+
 #: site/templates/meeting.html
 #, python-format
 msgid "Show %(count)s more item"
@@ -6932,6 +6978,10 @@ msgid_plural "Show its %(num)s decisions"
 msgstr[0] "Mostrar su decisión (%(num)s)"
 msgstr[1] "Mostrar sus %(num)s decisiones"
 
+#: site/pages/search/index.html
+msgid "Show more"
+msgstr "Mostrar más"
+
 #: site/templates/meeting.html
 #, python-format
 msgid "Show the %(count)s roll call vote"
@@ -6957,13 +7007,6 @@ msgstr[1] "Mostrar los %(count)s puntos de la agenda"
 #, python-brace-format
 msgid "Showing the latest {n}."
 msgstr "Se muestran los {n} resultados más recientes."
-
-#: site/pages/meetings/search/index.html
-#, python-brace-format
-msgid "Showing {shown} of {total} meetings that match {query}. Add a word to narrow the list."
-msgstr ""
-"Se muestran {shown} de {total} reuniones que coinciden con {query}. Agregue una palabra para "
-"reducir la lista."
 
 #: site/templates/digest_form.html site/templates/digest_line.html
 msgid "Sign up"
@@ -7764,11 +7807,11 @@ msgstr ""
 "Los resúmenes escritos con inteligencia artificial (IA) están señalados en la página de cada "
 "reunión."
 
-#: pipeline/build_site.py site/pages/311/index.html site/pages/housing/index.html
-#: site/states/ct/budget.html site/states/ct/schools.html site/states/ma/budget.html
-#: site/states/ma/schools.html site/states/me/budget.html site/states/me/schools.html
-#: site/states/nh/budget.html site/states/nh/schools.html site/states/ri/budget.html
-#: site/states/ri/schools.html site/states/vt/budget.html site/states/vt/schools.html
+#: site/pages/311/index.html site/pages/housing/index.html site/states/ct/budget.html
+#: site/states/ct/schools.html site/states/ma/budget.html site/states/ma/schools.html
+#: site/states/me/budget.html site/states/me/schools.html site/states/nh/budget.html
+#: site/states/nh/schools.html site/states/ri/budget.html site/states/ri/schools.html
+#: site/states/vt/budget.html site/states/vt/schools.html
 msgid "Summary"
 msgstr "Resumen"
 
@@ -8228,7 +8271,7 @@ msgstr "La junta o el comité, y el nombre de la reunión tal como lo publica la
 msgid "The change is in the commitment. Amounts are not adjusted for inflation."
 msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustadas por inflación."
 
-#: pipeline/build_site.py site/templates/meeting.html
+#: site/templates/meeting.html
 msgid "The city"
 msgstr "La ciudad"
 
@@ -8903,6 +8946,10 @@ msgstr "La página de esta reunión cambió de lugar"
 msgid "This page doesn't exist. It may have moved, or the link may have a typo."
 msgstr "Esta página no existe. Puede que se haya movido o que el enlace tenga un error."
 
+#: site/templates/moved.html
+msgid "This page has moved"
+msgstr "Esta página cambió de lugar"
+
 #: site/templates/alerts.html
 msgid "This page needs JavaScript."
 msgstr ""
@@ -8977,7 +9024,7 @@ msgid "This summary is shown in English: its automatic translation didn't pass o
 msgstr "Este resumen aparece en inglés: su traducción automática no pasó nuestras revisiones."
 
 #. the heading of the short list at the top of the weekly digest's email.
-#: pipeline/build_site.py site/templates/digest_email.html
+#: site/templates/digest_email.html
 msgid "This week"
 msgstr "Esta semana"
 
@@ -9082,6 +9129,10 @@ msgstr "Traducido automáticamente del <a href=\"%(url)s\" hreflang=\"en\">resum
 #: pipeline/common_strings.py
 msgid "Treasurer"
 msgstr "Tesorero"
+
+#: site/pages/search/index.html
+msgid "Try"
+msgstr "Pruebe"
 
 #: pipeline/i18n.py
 msgctxt "weekday, short"
@@ -9734,8 +9785,8 @@ msgstr ""
 "%(start)s a junio de %(year)s."
 
 #: site/pages/streets/index.html
-msgid "You can also <a href=\"/meetings/search/\">search agendas and minutes</a>."
-msgstr "También puede <a href=\"/meetings/search/\">buscar en agendas y actas</a>."
+msgid "You can also <a href=\"/search/\">search the site</a>, including its agendas and minutes."
+msgstr "También puede <a href=\"/search/\">buscar en el sitio</a>, incluidas sus agendas y actas."
 
 #: site/templates/alerts.html
 msgid "You don't follow any addresses."
@@ -9840,7 +9891,7 @@ msgstr ""
 "Su ubicación no está en ninguno de los distritos de {town}. Puede buscar su distrito en el mapa o"
 " en la lista de abajo."
 
-#: pipeline/build_site.py site/pages/streets/index.html site/templates/alerts.html
+#: site/pages/streets/index.html site/templates/alerts.html
 msgid "Your street"
 msgstr "Su calle"
 
@@ -10101,6 +10152,10 @@ msgstr "sitio web del distrito escolar"
 msgid "state's Open Meetings portal"
 msgstr "portal de Reuniones Abiertas del estado"
 
+#: site/pages/search/index.html
+msgid "tax rate"
+msgstr "tasa de impuestos"
+
 #: site/templates/meeting.html
 msgid "the city website"
 msgstr "el sitio web de la ciudad"
@@ -10175,10 +10230,10 @@ msgstr "{h} h {m} min"
 msgid "{i} of {n}"
 msgstr "{i} de {n}"
 
-#: site/pages/meetings/search/index.html
+#: site/pages/search/index.html
 #, python-brace-format
-msgid "{kind}: "
-msgstr "{kind}: "
+msgid "{label} {n}"
+msgstr "{label} {n}"
 
 #: pipeline/build_site.py
 #, python-brace-format
@@ -10248,19 +10303,19 @@ msgid_plural "{n} hours"
 msgstr[0] "{n} hora"
 msgstr[1] "{n} horas"
 
-#: site/pages/meetings/search/index.html
-#, python-brace-format
-msgid "{n} meeting matches {query}."
-msgid_plural "{n} meetings match {query}."
-msgstr[0] "{n} reunión coincide con {query}."
-msgstr[1] "{n} reuniones coinciden con {query}."
-
 #: site/pages/streets/index.html
 #, python-brace-format
 msgid "{n} permit"
 msgid_plural "{n} permits"
 msgstr[0] "{n} permiso"
 msgstr[1] "{n} permisos"
+
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "{n} result for {query}."
+msgid_plural "{n} results for {query}."
+msgstr[0] "{n} resultado para {query}."
+msgstr[1] "{n} resultados para {query}."
 
 #: pipeline/build_site.py
 #, python-brace-format

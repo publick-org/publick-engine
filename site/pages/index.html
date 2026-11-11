@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import calendar_behind_note, day_group, meeting_item, unchecked_note %}
+{% from "macros.html" import calendar_behind_note, day_group, meeting_item, search_form, unchecked_note %}
 {# The title search results show: what the site has, and where, which the page's heading ("This week in ...") doesn't say.
    It names the town's governing body, as searches for its agendas do ("south kingstown town council agenda"). #}
 {% block title %}{% if config.meetings is defined %}
@@ -83,6 +83,8 @@
   {% for m in meetings.decided[:3] %}{{ meeting_item(m, show_date=true, posted=true) }}{% endfor %}
 </ul>
 {% endif %}
+{# The site's search, where a reader looking back at what was decided is. #}
+{{ search_form("home-search", site.name, meeting_links.documents) }}
 {% endif %}
 
 {# ---- The street lookup, after the week's news: one line, like the signup ---- #}

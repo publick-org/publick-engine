@@ -6,6 +6,7 @@ import re
 
 import pytest
 
+from pipeline import search_index as site_search
 from pipeline import build_site
 
 
@@ -67,9 +68,11 @@ def test_a_withheld_summary_is_shown_nowhere(config, data_dir, tmp_path, monkeyp
         assert not any(g in text for g in gone)
     assert url not in (out / "meetings" / "decisions" / "index.html").read_text()
     assert m["slug"] not in (out / "meetings" / "data" / "decisions.csv").read_text()
-    search = json.loads((out / "meetings" / "search-index.json").read_text())
-    entries = [e for e in (search if isinstance(search, list) else search.get("meetings", [])) if url in json.dumps(e)]
-    assert entries and not any(g in json.dumps(e) for e in entries for g in (decision, headline))
+    # The site's search has the meeting, without what was withheld, and doesn't have its decision.
+    results = site_search.results(out, "en")
+    entries = [r for r in results if r["url"].startswith(url)]
+    assert entries and not any(g in r["content"] for r in entries for g in (decision, headline))
+    assert not any(r["filters"]["kind"] == ["decision"] for r in entries)
     for listing in ("feed.xml", "meetings/past/index.html", f"meetings/boards/{m['body_slug']}/index.html"):
         text = (out / listing).read_text()
         chunks = [c for c in re.split(r"<item>|<li", text) if url in c]

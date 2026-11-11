@@ -10,11 +10,13 @@ from pathlib import Path
 import pytest
 
 from conftest import BUILT_AT
+from pipeline import search_index as site_search
 from pipeline import build_site, i18n
 from pipeline.config import load_config
 
 TOWN_STRINGS = {"City Council": "Concejo Municipal", "Meetings": "Reuniones", "Pothole": "Bache"}
-ENGINE_STRINGS = {(None, "This week"): "Esta semana", (None, "City Hall"): "Alcaldía", ("month", "October"): "octubre", ("month, short", "Aug"): "ago",
+ENGINE_STRINGS = {("menu", "Home"): "Inicio", (None, "City Hall"): "Alcaldía", ("menu", "Neighborhood"): "Vecindario",
+                  ("menu", "Data"): "Datos", ("menu", "Search"): "Buscar", ("month", "October"): "octubre", ("month, short", "Aug"): "ago",
                   ("short date", "{month} {day}, {year}"): "{day} {month} {year}", (None, "%(board)s minutes"): "%(board)s: actas"}
 
 
@@ -142,9 +144,9 @@ def test_spanish_pages_link_spanish_pages(built):
 def test_spanish_wording(built):
     out, _, _ = built
     es, en = page(out, "/es/"), page(out, "/")
-    assert ">Esta semana</a>" in es and ">This week</a>" in en
-    # The menu, with what isn't translated yet in English, and boards with their English names after.
-    assert ">Alcaldía</a>" in es and ">Your street</a>" in es
+    assert ">Inicio</a>" in es and ">Home</a>" in en
+    # The menu, and boards with their English names after.
+    assert ">Alcaldía</a>" in es and ">Vecindario</a>" in es and ">Datos</a>" in es and "<span>Buscar</span>" in es
     assert "Concejo Municipal (City Council)" in page(out, "/es/meetings/boards/city-council/")
     assert "Concejo Municipal" not in page(out, "/meetings/boards/city-council/")
 
@@ -217,12 +219,13 @@ def test_english_text_is_marked_on_spanish_pages(built):
 
 
 def test_search_and_street_data_per_language(built):
+    """Each language's pages and decisions are in its own part of the search's index, linking its own pages."""
     out, _, _ = built
-    es_index = json.loads((out / "es" / "meetings" / "search-index.json").read_text())
-    en_index = json.loads((out / "meetings" / "search-index.json").read_text())
-    assert all(row["url"].startswith("/es/meetings/") for row in es_index)
-    assert all(row["url"].startswith("/meetings/") for row in en_index)
-    assert 'data-index="/es/meetings/search-index.json' in page(out, "/es/meetings/search/")
+    es, en = site_search.results(out, "es"), site_search.results(out, "en")
+    assert es and all(r["url"].startswith("/es/") for r in es)
+    assert en and not any(r["url"].startswith("/es/") for r in en)
+    assert {r["filters"]["kind"][0] for r in es} == {r["filters"]["kind"][0] for r in en}
+    assert 'lang="es"' in page(out, "/es/search/") and 'action="/es/search/"' in page(out, "/es/search/")
     assert 'data-index="/es/streets/streets.json' in page(out, "/es/streets/")
 
 
@@ -237,7 +240,7 @@ def test_street_index_links_the_language_pages():
 
 
 @pytest.mark.parametrize("script, url, root", [
-    ("search.js", "/meetings/search/", "search"), ("streets.js", "/streets/", "street"),
+    ("search.js", "/search/", "search"), ("streets.js", "/streets/", "street"),
     ("map.js", "/311/", "map-recent"), ("wards.js", "/officials/", "ward-map"),
     ("address.js", "/officials/", "address"),
 ])

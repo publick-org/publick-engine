@@ -10,7 +10,8 @@
   canonical_url, ["/data/meetings.json"] + (["/meetings/data/decisions.csv"] if documents and meetings.decided else []),
   start=meetings.all[0].date if meetings.all else none, end=meetings.all[-1].date if meetings.all else none)) }}{% endif %}{% endblock %}
 {% block content %}
-<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/about/">{{ _("About") }}</a></li></ol></nav>
+{# A tab under Data where the town has meetings (build_site.site_nav); otherwise a page under About. #}
+{% if config.meetings is not defined %}<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb"><ol><li><a href="/about/">{{ _("About") }}</a></li></ol></nav>{% endif %}
 <h1>{{ _("Data") }}</h1>
 <p class="lede">{% trans site=site.name %}What {{ site }} collects, as files you can download and reuse. They're rebuilt every morning with the site.{% endtrans %}</p>
 

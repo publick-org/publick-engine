@@ -8,6 +8,7 @@ import pytest
 from conftest import BUILT_AT, FETCHED_AT
 from fakes import FakeAnthropic, FakeCityClient
 from test_summarize import logged
+from pipeline import search_index as site_search
 from pipeline import build_site, fetch_meetings, fetch_minutes, i18n, summarize, translate
 from pipeline.config import load_config
 
@@ -228,8 +229,8 @@ def test_spanish_pages_show_the_translation(tmp_path, monkeypatch):
     english = (out / minutes[0].relative_to(out / "es")).read_text()
     assert "Translated automatically" not in english and "en inglés" not in english
     assert "<p class=\"summary\">The board approved a site plan for 12 Main St.</p>" in english and "ES " not in english
-    index = json.loads((out / "es" / "meetings" / "search-index.json").read_text())
-    assert any(d["text"].startswith("ES ") for row in index for d in row["docs"])
+    # The Spanish search finds the meeting by its translated summary.
+    assert any("ES The board aprobó" in r["content"] for r in site_search.results(out, "es"))
 
 
 def test_untranslated_summaries_are_shown_in_english(tmp_path, monkeypatch):

@@ -43,6 +43,7 @@ from pipeline import dnn
 from pipeline import legistar
 from pipeline import meeting_sources
 from pipeline import primegov
+from pipeline import search_index as site_search
 from pipeline import factcheck
 from pipeline import listings
 from pipeline import meeting_calendar
@@ -73,7 +74,11 @@ STATIC_DIR = SITE_DIR / "static"
 # Built but kept out of the sitemap.
 UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
 # Page folders built for every town, whether or not they are in the navigation.
-SHARED_FOLDERS = {"streets", "data"}
+SHARED_FOLDERS = {"streets", "data", "search"}
+# The site's search (site/pages/search/, pipeline/search_index.py), the last item in the menu, and the open data
+# export, a tab under Data.
+SEARCH_PAGE = "/search/"
+DATA_PAGE = "/data/"
 # Page folders built in English only, for now, on a site in more languages: they link no other version.
 ENGLISH_ONLY_FOLDERS = {"digest", "alerts"}
 # Their pages built in every language all the same: where the digest's signup form leads, as the form is on
@@ -1329,7 +1334,10 @@ def page_sources(config: dict) -> list[dict]:
 
 
 # Pages about agendas and minutes, left out for a town that doesn't collect them yet.
-DOCUMENT_PAGES = {"meetings/decisions/index.html", "meetings/search/index.html"}
+DOCUMENT_PAGES = {"meetings/decisions/index.html"}
+# Pages that have moved, each to where it is now: the meetings' search, which a town that collects agendas and
+# minutes had, became the site's (SEARCH_PAGE).
+MOVED_PAGES = {"/meetings/search/": "/search/"}
 # The glossary's page, for a town whose glossary has terms (pipeline/glossary.py).
 GLOSSARY_PAGE = "meetings/glossary/index.html"
 # The repeat locations' page and map, for a 311 source with map points (pipeline/source_311.py).
@@ -1337,43 +1345,9 @@ REPEATS_PAGE = "311/repeat-locations/index.html"
 
 
 def doc_text(doc: dict | None) -> str:
-    """A document's text for search, the street lookup, and the glossary: its readable
+    """A document's text for the street lookup and the glossary: its readable
     text, or, before it has one, its PDF's plain text."""
     return (doc or {}).get("transcript") or (doc or {}).get("plain_text") or ""
-
-
-def plain_text(transcript: str | None) -> str:
-    """Markdown transcript -> plain lines, for search."""
-    lines = (re.sub(r"\s+", " ", re.sub(r"[*_`#>|]+", " ", line)).strip() for line in (transcript or "").splitlines())
-    return "\n".join(line for line in lines if line)
-
-
-def search_index(meetings: list[dict], prefix: str = "") -> list[dict]:
-    """Every meeting's board, date, and document text, for /meetings/search/. prefix is
-    the language's (/es) for its links."""
-    rows = []
-    for m in meetings:
-        docs = []
-        if m["preview"]:
-            docs.append({"kind": _("Agenda"), "text": plain_text(doc_text(m["preview"]))})
-        ms = m["minutes_summary"]
-        if ms:
-            docs.append({"kind": _("Minutes") if ms.get("is_minutes", True) else _("Agenda"),
-                         "text": plain_text(doc_text(ms))})
-        rs = m["recording_summary"]
-        if rs:
-            docs.append({"kind": _("Recording"), "text": "\n".join(
-                line for f in translate.FIELDS["recording"] for line in ([rs[f]] if isinstance(rs.get(f), str) else rs.get(f) or [])
-                if line)})
-        # Another language's search also finds the meeting by its translated summaries.
-        for kind, record in (("agenda", m["preview"]), ("minutes", m["minutes_summary"])):
-            if record and record.get("translated"):
-                text = "\n".join(line for f in translate.FIELDS[kind]
-                                  for line in ([record[f]] if isinstance(record[f], str) else record[f]) if line)
-                docs.append({"kind": _("Summary"), "text": text})
-        rows.append({"url": prefix + m["url"], "board": m["body"], "date": m["date"],
-                     "date_text": format_date(m["date"]), "docs": [d for d in docs if d["text"]]})
-    return rows[::-1]
 
 
 def group_by(meetings: list[dict], period: str) -> list[tuple]:
@@ -1451,24 +1425,27 @@ def preview_line(meeting: dict) -> str | None:
 
 
 def site_nav(page_url: str, sections: list[dict], street_sources: str, documents: bool) -> dict:
-    """The menu and the tabs of the group a page is in. The menu is the week and three groups, each named for what
-    a reader comes for: City Hall (meetings, decisions, boards, officials), Your street (the street lookup, 311),
-    and The city (budget, schools, housing), with only the pages the town has. A group's menu item goes to its
-    first page. The tabs show on each of a group's own pages; a page under one (a meeting, a board, a 311
+    """The menu and the tabs of the group a page is in. The menu is Home, three groups, each named for what a reader
+    comes for: City Hall (meetings, decisions, boards, officials), Neighborhood (the street lookup, 311), and Data
+    (budget, schools, housing, and the downloads), with only the pages the town has, and Search. A group's menu item
+    goes to its first page. The tabs show on each of a group's own pages; a page under one (a meeting, a board, a 311
     category) has a breadcrumb instead. Each entry is (href, label, current), current being an aria-current
-    value: "page" on the page itself, "true" on its group's item from a page under it."""
+    value: "page" on the page itself, "true" on its group's item from a page under it. The labels are one or two
+    words, so the menu and its search icon fit on one line on a 320-pixel phone, in Spanish too."""
     slugs = {s["slug"] for s in sections}
     groups = [
         (_("City Hall"), [("/meetings/", _("Meetings"))] * ("meetings" in slugs)
          + [("/meetings/decisions/", _("Decisions"))] * ("meetings" in slugs and documents)
          + [("/meetings/boards/", _("Boards"))] * ("meetings" in slugs)
          + [("/officials/", _("Officials"))] * ("officials" in slugs)),
-        (_("Your street"), [("/streets/", _("Look up a street"))] * bool(street_sources)
+        (pgettext("menu", "Neighborhood"), [("/streets/", _("Look up a street"))] * bool(street_sources)
          + [("/311/", pgettext("menu", "311 requests"))] * ("311" in slugs)),
-        (_("The city"), [("/budget/", _("Budget & taxes"))] * ("budget" in slugs)
-         + [("/schools/", _("Schools"))] * ("schools" in slugs) + [("/housing/", _("Housing"))] * ("housing" in slugs)),
+        (pgettext("menu", "Data"), [("/budget/", _("Budget & taxes"))] * ("budget" in slugs)
+         + [("/schools/", _("Schools"))] * ("schools" in slugs) + [("/housing/", _("Housing"))] * ("housing" in slugs)
+         # The open data export (/data/), which every town with meetings has.
+         + [(DATA_PAGE, pgettext("menu", "Downloads"))] * ("meetings" in slugs)),
     ]
-    menu, tabs = [("/", _("This week"), "page" if page_url == "/" else None)], []
+    menu, tabs = [("/", pgettext("menu", "Home"), "page" if page_url == "/" else None)], []
     for label, items in groups:
         if not items:
             continue
@@ -1477,6 +1454,7 @@ def site_nav(page_url: str, sections: list[dict], street_sources: str, documents
         menu.append((hrefs[0], label, current))
         if page_url in hrefs:
             tabs = [(href, name, "page" if page_url == href else None) for href, name in items]
+    menu.append((SEARCH_PAGE, pgettext("menu", "Search"), "page" if page_url == SEARCH_PAGE else None))
     return {"menu": menu, "tabs": tabs}
 
 
@@ -1757,24 +1735,28 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     bucket_data.pull(config, data_dir)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     langs = languages(config)
-    urls, redirects = {}, {}
+    urls, redirects, search_records = {}, {}, []
     for lang in langs:
         tr = TownStrings(config, lang, translate.drafts(data_dir, lang))
         with i18n.use(lang, town_kind(config, data_dir)):
             urls.update(build_language(config, lang, langs, out_dir, data_dir, built_at, town_static, tr, share_cards, redirects,
-                                       problems if lang == "en" else None))
+                                       problems if lang == "en" else None, search_records))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
     write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, redirects)
+    # The site's search, from every language's pages and decisions (pipeline/search_index.py).
+    site_search.write(out_dir, search_records)
     return urls
 
 
 def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, data_dir: Path, built_at: datetime,
                    town_static: Path, tr: TownStrings, share_cards: bool = False,
-                   redirects: dict[str, str] | None = None, problems: list | None = None) -> dict[str, str | None]:
+                   redirects: dict[str, str] | None = None, problems: list | None = None,
+                   search_records: list[dict] | None = None) -> dict[str, str | None]:
     """One language's pages, and with English the files every language shares. redirects, if given,
     gets each moved page's address, to the address it sends readers to (write_support_files). problems, if
-    given, gets the corrections not shown."""
+    given, gets the corrections not shown. search_records, if given, gets each decision, for the site's search
+    (pipeline/search_index.py)."""
     town = config["slug"]
     site = config["site"]
     # Where this language's pages are: "" for English, "/es" for Spanish.
@@ -1944,9 +1926,6 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
 
     own_hosts = {site["domain"], "www." + site["domain"]}
     sections = config["sections"]
-    # Newest first; the version in the URL changes whenever the text does.
-    search_json = json.dumps(search_index(meetings["all"], prefix), ensure_ascii=False, separators=(",", ":"))
-    search_url = f"{prefix}/meetings/search-index.json?v={hashlib.sha256(search_json.encode()).hexdigest()[:10]}"
     permits_path = data_dir / "permits" / "permits.json"
     permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
     requests_path = data_dir / "311" / "requests.json"
@@ -2001,7 +1980,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     translation_models = models_shown(translate.settings(config)["model"], [
         t for other in langs if other != "en" for kind, doc, record in shown
         for t in [translate.shown(data_dir, other, doc["sha256"], record, kind, terms)] if t])
-    common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_url=search_url, wards=wards,
+    common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_page=SEARCH_PAGE, wards=wards,
                   areas=officials_mod.areas(config),
                   # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
                   has_areas=source_311.has_areas(config),
@@ -2040,8 +2019,17 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                     for code in langs] if len(langs) > 1 and (section_slug not in ENGLISH_ONLY_FOLDERS or url in EVERY_LANGUAGE_PAGES) else []
         for v in versions:
             v["url"] = base_url + v["path"]
+        # What the site's search gets from the page (pipeline/search_index.py): whether it's in the index, its kind,
+        # and for a page other than a meeting's, where it sits in the menu ("Data › Budget & taxes").
+        searchable = site_search.searchable(url, template, UNLISTED_PAGES)
+        crumb = None
+        if searchable and template != "meeting.html":
+            nav = common["site_nav"](url)
+            crumb = " › ".join([label for _href, label, current in nav["menu"] if current][:1]
+                               + [label for _href, label, current in nav["tabs"] if current])
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
+            searchable=searchable, search_kind="meeting" if template == "meeting.html" else "page", search_crumb=crumb,
             # Each term's first use on the page, linked to the glossary's page; a meeting's page links the terms it uses.
             gloss=glossary.Linker(context["meeting"]["glossary"] if "meeting" in context else terms, lang),
             behind=absences.section_behind(common["data_status"], section_slug),
@@ -2075,6 +2063,10 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         url = url_for(rel)
         render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
 
+    if documents:
+        for old, new in MOVED_PAGES.items():
+            render("moved.html", old, canonical=new, page_name=_("Search"), moved_page=new)
+
     # Each recent and upcoming meeting's card for social media, with the English pages: another
     # language's keep the town's share image.
     if english and share_cards and "meetings" in config:
@@ -2091,6 +2083,13 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     if "meetings" in config:
         for m in meetings["all"]:
             render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m, share_card=m.get("share_card"))
+            # Its decisions, each a result of the site's search, linking them on its page.
+            if search_records is not None:
+                taken: set[str] = set()
+                search_records.extend(
+                    site_search.decision_record(d, site_search.decision_url(prefix + m["url"], d, taken), m["body"],
+                                                format_date(m["date"]), lang)
+                    for kind in ("decided", "recommended") for d in m.get("decisions", {}).get(kind, []))
             # The address of a listing shown as part of another meeting sends readers there.
             for n, also in enumerate(m["also_urls"], 1):
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
@@ -2150,7 +2149,6 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         # and the calendar are each language's own.
         if documents:
             (out_dir / prefix.lstrip("/") / "meetings").mkdir(parents=True, exist_ok=True)
-            (out_dir / prefix.lstrip("/") / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
             write_feed(out_dir / prefix.lstrip("/") / "feed.xml", meetings["all"], config, base_url, built_at, prefix)
         if "meetings" in config:
             meeting_calendar.write(out_dir / prefix.lstrip("/") / "meetings" / "calendar.ics", meetings["all"], config, base_url,
@@ -2174,7 +2172,6 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             src = data_dir / "meetings" / folder
             if src.exists():
                 shutil.copytree(src, out_dir / "meetings" / folder)
-        (out_dir / "meetings" / "search-index.json").write_text(search_json, encoding="utf-8")
         write_feed(out_dir / "feed.xml", meetings["all"], config, base_url, built_at)
     if "meetings" in config:
         meeting_calendar.write(out_dir / "meetings" / "calendar.ics", meetings["all"], config, base_url, built_at)
