@@ -214,13 +214,20 @@
 </p>
 {%- endmacro %}
 
-{% macro search_form() -%}
-<form class="search-form site-search" role="search" action="/meetings/search/" method="get">
-  <label for="search-q">{{ _("Search agendas and minutes") }}</label>
-  <div class="search-row">
-    <input id="search-q" name="q" type="search" autocomplete="off" spellcheck="false">
-    <button class="button" type="submit">{{ _("Search") }}</button>
+{#- The site's search (site/pages/search/) as one line, like the digest's signup: on the home page under what was
+    decided, and on the meetings page. form_id tells their fields apart; documents, whether the town's agendas and
+    minutes are collected, for the note to say what it searches. -#}
+{% macro search_form(form_id, site_name, documents) -%}
+<form class="line-form site-search" role="search" action="/search/" method="get">
+  <div class="line-row">
+    {# Translators: %(site)s is the site's name, such as "Gloucester Publick". #}
+    <label for="{{ form_id }}">{{ _("Search %(site)s", site=site_name) }}</label>
+    <div class="search-row">
+      <input id="{{ form_id }}" name="q" type="search" autocomplete="off" spellcheck="false" placeholder="{{ _('A street, project, topic, or official') }}" aria-describedby="{{ form_id }}-note">
+      <button class="button" type="submit">{{ _("Search") }}</button>
+    </div>
   </div>
+  <p class="small" id="{{ form_id }}-note">{% if documents %}{{ _("Searches the whole site: what was decided at meetings, their agendas and minutes, and every other page.") }}{% else %}{{ _("Searches the whole site: its meetings and every other page.") }}{% endif %}</p>
 </form>
 {%- endmacro %}
 

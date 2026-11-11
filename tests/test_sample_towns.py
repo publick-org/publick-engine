@@ -28,6 +28,7 @@ from test_finalsite import MINUTES_DOC, finalsite_meetings
 from test_nh import FakeCity, FakeParcels, run_extract
 from test_nh import manchester as in_new_hampshire
 
+from pipeline import search_index as site_search
 from pipeline import (build_site, identity, fetch_budget, fetch_finance, fetch_finalsite_meetings, fetch_meetings, fetch_minutes,
                       fetch_schools, summarize)
 from pipeline.config import load_config
@@ -193,11 +194,11 @@ def test_site_passes_gloucesters_checks(town_site, check):
 
 def test_every_section_is_built(town_site):
     sections = {s["slug"] for s in town_site.config["sections"]}
-    for folder in ("meetings/past", "meetings/boards", "meetings/decisions", "meetings/search", "311", "budget", "schools",
-                   "housing", "streets", "about"):
-        if folder.split("/")[0] in sections | {"streets"}:
+    for folder in ("meetings/past", "meetings/boards", "meetings/decisions", "311", "budget", "schools",
+                   "housing", "streets", "about", "search"):
+        if folder.split("/")[0] in sections | {"streets", "search"}:
             assert (town_site.dir / folder / "index.html").exists(), folder
-    assert (town_site.dir / "feed.xml").exists() and (town_site.dir / "meetings" / "search-index.json").exists()
+    assert (town_site.dir / "feed.xml").exists() and site_search.check(town_site.dir) == []
     assert "Gloucester" not in page(town_site, "/meetings/")
 
 

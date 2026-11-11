@@ -1,11 +1,15 @@
 {% extends "base.html" %}
-{# The page of a meeting listing now shown as part of another meeting, or of a board now shown under
-   another of its names (pipeline/identity.py). The network's Worker answers its address with a
+{# The page of a meeting listing now shown as part of another meeting, of a board now shown under
+   another of its names (pipeline/identity.py), or one of the site's pages now at another address
+   (build_site.MOVED_PAGES, page_name). The network's Worker answers its address with a
    permanent redirect (redirects.json, pipeline/deploy.py); on any other host this page sends readers on. #}
 {% set m = meeting %}
 {% block title %}{% if board is defined %}
 {#- Translators: the title of a board's page that has moved; %(board)s is a board's name, such as "City Council". -#}
 {% trans board=board.name %}{{ board }} meetings: moved{% endtrans %}
+{%- elif page_name is defined %}
+{#- Translators: the title of a page that has moved; %(page)s is its name, such as "Search". -#}
+{% trans page=page_name %}{{ page }}: moved{% endtrans %}
 {%- else %}
 {#- The day, and which of the board's meetings that day, as the meeting's own page tells them apart
     (build_site: same_day, day_part), so two meetings' moved pages never share a title. -#}
@@ -22,6 +26,9 @@
 {% if board is defined %}
 <h1>{{ _("This board's page has moved") }}</h1>
 <p>{% trans url=board.url, name=board.name %}This board is listed under more than one name. Its meetings are now shown on one page: <a href="{{ url }}">{{ name }}</a>.{% endtrans %}</p>
+{% elif page_name is defined %}
+<h1>{{ _("This page has moved") }}</h1>
+<p>{% trans url=moved_page, page=page_name %}It's now at <a href="{{ url }}">{{ page }}</a>.{% endtrans %}</p>
 {% else %}
 <h1>{{ _("This meeting's page has moved") }}</h1>
 <p>{% trans url=m.url, title=m.title, when=m.date | date %}This meeting was listed more than once. It is now shown on one page: <a href="{{ url }}">{{ title }}, {{ when }}</a>.{% endtrans %}</p>

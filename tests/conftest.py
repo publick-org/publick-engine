@@ -104,9 +104,11 @@ def _build_fixture_site() -> Path:
 FIXTURE_BASE = _build_fixture_site()
 SITE_DIR = FIXTURE_BASE / "site"
 DATA_DIR = FIXTURE_BASE / "data"
-# Every built page, as a URL path, plus an unknown path for the 404 page.
+# Every built page, as a URL path, but a moved page, which sends the browser on (the page it points to is
+# checked).
 PAGE_PATHS = sorted(
-    build_site.url_for(p.relative_to(SITE_DIR)) for p in SITE_DIR.rglob("*.html") if p.name != "404.html"
+    build_site.url_for(p.relative_to(SITE_DIR)) for p in SITE_DIR.rglob("*.html")
+    if p.name != "404.html" and 'http-equiv="refresh"' not in p.read_text(encoding="utf-8")
 )
 
 

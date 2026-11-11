@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 import pytest
 
 from pipeline import build_site, i18n, structured
+from pipeline import search_index as site_search
 
 
 class PageParser(HTMLParser):
@@ -312,19 +313,47 @@ def test_schools_page(site_dir):
     assert 'href="/schools/"' in (site_dir / "budget" / "index.html").read_text()
 
 
-def test_meeting_search_index(site_dir):
-    page = (site_dir / "meetings" / "search" / "index.html").read_text()
-    url = re.search(r'data-index="([^"]+)"', page).group(1)
-    assert url.startswith("/meetings/search-index.json?v=")
-    index = json.loads((site_dir / "meetings" / "search-index.json").read_text())
-    assert index and all(m["url"].startswith("/meetings/") and m["board"] and m["date"] for m in index)
-    assert [m["date"] for m in index] == sorted((m["date"] for m in index), reverse=True)
-    assert any(d["text"] and "**" not in d["text"] for m in index for d in m["docs"])
-    assert 'action="/meetings/search/"' in (site_dir / "meetings" / "index.html").read_text()
+def test_site_search_page(site_dir):
+    """The search page: its box, its script, searches to try from the town's own data, and WebAssembly allowed for
+    Pagefind on it alone. The meetings page's and the home page's forms lead to it."""
+    page = (site_dir / "search" / "index.html").read_text()
+    assert 'id="search-q" name="q"' in page and "/static/js/search.js?v=" in page
+    assert "'wasm-unsafe-eval'" in page and "'wasm-unsafe-eval'" not in (site_dir / "index.html").read_text()
+    tries = re.findall(r'<ul class="search-try"[^>]*>(.*?)</ul>', page, re.S)[0]
+    assert ">tax rate</a>" in tries and ">City Council</a>" in tries
+    for path in ("index.html", "meetings/index.html"):
+        assert 'action="/search/"' in (site_dir / path).read_text(), path
+    # The meetings' own search moved to it; the Worker sends its address on, with its ?q=.
+    assert json.loads((site_dir / build_site.REDIRECTS_FILE).read_text())["/meetings/search/"] == "/search/"
 
 
-def test_plain_text():
-    assert build_site.plain_text("# Agenda\n\n**1.** Call to order  |  x\n") == "Agenda\n1. Call to order x"
+def test_search_index(site_dir):
+    """Pagefind's index of the site, within its size limit, with only the files the search page uses; pages give it
+    their main content and kind, and each decision is a result of its own, at its own address."""
+    assert site_search.check(site_dir) == []
+    assert not (site_dir / "pagefind" / "pagefind-ui.js").exists()
+    results = site_search.results(site_dir, "en")
+    kinds = {r["filters"]["kind"][0] for r in results}
+    assert kinds == {"decision", "meeting", "page"}
+    decisions = [r for r in results if r["filters"]["kind"] == ["decision"]]
+    assert len({r["url"] for r in decisions}) == len(decisions)
+    assert all(re.match(r"/meetings/[^/]+/#minutes:~:text=", r["url"]) and r["meta"]["date"] for r in decisions)
+    urls = {r["url"] for r in results}
+    assert "/" not in urls and "/search/" not in urls and not any(u.startswith("/digest/") for u in urls)
+    [budget] = [r for r in results if r["url"] == "/budget/"]
+    assert budget["meta"]["crumb"] == "Data › Budget & taxes"
+    # A meeting is found by its own text, not its decisions, which are results of their own.
+    meeting = next(r for r in results if r["filters"]["kind"] == ["meeting"])
+    assert not any(d["content"] in meeting["content"] for d in decisions if d["url"].startswith(meeting["url"]))
+
+
+def test_decision_urls_are_each_their_own():
+    taken = set()
+    first = site_search.decision_url("/m/", "Approved the budget for the schools, 7-0.", taken)
+    second = site_search.decision_url("/m/", "Approved the budget for the schools, 5-2.", taken)
+    assert first == "/m/#minutes:~:text=Approved%20the%20budget%20for%20the%20schools%2C"
+    assert second != first and second.startswith(first.replace("%2C", ""))
+    assert site_search.decision_url("/m/", "Approved the budget for the schools, 7-0.", taken) not in (first, second)
 
 
 def test_budget_page(site_dir):
@@ -899,7 +928,7 @@ def test_home_and_downloads_for_search_engines(site_dir):
     decided = (meetings / "decisions" / "index.html").read_text()
     assert "<title>Gloucester, MA votes and decisions from meeting minutes</title>" in decided
     assert "<title>Gloucester, MA 311 requests and response times</title>" in (site_dir / "311" / "index.html").read_text()
-    assert "<title>Gloucester, MA agendas and minutes: search</title>" in (meetings / "search" / "index.html").read_text()
+    assert "<title>Search Gloucester Publick</title>" in (site_dir / "search" / "index.html").read_text()
     # A page that isn't one people search for by topic keeps the site's name after its own.
     assert "<title>About | Gloucester Publick</title>" in (site_dir / "about" / "index.html").read_text()
     [site] = structured_data(site_dir / "index.html")
@@ -1130,26 +1159,33 @@ def menu_and_tabs(page: str) -> tuple[list, list]:
 
 
 def test_the_menu_and_its_tabs(site_dir):
-    """The menu is the week and three groups, each going to its first page; each group's pages are tabs on each
-    of them, and a page under one marks its group but has no tabs (it has a breadcrumb)."""
+    """The menu is Home, three groups, each going to its first page, and Search; each group's pages are tabs on
+    each of them, and a page under one marks its group but has no tabs (it has a breadcrumb)."""
     read = lambda url: (site_dir / url.lstrip("/") / "index.html").read_text()
     menu, tabs = menu_and_tabs(read("/"))
-    assert menu == [("/", "This week", "page"), ("/meetings/", "City Hall", None), ("/streets/", "Your street", None),
-                    ("/budget/", "The city", None)]
+    assert menu == [("/", "Home", "page"), ("/meetings/", "City Hall", None), ("/streets/", "Neighborhood", None),
+                    ("/budget/", "Data", None)]
     assert tabs == []
+    # Search, last: a magnifier, and its name, which a phone leaves to screen readers.
+    assert re.search(r'<li><a href="/search/" class="nav-search"><svg [^>]*aria-hidden="true"[^>]*>.*?</svg><span>Search</span></a></li>\s*</ul>',
+                     read("/"), re.S)
+    assert '<a href="/search/" aria-current="page" class="nav-search">' in read("/search/")
     menu, tabs = menu_and_tabs(read("/meetings/decisions/"))
     assert ("/meetings/", "City Hall", "true") in menu
     assert tabs == [("/meetings/", "Meetings", None), ("/meetings/decisions/", "Decisions", "page"),
                     ("/meetings/boards/", "Boards", None), ("/officials/", "Officials", None)]
     assert [t[0] for t in menu_and_tabs(read("/officials/"))[1]] == [t[0] for t in tabs]
     menu, tabs = menu_and_tabs(read("/311/"))
-    assert ("/streets/", "Your street", "true") in menu
+    assert ("/streets/", "Neighborhood", "true") in menu
     assert tabs == [("/streets/", "Look up a street", None), ("/311/", "311 requests", "page")]
     menu, tabs = menu_and_tabs(read("/housing/"))
-    assert ("/budget/", "The city", "true") in menu and ("/housing/", "Housing", "page") in tabs
+    assert ("/budget/", "Data", "true") in menu and ("/housing/", "Housing", "page") in tabs
+    # The downloads are the last tab under Data, and mark it on their own page.
+    assert tabs[-1] == ("/data/", "Downloads", None)
+    assert ("/budget/", "Data", "true") in menu_and_tabs(read("/data/"))[0]
     # A meeting's page, a board's, and a 311 category's mark their group, with a breadcrumb rather than tabs.
     for url, group in (("/meetings/2026-09-28-human-rights-commission/", "City Hall"),
-                       ("/meetings/boards/city-council/", "City Hall"), ("/311/methodology/", "Your street")):
+                       ("/meetings/boards/city-council/", "City Hall"), ("/311/methodology/", "Neighborhood")):
         menu, tabs = menu_and_tabs(read(url))
         assert [m[1] for m in menu if m[2]] == [group] and tabs == [], url
         assert 'class="breadcrumb"' in read(url), url
@@ -1161,16 +1197,17 @@ def test_the_menu_has_only_the_towns_pages():
     """A group with none of its pages isn't in the menu, and a group goes to the first page it has."""
     sections = [{"slug": "meetings"}, {"slug": "housing"}]
     nav = build_site.site_nav("/housing/", sections, "", documents=False)
-    assert nav["menu"] == [("/", "This week", None), ("/meetings/", "City Hall", None), ("/housing/", "The city", "page")]
-    assert nav["tabs"] == [("/housing/", "Housing", "page")]
+    assert nav["menu"] == [("/", "Home", None), ("/meetings/", "City Hall", None), ("/housing/", "Data", "page"),
+                           ("/search/", "Search", None)]
+    assert nav["tabs"] == [("/housing/", "Housing", "page"), ("/data/", "Downloads", None)]
     assert build_site.site_nav("/meetings/", sections, "", documents=False)["tabs"] == [
         ("/meetings/", "Meetings", "page"), ("/meetings/boards/", "Boards", None)]
     nav = build_site.site_nav("/311/", [{"slug": "311"}], "", documents=False)
-    assert nav["menu"][1] == ("/311/", "Your street", "page")
-    # A town's site says Town Hall and The town.
+    assert nav["menu"][1] == ("/311/", "Neighborhood", "page")
+    # A town's site says Town Hall.
     with i18n.use("en", "town"):
         assert [m[1] for m in build_site.site_nav("/", sections + [{"slug": "budget"}], "", False)["menu"]] == [
-            "This week", "Town Hall", "The town"]
+            "Home", "Town Hall", "Data", "Search"]
 
 
 def test_decisions_fold_earlier_months(site_dir):

@@ -34,7 +34,7 @@
   <meta name="twitter:card" content="summary_large_image">
   {% endif %}
   {% set counter = "https://" ~ config.analytics.goatcounter ~ ".goatcounter.com" if config.get("analytics", {}).get("goatcounter") else "" %}
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; font-src 'self'; connect-src 'self'{% if counter %} {{ counter }}{% endif %}; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'{% if page_url == search_page %} 'wasm-unsafe-eval'{% endif %}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; font-src 'self'; connect-src 'self'{% if counter %} {{ counter }}{% endif %}; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#ffffff">
   <link rel="preload" href="{{ "/static/fonts/public-sans-400.woff2" | versioned }}" as="font" type="font/woff2" crossorigin>
@@ -72,18 +72,24 @@
       <a class="brand" href="/"{% if page_url == "/" %} aria-current="page"{% endif %}>{{ site.name_prefix }}<span>{{ site.name_suffix }}</span></a>
       <p class="masthead-line">{{ site.masthead }}</p>
     </div>
-    {# The menu: the week, and the groups of the site's pages (build_site.py site_nav). #}
+    {# The menu: Home, the groups of the site's pages, and Search, its label hidden on a phone (build_site.py site_nav). #}
     {% set nav = site_nav(page_url) %}
     <nav class="site-nav" aria-label="{{ _("Main") }}">
       <div class="wrap">
         <ul class="nav-list">
-          {% for href, label, current in nav.menu %}<li><a href="{{ href }}"{% if current %} aria-current="{{ current }}"{% endif %}>{{ label }}</a></li>{% endfor %}
+          {% for href, label, current in nav.menu %}<li><a href="{{ href }}"{% if current %} aria-current="{{ current }}"{% endif %}
+          {%- if href == search_page %} class="nav-search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg><span>{{ label }}</span>
+          {%- else %}>{{ label }}{% endif %}</a></li>{% endfor %}
         </ul>
       </div>
     </nav>
   </header>
 
-  <main id="main" tabindex="-1">
+  {# A page in the site's search gives it its main content, its kind, and where it sits in the menu
+     (pipeline/search_index.py). Search runs WebAssembly, which the policy above allows on its page alone. #}
+  <main id="main" tabindex="-1"{% if searchable %} data-pagefind-body{% endif %}>
+    {% if searchable %}<span hidden data-pagefind-ignore data-pagefind-filter="kind">{{ search_kind }}</span>
+    {%- if search_crumb %}<span hidden data-pagefind-ignore data-pagefind-meta="crumb">{{ search_crumb }}</span>{% endif %}{% endif %}
     <div class="wrap">
       {# The group's pages as tabs, on each of them; the pages under them have a breadcrumb instead. #}
       {% if nav.tabs %}

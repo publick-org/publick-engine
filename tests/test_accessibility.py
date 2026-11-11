@@ -161,18 +161,25 @@ def test_unknown_path_serves_404_page(browser, server_url):
 
 
 @pytest.mark.parametrize("viewport", VIEWPORTS)
-def test_meeting_search_results(browser, axe, server_url, viewport):
+def test_site_search_results(browser, axe, server_url, viewport):
+    """The search page runs Pagefind under the page's own security policy, shows results by kind with their words
+    marked and a filter, and says when nothing matches."""
     context = browser.new_context(viewport=VIEWPORTS[viewport])
     page = context.new_page()
-    page.goto(server_url + "/meetings/search/?q=ada+compliance")
-    page.wait_for_selector("#search-results > li")
-    assert "match" in page.text_content("#search-status")
-    assert page.locator("#search-results mark").first.text_content().lower() in ("ada", "compliance")
+    errors = []
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    page.goto(server_url + "/search/?q=ada+compliance")
+    page.wait_for_selector(".search-group li")
+    assert "result" in page.text_content("#search-status")
+    assert page.locator(".search-group mark").first.text_content().lower().startswith(("ada", "compliance"))
     assert page.input_value("#search-q") == "ada compliance"
+    assert page.locator('.search-filters button[aria-pressed="true"]').count() == 1
+    assert page.locator(".search-more:visible").count() <= page.locator(".search-group").count()
     results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
-    page.goto(server_url + "/meetings/search/?q=zzzqqq")
-    wait_until(page, "document.getElementById('search-status').textContent.startsWith('No meetings')", timeout=10)
+    page.goto(server_url + "/search/?q=zzzqqq")
+    wait_until(page, "document.getElementById('search-status').textContent.startsWith('Nothing on the site')", timeout=10)
+    assert not errors, errors
     context.close()
     assert results.violations_count == 0, format_violations(results)
     assert overflow <= 0

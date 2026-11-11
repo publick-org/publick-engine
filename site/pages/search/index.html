@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{# The site's search (pipeline/search_index.py, site/static/js/search.js): a box, what it searches, and a few searches
+   to try, from the town's own data; then the results as they're typed, decisions first, then pages, then meetings,
+   with a filter by kind. ?q= is the search, so a search from the home page, or a link to one, opens with its results. #}
+{% block title %}{{ _("Search") }}{% endblock %}
+{# Translators: the page's title in search results: %(site)s is the site's name, such as "Gloucester Publick". #}
+{% block head_title %}{% trans site=site.name %}Search {{ site }}{% endtrans %}{% endblock %}
+{# Translators: %(town)s is the town's name. #}
+{% block description %}{% if meeting_links.documents %}{% trans town=town.name %}Search {{ town }}'s meetings, decisions, agendas, and minutes, and the rest of the site.{% endtrans %}{% else %}{% trans town=town.name %}Search {{ town }}'s meetings and the rest of the site.{% endtrans %}{% endif %}{% endblock %}
+{% block head %}<script src="{{ "/static/js/search.js" | versioned }}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head search-page">
+  <h1>{{ _("Search") }}</h1>
+  <form class="search-big" role="search" action="{{ page_url }}" method="get">
+    {# Translators: %(site)s is the site's name, such as "Gloucester Publick". #}
+    <label class="visually-hidden" for="search-q">{{ _("Search %(site)s", site=site.name) }}</label>
+    <div class="search-row">
+      <input id="search-q" name="q" type="search" autocomplete="off" spellcheck="false" autofocus placeholder="{{ _('A street, project, topic, or official') }}">
+      <button class="button button-primary" type="submit">{{ _("Search") }}</button>
+    </div>
+  </form>
+</div>
+
+{# Searches to try: the city's own words for things every town has, the street with the most on it, the governing body,
+   and the board that most recently decided something, none of them typed by hand for a town. #}
+{% set ns = namespace(tries=[]) %}
+{% if sections | selectattr("slug", "equalto", "budget") | list %}{% set ns.tries = ns.tries + [_("tax rate")] %}{% endif %}
+{% if street_example %}{% set ns.tries = ns.tries + [street_example] %}{% endif %}
+{% if config.meetings is defined %}
+{% set ns.tries = ns.tries + [meeting_links.governing_body] %}
+{% for m in meetings.decided if m.body != meeting_links.governing_body %}{% if loop.first %}{% set ns.tries = ns.tries + [m.body] %}{% endif %}{% endfor %}
+{% endif %}
+<div id="search-start">
+  <p class="search-covers">{% if meeting_links.documents %}{% trans site=site.name %}Searches all of {{ site }}: meetings and what they decided, their agendas and minutes, and every other page, from officials to the budget.{% endtrans %}{% else %}{% trans site=site.name %}Searches all of {{ site }}: its meetings, and every other page, from officials to the budget.{% endtrans %}{% endif %}</p>
+  {% if ns.tries %}
+  <h2 class="search-try-head" id="try">{{ _("Try") }}</h2>
+  <ul class="search-try" aria-labelledby="try">
+    {% for t in ns.tries | unique %}<li><a href="{{ page_url }}?q={{ t | urlencode }}">{{ t }}</a></li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+
+{# Translators: the search's messages and labels. {query} is what was searched for, in quotation marks, and {n} a number; keep each {name} as it is. #}
+{% set strings = {
+  "all": _("All"),
+  "decision": _("Decisions"),
+  "page": _("Pages"),
+  "meeting": _("Meetings"),
+  "count": _("{label} {n}"),
+  "matches_one": ngettext("{n} result for {query}.", "{n} results for {query}.", 1),
+  "matches_other": ngettext("{n} result for {query}.", "{n} results for {query}.", 2),
+  "none": _("Nothing on the site matches {query}. Try fewer or different words."),
+  "more": _("Show more"),
+  "searching": _("Searching…"),
+  "failed": _("Search couldn't load. Please try again later."),
+  "filter": _("Show"),
+} %}
+<div id="search" data-strings='{{ strings | tojson }}'>
+  <noscript><p>{{ _("Search needs JavaScript. The menu at the top of the page leads to every part of the site.") }}</p></noscript>
+  <div class="search-filters" role="group" hidden></div>
+  <p id="search-status" class="search-status" role="status"></p>
+  <div id="search-results"></div>
+</div>
+{% endblock %}

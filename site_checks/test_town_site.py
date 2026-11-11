@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 import pytest
 
 from pipeline import build_site, digest
+from pipeline import search_index as site_search
 from site_checks.conftest import BROWSER_PATHS, PREFIXES
 
 WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]
@@ -184,6 +185,12 @@ def test_skip_link_and_404(browser, server_url):
 DASH_CELL = re.compile(r"<td[^>]*>\s*–\s*</td>")
 # A section heading of a meeting page, and what follows it up to the next heading.
 SECTION = re.compile(r'<h2 id="(minutes|agenda)">.*?</h2>(.*?)(?=<h2|</main>)', re.S)
+
+
+def test_search_index_is_quick_to_load(site_dir):
+    """The site's search has its index, and a search in each language loads at most search_index.LOAD_LIMIT before
+    its first results (pipeline/search_index.py), however many meetings the town has."""
+    assert site_search.check(site_dir) == []
 
 
 def test_every_dash_is_explained(site_dir, page_files):

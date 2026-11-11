@@ -38,7 +38,7 @@
 
   send({ p: named(location.pathname), t: me.getAttribute("data-title") || "", r: referrer(), s: window.screen.width });
   var searched = new URLSearchParams(location.search).get("q");
-  if (searched && /^\/(streets|meetings\/search)\/$/.test(location.pathname)) {
-    send({ p: named(location.pathname === "/streets/" ? "street-lookup" : "meeting-search"), t: "", e: "true", s: window.screen.width });
+  if (searched && /^\/(streets|search)\/$/.test(location.pathname)) {
+    send({ p: named(location.pathname === "/streets/" ? "street-lookup" : "site-search"), t: "", e: "true", s: window.screen.width });
   }
 })();

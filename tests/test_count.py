@@ -67,15 +67,15 @@ def test_link_from_the_same_site_names_the_town(browser, site_dir):
 
 
 def test_search_is_an_event_without_what_was_searched(browser, site_dir):
-    view, event = counted(browser, site_dir, [SITE + "/meetings/search/?q=harbor+plan"])
-    assert view["p"] == "gloucester-ma/meetings/search/"
-    assert event["p"] == "gloucester-ma/meeting-search" and event["e"] == "true"
+    view, event = counted(browser, site_dir, [SITE + "/search/?q=harbor+plan"])
+    assert view["p"] == "gloucester-ma/search/"
+    assert event["p"] == "gloucester-ma/site-search" and event["e"] == "true"
     assert not any("harbor" in value for beacon in (view, event) for value in beacon.values())
 
 
 def test_without_a_prefix_paths_are_sent_as_they_are(browser, site_dir):
-    view, event = counted(browser, site_dir, [SITE + "/meetings/search/?q=harbor"], prefix=False)
-    assert view["p"] == "/meetings/search/" and event["p"] == "meeting-search"
+    view, event = counted(browser, site_dir, [SITE + "/search/?q=harbor"], prefix=False)
+    assert view["p"] == "/search/" and event["p"] == "site-search"
 
 
 def test_a_link_from_the_digest_email_says_so(browser, site_dir):

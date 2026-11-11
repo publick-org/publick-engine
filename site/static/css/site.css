@@ -109,7 +109,21 @@ a.external::after { content: "\2009\2197"; font-size: 0.85em; }
 }
 .nav-list a:hover { color: var(--primary); border-bottom-color: var(--line-strong); }
 .nav-list a[aria-current] { color: var(--accent); border-bottom-color: currentColor; }
+/* Search, last in the menu: a magnifier and the word, the word left to screen readers on a phone. */
+.nav-search { gap: 0.35rem; }
+.nav-search svg { flex: none; }
 @media (min-width: 40rem) { .nav-list { column-gap: 1.75rem; } .nav-list a { font-size: 0.95rem; } }
+@media (max-width: 39.99rem) {
+  .nav-search span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav-search { min-width: 2.25rem; justify-content: center; }
+  .nav-search svg { width: 18px; height: 18px; }
+}
+/* The narrowest phones: the menu's five items still on one line. */
+@media (max-width: 22.5rem) {
+  .nav-list { column-gap: 0.55rem; }
+  .nav-list a { font-size: 0.82rem; }
+  .site-nav .wrap { padding: 0 0.5rem; }
+}
 /* On a phone: the name on one line, without the line under it; the menu scrolls sideways if it must. */
 @media (max-width: 39.99rem) {
   .masthead { padding: 0.25rem var(--gutter) 0.45rem; }
@@ -181,22 +195,57 @@ main .link-row li + li { margin-top: 0; }
 /* The signup at the end of a meeting's page, set apart from the meeting as a section is */
 .signup-after { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
 
-/* Meeting search */
+/* A form on its own lines: the street lookup and the digest's own page */
 .search-form { margin: 1.25rem 0 0; }
 .search-form label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
-/* The meetings search (macros.html search_form): a field of reading width, with a plain button, as a secondary action */
-.site-search { max-width: 36rem; }
-.site-search label { font-size: 0.95rem; font-weight: 600; }
 .search-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .search-row input {
   flex: 1 1 12rem; min-width: 0; min-height: 2.9rem; padding: 0 0.75rem;
   border: 1.5px solid var(--line-strong); border-radius: 0; font: inherit; color: var(--ink); background: var(--bg);
 }
-.search-results { padding-left: 0; list-style: none; }
-.search-results > li { padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
-.search-results > li + li { margin-top: 0; }
-.search-results .excerpt { margin: 0.35rem 0 0; font-size: 0.95rem; }
-.search-results mark { background: #fff1a8; color: inherit; font-weight: 600; }
+/* The site's search on the home page and the meetings page (macros.html search_form): a line like the signup's,
+   with a plain button, as a secondary action */
+.site-search { margin-top: 1.25rem; }
+
+/* ---- The search page (site/pages/search/, search.js) ---- */
+.search-big { max-width: var(--measure); }
+.search-big .search-row input { min-height: 3.2rem; font-size: 1.15rem; }
+.search-covers { color: var(--muted); }
+main .search-try-head { font-family: inherit; font-size: 1rem; margin: 1.5rem 0 0.6rem; padding: 0; border: 0; }
+.search-try { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+main .search-try li + li { margin-top: 0; }
+.search-try a {
+  display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 0.9rem;
+  border: 1.5px solid var(--line-strong); color: var(--primary); font-weight: 600; text-decoration: none;
+}
+.search-try a:hover { border-color: var(--primary); background: var(--primary-soft); }
+/* The filter by kind: one row of joined buttons; on a phone, two by two, each as wide as the others. */
+.search-filters { display: flex; flex-wrap: wrap; margin: 1.25rem 0 0; }
+.search-filters button {
+  min-height: 2.75rem; padding: 0 0.9rem; border: 1.5px solid var(--primary); border-radius: 0;
+  background: var(--bg); color: var(--primary); font: inherit; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+}
+.search-filters button + button { border-left: 0; }
+.search-filters button[aria-pressed="true"] { background: var(--primary); color: #fff; }
+@media (max-width: 39.99rem) {
+  .search-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+  .search-filters button + button { border-left: 1.5px solid var(--primary); }
+}
+.search-status { margin: 1rem 0 0; }
+.search-list { list-style: none; margin: 0; padding: 0; }
+.search-list > li { max-width: none; padding: 0.9rem 0; border-bottom: 1px solid var(--line); }
+.search-list > li:last-child { border-bottom: 0; }
+main .search-list > li + li { margin-top: 0; }
+.search-decision { max-width: 52rem; padding: 0.75rem 1rem; background: var(--primary-soft); }
+.search-decision p { margin: 0; }
+.search-meta { margin: 0.3rem 0 0; font-size: 0.9rem; color: var(--muted); }
+.search-meta a { font-weight: 600; }
+.search-crumb { font-size: 0.85rem; color: var(--muted); }
+.search-title { font-size: 1.1rem; font-weight: 700; }
+.search-excerpt { margin: 0.3rem 0 0; }
+.search-more { margin-top: 0.5rem; }
+.search-more[hidden] { display: none; }
+.search-group mark, .search-excerpt mark { background: #fff1a8; color: inherit; font-weight: 600; }
 
 /* Status words: plain text with a marker, never color alone. */
 .flag { font-weight: 700; color: var(--accent); }

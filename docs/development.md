@@ -118,6 +118,8 @@ pipeline/                   Python package
   http.py                   Rate-limited HTTP client with retries
   files.py                  Writes the data files a run commits whole or not at all (a temporary file, then moved into place)
   build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
+  search_index.py           The site's search: a Pagefind index of its pages, with each decision a result of its own, in
+                            _site/pagefind/, which the search page (/search/) loads a few small files at a time
   digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
                             before (no AI), built into /digest/ with a feed for email
   structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
@@ -217,6 +219,6 @@ python -m pipeline.evaluate_factcheck build ../publick.org  # the same summaries
 2. Create `site/pages/<slug>/index.html` extending `base.html`. It is served at `/<slug>/`.
 3. Sub-pages go in sub-folders: `site/pages/<slug>/<name>/index.html` is served at `/<slug>/<name>/`.
 4. Pages generated from data (one per record) use a template in `site/templates/` and are added in `pipeline/build_site.py`.
-5. Put the page in the menu. The menu is "This week" and three groups, each named for what a reader comes for: City Hall (meetings, decisions, boards, officials), Your street (the street lookup, 311), and The city (budget, schools, housing). They're listed in `site_nav()` in `pipeline/build_site.py`. Each group's menu item goes to its first page, and its pages are tabs above each of them; a page under one (a meeting, a board, a 311 category) has a breadcrumb instead.
+5. Put the page in the menu. The menu is Home, three groups, each named for what a reader comes for: City Hall (meetings, decisions, boards, officials), Neighborhood (the street lookup, 311), and Data (budget, schools, housing, and the downloads), and Search. They're listed in `site_nav()` in `pipeline/build_site.py`, with labels of a word or two, so the menu fits on one line on a 320-pixel phone, in Spanish too. Each group's menu item goes to its first page, and its pages are tabs above each of them; a page under one (a meeting, a board, a 311 category) has a breadcrumb instead.
 
 New pages are picked up by the tests and the site checks automatically. A section belongs to the engine, so every town that lists it gets it.

@@ -61,7 +61,11 @@ SKIPPED = {"CNAME", ".nojekyll", REDIRECTS}
 TYPES = {".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json",
          ".geojson": "application/geo+json", ".webmanifest": "application/manifest+json",
          ".xml": "application/xml", ".csv": "text/csv", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".woff2": "font/woff2",
-         ".ics": "text/calendar", ".txt": "text/plain", ".md": "text/markdown"}
+         ".ics": "text/calendar", ".txt": "text/plain", ".md": "text/markdown", ".wasm": "application/wasm",
+         # The search index's own files (pipeline/search_index.py), which its script reads as bytes.
+         ".pagefind": "application/octet-stream", ".pf_meta": "application/octet-stream",
+         ".pf_index": "application/octet-stream", ".pf_fragment": "application/octet-stream",
+         ".pf_filter": "application/octet-stream"}
 TEXT = ("text/", "application/json", "application/geo+json", "application/manifest+json", "application/xml",
         "image/svg+xml")
 # A blob nothing uses is kept this long before prune deletes it, so a publish

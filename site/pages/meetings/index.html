@@ -10,7 +10,7 @@
   <h1>{{ _("Meetings") }}</h1>
   {# Translators: %(council)s is the town's governing body, such as "City Council". #}
   <p class="lede">{% if meeting_links.documents %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet, what's on the agenda, and what they decided.{% endtrans %}{% else %}{% trans council=meeting_links.governing_body %}{{ council }}, boards, and committees: when they meet.{% endtrans %}{% endif %}</p>
-  {% if meeting_links.documents %}{{ search_form() }}{% endif %}
+  {{ search_form("meetings-search", site.name, meeting_links.documents) }}
 </div>
 
 <h2 id="upcoming">{{ pgettext("meetings", "Upcoming") }}</h2>

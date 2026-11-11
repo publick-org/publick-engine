@@ -340,10 +340,10 @@ def manchester_site(tmp_path_factory):
 
 
 def test_calendar_only_town_leaves_out_document_pages(manchester_site):
-    for path in ("meetings/decisions", "meetings/search", "feed.xml", "streets", "meetings/data"):
+    for path in ("meetings/decisions", "feed.xml", "streets", "meetings/data"):
         assert not (manchester_site / path).exists(), path
     index = (manchester_site / "meetings" / "index.html").read_text()
-    assert "/meetings/decisions/" not in index and "search-q" not in index
+    assert "/meetings/decisions/" not in index and 'action="/search/"' in index
     assert "Board of Mayor and Aldermen, boards, and committees: when they meet." in index
     assert f'href="{PORTAL}"' in index and f'href="{CALENDAR}"' in index
     for page in ("index.html", "about/index.html", "meetings/index.html"):
