@@ -18,9 +18,13 @@ a false positive is cleared by the `public-ok` label.
 - A file added or changed at a path where cost records are kept
   (COST_RECORD_PATHS: summary-costs.json, data/costs/) fails the check: they
   belong in the private store, not in git.
+- The title and the commit messages are checked for a link to the working
+  session a change was written in (SESSION), and the branch's name for a
+  tool's prefix in place of a name for the change (TOOL_BRANCH). A
+  description may end with such a link; a commit message or a title may not.
 
 Run by .github/workflows/public-check.yml, with PR_TITLE, PR_BODY, BASE_SHA
-and HEAD_SHA set. Standard library only. `python3 .github/public_check.py
+and HEAD_SHA set, and HEAD_REF, the branch's name. Standard library only. `python3 .github/public_check.py
 --range A..B` checks a range of commits' messages and added lines, as a
 pull request's would be.
 """
@@ -83,6 +87,11 @@ TEST_PATHS = re.compile(r"^tests/")
 # Where cost records are kept, which never belong in git.
 COST_RECORD_PATHS = re.compile(r"(^|/)summary-costs\.json$|(^|/)data/costs/")
 
+# A link to the working session a change was written in, as a commit trailer or an address.
+SESSION = re.compile(r"\bClaude-Session:|\bclaude\.ai/code/", re.IGNORECASE)
+# A branch named by a tool, not for its change (CONTRIBUTING.md).
+TOOL_BRANCH = re.compile(r"claude/", re.IGNORECASE)
+
 # Files that describe this check, and so quote what it looks for.
 SKIP_FILES = {"CONTRIBUTING.md", "public_check.py", "test_public_check.py"}
 
@@ -129,6 +138,19 @@ def check(where, text):
     return found
 
 
+def check_session(where, text):
+    """A session link in a commit message or a title, line by line."""
+    return [f"{where}: a link to a working session: \"{m.group(0)}\"" for line in text.splitlines()
+            for m in SESSION.finditer(line)]
+
+
+def check_branch(name):
+    """A branch name with a tool's prefix."""
+    if TOOL_BRANCH.match(name or ""):
+        return [f"the branch's name: \"{name}\" isn't a name for the change (rename it, like meeting-page-order)"]
+    return []
+
+
 def check_costs(path, line_no, text):
     """A line added to a file that isn't Markdown, checked for cost figures."""
     if DATA_PATHS.match(path) or MARKED.search(text) or LIST_PRICE.search(text):
@@ -153,6 +175,7 @@ def check_change(base, head):
     found = []
     for line in commit_messages(base, head).splitlines():
         found += check("a commit message", line)
+        found += check_session("a commit message", line)
     for path, line_no, text in added_lines(base, head):
         if path.endswith(".md"):
             found += check(f"{path}:{line_no}", text)
@@ -182,7 +205,9 @@ def main():
         return report(check_change(base, head))
     base, head = os.environ["BASE_SHA"], os.environ["HEAD_SHA"]
     found = []
+    found += check_branch(os.environ.get("HEAD_REF", ""))
     found += check("title", os.environ.get("PR_TITLE", ""))
+    found += check_session("title", os.environ.get("PR_TITLE", ""))
     for i, line in enumerate(os.environ.get("PR_BODY", "").splitlines(), 1):
         found += check(f"description, line {i}", line)
     found += check_change(base, head)

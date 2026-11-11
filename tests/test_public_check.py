@@ -80,3 +80,59 @@ def test_a_change_that_commits_a_cost_record_fails_and_one_that_removes_it_passe
     git(repo, "rm", "-q", "--cached", "-r", "towns/a-ma/data/summary-costs.json", "towns/a-ma/data/costs")
     git(repo, "commit", "-qm", "Stop tracking the cost records")
     assert public_check.check_change(head, git(repo, "rev-parse", "HEAD")) == []
+
+
+@pytest.mark.parametrize("text", [
+    "Claude-Session: https://claude.ai/code/session_0123abc",
+    "claude-session: abc",
+    "Written in https://claude.ai/code/session_0123abc",
+])
+def test_a_session_link_in_a_commit_message_or_title_is_flagged(text):
+    assert public_check.check_session("a commit message", "Fix the page\n\n" + text)
+
+
+@pytest.mark.parametrize("text", [
+    "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "Summaries: the session of the council that passed it",
+    "See https://claude.com/claude-code",
+    "",
+])
+def test_other_lines_of_a_commit_message_are_left_alone(text):
+    assert not public_check.check_session("a commit message", text)
+
+
+@pytest.mark.parametrize("name, flagged", [
+    ("claude/eager-name-abc123", True), ("Claude/x", True),
+    ("meeting-page-order", False), ("add-town/londonderry-nh", False), ("engine-version", False),
+    ("dependabot/pip/requirements-1", False), ("fix-claude/typo", False), ("", False),
+])
+def test_a_branch_named_with_a_tool_s_prefix_is_flagged(name, flagged):
+    assert bool(public_check.check_branch(name)) is flagged
+
+
+def test_a_pull_request_s_branch_title_and_commits_are_checked_and_its_description_s_link_is_not(tmp_path, monkeypatch, capsys):
+    def git(*args):
+        subprocess.run(["git", "-c", "user.name=T", "-c", "user.email=t@example.org", *args], cwd=tmp_path, check=True,
+                       capture_output=True)
+    git("init", "-q")
+    (tmp_path / "a.py").write_text("x = 1\n")
+    git("add", "."), git("commit", "-qm", "First")
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True).stdout.strip()
+    (tmp_path / "a.py").write_text("x = 2\n")
+    git("commit", "-qam", "Second\n\nClaude-Session: https://claude.ai/code/session_0123abc")
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True).stdout.strip()
+    monkeypatch.chdir(tmp_path)
+    env = {"BASE_SHA": base, "HEAD_SHA": head, "PR_TITLE": "Second", "HEAD_REF": "claude/some-name",
+           "PR_BODY": "What it does.\n\nhttps://claude.ai/code/session_0123abc"}
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setattr("sys.argv", ["public_check.py"])
+    assert public_check.main() == 1
+    out = capsys.readouterr().out
+    assert "the branch's name" in out and "a commit message: a link to a working session" in out
+    assert "description" not in out and "title" not in out
+    # Named for its change, with the link out of the commit message: nothing found.
+    git("commit", "-q", "--amend", "-m", "Second")
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True).stdout.strip()
+    monkeypatch.setenv("HEAD_SHA", head), monkeypatch.setenv("HEAD_REF", "second-value")
+    assert public_check.main() == 0
