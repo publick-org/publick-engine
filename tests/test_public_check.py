@@ -53,7 +53,9 @@ def test_public_facts_and_settings_of_nothing_are_left_alone(path, line):
 
 
 def git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout.strip()
+    # Without the machine's signing or hooks: the commits are only for the check to read.
+    return subprocess.run(["git", "-C", str(repo), "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", *args],
+                          check=True, capture_output=True, text=True).stdout.strip()
 
 
 def test_a_change_that_commits_a_cost_record_fails_and_one_that_removes_it_passes(tmp_path, monkeypatch):
@@ -112,8 +114,9 @@ def test_a_branch_named_with_a_tool_s_prefix_is_flagged(name, flagged):
 
 def test_a_pull_request_s_branch_title_and_commits_are_checked_and_its_description_s_link_is_not(tmp_path, monkeypatch, capsys):
     def git(*args):
-        subprocess.run(["git", "-c", "user.name=T", "-c", "user.email=t@example.org", *args], cwd=tmp_path, check=True,
-                       capture_output=True)
+        # Without the machine's signing or hooks: the commits are only for the check to read.
+        subprocess.run(["git", "-c", "user.name=T", "-c", "user.email=t@example.org", "-c", "commit.gpgsign=false",
+                        "-c", "core.hooksPath=/dev/null", *args], cwd=tmp_path, check=True, capture_output=True)
     git("init", "-q")
     (tmp_path / "a.py").write_text("x = 1\n")
     git("add", "."), git("commit", "-qm", "First")
@@ -131,6 +134,11 @@ def test_a_pull_request_s_branch_title_and_commits_are_checked_and_its_descripti
     out = capsys.readouterr().out
     assert "the branch's name" in out and "a commit message: a link to a working session" in out
     assert "description" not in out and "title" not in out
+    # In the title, the link is found too.
+    monkeypatch.setenv("PR_TITLE", "Second (https://claude.ai/code/session_0123abc)")
+    assert public_check.main() == 1
+    assert "title: a link to a working session" in capsys.readouterr().out
+    monkeypatch.setenv("PR_TITLE", "Second")
     # Named for its change, with the link out of the commit message: nothing found.
     git("commit", "-q", "--amend", "-m", "Second")
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True).stdout.strip()
