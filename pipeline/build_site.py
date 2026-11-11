@@ -1717,9 +1717,22 @@ def languages(config: dict) -> list[str]:
     return langs
 
 
+PREVIEW_HOST = re.compile(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+")
+
+
+def preview_config(config: dict, domain: str) -> dict:
+    """The config for a preview of the town's site at another address (build()'s preview): its pages name that
+    address as their own, ask search engines not to list them, and count no page views."""
+    if not PREVIEW_HOST.fullmatch(domain):
+        raise SystemExit(f"{domain!r} isn't a hostname to build a preview for (like preview-town-st.example.org).")
+    config = {**config, "site": {**config["site"], "domain": domain}, "preview": True}
+    config.pop("analytics", None)
+    return config
+
+
 def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | None = None,
           town_static: Path = TOWN_STATIC_DIR, missing: dict | None = None, share_cards: bool = False,
-          problems: list | None = None) -> dict[str, str | None]:
+          problems: list | None = None, preview: str | None = None) -> dict[str, str | None]:
     """Render every page in each of the town's languages, and write supporting files. Returns the page URLs built,
     each with the day it last changed (for the sitemap) or None.
 
@@ -1729,8 +1742,14 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
     other language's town texts that have no translation in the config's [strings.<language>]:
     {"config": the config's own text, "data": names from the city's data}. share_cards draws each recent
     meeting's card for social media (pipeline/share_cards.py), which needs Playwright. problems, if given, gets
-    the town's [[meetings.corrections]] not shown, each a sentence (load_meetings()'s correction_problems)."""
+    the town's [[meetings.corrections]] not shown, each a sentence (load_meetings()'s correction_problems).
+
+    preview, if given, is a hostname other than the town's own to build the site for, to look at a change before
+    it's released: every page is marked noindex, robots.txt turns crawlers away, and no page views are counted
+    (preview_config())."""
     config = load_config(town)
+    if preview:
+        config = preview_config(config, preview)
     # The 311 files a town keeps in its bucket, not git (pipeline/bucket_data.py), when they're not here.
     bucket_data.pull(config, data_dir)
     built_at = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
@@ -1743,7 +1762,8 @@ def build(town: str, out_dir: Path, data_dir: Path = DATA_DIR, now: datetime | N
                                        problems if lang == "en" else None, search_records))
         if missing is not None and (tr.missing or tr.missing_data or tr.drafted):
             missing[lang] = {"config": sorted(tr.missing), "data": sorted(tr.missing_data), "drafted": sorted(tr.drafted)}
-    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, redirects)
+    write_support_files(out_dir, config["site"], f"https://{config['site']['domain']}", urls, redirects,
+                        preview=bool(preview))
     # The site's search, from every language's pages and decisions (pipeline/search_index.py).
     site_search.write(out_dir, search_records)
     return urls
@@ -2474,7 +2494,7 @@ REDIRECTS_FILE = "redirects.json"
 
 
 def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str, str | None],
-                        redirects: dict[str, str] | None = None) -> None:
+                        redirects: dict[str, str] | None = None, preview: bool = False) -> None:
     # Custom domain for GitHub Pages. With Actions deploys the domain is also set
     # in the repo's Pages settings; the file keeps the build self-describing.
     (out_dir / "CNAME").write_text(site["domain"] + "\n", encoding="utf-8")
@@ -2493,8 +2513,10 @@ def write_support_files(out_dir: Path, site: dict, base_url: str, urls: dict[str
         "</urlset>\n",
         encoding="utf-8",
     )
+    # A preview turns every crawler away, from its files that aren't pages too (its pages are noindex as well).
     (out_dir / "robots.txt").write_text(
-        f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n", encoding="utf-8"
+        "User-agent: *\nDisallow: /\n" if preview else f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n",
+        encoding="utf-8",
     )
     (out_dir / REDIRECTS_FILE).write_text(json.dumps(redirects or {}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
@@ -2506,10 +2528,13 @@ def main() -> None:
     parser.add_argument("--data", type=Path, default=DATA_DIR, help="data directory")
     parser.add_argument("--no-share-cards", action="store_true", help="give meetings the town's share image, without Playwright")
     parser.add_argument("--report", type=Path, help="write the corrections not shown here, as JSON, for the network's daily alert")
+    parser.add_argument("--preview", metavar="HOSTNAME", help="build a preview of the site for this address, not the "
+                        "town's own: noindex on every page, crawlers turned away, no page views counted")
     args = parser.parse_args()
     missing: dict = {}
     problems: list = []
-    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards, problems=problems)
+    urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards, problems=problems,
+                 preview=args.preview)
     print(f"Built {len(urls)} pages into {args.out}")
     if args.report:
         args.report.write_text(json.dumps({"corrections": problems}, indent=2) + "\n", encoding="utf-8")

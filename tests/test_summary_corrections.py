@@ -181,7 +181,7 @@ def test_the_daily_alert_lists_a_towns_corrections_not_shown(tmp_path):
 
 
 def test_the_build_reports_its_corrections_not_shown(tmp_path, monkeypatch):
-    def build(town, out, data, missing, share_cards, problems):
+    def build(town, out, data, missing, share_cards, problems, preview=None):
         problems.append("Correction for City Council 2026-11-04: 0 meetings match it, so it isn't shown.")
         return ["/"]
     monkeypatch.setattr(build_site, "build", build)
