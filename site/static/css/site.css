@@ -134,7 +134,8 @@ main .tabs li + li { margin-top: 0; }
 
 main { display: block; padding: 1rem 0 3rem; }
 @media (min-width: 48rem) { main { padding-top: 1.4rem; } }
-.lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 0.75rem; }
+/* text-wrap: pretty keeps a lede's last word off a line of its own ("Updated every / morning."). */
+.lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 0.75rem; text-wrap: pretty; }
 .page-head { margin-bottom: 0.9rem; }
 .source-note { color: var(--muted); font-size: 0.875rem; }
 .small { color: var(--ink-soft); font-size: 0.9375rem; line-height: 1.5; }
@@ -172,7 +173,8 @@ main .link-row li + li { margin-top: 0; }
 /* A form as one line: the label, then the field and button, wrapping on a phone (the digest's signup, digest_line.html,
    and the home page's street lookup) */
 .line-form { margin: 1rem 0 0; }
-.line-form .line-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+/* As wide as a paragraph (p's max-width), so the row ends where the text above it does, not at the page's edge. */
+.line-form .line-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; max-width: var(--measure); }
 .line-form label { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; color: var(--primary-dark); }
 .line-form .search-row { flex: 1 1 20rem; }
 .line-form .small { margin: 0.4rem 0 0; }
