@@ -195,6 +195,8 @@ export PYTHONPATH=../publick-engine PUBLICK_TOWN_DIR=towns/<town>-<state>
 python -m pipeline.build_site             # writes towns/<town>-<state>/_site/
 ```
 
+To look at a change on a town's own data at an address other than the town's, build a preview: `python -m pipeline.build_site --preview preview-<town>-<state>.example.org --out _preview --no-share-cards` (it won't build one into the town's own `_site`). A preview's pages name that address as their own and say `noindex`, its `robots.txt` turns crawlers away, and it counts no page views. `python -m pipeline.deploy publish --site _preview --domain <the same address>` publishes it beside the town's site, which it doesn't touch.
+
 A town with a `[storage]` table keeps agenda and minutes PDFs in a bucket (see [Document storage](storage.md#document-storage)). A local fetch then needs the bucket's keys (`STORAGE_ACCESS_KEY_ID`, `STORAGE_SECRET_ACCESS_KEY`), or set `DOCUMENTS_LOCAL=1` to keep PDFs under `data/meetings/` instead. Building the site needs no keys.
 
 The engine's own tests run from this repository, offline, against saved Gloucester data in `tests/fixtures/`, with whole sites for Manchester, Malden and Wallingford built from their meeting systems' saved pages (`tests/test_sample_towns.py`):
