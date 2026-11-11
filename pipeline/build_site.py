@@ -1725,6 +1725,9 @@ def preview_config(config: dict, domain: str) -> dict:
     address as their own, ask search engines not to list them, and count no page views."""
     if not PREVIEW_HOST.fullmatch(domain):
         raise SystemExit(f"{domain!r} isn't a hostname to build a preview for (like preview-town-st.example.org).")
+    own = config["site"]["domain"].lower()
+    if domain in (own, "www." + own):
+        raise SystemExit(f"{domain} is the town's own address: a preview is built for another one.")
     config = {**config, "site": {**config["site"], "domain": domain}, "preview": True}
     config.pop("analytics", None)
     return config
@@ -2531,6 +2534,9 @@ def main() -> None:
     parser.add_argument("--preview", metavar="HOSTNAME", help="build a preview of the site for this address, not the "
                         "town's own: noindex on every page, crawlers turned away, no page views counted")
     args = parser.parse_args()
+    # A preview says noindex and turns crawlers away: never built where the town's own site is, to be published as it.
+    if args.preview and args.out.resolve() == (TOWN_DIR / "_site").resolve():
+        parser.error("--preview needs --out, somewhere other than the town's _site")
     missing: dict = {}
     problems: list = []
     urls = build(args.town, args.out, args.data, missing=missing, share_cards=not args.no_share_cards, problems=problems,
