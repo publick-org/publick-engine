@@ -3,7 +3,8 @@
 # against the model: this check fails until it carries one of two labels.
 #
 #   evaluate      the Evaluate workflow runs the sets against the model, now
-#                 and on each push after
+#                 and on each push after; its own check shows how they went.
+#                 Not on a pull request from a fork, where it can't run
 #   no evaluate   the change can't alter what the model is asked or how its
 #                 answers are checked (a comment, a rename, a log line)
 #
@@ -34,10 +35,13 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          FROM_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           EVALUATED: >-
             ^(pipeline/(summarize|factcheck|translate|glossary|evaluate|evaluate_translations)\.py|evals/(minutes|translations)\.json)$
         run: |
-          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" | grep -E "$EVALUATED" || true)
+          # On its own line: a diff that fails stops the step, where in a pipeline grep's result would hide it.
+          files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          changed=$(grep -E "$EVALUATED" <<< "$files" || true)
           if [ -z "$changed" ]; then
             echo "No file the Evaluate workflow runs for is changed: no label needed."
             exit 0
@@ -45,7 +49,12 @@ jobs:
           echo "Changed:"
           echo "$changed"
           case ",$LABELS," in
-            *",evaluate,"*) echo "Labeled 'evaluate': the Evaluate workflow runs the sets." ;;
+            *",evaluate,"*)
+              if [ "$FROM_FORK" = true ]; then
+                echo "::error::Labeled 'evaluate', but the sets can't run on a pull request from a fork: push its branch to this repository and open the pull request from there."
+                exit 1
+              fi
+              echo "Labeled 'evaluate': the Evaluate workflow runs the sets, and its own check shows how they went." ;;
             *",no evaluate,"*) echo "Labeled 'no evaluate': not run against the model." ;;
             *)
               echo "::error::This pull request changes how summaries are made, checked, or translated. Label it 'evaluate' to run the sets against the model, or 'no evaluate' if the change can't alter their results."
