@@ -40,11 +40,6 @@ on:
 permissions:
   contents: read
 
-# A new push to the pull request replaces a run still going.
-concurrency:
-  group: evaluate-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 env:
   MODEL: claude-haiku-5-5
   EFFORT: high
@@ -60,6 +55,11 @@ jobs:
       (github.event.action != 'labeled' || github.event.label.name == 'evaluate')
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # A new push to the pull request replaces a run still going. On the job, not the workflow: another label
+    # added to the pull request starts this workflow too, with this job skipped, and shouldn't stop a run.
+    concurrency:
+      group: evaluate-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
