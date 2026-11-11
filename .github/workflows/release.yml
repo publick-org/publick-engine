@@ -12,8 +12,9 @@
 # The schedule below is a backup for a morning when nothing else started
 # this workflow: GitHub can start it hours late, so it does nothing when a
 # run started any other way (Run workflow, or the API) has succeeded since
-# 08:00 UTC that day. Otherwise it would release a second time, with
-# whatever was merged since the morning.
+# the last 08:00 UTC. Otherwise it would release a second time, with
+# whatever was merged since the morning. Runs wait for one another, so two
+# started together don't make the same release.
 #
 # The next version is a minor one (v1.4.0 -> v1.5.0) unless the pull requests
 # merged since the last release are all labeled:
@@ -23,8 +24,9 @@
 #   no release  left out
 # A pull request that changes only files no town's run reads is left out
 # too, without a label: Markdown (such as the README), the tests, the
-# evaluation sets, the linter's settings, and the workflows that run only
-# here (UNRELEASED below). With nothing left, nothing is released.
+# evaluation sets, the linter's settings, and what runs only here (the ci,
+# evaluate, public-check and release workflows, dependabot.yml and
+# public_check.py; UNRELEASED below). With nothing left, nothing is released.
 #
 # A release published by hand (Releases -> Draft a new release) still moves its
 # major tag.
@@ -33,7 +35,7 @@ name: Release
 on:
   schedule:
     # 08:20 UTC, before the network's first daily run (09:05) and its engine pull request (08:40). A backup:
-    # see above. BACKUP_AFTER below is this hour.
+    # see above. BACKUP_HOUR below is this hour.
     - cron: "20 8 * * *"
   workflow_dispatch:
   release:
@@ -48,6 +50,10 @@ jobs:
   release:
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
+    # One at a time: a run started while another is going waits for it, then finds its release made.
+    concurrency:
+      group: release
+      cancel-in-progress: false
     steps:
       # With its token saved in git's config: the major tag is pushed with it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,18 +65,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           # The hour (UTC) of the schedule above: a scheduled run does nothing when a run started any other
-          # way has succeeded since then today.
-          BACKUP_AFTER: "08:00:00"
+          # way has succeeded since that hour last came round (today's, or yesterday's for a run GitHub
+          # starts after midnight).
+          BACKUP_HOUR: "8"
           # Files no town's run reads. A pull request that changes only these is left out of the release.
           UNRELEASED: >-
             \.md$|^tests/|^evals/|^ruff\.toml$|^\.github/dependabot\.yml$|^\.github/public_check\.py$|^\.github/workflows/(ci|evaluate|public-check|release)\.yml$
         run: |
           if [ "$GITHUB_EVENT_NAME" = schedule ]; then
-            since="$(date -u +%F)T${BACKUP_AFTER}Z"
+            since="$(date -u -d "$BACKUP_HOUR hours ago" +%F)T$(printf '%02d' "$BACKUP_HOUR"):00:00Z"
             earlier=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --event workflow_dispatch \
               --status success --limit 10 --json createdAt --jq "[.[] | select(.createdAt >= \"$since\")] | length")
             if [ "$earlier" -gt 0 ]; then
-              echo "This workflow already ran today, since $since: the schedule is only a backup."
+              echo "This workflow already ran since $since: the schedule is only a backup."
               exit 0
             fi
           fi
