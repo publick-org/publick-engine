@@ -2043,16 +2043,22 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         for v in versions:
             v["url"] = base_url + v["path"]
         # What the site's search gets from the page (pipeline/search_index.py): whether it's in the index, its kind,
-        # and for a page other than a meeting's, where it sits in the menu ("Data › Budget & taxes").
+        # and for a page other than a meeting's, where it sits in the menu ("Data › Budget & taxes"); for a meeting's,
+        # when it is, to list meetings by, and whether it's upcoming, as the meetings page says.
         searchable = site_search.searchable(url, template, UNLISTED_PAGES)
-        crumb = None
-        if searchable and template != "meeting.html":
+        crumb = sort = when = None
+        if searchable and template == "meeting.html":
+            m = context["meeting"]
+            sort = site_search.sort_key(m)
+            when = "upcoming" if m["date"] >= today.isoformat() else "past"
+        elif searchable:
             nav = common["site_nav"](url)
             crumb = " › ".join([label for _href, label, current in nav["menu"] if current][:1]
                                + [label for _href, label, current in nav["tabs"] if current])
         html = env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
             searchable=searchable, search_kind="meeting" if template == "meeting.html" else "page", search_crumb=crumb,
+            search_sort=sort, search_when=when,
             # Each term's first use on the page, linked to the glossary's page; a meeting's page links the terms it uses.
             gloss=glossary.Linker(context["meeting"]["glossary"] if "meeting" in context else terms, lang),
             behind=absences.section_behind(common["data_status"], section_slug),
@@ -2109,10 +2115,11 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
             # Its decisions, each a result of the site's search, linking them on its page.
             if search_records is not None:
                 taken: set[str] = set()
+                decisions = [d for kind in ("decided", "recommended") for d in m.get("decisions", {}).get(kind, [])]
                 search_records.extend(
                     site_search.decision_record(d, site_search.decision_url(prefix + m["url"], d, taken), m["body"],
-                                                format_date(m["date"]), lang)
-                    for kind in ("decided", "recommended") for d in m.get("decisions", {}).get(kind, []))
+                                                format_date(m["date"]), lang, site_search.sort_key(m, n))
+                    for n, d in enumerate(decisions))
             # The address of a listing shown as part of another meeting sends readers there.
             for n, also in enumerate(m["also_urls"], 1):
                 render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)

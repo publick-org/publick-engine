@@ -87,11 +87,14 @@
     </nav>
   </header>
 
-  {# A page in the site's search gives it its main content, its kind, and where it sits in the menu
-     (pipeline/search_index.py). Search runs WebAssembly, which the policy above allows on its page alone. #}
+  {# A page in the site's search gives it its main content, its kind, and where it sits in the menu; a meeting's,
+     when it is, to sort by, and whether it's still to come (pipeline/search_index.py). Search runs WebAssembly, which
+     the policy above allows on its page alone. #}
   <main id="main" tabindex="-1"{% if searchable %} data-pagefind-body{% endif %}>
     {% if searchable %}<span hidden data-pagefind-ignore data-pagefind-filter="kind">{{ search_kind }}</span>
-    {%- if search_crumb %}<span hidden data-pagefind-ignore data-pagefind-meta="crumb">{{ search_crumb }}</span>{% endif %}{% endif %}
+    {%- if search_crumb %}<span hidden data-pagefind-ignore data-pagefind-meta="crumb">{{ search_crumb }}</span>{% endif %}
+    {%- if search_sort %}<span hidden data-pagefind-ignore data-pagefind-sort="date">{{ search_sort }}</span>
+    <span hidden data-pagefind-ignore data-pagefind-filter="when">{{ search_when }}</span>{% endif %}{% endif %}
     <div class="wrap">
       {# The group's pages as tabs, on each of them; the pages under them have a breadcrumb instead. #}
       {% if nav.tabs %}

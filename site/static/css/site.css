@@ -242,6 +242,10 @@ main .search-list > li + li { margin-top: 0; }
 .search-meta a { font-weight: 600; }
 .search-crumb { font-size: 0.85rem; color: var(--muted); }
 .search-title { font-size: 1.1rem; font-weight: 700; }
+.search-upcoming {
+  display: inline-block; margin-left: 0.5rem; padding: 0.05rem 0.45rem; border: 1px solid var(--primary);
+  font-size: 0.8rem; font-weight: 600; color: var(--primary); vertical-align: 0.1em;
+}
 .search-excerpt { margin: 0.3rem 0 0; }
 .search-more { margin-top: 0.5rem; }
 .search-more[hidden] { display: none; }
