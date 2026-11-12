@@ -276,8 +276,8 @@ def rows(config: dict, data_dir: Path) -> list[tuple[str, str, str]]:
                     f"{link(f'{publisher} ({year})', url)}; population from the "
                     f"[U.S. Census Bureau](https://www.census.gov) {PUBLIC_DOMAIN}"))
     if has("addresses.json"):
-        out.append(("`addresses.json`", "House number ranges by street, each with its ward, for the Officials "
-                    "page's address lookup",
+        out.append(("`addresses.json`", "House number ranges by street, each with its ward (and its voting precinct, "
+                    "where the ward file names them), for the Officials page's address lookup",
                     f"[Census TIGER/Line address ranges](https://www.census.gov/geographies/mapping-files/time-series/"
                     f"geo/tiger-line-file.html) {PUBLIC_DOMAIN}"))
     if has("place.json"):

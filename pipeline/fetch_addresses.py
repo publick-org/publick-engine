@@ -30,12 +30,13 @@ a side, for the page to read: [first, last, parity, ward]. Where the ward file
 names the voting precincts within each ward (officials.has_precincts), each
 side is placed by its ward and precinct, so a precinct line splits a range as
 a ward line does, and a range in one ward also has its precinct:
-[first, last, parity, ward, precinct], the precinct a list of two near a
-precinct line ("the line between Precinct 1 and Precinct 2"). A range near a
-ward line has no precinct. It's made again when the Census Bureau publishes a
-new year, or the ward file changes, or names precincts the file doesn't have;
-it records the ward file it was made with, and the build leaves the box out
-until the two match again (pipeline/build_site.py).
+[first, last, parity, ward, precinct], the precinct a list near a precinct
+line, where it could be in either. A range near a ward line, or in a part of
+the ward file with no precinct, has none. It's made again when the Census
+Bureau publishes a new year, or the ward file changes; it records the ward file
+it was made with, and the build leaves the box out until the two match again
+(pipeline/build_site.py). A file made before ranges had precincts is made again
+too, for a town whose ward file names them; until then the box names wards only.
 
 The files are read here without a GIS library: a shapefile's lines and its
 table are simple, fixed formats (read_shapefile). A county's file is 1 to 8 MB,
@@ -305,11 +306,14 @@ def ranges(records, wards_path: Path, precincts: bool = False) -> dict[str, dict
 
 def placed(places: frozenset, precincts: bool) -> tuple[frozenset, frozenset | None]:
     """A run's wards, and its precincts where the file names them and the run is in one ward
-    (None otherwise: near a ward line, the ward is what's in question)."""
+    (None otherwise: near a ward line, the ward is what's in question, and a feature with no
+    precinct has none to name)."""
     if not precincts:
         return places, None
     wards = frozenset(w for w, _ in places)
-    return wards, (frozenset(p for _, p in places) if len(wards) == 1 else None)
+    named = frozenset(p for _, p in places)
+    # A part of the ward file with no precinct: the ward, and no precinct to name.
+    return wards, (named if len(wards) == 1 and "" not in named else None)
 
 
 def one_or_list(names) -> str | list[str]:

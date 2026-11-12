@@ -114,6 +114,9 @@ def test_side_split_where_it_crosses_into_another_precinct(tmp_path):
     runs = fa.place_side(fa.Side(line, 1), ward_at, 1, 99, 1)
     joined = fa.join([(1, low, high, *fa.placed(places, True)) for low, high, places in runs])
     assert [r[3:] for r in joined] == [["1", "1"], ["1", ["1", "2"]], ["1", "2"], [["1", "2"]], ["2", "1"]]
+    # A feature with no precinct names none: the ward alone.
+    assert fa.placed(frozenset({("1", ""), ("1", "2")}), True) == (frozenset({"1"}), None)
+    assert fa.placed(frozenset({("1", "")}), True) == (frozenset({"1"}), None)
     # Without precincts, the same street is in ward 1, then ward 2.
     ward_at, _ = fa.ward_finder(path)
     runs = fa.place_side(fa.Side(line, 1), ward_at, 1, 99, 1)

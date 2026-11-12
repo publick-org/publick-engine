@@ -3197,7 +3197,7 @@ msgstr ""
 msgid "District {n}"
 msgstr "Distrito {n}"
 
-#. the ward map's messages; keep each {ward} as it is.
+#. the ward map's messages; keep each {ward} and {precinct} as it is.
 #: site/pages/officials/index.html
 #, python-brace-format
 msgid "District {ward}"
@@ -9362,7 +9362,7 @@ msgstr ""
 msgid "Ward {n}"
 msgstr "Distrito {n}"
 
-#. the ward map's messages; keep each {ward} as it is.
+#. the ward map's messages; keep each {ward} and {precinct} as it is.
 #: site/pages/officials/index.html
 #, python-brace-format
 msgid "Ward {ward}"

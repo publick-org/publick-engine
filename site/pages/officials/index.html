@@ -149,7 +149,7 @@
   "outside": _("Your location isn't in any of {town}'s precincts. You can find your precinct on the map or in the list below.").replace("{town}", town.name),
 } %}
 {% elif areas == "districts" %}
-{# Translators: the ward map's messages; keep each {ward} as it is. #}
+{# Translators: the ward map's messages; keep each {ward} and {precinct} as it is. #}
 {% set strings = {
   "ward": _("District {ward}"),
   "found": _("You're in District {ward}."),
@@ -159,7 +159,7 @@
   "outside": _("Your location isn't in any of {town}'s districts. You can find your district on the map or in the list below.").replace("{town}", town.name),
 } %}
 {% else %}
-{# Translators: the ward map's messages; keep each {ward} as it is. #}
+{# Translators: the ward map's messages; keep each {ward} and {precinct} as it is. #}
 {% set strings = {
   "ward": _("Ward {ward}"),
   "found": _("You're in Ward {ward}."),
