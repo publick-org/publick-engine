@@ -214,6 +214,52 @@ def test_site_search_lists_by_date(browser, server_url):
     context.close()
 
 
+# Searches and the answers shown above their results (pipeline/search_answers.py), from the fixture's streets,
+# boards and officials: a typo, a question, a street named among other words, a partly typed street type, and a
+# word that names no one thing.
+ANSWER_SEARCHES = [
+    ("chery st", ["Cherry Street"]),
+    ("cherry stre", ["Cherry Street"]),
+    ("who is the mayor", ["Morgan Example"]),
+    ("pothole on main st", ["Main Street"]),
+    ("when does the city council meet", ["City Council"]),
+    ("city council president", ["Casey Example"]),
+    ("consrvation commission", ["Conservation Commission"]),
+    ("street", []),
+    ("committee", []),
+]
+
+
+def test_site_search_answers(browser, axe, server_url):
+    """The search shows the streets, boards and officials it names above its results, each linked, with a line
+    about it; and searches the pages without a question's words."""
+    context = browser.new_context()
+    page = context.new_page()
+    errors = []
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    for query, names in ANSWER_SEARCHES:
+        page.goto(server_url + "/search/?q=" + query.replace(" ", "+"))
+        wait_until(page, "/result|Nothing/.test(document.getElementById('search-status').textContent)", timeout=10)
+        shown = page.locator("#search-answers:not([hidden]) .search-answer-name").all_text_contents()
+        assert shown == names, query
+    page.goto(server_url + "/search/?q=who+is+the+mayor")
+    wait_until(page, "/result/.test(document.getElementById('search-status').textContent)", timeout=10)
+    card = page.locator(".search-answer").first
+    assert card.locator(".search-answer-kind").text_content() == "Official"
+    assert card.locator("a").get_attribute("href").startswith("/officials/#")
+    assert "Mayor" in card.locator(".search-answer-detail").text_content()
+    # The pages are searched for "mayor": "who", "is" and "the" would leave out pages without them.
+    assert page.locator(".search-group mark").first.text_content().lower().startswith("mayor")
+    results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
+    page.goto(server_url + "/search/?q=cherry+street")
+    wait_until(page, "!!document.querySelector('.search-answer-detail')", timeout=10)
+    assert re.search(r"311 requests? in the past year", page.text_content(".search-answer-detail"))
+    assert page.locator(".search-answer a").get_attribute("href") == "/streets/?q=Cherry%20Street"
+    assert not errors, errors
+    context.close()
+    assert results.violations_count == 0, format_violations(results)
+
+
 def _date(text):
     """A date as the site says it, "Oct 8, 2026" or "July 28, 2026"."""
     for form in ("%b %d, %Y", "%B %d, %Y"):

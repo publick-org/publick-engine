@@ -220,6 +220,16 @@ main .search-try li + li { margin-top: 0; }
 }
 .search-try a:hover { border-color: var(--primary); background: var(--primary-soft); }
 /* The filter by kind: one row of joined buttons; on a phone, two by two, each as wide as the others. */
+.search-answers { max-width: 52rem; margin: 1.25rem 0 0; }
+.search-answers[hidden] { display: none; }
+.search-answers ul { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+main .search-answers li + li { margin-top: 0; }
+.search-answer { padding: 0.8rem 1rem; border: 1.5px solid var(--primary); border-left-width: 6px; }
+.search-answer-kind {
+  display: block; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+.search-answer-name { font-size: 1.25rem; font-weight: 700; }
+.search-answer-detail { margin: 0.2rem 0 0; color: var(--muted); }
 .search-filters { display: flex; flex-wrap: wrap; margin: 1.25rem 0 0; }
 .search-filters button {
   min-height: 2.75rem; padding: 0 0.9rem; border: 1.5px solid var(--primary); border-radius: 0;

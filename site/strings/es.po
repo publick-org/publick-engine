@@ -2474,6 +2474,15 @@ msgstr ""
 "zonificación local. Si la ciudad niega el permiso, el estado puede anular esa decisión en una "
 "apelación."
 
+#: site/pages/search/index.html
+msgid "Best matches"
+msgstr "Mejores coincidencias"
+
+#: site/pages/search/index.html
+msgctxt "search answer"
+msgid "Board"
+msgstr "Junta"
+
 #: pipeline/common_strings.py
 msgid "Board of Aldermen"
 msgstr "Junta de Concejales"
@@ -4746,6 +4755,11 @@ msgstr "Última revisión"
 msgid "Last checked <time datetime=\"%(iso)s\">%(when)s</time>."
 msgstr "Última revisión: <time datetime=\"%(iso)s\">%(when)s</time>."
 
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "Last met {date}"
+msgstr "Última reunión: {date}"
+
 #. %(when)s is a date, such as "September 27, 2026".
 #: site/pages/about/accessibility/index.html
 #, python-format
@@ -5429,6 +5443,13 @@ msgstr "Vehículos de motor"
 msgid "Municipal"
 msgstr "Municipal"
 
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "Named at {n} meeting"
+msgid_plural "Named at {n} meetings"
+msgstr[0] "Mencionada en {n} reunión"
+msgstr[1] "Mencionada en {n} reuniones"
+
 #: site/templates/meeting.html
 msgctxt "roll call"
 msgid "Nay"
@@ -5546,6 +5567,11 @@ msgstr ""
 #, python-format
 msgid "Next meeting <time datetime=\"%(iso)s\">%(when)s</time>"
 msgstr "Próxima reunión: <time datetime=\"%(iso)s\">%(when)s</time>"
+
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "Next meeting {date}"
+msgstr "Próxima reunión: {date}"
 
 #: site/templates/board.html
 #, python-format
@@ -5839,6 +5865,11 @@ msgstr "De los ingresos, año fiscal %(year)s"
 #, python-format
 msgid "Off the schedule %(day)s:"
 msgstr ""
+
+#: site/pages/search/index.html
+msgctxt "search answer"
+msgid "Official"
+msgstr "Funcionario"
 
 #: pipeline/build_site.py
 msgid "Officials"
@@ -7733,6 +7764,11 @@ msgstr ""
 #: site/templates/alerts.html
 msgid "Stop every alert"
 msgstr ""
+
+#: site/pages/search/index.html
+msgctxt "search answer"
+msgid "Street"
+msgstr "Calle"
 
 #: pipeline/common_strings.py
 msgid "Street Light"
@@ -10294,6 +10330,13 @@ msgid_plural "{n} 311 requests"
 msgstr[0] "{n} solicitud al 311"
 msgstr[1] "{n} solicitudes al 311"
 
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "{n} 311 request in the past year"
+msgid_plural "{n} 311 requests in the past year"
+msgstr[0] "{n} solicitud al 311 en el último año"
+msgstr[1] "{n} solicitudes al 311 en el último año"
+
 #: site/pages/streets/index.html
 #, python-brace-format
 msgid "{n} agenda and minutes mention"
@@ -10308,7 +10351,7 @@ msgid_plural "{n} hours"
 msgstr[0] "{n} hora"
 msgstr[1] "{n} horas"
 
-#: site/pages/streets/index.html
+#: site/pages/search/index.html site/pages/streets/index.html
 #, python-brace-format
 msgid "{n} permit"
 msgid_plural "{n} permits"
