@@ -70,28 +70,45 @@
     return pagefind;
   }
 
-  // The answers file, ready to match: each answer with its names as words (words()), and the words that name no one
-  // thing. A search that can't load it searches without answers.
+  // The answers file, ready to match: each answer with its names as words (words()), and which words of each name
+  // name no one thing. A search that can't load it searches without answers.
   function loadAnswers() {
     if (!answers) {
       answers = fetch(root.getAttribute("data-answers")).then(function (r) {
         if (!r.ok) throw new Error(r.status);
         return r.json();
       }).then(function (data) {
-        data.stopSet = {};
-        data.stop.forEach(function (w) { data.stopSet[w] = true; });
-        // A street type is generic, and needn't be named: "sargent" names Sargent Street. Each is kept with its
-        // spellings, so a partly typed one ("stre") is read as it.
-        data.genericSet = {};
-        data.generic.forEach(function (w) { data.genericSet[w] = true; });
-        data.types = {};
+        // Lookups without an object's own keys ("constructor"), which a word could be.
+        function set(list) {
+          var out = Object.create(null);
+          list.forEach(function (w) { out[w] = true; });
+          return out;
+        }
+        function map(object) {
+          var out = Object.create(null);
+          Object.keys(object).forEach(function (k) { out[k] = object[k]; });
+          return out;
+        }
+        data.stopSet = set(data.stop);
+        data.suffixes = map(data.suffixes);
+        data.directions = map(data.directions);
+        data.letters = map(data.letters);
+        var directions = Object.keys(data.directions).map(function (k) { return data.directions[k]; });
+        data.genericSet = set(data.generic.concat(directions));
+        // Each street type with its spellings, so a partly typed one ("stre") is read as it.
+        data.types = Object.create(null);
         Object.keys(data.suffixes).forEach(function (spelling) {
           var w = data.suffixes[spelling];
-          data.genericSet[w] = true;
           (data.types[w] = data.types[w] || []).push(spelling);
         });
         data.answers.forEach(function (a) {
-          a.names = [a.n].concat(a.a || []).map(function (name) { return words(name, data); });
+          a.names = [a.n].concat(a.a || []).map(function (name) {
+            var w = words(name, data);
+            // A street's type, its last word, needn't be named ("sargent" names Sargent Street), and alone names no
+            // one thing; a word elsewhere in a name ("Terrace Lane", "Court Street") does.
+            var type = w.map(function (word, i) { return a.k === "street" && i === w.length - 1 && !!data.types[word]; });
+            return { w: w, type: type, generic: w.map(function (word, i) { return type[i] || !!data.genericSet[word]; }) };
+          });
         });
         return data;
       }).catch(function () { return null; });
@@ -99,12 +116,15 @@
     return answers;
   }
 
-  // Text as search_answers.words() reads it: lowercase, no accents or punctuation, street types written one way.
-  function plain(text) {
-    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/['\u2019]/g, "");
+  // Text as search_answers.words() reads it: lowercase, no accents or punctuation, street types and directions
+  // written one way.
+  function plain(text, data) {
+    var lower = text.toLowerCase();
+    if (data) lower = lower.replace(/./g, function (c) { return data.letters[c] || c; });
+    return lower.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/['’]/g, "");
   }
   function words(text, data) {
-    return plain(text).split(/[^a-z0-9]+/).map(function (w) { return data.suffixes[w] || w; })
+    return plain(text, data).split(/[^a-z0-9]+/).map(function (w) { return data.directions[w] || data.suffixes[w] || w; })
       .filter(function (w) { return w && !data.stopSet[w]; });
   }
 
@@ -128,52 +148,70 @@
     return row[b.length] <= most;
   }
 
-  // How well a searched word matches a word of a name: the same, the start of it (the last word, as it's typed), or
-  // close to it; 0 when it doesn't.
+  // How well a searched word matches a word of a name: the same (1), the start of it, the last word as it's typed
+  // (0.9), or a letter or two off (0.8); 0 when it doesn't.
+  var TYPO = 0.8;
   function wordScore(q, w, last, data) {
     if (q === w) return 1;
     if (last && q.length >= 3 && [w].concat(data.types[w] || []).some(function (s) { return s.indexOf(q) === 0; })) {
       return 0.9;
     }
-    return close(q, w) ? 0.8 : 0;
+    return close(q, w) ? TYPO : 0;
   }
 
-  // How well a search matches one of an answer's names, 0 if it doesn't: the search names all of it (but its street
-  // type), or is all part of it and either names half of it or has two words or more; and a word it matches is one
-  // that names one thing. Higher for more of the name matched, and for every word searched or every word of the
-  // name matched.
+  // How well a search matches one of an answer's names: {score, typo}, or null if it doesn't. It matches when it
+  // names all of the name but a street's type, or when every word of it is in the name and it names one thing: half
+  // the name's words that aren't generic, or the first or last of them (a surname), or with two words or more. The
+  // score is how much of the name it matches, its words that aren't generic counted, and more for every word
+  // searched or every word of the name matched.
   function nameScore(query, name, data) {
-    var used = [], sum = 0, allQuery = true;
+    var used = [], quality = [], allQuery = true, typo = false;
     query.forEach(function (q, i) {
       var best = 0, at = -1;
-      name.forEach(function (w, j) {
+      name.w.forEach(function (w, j) {
         if (used[j]) return;
         var s = wordScore(q, w, i === query.length - 1, data);
         if (s > best) { best = s; at = j; }
       });
-      if (at < 0) allQuery = false;
-      else { used[at] = true; sum += best; }
+      if (at < 0) { allQuery = false; return; }
+      used[at] = true;
+      quality[at] = best;
+      if (best === TYPO) typo = true;
     });
-    var named = name.filter(function (w, j) { return used[j]; });
-    if (!named.some(function (w) { return !data.genericSet[w]; })) return 0;
-    var allName = named.length === name.length;
-    var allButType = name.every(function (w, j) { return used[j] || data.types[w]; });
-    var cover = sum / name.length;
-    if (!allButType && !(allQuery && (cover >= 0.5 || query.length > 1))) return 0;
-    return cover + (allQuery ? 0.5 : 0) + (allName ? 0.5 : 0);
+    var specific = [], sum = 0;
+    name.w.forEach(function (w, j) {
+      if (name.generic[j]) return;
+      specific.push(j);
+      if (used[j]) sum += quality[j];
+    });
+    if (!specific.some(function (j) { return used[j]; })) return null;
+    var cover = sum / specific.length;
+    var allName = name.w.every(function (w, j) { return used[j]; });
+    var allButType = name.w.every(function (w, j) { return used[j] || name.type[j]; });
+    var edge = [specific[0], specific[specific.length - 1]].some(function (j) { return used[j]; });
+    if (!allButType && !(allQuery && (cover >= 0.5 || query.length > 1 || edge))) return null;
+    // Of two as good, the one with fewer words left over: "main" is Main Street before E Main Street.
+    var over = name.w.filter(function (w, j) { return !used[j]; }).length;
+    return { score: cover + (allQuery ? 0.5 : 0) + (allName ? 0.5 : 0) - 0.01 * over, typo: typo };
   }
 
-  // The answers a search names, the best first: at most ANSWERS.most, each within ANSWERS.within of the best.
+  // The answers a search names, the best first: at most ANSWERS.most, each within ANSWERS.within of the best, and
+  // none a letter or two off when another matches as typed ("pine": Pine Street, not Vine Street).
   function match(q, data) {
     var query = data ? words(q, data) : [];
     if (!query.length) return [];
     var scored = [];
     data.answers.forEach(function (a) {
-      var score = Math.max.apply(null, a.names.map(function (name) { return nameScore(query, name, data); }));
-      if (score > 0) scored.push({ answer: a, score: score });
+      var best = null;
+      a.names.forEach(function (name) {
+        var s = nameScore(query, name, data);
+        if (s && (!best || s.score > best.score)) best = s;
+      });
+      if (best) scored.push({ answer: a, score: best.score, typo: best.typo });
     });
+    if (scored.some(function (s) { return !s.typo; })) scored = scored.filter(function (s) { return !s.typo; });
     scored.sort(function (x, y) { return y.score - x.score; });
-    return scored.filter(function (s) { return s.score >= scored[0].score - ANSWERS.within; })
+    return scored.filter(function (s) { return s.score >= scored[0].score - ANSWERS.within - 1e-9; })
       .slice(0, ANSWERS.most).map(function (s) { return s.answer; });
   }
 
@@ -181,7 +219,7 @@
   // such words or quotes a phrase.
   function pagefindQuery(q, data) {
     if (!data || /["\u201c\u201d]/.test(q)) return q;
-    var kept = q.split(/\s+/).filter(function (w) { return !data.stopSet[plain(w).replace(/[^a-z0-9]+/g, "")]; });
+    var kept = q.split(/\s+/).filter(function (w) { return !data.stopSet[plain(w, data).replace(/[^a-z0-9]+/g, "")]; });
     return kept.length ? kept.join(" ") : q;
   }
 
@@ -202,7 +240,7 @@
   function detail(a) {
     if (a.k === "official") return a.d;
     if (a.k === "street") {
-      return [a.c.meetings && count("street_meetings", a.c.meetings), a.c.requests && count("street_requests", a.c.requests),
+      return [a.c.meetings && count("street_mentions", a.c.meetings), a.c.requests && count("street_requests", a.c.requests),
               a.c.permits && count("street_permits", a.c.permits)].filter(Boolean).join(" · ");
     }
     var today = isoToday();
@@ -289,7 +327,7 @@
     list.textContent = "";
     if (!total) {
       bar.hidden = true;
-      status.textContent = found.answers.length ? "" : t("none", { query: query });
+      status.textContent = t(found.answers.length ? "only_answers" : "none", { query: query });
       return;
     }
     if (shown !== "all" && !counts[shown]) shown = "all";

@@ -215,18 +215,27 @@ def test_site_search_lists_by_date(browser, server_url):
 
 
 # Searches and the answers shown above their results (pipeline/search_answers.py), from the fixture's streets,
-# boards and officials: a typo, a question, a street named among other words, a partly typed street type, and a
-# word that names no one thing.
+# boards and officials: typos, questions, a street named among other words, partly typed words, a street type in
+# a street's name, a direction, a seat, a word of a name, and words that name no one thing.
 ANSWER_SEARCHES = [
     ("chery st", ["Cherry Street"]),
     ("cherry stre", ["Cherry Street"]),
     ("who is the mayor", ["Morgan Example"]),
+    ("who's the mayor", ["Morgan Example"]),
+    ("morgn", ["Morgan Example"]),
     ("pothole on main st", ["Main Street"]),
+    ("main", ["Main Street", "E Main Street"]),
+    ("east main street", ["E Main Street"]),
+    ("terrace", ["Terrace Lane"]),
     ("when does the city council meet", ["City Council"]),
     ("city council president", ["Casey Example"]),
+    ("who represents ward 2", ["Blake Example", "Indy Example"]),
     ("consrvation commission", ["Conservation Commission"]),
+    ("conserv", ["Conservation Commission"]),
+    ("aging", ["Council on Aging Board"]),
     ("street", []),
     ("committee", []),
+    ("board", []),
 ]
 
 

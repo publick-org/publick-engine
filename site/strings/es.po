@@ -5443,13 +5443,6 @@ msgstr "Vehículos de motor"
 msgid "Municipal"
 msgstr "Municipal"
 
-#: site/pages/search/index.html
-#, python-brace-format
-msgid "Named at {n} meeting"
-msgid_plural "Named at {n} meetings"
-msgstr[0] "Mencionada en {n} reunión"
-msgstr[1] "Mencionada en {n} reuniones"
-
 #: site/templates/meeting.html
 msgctxt "roll call"
 msgid "Nay"
@@ -5803,6 +5796,11 @@ msgstr "No aparece en el %(listing)s"
 #: site/templates/meeting.html
 msgid "Not recorded in this vote"
 msgstr "No consta en esta votación"
+
+#: site/pages/search/index.html
+#, python-brace-format
+msgid "Nothing else on the site matches {query}."
+msgstr "Nada más en el sitio coincide con {query}."
 
 #: site/pages/search/index.html
 #, python-brace-format
@@ -10337,7 +10335,7 @@ msgid_plural "{n} 311 requests in the past year"
 msgstr[0] "{n} solicitud al 311 en el último año"
 msgstr[1] "{n} solicitudes al 311 en el último año"
 
-#: site/pages/streets/index.html
+#: site/pages/search/index.html site/pages/streets/index.html
 #, python-brace-format
 msgid "{n} agenda and minutes mention"
 msgid_plural "{n} agenda and minutes mentions"
