@@ -9225,6 +9225,11 @@ msgstr "Al día"
 msgid "Up to date. Next: %(next)s."
 msgstr "Al día. Próximos datos: %(next)s."
 
+#: site/pages/search/index.html
+msgctxt "meeting in search results"
+msgid "Upcoming"
+msgstr "Próxima"
+
 #: site/pages/meetings/index.html
 msgctxt "meetings"
 msgid "Upcoming"

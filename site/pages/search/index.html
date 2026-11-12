@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {# The site's search (pipeline/search_index.py, site/static/js/search.js): a box, what it searches, and a few searches
-   to try, from the town's own data; then the results as they're typed, decisions first, then pages, then meetings,
-   with a filter by kind. ?q= is the search, so a search from the home page, or a link to one, opens with its results. #}
+   to try, from the town's own data; then the results as they're typed, decisions first, then pages, then meetings
+   (upcoming ones first, marked), with a filter by kind. ?q= is the search, so a search from the home page, or a link to one, opens with its results. #}
 {% block title %}{{ _("Search") }}{% endblock %}
 {# Translators: the page's title in search results: %(site)s is the site's name, such as "Gloucester Publick". #}
 {% block head_title %}{% trans site=site.name %}Search {{ site }}{% endtrans %}{% endblock %}
@@ -51,6 +51,7 @@
   "matches_other": ngettext("{n} result for {query}.", "{n} results for {query}.", 2),
   "none": _("Nothing on the site matches {query}. Try fewer or different words."),
   "more": _("Show more"),
+  "upcoming": pgettext("meeting in search results", "Upcoming"),
   "searching": _("Searching…"),
   "failed": _("Search couldn't load. Please try again later."),
   "filter": _("Show"),

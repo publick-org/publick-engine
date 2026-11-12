@@ -10,6 +10,7 @@ checks are still needed when new sections are added.
 
 import re
 import time
+from datetime import date, datetime
 
 import pytest
 from conftest import PAGE_PATHS, serve
@@ -183,6 +184,44 @@ def test_site_search_results(browser, axe, server_url, viewport):
     context.close()
     assert results.violations_count == 0, format_violations(results)
     assert overflow <= 0
+
+
+def test_site_search_lists_by_date(browser, server_url):
+    """Meetings come upcoming first, the soonest first and marked, then past ones, the newest first; decisions,
+    the newest first (pipeline/search_index.py)."""
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(server_url + "/search/?q=finance")
+    page.wait_for_selector(".search-group li")
+    page.click('.search-filters button[data-kind="meeting"]')
+    wait_until(page, "document.querySelectorAll('#results-meeting').length === 1 && !document.querySelector('#results-decision')")
+    rows = page.locator("#search-results .search-list > li")
+    wait_until(page, "document.querySelectorAll('#search-results .search-list > li').length >= 9")
+    titles = rows.locator(".search-title").all_text_contents()
+    upcoming = [rows.nth(i).locator(".search-upcoming").count() == 1 for i in range(len(titles))]
+    when = [_date(t.rsplit(" – ", 1)[1]) for t in titles]
+    n = upcoming.count(True)
+    assert n and upcoming == [True] * n + [False] * (len(titles) - n)
+    assert when[:n] == sorted(when[:n]) and when[n:] == sorted(when[n:], reverse=True)
+    assert all(d >= date(2026, 10, 2) for d in when[:n]) and all(d < date(2026, 10, 2) for d in when[n:])
+    page.goto(server_url + "/search/?q=site+plan")
+    page.wait_for_selector(".search-group li")
+    page.click('.search-filters button[data-kind="decision"]')
+    wait_until(page, "!document.querySelector('#results-meeting') && !!document.querySelector('#results-decision')")
+    wait_until(page, "document.querySelectorAll('#search-results .search-meta').length >= 10")
+    decided = [_date(m.split(" · ")[-1].split(", ", 1)[1]) for m in page.locator(".search-meta").all_text_contents()]
+    assert decided == sorted(decided, reverse=True) and len(set(decided)) > 1
+    context.close()
+
+
+def _date(text):
+    """A date as the site says it, "Oct 8, 2026" or "July 28, 2026"."""
+    for form in ("%b %d, %Y", "%B %d, %Y"):
+        try:
+            return datetime.strptime(text, form).date()
+        except ValueError:
+            pass
+    raise ValueError(text)
 
 
 # The address box (site/static/js/address.js) reads an address as pipeline/fetch_addresses.py's find()

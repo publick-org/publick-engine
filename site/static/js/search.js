@@ -1,7 +1,8 @@
 // The site's search (site/pages/search/), over its Pagefind index (pipeline/search_index.py). The index is loaded
 // on the first search, a few small files for each word. Results show as they're typed: decisions first, then pages,
-// then meetings, each kind with its count in the filter above them. ?q= is kept in the address, so a search can be
-// linked or reloaded.
+// then meetings, each kind with its count in the filter above them. Decisions are listed newest first; meetings
+// upcoming first, the soonest first, then past ones, the newest first; pages by how well they match. ?q= is kept
+// in the address, so a search can be linked or reloaded.
 (function () {
   "use strict";
   var root = document.getElementById("search");
@@ -15,6 +16,14 @@
   // The kinds of result (search_index.py), in the order they're shown, and how many of each the list starts with.
   var KINDS = ["decision", "page", "meeting"];
   var FIRST = { all: 5, one: 20 };
+  // The searches for each kind, whose results are listed one after the other: their filters, and their order, by
+  // the date each result has (search_index.sort_key()); a page has none, and is listed by how well it matches.
+  var SEARCHES = {
+    decision: [{ filters: { kind: "decision" }, sort: { date: "desc" } }],
+    page: [{ filters: { kind: "page" } }],
+    meeting: [{ filters: { kind: "meeting", when: "upcoming" }, sort: { date: "asc" }, upcoming: true },
+              { filters: { kind: "meeting", when: "past" }, sort: { date: "desc" } }],
+  };
   var strings = JSON.parse(root.getAttribute("data-strings") || "{}");
   function t(key, values) {
     return strings[key].replace(/\{(\w+)\}/g, function (m, k) { return values[k]; });
@@ -50,7 +59,7 @@
     return pagefind;
   }
 
-  function item(kind, data) {
+  function item(kind, data, upcoming) {
     var li = el("li");
     if (kind === "decision") {
       var box = el("div", { "class": "search-decision" });
@@ -68,6 +77,7 @@
     }, null) || data;
     if (kind === "page" && data.meta.crumb) li.appendChild(el("div", { "class": "search-crumb" }, data.meta.crumb));
     li.appendChild(el("a", { href: sub.url || data.url, "class": "search-title" }, data.meta.title));
+    if (upcoming) li.appendChild(el("span", { "class": "search-upcoming" }, strings.upcoming));
     li.appendChild(el("p", { "class": "search-excerpt" })).appendChild(excerpt(sub.excerpt || data.excerpt));
     return li;
   }
@@ -84,7 +94,7 @@
       next += batch.length;
       more.hidden = next >= found.length;
       return Promise.all(batch.map(function (r) { return r.data(); })).then(function (all) {
-        all.forEach(function (data) { ol.appendChild(item(kind, data)); });
+        all.forEach(function (data, i) { ol.appendChild(item(kind, data, batch[i].upcoming)); });
       });
     }
     more.addEventListener("click", function () { show(FIRST.one); });
@@ -142,11 +152,19 @@
     }
     if (!current) status.textContent = strings.searching;
     load().then(function (pf) {
-      return Promise.all(KINDS.map(function (k) { return pf.search(q, { filters: { kind: k } }); }));
+      return Promise.all(KINDS.map(function (k) {
+        return Promise.all(SEARCHES[k].map(function (s) {
+          return pf.search(q, { filters: s.filters, sort: s.sort }).then(function (found) {
+            var results = found ? found.results : [];
+            if (s.upcoming) results.forEach(function (r) { r.upcoming = true; });
+            return results;
+          });
+        })).then(function (lists) { return [].concat.apply([], lists); });
+      }));
     }).then(function (searches) {
       if (mine !== typed) return;
       var found = { query: q };
-      KINDS.forEach(function (k, i) { found[k] = searches[i] ? searches[i].results : []; });
+      KINDS.forEach(function (k, i) { found[k] = searches[i]; });
       current = found;
       render(found);
     }).catch(function () {
