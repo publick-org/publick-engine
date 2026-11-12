@@ -65,26 +65,40 @@
   // How many words an excerpt has: a page's or a meeting's, and a decision's, which is shown whole when it can be.
   var LENGTH = { excerpt: 36, decision: 60 };
 
-  // A word as an excerpt compares it with a search's: as words() reads it, a street type or direction written one way.
+  // A word as an excerpt compares it with a search's: {raw: as words() reads it, n: with a street type or direction
+  // written one way}. Remembered, as a page's words repeat.
+  var normed = new Map();
   function norm(word) {
+    var known = normed.get(word);
+    if (known) return known;
     var data = answersData;
-    var w = plain(word, data).replace(/[^a-z0-9]+/g, "");
-    return data ? data.directions[w] || data.suffixes[w] || w : w;
+    var raw = plain(word, data).replace(/[^a-z0-9]+/g, "");
+    var out = { raw: raw, n: data ? data.directions[raw] || data.suffixes[raw] || raw : raw };
+    if (normed.size > 50000) normed.clear();
+    normed.set(word, out);
+    return out;
   }
 
-  // The words a search's excerpts look for, from what it asks Pagefind.
+  // The words a search's excerpts look for, from what it asks Pagefind, without a question's (in a quoted phrase too).
   function terms(query) {
-    return query.replace(/["“”]/g, " ").split(/\s+/).map(norm)
-      .filter(function (w, i, all) { return w && all.indexOf(w) === i; });
+    var seen = {};
+    return query.replace(/["\u201c\u201d]/g, " ").split(/\s+/).map(norm).filter(function (t) {
+      if (!t.n || seen[t.n] || (answersData && answersData.stopSet[t.raw])) return false;
+      return (seen[t.n] = true);
+    });
   }
 
-  // Whether a word of a page is one searched for: the same, the start of it ("park" in "parking", or one being
-  // typed), or the same but for its ending ("budgets", "budget"), as Pagefind finds them.
+  // How well a word of a page is one searched for: the same, street types and directions written one way (2); or, as
+  // typed, the start of it ("park" in "parking", or a word being typed: "stree") or the same but for its ending
+  // ("budgets", "budget"), as Pagefind finds them (1); else 0. A street type's short form ("ter") isn't the start of
+  // other words ("terms"), and numbers are the same or not ("2026-14" isn't "2026-15").
   function matches(w, t) {
-    if (w === t || (t.length >= 3 && w.indexOf(t) === 0)) return true;
+    if (w.n === t.n) return 2;
+    if (/\d/.test(w.raw + t.raw)) return 0;
+    if (t.raw.length >= 3 && w.raw.indexOf(t.raw) === 0) return 1;
     var n = 0;
-    while (n < w.length && n < t.length && w[n] === t[n]) n++;
-    return n >= 4 && n >= Math.max(w.length, t.length) - 2;
+    while (n < w.raw.length && n < t.raw.length && w.raw[n] === t.raw[n]) n++;
+    return n >= 4 && n >= Math.max(w.raw.length, t.raw.length) - 2 ? 1 : 0;
   }
 
   // An excerpt of a result's text around where the search's words are closest together, with them marked: where
@@ -93,18 +107,24 @@
   function wordsExcerpt(content, ts, length) {
     var all = content.split(/\s+/), hits = [];
     all.forEach(function (w, i) {
-      var n = norm(w);
-      for (var k = 0; n && k < ts.length; k++) {
-        if (matches(n, ts[k])) { hits.push({ at: i, term: k }); break; }
+      var n = norm(w), term = -1, how = 0;
+      // The word is the search's word it matches best: "parking" is "parking", not "park", in "park parking".
+      for (var k = 0; n.n && k < ts.length && how < 2; k++) {
+        var m = matches(n, ts[k]);
+        if (m > how) { how = m; term = k; }
       }
+      if (term >= 0) hits.push({ at: i, term: term });
     });
     if (!hits.length) return null;
-    // The shortest stretch with the most of the words.
+    // The shortest stretch, within the excerpt's length, with the most of the words.
     var best = null, count = [], distinct = 0, left = 0;
     hits.forEach(function (hit, right) {
       if (!count[hit.term]) distinct++;
       count[hit.term] = (count[hit.term] || 0) + 1;
-      while (count[hits[left].term] > 1) { count[hits[left].term]--; left++; }
+      while (count[hits[left].term] > 1 || hit.at - hits[left].at >= length) {
+        if (!--count[hits[left].term]) distinct--;
+        left++;
+      }
       var span = hit.at - hits[left].at;
       if (!best || distinct > best.distinct || (distinct === best.distinct && span < best.span)) {
         best = { distinct: distinct, span: span, from: hits[left].at, to: hit.at };
@@ -298,15 +318,17 @@
   }
 
   // The search as a phrase, for the results that have its words together, which are listed first: its words as
-  // typed, without a question's at either end ("pothole on main st"), when that leaves two words or more and it
-  // doesn't quote a phrase already; else null.
+  // typed, without a question's at either end ("who is the city council"), when that leaves two words or more, none
+  // of them a question's, and it doesn't quote a phrase already; else null.
   function phraseOf(q, data) {
     if (/["\u201c\u201d]/.test(q)) return null;
     var all = q.split(/\s+/).filter(Boolean);
     function stop(w) { return data && data.stopSet[plain(w, data).replace(/[^a-z0-9]+/g, "")]; }
     while (all.length && stop(all[0])) all.shift();
     while (all.length && stop(all[all.length - 1])) all.pop();
-    return all.length > 1 ? all.join(" ") : null;
+    // Not with a question's word inside it ("board of health"): Pagefind would load that word's part of the index,
+    // among the largest, which the search itself leaves out.
+    return all.length > 1 && !all.some(stop) ? all.join(" ") : null;
   }
 
   // A day as "Wed, Nov 18", with the year when it isn't this year's.
