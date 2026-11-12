@@ -40,8 +40,8 @@ calendar entry a meeting. Three layouts are read:
   Curriculum", "Advisory Committee on Policy") and under it a row of four
   columns, each an accordion of school years with a link a meeting, its label
   the meeting's date and time ("October 28, 2026(7:00pm)"), to its packet, a
-  Google Doc. [page_meetings.columns] maps a heading to its board, and each
-  column is read as a page of that board's meetings (apptegy.columns).
+  Google Doc. [page_meetings] columns maps a heading to its board, and each
+  column is read as a page of that board's meetings (apptegy.column_meetings).
 
 - A folder of files, a board's year of agendas or minutes. Manchester School
   District's documents (Apptegy, /documents/.../<folder id>) list each file by
@@ -97,15 +97,14 @@ from __future__ import annotations
 
 import html
 import re
-from urllib.parse import unquote, urljoin
+from urllib.parse import urljoin
 
-from pipeline import apptegy, dates, finalsite
+from pipeline import agenda_minutes, apptegy, dates, finalsite
 from pipeline.meeting_names import find_board, parse_name, words
 
 SOURCE = "page"
 # What a page of [page_meetings.pages] may set of its own, over the table's (pipeline/fetch_page_meetings.py).
-PAGE_SETTINGS = ("source_name", "one_meeting_a_day", "agenda_pattern", "minutes_pattern", "exclude_pattern",
-                 "name_ignore_pattern", "other_pages")
+PAGE_SETTINGS = ("source_name", "one_meeting_a_day", "exclude_pattern", "name_ignore_pattern", "other_pages")
 
 ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.S | re.I)
 CELL = re.compile(r"<t[dh]\b[^>]*>(.*?)</t[dh]>", re.S | re.I)
@@ -355,23 +354,15 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
     two boards' meetings on one day are kept apart. `more`, (page, address) pairs, are read
     with the page as one list ([page_meetings] other_pages). resolve(url), if given, is where a
     short link (apptegy.SHORT_LINK) leads, or None; it's asked only for entries dated from `since` on. With
-    [page_meetings.columns], the page's columns named by those headings are read instead, each as a
-    page of its board's meetings, and a heading not found is reported. With one_meeting_a_day, a date's entries are one meeting of
+    [page_meetings] columns, an Apptegy page's columns are read instead, each as a page of its board's
+    meetings (apptegy.column_meetings). With one_meeting_a_day, a date's entries are one meeting of
     their board, keyed by the date (and the page's board), whatever their names; the shortest name is
     the meeting's (a table row's, over an announcement's sentence)."""
     if board is None and settings.get("columns"):
-        # Each column a board's ([page_meetings.columns]): read as a page of that board's meetings.
-        on_page = {words(name): column for name, column in apptegy.columns(page).items()}
-        found, unrecognized = [], []
-        for name, column_board in settings["columns"].items():
-            if words(name) not in on_page:
-                unrecognized.append(f"(no column headed {name!r})")
-                continue
-            in_column, not_read = meetings(on_page[words(name)], page_url, settings, column_board,
-                                           resolve=resolve)
-            found += in_column
-            unrecognized += not_read
-        return found, unrecognized
+        # An Apptegy page whose columns are each a board's (apptegy.column_meetings).
+        return apptegy.column_meetings(page, settings["columns"],
+                                       lambda column, column_board: meetings(column, page_url, settings, column_board,
+                                                                             resolve=resolve))
     exclude, ignore = settings.get("exclude_pattern"), settings.get("name_ignore_pattern")
     one_a_day = settings.get("one_meeting_a_day", False)
     bodies, default = ({}, board) if board else (settings.get("bodies", {}), settings.get("body"))
@@ -422,29 +413,6 @@ def meetings(page: str, page_url: str, settings: dict, board: str | None = None,
     return found, unrecognized
 
 
-# A Google redirect around a link in a Google Doc's HTML export ("https://www.google.com/url?q=<link>&sa=...").
-GOOGLE_REDIRECT = re.compile(r"^https://www\.google\.com/url\?q=([^&]+)")
-
-
-def minutes_in_agenda(page: str) -> list[tuple[str, str]]:
-    """The minutes an agenda links, as (date, link): a paragraph of the agenda that says "minutes" and links
-    a document labelled with a date (Biddeford School Committee's packets: "5. Approval of Last Meeting's
-    Minutes: 9/23/2026 (Motion Needed)", "9/23/2026" linking that meeting's minutes, a Google Doc). page
-    is the agenda as HTML (a Google Doc's export)."""
-    found = []
-    for paragraph in re.split(r"</p>|</li>", page, flags=re.I):
-        if not re.search(r"\bminutes\b", text(paragraph), re.I):
-            continue
-        for href, label in re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>', paragraph, re.I | re.S):
-            url = html.unescape(href)
-            wrapped = GOOGLE_REDIRECT.match(url)
-            url = unquote(wrapped.group(1)) if wrapped else url
-            dated = find_date(text(label))
-            if dated and finalsite.is_document(url):
-                found.append((dated.day.isoformat(), url))
-    return found
-
-
 # ---- The town's config ------------------------------------------------------------------
 
 def check(config: dict) -> None:
@@ -487,7 +455,7 @@ def check(config: dict) -> None:
         if not isinstance(page.get("other_pages", []), list) or not all(re.match(r"https?://", str(u))
                                                                         for u in page.get("other_pages", [])):
             raise SystemExit(f"{what}: other_pages must list addresses of more pages of its board's documents.")
-        for key in ("agenda_pattern", "minutes_pattern", "exclude_pattern", "name_ignore_pattern"):
+        for key in ("exclude_pattern", "name_ignore_pattern"):
             if key in page:
                 try:
                     re.compile(page[key])
@@ -506,12 +474,8 @@ def check(config: dict) -> None:
     for key in ("recheck_days", "max_documents_per_run"):
         if key in settings and not (isinstance(settings[key], int) and settings[key] > 0):
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")
-    columns = settings.get("columns", {})
-    if not isinstance(columns, dict) or not all(isinstance(k, str) and k and isinstance(v, str) and v
-                                                for k, v in columns.items()):
-        raise SystemExit(f'{where}: columns must map a column\'s heading on the page to its board, like '
-                         '"Advisory Committee on Policy" = "School Committee Policy Committee".')
     if not isinstance(settings.get("one_meeting_a_day", False), bool):
         raise SystemExit(f"{where}: one_meeting_a_day must be true or false.")
-    if not isinstance(settings.get("minutes_in_agenda", False), bool):
-        raise SystemExit(f"{where}: minutes_in_agenda must be true or false.")
+    # The settings of one platform or one way of posting, read by its own module.
+    apptegy.check_columns(settings, where)
+    agenda_minutes.check(settings, where)

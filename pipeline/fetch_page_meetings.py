@@ -26,16 +26,22 @@ that posts its agendas on one page and its minutes on another).
 
 A page of [page_meetings.pages] may be a table instead of a board's name, with
 settings of its own (linkpage.PAGE_SETTINGS) over the table's: its board, the name of
-whoever posts it (source_name), one_meeting_a_day, the patterns, and
-other_pages read with it. A town whose [page_meetings] is one department's
-pages can read another body's this way: Manchester's are the Planning and
+whoever posts it (source_name), one_meeting_a_day, exclude_pattern,
+name_ignore_pattern, and other_pages read with it. A town whose
+[page_meetings] is one department's pages can read another body's this way: Manchester's are the Planning and
 Community Development department's, and each of the school district's
 document folders is a page with its own board and source_name. An Apptegy
 folder of years ("2025", "2026") is read through its years from since on, so
 a page needn't change each January. A short link
 (an Apptegy aptg.co link) is followed to the file it redirects to, with a HEAD
-request, once: where each leads is kept in meetings/page_status.json
-(short_links) and asked again only of a link not resolved before.
+request, once (apptegy.ShortLinks): where each leads is kept in
+meetings/page_status.json (short_links) and asked again only of a link not
+resolved before.
+
+A board that links its minutes only from the next meeting's agenda
+([page_meetings] minutes_in_agenda, Biddeford School Committee's) has them read
+from there (pipeline/agenda_minutes.py); what each agenda linked is kept in
+meetings/page_status.json (agenda_minutes), so a past agenda isn't read again.
 
 Entries with a document but no date or no board are listed in the run's
 summary, not guessed at.
@@ -53,7 +59,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import apptegy, finalsite, linkpage
+from pipeline import agenda_minutes, apptegy, linkpage
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_finalsite_meetings import update_documents
@@ -93,36 +99,6 @@ def new_meeting(store: dict, found: dict, settings: dict, stamp: str) -> dict:
     return meeting
 
 
-def link_minutes_in_agendas(client, found: list[dict], since: str, today: str, known: dict,
-                            errors: list[str]) -> None:
-    """[page_meetings] minutes_in_agenda: a board that posts a meeting's minutes only as a link in the next
-    meeting's agenda (Biddeford School Committee's packets, Google Docs: "Approval of Last Meeting's Minutes:
-    9/23/2026"). Each agenda that's a Google Doc, of a meeting from `since` on, is read as HTML until it links
-    minutes or its meeting has passed, then not again (`known`, by the agenda's address, kept in the status
-    file), and each link is the minutes of
-    the same board's meeting on its date, where that meeting has none of its own."""
-    by_day = {(m["body"], m["date"]): m for m in found}
-    for item in found:
-        agenda = item.get("agenda_url")
-        if item["date"] < since or not agenda or not finalsite.is_google_doc(agenda):
-            continue
-        if agenda not in known:
-            doc = finalsite.file_key(agenda)
-            try:
-                page = client.get(f"https://docs.google.com/document/d/{doc}/export?format=html").text
-            except FetchError as e:
-                errors.append(f"{agenda}: {e}")
-                continue
-            links = linkpage.minutes_in_agenda(page)
-            if not links and item["date"] >= today:
-                continue   # read again next run: the agenda may not link them yet
-            known[agenda] = links
-        for day, url in known[agenda]:
-            earlier = by_day.get((item["body"], day))
-            if earlier and day < item["date"] and not earlier.get("minutes_url"):
-                earlier["minutes_url"] = url
-
-
 def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     stamp = now.isoformat(timespec="seconds")
@@ -136,26 +112,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     errors, found, unrecognized = [], [], []
     status_path = meetings_dir(data_dir) / STATUS_FILE
     previous = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
-    known, short_links = previous.get("short_links", {}), {}
-
-    def resolve(url: str) -> str | None:
-        # A short link leads to the same file for good: each is asked once, and its answer kept.
-        if url not in known:
-            target = url
-            try:
-                for _ in range(3):   # a short link to another short link, at most
-                    target = client.location(target) or target
-                    if not apptegy.SHORT_LINK.match(target):
-                        break
-            except FetchError as e:
-                errors.append(f"{url}: {e}")
-                return None
-            if target == url or apptegy.SHORT_LINK.match(target):
-                errors.append(f"{url}: doesn't lead to a file")
-                return None
-            known[url] = target
-        short_links[url] = known[url]
-        return known[url]
+    short_links = apptegy.ShortLinks(client, previous.get("short_links", {}), errors)
 
     def pages_of(page: str, url: str) -> list[tuple[str, str]]:
         # An Apptegy folder of years: its years from since on, each a page read with it.
@@ -186,7 +143,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             errors.append(str(e))
             continue
         more = pages_of(page, url) + more
-        on_page, not_read = linkpage.meetings(page, url, read_with, board, more, resolve)
+        on_page, not_read = linkpage.meetings(page, url, read_with, board, more, short_links.resolve)
         if not on_page:
             # A page lists at least the current year's meetings: none means its layout changed.
             if board is None:
@@ -195,9 +152,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         found += [{**m, "page_url": url, "source_name": read_with["source_name"]} for m in on_page]
         unrecognized += not_read
 
-    agenda_minutes = previous.get("agenda_minutes", {}) if settings.get("minutes_in_agenda") else {}
-    if settings.get("minutes_in_agenda"):
-        link_minutes_in_agendas(client, found, since, today, agenda_minutes, errors)
+    # A board that links its minutes only from the next meeting's agenda (pipeline/agenda_minutes.py).
+    in_agendas = settings.get("minutes_in_agenda", False)
+    minutes_in_agendas = previous.get("agenda_minutes", {}) if in_agendas else {}
+    if in_agendas:
+        agenda_minutes.link(client, found, since, today, minutes_in_agendas, errors)
 
     created, listed = 0, set()
     for item in found:
@@ -249,9 +208,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "new_unrecognized": sorted(set(unrecognized) - set(reported)),
         "errors": errors,
         # Where each short link on the pages leads, so it isn't asked again.
-        "short_links": dict(sorted(short_links.items())),
+        "short_links": dict(sorted(short_links.used.items())),
         # The minutes each agenda links ([page_meetings] minutes_in_agenda), so a packet isn't read again.
-        **({"agenda_minutes": dict(sorted(agenda_minutes.items()))} if settings.get("minutes_in_agenda") else {}),
+        **({"agenda_minutes": dict(sorted(minutes_in_agendas.items()))} if in_agendas else {}),
     }
     save_json(status_path, status)
     return status
