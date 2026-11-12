@@ -5,12 +5,13 @@ what's here is only what the platform does its own way, read the same for every 
 
 - A page's content as its script holds it (window.clientWorkStateTemp = JSON.parse("...")): its layout
   rows, columns and content (structure()), and the columns a heading names (columns()): Biddeford
-  Schools' "Agendas and Minutes" page, a column a board's ([page_meetings.columns]).
+  Schools' "Agendas and Minutes" page, a column a board's ([page_meetings] columns, read by
+  column_meetings() and checked by check_columns()).
 - A document folder (/documents/.../<folder id>), whose files are listed only in the page's Nuxt payload
   (__NUXT_DATA__), not as links (folder()): Manchester School District's. Its agendas and minutes are
   read as a list of links (folder_links()), and a folder of years from `since` on (year_folders()).
 - A short link (aptg.co/..., SHORT_LINK), which South Burlington School District links about half its
-  agendas and minutes by: the reader follows it to the file it leads to.
+  agendas and minutes by: followed to the file it leads to, once (ShortLinks).
 
 A page whose content is HTML escaped inside a script's JSON (Worcester Public Schools') is read back by
 linkpage.readable(), since any site can do that.
@@ -24,9 +25,11 @@ import re
 from urllib.parse import urljoin
 
 from pipeline import finalsite
+from pipeline.http import FetchError
+from pipeline.meeting_names import words
 
 # A link that redirects to the document it names: an Apptegy short link ("https://aptg.co/Lj5CdR"), followed
-# by pipeline/fetch_page_meetings.py.
+# by ShortLinks.
 SHORT_LINK = re.compile(r"^https?://(?:www\.)?aptg\.co/\w+/?$", re.I)
 
 
@@ -95,6 +98,33 @@ def columns(page: str) -> dict[str, str]:
     if found:
         walk(found)
     return found_columns
+
+
+def column_meetings(page: str, boards: dict[str, str], read) -> tuple[list[dict], list[str]]:
+    """The meetings of a page whose columns are each a board's ([page_meetings] columns, a column's
+    heading -> its board): each column named in boards is read as a page of that board's meetings by
+    read(the column's HTML, its board), which gives (meetings, entries not read) as
+    pipeline/linkpage.meetings() does. Headings are matched by their words, and one not on the page is
+    reported with the entries not read."""
+    on_page = {words(name): column for name, column in columns(page).items()}
+    found, unrecognized = [], []
+    for name, board in boards.items():
+        if words(name) not in on_page:
+            unrecognized.append(f"(no column headed {name!r})")
+            continue
+        in_column, not_read = read(on_page[words(name)], board)
+        found += in_column
+        unrecognized += not_read
+    return found, unrecognized
+
+
+def check_columns(settings: dict, where: str) -> None:
+    """[page_meetings] columns, checked as the town's config is loaded."""
+    boards = settings.get("columns", {})
+    if not isinstance(boards, dict) or not all(isinstance(k, str) and k and isinstance(v, str) and v
+                                               for k, v in boards.items()):
+        raise SystemExit(f'{where}: columns must map a column\'s heading on the page to its board, like '
+                         '"Advisory Committee on Policy" = "School Committee Policy Committee".')
 
 
 # A Nuxt site's state, as the page carries it: a JSON array whose containers hold the indexes of their values.
@@ -168,3 +198,31 @@ def year_folders(page: str, page_url: str, since: str) -> list[str]:
              if item.get("url") and re.fullmatch(r"\d{4}", str(item.get("folder_name") or "").strip())
              and int(item["folder_name"]) >= int(str(since)[:4])]
     return [urljoin(page_url, str(url)) for _, url in sorted(set(years), reverse=True)]
+
+
+class ShortLinks:
+    """Where short links lead, each asked once: a short link leads to the same file for good. known is what
+    earlier runs found ({short link: file}); used, what this run's pages link, for the caller to keep."""
+
+    def __init__(self, client, known: dict, errors: list[str]):
+        self.client, self.known, self.errors, self.used = client, known, errors, {}
+
+    def resolve(self, url: str) -> str | None:
+        """The file a short link leads to, followed with HEAD requests; None, and an error, for one that
+        doesn't lead to a file."""
+        if url not in self.known:
+            target = url
+            try:
+                for _ in range(3):   # a short link to another short link, at most
+                    target = self.client.location(target) or target
+                    if not SHORT_LINK.match(target):
+                        break
+            except FetchError as e:
+                self.errors.append(f"{url}: {e}")
+                return None
+            if target == url or SHORT_LINK.match(target):
+                self.errors.append(f"{url}: doesn't lead to a file")
+                return None
+            self.known[url] = target
+        self.used[url] = self.known[url]
+        return self.known[url]

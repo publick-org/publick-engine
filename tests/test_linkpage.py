@@ -14,7 +14,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeLinkPage
 
-from pipeline import apptegy, build_site, fetch_page_meetings, finalsite, linkpage
+from pipeline import agenda_minutes, apptegy, build_site, fetch_page_meetings, finalsite, linkpage
 from pipeline.fetch_meetings import load_store
 
 NOW = datetime(2026, 10, 12, 7, 0, tzinfo=TZ)
@@ -412,10 +412,10 @@ def test_one_meeting_a_day_keeps_a_cancellation_the_shorter_name_doesnt_say():
 def test_minutes_an_agenda_links():
     # Biddeford School Committee's packet of October 14, 2026: its minutes item links September 23's.
     page = (FIXTURES / "linkpage_biddeford_packet.html").read_text(encoding="utf-8")
-    assert linkpage.minutes_in_agenda(page) == [
+    assert agenda_minutes.minutes_in(page) == [
         ("2026-09-23", "https://docs.google.com/document/d/1MtsFhMA-iR8_WaZK0IRoocrLxJuIUg5qbkh8ZDY-z1k/edit?usp=sharing")]
     # A dated link in a paragraph that isn't about minutes, or a minutes item without a dated link, isn't one.
-    assert linkpage.minutes_in_agenda('<p>Workshop <a href="https://example.org/a.pdf">9/30/2026</a></p>'
+    assert agenda_minutes.minutes_in('<p>Workshop <a href="https://example.org/a.pdf">9/30/2026</a></p>'
                                       '<p>Minutes: <a href="https://example.org/b.pdf">see here</a></p>') == []
 
 
@@ -435,13 +435,13 @@ def test_minutes_in_agendas_go_to_the_earlier_meeting():
              {"body": "School Committee", "date": "2026-09-23", "agenda_url": doc.format("1SEPTEMBERxxxxxxxxxxxxxxxxxxxxx")},
              {"body": "School Committee", "date": "2026-11-12", "agenda_url": doc.format("1NOVEMBERxxxxxxxxxxxxxxxxxxxxxx")}]
     client, known, errors = Packets(), {}, []
-    fetch_page_meetings.link_minutes_in_agendas(client, found, "2026-06-01", "2026-11-01", known, errors)
+    agenda_minutes.link(client, found, "2026-06-01", "2026-11-01", known, errors)
     assert found[1]["minutes_url"].startswith("https://docs.google.com/document/d/1MtsFhMA")
     assert "minutes_url" not in found[0] and errors == []
     # A past packet without minutes is remembered as none; an upcoming one is read again next run.
     assert known[doc.format("1SEPTEMBERxxxxxxxxxxxxxxxxxxxxx")] == [] and doc.format("1NOVEMBERxxxxxxxxxxxxxxxxxxxxxx") not in known
     client.urls.clear()
-    fetch_page_meetings.link_minutes_in_agendas(client, found, "2026-06-01", "2026-11-01", known, errors)
+    agenda_minutes.link(client, found, "2026-06-01", "2026-11-01", known, errors)
     assert client.urls == [f"https://docs.google.com/document/d/1NOVEMBER{'x' * 22}/export?format=html"]
 
 
@@ -535,6 +535,37 @@ def test_a_column_not_on_the_page_is_reported():
     found, unrecognized = linkpage.meetings(biddeford_page(), BIDDEFORD, settings)
     assert {m["body"] for m in found} == {"School Committee"}
     assert unrecognized == ["(no column headed 'Negotiations')"]
+
+
+def test_a_run_takes_minutes_from_the_next_agenda(config, tmp_path):
+    """minutes_in_agenda through a run: October 28's packet links August 12's minutes, which are saved as
+    that meeting's, and what each agenda linked is kept, so only an upcoming agenda that linked none is
+    read again."""
+    export = "https://docs.google.com/document/d/{}/export?format=html"
+    packet = (FIXTURES / "linkpage_biddeford_packet.html").read_text(encoding="utf-8").replace("9/23/2026", "8/12/2026")
+    agendas = {"1lA_EpH9qo9-XJoEysqT0PGIMdv4tPGzS3yRS4JudaAI": packet,   # School Committee, October 28
+               "17diVUGGyyl2fAjGPp3g9CMlyOVbAnAXW9qZlHSbatXY": "<p>Agenda</p>",   # June 10
+               "1Gm2PHdbgUa2yWWySYeE_rAw7d2PfCRJnsukfWvJrvNo": "<p>Agenda</p>",   # August 12
+               "158exIDfFN7rzkP65I2YoDNs5oBd0C145HPV6Hi-u8c4": "<p>Agenda</p>",   # Policy Committee, August 12
+               "1o21bZCMukK6i1so1SsJ33pcU_8539fcbw5Fr4_q1ujo": "<p>Agenda</p>"}   # Policy Committee, October 14
+    town = copy.deepcopy(config)
+    town["page_meetings"] = {**biddeford(), "minutes_in_agenda": True}
+    client = FakeLinkPage(replaced={BIDDEFORD: biddeford_page(), **{export.format(d): a for d, a in agendas.items()}})
+    status, store, _ = run(town, tmp_path, client)
+    minutes = "https://docs.google.com/document/d/1MtsFhMA-iR8_WaZK0IRoocrLxJuIUg5qbkh8ZDY-z1k/edit?usp=sharing"
+    august = store["page-2026-08-12-school-committee"]
+    assert august["minutes_url"] == minutes and august["minutes"]
+    assert "minutes_url" not in store["page-2026-08-12-school-committee-policy-committee"]
+    saved = json.loads((tmp_path / "meetings" / fetch_page_meetings.STATUS_FILE).read_text(encoding="utf-8"))
+    assert not status["errors"] and saved["agenda_minutes"] == {
+        "https://docs.google.com/document/d/1Gm2PHdbgUa2yWWySYeE_rAw7d2PfCRJnsukfWvJrvNo/edit?usp=sharing": [],
+        "https://docs.google.com/document/d/158exIDfFN7rzkP65I2YoDNs5oBd0C145HPV6Hi-u8c4/edit?usp=sharing": [],
+        "https://docs.google.com/document/d/17diVUGGyyl2fAjGPp3g9CMlyOVbAnAXW9qZlHSbatXY/edit?usp=sharing": [],
+        "https://docs.google.com/document/d/1lA_EpH9qo9-XJoEysqT0PGIMdv4tPGzS3yRS4JudaAI/edit?usp=sharing": [["2026-08-12", minutes]]}
+    client.urls.clear()
+    status, store, _ = run(town, tmp_path, client)
+    assert [u for u in client.urls if u.endswith("format=html")] == [export.format("1o21bZCMukK6i1so1SsJ33pcU_8539fcbw5Fr4_q1ujo")]
+    assert store["page-2026-08-12-school-committee"]["minutes_url"] == minutes
 
 
 # ---- Collecting -------------------------------------------------------------------------------
@@ -954,7 +985,10 @@ def test_a_page_with_settings_of_its_own(config, tmp_path):
     ({"board": "Board of School Committee", "body": "x"}, "not body"),
     ({"board": "Board of School Committee", "one_meeting_a_day": "no"}, "one_meeting_a_day must be true or false"),
     ({"board": "Board of School Committee", "other_pages": ["minutes"]}, "other_pages must list addresses"),
-    ({"board": "Board of School Committee", "agenda_pattern": "("}, "agenda_pattern isn't a regular expression"),
+    ({"board": "Board of School Committee", "exclude_pattern": "("}, "exclude_pattern isn't a regular expression"),
+    ({"board": "Board of School Committee", "name_ignore_pattern": "("}, "name_ignore_pattern isn't a regular expression"),
+    # The table's patterns hold for its pages: no town's page has patterns of its own.
+    ({"board": "Board of School Committee", "agenda_pattern": "Agenda"}, "not agenda_pattern"),
 ])
 def test_a_pages_own_settings_are_checked(config, page, message):
     town = copy.deepcopy(config)
