@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import copy
 import csv
+import dataclasses
 import hashlib
 import json
 import re
@@ -23,6 +24,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from email.utils import format_datetime
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import quote, urlencode, urlparse
 from xml.sax.saxutils import escape as xml_escape
 from zoneinfo import ZoneInfo
@@ -1708,6 +1710,11 @@ def localize_categories(value, tr: TownStrings) -> None:
 
 # ---- Build -----------------------------------------------------------------
 
+def language_prefix(lang: str) -> str:
+    """Where a language's pages are: "" for English, "/es" for Spanish."""
+    return "" if lang == "en" else f"/{lang}"
+
+
 def languages(config: dict) -> list[str]:
     """The languages a town's site is built in ([site] languages): English, then any others."""
     langs = config["site"].get("languages", ["en"])
@@ -1780,35 +1787,135 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     """One language's pages, and with English the files every language shares. redirects, if given,
     gets each moved page's address, to the address it sends readers to (write_support_files). problems, if
     given, gets the corrections not shown. search_records, if given, gets each decision, for the site's search
-    (pipeline/search_index.py)."""
+    (pipeline/search_index.py).
+
+    What the pages share is gathered first (LanguagePages); then each page type is written by a function of
+    its own (section_pages, meeting_pages, ...), and each kind of file the pages link (feed_files, ...)."""
     town = config["slug"]
-    site = config["site"]
-    # Where this language's pages are: "" for English, "/es" for Spanish.
-    prefix = "" if lang == "en" else f"/{lang}"
     english = lang == "en"
-    # The town's main boards, in English, for the home page (before the config is translated).
-    main = main_boards(config)
-    # The members roll calls are checked against, by their body's English name, where the town shows its votes.
+    prefix = language_prefix(lang)
     english_config = config
-    vote_members = (lambda body: votes.members_for(english_config, body)) if votes.show(config) else None
     if not english:
         config = localize_config(config, tr)
-        site = config["site"]
+    site = config["site"]
     state = states.for_town(config)
+    require_state_sources(config, state)
+    base_url = f"https://{site['domain']}"
+    # The town's glossary in this language (pipeline/glossary.py): its page, and the terms on meeting pages.
+    terms = glossary.shown(config, lang, tr)
+    meetings = language_meetings(english_config, config, tr, terms, data_dir, built_at)
+    if problems is not None:
+        problems.extend(meetings["correction_problems"])
+    # A section folder is built only for a town that lists the section in its
+    # config, and data for a section the town doesn't list is left out.
+    built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
+    links = meeting_links(config)
+    if "governing_body" not in config.get("meetings", {}):
+        # The default name, as the town's config would have been translated.
+        links["governing_body"] = tr.board(links["governing_body"])
+    # Agendas and minutes: saved and searchable, or (for a town with a calendar only) not yet.
+    documents = "meetings" in config and links["documents"]
+    # What the street lookup covers, as a phrase: "agenda items, building permits, and 311 requests".
+    # A town with none of these sources has no street lookup.
+    street_sources = list_text((([_("agenda items")] if documents else []) + ([_("building permits")] if "permits" in config else [])
+                                + ([_("311 requests")] if "seeclickfix" in config else [])))
+    if not street_sources:
+        built_folders.discard("streets")
+    figures = section_figures(config, state, data_dir, built_folders, tr)
+
+    out_static = out_dir / "static"
+    if english:
+        copy_static(config, out_dir, town_static)
+    env = page_environment(config, lang, state, out_static, data_dir, built_at)
+
+    sections = config["sections"]
+    permits_path = data_dir / "permits" / "permits.json"
+    permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
+    streets = street_lookup(config, meetings["all"], permits, data_dir, built_at, prefix, tr,
+                            feeds="streets" in built_folders and documents)
+    # Who represents you: the Officials page, and its ward map's shapes.
+    officials = (officials_page(config, data_dir, meetings["boards"], built_at, tr) if "officials" in built_folders
+                 else OfficialsPage())
+    # The search's answers (pipeline/search_answers.py): the streets, boards and officials a search can name.
+    answers_url = write_search_answers(out_dir, lang, built_at, streets=streets.index if "streets" in built_folders else None,
+                                       boards=meetings["boards"] if "meetings" in config else None,
+                                       officials=officials.officials)
+    summary_models, translation_models = models_named(config, langs, meetings, data_dir, terms)
+    common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=figures["state_housing"], sections=sections, share_image=share_image(out_static, town, base_url), search_page=SEARCH_PAGE, wards=ward_source(config),
+                  areas=officials_mod.areas(config),
+                  # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
+                  has_areas=source_311.has_areas(config),
+                  # Where the 311 requests come from, and what it records (acknowledged times, map points, links).
+                  source_311=source_311.describe(config),
+                  meeting_links=links, officials=officials.officials, wards_url=officials.wards_url,
+                  # The address box's file, its ranges' year, and its page, which the street lookup links.
+                  addresses=officials.addresses and {"year": officials.addresses["year"], "url": officials.addresses_url, "page": f"{prefix}/officials/"},
+                  streets_url=streets.url, answers_url=answers_url, street_sources=street_sources, street_example=example_street(streets.index), permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
+                  # Address alerts' follow form, on the street lookup's English pages for now (worker/alerts.js).
+                  alerts=documents and mentions_mod.alerts(config),
+                  built_at=built_at, meetings=meetings, scorecard=figures["scorecard"], schools=figures["schools"], budget=figures["budget"], tax_bill=figures["tax_bill"], housing=figures["housing"],
+                  headline=headline_numbers(config, data_dir, figures["scorecard"]), map_points=map_points(figures["scorecard"]),
+                  site_nav=lambda url: site_nav(url, sections, street_sources, documents),
+                  # This language's feed and calendar file, which localize_links leaves as they are (they're files).
+                  feed_url=f"{prefix}/feed.xml", calendar_url=f"{prefix}/meetings/calendar.ics")
+    pages = LanguagePages(config=config, lang=lang, langs=langs, out_dir=out_dir, data_dir=data_dir, built_at=built_at, env=env,
+                          common=common, terms=terms, built_folders=built_folders, documents=documents, redirects=redirects)
+
+    # The pages, in the order the sitemap lists them.
+    section_pages(pages)
+    if documents:
+        moved_pages(pages)
+    if english and share_cards and "meetings" in config:
+        share_card_images(pages, town_static)
+    if "meetings" in config:
+        meeting_pages(pages, search_records)
+        board_pages(pages)
+    issues = digest_pages(pages) if english and "meetings" in config else []
+    if "meetings" in config and common["digest_signup"]:
+        digest_answer_pages(pages)
+    if english and common["alerts"]:
+        alert_pages(pages)
+    if figures["scorecard"]:
+        ward_pages(pages)
+        category_pages(pages)
+
+    # The files the pages link: each language's feed, calendar and street lookup's file; and with the
+    # English, the downloads and maps every language's pages link. Written after the pages, which read
+    # nothing from out_dir but its static files (copy_static).
+    feed_files(pages)
+    street_files(pages, streets)
+    if english:
+        if "meetings" in config:
+            meeting_downloads(pages, issues)
+        data_downloads(pages)
+        officials_files(pages, officials)
+    return pages.urls
+
+
+def require_state_sources(config: dict, state) -> None:
+    """Stops the build when a section the town lists needs its state's source and templates, and they aren't there."""
     for section in config["sections"]:
         kind = states.SECTIONS.get(section["slug"])
         if kind and not (state.source(kind, config) and (STATES_DIR / state.templates / f"{section['slug']}.html").exists()):
             raise SystemExit(f"The {section['slug']} section needs {state.name}'s {states.KINDS[kind].lower()}: "
-                             f"a source in pipeline/states/{state.templates}/, its table in config/{town}.toml, "
+                             f"a source in pipeline/states/{state.templates}/, its table in config/{config['slug']}.toml, "
                              f"and site/states/{state.templates}/{section['slug']}.html.")
-    base_url = f"https://{site['domain']}"
-    # The town's glossary in this language (pipeline/glossary.py): its page, and the terms on meeting pages.
-    terms = glossary.shown(config, lang, tr)
+
+
+def language_meetings(english_config: dict, config: dict, tr: TownStrings, terms: list[dict], data_dir: Path,
+                      built_at: datetime) -> dict:
+    """The meetings (load_meetings()) as this language's pages show them: each with its page's name and its
+    board's name in this language, the home page's, and why a meeting's minutes, agenda or summary isn't here.
+    config is the town's config in this language; english_config, in English, names the main boards and the
+    members roll calls are checked against."""
+    # The town's main boards, in English, for the home page.
+    main = main_boards(english_config)
+    # The members roll calls are checked against, by their body's English name, where the town shows its votes.
+    vote_members = (lambda body: votes.members_for(english_config, body)) if votes.show(english_config) else None
     meetings = load_meetings(data_dir, built_at.date(), config.get("summaries", {}).get("model"), terms,
                              config.get("meetings", {}).get("corrections", []),
                              config.get("summaries", {}).get("withheld", []), config["town"]["name"], vote_members)
-    if problems is not None:
-        problems.extend(meetings["correction_problems"])
     # A board's name alone in this language, for its pages' titles (the pages show its English name too),
     # unless another board's is the same: then with its English name after it, as elsewhere.
     alone = defaultdict(set)
@@ -1829,54 +1936,54 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     # Why a meeting's minutes, agenda or summary isn't here, and whether the calendar is behind.
     absences.annotate(meetings, config, built_at.date())
     meetings["calendar_behind"] = absences.calendar_behind(config, meetings["status"], built_at)
-    # A section folder is built only for a town that lists the section in its
-    # config, and data for a section the town doesn't list is left out.
-    built_folders = {s["slug"] for s in config["sections"]} | SHARED_FOLDERS
-    links = meeting_links(config)
-    if "governing_body" not in config.get("meetings", {}):
-        # The default name, as the town's config would have been translated.
-        links["governing_body"] = tr.board(links["governing_body"])
-    # Agendas and minutes: saved and searchable, or (for a town with a calendar only) not yet.
-    documents = "meetings" in config and links["documents"]
-    # What the street lookup covers, as a phrase: "agenda items, building permits, and 311 requests".
-    # A town with none of these sources has no street lookup.
-    street_sources = list_text((([_("agenda items")] if documents else []) + ([_("building permits")] if "permits" in config else [])
-                                + ([_("311 requests")] if "seeclickfix" in config else [])))
-    if not street_sources:
-        built_folders.discard("streets")
+    return meetings
 
+
+def section_figures(config: dict, state, data_dir: Path, built_folders: set[str], tr: TownStrings) -> dict:
+    """The figures the town's sections show, each None for a section the town doesn't list or a file it doesn't
+    have: the 311 scorecard (its categories in this language), schools, the budget and tax bill, and housing;
+    and state_housing, the parts of housing from the town's state's own sources (pipeline/states/)."""
     def section_data(slug: str, path: str) -> dict | None:
         file = data_dir / path
         return json.loads(file.read_text(encoding="utf-8")) if slug in built_folders and file.exists() else None
 
     scorecard = section_data("311", "311/scorecard.json")
     localize_categories(scorecard, tr)
-    schools = section_data("schools", "schools/schools.json")
-    budget = section_data("budget", "finance/budget.json")
-    tax_bill = section_data("budget", "finance/tax_bill.json")
     housing = section_data("housing", "housing/housing.json")
-    # Housing figures from the town's state's own sources (pipeline/states/), shown only for a town that has them.
+    # Housing figures from the town's state's own sources, shown only for a town that has them.
     state_housing = state.housing_parts(config)
     if housing and state.housing_module():
         for key in state.housing_module().keys:
             housing[key] = housing.get(key) if key in state_housing else None
+    return {"scorecard": scorecard, "schools": section_data("schools", "schools/schools.json"),
+            "budget": section_data("budget", "finance/budget.json"), "tax_bill": section_data("budget", "finance/tax_bill.json"),
+            "housing": housing, "state_housing": state_housing}
 
-    # The engine's static files, then the town's own on top (its share image, or its own icon).
+
+def copy_static(config: dict, out_dir: Path, town_static: Path) -> None:
+    """Starts the site afresh with the engine's static files, then the town's own on top (its share image, or
+    its own icon), and the town's colors added to the stylesheet. Once, with the English pages."""
     out_static = out_dir / "static"
-    if english:
-        if out_dir.exists():
-            shutil.rmtree(out_dir)
-        shutil.copytree(STATIC_DIR, out_static)
-        if town_static.is_dir():
-            shutil.copytree(town_static, out_static, dirs_exist_ok=True)
-        # Crawlers and old browsers ask for /favicon.ico whatever the page links.
-        shutil.copy(out_static / "favicon.ico", out_dir / "favicon.ico")
-        if config["site"].get("colors"):
-            palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
-            with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
-                f.write(f"\n/* {site['name']} colors, from [site.colors] in config/{town}.toml. */\n:root {{\n{palette}\n}}\n")
-        version_static_urls(out_static / "css" / "site.css", out_static)
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    shutil.copytree(STATIC_DIR, out_static)
+    if town_static.is_dir():
+        shutil.copytree(town_static, out_static, dirs_exist_ok=True)
+    # Crawlers and old browsers ask for /favicon.ico whatever the page links.
+    shutil.copy(out_static / "favicon.ico", out_dir / "favicon.ico")
+    if config["site"].get("colors"):
+        palette = "\n".join(f"  --{name.replace('_', '-')}: {value};" for name, value in colors(config).items())
+        with (out_static / "css" / "site.css").open("a", encoding="utf-8") as f:
+            f.write(f"\n/* {config['site']['name']} colors, from [site.colors] in config/{config['slug']}.toml. */\n:root {{\n{palette}\n}}\n")
+    version_static_urls(out_static / "css" / "site.css", out_static)
 
+
+def page_environment(config: dict, lang: str, state, out_static: Path, data_dir: Path, built_at: datetime) -> Environment:
+    """The templates, with the filters and helpers the pages use, for one language's pages. config is the
+    town's config in that language."""
+    site = config["site"]
+    base_url = f"https://{site['domain']}"
+    prefix = language_prefix(lang)
     env = Environment(
         loader=FileSystemLoader([SITE_DIR / "templates", PAGES_DIR, STATES_DIR]),
         autoescape=True,
@@ -1947,11 +2054,24 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         seeclickfix_license=structured.SEECLICKFIX,
         # The 311 downloads' license: SeeClickFix's, or the portal's when [socrata_311] names it.
         license_311=structured.SEECLICKFIX if "seeclickfix" in config else config.get("socrata_311", {}).get("license_url"))
+    return env
 
-    own_hosts = {site["domain"], "www." + site["domain"]}
-    sections = config["sections"]
-    permits_path = data_dir / "permits" / "permits.json"
-    permits = json.loads(permits_path.read_text(encoding="utf-8")) if "permits" in config and permits_path.exists() else None
+
+class StreetLookup(NamedTuple):
+    """The street lookup's data (street_index()): as written to streets.json and its address with the file's
+    version; and the addresses on agendas and minutes (pipeline/mentions.py), with each street's and address's
+    feed, if any."""
+    index: dict
+    json: str
+    url: str
+    found: list[dict]
+    feeds: dict
+
+
+def street_lookup(config: dict, meetings: list[dict], permits: dict | None, data_dir: Path, built_at: datetime,
+                  prefix: str, tr: TownStrings, feeds: bool) -> StreetLookup:
+    """The street lookup, from the meetings, the building permits, and the 311 requests, for the pages of the
+    language at prefix. feeds: whether the streets and addresses on agendas and minutes have feeds."""
     requests_path = data_dir / "311" / "requests.json"
     requests_311 = list(json.loads(requests_path.read_text(encoding="utf-8")).values()) if "seeclickfix" in config and requests_path.exists() else []
     # Which requests are shown only to the block is decided on the city's English category names, before they're translated.
@@ -1961,50 +2081,63 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     localize_categories(requests_311, tr)
     # The addresses on agendas and minutes (pipeline/mentions.py), for the street lookup and its feeds, which
     # are in English: their lines are the documents' own.
-    found = mentions_mod.new(mentions_mod.find(meetings["all"], config["town"], doc_text))
-    streets = street_index(meetings["all"], (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
+    found = mentions_mod.new(mentions_mod.find(meetings, config["town"], doc_text))
+    streets = street_index(meetings, (permits or {}).get("permits", []), requests_311, built_at.date(), config["town"], prefix,
                            sensitive_categories=sensitive_categories, found=found)
-    feeds = mentions_mod.write_feeds(None, found, config, base_url) if "streets" in built_folders and documents else {}
-    for key, feed in feeds.items():
+    street_feeds = mentions_mod.write_feeds(None, found, config, f"https://{config['site']['domain']}") if feeds else {}
+    for key, feed in street_feeds.items():
         streets["streets"][key].update(feed)
     streets_json = json.dumps(streets, ensure_ascii=False, separators=(",", ":"))
     streets_url = f"{prefix}/streets/streets.json?v={hashlib.sha256(streets_json.encode()).hexdigest()[:10]}"
-    # Who represents you: the Officials page, and its ward map's shapes.
-    officials = wards_json = wards_url = addresses = addresses_json = addresses_url = None
-    if "officials" in built_folders:
-        officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in meetings["boards"]},
-                                       built_at.date())
-        localize_officials(officials, tr)
-        ward_shapes = officials_mod.map_data(data_dir, config)
-        if ward_shapes:
-            wards_json = json.dumps(ward_shapes, separators=(",", ":"))
-            wards_url = f"/officials/wards.json?v={hashlib.sha256(wards_json.encode()).hexdigest()[:10]}"
-        # The address box's street ranges, each with its ward (pipeline/fetch_addresses.py): only for a
-        # town with ward seats, and only when they were made with the town's ward file.
-        addresses = fetch_addresses.load(data_dir, config) if officials["wards"] and not officials["at_large"] else None
-        if addresses:
-            addresses_json = json.dumps(fetch_addresses.page_data(addresses), ensure_ascii=False, separators=(",", ":"))
-            addresses_url = f"/officials/addresses.json?v={hashlib.sha256(addresses_json.encode()).hexdigest()[:10]}"
-    # The search's answers (pipeline/search_answers.py): the streets, boards and officials a search can name.
-    answers_json = json.dumps(search_answers.answers(
-        lang, prefix, built_at.date().isoformat(), streets=streets if "streets" in built_folders else None,
-        boards=meetings["boards"] if "meetings" in config else None, officials=officials),
-        ensure_ascii=False, separators=(",", ":"))
-    answers_url = f"{prefix}/search/answers.json?v={hashlib.sha256(answers_json.encode()).hexdigest()[:10]}"
+    return StreetLookup(streets, streets_json, streets_url, found, street_feeds)
+
+
+class OfficialsPage(NamedTuple):
+    """The Officials page's data (officials_mod.load()); its ward map's shapes, as written to wards.json and
+    its address with the file's version; and the same for its address box's street ranges. Each None where
+    the town has none."""
+    officials: dict | None = None
+    wards_json: str | None = None
+    wards_url: str | None = None
+    addresses: dict | None = None
+    addresses_json: str | None = None
+    addresses_url: str | None = None
+
+
+def officials_page(config: dict, data_dir: Path, boards: list[dict], built_at: datetime, tr: TownStrings) -> OfficialsPage:
+    """Who represents you: the Officials page in this language, each body linking its board's page, with its
+    ward map's shapes and its address box's street ranges."""
+    officials = officials_mod.load(config, data_dir, {b["name_en"]: b["url"] for b in boards}, built_at.date())
+    localize_officials(officials, tr)
+    wards_json = wards_url = addresses_json = addresses_url = None
+    ward_shapes = officials_mod.map_data(data_dir, config)
+    if ward_shapes:
+        wards_json = json.dumps(ward_shapes, separators=(",", ":"))
+        wards_url = f"/officials/wards.json?v={hashlib.sha256(wards_json.encode()).hexdigest()[:10]}"
+    # The address box's street ranges, each with its ward (pipeline/fetch_addresses.py): only for a
+    # town with ward seats, and only when they were made with the town's ward file.
+    addresses = fetch_addresses.load(data_dir, config) if officials["wards"] and not officials["at_large"] else None
+    if addresses:
+        addresses_json = json.dumps(fetch_addresses.page_data(addresses), ensure_ascii=False, separators=(",", ":"))
+        addresses_url = f"/officials/addresses.json?v={hashlib.sha256(addresses_json.encode()).hexdigest()[:10]}"
+    return OfficialsPage(officials, wards_json, wards_url, addresses, addresses_json, addresses_url)
+
+
+def write_search_answers(out_dir: Path, lang: str, built_at: datetime, streets: dict | None, boards: list[dict] | None,
+                         officials: dict | None) -> str:
+    """Writes the search's answers for one language's pages (pipeline/search_answers.py): the streets, boards
+    and officials a search can name, each None where the site has none. Returns the file's address, with its version."""
+    prefix = language_prefix(lang)
+    answers_json = json.dumps(search_answers.answers(lang, prefix, built_at.date().isoformat(), streets=streets,
+                                                     boards=boards, officials=officials),
+                              ensure_ascii=False, separators=(",", ":"))
     (out_dir / prefix.lstrip("/") / "search").mkdir(parents=True, exist_ok=True)
     (out_dir / prefix.lstrip("/") / "search" / "answers.json").write_text(answers_json, encoding="utf-8")
-    share_path = out_static / "share" / f"{town}.png"
-    # Versioned, so sites that cache link previews pick up a redrawn image.
-    share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
-                   if share_path.exists() else None)
-    # Where the ward boundaries come from, named on the 311 pages and the About page: from
-    # [seeclickfix] or, for a town with only the Officials page's ward map, [officials]. A town
-    # whose areas are voting precincts or districts ([town] areas) calls them so on its pages (areas).
-    # The defaults are MassGIS's, which covers every Massachusetts municipality.
-    sc = config.get("seeclickfix") or config.get("officials", {})
-    wards = {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
-             "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
-    # The summaries shown, and their translations, for the models the About page names.
+    return f"{prefix}/search/answers.json?v={hashlib.sha256(answers_json.encode()).hexdigest()[:10]}"
+
+
+def models_named(config: dict, langs: list[str], meetings: dict, data_dir: Path, terms: list[dict]) -> tuple[list[str], list[str]]:
+    """The models the About page names: those that wrote the summaries shown, and those that translated them."""
     shown = [(kind, m[doc_key], m[record_key]) for m in meetings["all"]
              for kind, doc_key, record_key in (("agenda", "agenda", "preview"), ("minutes", "minutes_doc", "minutes_summary"))
              if m[record_key]]
@@ -2012,42 +2145,72 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     translation_models = models_shown(translate.settings(config)["model"], [
         t for other in langs if other != "en" for kind, doc, record in shown
         for t in [translate.shown(data_dir, other, doc["sha256"], record, kind, terms)] if t])
-    common = dict(glossary=glossary.sorted_for_page(terms), config=config, summary_models=summary_models, translation_models=translation_models, site=site, town=config["town"], state=state, state_housing=state_housing, sections=sections, share_image=share_image, search_page=SEARCH_PAGE, wards=wards,
-                  areas=officials_mod.areas(config),
-                  # 311 requests placed in wards, precincts or districts; a town with none has no precincts_file.
-                  has_areas=source_311.has_areas(config),
-                  # Where the 311 requests come from, and what it records (acknowledged times, map points, links).
-                  source_311=source_311.describe(config),
-                  meeting_links=links, officials=officials, wards_url=wards_url,
-                  # The address box's file, its ranges' year, and its page, which the street lookup links.
-                  addresses=addresses and {"year": addresses["year"], "url": addresses_url, "page": f"{prefix}/officials/"},
-                  streets_url=streets_url, answers_url=answers_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
-                  not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
-                  # Address alerts' follow form, on the street lookup's English pages for now (worker/alerts.js).
-                  alerts=documents and mentions_mod.alerts(config),
-                  built_at=built_at, meetings=meetings, scorecard=scorecard, schools=schools, budget=budget, tax_bill=tax_bill, housing=housing,
-                  headline=headline_numbers(config, data_dir, scorecard), map_points=map_points(scorecard),
-                  site_nav=lambda url: site_nav(url, sections, street_sources, documents),
-                  # This language's feed and calendar file, which localize_links leaves as they are (they're files).
-                  feed_url=f"{prefix}/feed.xml", calendar_url=f"{prefix}/meetings/calendar.ics")
-    urls = {}
-    today = built_at.date()
-    # The day each meeting's page last changed (meeting_lastmod); a board's and a list's is their newest meeting's.
-    changed = {id(m): meeting_lastmod(m, today) for m in meetings["all"]}
-    newest = max(changed.values(), default=None)
-    # Pages of the site's own folders whose content changes every day: the week ahead, the 311 numbers.
-    # Each other page has no date in the sitemap: what's on it (an explanation, yearly figures) can't say when it changed.
-    daily = {"/", "/meetings/", "/311/", "/311/repeat-locations/"}
-    listed = {"/meetings/past/": newest, "/meetings/decisions/": newest, "/meetings/boards/": newest}
+    return summary_models, translation_models
 
-    def render(template: str, url: str, canonical: str | None = None, lastmod: str | None = None, **context) -> None:
+
+def share_image(out_static: Path, town: str, base_url: str) -> str | None:
+    """The address of the town's image for link previews, if it has one: versioned, so sites that cache link
+    previews pick up a redrawn image."""
+    path = out_static / "share" / f"{town}.png"
+    return f"{base_url}/static/share/{town}.png?v={hashlib.sha256(path.read_bytes()).hexdigest()[:10]}" if path.exists() else None
+
+
+def ward_source(config: dict) -> dict:
+    """Where the ward boundaries come from, named on the 311 pages and the About page: from [seeclickfix]
+    or, for a town with only the Officials page's ward map, [officials]. (A town whose areas are voting
+    precincts or districts, [town] areas, calls them so on its pages.) The defaults are MassGIS's, which
+    covers every Massachusetts municipality."""
+    sc = config.get("seeclickfix") or config.get("officials", {})
+    return {"publisher": sc.get("wards_publisher", "MassGIS"), "year": sc.get("wards_year", 2022),
+            "url": sc.get("wards_url", "https://gis.data.mass.gov/maps/aec5130790814ace94438d3bcf23cf9a")}
+
+
+@dataclasses.dataclass
+class LanguagePages:
+    """One language's pages: what they share, and where they go. render() writes a page; each page type is
+    a function below that takes one (section_pages, meeting_pages, ...), as build_language calls them.
+    config is the town's config in this language; common, what every page's template is given; urls gets
+    each page's address, with the day it last changed (for the sitemap) or None; redirects, if given, each
+    moved page's address, to the address it sends readers to."""
+    config: dict
+    lang: str
+    langs: list[str]
+    out_dir: Path
+    data_dir: Path
+    built_at: datetime
+    env: Environment
+    common: dict
+    terms: list[dict]
+    built_folders: set[str]
+    documents: bool
+    redirects: dict[str, str] | None = None
+    urls: dict[str, str | None] = dataclasses.field(default_factory=dict)
+    english: bool = dataclasses.field(init=False)
+    prefix: str = dataclasses.field(init=False)
+    base_url: str = dataclasses.field(init=False)
+    today: date = dataclasses.field(init=False)
+    meetings: dict = dataclasses.field(init=False)
+    changed: dict[int, str] = dataclasses.field(init=False)
+
+    def __post_init__(self) -> None:
+        self.english = self.lang == "en"
+        self.prefix = language_prefix(self.lang)
+        self.base_url = f"https://{self.config['site']['domain']}"
+        self.today = self.built_at.date()
+        self.meetings = self.common["meetings"]
+        # The day each meeting's page last changed (meeting_lastmod); a board's and a list's is their newest meeting's.
+        self.changed = {id(m): meeting_lastmod(m, self.today) for m in self.meetings["all"]}
+
+    def render(self, template: str, url: str, canonical: str | None = None, lastmod: str | None = None, **context) -> None:
         """Render a page. url is its English address (/meetings/); another language's is under its prefix.
         lastmod is the day it last changed, for the sitemap. A page that shows another's content
         (canonical, its address) is kept out of the sitemap."""
+        prefix, base_url, langs, common = self.prefix, self.base_url, self.langs, self.common
+        site = self.config["site"]
         section_slug = url.strip("/").split("/")[0] or None
-        section = next((s for s in sections if s["slug"] == section_slug), None)
+        section = next((s for s in self.config["sections"] if s["slug"] == section_slug), None)
         # The same page in each of the site's languages, for hreflang links and the language switch.
-        versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": ("" if code == "en" else f"/{code}") + url}
+        versions = [{"lang": code, "name": i18n.LANGUAGES[code], "path": language_prefix(code) + url}
                     for code in langs] if len(langs) > 1 and (section_slug not in ENGLISH_ONLY_FOLDERS or url in EVERY_LANGUAGE_PAGES) else []
         for v in versions:
             v["url"] = base_url + v["path"]
@@ -2059,176 +2222,231 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if searchable and template == "meeting.html":
             m = context["meeting"]
             sort = site_search.sort_key(m)
-            when = "upcoming" if m["date"] >= today.isoformat() else "past"
+            when = "upcoming" if m["date"] >= self.today.isoformat() else "past"
         elif searchable:
             nav = common["site_nav"](url)
             crumb = " › ".join([label for _href, label, current in nav["menu"] if current][:1]
                                + [label for _href, label, current in nav["tabs"] if current])
-        html = env.get_template(template).render(
+        html = self.env.get_template(template).render(
             **common, **context, section=section, page_url=url, canonical_url=base_url + prefix + (canonical or url),
             searchable=searchable, search_kind="meeting" if template == "meeting.html" else "page", search_crumb=crumb,
             search_sort=sort, search_when=when,
             # Each term's first use on the page, linked to the glossary's page; a meeting's page links the terms it uses.
-            gloss=glossary.Linker(context["meeting"]["glossary"] if "meeting" in context else terms, lang),
+            gloss=glossary.Linker(context["meeting"]["glossary"] if "meeting" in context else self.terms, self.lang),
             behind=absences.section_behind(common["data_status"], section_slug),
             moved_to=prefix + canonical if canonical else None,
-            lang=lang, versions=versions,
+            lang=self.lang, versions=versions,
         )
         html = gather_notes(html, _("About this page"))
-        html = mark_new_tab_links(html, own_hosts)
+        html = mark_new_tab_links(html, {site["domain"], "www." + site["domain"]})
         if prefix:
             html = localize_links(html, prefix)
-        dest = out_dir / (prefix + url).lstrip("/")
+        dest = self.out_dir / (prefix + url).lstrip("/")
         if url.endswith("/"):
             dest = dest / "index.html"
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(html, encoding="utf-8")
         if url not in UNLISTED_PAGES and not canonical:
-            urls[prefix + url] = lastmod
-        if template == "moved.html" and redirects is not None:
-            redirects[prefix + url] = prefix + canonical
+            self.urls[prefix + url] = lastmod
+        if template == "moved.html" and self.redirects is not None:
+            self.redirects[prefix + url] = prefix + canonical
 
+
+# Pages of the site's own folders whose content changes every day: the week ahead, the 311 numbers.
+# Each other page has no date in the sitemap: what's on it (an explanation, yearly figures) can't say when it
+# changed, except the lists of meetings, which change with their newest meeting.
+DAILY_PAGES = {"/", "/meetings/", "/311/", "/311/repeat-locations/"}
+MEETING_LISTS = {"/meetings/past/", "/meetings/decisions/", "/meetings/boards/"}
+
+
+def section_pages(pages: LanguagePages) -> None:
+    """Each page under site/pages/ the town has: a section's only where the town lists the section, the
+    decisions page where it saves agendas and minutes, the glossary where it has terms, and the 311
+    requests' repeat locations where their source records places."""
+    today = pages.today.isoformat()
+    newest = max(pages.changed.values(), default=None)
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
         rel = page_path.relative_to(PAGES_DIR)
-        if len(rel.parts) > 1 and rel.parts[0] not in built_folders:
+        if len(rel.parts) > 1 and rel.parts[0] not in pages.built_folders:
             continue
-        if rel.as_posix() in DOCUMENT_PAGES and not documents:
+        if rel.as_posix() in DOCUMENT_PAGES and not pages.documents:
             continue
-        if rel.as_posix() == GLOSSARY_PAGE and not terms:
+        if rel.as_posix() == GLOSSARY_PAGE and not pages.terms:
             continue
-        if rel.as_posix() == REPEATS_PAGE and not (common["source_311"] or {}).get("locations"):
+        if rel.as_posix() == REPEATS_PAGE and not (pages.common["source_311"] or {}).get("locations"):
             continue
         url = url_for(rel)
-        render(rel.as_posix(), url, lastmod=today.isoformat() if url in daily else listed.get(url))
+        pages.render(rel.as_posix(), url, lastmod=today if url in DAILY_PAGES else newest if url in MEETING_LISTS else None)
 
-    if documents:
-        for old, new in MOVED_PAGES.items():
-            render("moved.html", old, canonical=new, page_name=_("Search"), moved_page=new)
 
-    # Each recent and upcoming meeting's card for social media, with the English pages: another
-    # language's keep the town's share image.
-    if english and share_cards and "meetings" in config:
-        cards = {}
-        for m in meetings["all"]:
-            when = format_date(m["date"]) + (f" · {format_time(m['start_time'])}" if m.get("start_time") else "")
-            card = share_cards_mod.card(m, today, site["domain"], when)
-            if card:
-                slug = m["url"].strip("/").split("/")[-1]
-                cards[slug] = card
-                m["share_card"] = {"url": f"{base_url}/static/{share_cards_mod.FOLDER}/{slug}.png?v={share_cards_mod.version(card)}",
-                                   "alt": share_cards_mod.alt(card)}
-        share_cards_mod.write(cards, out_static, config, town_static)
+def moved_pages(pages: LanguagePages) -> None:
+    """A page at each address the site's pages moved from (MOVED_PAGES), sending readers to the new one."""
+    for old, new in MOVED_PAGES.items():
+        pages.render("moved.html", old, canonical=new, page_name=_("Search"), moved_page=new)
+
+
+def share_card_images(pages: LanguagePages, town_static: Path) -> None:
+    """Each recent and upcoming meeting's card for social media (pipeline/share_cards.py), drawn with the English
+    pages (another language's keep the town's share image), and each meeting with one given its share_card."""
+    site = pages.config["site"]
+    cards = {}
+    for m in pages.meetings["all"]:
+        when = format_date(m["date"]) + (f" · {format_time(m['start_time'])}" if m.get("start_time") else "")
+        card = share_cards_mod.card(m, pages.today, site["domain"], when)
+        if card:
+            slug = m["url"].strip("/").split("/")[-1]
+            cards[slug] = card
+            m["share_card"] = {"url": f"{pages.base_url}/static/{share_cards_mod.FOLDER}/{slug}.png?v={share_cards_mod.version(card)}",
+                               "alt": share_cards_mod.alt(card)}
+    share_cards_mod.write(cards, pages.out_dir / "static", pages.config, town_static)
+
+
+def meeting_pages(pages: LanguagePages, search_records: list[dict] | None = None) -> None:
+    """Each meeting's page, and a page at the address of each listing shown as part of it, sending readers
+    there. search_records, if given, gets each of its decisions, each a result of the site's search, linking
+    them on its page."""
+    for m in pages.meetings["all"]:
+        pages.render("meeting.html", m["url"], lastmod=pages.changed[id(m)], meeting=m, share_card=m.get("share_card"))
+        if search_records is not None:
+            taken: set[str] = set()
+            decisions = [d for kind in ("decided", "recommended") for d in m.get("decisions", {}).get(kind, [])]
+            search_records.extend(
+                site_search.decision_record(d, site_search.decision_url(pages.prefix + m["url"], d, taken), m["body"],
+                                            format_date(m["date"]), pages.lang, site_search.sort_key(m, n))
+                for n, d in enumerate(decisions))
+        for n, also in enumerate(m["also_urls"], 1):
+            pages.render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
+
+
+def board_pages(pages: LanguagePages) -> None:
+    """Each board's page, and a page at each other address it had, sending readers there."""
+    for b in pages.meetings["boards"]:
+        pages.render("board.html", b["url"], lastmod=max(pages.changed[id(m)] for m in b["meetings"]), board=b)
+        for also in b["also_urls"]:
+            pages.render("moved.html", also, canonical=b["url"], board=b)
+
+
+def digest_pages(pages: LanguagePages) -> list[dict]:
+    """The weekly digest (pipeline/digest.py), in English for now: a page for each week, each with its email,
+    and the list of them. Returns the issues, for the digest's feed (meeting_downloads)."""
+    config, today = pages.config, pages.today
+    issues = digest.issues(pages.meetings["all"], pages.meetings["tracking_since"], today, ZoneInfo(config["site"]["timezone"]))
+    for issue in issues:
+        # What was decided, the strongest first, and the week's lead (digest.decided()).
+        issue["decided"] = digest.decided(issue, main_boards(config))
+        # The week at a glance, for the top of the email (digest.glance()).
+        issue["glance"] = digest.glance(issue)
+        issue["lastmod"] = min(max([issue["sunday"], *(pages.changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
+        pages.render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
+        issue["email"] = pages.env.get_template("digest_email.html").render(**pages.common, issue=issue, ref=digest.EMAIL_REF,
+                                                                            palette=colors(config), shown=digest.EMAIL_MEETINGS,
+                                                                            shown_decisions=digest.EMAIL_DECISIONS,
+                                                                            mailing_address=digest.MAILING_ADDRESS,
+                                                                            unsubscribe=digest.UNSUBSCRIBE_TAG)
+    pages.render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
+    return issues
+
+
+def digest_answer_pages(pages: LanguagePages) -> None:
+    """Where the digest's signup form leads (worker/digest.js), in each language, as the form is on every
+    language's pages; not for search engines."""
+    for outcome in ("thanks", "problem"):
+        pages.render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
+
+
+def alert_pages(pages: LanguagePages) -> None:
+    """Where address alerts' follow form leads (worker/alerts.js), and the pages its emails link; not for
+    search engines."""
+    for page in ("thanks", "problem", "confirm", "manage", "wrong"):
+        pages.render("alerts.html", f"/alerts/{page}/", page=page,
+                     report=report_link(pages.config["site"], pages.base_url, "/alerts/wrong/", _("An address alert")))
+
+
+def ward_pages(pages: LanguagePages) -> None:
+    """Each ward's 311 page (or precinct's, or district's), with its population."""
+    scorecard = pages.common["scorecard"]
+    populations = {w["ward"]: w for w in scorecard["by_ward"]}
+    for w in scorecard.get("wards", []):
+        if w["ward"] != "outside":
+            pages.render("ward.html", f"/311/ward/{w['ward']}/", lastmod=pages.today.isoformat(), ward={**populations.get(w["ward"], {}), **w})
+
+
+def category_pages(pages: LanguagePages) -> None:
+    """Each 311 category's page."""
+    for c in pages.common["scorecard"].get("categories", []):
+        pages.render("category.html", f"/311/category/{c['slug']}/", lastmod=pages.today.isoformat(), category=c)
+
+
+def feed_files(pages: LanguagePages) -> None:
+    """This language's feed of agendas and minutes, where the town saves them, and its meetings' calendar file."""
+    config, meetings, folder = pages.config, pages.meetings["all"], pages.out_dir / pages.prefix.lstrip("/")
+    if pages.documents:
+        (folder / "meetings").mkdir(parents=True, exist_ok=True)
+        write_feed(folder / "feed.xml", meetings, config, pages.base_url, pages.built_at, pages.prefix)
     if "meetings" in config:
-        for m in meetings["all"]:
-            render("meeting.html", m["url"], lastmod=changed[id(m)], meeting=m, share_card=m.get("share_card"))
-            # Its decisions, each a result of the site's search, linking them on its page.
-            if search_records is not None:
-                taken: set[str] = set()
-                decisions = [d for kind in ("decided", "recommended") for d in m.get("decisions", {}).get(kind, [])]
-                search_records.extend(
-                    site_search.decision_record(d, site_search.decision_url(prefix + m["url"], d, taken), m["body"],
-                                                format_date(m["date"]), lang, site_search.sort_key(m, n))
-                    for n, d in enumerate(decisions))
-            # The address of a listing shown as part of another meeting sends readers there.
-            for n, also in enumerate(m["also_urls"], 1):
-                render("moved.html", also, canonical=m["url"], meeting=m, part=n if len(m["also_urls"]) > 1 else None)
-        for b in meetings["boards"]:
-            render("board.html", b["url"], lastmod=max(changed[id(m)] for m in b["meetings"]), board=b)
-            for also in b["also_urls"]:
-                render("moved.html", also, canonical=b["url"], board=b)
-    # The weekly digest (pipeline/digest.py), in English for now: a page for each week, a list, and a feed for email.
-    issues = digest.issues(meetings["all"], meetings["tracking_since"], today, ZoneInfo(site["timezone"])) if english and "meetings" in config else []
-    if english and "meetings" in config:
-        for issue in issues:
-            # What was decided, the strongest first, and the week's lead (digest.decided()).
-            issue["decided"] = digest.decided(issue, main_boards(config))
-            # The week at a glance, for the top of the email (digest.glance()).
-            issue["glance"] = digest.glance(issue)
-            issue["lastmod"] = min(max([issue["sunday"], *(changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
-            render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
-            issue["email"] = env.get_template("digest_email.html").render(**common, issue=issue, ref=digest.EMAIL_REF,
-                                                                              palette=colors(config), shown=digest.EMAIL_MEETINGS,
-                                                                              shown_decisions=digest.EMAIL_DECISIONS,
-                                                                              mailing_address=digest.MAILING_ADDRESS,
-                                                                              unsubscribe=digest.UNSUBSCRIBE_TAG)
-        render("digest_index.html", "/digest/", lastmod=issues[0]["lastmod"] if issues else None, issues=issues)
-    if "meetings" in config and common["digest_signup"]:
-        # Where the signup form leads (worker/digest.js), in each language, as the form is on every language's
-        # pages; not for search engines.
-        for outcome in ("thanks", "problem"):
-            render("digest_answer.html", f"/digest/{outcome}/", outcome=outcome)
-    if english and common["alerts"]:
-        # Where the follow form leads (worker/alerts.js), and the pages its emails link; not for search engines.
-        for page in ("thanks", "problem", "confirm", "manage", "wrong"):
-            render("alerts.html", f"/alerts/{page}/", page=page,
-                   report=report_link(config["site"], base_url, "/alerts/wrong/", _("An address alert")))
-    if documents and english:
+        meeting_calendar.write(folder / "meetings" / "calendar.ics", meetings, config, pages.base_url, pages.built_at, pages.prefix)
+
+
+def street_files(pages: LanguagePages, streets: StreetLookup) -> None:
+    """This language's street lookup's file, where the town has a street lookup; and with the English, the
+    feeds of the streets and addresses on agendas and minutes, and the newest of them (mentions.json)."""
+    if "streets" not in pages.built_folders:
+        return
+    folder = pages.out_dir / pages.prefix.lstrip("/") / "streets"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "streets.json").write_text(streets.json, encoding="utf-8")
+    if pages.english and streets.feeds:
+        mentions_mod.write_feeds(pages.out_dir, streets.found, pages.config, pages.base_url)
+        (folder / "mentions.json").write_text(
+            json.dumps(mentions_mod.recent(streets.found, pages.built_at, site=pages.config["site"]["name"]), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
+def meeting_downloads(pages: LanguagePages, issues: list[dict]) -> None:
+    """With the English pages, the meeting files every language's pages link: the decisions' table, the open data
+    export described on the Data page (/data/), the saved agendas, minutes and transcripts, and the digest's feed."""
+    config, meetings, out_dir, base_url = pages.config, pages.meetings, pages.out_dir, pages.base_url
+    if pages.documents:
         # "source": where the decision was read, the minutes or, until they're summarized, the meeting's recording.
         write_csv(out_dir / "meetings" / "data" / "decisions.csv", ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url",
                                                                      "source", "recording_url"],
                   [[m["date"], m["body"], kind, d, base_url + m["url"], m["minutes_doc"]["source_url"] if m["decisions_from"] == "minutes" else "",
                     m["decisions_from"], m["recordings"][0]["url"] if m["recordings"] else ""]
                    for m in meetings["decided"] for kind, ds in m["decisions"].items() for d in ds])
-    if english and "meetings" in config:
-        # The open data export, described on the Data page (/data/).
-        export = meetings_export(meetings["all"], config, base_url, built_at, env.globals["document_url"])
-        (out_dir / "data").mkdir(parents=True, exist_ok=True)
-        (out_dir / "data" / "meetings.json").write_text(json.dumps(export, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    if scorecard:
-        populations = {w["ward"]: w for w in scorecard["by_ward"]}
-        for w in scorecard.get("wards", []):
-            if w["ward"] != "outside":
-                render("ward.html", f"/311/ward/{w['ward']}/", lastmod=today.isoformat(), ward={**populations.get(w["ward"], {}), **w})
-        for c in scorecard.get("categories", []):
-            render("category.html", f"/311/category/{c['slug']}/", lastmod=today.isoformat(), category=c)
-        if english:
-            write_311_csvs(out_dir / "311" / "data", scorecard, common["source_311"])
-    if not english:
-        # Every language's pages link the same downloads and PDFs, written with the English; the feed
-        # and the calendar are each language's own.
-        if documents:
-            (out_dir / prefix.lstrip("/") / "meetings").mkdir(parents=True, exist_ok=True)
-            write_feed(out_dir / prefix.lstrip("/") / "feed.xml", meetings["all"], config, base_url, built_at, prefix)
-        if "meetings" in config:
-            meeting_calendar.write(out_dir / prefix.lstrip("/") / "meetings" / "calendar.ics", meetings["all"], config, base_url,
-                                   built_at, prefix)
-        if "streets" in built_folders:
-            (out_dir / prefix.lstrip("/") / "streets").mkdir(parents=True, exist_ok=True)
-            (out_dir / prefix.lstrip("/") / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
-        return urls
+    export = meetings_export(meetings["all"], config, base_url, pages.built_at, pages.env.globals["document_url"])
+    (out_dir / "data").mkdir(parents=True, exist_ok=True)
+    (out_dir / "data" / "meetings.json").write_text(json.dumps(export, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    if pages.documents:
+        # A town with a bucket keeps them there (pipeline/documents.py), and recordings' transcripts always.
+        for folder in ("agendas", "minutes", "transcripts"):
+            src = pages.data_dir / "meetings" / folder
+            if src.exists():
+                shutil.copytree(src, out_dir / "meetings" / folder)
+    write_digest_feed(out_dir / "digest" / "feed.xml", issues, config, base_url, pages.built_at)
+
+
+def data_downloads(pages: LanguagePages) -> None:
+    """With the English pages, the tables behind the data pages every language's pages link: the 311 requests',
+    the state's own pages', and housing permits'."""
+    common, out_dir = pages.common, pages.out_dir
+    if common["scorecard"]:
+        write_311_csvs(out_dir / "311" / "data", common["scorecard"], common["source_311"])
+    state_pages = common["state"].pages_module()
     if state_pages:
-        # The downloadable tables behind the state's own pages.
-        state_pages.write_files(out_dir, {"budget": budget, "schools": schools, "tax_bill": tax_bill})
+        state_pages.write_files(out_dir, {"budget": common["budget"], "schools": common["schools"], "tax_bill": common["tax_bill"]})
+    housing = common["housing"]
     if housing and housing.get("permits"):
         write_csv(out_dir / "housing" / "data" / "permits.csv",
                   ["year", "homes", "in_1_unit_buildings", "in_2_unit_buildings", "in_3_4_unit_buildings",
                    "in_5_plus_unit_buildings", "partly_estimated"],
                   [[y["year"], y["units"], *y["by_size"].values(), y["estimated"]] for y in housing["permits"]["years"]])
 
-    if documents:
-        # A town with a bucket keeps them there (pipeline/documents.py), and recordings' transcripts always.
-        for folder in ("agendas", "minutes", "transcripts"):
-            src = data_dir / "meetings" / folder
-            if src.exists():
-                shutil.copytree(src, out_dir / "meetings" / folder)
-        write_feed(out_dir / "feed.xml", meetings["all"], config, base_url, built_at)
-    if "meetings" in config:
-        meeting_calendar.write(out_dir / "meetings" / "calendar.ics", meetings["all"], config, base_url, built_at)
-    if "meetings" in config:
-        write_digest_feed(out_dir / "digest" / "feed.xml", issues, config, base_url, built_at)
-    if wards_json:
-        (out_dir / "officials" / "wards.json").write_text(wards_json, encoding="utf-8")
-    if addresses_json:
-        (out_dir / "officials" / "addresses.json").write_text(addresses_json, encoding="utf-8")
-    if "streets" in built_folders:
-        (out_dir / "streets").mkdir(parents=True, exist_ok=True)
-        (out_dir / "streets" / "streets.json").write_text(streets_json, encoding="utf-8")
-        if feeds:
-            mentions_mod.write_feeds(out_dir, found, config, base_url)
-            (out_dir / "streets" / "mentions.json").write_text(
-                json.dumps(mentions_mod.recent(found, built_at, site=config["site"]["name"]), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    return urls
 
+def officials_files(pages: LanguagePages, officials: OfficialsPage) -> None:
+    """With the English pages, the Officials page's ward map's shapes and its address box's street ranges."""
+    if officials.wards_json:
+        (pages.out_dir / "officials" / "wards.json").write_text(officials.wards_json, encoding="utf-8")
+    if officials.addresses_json:
+        (pages.out_dir / "officials" / "addresses.json").write_text(officials.addresses_json, encoding="utf-8")
 
 
 def street_index(meetings: list[dict], permits: list[dict], requests: list[dict], today: date, town: dict,
