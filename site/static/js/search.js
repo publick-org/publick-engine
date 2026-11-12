@@ -38,7 +38,8 @@
     return t(key + (n === 1 ? "_one" : "_other"), { n: n.toLocaleString(lang) });
   }
 
-  var pagefind = null, answers = null, shown = "all", current = null, typed = 0;
+  // answersData: the answers file once loaded (loadAnswers()), which excerpts read words with too.
+  var pagefind = null, answers = null, answersData = null, shown = "all", current = null, typed = 0;
   // How many answers show at most, and how far below the best one another can score and still show.
   var ANSWERS = { most: 3, within: 0.1 };
 
@@ -59,6 +60,98 @@
       else out.appendChild(document.createTextNode(node.textContent));
     });
     return out;
+  }
+
+  // How many words an excerpt has: a page's or a meeting's, and a decision's, which is shown whole when it can be.
+  var LENGTH = { excerpt: 36, decision: 60 };
+
+  // A word as an excerpt compares it with a search's: {raw: as words() reads it, n: with a street type or direction
+  // written one way}. Remembered, as a page's words repeat.
+  var normed = new Map();
+  function norm(word) {
+    var known = normed.get(word);
+    if (known) return known;
+    var data = answersData;
+    var raw = plain(word, data).replace(/[^a-z0-9]+/g, "");
+    var out = { raw: raw, n: data ? data.directions[raw] || data.suffixes[raw] || raw : raw };
+    if (normed.size > 50000) normed.clear();
+    normed.set(word, out);
+    return out;
+  }
+
+  // The words a search's excerpts look for, from what it asks Pagefind, without a question's (in a quoted phrase too).
+  function terms(query) {
+    var seen = {};
+    return query.replace(/["\u201c\u201d]/g, " ").split(/\s+/).map(norm).filter(function (t) {
+      if (!t.n || seen[t.n] || (answersData && answersData.stopSet[t.raw])) return false;
+      return (seen[t.n] = true);
+    });
+  }
+
+  // How well a word of a page is one searched for: the same, street types and directions written one way (2); or, as
+  // typed, the start of it ("park" in "parking", or a word being typed: "stree") or the same but for its ending
+  // ("budgets", "budget"), as Pagefind finds them (1); else 0. A street type's short form ("ter") isn't the start of
+  // other words ("terms"), and numbers are the same or not ("2026-14" isn't "2026-15").
+  function matches(w, t) {
+    if (w.n === t.n) return 2;
+    if (/\d/.test(w.raw + t.raw)) return 0;
+    if (t.raw.length >= 3 && w.raw.indexOf(t.raw) === 0) return 1;
+    var n = 0;
+    while (n < w.raw.length && n < t.raw.length && w.raw[n] === t.raw[n]) n++;
+    return n >= 4 && n >= Math.max(w.raw.length, t.raw.length) - 2 ? 1 : 0;
+  }
+
+  // An excerpt of a result's text around where the search's words are closest together, with them marked: where
+  // its every word is, only them ("40 Sargent Street", not each "Street" near it). {fragment, at: the word it's
+  // about}, or null where none of its words are found as written (Pagefind's own excerpt is shown then).
+  function wordsExcerpt(content, ts, length) {
+    var all = content.split(/\s+/), hits = [];
+    all.forEach(function (w, i) {
+      var n = norm(w), term = -1, how = 0;
+      // The word is the search's word it matches best: "parking" is "parking", not "park", in "park parking".
+      for (var k = 0; n.n && k < ts.length && how < 2; k++) {
+        var m = matches(n, ts[k]);
+        if (m > how) { how = m; term = k; }
+      }
+      if (term >= 0) hits.push({ at: i, term: term });
+    });
+    if (!hits.length) return null;
+    // The shortest stretch, within the excerpt's length, with the most of the words.
+    var best = null, count = [], distinct = 0, left = 0;
+    hits.forEach(function (hit, right) {
+      if (!count[hit.term]) distinct++;
+      count[hit.term] = (count[hit.term] || 0) + 1;
+      while (count[hits[left].term] > 1 || hit.at - hits[left].at >= length) {
+        if (!--count[hits[left].term]) distinct--;
+        left++;
+      }
+      var span = hit.at - hits[left].at;
+      if (!best || distinct > best.distinct || (distinct === best.distinct && span < best.span)) {
+        best = { distinct: distinct, span: span, from: hits[left].at, to: hit.at };
+      }
+    });
+    var start = Math.max(0, best.from - Math.max(0, Math.floor((length - best.span - 1) / 2)));
+    var end = Math.min(all.length, start + length);
+    start = Math.max(0, Math.min(start, end - length));
+    var only = ts.length > 1 && best.distinct === ts.length;
+    var marked = {};
+    hits.forEach(function (hit) {
+      if (only ? hit.at >= best.from && hit.at <= best.to : true) marked[hit.at] = true;
+    });
+    var fragment = document.createDocumentFragment(), text = start > 0 ? "… " : "";
+    for (var i = start; i < end; i++) {
+      if (marked[i]) {
+        var run = [all[i]];
+        while (i + 1 < end && marked[i + 1]) run.push(all[++i]);
+        fragment.appendChild(document.createTextNode(text));
+        fragment.appendChild(el("mark", null, run.join(" ")));
+        text = " ";
+      } else {
+        text += all[i] + " ";
+      }
+    }
+    fragment.appendChild(document.createTextNode(text.replace(/ $/, "") + (end < all.length ? " …" : "")));
+    return { fragment: fragment, at: best.from };
   }
 
   function load() {
@@ -101,6 +194,7 @@
           var w = data.suffixes[spelling];
           (data.types[w] = data.types[w] || []).push(spelling);
         });
+        answersData = data;
         data.answers.forEach(function (a) {
           a.names = [a.n].concat(a.a || []).map(function (name) {
             var w = words(name, data);
@@ -223,6 +317,20 @@
     return kept.length ? kept.join(" ") : q;
   }
 
+  // The search as a phrase, for the results that have its words together, which are listed first: its words as
+  // typed, without a question's at either end ("who is the city council"), when that leaves two words or more, none
+  // of them a question's, and it doesn't quote a phrase already; else null.
+  function phraseOf(q, data) {
+    if (/["\u201c\u201d]/.test(q)) return null;
+    var all = q.split(/\s+/).filter(Boolean);
+    function stop(w) { return data && data.stopSet[plain(w, data).replace(/[^a-z0-9]+/g, "")]; }
+    while (all.length && stop(all[0])) all.shift();
+    while (all.length && stop(all[all.length - 1])) all.pop();
+    // Not with a question's word inside it ("board of health"): Pagefind would load that word's part of the index,
+    // among the largest, which the search itself leaves out.
+    return all.length > 1 && !all.some(stop) ? all.join(" ") : null;
+  }
+
   // A day as "Wed, Nov 18", with the year when it isn't this year's.
   function day(iso) {
     var d = new Date(iso + "T12:00:00");
@@ -264,11 +372,12 @@
     box.hidden = !found.length;
   }
 
-  function item(kind, data, upcoming) {
+  function item(kind, data, upcoming, ts) {
     var li = el("li");
+    var own = wordsExcerpt(data.content || "", ts, kind === "decision" ? LENGTH.decision : LENGTH.excerpt);
     if (kind === "decision") {
       var box = el("div", { "class": "search-decision" });
-      box.appendChild(el("p")).appendChild(excerpt(data.excerpt));
+      box.appendChild(el("p")).appendChild(own ? own.fragment : excerpt(data.excerpt));
       li.appendChild(box);
       var meta = el("p", { "class": "search-meta" });
       meta.appendChild(el("a", { href: data.url }, data.meta.title));
@@ -276,19 +385,27 @@
       li.appendChild(meta);
       return li;
     }
-    // A page's or a meeting's best match: the part of the page with the most of the words, linked, with its excerpt.
+    // A page's or a meeting's best match, linked: the part of the page its excerpt is from, or else the part with the
+    // most of the words.
     var sub = (data.sub_results || []).reduce(function (best, part) {
-      return !best || (part.locations || []).length > (best.locations || []).length ? part : best;
+      if (!best) return part;
+      if (own) return distance(part, own.at) < distance(best, own.at) ? part : best;
+      return (part.locations || []).length > (best.locations || []).length ? part : best;
     }, null) || data;
     if (kind === "page" && data.meta.crumb) li.appendChild(el("div", { "class": "search-crumb" }, data.meta.crumb));
     li.appendChild(el("a", { href: sub.url || data.url, "class": "search-title" }, data.meta.title));
     if (upcoming) li.appendChild(el("span", { "class": "search-upcoming" }, strings.upcoming));
-    li.appendChild(el("p", { "class": "search-excerpt" })).appendChild(excerpt(sub.excerpt || data.excerpt));
+    li.appendChild(el("p", { "class": "search-excerpt" })).appendChild(own ? own.fragment : excerpt(sub.excerpt || data.excerpt));
     return li;
   }
 
+  // How far a part of a page's matches are from a word of it.
+  function distance(part, at) {
+    return Math.min.apply(null, (part.locations || []).map(function (l) { return Math.abs(l - at); }).concat([Infinity]));
+  }
+
   // One kind's results, under its heading: the first few, and the rest a button away.
-  function group(kind, found, size) {
+  function group(kind, found, size, ts) {
     var section = el("section", { "class": "search-group", "aria-labelledby": "results-" + kind });
     section.appendChild(el("h2", { id: "results-" + kind }, strings[kind]));
     var ol = section.appendChild(el("ol", { "class": "search-list" }));
@@ -299,7 +416,7 @@
       next += batch.length;
       more.hidden = next >= found.length;
       return Promise.all(batch.map(function (r) { return r.data(); })).then(function (all) {
-        all.forEach(function (data, i) { ol.appendChild(item(kind, data, batch[i].upcoming)); });
+        all.forEach(function (data, i) { ol.appendChild(item(kind, data, batch[i].upcoming, ts)); });
       });
     }
     more.addEventListener("click", function () { show(FIRST.one); });
@@ -335,7 +452,7 @@
     status.textContent = t(total === 1 ? "matches_one" : "matches_other", { n: total, query: query });
     var kinds = shown === "all" ? KINDS : [shown];
     Promise.all(kinds.filter(function (k) { return counts[k]; }).map(function (k) {
-      return group(k, found[k], shown === "all" ? FIRST.all : FIRST.one);
+      return group(k, found[k], shown === "all" ? FIRST.all : FIRST.one, found.terms);
     })).then(function (sections) {
       if (current !== found) return;
       sections.forEach(function (s) { list.appendChild(s); });
@@ -357,23 +474,29 @@
       return;
     }
     if (!current) status.textContent = strings.searching;
-    var named = [];
+    var named = [], words = q;
     Promise.all([load(), loadAnswers()]).then(function (loaded) {
       var pf = loaded[0], data = loaded[1];
       named = data ? match(q, data) : [];
-      var words = pagefindQuery(q, data);
+      words = pagefindQuery(q, data);
+      var phrase = phraseOf(q, data);
+      // Each search's results, those with its words together first, in their order (by date, or how well they match).
       return Promise.all(KINDS.map(function (k) {
         return Promise.all(SEARCHES[k].map(function (s) {
-          return pf.search(words, { filters: s.filters, sort: s.sort }).then(function (found) {
-            var results = found ? found.results : [];
-            if (s.upcoming) results.forEach(function (r) { r.upcoming = true; });
-            return results;
-          });
+          var options = { filters: s.filters, sort: s.sort };
+          return Promise.all([pf.search(words, options), phrase ? pf.search('"' + phrase + '"', options) : null])
+            .then(function (both) {
+              var together = both[1] ? both[1].results : [], seen = {};
+              together.forEach(function (r) { seen[r.id] = true; });
+              var results = together.concat((both[0] ? both[0].results : []).filter(function (r) { return !seen[r.id]; }));
+              if (s.upcoming) results.forEach(function (r) { r.upcoming = true; });
+              return results;
+            });
         })).then(function (lists) { return [].concat.apply([], lists); });
       }));
     }).then(function (searches) {
       if (mine !== typed) return;
-      var found = { query: q, answers: named };
+      var found = { query: q, answers: named, terms: terms(words) };
       KINDS.forEach(function (k, i) { found[k] = searches[i]; });
       current = found;
       showAnswers(named);
