@@ -15,7 +15,7 @@ linking its meeting's decisions, so a search lists what was decided first, and a
 found by the rest of its text: its summaries, agenda, and minutes.
 
 Decisions and meetings are listed by date, not by how often they use the words: each has a sort key,
-"date" (sort_key()), and a meeting's page a filter, "when", "upcoming" or "past" as of the build, as the
+"date" (sort_key()), without which a sorted search leaves it out, and a meeting's page a filter, "when", "upcoming" or "past" as of the build, as the
 meetings page has it. The search page lists upcoming meetings first, the soonest first, then past
 meetings and decisions, the newest first; pages, which have no date, are listed by how well they match.
 
@@ -46,7 +46,7 @@ EXCLUDED = [".meeting-list", ".later-list", ".decision-rows", ".decision-list", 
 # The most a search may download before its first results, in bytes: Pagefind's script and its worker, the
 # language's WebAssembly, metadata, and filters, and the largest index chunk a word can need. Gloucester's, with
 # 283 pages and 390 decisions a language, is about 190 KB, of which the metadata, the part that grows with the
-# number of results, is 5 KB.
+# number of results (with each meeting's and decision's sort key, a few bytes each), is 5 KB.
 LOAD_LIMIT = 600_000
 # The files Pagefind writes for its own ready-made search interfaces, which the site doesn't use (its search page
 # has its own, site/static/js/search.js): deleted after writing.
@@ -82,8 +82,9 @@ def sort_key(meeting: dict, position: int | None = None) -> str:
     """What a meeting's page, or one of its decisions, is listed by: the meeting's date and start time, then its
     address, so two meetings at the same time keep their decisions apart; for a decision, then its place in the
     minutes (position, from 0), counted down, so that newest first lists a meeting's decisions in order.
-    Pagefind compares the keys as text."""
-    key = f"{meeting['date']}T{meeting.get('start_time') or '00:00'} {meeting['url']}"
+    Pagefind compares the keys as text, so the time is written with two digits for the hour ("09:00")."""
+    time = meeting.get("start_time") or "00:00"
+    key = f"{meeting['date']}T{time.zfill(5)} {meeting['url']}"
     return key if position is None else f"{key} {9999 - position:04d}"
 
 

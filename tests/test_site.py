@@ -350,6 +350,11 @@ def test_search_index(site_dir):
     meetings = {r["url"]: r["filters"]["when"] for r in results if r["filters"]["kind"] == ["meeting"]}
     assert set(map(tuple, meetings.values())) == {("upcoming",), ("past",)}
     assert meetings["/meetings/2026-10-01-board-of-assessors/"] == ["past"]
+    # And each meeting's page has its sort key, without which a sorted search leaves it out (decision records
+    # can't be made without one).
+    for url in meetings:
+        page = (site_dir / url.strip("/") / "index.html").read_text()
+        assert re.search(r'data-pagefind-sort="date">\d{4}-\d\d-\d\dT\d\d:\d\d /meetings/', page), url
 
 
 def test_search_sort_keys():
@@ -360,6 +365,8 @@ def test_search_sort_keys():
     earlier = dict(m, start_time=None)
     later = dict(m, date="2026-10-08", start_time="09:00", url="/meetings/2026-10-08-a/")
     assert site_search.sort_key(earlier) < site_search.sort_key(m) < site_search.sort_key(later, 5)
+    # A time with one digit for the hour still sorts before a later one the same day.
+    assert site_search.sort_key(dict(m, start_time="9:00")) < site_search.sort_key(m)
 
 
 def test_decision_urls_are_each_their_own():
