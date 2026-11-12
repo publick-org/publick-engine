@@ -1,6 +1,8 @@
 # Pull requests that move the workflows' pinned actions (each pinned by commit, with its version in a
-# comment) and the Python requirements (pinned exactly) to their newest releases, once a month, one
-# pull request each. Each runs the engine's tests; nothing moves until a person merges it, and the
+# comment) to their newest releases once a month, in one pull request, and the Python requirements
+# (pinned exactly) once a week: their minor and patch releases together in one pull request, small
+# enough to read and merge, and each new major version in a pull request of its own, since that's the
+# one that may need the code changed. Each runs the engine's tests; nothing moves until a person merges it, and the
 # next morning's release takes it to the towns only once every town passes on it.
 version: 2
 updates:
@@ -16,9 +18,10 @@ updates:
   - package-ecosystem: pip
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     groups:
       requirements:
         patterns: ["*"]
+        update-types: [minor, patch]
     commit-message:
       prefix: Requirements
