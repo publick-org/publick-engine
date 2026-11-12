@@ -214,6 +214,27 @@ def test_site_search_lists_by_date(browser, server_url):
     context.close()
 
 
+def test_site_search_words_together_first(browser, server_url):
+    """A search's results with its words together come first among those listed the same way (upcoming meetings,
+    then past ones), and each excerpt is from where its words are closest, with only them marked."""
+    context = browser.new_context()
+    page = context.new_page()
+    page.goto(server_url + "/search/?q=finance+committee")
+    page.wait_for_selector(".search-group li")
+    page.click('.search-filters button[data-kind="meeting"]')
+    wait_until(page, "!document.querySelector('#results-decision')")
+    wait_until(page, "document.querySelectorAll('#search-results .search-list > li').length >= 9")
+    rows = page.evaluate("""() => [...document.querySelectorAll('#search-results .search-list > li')].map(li => ({
+        upcoming: !!li.querySelector('.search-upcoming'),
+        marks: [...li.querySelectorAll('.search-excerpt mark')].map(m => m.textContent.replace(/[^A-Za-z ]/g, ''))}))""")
+    together = [r["marks"] == ["Finance Committee"] for r in rows]
+    assert any(together) and not all(together)
+    for when in (True, False):
+        block = [t for r, t in zip(rows, together) if r["upcoming"] == when]
+        assert block == sorted(block, reverse=True), (when, block)
+    context.close()
+
+
 # Searches and the answers shown above their results (pipeline/search_answers.py), from the fixture's streets,
 # boards and officials: typos, questions, a street named among other words, partly typed words, a street type in
 # a street's name, a direction, a seat, a word of a name, and words that name no one thing.
