@@ -667,9 +667,30 @@ def test_officials_page(site_dir, config):
     shapes = json.loads((site_dir / wards_url.split("?")[0].lstrip("/")).read_text())
     assert [w["ward"] for w in shapes] == ["1", "2", "3", "4", "5"]
     assert all(w["polygons"] and w["outline"] for w in shapes)
+    # The ward file names two precincts in each ward: each polygon's precinct, for the map to name.
+    assert all(len(w["precincts"]) == len(w["polygons"]) and set(w["precincts"]) == {"1", "2"} for w in shapes)
+    strings = json.loads(html.unescape(re.search(r"id=\"ward-map\"[^>]*data-strings='([^']*)'", page).group(1)))
+    assert strings["found_precinct"] == "You're in Ward {ward}, Precinct {precinct}."
+    address = json.loads(html.unescape(re.search(r"id=\"address\"[^>]*data-strings='([^']*)'", page).group(1)))
+    assert address["area_precinct"] == "Ward {ward}, Precinct {precinct}" and address["precinct"] == "Precinct {ward}"
     about = (site_dir / "about" / "index.html").read_text()
     assert "<strong>Elected officials:</strong> listed by hand" in about
     assert 'If you use "Find my ward," your location is checked on your device.' in about
+
+
+def test_officials_precincts_are_named_where_the_file_has_them(config):
+    """A ward file names voting precincts within its wards when a precinct isn't its ward. A file of
+    wards alone, or of precincts that are the town's areas, has none to name with a ward."""
+    from pipeline.officials import has_precincts
+
+    def feature(ward, precinct=None):
+        return {"properties": {"ward": ward, **({"precinct": precinct} if precinct is not None else {})}}
+    assert has_precincts([feature("1", "1"), feature("1", "2")], config)
+    assert has_precincts([feature("A", "1")], config)
+    # New Hampshire's wards; Methuen's precincts, each its own area, its number given as both.
+    assert not has_precincts([feature("1"), feature("2")], config)
+    assert not has_precincts([feature("1", "1"), feature("2", "2")], config)
+    assert not has_precincts([feature("1", "1"), feature("1", "2")], {**config, "town": {**config["town"], "areas": "precincts"}})
 
 
 def test_officials_outline_leaves_out_shared_edges():

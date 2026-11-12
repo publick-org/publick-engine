@@ -770,14 +770,20 @@ def test_a_town_names_its_areas(config):
         officials.areas(config)
 
 
+# The Officials page's messages that name a voting precinct within a ward or district ("District 1, Precinct 1-2"),
+# where the town's ward file has precincts: the precinct is the precinct whatever the town calls its areas.
+PRECINCT_MESSAGES = {"area_precinct", "ward_precinct", "found_precinct", "precinct", "near_precinct"}
+
+
 def reader_text(page: str) -> str:
     """What a reader sees or hears of a page: its text, title, description, labels and the ward map's
-    messages, without its addresses, ids and class names, which say "ward" whatever a town calls its areas."""
+    messages, without its addresses, ids and class names, which say "ward" whatever a town calls its areas,
+    and without the messages that name a precinct within an area (PRECINCT_MESSAGES)."""
     said = [page.split("<body", 1)[1], *re.findall(r'<title>(.*?)</title>', page),
             *re.findall(r'<meta (?:name="description"|property="og:(?:title|description)") content="([^"]*)"', page),
             *re.findall(r'aria-label="([^"]*)"', page)]
     said += [re.sub(r"\{\w+\}", "", text) for strings in re.findall(r"data-strings='([^']*)'", page)
-             for text in json.loads(html.unescape(strings)).values()]
+             for key, text in json.loads(html.unescape(strings)).items() if key not in PRECINCT_MESSAGES]
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", " ".join(said))))
 
 
@@ -826,6 +832,9 @@ def test_a_town_whose_areas_are_districts(config, tmp_path, monkeypatch):
     assert "<h2 id=\"wards\">Find your district</h2>" in officials_page and "<h3>District 1</h3>" in officials_page
     assert '"ward": "District {ward}"' in officials_page and "Find my district using my location" in officials_page
     assert 'aria-label="Map of Gloucester\'s districts"' in officials_page
+    # The test town's file has precincts within each district: named with the district.
+    assert 're in District {ward}, Precinct {precinct}."' in officials_page
+    assert '"area_precinct": "District {ward}, Precinct {precinct}"' in officials_page
     assert '(Districts <a href="#ward-1">1</a> and <a href="#ward-2">2</a>)' in officials_page
     for url in ("/311/ward/1/", "/311/", "/311/methodology/", "/about/", "/officials/"):
         said = reader_text(page(url))

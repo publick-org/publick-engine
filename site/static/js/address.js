@@ -1,5 +1,7 @@
 // The Officials page's address box: the ward a street address is in, and who
-// represents it.
+// represents it. Where the town's ward file names voting precincts, each range
+// in one ward also has its precinct (r[4]), and the box names it with the ward:
+// "Ward 3, Precinct 2".
 //
 // The address never leaves the browser. It's looked up in the town's list of
 // house number ranges, each already given its ward when the site was built
@@ -134,14 +136,33 @@
     return { matches: near.slice(0, d.matches).map(function (p) { return p[1]; }) };
   }
 
-  function wardsOf(rows) {
-    var seen = {};
-    rows.forEach(function (r) { [].concat(r[3]).forEach(function (w) { seen[w] = true; }); });
+  function sorted(seen) {
     return Object.keys(seen).sort(function (a, b) {
       var na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
       if (na && nb) return a - b;
       return na ? -1 : nb ? 1 : (a < b ? -1 : a > b ? 1 : 0);
     });
+  }
+
+  function wardsOf(rows) {
+    var seen = {};
+    rows.forEach(function (r) { [].concat(r[3]).forEach(function (w) { seen[w] = true; }); });
+    return sorted(seen);
+  }
+
+  // The precincts ranges in one ward are in, as pipeline/fetch_addresses.py's place_of() finds
+  // them: none unless every range has its precinct (a range near a ward line has none).
+  function precinctsOf(rows) {
+    if (wardsOf(rows).length !== 1 || rows.some(function (r) { return r.length < 5; })) return [];
+    var seen = {};
+    rows.forEach(function (r) { [].concat(r[4]).forEach(function (p) { seen[p] = true; }); });
+    return sorted(seen);
+  }
+
+  // "Ward 3, Precinct 2" where the ranges are all in one precinct, and "Ward 3" where they aren't.
+  function place(ward, rows) {
+    var precincts = precinctsOf(rows);
+    return precincts.length === 1 ? t("area_precinct", { ward: ward, precinct: precincts[0] }) : area(ward);
   }
 
   function el(tag, text, attrs) {
@@ -153,10 +174,12 @@
 
   function area(ward) { return t("area", { ward: ward }); }
 
-  function list(wards) {
-    var names = wards.map(area);
-    return names.length === 1 ? names[0] : t("and", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] });
+  // "Ward 2 and Ward 3", or with "or", "Precinct 1 or Precinct 2".
+  function joined(names, word) {
+    return names.length === 1 ? names[0] : t(word || "and", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] });
   }
+
+  function list(wards) { return joined(wards.map(area)); }
 
   function say(text) { result.appendChild(el("p", text)); }
 
@@ -214,7 +237,7 @@
     if (typed.number === null) {
       var all = wardsOf(rows);
       if (all.length === 1) {
-        say(t("street_one", { street: found.name, area: area(all[0]) }));
+        say(t("street_one", { street: found.name, area: place(all[0], rows) }));
         card(all[0]);
       } else {
         say(t("street_many", { street: found.name, areas: list(all) }));
@@ -222,9 +245,16 @@
       return;
     }
     var n = typed.number;
-    var hits = wardsOf(rows.filter(function (r) { return r[0] <= n && n <= r[1] && (r[2] === 0 || r[2] === 2 - n % 2); }));
-    if (hits.length === 1) {
-      say(t("found", { address: address, area: area(hits[0]) }));
+    var here = rows.filter(function (r) { return r[0] <= n && n <= r[1] && (r[2] === 0 || r[2] === 2 - n % 2); });
+    var hits = wardsOf(here);
+    var precincts = precinctsOf(here);
+    if (hits.length === 1 && precincts.length > 1) {
+      say(t("near_precinct", { address: address, area: area(hits[0]), precincts: joined(precincts.map(function (p) {
+        return t("precinct", { ward: p });
+      }), "or") }));
+      card(hits[0]);
+    } else if (hits.length === 1) {
+      say(t("found", { address: address, area: place(hits[0], here) }));
       card(hits[0]);
     } else if (hits.length) {
       say(t("near_line", { address: address, areas: list(hits) }));
@@ -232,7 +262,7 @@
     } else {
       var wards = wardsOf(rows);
       say(t(wards.length === 1 ? "not_listed_one" : "not_listed_many",
-            { address: address, street: found.name, area: area(wards[0]), areas: list(wards) }));
+            { address: address, street: found.name, area: place(wards[0], rows), areas: list(wards) }));
       mapLink(wards[0]);
     }
   }
