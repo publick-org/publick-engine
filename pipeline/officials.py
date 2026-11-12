@@ -3,7 +3,9 @@ table, and its wards, for the Officials page (/officials/).
 
 The members are kept by hand: they change at elections and vacancies, and no
 city publishes them as data. The ward boundaries are the town's ward file in
-data/static/ (the same file 311 uses), simplified for the page's map.
+data/static/ (the same file 311 uses), simplified for the page's map. Where
+the file names the voting precincts within each ward (Massachusetts's and
+Rhode Island's files do), the page names a reader's precinct with their ward.
 
 A list kept by hand goes out of date at each election, so a town's config
 names its next municipal election ([officials] next_election). The list is
@@ -280,22 +282,38 @@ def wards_path(data_dir: Path, config: dict) -> Path | None:
     return path
 
 
+def has_precincts(features: list[dict], config: dict) -> bool:
+    """Whether the ward file names voting precincts within its wards, for the page to name a reader's
+    precinct with their ward ("Ward 3, Precinct 2"): a feature whose precinct isn't its ward. A file
+    with no precincts (New Hampshire's wards) has none to name, and in a town whose areas are its
+    voting precincts, each precinct is its own area, already named."""
+    if areas(config) == "precincts":
+        return False
+    return any(str(f["properties"].get("precinct") or "") not in ("", str(f["properties"]["ward"])) for f in features)
+
+
 def map_data(data_dir: Path, config: dict, places: int = 5) -> list[dict]:
     """Each ward's shape for the page's map: its precincts' polygons, for filling
     and for finding the ward a point is in, and its outline, the precinct edges
     that aren't shared with another precinct of the same ward. Coordinates are
-    rounded to about a meter."""
+    rounded to about a meter. Where the file names precincts within wards
+    (has_precincts), each ward also has precincts: each polygon's precinct, in
+    the same order, for the page to name the one a point is in."""
     path = wards_path(data_dir, config)
     if path is None:
         return []
-    polygons = defaultdict(list)
-    for f in json.loads(path.read_text(encoding="utf-8"))["features"]:
+    features = json.loads(path.read_text(encoding="utf-8"))["features"]
+    named = has_precincts(features, config)
+    polygons, precincts = defaultdict(list), defaultdict(list)
+    for f in features:
         g = f["geometry"]
         parts = [g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"]
+        ward = str(f["properties"]["ward"])
         for poly in parts:
-            polygons[str(f["properties"]["ward"])].append(
-                [[[round(x, places), round(y, places)] for x, y, *_ in ring] for ring in poly])
-    return [{"ward": w, "polygons": polygons[w], "outline": outline(polygons[w])}
+            polygons[ward].append([[[round(x, places), round(y, places)] for x, y, *_ in ring] for ring in poly])
+            precincts[ward].append(str(f["properties"].get("precinct") or ""))
+    return [{"ward": w, "polygons": polygons[w], "outline": outline(polygons[w]),
+             **({"precincts": precincts[w]} if named else {})}
             for w in sorted(polygons, key=ward_key)]
 
 

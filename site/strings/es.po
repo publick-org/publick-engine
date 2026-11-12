@@ -3203,6 +3203,11 @@ msgstr "Distrito {n}"
 msgid "District {ward}"
 msgstr "Distrito {ward}"
 
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "District {ward}, Precinct {precinct}"
+msgstr "Distrito {ward}, Precinto {precinct}"
+
 #: site/templates/ward.html
 msgid "Districts"
 msgstr "Distritos"
@@ -4890,8 +4895,9 @@ msgid "Look up a street"
 msgstr "Buscar una calle"
 
 #. the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such
-#. as "Ward 3", and {areas} several, such as "Ward 2 and Ward 3"; {address} is a street address, such
-#. as "12 Main St".
+#. as "Ward 3" or "Ward 3, Precinct 2", and {areas} several, such as "Ward 2 and Ward 3"; {precincts}
+#. is two or more voting precincts, such as "Precinct 1 or Precinct 2"; {address} is a street address,
+#. such as "12 Main St".
 #: site/pages/officials/index.html
 #, python-brace-format
 msgid "Looking up {address}…"
@@ -9362,6 +9368,11 @@ msgstr "Distrito {n}"
 msgid "Ward {ward}"
 msgstr "Distrito {ward}"
 
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "Ward {ward}, Precinct {precinct}"
+msgstr "Distrito {ward}, Precinto {precinct}"
+
 #: site/templates/ward.html
 msgid "Wards"
 msgstr "Distritos"
@@ -9806,6 +9817,11 @@ msgstr ""
 
 #: site/pages/officials/index.html
 #, python-brace-format
+msgid "You're in District {ward}, Precinct {precinct}."
+msgstr "Usted está en el Distrito {ward}, Precinto {precinct}."
+
+#: site/pages/officials/index.html
+#, python-brace-format
 msgid "You're in District {ward}."
 msgstr "Usted está en el Distrito {ward}."
 
@@ -9813,6 +9829,11 @@ msgstr "Usted está en el Distrito {ward}."
 #, python-brace-format
 msgid "You're in Precinct {ward}."
 msgstr "Usted está en el Precinto {ward}."
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "You're in Ward {ward}, Precinct {precinct}."
+msgstr "Usted está en el Distrito {ward}, Precinto {precinct}."
 
 #: site/pages/officials/index.html
 #, python-brace-format
@@ -10177,6 +10198,15 @@ msgstr ""
 msgid "{address} is in {area}."
 msgstr "{address} está en el {area}."
 
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid ""
+"{address} is in {area}. It's close to a precinct line, so its precinct could be {precincts}. "
+"Check it on the map."
+msgstr ""
+"{address} está en el {area}. Está cerca del límite de un precinto, así que su precinto podría ser"
+" {precincts}. Búsquela en el mapa."
+
 #: pipeline/build_site.py
 #, python-brace-format
 msgid "{address}. Submitted {date}."
@@ -10222,6 +10252,11 @@ msgstr "{days} días"
 #, python-brace-format
 msgid "{first} and {last}"
 msgstr "{first} y {last}"
+
+#: site/pages/officials/index.html
+#, python-brace-format
+msgid "{first} or {last}"
+msgstr "{first} o {last}"
 
 #. a recording's length, such as "3 h 19 min".
 #: pipeline/build_site.py

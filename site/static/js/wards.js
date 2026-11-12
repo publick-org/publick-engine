@@ -1,5 +1,8 @@
 // The Officials page's ward map. Tapping a ward shows who represents it, and
-// "Find my ward using my location" finds the ward the visitor is in.
+// "Find my ward using my location" finds the ward the visitor is in. Where the
+// town's ward file names the voting precincts in each ward, each ward's
+// polygons come with their precincts (pipeline/officials.py map_data): the
+// map draws the precinct lines faintly, and names the precinct with the ward.
 //
 // The location never leaves the browser: it's checked against the ward shapes
 // already loaded with the page, it isn't stored, and the map doesn't move to
@@ -61,8 +64,9 @@
     var color = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim() || "#1e3e80";
     var bounds = L.latLngBounds([]);
     wards.forEach(function (w) {
+      // A ward of precincts: each precinct's edge in a thin line, under the ward's outline.
       var fill = L.polygon(w.polygons.map(latLngs), {
-        stroke: false, fillColor: color, fillOpacity: 0.06
+        stroke: !!w.precincts, color: color, weight: 1, opacity: 0.35, fillColor: color, fillOpacity: 0.06
       }).addTo(map);
       L.polyline(w.outline.map(function (line) {
         return line.map(function (p) { return [p[1], p[0]]; });
@@ -72,7 +76,7 @@
         labels.push(L.tooltip({ permanent: true, direction: "center", className: "ward-label", interactive: false })
           .setLatLng(at).setContent(t("ward", { ward: w.ward })).addTo(map));
       }
-      fill.on("click", function () { show(w.ward, false); });
+      fill.on("click", function (e) { show(w.ward, false, precinctAt(w, e.latlng.lng, e.latlng.lat)); });
       layers[w.ward] = { fill: fill, shape: w };
       bounds.extend(fill.getBounds());
     });
@@ -110,14 +114,17 @@
   // The address box (address.js) found a ward: mark it, as the map's own answers do.
   document.addEventListener("publick:ward", function (e) { select(e.detail.ward); });
 
-  // Shows a ward's members under the map, from the ward list on the page.
-  function show(ward, found) {
+  // Shows a ward's members under the map, from the ward list on the page, and names the
+  // precinct the point is in, where the town's file has precincts.
+  function show(ward, found, precinct) {
     select(ward);
     var item = document.querySelector('.ward-list > li[data-ward="' + ward + '"]');
     result.textContent = "";
     var head = document.createElement("p");
     head.className = "ward-result-head";
-    head.textContent = t(found ? "found" : "ward", { ward: ward });
+    var key = found ? "found" : "ward";
+    if (precinct && strings[key + "_precinct"]) key += "_precinct";
+    head.textContent = t(key, { ward: ward, precinct: precinct });
     result.appendChild(head);
     if (item) {
       var members = item.querySelector("ul, p");
@@ -132,19 +139,30 @@
     result.appendChild(p);
   }
 
-  // Whether a point (longitude, latitude) is inside a ward: inside an odd
+  // Whether a point (longitude, latitude) is inside a polygon: inside an odd
   // number of its rings, so holes count as outside.
-  function contains(shape, x, y) {
-    return shape.polygons.some(function (poly) {
-      var inside = false;
-      poly.forEach(function (ring) {
-        for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-          var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
-          if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
-        }
-      });
-      return inside;
+  function inPolygon(poly, x, y) {
+    var inside = false;
+    poly.forEach(function (ring) {
+      for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
     });
+    return inside;
+  }
+
+  function contains(shape, x, y) {
+    return shape.polygons.some(function (poly) { return inPolygon(poly, x, y); });
+  }
+
+  // The precinct of a ward a point is in, or null where the file names no precincts.
+  function precinctAt(shape, x, y) {
+    if (!shape.precincts) return null;
+    for (var i = 0; i < shape.polygons.length; i++) {
+      if (inPolygon(shape.polygons[i], x, y)) return shape.precincts[i] || null;
+    }
+    return null;
   }
 
   function offerLocation() {
@@ -160,7 +178,7 @@
         button.disabled = false;
         var x = pos.coords.longitude, y = pos.coords.latitude;
         var ward = Object.keys(layers).filter(function (k) { return contains(layers[k].shape, x, y); })[0];
-        if (ward) show(ward, true);
+        if (ward) show(ward, true, precinctAt(layers[ward].shape, x, y));
         else message(t("outside"));
       }, function () {
         button.disabled = false;

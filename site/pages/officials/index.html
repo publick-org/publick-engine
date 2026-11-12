@@ -16,6 +16,7 @@
   "no_seat": _("No seat is elected by this precinct alone."),
   "no_map": _("The precinct map isn't available yet. Each member's seat is listed under its office below."),
   "area": _("Precinct {ward}"),
+  "area_precinct": _("Precinct {ward}"),
 } %}
 {% elif areas == "districts" %}
 {% set say = {
@@ -28,6 +29,7 @@
   "no_seat": _("No seat is elected by this district alone."),
   "no_map": _("The district map isn't available yet. Each member's seat is listed under its office below."),
   "area": _("District {ward}"),
+  "area_precinct": _("District {ward}, Precinct {precinct}"),
 } %}
 {% else %}
 {% set say = {
@@ -40,6 +42,7 @@
   "no_seat": _("No seat is elected by this ward alone."),
   "no_map": _("The ward map isn't available yet. Each member's seat is listed under its office below."),
   "area": _("Ward {ward}"),
+  "area_precinct": _("Ward {ward}, Precinct {precinct}"),
 } %}
 {% endif %}
 {% block title %}{{ _("Who represents you") }}{% endblock %}
@@ -99,14 +102,17 @@
 {% if addresses %}
 {#- The address box (site/static/js/address.js): shown by its script, which looks the address up in the
     Census Bureau's address ranges, each given its ward by pipeline/fetch_addresses.py. -#}
-{# Translators: the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such as "Ward 3", and {areas} several, such as "Ward 2 and Ward 3"; {address} is a street address, such as "12 Main St". #}
+{# Translators: the address box's messages; keep each {name} as it is. {area} is a ward, precinct or district, such as "Ward 3" or "Ward 3, Precinct 2", and {areas} several, such as "Ward 2 and Ward 3"; {precincts} is two or more voting precincts, such as "Precinct 1 or Precinct 2"; {address} is a street address, such as "12 Main St". #}
 {% set address_strings = {
   "area": say.area,
+  "area_precinct": say.area_precinct,
   "looking": _("Looking up {address}…"),
+  "precinct": _("Precinct {ward}"),
   "failed": _("The address list could not be loaded. Please try again later."),
   "empty": _("Enter a street address, such as 12 Main St."),
   "found": _("{address} is in {area}."),
   "near_line": _("{address} is close to the line between {areas}, so it could be in either. Check it on the map."),
+  "near_precinct": _("{address} is in {area}. It's close to a precinct line, so its precinct could be {precincts}. Check it on the map."),
   "street_one": _("{street} is in {area}."),
   "street_many": _("{street} runs through {areas}. Add your house number to find yours."),
   "not_listed_one": _("The Census Bureau's address list doesn't have {address}. Where it lists addresses, {street} is in {area}: check your home on the map."),
@@ -114,6 +120,7 @@
   "choose": _("{street} isn't in the address list. Did you mean one of these?"),
   "none": _("{street} isn't in the address list. Check the spelling, or find your home on the map."),
   "and": _("{first} and {last}"),
+  "or": _("{first} or {last}"),
   "citywide": _("Also representing you, elected citywide:"),
   "map": _("See it on the map"),
 } %}
@@ -146,6 +153,8 @@
 {% set strings = {
   "ward": _("District {ward}"),
   "found": _("You're in District {ward}."),
+  "ward_precinct": say.area_precinct,
+  "found_precinct": _("You're in District {ward}, Precinct {precinct}."),
   "unavailable": _("Your location isn't available. You can find your district on the map or in the list below."),
   "outside": _("Your location isn't in any of {town}'s districts. You can find your district on the map or in the list below.").replace("{town}", town.name),
 } %}
@@ -154,6 +163,8 @@
 {% set strings = {
   "ward": _("Ward {ward}"),
   "found": _("You're in Ward {ward}."),
+  "ward_precinct": say.area_precinct,
+  "found_precinct": _("You're in Ward {ward}, Precinct {precinct}."),
   "unavailable": _("Your location isn't available. You can find your ward on the map or in the list below."),
   "outside": _("Your location isn't in any of {town}'s wards. You can find your ward on the map or in the list below.").replace("{town}", town.name),
 } %}

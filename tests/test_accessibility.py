@@ -227,18 +227,21 @@ def _date(text):
 # The address box (site/static/js/address.js) reads an address as pipeline/fetch_addresses.py's find()
 # does (tests/test_addresses.py): the same cases, as the page says them.
 ADDRESSES = [
-    ("12 Main Street, Gloucester, MA 01930", "12 Main St is in Ward 2."),
-    ("401 main st", "401 Main St is in Ward 1."),
+    ("12 Main Street, Gloucester, MA 01930", "12 Main St is in Ward 2, Precinct 2."),
+    ("401 main st", "401 Main St is in Ward 1, Precinct 2."),
     ("5 Main St", "5 Main St is close to the line between Ward 2 and Ward 3, so it could be in either."),
-    ("3 Rowe Sq", "3 Rowe Sq is in Ward 2."),
-    ("4 Rowe Sq", "4 Rowe Sq is in Ward 1."),
-    ("12 Mt Vernon Street", "12 Mount Vernon St is in Ward 2."),
-    ("12 St. Louis Avenue", "12 Saint Louis Ave is in Ward 1."),
+    ("3 Rowe Sq", "3 Rowe Sq is in Ward 2, Precinct 2."),
+    ("4 Rowe Sq", "4 Rowe Sq is in Ward 1, Precinct 2."),
+    ("12 Mt Vernon Street", "12 Mount Vernon St is in Ward 2, Precinct 1."),
+    ("12 St. Louis Avenue", "12 Saint Louis Ave is in Ward 1, Precinct 1."),
+    ("121 Pleasant St", "121 Pleasant St is in Ward 2. It's close to a precinct line, so its precinct could be "
+                        "Precinct 1 or Precinct 2."),
+    # A street through two precincts of one ward: its ward.
     ("Pleasant Street", "Pleasant St is in Ward 2."),
     ("Washington St", "Washington St runs through Ward 2, Ward 3 and Ward 4."),
     ("5000 Washington St", "The Census Bureau's address list doesn't have 5000 Washington St."),
-    ("12 Kilby St North", "12 N Kilby St is in Ward 4."),
-    ("12 Elm St Rockport", "12 Elm St is in Ward 2."),
+    ("12 Kilby St North", "12 N Kilby St is in Ward 4, Precinct 2."),
+    ("12 Elm St Rockport", "12 Elm St is in Ward 2, Precinct 2."),
     ("12 Elm Ave", "12 Elm Ave isn't in the address list. Did you mean one of these?"),
     ("15 Harriet Road", "15 Harriet Road isn't in the address list. Did you mean one of these?"),
     ("12 Nowhere Lane", "12 Nowhere Lane isn't in the address list."),
@@ -259,7 +262,7 @@ def test_address_box(browser, axe, server_url, viewport):
     wait_until(page, "document.getElementById('address-result').textContent.indexOf('is in Ward') >= 0", timeout=10)
     result = page.text_content("#address-result")
     # Ward 2's own members, then those elected citywide, from the page's lists.
-    assert result.startswith("12 Main St is in Ward 2.") and "Blake Example" in result and "Indy Example" in result
+    assert result.startswith("12 Main St is in Ward 2, Precinct 2.") and "Blake Example" in result and "Indy Example" in result
     assert "Finley Example" in result and "Avery Example" not in result
     assert page.get_attribute("#ward-2", "class") == "is-selected" or page.locator("#ward-map").is_hidden()
     results = axe.run(page, options={"runOnly": {"type": "tag", "values": WCAG_TAGS}})
@@ -277,13 +280,27 @@ def test_address_box(browser, axe, server_url, viewport):
     assert page.locator("#address-result .choices button").all_text_contents() == ["12 N Kilby St", "12 S Kilby St"]
     page.focus("#address-result .choices button >> nth=1")
     page.keyboard.press("Enter")
-    wait_until(page, "document.getElementById('address-result').textContent.startsWith('12 S Kilby St is in Ward 4.')")
+    wait_until(page, "document.getElementById('address-result').textContent.startsWith('12 S Kilby St is in Ward 4')")
     # The address goes nowhere: every request is to the site itself, or for the map's images.
     assert all(u.startswith(server_url) or u.startswith("https://tile.openstreetmap.org/") for u in requests)
     assert not any("Kilby" in u or "Main" in u for u in requests)
     context.close()
     assert results.violations_count == 0, format_violations(results)
     assert overflow <= 0
+
+
+def test_location_names_the_ward_and_precinct(browser, server_url):
+    """"Find my ward using my location" names the ward and, where the ward file has them, the precinct
+    the visitor is in, from the shapes loaded with the page."""
+    context = browser.new_context(geolocation={"longitude": -70.6589, "latitude": 42.6199}, permissions=["geolocation"])
+    page = context.new_page()
+    page.goto(server_url + "/officials/")
+    page.wait_for_selector("#locate:not([hidden])")
+    page.click("#locate-button")
+    wait_until(page, "document.getElementById('ward-result').textContent.indexOf('in Ward') >= 0", timeout=10)
+    assert page.text_content("#ward-result .ward-result-head") == "You're in Ward 2, Precinct 1."
+    assert page.get_attribute("#ward-2", "class") == "is-selected"
+    context.close()
 
 
 def test_address_from_the_street_lookup(browser, server_url):

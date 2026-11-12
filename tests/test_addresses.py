@@ -93,6 +93,33 @@ def test_side_split_where_it_crosses_into_another_ward(tmp_path):
     assert [r[3] for r in joined] == ["1", ["1", "2"], "2"]
 
 
+def test_side_split_where_it_crosses_into_another_precinct(tmp_path):
+    """With precincts, a precinct line within a ward splits a side as a ward line does: numbers near
+    it get the ward and both precincts. Near a ward line, the ward is in question, and no precinct
+    is given."""
+    def square(x0, x1, y0, y1):
+        return {"type": "Polygon", "coordinates": [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]]}
+    lon0, lat0 = -70.70, 42.60
+    dx = 400 / (111_320 * 0.7373)
+    cut = [lon0 - 0.01, lon0 + dx / 4, lon0 + 3 * dx / 4, lon0 + 0.01]
+    wards = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"ward": "1", "precinct": "1"}, "geometry": square(cut[0], cut[1], lat0, lat0 + 0.01)},
+        {"type": "Feature", "properties": {"ward": "1", "precinct": "2"}, "geometry": square(cut[1], cut[2], lat0, lat0 + 0.01)},
+        {"type": "Feature", "properties": {"ward": "2", "precinct": "1"}, "geometry": square(cut[2], cut[3], lat0, lat0 + 0.01)},
+    ]}
+    path = tmp_path / "wards.geojson"
+    path.write_text(json.dumps(wards))
+    ward_at, _ = fa.ward_finder(path, precincts=True)
+    line = [(lon0, lat0), (lon0 + dx, lat0)]
+    runs = fa.place_side(fa.Side(line, 1), ward_at, 1, 99, 1)
+    joined = fa.join([(1, low, high, *fa.placed(places, True)) for low, high, places in runs])
+    assert [r[3:] for r in joined] == [["1", "1"], ["1", ["1", "2"]], ["1", "2"], [["1", "2"]], ["2", "1"]]
+    # Without precincts, the same street is in ward 1, then ward 2.
+    ward_at, _ = fa.ward_finder(path)
+    runs = fa.place_side(fa.Side(line, 1), ward_at, 1, 99, 1)
+    assert [r[3:] for r in fa.join([(1, *r) for r in runs])] == [["1"], [["1", "2"]], ["2"]]
+
+
 def test_fetch_makes_the_towns_file(town):
     config, data_dir = town
     client = FakeCensus()
@@ -103,7 +130,11 @@ def test_fetch_makes_the_towns_file(town):
     assert saved["source_urls"] == ["https://www2.census.gov/geo/tiger/TIGER2026/ADDRFEAT/tl_2026_25009_addrfeat.zip"]
     # Rockport's Main St, in the same county file, is left out: none of its numbers are in a ward.
     assert all(r[1] < 1000 for r in saved["streets"]["Main St"])
-    assert saved["streets"]["Rowe Sq"] == [[1, 99, 1, "2"], [2, 98, 2, "1"]]
+    # The test town's ward file names precincts: each range in one ward has its precinct.
+    assert saved["precincts"] is True
+    assert saved["streets"]["Rowe Sq"] == [[1, 99, 1, "2", "2"], [2, 98, 2, "1", "2"]]
+    # Near a ward line, the ward is what's in question: the range has no precinct.
+    assert saved["streets"]["Main St"][0] == [1, 13, 1, ["2", "3"]]
     # Asked once a month at most, then for next year's file only.
     assert "skipped" in fa.run(config, FakeCensus(), data_dir, now=FETCHED_AT + timedelta(days=5))
     later = FakeCensus()
@@ -139,6 +170,20 @@ def test_a_new_ward_file_makes_it_again_and_the_build_waits(town):
     assert fa.load(data_dir, config) is not None
 
 
+def test_a_file_made_without_precincts_is_made_again(town):
+    """A town whose ward file names precincts, with a file made before ranges had them, has it
+    made again on the next run, though its ward file hasn't changed."""
+    config, data_dir = town
+    fa.run(config, FakeCensus(), data_dir, now=FETCHED_AT)
+    path = data_dir / fa.FILE
+    saved = json.loads(path.read_text())
+    del saved["precincts"]
+    path.write_text(json.dumps(saved))
+    assert fa.run(config, FakeCensus(), data_dir, now=FETCHED_AT + timedelta(days=1))["year"] == 2026
+    assert json.loads(path.read_text())["precincts"] is True
+    assert "skipped" in fa.run(config, FakeCensus(), data_dir, now=FETCHED_AT + timedelta(days=2))
+
+
 def test_a_town_without_ward_seats_has_no_file(town):
     config, data_dir = town
     for body in config["officials"]["bodies"]:
@@ -149,28 +194,38 @@ def test_a_town_without_ward_seats_has_no_file(town):
     assert not client.urls and not (data_dir / fa.FILE).exists()
 
 
-@pytest.mark.parametrize("text, street, wards, how", [
-    ("12 Main St", "Main St", ["2"], "number"),
-    ("12 Main Street, Gloucester, MA 01930", "Main St", ["2"], "number"),
-    ("401 main st", "Main St", ["1"], "number"),
-    # Odd numbers at the street's start are close to a ward line: both wards, never a guess.
-    ("5 Main St", "Main St", ["2", "3"], "number"),
+@pytest.mark.parametrize("text, street, wards, precincts, how", [
+    ("12 Main St", "Main St", ["2"], ["2"], "number"),
+    ("12 Main Street, Gloucester, MA 01930", "Main St", ["2"], ["2"], "number"),
+    ("401 main st", "Main St", ["1"], ["2"], "number"),
+    # Odd numbers at the street's start are close to a ward line: both wards, never a guess, and no precinct.
+    ("5 Main St", "Main St", ["2", "3"], [], "number"),
     # Each side of a street that is a ward line is in its own ward.
-    ("3 Rowe Sq", "Rowe Sq", ["2"], "number"),
-    ("4 Rowe Sq", "Rowe Sq", ["1"], "number"),
-    ("12 Mt Vernon Street", "Mount Vernon St", ["2"], "number"),
-    ("12 St. Louis Avenue", "Saint Louis Ave", ["1"], "number"),
+    ("3 Rowe Sq", "Rowe Sq", ["2"], ["2"], "number"),
+    ("4 Rowe Sq", "Rowe Sq", ["1"], ["2"], "number"),
+    ("12 Mt Vernon Street", "Mount Vernon St", ["2"], ["1"], "number"),
+    ("12 St. Louis Avenue", "Saint Louis Ave", ["1"], ["1"], "number"),
+    # Close to a precinct line within a ward: the ward, and both precincts.
+    ("121 Pleasant St", "Pleasant St", ["2"], ["1", "2"], "number"),
     # No number: the street's one ward, or the wards it runs through.
-    ("Pleasant Street", "Pleasant St", ["2"], "street"),
-    ("Washington St", "Washington St", ["2", "3", "4"], "street"),
+    ("Pleasant Street", "Pleasant St", ["2"], ["1", "2"], "street"),
+    ("Washington St", "Washington St", ["2", "3", "4"], [], "street"),
     # A number the ranges don't have.
-    ("5000 Washington St", "Washington St", ["2", "3", "4"], "no number"),
+    ("5000 Washington St", "Washington St", ["2", "3", "4"], [], "no number"),
     # The street with other directions, or a place name after it.
-    ("12 Kilby St North", "N Kilby St", ["4"], "number"),
-    ("12 Elm St Rockport", "Elm St", ["2"], "number"),
+    ("12 Kilby St North", "N Kilby St", ["4"], ["2"], "number"),
+    ("12 Elm St Rockport", "Elm St", ["2"], ["2"], "number"),
 ])
-def test_finds_the_ward(ranges, text, street, wards, how):
-    assert fa.find(ranges, text, PLACES) == {"street": street, "wards": wards, "how": how, "matches": []}
+def test_finds_the_ward(ranges, text, street, wards, precincts, how):
+    assert fa.find(ranges, text, PLACES) == {"street": street, "wards": wards, "precincts": precincts, "how": how,
+                                             "matches": []}
+
+
+def test_a_file_made_without_precincts_names_none(ranges):
+    """A file made before ranges had precincts still finds the ward, and names no precinct."""
+    old = {**ranges, "streets": {name: [r[:4] for r in rows] for name, rows in ranges["streets"].items()}}
+    assert fa.find(old, "12 Main St", PLACES)["precincts"] == []
+    assert fa.find(old, "12 Main St", PLACES)["wards"] == ["2"]
 
 
 @pytest.mark.parametrize("text, matches", [
@@ -182,7 +237,8 @@ def test_finds_the_ward(ranges, text, street, wards, how):
     ("15 Harriet Road", ["Harriett Rd"]),
 ])
 def test_offers_near_matches(ranges, text, matches):
-    assert fa.find(ranges, text, PLACES) == {"street": None, "wards": [], "how": "choose", "matches": matches}
+    assert fa.find(ranges, text, PLACES) == {"street": None, "wards": [], "precincts": [], "how": "choose",
+                                             "matches": matches}
 
 
 def test_no_such_street(ranges):

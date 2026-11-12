@@ -26,9 +26,15 @@ on the town's own machine:
 - Numbers outside every ward are in another town, and are left out.
 
 The file keeps each street's ranges, joined where neighbors share a ward and
-a side, for the page to read: [first, last, parity, ward]. It's made again
-when the Census Bureau publishes a new year, or the ward file changes; it
-records the ward file it was made with, and the build leaves the box out
+a side, for the page to read: [first, last, parity, ward]. Where the ward file
+names the voting precincts within each ward (officials.has_precincts), each
+side is placed by its ward and precinct, so a precinct line splits a range as
+a ward line does, and a range in one ward also has its precinct:
+[first, last, parity, ward, precinct], the precinct a list of two near a
+precinct line ("the line between Precinct 1 and Precinct 2"). A range near a
+ward line has no precinct. It's made again when the Census Bureau publishes a
+new year, or the ward file changes, or names precincts the file doesn't have;
+it records the ward file it was made with, and the build leaves the box out
 until the two match again (pipeline/build_site.py).
 
 The files are read here without a GIS library: a shapefile's lines and its
@@ -250,20 +256,24 @@ def place_side(side: Side, ward_at, first: int, last: int, parity: int) -> list[
     return [tuple(r) for r in runs]
 
 
-def ward_finder(wards_path: Path):
-    """ward_at((longitude, latitude)) -> the ward's name, or None outside every ward."""
+def ward_finder(wards_path: Path, precincts: bool = False):
+    """ward_at((longitude, latitude)) -> the ward's name, or None outside every ward; with precincts,
+    the ward's and the precinct's names, (ward, precinct)."""
     lookup = PrecinctLookup(wards_path)
 
     def ward_at(point):
         found = lookup.find(point[1], point[0])
-        return str(found["ward"]) if found else None
+        if not found:
+            return None
+        return (str(found["ward"]), str(found.get("precinct") or "")) if precincts else str(found["ward"])
     return ward_at, lookup
 
 
-def ranges(records, wards_path: Path) -> dict[str, dict]:
+def ranges(records, wards_path: Path, precincts: bool = False) -> dict[str, dict]:
     """Every street in the wards, by key: its name as the Census Bureau writes it, and its ranges
-    [low, high, parity (0 both, 1 odd, 2 even), ward (a name, or a list of two near a crossing)]."""
-    ward_at, lookup = ward_finder(wards_path)
+    [low, high, parity (0 both, 1 odd, 2 even), ward (a name, or a list of two near a crossing)],
+    with precincts, each range in one ward followed by its precinct (a name, or a list near a line)."""
+    ward_at, lookup = ward_finder(wards_path, precincts)
     x0 = min(b[0] for _, b in lookup.features) - 0.003
     y0 = min(b[1] for _, b in lookup.features) - 0.003
     x1 = max(b[2] for _, b in lookup.features) + 0.003
@@ -285,25 +295,40 @@ def ranges(records, wards_path: Path) -> dict[str, dict]:
             if side.length == 0:
                 continue
             code = PARITY.get(row.get(parity) or "B", 0)
-            for low, high, wards in place_side(side, ward_at, int(first), int(last), code):
-                if wards:
-                    found[key].append((code, low, high, wards))
+            for low, high, places in place_side(side, ward_at, int(first), int(last), code):
+                if places:
+                    found[key].append((code, low, high, *placed(places, precincts)))
                     names[key][name] += 1
     return {key: {"name": max(names[key], key=lambda n: (names[key][n], n)), "ranges": join(found[key])}
             for key in sorted(found)}
 
 
+def placed(places: frozenset, precincts: bool) -> tuple[frozenset, frozenset | None]:
+    """A run's wards, and its precincts where the file names them and the run is in one ward
+    (None otherwise: near a ward line, the ward is what's in question)."""
+    if not precincts:
+        return places, None
+    wards = frozenset(w for w, _ in places)
+    return wards, (frozenset(p for _, p in places) if len(wards) == 1 else None)
+
+
+def one_or_list(names) -> str | list[str]:
+    names = sorted(names, key=officials.ward_key)
+    return names[0] if len(names) == 1 else names
+
+
 def join(found: list[tuple]) -> list[list]:
-    """A street's ranges, sorted, with neighbors of the same side and ward joined across a small gap."""
+    """A street's ranges, sorted, with neighbors of the same side, ward and precinct joined across
+    a small gap. Each found range is (parity, low, high, wards), and with precincts, then its
+    precincts (None near a ward line)."""
     out: list[list] = []
-    for code, low, high, wards in sorted(found, key=lambda r: (r[0], r[1], r[2])):
-        ward = sorted(wards, key=officials.ward_key)
-        ward = ward[0] if len(ward) == 1 else ward
+    for code, low, high, wards, *more in sorted(found, key=lambda r: (r[0], r[1], r[2])):
+        place = [one_or_list(wards)] + ([one_or_list(more[0])] if more and more[0] is not None else [])
         last = out[-1] if out else None
-        if last and last[2] == code and last[3] == ward and low <= last[1] + JOIN_GAP:
+        if last and last[2] == code and last[3:] == place and low <= last[1] + JOIN_GAP:
             last[1] = max(last[1], high)
         else:
-            out.append([low, high, code, ward])
+            out.append([low, high, code, *place])
     return out
 
 
@@ -368,7 +393,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
         return {"skipped": "no ward seats" if wards_path else "no ward file"}
     saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
     wards_sha = file_hash(wards_path)
-    same_wards = saved is not None and saved.get("wards_sha") == wards_sha
+    precincts = officials.has_precincts(json.loads(wards_path.read_text(encoding="utf-8"))["features"], config)
+    # A file made before ranges had precincts is made again for a town whose ward file names them.
+    same_wards = (saved is not None and saved.get("wards_sha") == wards_sha
+                  and saved.get("precincts", False) == precincts)
     if same_wards and not force:
         checked = datetime.fromisoformat(saved["checked_at"])
         if saved["year"] >= now.year or now - checked < timedelta(days=CHECK_DAYS):
@@ -382,11 +410,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None, force
         write_atomic(path, json.dumps(saved, ensure_ascii=False, separators=(",", ":")) + "\n")
         return {"skipped": f"{saved['year']}'s address ranges are still the newest"}
     records = [r for county in counties for r in read_shapefile(download(client, year, county))]
-    streets = ranges(records, wards_path)
+    streets = ranges(records, wards_path, precincts)
     data = {
         "year": year, "counties": counties,
         "source_urls": [ADDRFEAT_URL.format(year=year, county=c) for c in counties],
-        "wards_file": wards_path.name, "wards_sha": wards_sha,
+        "wards_file": wards_path.name, "wards_sha": wards_sha, "precincts": precincts,
         "updated_at": now.isoformat(timespec="seconds"), "checked_at": now.isoformat(timespec="seconds"),
         "streets": {s["name"]: s["ranges"] for s in streets.values()},
     }
@@ -498,24 +526,36 @@ def street_for(keys: dict[str, str], key: str) -> tuple[str | None, list[str]]:
 
 def find(data: dict, text: str, places: tuple[str, ...] = (), keys: dict | None = None) -> dict:
     """What the page shows for an address, worked out as its script does: {"street": the street's name,
-    "wards": the wards the address can be in, "how", and "matches", the streets to offer when the street
-    isn't clear}. how is "number" (the ranges have the number), "street" (no number given: wards are the
-    street's), "no number" (the ranges don't have the number: wards are the street's), "choose" (matches
-    to offer), or "none". keys, each street's key and name, can be given to save making it each time."""
+    "wards": the wards the address can be in, "precincts": the precincts it can be in, in its one ward,
+    "how", and "matches", the streets to offer when the street isn't clear}. how is "number" (the ranges
+    have the number), "street" (no number given: wards are the street's), "no number" (the ranges don't
+    have the number: wards are the street's), "choose" (matches to offer), or "none". precincts is empty
+    when the file has none, or the address can be in more than one ward. keys, each street's key and
+    name, can be given to save making it each time."""
     number, key = parse(text, places)
     name, matches = street_for(keys or {street_key(n): n for n in data["streets"]}, key)
     if name is None:
-        return {"street": None, "wards": [], "how": "choose" if matches else "none", "matches": matches}
+        return {"street": None, "wards": [], "precincts": [], "how": "choose" if matches else "none",
+                "matches": matches}
     street = data["streets"][name]
-
-    def wards(rows):
-        return sorted({w for r in rows for w in ([r[3]] if isinstance(r[3], str) else r[3])}, key=officials.ward_key)
     if number is None:
-        return {"street": name, "wards": wards(street), "how": "street", "matches": []}
-    hits = wards(r for r in street if r[0] <= number <= r[1] and r[2] in (0, 2 - number % 2))
-    if hits:
-        return {"street": name, "wards": hits, "how": "number", "matches": []}
-    return {"street": name, "wards": wards(street), "how": "no number", "matches": []}
+        rows, how = street, "street"
+    else:
+        rows = [r for r in street if r[0] <= number <= r[1] and r[2] in (0, 2 - number % 2)]
+        rows, how = (rows, "number") if rows else (street, "no number")
+    wards, precincts = place_of(rows)
+    return {"street": name, "wards": wards, "precincts": precincts, "how": how, "matches": []}
+
+
+def place_of(rows: list[list]) -> tuple[list[str], list[str]]:
+    """The wards some ranges are in, and their precincts when they're all in one ward and each
+    range has its precinct (a file made with precincts; a range near a ward line has none)."""
+    def names(value):
+        return [value] if isinstance(value, str) else value
+    wards = sorted({w for r in rows for w in names(r[3])}, key=officials.ward_key)
+    if len(wards) != 1 or not all(len(r) > 4 for r in rows):
+        return wards, []
+    return wards, sorted({p for r in rows for p in names(r[4])}, key=officials.ward_key)
 
 
 def main() -> int:
