@@ -33,6 +33,10 @@
   function t(key, values) {
     return strings[key].replace(/\{(\w+)\}/g, function (m, k) { return values[k]; });
   }
+  // A number of things, from the page's key_one or key_other.
+  function count(key, n) {
+    return t(key + (n === 1 ? "_one" : "_other"), { n: n.toLocaleString(lang) });
+  }
 
   var pagefind = null, answers = null, shown = "all", current = null, typed = 0;
   // How many answers show at most, and how far below the best one another can score and still show.
@@ -198,9 +202,8 @@
   function detail(a) {
     if (a.k === "official") return a.d;
     if (a.k === "street") {
-      return ["meetings", "requests", "permits"].filter(function (k) { return a.c[k]; }).map(function (k) {
-        return t("street_" + k + (a.c[k] === 1 ? "_one" : "_other"), { n: a.c[k].toLocaleString(lang) });
-      }).join(" · ");
+      return [a.c.meetings && count("street_meetings", a.c.meetings), a.c.requests && count("street_requests", a.c.requests),
+              a.c.permits && count("street_permits", a.c.permits)].filter(Boolean).join(" · ");
     }
     var today = isoToday();
     if (a.next && a.next >= today) return t("board_next", { date: day(a.next) });
