@@ -128,7 +128,8 @@ def results(site_dir: Path, lang: str) -> list[dict]:
 
 
 def load_sizes(site_dir: Path) -> dict[str, int]:
-    """For each language, the most a search downloads before its first results, in bytes (LOAD_LIMIT)."""
+    """For each language, the most a search downloads before its first results, in bytes (LOAD_LIMIT), with the
+    language's answers (pipeline/search_answers.py), gzipped, as they're sent."""
     folder = site_dir / FOLDER
     scripts = sum((folder / name).stat().st_size for name in ("pagefind.js", "pagefind-worker.js"))
     sizes = {}
@@ -136,7 +137,10 @@ def load_sizes(site_dir: Path) -> dict[str, int]:
         lang = meta.name.split(".")[1].split("_")[0]
         filters = sum(p.stat().st_size for p in (folder / "filter").glob(f"{lang}_*.pf_filter"))
         chunk = max((p.stat().st_size for p in (folder / "index").glob(f"{lang}_*.pf_index")), default=0)
-        sizes[lang] = scripts + (folder / f"wasm.{lang}.pagefind").stat().st_size + meta.stat().st_size + filters + chunk
+        answers = site_dir / ("" if lang == "en" else lang) / "search" / "answers.json"
+        answers_size = len(gzip.compress(answers.read_bytes())) if answers.exists() else 0
+        sizes[lang] = (scripts + (folder / f"wasm.{lang}.pagefind").stat().st_size + meta.stat().st_size + filters
+                       + chunk + answers_size)
     return sizes
 
 

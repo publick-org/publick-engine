@@ -120,6 +120,8 @@ pipeline/                   Python package
   build_site.py             Renders site/ + the town's data/ into the town's _site/, with a sitemap dating each page by when it last changed
   search_index.py           The site's search: a Pagefind index of its pages, with each decision a result of its own, in
                             _site/pagefind/, which the search page (/search/) loads a few small files at a time
+  search_answers.py         The search's answers: the streets, boards and officials a search names, shown above its
+                            results, from the town's own data, in _site/search/answers.json
   digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
                             before (no AI), built into /digest/ with a feed for email
   structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,

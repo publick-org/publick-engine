@@ -44,6 +44,7 @@ from pipeline import legistar
 from pipeline import meeting_sources
 from pipeline import primegov
 from pipeline import search_index as site_search
+from pipeline import search_answers
 from pipeline import factcheck
 from pipeline import listings
 from pipeline import meeting_calendar
@@ -1984,6 +1985,14 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
         if addresses:
             addresses_json = json.dumps(fetch_addresses.page_data(addresses), ensure_ascii=False, separators=(",", ":"))
             addresses_url = f"/officials/addresses.json?v={hashlib.sha256(addresses_json.encode()).hexdigest()[:10]}"
+    # The search's answers (pipeline/search_answers.py): the streets, boards and officials a search can name.
+    answers_json = json.dumps(search_answers.answers(
+        lang, prefix, built_at.date().isoformat(), streets=streets if "streets" in built_folders else None,
+        boards=meetings["boards"] if "meetings" in config else None, officials=officials),
+        ensure_ascii=False, separators=(",", ":"))
+    answers_url = f"{prefix}/search/answers.json?v={hashlib.sha256(answers_json.encode()).hexdigest()[:10]}"
+    (out_dir / prefix.lstrip("/") / "search").mkdir(parents=True, exist_ok=True)
+    (out_dir / prefix.lstrip("/") / "search" / "answers.json").write_text(answers_json, encoding="utf-8")
     share_path = out_static / "share" / f"{town}.png"
     # Versioned, so sites that cache link previews pick up a redrawn image.
     share_image = (f"{base_url}/static/share/{town}.png?v={hashlib.sha256(share_path.read_bytes()).hexdigest()[:10]}"
@@ -2012,7 +2021,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   meeting_links=links, officials=officials, wards_url=wards_url,
                   # The address box's file, its ranges' year, and its page, which the street lookup links.
                   addresses=addresses and {"year": addresses["year"], "url": addresses_url, "page": f"{prefix}/officials/"},
-                  streets_url=streets_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
+                  streets_url=streets_url, answers_url=answers_url, street_sources=street_sources, street_example=example_street(streets), permits=permits, data_status=freshness.check(config, data_dir, built_at),
                   not_covered=absences.not_covered(config, state), digest_signup=digest.signup(config),
                   # Address alerts' follow form, on the street lookup's English pages for now (worker/alerts.js).
                   alerts=documents and mentions_mod.alerts(config),
