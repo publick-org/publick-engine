@@ -107,10 +107,11 @@ BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|c
                            r"challenges\.cloudflare\.com|_Incapsula_Resource", re.I)
 # Meeting platforms the engine doesn't read, found by their marks on the city's homepage.
 OTHER_PLATFORMS = {"Govstack": r"govstack", "Legistar, without its public API": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
-                   "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal',
-                   "Diligent Community": r"diligent\.community|diligentoneplatform"}
+                   "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal'}
 # Platforms the engine reads that the helper doesn't set up: a config by hand, from the town named.
-BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr"}
+BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr",
+           "a Diligent Community portal ([diligent_meetings], as Burlington's)":
+               r"community\.highbond\.com|diligent\.community|diligentoneplatform"}
 # A calendar event that is a public body's meeting, by its title.
 MEETING = r"\b(boards?|commissions?|committees?|subcommittees?|councils?|authority|trustees|meetings?|hearings?|ZBA|task force)\b"
 # A title that names a public body, which a calendar with other events is filtered by: its
@@ -313,7 +314,7 @@ def find_platform(town: NewTown, client) -> None:
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
             raise Stop(f"{town.url} has {', '.join(by_hand)}. The engine reads it, but the helper doesn't set it up: "
-                       "write [meetings] by hand from that town's config.")
+                       "write its table by hand from that town's config.")
         others = [n for n, mark in OTHER_PLATFORMS.items() if re.search(mark, page, re.I)]
         what = (f"its meetings on {', '.join(others)}" if others
                 else "no Agenda Center, city calendar of meetings, CivicClerk or PrimeGov portal, or Legistar system")

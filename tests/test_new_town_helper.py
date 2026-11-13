@@ -255,6 +255,14 @@ def test_helper_stops_at_a_platform_the_engine_does_not_read(tmp_path, network):
     assert not out.exists()
 
 
+def test_helper_stops_at_a_diligent_portal_to_set_up_by_hand(tmp_path, network):
+    # The engine reads Diligent Community ([diligent_meetings]); the helper doesn't set it up.
+    home = '<html><body><a href="https://example.community.highbond.com/Portal/">Meetings</a></body></html>'
+    town, out, code = beverly(tmp_path, network, [(r"^https://www\.beverlyma\.gov/?$", Page(home, BASE + "/"))])
+    assert code == 2 and "[diligent_meetings]" in town.stopped and "needs a reader" not in town.stopped
+    assert not out.exists()
+
+
 def test_helper_leaves_out_what_the_layers_give(tmp_path, network, monkeypatch):
     """With the network's shared settings (pipeline/config.py), the config keeps only the town's own,
     and loads and builds merged over them."""
