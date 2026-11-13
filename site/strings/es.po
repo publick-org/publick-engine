@@ -4603,6 +4603,11 @@ msgstr "En las actas"
 msgid "In the minutes, page %(page)s"
 msgstr "En las actas, página %(page)s"
 
+#. a choice above a meeting's decisions: all of them in the order the board voted on them.
+#: site/templates/macros.html
+msgid "In the order taken"
+msgstr "En el orden en que se votaron"
+
 #: site/pages/311/index.html
 #, python-format
 msgid ""
@@ -4948,6 +4953,12 @@ msgstr "Transcripción automática %(n)s"
 #: site/templates/base.html
 msgid "Main"
 msgstr "Principal"
+
+#. a choice above a meeting's decisions: the main ones first, then those put off, then the routine
+#. ones.
+#: site/templates/macros.html
+msgid "Main decisions first"
+msgstr "Primero las decisiones principales"
 
 #: site/states/me/budget.html
 msgid ""
@@ -5979,6 +5990,11 @@ msgstr "Abierta desde el <time datetime=\"%(iso)s\">%(when)s</time>"
 #, python-format
 msgid "Opened in the past %(days)s days"
 msgstr "Abiertas en los últimos %(days)s días"
+
+#. the name, for screen readers, of the choice between two orders of a meeting's decisions.
+#: site/templates/macros.html
+msgid "Order of the votes"
+msgstr "Orden de las votaciones"
 
 #: pipeline/common_strings.py pipeline/states/ct/budget.py pipeline/states/ma/budget.py
 msgid "Other"
@@ -7023,13 +7039,6 @@ msgid "Show the %(count)s roll call vote"
 msgid_plural "Show the %(count)s roll call votes"
 msgstr[0] "Mostrar la votación nominal (%(count)s)"
 msgstr[1] "Mostrar las %(count)s votaciones nominales"
-
-#: site/templates/macros.html
-#, python-format
-msgid "Show the %(count)s vote in order"
-msgid_plural "Show all %(count)s votes in order"
-msgstr[0] "Mostrar la votación (%(count)s) en orden"
-msgstr[1] "Mostrar las %(count)s votaciones en orden"
 
 #: site/templates/meeting.html
 #, python-format
@@ -9345,6 +9354,13 @@ msgstr "Vicepresidente"
 #: site/templates/charts.html
 msgid "View on SeeClickFix"
 msgstr "Ver en SeeClickFix"
+
+#. said by screen readers before each of a meeting's decisions when they're put in the order voted on:
+#. "Vote 3 of 5".
+#: site/templates/macros.html
+#, python-format
+msgid "Vote %(n)s of %(count)s"
+msgstr "Votación %(n)s de %(count)s"
 
 #. %(town)s is the town's name.
 #: site/pages/meetings/decisions/index.html

@@ -536,6 +536,15 @@ def main_and_routine(items: list) -> tuple[list, list]:
     return [d for d in items if getattr(d, "main", None) is not False], routine
 
 
+def place_taken(items: list, decision) -> int:
+    """A decision's place, from 1, in the order its meeting voted (items, as its summary lists them). Found by
+    identity: two decisions with the same words are still two votes."""
+    for n, d in enumerate(items, 1):
+        if d is decision:
+            return n
+    raise ValueError(f"not one of the meeting's decisions: {decision!r}")
+
+
 def decisions_shown(shown: dict, english: dict | None, raw: dict | None) -> list[Decision]:
     """A summary's decisions as shown (shown: factcheck.shown()'s), each a Decision with its page and quote;
     its outcome: the summary's own (decision_evidence), as the fact check leaves it, or read from the
@@ -2009,6 +2018,7 @@ def page_environment(config: dict, lang: str, state, out_static: Path, data_dir:
     env.globals["split_tally"] = split_tally
     env.globals["without_outcome_verb"] = without_outcome_verb
     env.globals["main_and_routine"] = main_and_routine
+    env.globals["place_taken"] = place_taken
     env.globals["meeting_name"] = digest.meeting_name
     env.globals["short_place"] = digest.short_place
     env.globals["final_and_put_off"] = final_and_put_off

@@ -387,7 +387,26 @@ button.fold-more { display: inline-flex; align-items: center; min-height: 2.75re
 /* The same notes gathered from any other page (build_site.gather_notes): one size and color, whatever class each had. */
 .about-page { margin-top: 3rem; }
 .about-page .about-notes .small, .about-page .about-notes .source-note { color: inherit; font-size: inherit; }
-/* "Show all N votes in order", a plain link above a meeting's decisions that opens them in order. */
+/* A meeting's decisions, main ones first or in the order taken (macros.html decision_groups): two radio buttons, shown
+   as plain links like the topic filter, the one chosen in bold. In the order taken, the groups' lists are one column
+   ordered by each row's place (--taken), without their headings. A browser without :has() can't reorder them, so it
+   doesn't show the choice. */
+.vote-order { display: flex; flex-wrap: wrap; gap: 0 1rem; margin: 0; padding: 0; border: 0; min-width: 0; }
+.vote-order label { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--primary); font-size: 0.9375rem;
+  text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.vote-order input:checked + label { color: var(--ink); font-weight: 700; text-decoration: none; cursor: default; }
+.vote-order input:focus-visible + label { outline: 3px solid var(--focus); outline-offset: 2px; }
+.vote-order + .vote-list > .decision-rows:first-child { margin-top: 0.25rem; }
+.vote-taken { display: none; }
+.vote-groups:has(input[value="taken"]:checked) .vote-list { display: flex; flex-direction: column; gap: 1rem; max-width: 46rem; margin-top: 0.25rem; }
+.vote-groups:has(input[value="taken"]:checked) .vote-list > .decision-rows { display: contents; }
+.vote-groups:has(input[value="taken"]:checked) .vote-list > .decision-rows[hidden] { display: none; }
+.vote-groups:has(input[value="taken"]:checked) .vote-list > .decision-group { display: none; }
+.vote-groups:has(input[value="taken"]:checked) .decision-rows > li { order: var(--taken); }
+.vote-groups:has(input[value="taken"]:checked) .vote-taken { display: block; }
+@supports not selector(:has(*)) { .vote-order { display: none; } }
+@media print { .vote-order { display: none; } }
+/* "Show all N votes in order", a plain link above a list that opens what it folds. */
 details.all-votes { margin: 0 0 0.5rem; max-width: 46rem; }
 details.all-votes > summary { display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; list-style: none; font-size: 0.9375rem; }
 details.all-votes > summary::-webkit-details-marker { display: none; }

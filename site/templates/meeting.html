@@ -24,7 +24,7 @@
 {% if primary %}
 {% if rs.summary %}<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
 {% if rs.decisions %}
-{{ decision_groups(none, rs.decisions, rs.get("english"), gloss) }}
+{{ decision_groups(none, rs.decisions, rs.get("english"), gloss, "recording-votes") }}
 {% endif %}
 {% endif %}
 {% if rs.get("discussion") %}
@@ -330,7 +330,7 @@
 {% endif %}
 {% if ms.get("is_minutes") == false %}
 {% elif ms.decisions %}
-{{ decision_groups(m.minutes_doc, ms.decisions, ms.get("english"), gloss) }}
+{{ decision_groups(m.minutes_doc, ms.decisions, ms.get("english"), gloss, "minutes-votes") }}
 {% elif not ms.get("not_shown") and not m.roll_calls %}
 <p>{{ _("The minutes do not record any votes or decisions.") }}</p>
 {% endif %}

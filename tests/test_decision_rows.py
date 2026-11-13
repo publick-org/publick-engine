@@ -191,13 +191,11 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert len(pages) == 1
     page = pages[0]
     assert page.index("Main decision title") < page.index('<h3 class="decision-group">Also voted on</h3>')
-    # Every vote, in the order taken, folded above the main ones; and where it met after what it decided.
-    in_order = page[page.index('<details class="all-votes">'):page.index("</details>", page.index('<details class="all-votes">'))]
-    grouped = page[page.index("</details>", page.index('<details class="all-votes">')):]
-    assert page.index('<details class="all-votes">') < page.index('<strong class="decision-title">')
-    assert grouped.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
-    assert "<summary>Show all 3 votes in order</summary>" in in_order
-    assert in_order.index("The site plan for 12 Elm Street") < in_order.index("The minutes of May 1, 2026.")
+    # Each vote once, with the choice to put them in the order taken above them; and where it met after them.
+    assert page.count('data-topic="government"') == len(labeled_one["decisions"]) - 1
+    assert '<details class="all-votes">' not in page and "/static/js/votes.js" in page
+    assert page.index('<fieldset class="vote-order">') < page.index('<strong class="decision-title">')
+    assert 'id="minutes-votes-as-taken" value="taken">' in page
     assert '<dl class="facts">' not in page[:page.index('class="decision-rows"')]
     # Where it met, where the page says, after what it decided, under its own heading.
     assert ('<h2 id="details">Meeting details</h2>' in page) == ('<dl class="facts">' in page)
@@ -211,6 +209,99 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert '<div class="topic-filter" role="group"' in decisions and "decisions.js" in decisions
     assert 'data-topic="housing" aria-pressed="false">Housing and zoning</button>' in decisions
     assert 'data-topic="government" aria-pressed="false">City government</button>' in decisions
+
+
+def groups_html(items, lang="en"):
+    """A meeting's decisions as its page shows them (macros.html decision_groups), in a language."""
+    from jinja2 import Environment, FileSystemLoader
+    env = Environment(loader=FileSystemLoader(str(build_site.SITE_DIR / "templates")), autoescape=True,
+                      trim_blocks=True, lstrip_blocks=True, extensions=["jinja2.ext.i18n"])
+    env.install_gettext_callables(i18n.gettext, i18n.ngettext, newstyle=True, pgettext=i18n.pgettext,
+                                  npgettext=i18n.npgettext)
+    env.policies["ext.i18n.trimmed"] = True
+    env.filters["versioned"] = lambda url: url
+    env.globals.update(split_tally=build_site.split_tally, without_outcome_verb=build_site.without_outcome_verb,
+                       main_and_routine=build_site.main_and_routine, final_and_put_off=build_site.final_and_put_off,
+                       place_taken=build_site.place_taken, adds_to=build_site.adds_to,
+                       tidy_recommendation=build_site.tidy_recommendation)
+    with i18n.use(lang):
+        return env.from_string('{% from "macros.html" import decision_groups %}{{ decision_groups(none, items) }}'
+                               ).render(items=items)
+
+
+def rows(html):
+    """Each row of a list of decisions: its place in the order taken (None where it has none), and its text."""
+    import re
+    return [(int(place) if place else None, re.sub(r"<[^>]+>|\s+", " ", text).split())
+            for place, text in re.findall(r'<li(?: data-topic="\w+")?(?: style="--taken: (\d+)")?>(.*?)</li>', html, re.S)]
+
+
+def test_a_meeting_with_main_and_routine_decisions_shows_each_vote_once():
+    """Main decisions by title, then those put off, then the routine ones, each once with its outcome and count;
+    each row carries its place in the order taken, for the choice above them to put them back in it."""
+    D = build_site.Decision
+    items = [D("Approved the minutes of October 14, 2026, 9-0.", outcome="approved", main=False),
+             D("Referred the sidewalk order to the Public Works Committee, 9-0.", outcome="referred", main=True,
+               title="Sidewalk order", topic="streets"),
+             D("Approved removing the requirement to publish fee changes in a local newspaper, 8-0.", outcome="approved",
+               main=True, title="Fee notices no longer in the newspaper"),
+             D("Approved hanging a portrait in City Hall, 9-0.", outcome="approved", main=False),
+             # Two votes with the same words are two rows, each in its own place.
+             D("Approved the minutes of October 14, 2026, 9-0.", outcome="approved", main=False)]
+    html = groups_html(items)
+    shown = rows(html)
+    assert [place for place, _ in shown] == [3, 2, 1, 4, 5]
+    assert len(shown) == len(items) and '<details class="all-votes">' not in html
+    for word in ("publish fee changes", "Public Works Committee", "portrait"):
+        assert html.count(word) == 1
+    # The outcome and count stay with every decision.
+    assert html.count('<span class="outcome">Approved <span class="tally">') == 4
+    assert html.count('<span class="outcome">Referred <span class="tally">9–0</span>') == 1
+    assert html.count('<span class="tally">') == len(items)
+    # Main first, by title; then put off; then routine.
+    assert (html.index("Fee notices no longer in the newspaper") < html.index("Put off or sent to committee")
+            < html.index("Sidewalk order") < html.index("Also voted on") < html.index("The minutes of October 14"))
+    # The choice: main first, checked, then the order taken; screen readers hear each row's place in that order.
+    choice = html[html.index('<fieldset class="vote-order">'):html.index("</fieldset>")]
+    assert html.index("</fieldset>") < html.index('class="decision-rows"')
+    assert 'value="main" checked>' in choice and 'value="taken">' in choice and 'value="taken" checked' not in choice
+    assert '<label for="votes-main-first">Main decisions first</label>' in choice
+    assert '<label for="votes-as-taken">In the order taken</label>' in choice
+    assert '<legend class="visually-hidden">Order of the votes</legend>' in choice
+    assert '<span class="vote-taken visually-hidden">Vote 1 of 5</span>' in html
+    assert html.count('<script src="/static/js/votes.js" defer></script>') == 1
+    assert html.count('class="vote-taken') == len(items)
+    # In Spanish too.
+    es = groups_html(items, "es")
+    assert '<label for="votes-main-first">Primero las decisiones principales</label>' in es
+    assert '<label for="votes-as-taken">En el orden en que se votaron</label>' in es
+    assert '<span class="vote-taken visually-hidden">Votación 3 de 5</span>' in es
+    assert [place for place, _ in rows(es)] == [3, 2, 1, 4, 5]
+
+
+def test_a_meeting_with_only_routine_decisions_lists_them_in_order():
+    """With no main decisions, or none said, every vote is one list in the order taken, with no choice of order."""
+    D = build_site.Decision
+    routine = [D("Approved the minutes, 5-0.", outcome="approved", main=False),
+               D("Accepted a gift to the library, 5-0.", outcome="approved", main=False),
+               D("Approved the consent agenda, 5-0.", outcome="approved", main=False)]
+    for items in (routine, [D(str(d), outcome=d.outcome) for d in routine]):
+        for lang in ("en", "es"):
+            html = groups_html(items, lang)
+            shown = rows(html)
+            assert [place for place, _ in shown] == [None] * len(items)
+            assert ["gift" in " ".join(text) for _, text in shown] == [False, True, False]
+            assert html.count('class="decision-rows"') == 1 and html.count('<span class="tally">5–0</span>') == 3
+            assert "vote-order" not in html and "vote-taken" not in html and "decision-group" not in html
+            assert "votes.js" not in html
+
+
+def test_a_decisions_place_in_the_order_taken():
+    D = build_site.Decision
+    items = [D("Approved X."), D("Approved Y."), D("Approved X.")]
+    assert [build_site.place_taken(items, d) for d in items] == [1, 2, 3]
+    with pytest.raises(ValueError):
+        build_site.place_taken(items, D("Approved X."))
 
 
 def test_the_meetings_page_lists_the_last_two_weeks(site_dir):

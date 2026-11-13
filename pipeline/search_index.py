@@ -39,10 +39,11 @@ from pagefind.index import IndexConfig, PagefindIndex
 # The folder the index is written to, at the site's root; the search page loads /pagefind/pagefind.js.
 FOLDER = "pagefind"
 # Parts of a page the index leaves out: lists of meetings (their headlines are found on each meeting's page),
-# lists of decisions (each decision is a record of its own), forms, and the notes about the page itself (how it
-# was made and corrected, which repeat what it says).
-EXCLUDED = [".meeting-list", ".later-list", ".decision-rows", ".decision-list", ".all-votes", ".board-list",
-            ".tabs", ".breadcrumb", "form", ".signup-after", ".notice", ".about-page", ".about-notes", "#about"]
+# lists of decisions (each decision is a record of its own) and the choice of their order, forms, and the notes
+# about the page itself (how it was made and corrected, which repeat what it says).
+EXCLUDED = [".meeting-list", ".later-list", ".decision-rows", ".decision-list", ".all-votes", ".vote-order",
+            ".board-list", ".tabs", ".breadcrumb", "form", ".signup-after", ".notice", ".about-page", ".about-notes",
+            "#about"]
 # The most a search may download before its first results, in bytes: Pagefind's script and its worker, the
 # language's WebAssembly, metadata, and filters, and the largest index chunk a word can need. Gloucester's, with
 # 283 pages and 390 decisions a language, is about 190 KB, of which the metadata, the part that grows with the
