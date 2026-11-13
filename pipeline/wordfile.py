@@ -6,6 +6,12 @@ PDF (Malden's Board of Appeal) gets a plain PDF of the document's paragraphs
 and tables, with a text layer, made here. Formatting, headers, footers and
 images are left out; the meeting page still links the city's own file.
 
+text_pdf() makes the PDF from any list of paragraphs, so a document posted
+as a web page's text (an agenda typed into a ProudCity meeting's page,
+pipeline/proudcity.py) is saved the same way. The same paragraphs make the
+same bytes: the PDF has no creation date, so a document fetched again
+unchanged isn't saved again as a new version.
+
 The older binary Word format (.doc) isn't read.
 """
 
@@ -63,19 +69,27 @@ def paragraphs(content: bytes) -> list[str]:
     return found
 
 
-def to_pdf(content: bytes) -> bytes:
-    """A letter-size PDF of the document's text, one paragraph after another."""
+def text_pdf(texts: list[str], creator: str) -> bytes:
+    """A letter-size PDF of paragraphs of text, one after another, made by `creator` ("Publick (from a Word
+    document)")."""
     from fpdf import FPDF
 
     pdf = FPDF(format="letter")
-    pdf.set_creator("Publick (from a Word document)")
+    pdf.set_creator(creator)
+    # No creation date, so the same paragraphs always make the same file.
+    pdf.creation_date = None
     pdf.set_margins(25, 25)
     pdf.set_auto_page_break(True, margin=25)
     pdf.add_page()
     pdf.set_font("helvetica", size=11)
-    for text in paragraphs(content):
+    for text in texts:
         text = text.translate(PLAIN).replace("\t", "    ").encode("latin-1", "replace").decode("latin-1")
         if text.strip():
             pdf.multi_cell(0, 5.5, text, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2.5)
     return bytes(pdf.output())
+
+
+def to_pdf(content: bytes) -> bytes:
+    """A letter-size PDF of the Word document's text, one paragraph after another."""
+    return text_pdf(paragraphs(content), "Publick (from a Word document)")

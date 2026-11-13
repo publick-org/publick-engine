@@ -166,6 +166,8 @@ def meeting_sources(config: dict, place: str) -> str:
         own.append(link("meeting portal", links["portal"]))
     if links["documents_page"]:
         own.append(link("documents page", links["documents_page"]))
+    if links["website"]:
+        own.append(link("website", links["website"]))
     if links["opengov_only"]:
         o = config["opengov_meetings"]
         return link(o["source_name"], o["page_url"])
