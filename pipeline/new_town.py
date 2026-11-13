@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import argparse
 import colorsys
+import html
 import io
 import json
 import os
@@ -107,7 +108,9 @@ BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|c
                            r"challenges\.cloudflare\.com|_Incapsula_Resource", re.I)
 # Meeting platforms the engine doesn't read, found by their marks on the city's homepage.
 OTHER_PLATFORMS = {"Govstack": r"govstack", "Legistar, without its public API": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
-                   "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal'}
+                   "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal',
+                   # CivicLive's file servers, which serve the site's own pages (not a link to another body's site).
+                   "CivicLive": r"//cdnsm\d*-[\w-]+\.civiclive\.com/"}
 # Platforms the engine reads that the helper doesn't set up: a config by hand, from the town named.
 BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr",
            "a Diligent Community portal ([diligent_meetings], as Burlington's)":
@@ -263,8 +266,17 @@ def primegov_name(page: str, town: NewTown) -> str:
 
 def find_platform(town: NewTown, client) -> None:
     """Step 1: the city's meeting platforms, read from its own pages."""
-    home = client.get(town.url)
+    try:
+        home = client.get(town.url)
+    except FetchError as e:
+        what = "answered with an error" if e.status else "didn't answer"
+        raise Stop(f"The city's homepage {what} ({e}), so nothing on its site was read.")
     page = home.text
+    title = re.search(r"<title[^>]*>(.*?)</title>", page, re.I | re.S)
+    title = " ".join(html.unescape(title.group(1)).split())[:100] if title else ""
+    # What the homepage answered, so a report that stops at step 1 shows the site was reached.
+    town.found(1, "Homepage", f"HTTP {home.status_code}, {len(page):,} characters"
+               + (f", titled \"{title}\"" if title else ", no title"), home.url or town.url)
     parts = urlsplit(home.url)
     base = f"{parts.scheme}://{parts.netloc}"
     site = town.site

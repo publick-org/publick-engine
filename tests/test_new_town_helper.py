@@ -255,6 +255,35 @@ def test_helper_stops_at_a_platform_the_engine_does_not_read(tmp_path, network):
     assert not out.exists()
 
 
+def test_helper_names_a_civiclive_site(tmp_path, network):
+    # Lynn's homepage, cut down: CivicLive serves the site's files from its own hosts.
+    home = ('<html><head><title>Home &amp; City of Lynn</title><link href="https://cdnsm1-hosted2.civiclive.com/bundle/css/'
+            'vendor.css" rel="stylesheet"></head><body><img src="https://cityoflynn.hosted2.civiclive.com/'
+            'UserFiles/Servers/Server_109726/Image/logo.svg"></body></html>')
+    town, out, code = beverly(tmp_path, network, [(r"^https://www\.beverlyma\.gov/?$", Page(home, BASE + "/"))])
+    assert code == 2 and "its meetings on CivicLive" in town.stopped
+    # The report shows the homepage answered, and what it was.
+    assert [(a.what, a.answer) for a in town.answers if a.what == "Homepage"] == [
+        ("Homepage", f'HTTP 200, {len(home)} characters, titled "Home & City of Lynn"')]
+
+
+def test_helper_stops_when_the_homepage_does_not_answer(tmp_path, network):
+    timeout = FetchError(f"{BASE}: HTTPSConnectionPool(host='www.beverlyma.gov', port=443): Read timed out.")
+    town, out, code = beverly(tmp_path, network, [(r"^https://www\.beverlyma\.gov/?$", timeout)])
+    assert code == 2 and town.stopped.startswith("The city's homepage didn't answer") and "Read timed out" in town.stopped
+    assert "Agenda Center" not in town.stopped and not town.answers and not out.exists()
+    # An error status is an answer, and says so.
+    error = FetchError(f"{BASE}/: HTTP 500", 500)
+    town, out, code = beverly(tmp_path, network, [(r"^https://www\.beverlyma\.gov/?$", error)])
+    assert code == 2 and town.stopped.startswith("The city's homepage answered with an error") and "HTTP 500" in town.stopped
+
+
+def test_helper_does_not_take_a_link_to_a_civiclive_site_for_the_citys():
+    # A link to another body's site on CivicLive (a school district) isn't the city's own files.
+    page = '<a href="https://lynnschools.civiclive.com/">Schools</a>'
+    assert not re.search(new_town.OTHER_PLATFORMS["CivicLive"], page, re.I)
+
+
 def test_helper_stops_at_a_diligent_portal_to_set_up_by_hand(tmp_path, network):
     # The engine reads Diligent Community ([diligent_meetings]); the helper doesn't set it up.
     home = '<html><body><a href="https://example.community.highbond.com/Portal/">Meetings</a></body></html>'
