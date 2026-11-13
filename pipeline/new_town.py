@@ -61,6 +61,7 @@ from __future__ import annotations
 
 import argparse
 import colorsys
+import html
 import io
 import json
 import os
@@ -108,9 +109,12 @@ BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|c
 # Meeting platforms the engine doesn't read, found by their marks on the city's homepage.
 OTHER_PLATFORMS = {"Govstack": r"govstack", "Legistar, without its public API": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
                    "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal',
-                   "Diligent Community": r"diligent\.community|diligentoneplatform"}
+                   # CivicLive's file servers, which serve the site's own pages (not a link to another body's site).
+                   "CivicLive": r"//cdnsm\d*-[\w-]+\.civiclive\.com/"}
 # Platforms the engine reads that the helper doesn't set up: a config by hand, from the town named.
-BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr"}
+BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr",
+           "a Diligent Community portal ([diligent_meetings], as Burlington's)":
+               r"community\.highbond\.com|diligent\.community|diligentoneplatform"}
 # A calendar event that is a public body's meeting, by its title.
 MEETING = r"\b(boards?|commissions?|committees?|subcommittees?|councils?|authority|trustees|meetings?|hearings?|ZBA|task force)\b"
 # A title that names a public body, which a calendar with other events is filtered by: its
@@ -262,8 +266,17 @@ def primegov_name(page: str, town: NewTown) -> str:
 
 def find_platform(town: NewTown, client) -> None:
     """Step 1: the city's meeting platforms, read from its own pages."""
-    home = client.get(town.url)
+    try:
+        home = client.get(town.url)
+    except FetchError as e:
+        what = "answered with an error" if e.status else "didn't answer"
+        raise Stop(f"The city's homepage {what} ({e}), so nothing on its site was read.")
     page = home.text
+    title = re.search(r"<title[^>]*>(.*?)</title>", page, re.I | re.S)
+    title = " ".join(html.unescape(title.group(1)).split())[:100] if title else ""
+    # What the homepage answered, so a report that stops at step 1 shows the site was reached.
+    town.found(1, "Homepage", f"HTTP {home.status_code}, {len(page):,} characters"
+               + (f", titled \"{title}\"" if title else ", no title"), home.url or town.url)
     parts = urlsplit(home.url)
     base = f"{parts.scheme}://{parts.netloc}"
     site = town.site
@@ -313,7 +326,7 @@ def find_platform(town: NewTown, client) -> None:
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
             raise Stop(f"{town.url} has {', '.join(by_hand)}. The engine reads it, but the helper doesn't set it up: "
-                       "write [meetings] by hand from that town's config.")
+                       "write its table by hand from that town's config.")
         others = [n for n, mark in OTHER_PLATFORMS.items() if re.search(mark, page, re.I)]
         what = (f"its meetings on {', '.join(others)}" if others
                 else "no Agenda Center, city calendar of meetings, CivicClerk or PrimeGov portal, or Legistar system")

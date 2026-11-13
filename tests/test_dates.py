@@ -35,10 +35,16 @@ def iso(text, **kwargs):
     ("Sept.9, 2026", "2026-09-09"), ("June15, 2026 REVISED", "2026-06-15"), ("November 10,2025", "2025-11-10"),
     ("June 10 2026 Special Meeting Minutes", "2026-06-10"), ("MARCH 19, 2024 -NOTICE OF RECOUNT", "2024-03-19"),
     ("Nov. 9th, 2026 - Finance", "2026-11-09"), ("Dec 1st 2026", "2026-12-01"), ("July 4 , 2026", "2026-07-04"),
+    # A period after the day (a station's recordings, a city's notices).
+    ("Brockton City Council Meeting November 9. 2026", "2026-11-09"), ("August 11. 2026", "2026-08-11"),
+    ("Nov. 9th. 2026", "2026-11-09"),
     # A misspelt month, read by its first letters.
     ("Febuary 11, 2026", "2026-02-11"),
     # The day first.
     ("Planning Board 21 October 2026", "2026-10-21"), ("21st Oct. 2026", "2026-10-21"), ("3 May, 2026", "2026-05-03"),
+    # Month, day and two-digit year with spaces, as a title's last word (a station's recordings).
+    ("Board of Assessors 11 5 26", "2026-11-05"), ("Conservation Commission 11 2 26", "2026-11-02"),
+    ("Tax Increment Financing Board 10 28 26", "2026-10-28"), ("City Council 03 03 26 ", "2026-03-03"),
 ])
 def test_forms(text, expected):
     assert iso(text) == expected
@@ -63,6 +69,14 @@ def test_dates_readers_once_missed(text, expected):
     # No date at all, or a word that isn't a month.
     "Ward 3 Meeting", "October Additional Resources", "Annual Report - March 2026",
     "Minutes of Regular Meeting- Match 11, 2026", "", None,
+    # Figures with spaces anywhere but a title's end, or after another figure: an address, a phone
+    # number, an item's number.
+    "03 03 26 BOH Minutes", "Room 11 5 26 City Hall", "Ward 3 11 5 26", "Call 508 12 3 26", "Item 4. 11 5 26",
+    "Board of Assessors-11 5 26", "Board of Assessors 11 5 2026x", "11 5 26 7",
+    # Figures run together, without a day the file was posted.
+    "LYNN CITY COUNCIL MEETING MINUTES 1132026", "City Council Minutes 4142026",
+    # A figure after a month's name and a period, with no space: a decimal, not a year.
+    "Mar 3.1415", "June 4.5000 acres",
 ])
 def test_not_dates(text):
     assert dates.find_date(text) is None
@@ -112,6 +126,8 @@ def test_one_date_written_over_another_is_read_once():
 
 def test_a_page_reads_dashes_only_with_a_full_year():
     assert dates.find_date("11-11-26 Board Meeting", short_dashed_years=False) is None
+    # Nor figures with spaces.
+    assert dates.find_date("Board of Assessors 11 5 26", short_dashed_years=False) is None
     assert iso("11-11-2026 Regular Board Meeting", short_dashed_years=False) == "2026-11-11"
     # Slashes and dots with a two-digit year are still dates.
     assert iso("10/26/26 BOE Meeting", short_dashed_years=False) == "2026-10-26"
@@ -149,6 +165,54 @@ def test_a_date_without_a_year_needs_a_month_by_name():
         assert dates.find_date(text, near=near) is None, text
 
 
+# ---- Figures run together ------------------------------------------------------------------
+
+MINUTES, AGENDA = (-365, 0), (0, 30)
+
+
+@pytest.mark.parametrize("text, posted, window, expected", [
+    # 1/13 is 107 days before minutes posted on April 30; 11/3 is after, so it isn't in the window.
+    ("LYNN CITY COUNCIL MEETING MINUTES 1132026", date(2026, 4, 30), MINUTES, "2026-01-13"),
+    # 41/4 isn't a day: one reading.
+    ("City Council Minutes 4142026", date(2026, 4, 30), MINUTES, "2026-04-14"),
+    ("CITY COUNCIL MEETING MINUTES 152026", date(2026, 2, 3), MINUTES, "2026-01-05"),
+    # An agenda posted before its meeting; two-figure months and days.
+    ("ENVIRONMENTAL AFFAIRS COMMITTEE CANCELED 982026", date(2026, 9, 3), AGENDA, "2026-09-08"),
+    ("Planning Board Agenda 10132026.pdf", date(2026, 10, 6), AGENDA, "2026-10-13"),
+    # 1/13 and 11/3 are both in a year of minutes posted in December: not guessed.
+    ("LYNN CITY COUNCIL MEETING MINUTES 1132026", date(2026, 12, 1), MINUTES, None),
+    # A year typed wrong: an agenda for February 24, 2025 posted in February 2026 is reported, not corrected.
+    ("LYNN CITY COUNCIL AGENDA 2242025 AMENDED", date(2026, 2, 20), AGENDA, None),
+    # A scanner's name, and figures in a longer run, aren't a day.
+    ("20260220111947665", date(2026, 2, 20), MINUTES, None), ("Item 4-1132026", date(2026, 4, 30), MINUTES, None),
+    ("Agenda_01022026-639", date(2026, 1, 1), AGENDA, None), ("Minutes 4142026.pdf", date(2026, 4, 30), MINUTES, "2026-04-14"),
+])
+def test_figures_run_together_in_a_window(text, posted, window, expected):
+    assert iso(text, near=posted, window=window) == expected
+
+
+def test_figures_run_together_that_arent_read_are_listed():
+    both = dates.undecided("LYNN CITY COUNCIL MEETING MINUTES 1132026", near=date(2026, 12, 1), window=MINUTES)
+    assert both == [("1132026", [date(2026, 1, 13), date(2026, 11, 3)])]
+    none = dates.undecided("LYNN CITY COUNCIL AGENDA 2242025 AMENDED", near=date(2026, 2, 20), window=AGENDA)
+    assert none == [("2242025", [date(2025, 2, 24)])]
+    # Read, or not a day at all: nothing to report.
+    assert dates.undecided("City Council Minutes 4142026", near=date(2026, 4, 30), window=MINUTES) == []
+    assert dates.undecided("Scan 20260220111947665 page 1234567", near=date(2026, 2, 20), window=MINUTES) == []
+
+
+def test_figures_run_together_and_written_dates_together():
+    found = dates.find_dates("Minutes 1132026 (corrected 4/30/2026)", near=date(2026, 4, 30), window=MINUTES)
+    assert [f.day for f in found] == [date(2026, 1, 13), date(2026, 4, 30)]
+
+
+def test_a_window_needs_a_day():
+    with pytest.raises(ValueError):
+        dates.find_dates("Minutes 1132026", window=MINUTES)
+    with pytest.raises(ValueError):
+        dates.find_dates("Minutes 1132026", near=date(2026, 4, 30), window=(0, -365))
+
+
 # ---- Taking dates out -------------------------------------------------------------------------
 
 @pytest.mark.parametrize("text, expected", [
@@ -160,6 +224,9 @@ def test_a_date_without_a_year_needs_a_month_by_name():
     ("Meeting for Oct. 5, 2026 Agenda", "Meeting   Agenda"),
     # Every date, and nothing that isn't one.
     ("Agenda 10/13/26 (was 10/6/26)", "Agenda   (was  )"), ("Ward 3 Meeting", "Ward 3 Meeting"),
+    # A period after the day, and figures with spaces at a title's end.
+    ("Brockton City Council Meeting November 9. 2026", "Brockton City Council Meeting  "),
+    ("Board of Assessors 11 5 26", "Board of Assessors  "), ("Ward 3 11 5 26", "Ward 3 11 5 26"),
 ])
 def test_without_dates(text, expected):
     assert dates.without_dates(text) == expected
