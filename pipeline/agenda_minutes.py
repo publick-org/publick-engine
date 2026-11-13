@@ -24,15 +24,18 @@ GOOGLE_REDIRECT = re.compile(r"^https://www\.google\.com/url\?q=([^&]+)")
 LINK = re.compile(r'<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>', re.I | re.S)
 
 
-def minutes_in(agenda: str) -> list[tuple[str, str]]:
-    """The minutes an agenda links, as (date, link): a paragraph of the agenda that says "minutes" and links
-    a document labelled with a date (Biddeford School Committee's packets: "5. Approval of Last Meeting's
-    Minutes: 9/23/2026 (Motion Needed)", "9/23/2026" linking that meeting's minutes, a Google Doc). agenda
-    is the agenda as HTML (a Google Doc's export). A date with dashes and a two-digit year isn't read, as on
-    a page of links (pipeline/linkpage.find_date)."""
+def minutes_links(agenda: str) -> list[dict]:
+    """The minutes an agenda links, each with its date, address, and the paragraph's text as its label: a
+    paragraph of the agenda that says "minutes" and links a document labelled with a date (Biddeford School
+    Committee's packets: "5. Approval of Last Meeting's Minutes: 9/23/2026 (Motion Needed)", "9/23/2026"
+    linking that meeting's minutes, a Google Doc; Holyoke School Committee's, a list of links: "9.14.26
+    School Committee Meeting Minutes"). agenda is the agenda as HTML (a Google Doc's export, a web page's
+    list). A date with dashes and a two-digit year isn't read, as on a page of links
+    (pipeline/linkpage.find_date)."""
     found = []
     for paragraph in re.split(r"</p>|</li>", agenda, flags=re.I):
-        if not re.search(r"\bminutes\b", finalsite.text(paragraph), re.I):
+        text = finalsite.text(paragraph)
+        if not re.search(r"\bminutes\b", text, re.I):
             continue
         for href, label in LINK.findall(paragraph):
             url = html.unescape(href)
@@ -40,8 +43,13 @@ def minutes_in(agenda: str) -> list[tuple[str, str]]:
             url = unquote(wrapped.group(1)) if wrapped else url
             dated = dates.find_dates(finalsite.text(label), short_dashed_years=False)
             if dated and finalsite.is_document(url):
-                found.append((dated[0].day.isoformat(), url))
+                found.append({"date": dated[0].day.isoformat(), "url": url, "label": text})
     return found
+
+
+def minutes_in(agenda: str) -> list[tuple[str, str]]:
+    """The minutes an agenda links, as (date, link) (minutes_links)."""
+    return [(m["date"], m["url"]) for m in minutes_links(agenda)]
 
 
 def link(client, found: list[dict], since: str, today: str, known: dict, errors: list[str]) -> None:

@@ -1598,6 +1598,16 @@ msgstr ""
 #: site/pages/about/index.html
 #, python-format
 msgid ""
+"<strong>Meetings, agendas, and minutes:</strong> the city's <a href=\"%(url)s\">website</a>, "
+"where its boards post them, from %(since)s on."
+msgstr ""
+"<strong>Reuniones, agendas y actas:</strong> el <a href=\"%(url)s\">sitio web</a> de la ciudad, "
+"donde sus juntas las publican, desde %(since)s."
+
+#. %(since)s is a month, such as "January 2024".
+#: site/pages/about/index.html
+#, python-format
+msgid ""
 "<strong>Meetings:</strong> the city's <a href=\"%(calendar)s\">calendar</a> and its <a "
 "href=\"%(portal)s\">meeting portal</a> (CivicClerk), from %(since)s on. Each meeting page links "
 "to its agenda and minutes where the city posts them."
@@ -5280,6 +5290,11 @@ msgstr "%(board)s de %(town)s: reuniones desde %(month)s, con sus agendas."
 #, python-format
 msgid "Meetings recorded here start in %(month)s."
 msgstr "Las reuniones registradas aquí empiezan en %(month)s."
+
+#: site/pages/meetings/index.html
+#, python-format
+msgid "Meetings, agendas and minutes from the city's <a href=\"%(url)s\">website</a>."
+msgstr "Reuniones, agendas y actas del <a href=\"%(url)s\">sitio web</a> de la ciudad."
 
 #: site/pages/data/index.html
 msgid "Meetings, summaries, and decisions"
@@ -10043,6 +10058,10 @@ msgstr "calendario de eventos de la ciudad"
 #: pipeline/build_site.py site/templates/meeting.html
 msgid "city's meeting portal"
 msgstr "portal de reuniones de la ciudad"
+
+#: pipeline/meeting_sources.py
+msgid "city's website"
+msgstr "sitio web de la ciudad"
 
 #. the end of a sentence, such as "If something is hard to use, email ... or open an issue ...".
 #: site/templates/macros.html

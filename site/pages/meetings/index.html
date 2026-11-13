@@ -49,6 +49,7 @@
 {%- if meeting_links.has_calendar and meeting_links.agenda_center %} {% trans url=meeting_links.agenda_center %}Agendas from the city's <a href="{{ url }}">Agenda Center</a>.{% endtrans %}{% endif %}
 {#- Translators: %(name)s is the city's page of every board's documents, such as "town's Minutes & Agendas page". #}
 {%- if meeting_links.documents_page %} {% trans url=meeting_links.documents_page, name=meeting_links.archive_name %}Agendas and minutes from the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}{% endif %}
+{%- if meeting_links.website %} {% trans url=meeting_links.website %}Meetings, agendas and minutes from the city's <a href="{{ url }}">website</a>.{% endtrans %}{% endif %}
 {#- Translators: %(name)s is a school district, such as "Wallingford Public Schools". #}
 {%- for school in meeting_links.schools | unique(attribute="name") %} {% trans url=school.url, name=school.name %}School board meetings from the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}{% endfor %}
  {{ _("Community events are left out.") }}{% if meetings.status %} {% trans iso=meetings.status.updated_at, when=meetings.status.updated_at | timestamp %}Checked <time datetime="{{ iso }}">{{ when }}</time>.{% endtrans %}{% endif %}</p>

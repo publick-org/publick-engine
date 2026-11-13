@@ -1309,6 +1309,7 @@ def meeting_links(config: dict) -> dict:
     m = config.get("meetings", {})
     base = m.get("base_url", "").rstrip("/")
     opengov_only = "opengov_meetings" in config and not any(k in m for k in CITY_MEETING_READERS)
+    website = meeting_sources.city_website(config)
     return {
         "calendar": m.get("calendar_url") or (f"{base}/calendar.aspx" if base else None),
         "portal": m.get("civicclerk", {}).get("portal_url") or (
@@ -1327,7 +1328,12 @@ def meeting_links(config: dict) -> dict:
         # A town whose every meeting comes from Rhode Island's Open Meetings portal: no reader of
         # the city's own in [meetings], so its pages name the portal as the source of them all.
         "opengov_only": opengov_only,
-        "schools": meeting_sources.posted_by(config, leave_out=("opengov",) if opengov_only else ()) + page_sources(config),
+        # A city website that posts every board's meetings (meeting_sources.city_website), and whether it's the town's only
+        # source of them: no reader of the city's own in [meetings].
+        "website": website,
+        "website_only": bool(website) and not any(k in m for k in CITY_MEETING_READERS),
+        "schools": meeting_sources.posted_by(config, leave_out=meeting_sources.CITY + (("opengov",) if opengov_only else ()))
+                   + page_sources(config),
     }
 
 

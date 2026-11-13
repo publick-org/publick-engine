@@ -227,6 +227,60 @@ def test_helper_finds_a_primegov_portal(tmp_path, network):
     assert any("CompiledDocument" in u for u in client.urls)
 
 
+def proudcity_pages(home_links: str = "") -> list:
+    """A ProudCity homepage (its core plugin's stylesheet), and its REST listing of meeting posts: Holyoke's saved page."""
+    home = ('<html><head><link rel="stylesheet" href="https://www.holyoke.org/wp-content/plugins/wp-proud-core/'
+            f'css/proud.css"></head><body>{home_links}</body></html>')
+    listing = Page((FIXTURES / "proudcity" / "listing.json").read_bytes(), headers={"X-WP-TotalPages": "1"})
+    return [(r"^https://www\.holyoke\.org/?$", Page(home, "https://www.holyoke.org/")),
+            (r"/wp-json/wp/v2/meetings\?", listing)]
+
+
+def test_helper_finds_a_proudcity_site(tmp_path, network, monkeypatch):
+    """A city on ProudCity alone: its meeting posts are read, so the helper doesn't stop, and the config it
+    writes loads and builds."""
+    town = new_town.NewTown("Holyoke", "MA", "https://www.holyoke.org", today=TODAY)
+    out = tmp_path / "holyoke-ma"
+    client = FakeClient(proudcity_pages())
+    assert new_town.run(town, client, network, out, checks=False) == 0 and not town.stopped
+    listing = next(u for u in client.urls if "/wp-json/" in u)
+    assert "after=2025-10-13T00%3A00%3A00" in listing and "_fields=title" in listing
+    text = (out / "config" / "holyoke.toml").read_text()
+    config = tomllib.loads(text)
+    table = config["proudcity_meetings"]
+    assert table["site_url"] == "https://www.holyoke.org" and table["since"] == "2026-01-01"
+    # The names the titles begin with, the town's name and the date taken off, most posts first.
+    assert list(table["bodies"].items())[:2] == [("License Board", "License Board"),
+                                                 ("Tourism Advisory Committee", "Tourism Advisory Committee")]
+    assert "To fill in: exclude_pattern" in text
+    assert config["meetings"]["archive_url"] == "https://www.holyoke.org/meetings/"
+    # No CivicPlus site: no base_url, whose CivicPlus pages (list.aspx, Calendar.aspx) a ProudCity site hasn't.
+    assert "base_url" not in config["meetings"] and "boards" not in config["meetings"]
+    assert {"label": "Meetings (ProudCity)", "file": "meetings/proudcity_status.json", "max_days": 2} in \
+        config["freshness"]["sources"]
+    monkeypatch.setattr(config_mod, "CONFIG_DIR", out / "config")
+    loaded = config_mod.load_config("holyoke")
+    # The saved pages give no state codes for Holyoke: the sections that need them are left out.
+    loaded["sections"] = [s for s in loaded["sections"] if s["slug"] in ("meetings", "about")]
+    monkeypatch.setattr(build_site, "load_config", lambda slug: loaded)
+    site = tmp_path / "site"
+    build_site.build("holyoke", site, data_dir=out / "data", now=BUILT_AT, share_cards=False)
+    assert "https://www.holyoke.org/meetings/" in (site / "meetings" / "index.html").read_text()
+
+
+def test_helper_says_when_proudcity_and_a_portal_both_list_meetings(tmp_path, network):
+    pages = proudcity_pages('<a href="https://holyokema.portal.civicclerk.com/">Agendas</a>') + [
+        (r"api\.civicclerk\.com/v1/Events\?\$filter", saved("civicclerk_events_1.json")),
+        (r"api\.civicclerk\.com", saved("civicclerk_events_2.json"))]
+    town = new_town.NewTown("Holyoke", "MA", "https://www.holyoke.org", today=TODAY)
+    assert new_town.run(town, FakeClient(pages), network, tmp_path / "holyoke-ma", checks=False) == 0
+    config = tomllib.loads((tmp_path / "holyoke-ma" / "config" / "holyoke.toml").read_text())
+    assert "civicclerk" in config["meetings"] and "proudcity_meetings" in config
+    # The portal's boards are still written, as for a town on the portal alone.
+    assert config["meetings"]["boards"] and "base_url" not in config["meetings"]
+    assert any("both list meetings" in todo for _, todo in town.todo)
+
+
 def test_helper_stops_at_a_browser_check(tmp_path, network):
     pages = [(r"beverlyma\.gov", new_town.BrowserCheck(BASE + "/"))]
     town, out, code = beverly(tmp_path, network, pages)

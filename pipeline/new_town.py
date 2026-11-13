@@ -10,7 +10,10 @@ leaves the rest marked for a person:
 
 1. What the city uses. A CivicPlus site's Agenda Center, Archive Center, and
    calendars (each calendar's name, and how many of its events are meetings),
-   or a CivicClerk portal (<city>.portal.civicclerk.com). A site that answers
+   or a CivicClerk portal (<city>.portal.civicclerk.com), or a ProudCity site's
+   meeting posts (wp-proud-core on its homepage, and the last year's posts from
+   /wp-json/wp/v2/meetings: a [proudcity_meetings] table whose bodies are the
+   names its titles begin with, for a person to map). A site that answers
    with a browser check ("Just a moment...") stops here: Publick never works
    around one, and asks the town to allow its crawler. So does a meeting
    platform the engine doesn't read, since that reader is its own piece of
@@ -81,7 +84,7 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import requests
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, fetch_place, legistar, meeting_sources, primegov
+from pipeline import agendacenter, civicclerk, civicplus, dates, fetch_place, legistar, meeting_sources, primegov, proudcity, wordpress
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
 from pipeline.http import FetchError, PoliteClient
@@ -322,7 +325,16 @@ def find_platform(town: NewTown, client) -> None:
         site["primegov"] = {"client": client_name, "meetings": meetings}
         town.found(1, "PrimeGov portal", f"{len(meetings)} meetings in the last year, of "
                    f"{len({parse_name(m.get('title') or '')['body'] for m in meetings})} boards", primegov.portal_url(client_name))
-    if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov")) and not any(c["chosen"] for c in site.get("calendars", [])):
+    if proudcity.MARK in page:
+        site["platforms"].append("ProudCity")
+        titles = read_proudcity(client, base, town.today)
+        if titles:
+            site["proudcity"] = {"site_url": base, "titles": titles}
+            town.found(1, "ProudCity meetings", f"{len(titles)} meeting posts in the last year, every board's that posts "
+                       "there", proudcity.page_url({"site_url": base}))
+        else:
+            town.note(1, f"{base} is a ProudCity site, but its REST API listed no meetings (/wp-json/{proudcity.ROUTE}).")
+    if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity")) and not any(c["chosen"] for c in site.get("calendars", [])):
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
             raise Stop(f"{town.url} has {', '.join(by_hand)}. The engine reads it, but the helper doesn't set it up: "
@@ -413,6 +425,29 @@ def read_primegov(client, name: str, today: date) -> list[dict]:
             return []
         found += [m for m in data if (m.get("dateTime") or "")[:10] >= since]
     return found
+
+
+def read_proudcity(client, base: str, today: date) -> list[str]:
+    """The titles of a ProudCity site's meeting posts of the last year, from its REST API; none if it doesn't answer."""
+    try:
+        posts = wordpress.read_all(client, base, proudcity.ROUTE, {"after": f"{today - timedelta(days=365)}T00:00:00"},
+                                   fields=("title",), max_pages=20)
+    except FetchError:
+        return []
+    return [wordpress.rendered(p.get("title")) for p in posts]
+
+
+def proudcity_bodies(titles: list[str], town: str, least: int = MIN_MEETINGS, most: int = 40) -> list[tuple[str, int]]:
+    """The names a ProudCity site's meeting titles begin with, by how many posts have each, with their date,
+    status, "Meeting" and the town's name taken off ("Holyoke City Council Meeting September 15, 2026" ->
+    "City Council"): those of at least `least` posts, at most `most` of them."""
+    counts: Counter = Counter()
+    for title in titles:
+        name = parse_name(dates.without_dates(title))["body"]
+        name = re.sub(rf"^{re.escape(town)}\s+", "", name.strip(" ,-–:"), flags=re.I).strip(" ,-–:")
+        if name:
+            counts[name] += 1
+    return [(name, n) for name, n in counts.most_common(most) if n >= least]
 
 
 def categories(town: NewTown) -> Counter:
@@ -770,7 +805,7 @@ def readers(config: dict) -> set[str]:
     """A config's meeting readers: agenda_center, civicplus, civicclerk..."""
     meetings = config.get("meetings", {})
     return {k for k in ("agenda_center", "civicplus", "civicclerk", "legistar", "primegov", "dnn", "file_list") if k in meetings} | (
-        {"civicplus"} if "calendar_feed" in meetings else set())
+        {"civicplus"} if "calendar_feed" in meetings else set()) | ({"proudcity"} if "proudcity_meetings" in config else set())
 
 
 def closest_town(town: NewTown, network: Path) -> None:
@@ -796,7 +831,8 @@ def town_readers(town: NewTown) -> set[str]:
     site = town.site
     return ({"agenda_center"} if "agenda_center" in site else set()) | (
         {"civicplus"} if any(c["chosen"] for c in site.get("calendars", [])) else set()) | (
-        {"civicclerk"} if "civicclerk" in site else set()) | ({"legistar"} if "legistar" in site else set()) | ({"primegov"} if "primegov" in site else set())
+        {"civicclerk"} if "civicclerk" in site else set()) | ({"legistar"} if "legistar" in site else set()) | ({"primegov"} if "primegov" in site else set()) | (
+        {"proudcity"} if "proudcity" in site else set())
 
 
 # Meeting systems with an address of their own (not the city website's), which a town on them alone links to.
@@ -1016,6 +1052,8 @@ def config_text(town: NewTown, short: bool = False) -> Config:
                      if k in meetings), "city calendar")
     sources = [{"label": f"Meetings ({platform})",
                 "file": "meetings/status.json", "max_days": 2}]
+    if "proudcity" in site:
+        sources.append({"label": "Meetings (ProudCity)", "file": "meetings/proudcity_status.json", "max_days": 2})
     fr = shared(town, "freshness", "summary_grace_days")
     c.table("freshness", "How often each data source should update. Figures published monthly or yearly are judged by "
             "the engine, by the period they cover (pipeline/rhythms.py).",
@@ -1040,13 +1078,17 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         archive_url, archive_name = legistar.site_url(site["legistar"]["client"]), f"{place}'s Legistar calendar"
     elif "primegov" in site:
         archive_url, archive_name = primegov.portal_url(site["primegov"]["client"]), f"{place}'s PrimeGov portal"
+    elif "proudcity" in site:
+        archive_url, archive_name = proudcity.page_url(site["proudcity"]), f"{place}'s website"
     else:
         archive_url, archive_name = f"{base}/Archive.aspx", f"{place}'s Archive Center"
     readers_found = [n for k, n in (("civicplus", f"the {place} calendar"), ("agenda_center", "its Agenda Center"),
                                     ("civicclerk", "its CivicClerk portal"), ("legistar", "its Legistar system"),
-                                    ("primegov", "its PrimeGov portal"))
+                                    ("primegov", "its PrimeGov portal"), ("proudcity", "its website (ProudCity)"))
                      if k in town_readers(town)]
-    portal_only = town_readers(town) <= PORTALS
+    # A city website's meeting posts (ProudCity's) are read by a table of their own, not [meetings]: a town with
+    # only them, or them and a portal, has no CivicPlus site for [meetings] base_url to name.
+    portal_only = town_readers(town) - {"proudcity"} <= PORTALS
     c.table("meetings", f"Public meetings, from {' and '.join(readers_found)}.",
             base_url=base if not portal_only else None,
             calendar_url=archive_url if portal_only else None,
@@ -1063,7 +1105,7 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
     else:
         c.set(request_delay=3.0)
     c.set(max_event_pages=10 if short else 40)
-    if portal_only:
+    if portal_only and town_readers(town) & PORTALS:
         boards = sorted(b for b in categories(town) if b.lower() not in CATCH_ALL)
         c.fill_in(5, "check each of the portal's categories below is a public body, named as the city names it, and "
                   "leave out any that isn't" + (" (those named for the meetings under its catch-all category, "
@@ -1134,7 +1176,9 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         c.set(since=since.isoformat())
         c.fill_in(5, "include_pattern, the boards to collect: a portal of every board can list hundreds of meetings "
                   "a year, each summarized.")
-    if "archive" in site and not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov")):
+    if "proudcity" in site:
+        config_proudcity(c, town, since)
+    if "archive" in site and not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity")):
         c.table("archive", "Minutes from the city's Archive Center. Minutes for meetings on or after minutes_since are "
                 "collected.", index="Archive.aspx", minutes_since=since.isoformat())
         c.fill_in(5, "[archive.aliases], the Archive Center's collection names for boards the calendar names otherwise.")
@@ -1149,6 +1193,26 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
                   + ", ".join(f"[{t}]" for t in meeting_sources.TABLES) + "), named in the Meetings section's "
                   "summary and in [freshness] sources; a platform the engine doesn't read is left out and said so "
                   "(ADDING-A-TOWN.md, step 1).")
+
+
+def config_proudcity(c: Config, town: NewTown, since: date) -> None:
+    """[proudcity_meetings]: the site, and its boards from the names its meeting titles begin with."""
+    found = town.site["proudcity"]
+    others = sorted(town_readers(town) - {"proudcity"})
+    c.table("proudcity_meetings", f"Every board's meetings, agendas and minutes from the {town.kind}'s ProudCity website: "
+            f"{len(found['titles'])} meeting posts in the last year.",
+            site_url=found["site_url"], source_name=f"City of {town.name}" if town.kind == "city" else f"Town of {town.name}",
+            since=since.isoformat())
+    if others:
+        c.fill_in(1, f"the website and {', '.join(others)} both list meetings: read each board from one of them, and leave "
+                  "the other's boards out.")
+    c.fill_in(5, "exclude_pattern, for posts that aren't a board's meeting (an executive session, a site visit, a "
+              "notice).")
+    c.header("[proudcity_meetings.bodies]")
+    c.fill_in(5, "each name the titles begin with (by how many posts have it) mapped to the board's name as the "
+              f"{town.kind} names it; leave out any that isn't a public body.")
+    for name, n in proudcity_bodies(found["titles"], town.name):
+        c.lines.append(f"{toml(name)} = {toml(name)}   # {n}")
 
 
 # A title naming a body of its own: a committee, a trust, a joint meeting with another board.
