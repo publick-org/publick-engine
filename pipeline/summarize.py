@@ -260,8 +260,11 @@ Return:
         # the summary and discussion give the specifics the meeting gave (names, sizes, amounts, dates, next
         # steps), with an estimate or claim said to be a presenter's or public speakers'. Sutton's Select
         # Board of 2026-11-10 heard a data center proposal for an hour, with figures, and voted only on routine
-        # business: its headline was the routine business. Meetings before remake_since keep the version they
-        # have.
+        # business: its headline was the routine business. Figures, dates, and names are asked for as the
+        # transcript writes them, since the fact check hides a headline, and a summary's sentence, with one the
+        # transcript doesn't have (pipeline/factcheck.py). remake_since: the two weeks before this version, so
+        # the recording summaries still shown (until minutes come) are made again; meetings before it keep the
+        # version they have.
         "version": 5,
         "remake_since": "2026-11-01",
         "folder": "transcripts",
@@ -275,18 +278,19 @@ Return:
 - Use the meeting's own verb for each outcome (approved, recommended, referred, continued, tabled, denied). A vote to recommend is not an approval.
 - A motion that failed was not approved, whatever it proposed: report it as failed.
 - Do not say which member said or argued what: the transcript does not show reliably who is speaking. Do not name members of the public.
-- A figure that is an estimate or a claim, not a decision, is said to be whose it is, by role: a presentation's (the town manager's, staff's, the developer's, a consultant's), where the presenter says who they are; or public speakers', during public comment. Never by a member's or a resident's name.
+- A figure that is an estimate or a claim, not a decision, is said to be whose it is: a presentation's, by the presenter's role (the town manager's, staff's, the developer's) only where the presenter says who they are; or public speakers', during public comment. Never by any person's name.
+- Give figures, dates, and names as the transcript writes them. Never work out a date ("next Tuesday" stays as said) or convert a figure.
 - Spell a member's name as the list of members gives it where the transcript mishears it; other names as the transcript has them.""",
         "prompt": """This is a machine transcript of the recording of: {title}, {date}. Each paragraph starts with its time in the recording, in brackets.{members}
 
 Return:
-- headline: one sentence of at most 25 words on the meeting's most consequential matter, whether it was decided or only presented or discussed. A proposal presented at length, or a matter many members of the public spoke on, comes before routine votes. Name it as residents would search for it: projects and developments, with their names, street addresses, sizes, or dollar amounts; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Say what was decided, or what was presented and by whom (by role or organization). Put routine decisions after these, or leave them out. Start with the matter itself, not with who met. Do not mention the board, the date, the time, or the place.
-- summary: 2 to 4 short sentences. First the meeting's main matters, each with the specifics the meeting gave for it: names of projects, companies, and places; sizes and dollar amounts; dates; and what happens next, where the meeting said. Then what else was decided. Do not repeat the board's name, the date, the time, or the place.
+- headline: one sentence of at most 25 words on the meeting's most consequential matter, whether it was decided or presented. A proposal presented at length, or a matter many members of the public spoke on, comes before routine votes. Name it as residents would search for it: projects and developments, with their names, street addresses, sizes, or dollar amounts; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Say what was decided, or what was presented and by whom (by role or organization), not that nothing was voted on. Put routine decisions after these, or leave them out. Start with the matter itself, not with who met. Do not mention the board, the date, the time, or the place.
+- summary: 1 to 4 short sentences. First what the headline leaves out about its matter: the specifics the meeting gave (names of projects, companies, and places; sizes and dollar amounts; dates; what happens next, where the meeting said). Then any other main matter, then what else was decided. Do not repeat the board's name, the date, the time, or the place.
 - decisions: each motion or vote whose result the transcript records, in order. Skip procedural motions such as adjourning, accepting the agenda, or approving minutes. For each:
   - decision: a short plain-English sentence that includes the outcome (for example "Approved ... 7-3" or "Referred ... to the Finance Subcommittee").
   - outcome: what happened, in one word: approved (also adopted, accepted, granted, or passed), denied (also rejected, or any motion that failed), tabled, continued, referred, recommended, withdrawn, or other.
   - quote: the transcript's own words that record this decision, copied exactly, character for character, without the times in brackets: the motion and how it ended. One passage of at most 60 words; if the motion and how it ended are far apart, give both, joined by "...". Never reword, shorten, or correct the transcript's words.""" + DECISION_LABELS + """
-- discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed, with the specifics given (names, figures, dates, next steps), and the views raised, without saying which member raised them. Start each with a short name for the matter, of at most 5 words, then a colon (for example "Law Department funding: Members debated whether ..."). An empty list if there was little discussion.""",
+- discussion: the matters the meeting spent the most time on, or that members of the public spoke on, at most 5, each in one or two sentences: what was discussed, with the specifics given (names, figures, dates, next steps), and the views raised, without saying who raised them except as the rule on estimates and claims allows. Start each with a short name for the matter, of at most 5 words, then a colon (for example "Law Department funding: Members debated whether ..."). An empty list if there was little discussion.""",
         "schema": {
             "type": "object",
             "properties": {
