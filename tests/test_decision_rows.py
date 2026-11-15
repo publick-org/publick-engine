@@ -3,8 +3,10 @@ check leaves it (factcheck.shown) or else from the English decision's first word
 ends with, said beside it; the decision without the count, and in English without the verb its outcome says."""
 
 import pytest
+from datetime import datetime
 
 from pipeline import build_site, factcheck, i18n
+from pipeline.config import load_config
 
 
 @pytest.mark.parametrize("text, body, tally", [
@@ -216,15 +218,20 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert description.startswith("Latest: Main decision title. Votes and other decisions") and len(description) <= 160
 
 
-def test_the_decisions_page_names_the_towns_governing_body(tmp_path, monkeypatch):
+def test_the_decisions_page_names_the_towns_governing_body(tmp_path):
     """The Decisions page and the digest say the town's own governing body ([meetings] governing_body), in both
-    languages, not "City Council"."""
+    languages, not "City Council", and a recommendation to it leads with the action."""
     import json
     import shutil
-    from conftest import BUILT_AT, DATA_DIR
+    from conftest import DATA_DIR, TZ
     data = tmp_path / "data"
     shutil.copytree(DATA_DIR, data)
-    # A committee's recommendation, in the first set of minutes with decisions.
+    # One set of minutes collected in the week before the digest built on Sunday, October 4 (as cited_site).
+    path = data / "meetings" / "meetings.json"
+    store = json.loads(path.read_text())
+    store["archive-20079"]["minutes"][-1]["fetched_at"] = "2026-09-30T06:00:00-04:00"
+    path.write_text(json.dumps(store))
+    # A committee's recommendation in each set of minutes with decisions.
     for path in sorted((data / "summaries").glob("*.json")):
         rec = json.loads(path.read_text())
         if rec.get("kind") == "minutes" and rec.get("decisions") and rec.get("is_minutes", True):
@@ -233,20 +240,26 @@ def test_the_decisions_page_names_the_towns_governing_body(tmp_path, monkeypatch
                 rec.pop(field, None)
             rec["decisions"] = [*rec["decisions"], "Voted 3-0 to recommend that the Board of Aldermen approve the sidewalk plan."]
             path.write_text(json.dumps(rec))
-            break
-    load_config = build_site.load_config
-    def with_aldermen(town):
-        config = load_config(town)
-        config["meetings"]["governing_body"] = "Board of Aldermen"
-        return config
-    monkeypatch.setattr(build_site, "load_config", with_aldermen)
-    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
-    decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
+    config = load_config("gloucester")
+    config["meetings"]["governing_body"] = "Board of Aldermen"
+    config["site"]["languages"] = ["en", "es"]
+    site = tmp_path / "site"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(build_site, "load_config", lambda slug: config)
+        build_site.build("gloucester", site, data_dir=data, now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
+    decisions = (site / "meetings" / "decisions" / "index.html").read_text()
     assert "Gloucester&#39;s Board of Aldermen, boards, and committees" in decisions
     assert '<p class="lede">What the Board of Aldermen, boards, and committees decided' in decisions
     assert '<p class="decision-label">Committee recommendations to the Board of Aldermen</p>' in decisions
+    assert "Approve the sidewalk plan." in decisions and "The Board of Aldermen approve" not in decisions
     assert "They become final only when the Board of Aldermen votes." in decisions
-    assert not [p for p in (tmp_path / "site").rglob("*.html") if "recommendations to the City Council" in p.read_text()]
+    issue = (site / "digest" / "2026-10-05" / "index.html").read_text()
+    assert '<h4 class="decision-group">Committee recommendations to the Board of Aldermen</h4>' in issue
+    spanish = (site / "es" / "meetings" / "decisions" / "index.html").read_text()
+    assert "Junta de Concejales (Board of Aldermen): recomendaciones de los comités" in spanish
+    assert "Junta de Concejales (Board of Aldermen), juntas y comités: lo que decidieron" in spanish
+    assert not [p for p in site.rglob("*.html") if "recommendations to the City Council" in p.read_text()
+                or "Concejo Municipal (City Council): recomendaciones" in p.read_text()]
 
 
 def groups_html(items, lang="en"):

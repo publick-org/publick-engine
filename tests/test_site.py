@@ -618,6 +618,11 @@ def test_recommendations_lead_with_the_action():
     assert tidy_recommendation(against) == against
     odd = "The committee voted 2-0 (1 absent) to recommend appointing Rosalie Nicastro."
     assert tidy_recommendation(odd) == odd
+    # A recommendation to the town's own governing body, by its name.
+    assert tidy_recommendation("Voted 3-0 to recommend that the Board of Aldermen approve the sidewalk plan.",
+                               "Board of Aldermen") == "Approve the sidewalk plan. (3–0)"
+    assert tidy_recommendation("Recommended to the Select Board to accept the gift, 2-0.", "Select Board") == (
+        "Accept the gift. (2–0)")
     assert str(decision_text("Appointed Joseph A. Orlando, TTE 2/14/2029.")) == "Appointed Joseph A. Orlando, term ends 2/14/2029."
 
 

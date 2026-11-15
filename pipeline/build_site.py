@@ -16,6 +16,7 @@ import argparse
 import copy
 import csv
 import dataclasses
+import functools
 import hashlib
 import json
 import re
@@ -351,12 +352,22 @@ MONEY = re.compile(r"\$(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:\s(?:million|billi
 
 # A committee's recommendation, without the wording its heading already says:
 # "Voted 3 in favor, 0 opposed to recommend that the City Council approve X"
-# becomes "Approve X. (3–0)". Only standard wording is trimmed; anything else,
-# including a vote not to recommend, is shown exactly as written.
+# becomes "Approve X. (3–0)", and the same for the town's own governing body
+# ("... that the Board of Aldermen approve X"). Only standard wording is trimmed;
+# anything else, including a vote not to recommend, is shown exactly as written.
 VOTE = r"(?:(\d{1,2}) in favor, (\d{1,2}) opposed|\b(\d{1,2})[-–](\d{1,2})\b(?![\d/]))"
-REC_LEAD = re.compile(
-    r"^(?:the [\w&'.,\s]{3,60}? committee )?(?:voted (?:by roll call )?(?:" + VOTE + r"|unanimously)?,? ?to recommend"
-    r"|recommend(?:ed|s)?)(?:,? (?:" + VOTE + r"),?)?(?: that)?(?: the city council| to the city council)?(?: to)?(?: the city)? ", re.I)
+
+
+@functools.cache
+def rec_lead(body: str = "City Council") -> re.Pattern:
+    """The standard opening of a recommendation to the governing body named body ([meetings] governing_body)."""
+    bodies = "|".join(re.escape(b) for b in dict.fromkeys(["city council", body.lower()]))
+    return re.compile(
+        r"^(?:the [\w&'.,\s]{3,60}? committee )?(?:voted (?:by roll call )?(?:" + VOTE + r"|unanimously)?,? ?to recommend"
+        r"|recommend(?:ed|s)?)(?:,? (?:" + VOTE + r"),?)?(?: that)?(?: (?:to )?the (?:" + bodies + r"))?(?: to)?(?: the city)? ",
+        re.I)
+
+
 REC_TAIL = re.compile(r",?\s*(?:—\s*)?(?:voted )?(?:" + VOTE + r")(?:[^.;]{0,40})?\.?$", re.I)
 REC_NEGATIVE = re.compile(r"\bnot to recommend|\bno (?:committee )?recommendation|\brecommend(?:ed|s)? against\b", re.I)
 PLAIN_VERBS = {"approving": "approve", "accepting": "accept", "appointing": "appoint", "amending": "amend",
@@ -369,9 +380,10 @@ def _vote(match: re.Match) -> str | None:
     return f"{counts[0]}–{counts[1]}" if len(counts) == 2 else None
 
 
-def tidy_recommendation(text: str) -> str:
-    """The recommended action first, with the vote at the end, when the wording is standard."""
-    lead = REC_LEAD.match(text)
+def tidy_recommendation(text: str, body: str = "City Council") -> str:
+    """The recommended action first, with the vote at the end, when the wording is standard. body is the
+    town's governing body, in English, that the recommendation goes to."""
+    lead = rec_lead(body).match(text)
     if not lead or REC_NEGATIVE.search(text):
         return text
     vote, rest = _vote(lead), text[lead.end():]
@@ -1841,7 +1853,8 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
     out_static = out_dir / "static"
     if english:
         copy_static(config, out_dir, town_static)
-    env = page_environment(config, lang, state, out_static, data_dir, built_at)
+    env = page_environment(config, lang, state, out_static, data_dir, built_at,
+                           english_config.get("meetings", {}).get("governing_body", "City Council"))
 
     sections = config["sections"]
     permits_path = data_dir / "permits" / "permits.json"
@@ -1993,7 +2006,8 @@ def copy_static(config: dict, out_dir: Path, town_static: Path) -> None:
     version_static_urls(out_static / "css" / "site.css", out_static)
 
 
-def page_environment(config: dict, lang: str, state, out_static: Path, data_dir: Path, built_at: datetime) -> Environment:
+def page_environment(config: dict, lang: str, state, out_static: Path, data_dir: Path, built_at: datetime,
+                     governing_body: str = "City Council") -> Environment:
     """The templates, with the filters and helpers the pages use, for one language's pages. config is the
     town's config in that language."""
     site = config["site"]
@@ -2018,7 +2032,7 @@ def page_environment(config: dict, lang: str, state, out_static: Path, data_dir:
                        street=lambda a: short_address(a, config["town"]["name"]),
                        model_name=model_name, capitalize_first=capitalize_first,
                        school_year=school_year, money_bold=emphasize_money, decision=decision_text,
-                       recommendation=lambda t: decision_text(tidy_recommendation(t)))
+                       recommendation=lambda t: decision_text(tidy_recommendation(t, governing_body)))
     env.globals["english_attr"] = english_attr
     # A decision's text and the vote count it ends with, for the count to be said beside it (macros.html decision_rows).
     env.globals["split_tally"] = split_tally
@@ -2031,7 +2045,8 @@ def page_environment(config: dict, lang: str, state, out_static: Path, data_dir:
     env.globals["adds_to"] = adds_to
     env.globals["discussion_parts"] = discussion_parts
     env.globals["decision_topics"] = summarize.TOPICS
-    env.globals["tidy_recommendation"] = tidy_recommendation
+    # A recommendation's text without its standard opening, which names the governing body in English.
+    env.globals["tidy_recommendation"] = lambda text: tidy_recommendation(text, governing_body)
     env.globals["how_checked"] = factcheck.how_checked
     env.filters["english"] = in_english
     # Text for a search result's description: one line, plain, at most limit characters (clip).
