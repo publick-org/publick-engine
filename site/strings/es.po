@@ -45,6 +45,13 @@ msgstr "%(agency)s: <strong>%(rating)s</strong> (calificación más reciente, a�
 msgid "%(board)s agenda"
 msgstr "%(board)s: agenda"
 
+#. the page's title in search results, for a board whose name includes its town's, such as "Gloucester
+#. Retirement Board", and whose agendas and minutes the site collects.
+#: site/templates/board.html
+#, python-format
+msgid "%(board)s agendas and minutes"
+msgstr "%(board)s: agendas y actas"
+
 #. the name of a board's hearing, such as an appeal; %(board)s is the board, such as "Board of
 #. Assessors".
 #: site/templates/meeting.html
@@ -57,6 +64,13 @@ msgstr "%(board)s, audiencia"
 #, python-format
 msgid "%(board)s meetings"
 msgstr "%(board)s: reuniones"
+
+#. the page's title in search results, for a board whose name includes its town's, such as "Gloucester
+#. Retirement Board".
+#: site/templates/board.html
+#, python-format
+msgid "%(board)s meetings and agendas"
+msgstr "%(board)s: reuniones y agendas"
 
 #. the title of a board's page that has moved; %(board)s is a board's name, such as "City Council".
 #: site/templates/moved.html
@@ -108,6 +122,13 @@ msgstr "%(board)s, sesión de trabajo"
 #, python-format
 msgid "%(board)s workshop"
 msgstr "%(board)s, taller"
+
+#. the Officials page's heading: %(bodies)s is the town's elected bodies, such as "Mayor, City Council,
+#. and School Committee".
+#: site/pages/officials/index.html
+#, python-format
+msgid "%(bodies)s members"
+msgstr "Funcionarios electos: %(bodies)s"
 
 #: site/templates/moved.html
 #, python-format

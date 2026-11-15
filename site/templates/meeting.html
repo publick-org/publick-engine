@@ -125,8 +125,10 @@
 {% elif m.agenda %}{% set body = _("%(board)s agenda", board=named(m.board_name)) %}{% elif m.kind %}{% set body = named(m.board_name) %}
 {#- Translators: %(title)s is a meeting's name, such as "Planning Board" or "Ward 3 Community". -#}
 {% else %}{% set body = _("%(title)s meeting", title=m.board_name) %}{% endif -%}
+{#- A board whose name says the town already ("Gloucester Retirement Board") isn't given it again. -#}
+{% if names_town(body) %}{{ meeting_name(body, m.date | date("mon_day_year")) }}{% else -%}
 {#- Translators: a meeting's page title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(name)s the meeting, such as "Planning Board agenda – Oct 6, 2026". -#}
-{% trans town=town.name, state=town.state_abbr, name=meeting_name(body, m.date | date("mon_day_year")) %}{{ town }}, {{ state }} {{ name }}{% endtrans %}{% endblock %}
+{% trans town=town.name, state=town.state_abbr, name=meeting_name(body, m.date | date("mon_day_year")) %}{{ town }}, {{ state }} {{ name }}{% endtrans %}{% endif %}{% endblock %}
 {# What a search result shows under the title, in at most about 155 characters: for a meeting to come, when and where,
    then what's on its agenda (the summary's headline, or its items); for one past, what it decided (its final decisions,
    or else its recommendations, or the headline). Only what the page itself shows: a summary as its fact check leaves it
@@ -162,7 +164,7 @@
 {% endset %}
 {{- text | fit(155) }}{% endblock %}
 {# For search engines, the meeting's name says the town, unless its board's does: "City Council, Gloucester – Oct 19, 2026". #}
-{% set event_name = named(m.board_name) if town.name.lower() in m.body_en.lower() else named(m.board_name) ~ ", " ~ town.name %}
+{% set event_name = named(m.board_name) if names_town(m.body_en) else named(m.board_name) ~ ", " ~ town.name %}
 {% block structured_data %}{{ structured(event(m, canonical_url, meeting_name(event_name, m.date | date("mon_day_year")), self.description()),
   breadcrumbs([(_("Meetings"), site_url ~ "/meetings/"), (m.body, site_url ~ m.body_url), (self.title(), canonical_url)])) }}{% endblock %}
 {% block footer_signup %}{% endblock %}

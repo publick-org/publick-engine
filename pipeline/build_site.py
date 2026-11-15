@@ -75,8 +75,10 @@ PAGES_DIR = SITE_DIR / "pages"
 STATES_DIR = SITE_DIR / "states"
 STATIC_DIR = SITE_DIR / "static"
 
-# Built but kept out of the sitemap.
-UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/"}
+# Where address alerts' follow form and emails lead (alert_pages); noindex.
+ALERT_PAGES = ("thanks", "problem", "confirm", "manage", "wrong")
+# Built but kept out of the sitemap: pages search engines are told not to index.
+UNLISTED_PAGES = {"/404.html", "/digest/thanks/", "/digest/problem/", *(f"/alerts/{page}/" for page in ALERT_PAGES)}
 # Page folders built for every town, whether or not they are in the navigation.
 SHARED_FOLDERS = {"streets", "data", "search"}
 # The site's search (site/pages/search/, pipeline/search_index.py), the last item in the menu, and the open data
@@ -378,6 +380,12 @@ PLAIN_VERBS = {"approving": "approve", "accepting": "accept", "appointing": "app
 def _vote(match: re.Match) -> str | None:
     counts = [g for g in match.groups() if g is not None][:2]
     return f"{counts[0]}–{counts[1]}" if len(counts) == 2 else None
+
+
+def names_town(name: str, town: str) -> bool:
+    """Whether a board's name says the town's, as a whole word ("Gloucester Retirement Board"), so a page's
+    title doesn't name the town twice. "Londonderry" doesn't name Derry."""
+    return re.search(rf"(?<!\w){re.escape(town)}(?!\w)", str(name), re.I) is not None
 
 
 def tidy_recommendation(text: str, body: str = "City Council") -> str:
@@ -1707,6 +1715,8 @@ def localize_config(config: dict, tr: TownStrings) -> dict:
 def localize_officials(officials: dict, tr: TownStrings) -> None:
     """The Officials page's bodies, seats, and roles in the language being built."""
     def member(m: dict) -> None:
+        # The role in English too, for the page to find a council's member who is the mayor (officials/index.html).
+        m["role_en"] = m.get("role")
         for key in ("seat", "role"):
             if m.get(key):
                 m[key] = tr(m[key])
@@ -2048,6 +2058,7 @@ def page_environment(config: dict, lang: str, state, out_static: Path, data_dir:
     # A recommendation's text without its standard opening, which names the governing body in English.
     env.globals["tidy_recommendation"] = lambda text: tidy_recommendation(text, governing_body)
     env.globals["how_checked"] = factcheck.how_checked
+    env.globals["names_town"] = lambda name: names_town(name, config["town"]["name"])
     env.filters["english"] = in_english
     # Text for a search result's description: one line, plain, at most limit characters (clip).
     env.filters["fit"] = lambda text, limit: clip(structured.plain(text), limit)
@@ -2388,7 +2399,7 @@ def digest_answer_pages(pages: LanguagePages) -> None:
 def alert_pages(pages: LanguagePages) -> None:
     """Where address alerts' follow form leads (worker/alerts.js), and the pages its emails link; not for
     search engines."""
-    for page in ("thanks", "problem", "confirm", "manage", "wrong"):
+    for page in ALERT_PAGES:
         pages.render("alerts.html", f"/alerts/{page}/", page=page,
                      report=report_link(pages.config["site"], pages.base_url, "/alerts/wrong/", _("An address alert")))
 

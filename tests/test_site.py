@@ -662,6 +662,9 @@ def test_officials_page(site_dir, config):
     assert "<title>Gloucester, MA Mayor, City Council, and School Committee members</title>" in page
     assert ('<meta name="description" content="Mayor Morgan Example, 7 City Council members, and 4 School Committee '
             'members. Elected officials in Gloucester, by office and by ward') in page
+    # The heading names them too, as the title does, under the page's own name.
+    assert '<p class="eyebrow">Who represents you</p>' in page
+    assert "<h1>Mayor, City Council, and School Committee members</h1>" in page
     ids = re.findall(r'\bid="([^"]+)"', page)
     assert len(ids) == len(set(ids))
     assert "January 2028" in page and 'href="tel:978555-0100"' in page
@@ -681,6 +684,38 @@ def test_officials_page(site_dir, config):
     about = (site_dir / "about" / "index.html").read_text()
     assert "<strong>Elected officials:</strong> listed by hand" in about
     assert 'If you use "Find my ward," your location is checked on your device.' in about
+
+
+def test_a_council_member_who_is_mayor_is_named_as_the_mayor(tmp_path, data_dir, config):
+    """A town with no elected mayor of its own whose council has a member in the role of Mayor (a council that chooses
+    one of its members as mayor) names the mayor in the Officials page's title, heading, and description, in both
+    languages."""
+    import copy
+    from conftest import BUILT_AT
+    town = copy.deepcopy(config)
+    bodies = town["officials"]["bodies"]
+    town["officials"]["bodies"] = [b for b in bodies if b["name"] != "Mayor"]
+    council = next(b for b in town["officials"]["bodies"] if b["name"] == "City Council")
+    council["members"][0] = {**council["members"][0], "role": "Mayor"}
+    mayor = council["members"][0]["name"]
+    town["site"]["languages"] = ["en", "es"]
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(build_site, "load_config", lambda slug: town)
+        build_site.build("gloucester", tmp_path / "site", data_dir=data_dir, now=BUILT_AT)
+    page = (tmp_path / "site" / "officials" / "index.html").read_text()
+    assert "<title>Gloucester, MA Mayor, City Council, and School Committee members</title>" in page
+    assert "<h1>Mayor, City Council, and School Committee members</h1>" in page
+    assert f'<meta name="description" content="Mayor {mayor}, 7 City Council members, and 4 School Committee' in page
+    spanish = (tmp_path / "site" / "es" / "officials" / "index.html").read_text()
+    assert re.search(rf'<meta name="description" content="[^"]* {mayor}, ', spanish)
+
+
+def test_a_title_names_the_town_once():
+    """A board whose name says the town's, as a whole word, isn't given the town again in a page's title."""
+    assert build_site.names_town("Gloucester Retirement Board", "Gloucester")
+    assert build_site.names_town("Cape Ann and gloucester Health Alliance", "Gloucester")
+    assert not build_site.names_town("Londonderry Joint Committee", "Derry")
+    assert not build_site.names_town("Planning Board", "Gloucester")
 
 
 def test_officials_precincts_are_named_where_the_file_has_them(config):
@@ -972,12 +1007,17 @@ def test_home_and_downloads_for_search_engines(site_dir):
     board = (meetings / "boards" / "school-committee" / "index.html").read_text()
     assert "<title>Gloucester, MA School Committee agendas and minutes</title>" in board
     assert '<meta property="og:title" content="Gloucester, MA School Committee agendas and minutes">' in board
+    # A board whose name says the town's isn't given it twice.
+    assert "<title>Gloucester Retirement Board agendas and minutes</title>" in (
+        meetings / "boards" / "gloucester-retirement-board" / "index.html").read_text()
+    assert "<title>Gloucester Retirement Board agenda – Sep 30, 2026</title>" in "".join(
+        p.read_text() for p in meetings.glob("2026-09-30-*/index.html"))
     decided = (meetings / "decisions" / "index.html").read_text()
     assert "<title>Gloucester, MA votes and decisions from meeting minutes</title>" in decided
     assert "<title>Gloucester, MA 311 requests and response times</title>" in (site_dir / "311" / "index.html").read_text()
     assert "<title>Search Gloucester Publick</title>" in (site_dir / "search" / "index.html").read_text()
     # A page that isn't one people search for by topic keeps the site's name after its own.
-    assert "<title>About | Gloucester Publick</title>" in (site_dir / "about" / "index.html").read_text()
+    assert "<title>About – Gloucester Publick</title>" in (site_dir / "about" / "index.html").read_text()
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"
