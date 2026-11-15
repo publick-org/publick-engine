@@ -4,6 +4,12 @@
 {#- The bodies as searches name them: an office one person holds (the mayor) and the bodies with members. -#}
 {% set kinds = namespace(one=[], many=[]) %}
 {% for b in officials.bodies %}{% if b.members | length == 1 %}{% set kinds.one = kinds.one + [b] %}{% else %}{% set kinds.many = kinds.many + [b] %}{% endif %}{% endfor %}
+{# The town's one-person office and who holds it, for the title, heading, and description: a body of one (an
+   elected mayor), or else a member of a body whose role is "Mayor" (a council's member it chooses as mayor, or a
+   mayor who sits on the council), as [officials] gives it. #}
+{% set head = namespace(office=none, name=none) %}
+{% for b in kinds.one[:1] %}{% set head.office = b.name %}{% set head.name = b.members[0].name %}{% endfor %}
+{% if not head.office %}{% for b in kinds.many %}{% for m in b.members if not head.office and m.get("role_en", m.get("role")) == "Mayor" %}{% set head.office = m.role %}{% set head.name = m.name %}{% endfor %}{% endfor %}{% endif %}
 {#- The page's words for the town's areas ([town] areas): wards, or voting precincts or districts. -#}
 {% if areas == "precincts" %}
 {% set say = {
@@ -49,9 +55,9 @@
 {# The title names the bodies, as searches do ("lawrence city council members"): the mayor and up to two bodies,
    then fewer when that's longer than a search result shows (about 70 characters), down to the first body with members. #}
 {% block head_title %}{% if kinds.many %}
-{%- set names = kinds.one[:1] | map(attribute="name") | list + kinds.many[:2] | map(attribute="name") | list %}
+{%- set names = ([head.office] if head.office else []) + kinds.many[:2] | map(attribute="name") | list %}
 {%- set found = namespace(title="") %}
-{%- for shown in [names, names[-2:] if kinds.one else names, names[1:2] if kinds.one else names[:1]] %}
+{%- for shown in [names, names[-2:] if head.office else names, names[1:2] if head.office else names[:1]] %}
 {%- if not found.title %}
 {#- Translators: the page's title in search results: %(town)s is the town, %(state)s its state's abbreviation, such as "MA", and %(bodies)s its elected bodies, such as "Mayor, City Council, and School Committee". -#}
 {%- set title %}{% trans town=town.name, state=town.state_abbr, bodies=and_list(shown) %}{{ town }}, {{ state }} {{ bodies }} members{% endtrans %}{% endset %}
@@ -65,10 +71,10 @@
 {# Who holds the one-person office, and how many members each body has, before what the page has. #}
 {% block description %}
 {%- set who = namespace(items=[]) %}
-{%- for b in kinds.one[:1] %}
+{%- if head.office %}
 {#- Translators: an office one person holds, and who holds it, such as "Mayor Jane Smith". -#}
-{%- set who.items = who.items + [_("%(office)s %(name)s", office=b.name, name=b.members[0].name)] %}
-{%- endfor %}
+{%- set who.items = who.items + [_("%(office)s %(name)s", office=head.office, name=head.name)] %}
+{%- endif %}
 {%- for b in kinds.many[:2] %}
 {#- Translators: how many members a body has: %(num)s is the number and %(body)s the body, such as "City Council". -#}
 {%- set who.items = who.items + [ngettext("%(num)s %(body)s member", "%(num)s %(body)s members", b.members | length, num=b.members | length, body=b.name)] %}
@@ -85,7 +91,17 @@
 {% endblock %}
 {% block content %}
 <div class="page-head">
+  {# The heading names the bodies, as the title in search results does (search engines read the two together), with
+     the page's name above it; a town with no body of several members keeps the page's name as its heading. #}
+  {% if kinds.many %}
+  <hgroup>
+  <p class="eyebrow">{{ _("Who represents you") }}</p>
+  {#- Translators: the Officials page's heading: %(bodies)s is the town's elected bodies, such as "Mayor, City Council, and School Committee". -#}
+  <h1>{% trans bodies=and_list(([head.office] if head.office else []) + kinds.many[:2] | map(attribute="name") | list) %}{{ bodies }} members{% endtrans %}</h1>
+  </hgroup>
+  {% else %}
   <h1>{{ _("Who represents you") }}</h1>
+  {% endif %}
   <p class="lede">{% if officials.wards %}{{ say.lede }}{% else %}{% trans town=town.name %}Elected officials in {{ town }}, by office, and how to reach them.{% endtrans %}{% endif %}</p>
   <p class="source-note" data-about>{% trans checked=o.checked | date("plain") %}Checked {{ checked }} against official city and school websites. Members change after elections and when a seat is filled; those websites are the official record.{% endtrans %}</p>
   {% if o.out_of_date %}{% set due = o.out_of_date %}

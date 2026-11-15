@@ -226,6 +226,16 @@ def test_the_signup_form_posts_to_the_site_itself(site_dir):
     assert "noindex" not in (site_dir / "digest" / "index.html").read_text()
 
 
+def test_the_sitemap_lists_no_page_marked_noindex(site_dir):
+    """A page search engines are told not to index (the digest's and alerts' answers, a moved page) isn't
+    in the sitemap, which would ask them to."""
+    listed = re.findall(r"<loc>https://[^/]+(/[^<]*)</loc>", (site_dir / "sitemap.xml").read_text())
+    assert listed
+    noindex = [url for url in listed if '<meta name="robots" content="noindex">' in
+               (site_dir / url.lstrip("/") / ("index.html" if url.endswith("/") else "")).read_text()]
+    assert not noindex
+
+
 def lines(page: str) -> list[str]:
     """Each signup (site/templates/digest_line.html) on a built page."""
     return [m.group(0) for m in re.finditer(r'<form class="line-form" id="[^"]*-signup[^"]*".*?</form>', page, re.S)]

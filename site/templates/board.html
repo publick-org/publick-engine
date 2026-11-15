@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% from "macros.html" import calendar_behind_note, meeting_item %}
-{% from "search_text.html" import when_where, with_ai_label %}
+{% from "search_text.html" import when_where %}
 {% set b = board %}
 {# Translators: %(board)s is a board's name, such as "City Council". #}
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
 {# The board's name alone in this language: the page's heading has its English name too. #}
+{# Always the town and state, as a meeting's title (meeting.html). #}
 {% block head_title %}{% if meeting_links.documents %}
 {#- Translators: the page's title in search results, for a board whose agendas and minutes the site collects: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". -#}
 {% trans town=town.name, state=town.state_abbr, board=b.board_name %}{{ town }}, {{ state }} {{ board }} agendas and minutes{% endtrans %}
@@ -12,14 +13,14 @@
 {#- Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". -#}
 {% trans town=town.name, state=town.state_abbr, board=b.board_name %}{{ town }}, {{ state }} {{ board }} meetings and agendas{% endtrans %}{% endif %}{% endblock %}
 {# What a search result shows under the title, in at most about 155 characters: the board's next meeting, when and
-   where, and what's on its agenda (its summary's headline, said to be by AI), then what the page has, when there's
-   room for all of it. The headline only as the meeting's page shows it (meeting.html). #}
+   where, and what's on its agenda (its summary's headline), then what the page has, when there's room for all of it.
+   The headline only as the meeting's page shows it (meeting.html). #}
 {% block description %}
 {% set nx = b.next if b.next and b.next.status == "scheduled" else none %}
 {% set pv = nx.preview if nx and nx.preview and nx.preview.get("headline") and not nx.preview.get("english") else none %}
 {% set month = b.meetings[-1].date | date("month") %}
 {# The board's name says the town, unless the town's name is in it already ("Gloucester Retirement Board"). #}
-{% set own_name = town.name.lower() in b.board_name.lower() %}
+{% set own_name = names_town(b.board_name) %}
 {% set about %}{% if meeting_links.documents and own_name %}
 {#- Translators: %(board)s is a board's name that includes its town's, such as "Gloucester Retirement Board", and %(month)s a month and year, such as "January 2026". -#}
 {% trans board=b.board_name, month=month %}Meetings of the {{ board }} since {{ month }}, with agendas and minutes.{% endtrans %}
@@ -34,9 +35,9 @@
 {% trans town=town.name, board=b.board_name, month=month %}Meetings of the {{ town }} {{ board }} since {{ month }}, with agendas.{% endtrans %}{% endif %}{% endset %}
 {% set coming %}{% if nx %}{% trans when=when_where(nx) %}Next meeting: {{ when }}.{% endtrans %}{% endif %}{% endset %}
 {% set coming = coming | fit(155) %}
-{# The headline when at least about 45 characters of it fit after the meeting, with its label. #}
+{# The headline when at least about 45 characters of it fit after the meeting. #}
 {% set room = 155 - (coming | length) - 1 %}
-{% set lead %}{% if pv and room >= 60 %}{{ coming }} {{ with_ai_label(pv.headline, how_checked(pv, "agenda"), room) }}{% else %}{{ coming }}{% endif %}{% endset %}
+{% set lead %}{% if pv and room >= 45 %}{{ coming }} {{ pv.headline | fit(room) }}{% else %}{{ coming }}{% endif %}{% endset %}
 {% set lead = lead | fit(155) %}
 {% set full = (lead ~ " " ~ about) | fit(1000) %}
 {{- full if full | length <= 155 else lead or about | fit(155) }}{% endblock %}

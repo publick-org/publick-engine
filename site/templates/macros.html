@@ -57,12 +57,6 @@
 {%- elif how %}{{ _("Not checked") }}{% endif -%}
 {%- endmacro %}
 
-{# The same, in a list of meetings: that the line is AI's, and a warning when it wasn't checked; the meeting's page
-   says how it was. #}
-{% macro ai_summary_short(how) -%}
-{%- if how and how not in ["pdf", "partial", "ai", "recording"] %}{{ _("AI summary, not checked") }}{% else %}{{ _("AI summary") }}{% endif -%}
-{%- endmacro %}
-
 {# In a list of meetings, a warning beside a summary's line only when it wasn't checked. That the lines are written
    by AI is said once, in the footer (base.html), and the meeting's page says how each was checked. #}
 {% macro unchecked_note(how) -%}

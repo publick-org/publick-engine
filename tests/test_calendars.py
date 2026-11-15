@@ -389,7 +389,7 @@ def test_a_meeting_is_named_for_its_board_and_kind(manchester_site):
     pages = [p.read_text() for p in (manchester_site / "meetings").glob("2026-08-04-board-of-mayor-and-aldermen*/index.html")]
     hearing = next(p for p in pages if "CDBG" in p)
     assert "<h1>Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM</h1>" in hearing
-    assert '<meta property="og:title" content="Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM">' in hearing
+    assert '<meta property="og:title" content="Manchester, NH Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM">' in hearing
     assert "<title>Manchester, NH Board of Mayor and Aldermen public hearing – Aug 4, 2026, 6:00 PM</title>" in hearing
     assert "6:00 PM</time> · Special meeting</p>" in hearing
     assert "Listed as “Special Meeting of the Board of Mayor and Aldermen - Public Hearing: CDBG Funds”." in hearing
