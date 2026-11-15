@@ -5,15 +5,8 @@
 {# Translators: %(board)s is a board's name, such as "City Council". #}
 {% block title %}{% trans board=b.name %}{{ board }} meetings{% endtrans %}{% endblock %}
 {# The board's name alone in this language: the page's heading has its English name too. #}
-{% block head_title %}{% if names_town(b.board_name) %}
-{#- A board whose name says the town already ("Gloucester Retirement Board") isn't given it again. -#}
-{% if meeting_links.documents %}
-{#- Translators: the page's title in search results, for a board whose name includes its town's, such as "Gloucester Retirement Board", and whose agendas and minutes the site collects. -#}
-{% trans board=b.board_name %}{{ board }} agendas and minutes{% endtrans %}
-{%- else %}
-{#- Translators: the page's title in search results, for a board whose name includes its town's, such as "Gloucester Retirement Board". -#}
-{% trans board=b.board_name %}{{ board }} meetings and agendas{% endtrans %}{% endif %}
-{%- elif meeting_links.documents %}
+{# Always the town and state, as a meeting's title (meeting.html). #}
+{% block head_title %}{% if meeting_links.documents %}
 {#- Translators: the page's title in search results, for a board whose agendas and minutes the site collects: %(town)s is the town and %(state)s its state's abbreviation, such as "MA", and %(board)s a board's name, such as "Planning Board". -#}
 {% trans town=town.name, state=town.state_abbr, board=b.board_name %}{{ town }}, {{ state }} {{ board }} agendas and minutes{% endtrans %}
 {%- else %}

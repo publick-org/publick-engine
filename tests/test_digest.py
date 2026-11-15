@@ -223,18 +223,17 @@ def test_the_signup_form_posts_to_the_site_itself(site_dir):
         # Pages a form leads to aren't for search engines.
         assert '<meta name="robots" content="noindex">' in page
     assert "/digest/thanks/" not in (site_dir / "sitemap.xml").read_text()
+    assert "noindex" not in (site_dir / "digest" / "index.html").read_text()
 
 
 def test_the_sitemap_lists_no_page_marked_noindex(site_dir):
     """A page search engines are told not to index (the digest's and alerts' answers, a moved page) isn't
     in the sitemap, which would ask them to."""
-    import re
     listed = re.findall(r"<loc>https://[^/]+(/[^<]*)</loc>", (site_dir / "sitemap.xml").read_text())
     assert listed
     noindex = [url for url in listed if '<meta name="robots" content="noindex">' in
                (site_dir / url.lstrip("/") / ("index.html" if url.endswith("/") else "")).read_text()]
     assert not noindex
-    assert "noindex" not in (site_dir / "digest" / "index.html").read_text()
 
 
 def lines(page: str) -> list[str]:

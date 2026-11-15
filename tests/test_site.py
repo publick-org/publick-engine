@@ -710,8 +710,9 @@ def test_a_council_member_who_is_mayor_is_named_as_the_mayor(tmp_path, data_dir,
     assert re.search(rf'<meta name="description" content="[^"]* {mayor}, ', spanish)
 
 
-def test_a_title_names_the_town_once():
-    """A board whose name says the town's, as a whole word, isn't given the town again in a page's title."""
+def test_a_board_names_the_town_as_a_whole_word():
+    """A board whose name says the town's, as a whole word, isn't given the town again in its description or its
+    meetings' names for search engines."""
     assert build_site.names_town("Gloucester Retirement Board", "Gloucester")
     assert build_site.names_town("Cape Ann and gloucester Health Alliance", "Gloucester")
     assert not build_site.names_town("Londonderry Joint Committee", "Derry")
@@ -1007,11 +1008,9 @@ def test_home_and_downloads_for_search_engines(site_dir):
     board = (meetings / "boards" / "school-committee" / "index.html").read_text()
     assert "<title>Gloucester, MA School Committee agendas and minutes</title>" in board
     assert '<meta property="og:title" content="Gloucester, MA School Committee agendas and minutes">' in board
-    # A board whose name says the town's isn't given it twice.
-    assert "<title>Gloucester Retirement Board agendas and minutes</title>" in (
+    # A board whose name says the town's still has the town and state first: many towns share a name.
+    assert "<title>Gloucester, MA Gloucester Retirement Board agendas and minutes</title>" in (
         meetings / "boards" / "gloucester-retirement-board" / "index.html").read_text()
-    assert "<title>Gloucester Retirement Board agenda – Sep 30, 2026</title>" in "".join(
-        p.read_text() for p in meetings.glob("2026-09-30-*/index.html"))
     decided = (meetings / "decisions" / "index.html").read_text()
     assert "<title>Gloucester, MA votes and decisions from meeting minutes</title>" in decided
     assert "<title>Gloucester, MA 311 requests and response times</title>" in (site_dir / "311" / "index.html").read_text()

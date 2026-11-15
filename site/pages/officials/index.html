@@ -94,9 +94,11 @@
   {# The heading names the bodies, as the title in search results does (search engines read the two together), with
      the page's name above it; a town with no body of several members keeps the page's name as its heading. #}
   {% if kinds.many %}
+  <hgroup>
   <p class="eyebrow">{{ _("Who represents you") }}</p>
   {#- Translators: the Officials page's heading: %(bodies)s is the town's elected bodies, such as "Mayor, City Council, and School Committee". -#}
   <h1>{% trans bodies=and_list(([head.office] if head.office else []) + kinds.many[:2] | map(attribute="name") | list) %}{{ bodies }} members{% endtrans %}</h1>
+  </hgroup>
   {% else %}
   <h1>{{ _("Who represents you") }}</h1>
   {% endif %}

@@ -152,6 +152,7 @@ main { display: block; padding: 1rem 0 3rem; }
 .lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 0.75rem; text-wrap: pretty; }
 .page-head { margin-bottom: 0.9rem; }
 /* The page's own name, small, above a heading that says what's on it ("Who represents you" over "City Council members"). */
+hgroup { margin: 0; }
 .eyebrow { margin: 0 0 0.2rem; color: var(--muted); font-size: 0.875rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .source-note { color: var(--muted); font-size: 0.875rem; }
 .small { color: var(--ink-soft); font-size: 0.9375rem; line-height: 1.5; }
