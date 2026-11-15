@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import meeting_flags, describe_change, ai_credit, full_text, cite, decision_groups, report_button %}
-{% from "search_text.html" import when_where, with_ai_label %}
+{% from "search_text.html" import when_where %}
 {% set report_url = report_link(page_url, meeting.body ~ ", " ~ (meeting.date | date)) %}
 {% set m = meeting %}
 {# A meeting's name: its board's, and the kind of meeting where its listing says (pipeline/meeting_names.py). #}
@@ -130,8 +130,8 @@
 {# What a search result shows under the title, in at most about 155 characters: for a meeting to come, when and where,
    then what's on its agenda (the summary's headline, or its items); for one past, what it decided (its final decisions,
    or else its recommendations, or the headline). Only what the page itself shows: a summary as its fact check leaves it
-   (factcheck.shown), said to be by AI after it, where a result shows the words that matter first, and none shown in
-   English on another language's page. #}
+   (factcheck.shown), and none shown in English on another language's page. The page says the summary is by AI and
+   how it was checked; the result leaves that out, for the words that matter. #}
 {% block description %}
 {% set ms = m.minutes_summary if m.minutes_summary and m.minutes_summary.get("is_minutes", True) and not m.minutes_summary.get("english") else none %}
 {% set pv = m.preview if m.preview and not m.preview.get("english") else none %}
@@ -160,10 +160,7 @@
 {% endif %}
 {% endif %}
 {% endset %}
-{%- if from_minutes %}{{ with_ai_label(text, how_checked(ms, "minutes")) }}
-{%- elif from_recording %}{{ with_ai_label(text, how_checked(rs, "recording")) }}
-{%- elif from_agenda %}{{ with_ai_label(text, how_checked(pv, "agenda")) }}
-{%- else %}{{ text | fit(155) }}{% endif %}{% endblock %}
+{{- text | fit(155) }}{% endblock %}
 {# For search engines, the meeting's name says the town, unless its board's does: "City Council, Gloucester – Oct 19, 2026". #}
 {% set event_name = named(m.board_name) if town.name.lower() in m.body_en.lower() else named(m.board_name) ~ ", " ~ town.name %}
 {% block structured_data %}{{ structured(event(m, canonical_url, meeting_name(event_name, m.date | date("mon_day_year")), self.description()),

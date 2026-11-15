@@ -157,7 +157,7 @@ def test_meeting_pages_are_named_in_spanish(built):
     out, _, _ = built
     council = page(out, "/es/meetings/2026-08-25-city-council/")
     assert "<h1>Concejo Municipal – 25 ago 2026</h1>" in council
-    assert '<meta property="og:title" content="Concejo Municipal – 25 ago 2026">' in council
+    assert '<meta property="og:title" content="Gloucester, MA Concejo Municipal: actas – 25 ago 2026">' in council
     assert '"name":"Concejo Municipal (City Council)","item":"https://gloucester-ma.publick.org/es/meetings/boards/city-council/"' in council
     # In search results: the town and state, the board in Spanish, what the page has, and the day.
     assert "<title>Gloucester, MA Concejo Municipal: actas – 25 ago 2026</title>" in council

@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   {# A page may give search results a fuller name than its own (head_title): the words people search, the town and
      state first. Search results show the site's name on their own (the home page's WebSite data, og:site_name), so it
-     isn't added to those; a page without one (About, a form's answer) is "<its name> | <the site's name>". The title
-     block stays the page's name everywhere else (social cards, breadcrumbs, the page view counter). #}
+     isn't added to those; a page without one (About, a form's answer) is "<its name> | <the site's name>". Social
+     cards use the same name, since a shared link shows its title without the site's name. The title block stays the
+     page's name everywhere else (breadcrumbs, the page view counter). #}
   <title>{% block head_title %}{% block title %}{% endblock %} | {{ site.name }}{% endblock %}</title>
   {# What a search result shows under the title: one line, at most about 160 characters (the fit filter). The page's
      description block is defined here and shown only through self.description(). #}
@@ -21,7 +22,7 @@
   {% endif %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ site.name }}">
-  <meta property="og:title" content="{{ self.title() }}">
+  <meta property="og:title" content="{{ self.head_title() | trim }}">
   <meta property="og:description" content="{{ self.description() | fit(160) }}">
   <meta property="og:url" content="{{ canonical_url }}">
   {# A recent meeting's page has its own card (pipeline/share_cards.py); every other page, the town's image. #}

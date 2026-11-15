@@ -209,6 +209,44 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert '<div class="topic-filter" role="group"' in decisions and "decisions.js" in decisions
     assert 'data-topic="housing" aria-pressed="false">Housing and zoning</button>' in decisions
     assert 'data-topic="government" aria-pressed="false">City government</button>' in decisions
+    # A search result leads with the newest main decisions' titles, then what the page holds when it fits.
+    import html
+    import re
+    description = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', decisions).group(1))
+    assert description.startswith("Latest: Main decision title. Votes and other decisions") and len(description) <= 160
+
+
+def test_the_decisions_page_names_the_towns_governing_body(tmp_path, monkeypatch):
+    """The Decisions page and the digest say the town's own governing body ([meetings] governing_body), in both
+    languages, not "City Council"."""
+    import json
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    # A committee's recommendation, in the first set of minutes with decisions.
+    for path in sorted((data / "summaries").glob("*.json")):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "minutes" and rec.get("decisions") and rec.get("is_minutes", True):
+            for field in ("fact_check", "decision_evidence", "decision_pages", "decision_titles", "decision_main",
+                          "decision_topics"):
+                rec.pop(field, None)
+            rec["decisions"] = [*rec["decisions"], "Voted 3-0 to recommend that the Board of Aldermen approve the sidewalk plan."]
+            path.write_text(json.dumps(rec))
+            break
+    load_config = build_site.load_config
+    def with_aldermen(town):
+        config = load_config(town)
+        config["meetings"]["governing_body"] = "Board of Aldermen"
+        return config
+    monkeypatch.setattr(build_site, "load_config", with_aldermen)
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
+    assert "Gloucester&#39;s Board of Aldermen, boards, and committees" in decisions
+    assert '<p class="lede">What the Board of Aldermen, boards, and committees decided' in decisions
+    assert '<p class="decision-label">Committee recommendations to the Board of Aldermen</p>' in decisions
+    assert "They become final only when the Board of Aldermen votes." in decisions
+    assert not [p for p in (tmp_path / "site").rglob("*.html") if "recommendations to the City Council" in p.read_text()]
 
 
 def groups_html(items, lang="en"):

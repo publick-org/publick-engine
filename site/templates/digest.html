@@ -51,7 +51,8 @@
     {% if m.preview_line %}<p class="summary">{{ m.preview_line }}</p>{% endif %}
     {% if e.main %}{{ decision_rows(m.minutes_doc if e.source == "minutes" else none, e.main, false, none, "decision", titled=true) }}{% endif %}
     {% if e.recommended %}
-    <h4 class="decision-group">{{ _("Committee recommendations to the City Council") }}</h4>
+    {#- Translators: %(council)s is the town's governing body, such as "City Council". -#}
+    <h4 class="decision-group">{% trans council=meeting_links.governing_body %}Committee recommendations to the {{ council }}{% endtrans %}</h4>
     {{ decision_rows(m.minutes_doc if e.source == "minutes" else none, e.recommended, false, none, "recommendation") }}
     {% endif %}
     {# Translators: %(count)s is how many routine decisions (approving minutes, accepting reports) a meeting made, 1 or more. #}
