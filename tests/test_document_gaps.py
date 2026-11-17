@@ -51,6 +51,11 @@ def data_dir(tmp_path):
     (tmp_path / "meetings" / "meetings.json").write_text(json.dumps({m["id"]: m for m in meetings}))
     (tmp_path / "meetings" / "opengov_status.json").write_text(json.dumps({"meetings_waiting": 290, "errors": []}))
     (tmp_path / "meetings" / "page_status.json").write_text(json.dumps({"documents_waiting": 0}))
+    # The meetings run's listings named once, at another board's meeting: one in the window, one ahead of it.
+    (tmp_path / "meetings" / "status.json").write_text(json.dumps({"seen_once_beside_another": [
+        {"id": "13060", "date": "2026-11-18", "start_time": "18:00", "board": "Ad Hoc Panel", "beside": ["Planning Board"]},
+        {"id": "13012", "date": "2026-10-29", "start_time": "19:00", "board": "Fisheries Commission",
+         "beside": ["Zoning Board of Appeals"]}]}))
     # A recording waiting to be transcribed isn't a document waiting.
     (tmp_path / "meetings" / "recordings_status.json").write_text(json.dumps({"waiting": ["telvue-1"]}))
     return tmp_path
@@ -65,7 +70,8 @@ def test_each_kind_of_gap_is_found(data_dir):
     assert gaps["pairs"] == [{"date": "2026-10-16", "board": "Beverly Retirement Board",
                               "other": "Contributory Retirement Board"}]
     assert gaps["waiting"] == {"opengov_status": {"count": 290, "unit": "meetings"}} and gaps["backlog"] == {}
-    assert gaps["counts"] == {"no_documents": 1, "no_minutes": 1, "pairs": 1}
+    assert gaps["beside"] == [{"date": "2026-10-29", "board": "Fisheries Commission", "other": "Zoning Board of Appeals"}]
+    assert gaps["counts"] == {"no_documents": 1, "no_minutes": 1, "pairs": 1, "beside": 1}
 
 
 def test_a_readers_backlog_older_than_the_window_is_counted_apart_by_its_unit(data_dir):
@@ -128,17 +134,19 @@ def test_the_network_report_adds_up_the_run_records(tmp_path, data_dir):
     for i in range(network.COVERAGE_TOWNS + 2):
         run_record(tmp_path / "net", f"town{i:02d}-ma", gaps)
     run_record(tmp_path / "net", "stale-ma", gaps, finished="2026-10-20T12:00:00+00:00")
-    clean = {**gaps, "counts": {"no_documents": 0, "no_minutes": 0, "pairs": 0}, "no_documents": [], "no_minutes": [],
-             "pairs": [], "waiting": {}}
+    clean = {**gaps, "counts": {"no_documents": 0, "no_minutes": 0, "pairs": 0, "beside": 0}, "no_documents": [],
+             "no_minutes": [], "pairs": [], "beside": [], "waiting": {}}
     run_record(tmp_path / "net", "clean-ma", clean)
     text = network.documents_text(tmp_path / "net", at=datetime(2026, 11, 2, 13, tzinfo=timezone.utc))
     towns = network.COVERAGE_TOWNS + 3
     assert f"in {towns} towns: **{gaps['held'] * towns}**" in text
     assert f"| Boards with no agenda or minutes | {towns - 1} | {towns - 1} |" in text
     assert f"| Meetings likely listed twice | {towns - 1} | {towns - 1} |" in text
+    assert f"| Boards named once, at another board's meeting | {towns - 1} | {towns - 1} |" in text
     assert f"| Waiting for their documents, in this window | {290 * (towns - 1)} meetings | {towns - 1} |" in text
     assert ("| town00-ma | Board of Water Commissioners (3) | 2026-10-16 Beverly Retirement Board / Contributory "
-            "Retirement Board | Licensing Board (2) | 290 meetings (opengov) |") in text
+            "Retirement Board | 2026-10-29 Fisheries Commission / Zoning Board of Appeals | Licensing Board (2) | "
+            "290 meetings (opengov) |") in text
     # The report's length doesn't grow with the network, and a town with nothing to look at isn't listed.
     assert text.count("| town") == network.COVERAGE_TOWNS
     assert "And 2 more towns." in text
