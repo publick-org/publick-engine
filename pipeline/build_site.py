@@ -1158,11 +1158,13 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         m["preview"] = factcheck.shown(in_language(data_dir, pv_raw, "agenda", m["agenda"], terms or ()), pv_raw, "agenda")
         m["minutes_summary"] = factcheck.shown(in_language(data_dir, ms_raw, "minutes", m["minutes_doc"], terms or ()),
                                                ms_raw, "minutes")
-        # The recording's summary is shown whole until the minutes' is, then only what was discussed.
+        # The recording's summary is shown whole until the minutes' is, then only what was discussed, without what the
+        # minutes contradict (factcheck.beside_minutes()).
         rs_raw = m["recording_summary"]
+        rs_checked = factcheck.beside_minutes(rs_raw, ms_raw)
         m["recording_summary"] = factcheck.shown(in_language(data_dir, rs_raw, "recording", m["transcript_doc"], terms or ()),
-                                                 rs_raw, "recording")
-        english["recording_summary"] = factcheck.shown(rs_raw, rs_raw, "recording")
+                                                 rs_checked, "recording")
+        english["recording_summary"] = factcheck.shown(rs_raw, rs_checked, "recording")
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
         # Each decision with the page of the minutes it was found on, where it's known, for the pages to cite,
         # and its outcome, for them to say beside it.

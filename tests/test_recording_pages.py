@@ -12,7 +12,7 @@ from conftest import BUILT_AT
 from fakes import FakeAnthropic
 from test_recording_summaries import TRANSCRIPT
 
-from pipeline import build_site, recordings, summarize
+from pipeline import build_site, factcheck, recordings, summarize
 
 
 def recording(m: dict, n: int) -> dict:
@@ -21,6 +21,10 @@ def recording(m: dict, n: int) -> dict:
             "seconds": 4400, "found_at": "2026-09-30T06:00:00-04:00", "source": 0,
             "transcript": {"file": f"telvue-{n}.txt", "sha256": hashlib.sha256(f"{TRANSCRIPT}{n}".encode()).hexdigest(),
                            "bytes": len(TRANSCRIPT), "seconds": 4400, "transcribed_at": "2026-09-30T06:50:00-04:00"}}
+
+
+# The built fixture's data and model, for a test that loads its meetings again.
+BUILT = {}
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +51,7 @@ def built(config, data_dir, tmp_path_factory):
     # The meeting whose minutes came is summarized from its recording no more: its summary made before they came.
     made = summarize.cached(data, store["telvue-1"]["transcript"]["sha256"], "recording")
     summarize.save_record(data, store["telvue-2"]["transcript"]["sha256"], made)
+    BUILT["data"], BUILT["model"] = data, model
     import pipeline.build_site as site
     original = site.load_config
     site.load_config = lambda slug: config
@@ -156,3 +161,14 @@ def test_a_recording_with_no_length_or_transcript_is_still_linked(config, data_d
     links = section(page, '<p class="doc-links">', "</p>")
     assert 'href="https://videoplayer.telvue.com/player/x/media/3"' in links and "Recording" in links
     assert 'class="runtime"' not in links and "Machine transcript" not in links
+
+
+def test_after_the_minutes_what_they_contradict_isnt_shown(built, monkeypatch):
+    _, _, after = built
+    # As if the minutes said the item the recording's first entry of what was discussed calls approved was referred.
+    contradicted = [{"field": "discussion", "entry": 1, "kind": "minutes", "what": "x", "minutes": "Referred ..."}]
+    monkeypatch.setattr(factcheck, "against_minutes", lambda recording, minutes: contradicted)
+    meetings = build_site.load_meetings(BUILT["data"], BUILT_AT.date(), BUILT["model"])["all"]
+    m = next(x for x in meetings if x["id"] == after["id"])
+    raw = summarize.cached(BUILT["data"], m["transcript_doc"]["sha256"], "recording", current=False)
+    assert raw["discussion"] and m["recording_summary"]["discussion"] == raw["discussion"][1:]

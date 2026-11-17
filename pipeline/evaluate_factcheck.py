@@ -285,7 +285,7 @@ def replay(item: dict, words: frozenset) -> dict:
     kind, record = item["kind"], item["record"]
     if kind == "recording":
         fc = summarize.recording_check(record, item["pages"][0], words, set(item["members"]), frozenset(item["streets"]),
-                                       item["agenda"])
+                                       item["agenda"], item["body"])
     else:
         fc = factcheck.check(record, kind, item["pages"], words)
     checked = {**record, "fact_check": fc}

@@ -1035,7 +1035,7 @@ def check_recording(config: dict, meeting: dict, record: dict, transcript: bytes
     checked again when they change (factcheck.current())."""
     agendas = meeting_agendas(data_dir, meeting)
     fc = recording_check(record, transcribe.untimed(transcript.decode("utf-8")), words, body_words(config, meeting["body"]),
-                         town_streets(data_dir), meeting_agenda_text(data_dir, agendas))
+                         town_streets(data_dir), meeting_agenda_text(data_dir, agendas), meeting["body"])
     return {**record, "transcript_source": "recording", "fact_check": {**fc, "agendas": agendas}}
 
 
@@ -1044,11 +1044,12 @@ def body_words(config: dict, body: str) -> set[str]:
     return {w.lower() for name in votes.members_for(config, body) for w in re.findall(r"[\w'’-]+", name)}
 
 
-def recording_check(record: dict, text: str, words, members: set[str], streets: frozenset[str], agenda: str) -> dict:
+def recording_check(record: dict, text: str, words, members: set[str], streets: frozenset[str], agenda: str,
+                    body: str = "") -> dict:
     """A recording's summary's fact check against its untimed transcript (check_recording()), with its body's members'
-    words (body_words()), the town's streets, and its meeting's agenda text."""
+    words (body_words()), the town's streets, its meeting's agenda text, and the body's name."""
     taken = frozenset(set(words) | translate.summary_words(record) | members)
-    return factcheck.check(record, "recording", [text], taken, streets, agenda)
+    return factcheck.check(record, "recording", [text], taken, streets, agenda, body)
 
 
 def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:

@@ -102,6 +102,22 @@ network's recording summaries (2026-11-17), all but two or three were set at the
 meeting (a fine, an amendment) or given only in a report the agenda names. Of
 the 13 decisions that failed, all 13 had a wrong amount or address.
 
+A recording's decision can also be a vote recounted, not taken: a chair
+reporting what a committee did ("We did vote it and it failed at that point").
+One whose quote recounts a vote, with none announced or put in it, and a
+committee named in it or just before it, fails ("committee", recounted()). And
+each vote the transcript announces ("the motion carries", "that item is
+approved") that no decision's quote is near, and that isn't a procedural
+motion, is noted ("unlisted", field "transcript", unlisted()), for the
+summary to be made or read again: a summary can leave votes out, and nothing
+on the page says so.
+
+Once the minutes are summarized, the meeting's page shows the recording's
+summary and what was discussed beside the minutes' decisions. A sentence of
+it, or an entry of what was discussed, that says a decision of the minutes was
+approved where they say it wasn't, or the other way round, isn't shown there
+(beside_minutes(), when the site is built).
+
 Each decision whose quote is found also gets the page it's on, for the site
 to cite ("p. 3", linking the PDF at that page): the page the quote starts on,
 where every place the quote is found is on the same page. Checked against a
@@ -144,11 +160,12 @@ from pipeline.streets import SUFFIXES
 VERSION = 11
 # What only a recording's summary is checked for, beside what every summary is (VERSION): a recording's summary is
 # checked again when either changes, and every other summary only when VERSION does. 1: its amounts and addresses
-# held to its meeting's agenda (against_agenda()).
+# held to its meeting's agenda (against_agenda()); a committee's vote recounted (recounted()), and the votes it leaves
+# out, listed (unlisted()).
 RECORDING_VERSION = 1
 
 # What's noted, not failed (see check() and shown()).
-NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda")
+NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda", "unlisted")
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
           "recording": ("headline", "summary", "decisions", "discussion")}
@@ -606,7 +623,7 @@ def against_agenda(text: str, agenda: Agenda, noted: bool) -> list[dict]:
 
 
 def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset(),
-          streets: frozenset[str] = frozenset(), agenda: str | None = None) -> dict:
+          streets: frozenset[str] = frozenset(), agenda: str | None = None, body: str = "") -> dict:
     """The fact check of a summary against its document's text, page by page (None for a PDF
     with no text at all). A scan is checked against the model's transcription, if it has one. A
     recording's summary is checked against its machine transcript (pages: the transcript, whole), as
@@ -661,6 +678,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for i, (text, evidence) in enumerate(zip(record.get("decisions") or [], record["decision_evidence"])):
             whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
             found = anchored(text, evidence or {}, located, words, whole)
+            if kind == "recording":
+                found += recounted((evidence or {}).get("quote") or "", located, body)
             problems += [{"field": "decisions", "entry": i + 1, **p} for p in found]
             # The headline and the summary are held to how the motion ended, where the minutes say it didn't
             # carry, not to the outcome the model gave it.
@@ -668,6 +687,9 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         problems += [{"field": "headline", **p} for p in says_outcome(record, record.get("headline") or "", outcomes)]
         problems += [{"field": "summary", **p} for sentence in sentences(record.get("summary") or "")
                      for p in says_outcome(record, sentence, outcomes)]
+        if kind == "recording":
+            problems += [{"field": "transcript", **p} for p in unlisted(doc, located, [
+                (evidence or {}).get("quote") or "" for evidence in record["decision_evidence"]])]
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED and p["field"] != "decision_titles"]
@@ -1190,6 +1212,18 @@ PROPOSED = re.compile(r"\b(?:motion|request|proposal|petition|bid|effort|attempt
                       r"(?:[^.;]*?\b(?:and|or)\s+to\s+\w+)*", re.I)
 
 
+def clauses_of(text: str) -> list[str]:
+    """A headline's or sentence's clauses (CLAUSES), a clause that goes on with "to" kept with the one before's:
+    "rejected motions to rescind the transfer and to adopt the Memorandum"."""
+    clauses = []
+    for clause in CLAUSES.split(text):
+        if clauses and re.match(r"\s*to\s", clause):
+            clauses[-1] += " and " + clause
+        else:
+            clauses.append(clause)
+    return clauses
+
+
 def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[dict]:
     """Each clause of a minutes headline, or of a sentence of its summary, that says yes where the decision
     it's about was denied (or its motion didn't carry: outcomes, one for each decision), or no where it was
@@ -1197,15 +1231,7 @@ def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[di
     clause that says both, or neither, isn't checked."""
     scored_decisions = [(subject_words(decision), outcome) for decision, outcome in zip(record.get("decisions") or [], outcomes)]
     problems = []
-    # A clause that goes on with "to" is the one before's: "rejected motions to rescind the transfer and to
-    # adopt the Memorandum".
-    clauses = []
-    for clause in CLAUSES.split(text):
-        if clauses and re.match(r"\s*to\s", clause):
-            clauses[-1] += " and " + clause
-        else:
-            clauses.append(clause)
-    for clause in clauses:
+    for clause in clauses_of(text):
         says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(PROPOSED.sub(" ", clause)))
         if says_no == says_yes:
             continue
@@ -1220,6 +1246,59 @@ def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[di
         elif found == {"approved"} and says_no:
             problems.append({"kind": "outcome", "what": f"{clause.strip().rstrip('.')}: says no, but the decision was approved"})
     return problems
+
+
+# ---- A recording's summary beside the minutes' ------------------------------------------
+
+# What a decision of the minutes was, where a recording's summary says it was approved: not approved.
+NOT_APPROVED = {"denied", "referred", "tabled", "continued", "withdrawn"}
+
+
+def against_minutes(recording: dict, minutes: dict) -> list[dict]:
+    """The sentences of a recording's summary, and its discussion's entries, that the meeting's minutes contradict:
+    a clause that says yes (approved, adopted ...) about a decision of the minutes that wasn't (NOT_APPROVED), or no
+    about one that was, matched to it as says_outcome() matches a headline's clause (the decision sharing the most of
+    its words and numbers, at least two). A clause whose no is about a request or motion named for what it would have
+    done (PROPOSED: "a request to hold the decision ... was turned down") isn't held to a decision. Only the minutes'
+    decisions their own check shows are read. Lowell's City Council, 2026-10-27: the recording's discussion said a
+    letter opposing the ICC as a shelter "was approved", where the minutes say it was referred to the City Manager.
+    Of the 32 meetings in the network with both summaries (2026-11-17), it finds that one."""
+    mfc = minutes.get("fact_check") or {}
+    gone = {p.get("entry") for p in mfc.get("problems", []) if p["field"] == "decisions" and hides(mfc, p)}
+    evidence = minutes.get("decision_evidence") or []
+    decided = [(subject_words(d), labeled(d, (evidence[i] or {}).get("outcome") if i < len(evidence) else None), d)
+               for i, d in enumerate(minutes.get("decisions") or []) if i + 1 not in gone]
+    texts = [("summary", None, s) for s in sentences(recording.get("summary") or "")] + \
+            [("discussion", i + 1, d) for i, d in enumerate(recording.get("discussion") or [])]
+    problems = []
+    for field, entry, text in texts:
+        for clause in clauses_of(text):
+            says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(PROPOSED.sub(" ", clause)))
+            if says_no == says_yes or (says_no and PROPOSED.search(clause)):
+                continue
+            about = subject_words(clause)
+            scored = [(len(about & words), outcome, d) for words, outcome, d in decided]
+            best = max((n for n, _, _ in scored), default=0)
+            if best < 2:
+                continue
+            found = {outcome for n, outcome, _ in scored if n == best}
+            if (says_yes and found <= NOT_APPROVED) or (says_no and found == {"approved"}):
+                problems.append({"field": field, **({"entry": entry} if entry else {}), "kind": "minutes", "what": text,
+                                 "minutes": next(d for n, _, d in scored if n == best)})
+                break
+    return problems
+
+
+def beside_minutes(recording: dict | None, minutes: dict | None) -> dict | None:
+    """A recording's summary as it's shown beside its meeting's minutes' summary: with what the minutes contradict
+    (against_minutes()) as problems of its fact check, which shown() hides."""
+    if not recording or not minutes or minutes.get("is_minutes") is False or not minutes.get("decisions"):
+        return recording
+    found = against_minutes(recording, minutes)
+    if not found:
+        return recording
+    fc = recording.get("fact_check") or {"version": VERSION, "source": "none", "problems": []}
+    return {**recording, "fact_check": {**fc, "result": "failed", "problems": fc["problems"] + found}}
 
 
 def pages(pdf: bytes) -> list[str] | None:
@@ -1244,6 +1323,80 @@ def current(record: dict, agendas: list[str] | None = None) -> bool:
                                               or (agendas is not None and fc.get("agendas", []) != agendas)):
         return False
     return fc.get("version") == VERSION and not (fc.get("source") == "none" and record.get("transcript_source") == "ai")
+
+
+# ---- A recording's votes: a committee's, and those left out ------------------------------
+
+# A vote announced as it's taken: "the motion passes", "Motion carries 7-0", "that paper has been enrolled", "the ayes have
+# it", "Six in the affirmative, one absent" (SPOKEN_COUNT). Not "once it was approved": a vote talked about.
+ANNOUNCED = re.compile(r"(?i)\b(?:motion|amendment|order|paper|item|petition|resolution)s?\s+(?:ha(?:s|ve)\s+been\s+|is\s+|was\s+)?"
+                       r"(?:passe[sd]|carrie[sd]|fail(?:s|ed)|adopted|approved|defeated|enrolled|ordained|granted)\b|"
+                       r"\b(?:ayes|nays|yeas|noes)\s+have\s+it\b|" + SPOKEN_COUNT.pattern)
+# A vote recounted, not taken: "We did vote it and it failed at that point", "the committee needed to approve that
+# transfer, and we did".
+RECOUNTED = re.compile(r"(?i)\b(?:we|they|it|that|the\s+committee)\s+(?:did(?!\s*n[o'’]t)|voted|failed|passed|approved|"
+                       r"recommended|was\s+(?:voted|defeated|approved))\b|\bat\s+that\s+point\b")
+# A vote being taken: the roll called, or the question put. With RECOUNTED, a quote that has one is this meeting's vote.
+TAKEN = re.compile(r"(?i)\bcall\s+the\s+roll\b|\ball\s+(?:those\s+)?in\s+favou?r\b|\bwe\s+will\s+(?:call|take)\b")
+COMMITTEE = re.compile(r"(?i)\b(?:sub)?committee\b")
+# How much of the transcript before a quote is read for who voted ("the Ordinance Committee ... we did vote it").
+RECOUNTED_BEFORE = 1500
+
+
+def recounted(quote: str, located: Located, body: str = "") -> list[dict]:
+    """A recording's decision whose quote recounts a committee's vote rather than taking the board's: it says a vote
+    was taken (RECOUNTED), announces none and puts no question (ANNOUNCED, TAKEN), and a committee other than the board
+    (body: its name, "School Committee", which isn't taken for another) is named in it or in the transcript just
+    before it. Malden's City Council, 2026-10-27: the chair recounted an amendment that
+    "failed" in the Rules and Ordinance Committee, which the summary listed as the council's. Of the network's 575
+    decisions from recordings with their transcripts (2026-11-17), it finds 2, both a committee's."""
+    m = RECOUNTED.search(quote)
+    if not m or ANNOUNCED.search(quote) or TAKEN.search(quote):
+        return []
+    places = located.find(quote)
+    before = located.doc[max(0, places[0][0] - RECOUNTED_BEFORE):places[0][0]] if places else ""
+    said = before + " " + quote
+    if body.strip():
+        said = re.sub(r"\s+".join(map(re.escape, body.split())), " ", said, flags=re.I)
+    if not COMMITTEE.search(said):
+        return []
+    return [{"kind": "committee", "what": m.group(0)}]
+
+
+# How far from a decision's quote a vote announced (ANNOUNCED) is taken for that decision's, and how much of the
+# transcript before it says what the motion was, for a procedural one; and how close two announcements are taken for
+# the same vote, said twice ("Motion carries. Motion carries.").
+UNLISTED_NEAR, MOTION_BEFORE, SAME_VOTE = 1500, 600, 100
+# A procedural motion, which a recording's summary leaves out (summarize.KINDS["recording"]): the minutes, adjourning,
+# the agenda, a recess, more time for a speaker, opening or closing a public hearing, a closed session.
+PROCEDURAL = re.compile(r"(?i)\bminutes\b|\badjourn|\brecess\b|\b(?:the|this|tonight's)\s+agenda\b|\bmore\s+time\b|"
+                        r"\bextend\w*\s+(?:[\w'’]+\s+){0,3}time\b|\bsuspen\w+\s+(?:of\s+)?the\s+rules\b|"
+                        r"\b(?:executive|non-?public)\s+session\b|\b(?:open|close)\w*\s+(?:the\s+)?public\s+hearings?\b|"
+                        r"\bpass\s+time\b")
+
+
+def unlisted(doc: str, located: Located, quotes: list[str]) -> list[dict]:
+    """The votes a recording's transcript announces (ANNOUNCED) that none of its summary's decisions is about: none
+    of their quotes is within UNLISTED_NEAR of it, and it isn't a procedural motion's (PROCEDURAL). Each is listed
+    ("unlisted", noted: python -m pipeline.factcheck lists it, for the summary to be made or read again), with the
+    transcript's words before it. Nothing is shown or hidden for it: of the 27 in 14 of the network's 125 recording
+    summaries with their transcripts (2026-11-17), 21 were votes the summary left out (orders for a public hearing,
+    licenses renewed, items approved, roll calls), and the rest procedural motions PROCEDURAL doesn't read, a vote
+    talked about, or a decision's vote whose quote isn't found in the transcript."""
+    spans = [place for quote in quotes if quote.strip() for place in located.find(quote)]
+    out, last = [], None
+    for m in ANNOUNCED.finditer(doc):
+        # Said again right after: the same vote. Each is held to the one before it, so votes taken one after another
+        # (a consent agenda's items) are each read.
+        again = last is not None and m.start() - last < SAME_VOTE
+        last = m.end()
+        if again:
+            continue
+        if any(s - UNLISTED_NEAR <= m.start() <= e + UNLISTED_NEAR for s, e in spans) \
+                or PROCEDURAL.search(doc[max(0, m.start() - MOTION_BEFORE):m.start()]):
+            continue
+        out.append({"kind": "unlisted", "what": " ".join(doc[max(0, m.start() - 200):m.end()].split())})
+    return out
 
 
 # ---- What's shown ------------------------------------------------------------------

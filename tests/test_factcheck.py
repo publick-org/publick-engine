@@ -969,3 +969,129 @@ def test_the_report_gives_the_agendas_own_beside_what_differs(tmp_path):
         {"field": "decisions", "entry": 3, "kind": "agenda", "what": "41 Third Street", "agenda": "41 Hurd Street"}]}
     (tmp_path / "summaries" / f"{'a' * 64}.json").write_text(json.dumps({"kind": "recording", "fact_check": fc}))
     assert "  decisions 3: agenda '41 Third Street' (the agenda: '41 Hurd Street')" in factcheck.report(tmp_path)
+
+
+# Malden's City Council, 2026-10-27: the chair recounts the Rules and Ordinance Committee's vote on an amendment,
+# then the council votes to enroll the paper.
+MALDEN = ("[1:10:00] As a member of the Ordinance Committee I'll recount what happened. Councilor O'Malley moved to amend "
+          "the paper to sustain the 15% inclusionary standard. That also failed for lack of a second, at which point it was "
+          "seconded. We did vote it and it failed at that point. [1:20:00] A motion by Councilor Winslow to enroll. We will "
+          "call the roll. Councilor Crowe. Yes. That paper has been enrolled. " + "Members discussed the order. " * 60 +
+          "[1:40:00] Next is the snow and ice order. All in favor? Aye. Opposed? Motion carries. " +
+          "Members discussed the budget. " * 60 + "[2:10:00] Motion to approve the minutes. All in favor? Motion carries.")
+
+
+def recording(decisions: list[tuple[str, str, str]]) -> dict:
+    return {"kind": "recording", "headline": "", "summary": "", "discussion": [], "decisions": [d for d, _, _ in decisions],
+            "decision_evidence": [{"outcome": o, "quote": q} for _, o, q in decisions]}
+
+
+def test_a_committees_vote_recounted_isnt_shown_as_the_boards():
+    record = recording([
+        ("Failed: an amendment to keep the 15% inclusionary standard.", "denied",
+         "Councilor O'Malley moved to amend the paper to sustain the 15% inclusionary standard. ... We did vote it and it "
+         "failed at that point."),
+        ("Enrolled the inclusionary zoning paper.", "approved",
+         "A motion by Councilor Winslow to enroll. We will call the roll. ... That paper has been enrolled.")])
+    fc = factcheck.check(record, "recording", [MALDEN])
+    assert [(p["entry"], p["kind"]) for p in fc["problems"] if p["kind"] == "committee"] == [(1, "committee")]
+    record["fact_check"] = fc
+    assert factcheck.shown(record, record, "recording")["decisions"] == ["Enrolled the inclusionary zoning paper."]
+    # The board's own vote, announced: not recounted, though the committee is named before it.
+    taken = recording([("Approved the amendment.", "approved", "That also failed for lack of a second, at which point it "
+                        "was seconded. We did vote it and it failed at that point. [1:20:00] A motion by Councilor "
+                        "Winslow to enroll. We will call the roll.")])
+    assert not [p for p in factcheck.check(taken, "recording", [MALDEN])["problems"] if p["kind"] == "committee"]
+    # A vote recounted with no committee: another check's to judge.
+    plain = MALDEN.replace("As a member of the Ordinance Committee I'll", "I'll")
+    assert not [p for p in factcheck.check(record, "recording", [plain])["problems"] if p["kind"] == "committee"]
+    # The board's own name isn't another committee: a School Committee recounting its own vote is another check's.
+    school = MALDEN.replace("the Ordinance Committee", "the School Committee")
+    assert not [p for p in factcheck.check(record, "recording", [school], body="School Committee")["problems"]
+                if p["kind"] == "committee"]
+    assert [p for p in factcheck.check(record, "recording", [MALDEN], body="School Committee")["problems"]
+            if p["kind"] == "committee"]
+    # Only a recording's: minutes record what was voted where.
+    assert not [p for p in factcheck.check({**record, "kind": "minutes"}, "minutes", [MALDEN])["problems"]
+                if p["kind"] == "committee"]
+
+
+def test_a_vote_the_recording_announces_that_no_decision_is_about_is_listed():
+    record = recording([("Enrolled the inclusionary zoning paper.", "approved",
+                         "A motion by Councilor Winslow to enroll. We will call the roll. ... That paper has been enrolled.")])
+    fc = factcheck.check(record, "recording", [MALDEN])
+    left = [p for p in fc["problems"] if p["kind"] == "unlisted"]
+    # The snow and ice order's vote; not the minutes', a procedural motion's; not the enrollment's, which is listed.
+    assert [p["field"] for p in left] == ["transcript"]
+    assert left[0]["what"].endswith("Next is the snow and ice order. All in favor? Aye. Opposed? Motion carries")
+    # Listed, not held against the summary, and shown nowhere.
+    assert fc["result"] == "ok"
+    record["fact_check"] = fc
+    assert factcheck.shown(record, record, "recording")["decisions"] == record["decisions"]
+    assert "transcript: unlisted" in "\n".join(evaluate_factcheck_lines(fc))
+    # Votes taken one after another are each read; a vote said twice is one.
+    consent = ("Item one, a license renewal. All in favor? Motion carries. Motion carries. " + "Discussion. " * 15 +
+               "Item two, another license. All in favor? Motion carries.")
+    assert len(factcheck.unlisted(consent, factcheck.Located(consent), [])) == 2
+    # A summary with no decisions: every vote announced is listed.
+    none = recording([])
+    assert len([p for p in factcheck.check(none, "recording", [MALDEN])["problems"] if p["kind"] == "unlisted"]) == 2
+
+
+def evaluate_factcheck_lines(fc: dict) -> list[str]:
+    from pipeline import evaluate_factcheck
+    return [evaluate_factcheck.problem(p) for p in fc["problems"]]
+
+
+# Lowell's City Council, 2026-10-27: the recording's summary was written before the minutes, which were summarized after.
+LOWELL_RECORDING = {
+    "kind": "recording", "headline": "Approved $1.5 million for 14 firefighter recruits.",
+    "summary": "The meeting approved $1.5 million to hire 14 firefighter recruits. A letter opposing a shelter at the ICC "
+               "building was approved.",
+    "discussion": ["Fire overtime and hiring: Members asked whether 14 recruits would lower overtime.",
+                   "ICC building future: Members and residents discussed rumors that the building would become a shelter. "
+                   "A letter opposing that use was approved."],
+    "decisions": [], "fact_check": {"version": factcheck.VERSION, "source": "recording", "result": "ok", "problems": []}}
+LOWELL_MINUTES = {
+    "kind": "minutes", "decisions": [
+        "Approved $1.5 million to hire 14 firefighter recruits, 11-0.",
+        "Referred to the City Manager a request for a letter opposing the ICC being used as any type of shelter.",
+        "Revoked the liquor license for Hurricane Betty's at 350 Southbridge Street, 3-0."],
+    "decision_evidence": [{"outcome": "approved"}, {"outcome": "referred"}, {"outcome": "approved"}],
+    "fact_check": {"version": factcheck.VERSION, "source": "pdf", "result": "ok", "problems": []}}
+
+
+def test_a_recordings_summary_beside_the_minutes_leaves_out_what_they_contradict():
+    found = factcheck.against_minutes(LOWELL_RECORDING, LOWELL_MINUTES)
+    assert [(p["field"], p.get("entry"), p["kind"]) for p in found] == [("summary", None, "minutes"), ("discussion", 2, "minutes")]
+    assert found[1]["minutes"].startswith("Referred to the City Manager")
+    checked = factcheck.beside_minutes(LOWELL_RECORDING, LOWELL_MINUTES)
+    shown = factcheck.shown(LOWELL_RECORDING, checked, "recording")
+    assert shown["summary"] == "The meeting approved $1.5 million to hire 14 firefighter recruits."
+    assert shown["discussion"] == [LOWELL_RECORDING["discussion"][0]]
+    # The record itself is left as it was.
+    assert LOWELL_RECORDING["fact_check"]["problems"] == []
+    # A translation: the discussion entry by its place; the summary, whose sentences can't be matched, not at all.
+    spanish = {**LOWELL_RECORDING, "headline": "Aprobó $1.5 millones.", "summary": "Se aprobó una carta.",
+               "discussion": ["Horas extra: ...", "Futuro del edificio ICC: ... Se aprobó una carta."]}
+    assert factcheck.shown(spanish, checked, "recording")["discussion"] == ["Horas extra: ..."]
+
+
+def test_only_a_clear_contradiction_of_the_minutes_is_left_out():
+    def found(text: str, minutes: dict = LOWELL_MINUTES) -> list:
+        return factcheck.against_minutes({"summary": text}, minutes)
+    # The minutes agree, or the clause is about no decision of theirs.
+    assert found("The council approved $1.5 million for 14 firefighter recruits.") == []
+    assert found("A letter opposing a shelter at the ICC building was referred to the manager.") == []
+    assert found("Members approved a new playground on Elm Street.") == []
+    # A no about a request named for what it would have done isn't about the decision: Worcester's License Commission.
+    assert found("A request to hold Hurricane Betty's revocation during an appeal was turned down.") == []
+    # A no about a decision approved.
+    assert len(found("The council turned down Hurricane Betty's liquor license revocation.")) == 1
+    # A decision the minutes' own check doesn't show isn't held against.
+    hidden = {**LOWELL_MINUTES, "fact_check": {**LOWELL_MINUTES["fact_check"], "result": "failed", "problems": [
+        {"field": "decisions", "entry": 2, "kind": "quote", "what": "x"}]}}
+    assert found("A letter opposing a shelter at the ICC building was approved.", hidden) == []
+    # Without minutes, or minutes with no decisions: as it is.
+    assert factcheck.beside_minutes(LOWELL_RECORDING, None) is LOWELL_RECORDING
+    assert factcheck.beside_minutes(LOWELL_RECORDING, {"decisions": []}) is LOWELL_RECORDING

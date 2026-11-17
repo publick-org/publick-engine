@@ -266,7 +266,10 @@
    "decisions 15: unanchored the minutes don't say how the motion ended near the quote",
    "decisions 16: unanchored the minutes don't say how the motion ended near the quote",
    "decisions 17: unanchored the minutes don't say how the motion ended near the quote",
-   "decisions 19: agenda 66 Jackson Street"
+   "decisions 19: agenda 66 Jackson Street",
+   "transcript: unlisted I do as a for- as a formal recommendation. There is a motion in front of us to order a public hearing, properly second. Discussion? I hear none. All those in favor, please say aye. Aye. Any nays? The ayes have it",
+   "transcript: unlisted and I make as a formal motion. There's a There's a motion in front of us, properly second. Discussion? I hear none. This is to order a public hearing. Um, all those in favor, please say aye. Aye. The ayes have it",
+   "transcript: unlisted ull council to order a public hearing, and I make as a formal motion. There's a There's a motion in front of us, properly second. Discussion? I hear none. All those in favor, please say aye. Aye. The ayes have it"
   ],
   "result": "failed",
   "shown": {
@@ -501,6 +504,7 @@
   "hidden": [
    "decisions 2",
    "decisions 3",
+   "decisions 10",
    "discussion 2"
   ],
   "kind": "recording",
@@ -517,6 +521,7 @@
    "decisions 6: off_agenda $800,000",
    "decisions 9: away 9",
    "decisions 9: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 10: committee We did",
    "decisions 12: away 1",
    "decisions 12: away 9",
    "decisions 12: away 10",
@@ -531,7 +536,8 @@
    "decisions 15: away 9",
    "decisions 15: off_agenda $220,000",
    "discussion 2: number 0.7",
-   "discussion 3: spelling 6 Blane Street"
+   "discussion 3: spelling 6 Blane Street",
+   "transcript: unlisted s. Council Member Macdonald? Yes. Councillor O'Malley? Yes. Councillor Sica? Yes. Councillor Simonelli? Councillor Taylor? Yes. Councillor Winslow? Yes. Council President Linehan? Yes. Okay, so those petitions have been granted"
   ],
   "result": "failed",
   "shown": {
@@ -585,7 +591,8 @@
   "problems": [
    "decision_titles 2: agenda 333 Coppas Avenue",
    "decisions 2: agenda 333 Coppas Avenue",
-   "decisions 3: away 1308"
+   "decisions 3: away 1308",
+   "transcript: unlisted ah, right. So a motion has been made. Thank you, Vice Chair. Do we have a second second by Peter Lennon? All those in favor, please say aye. Aye. Opposed? Any abstentions? Hearing no abstentions, the motion carries"
   ],
   "result": "failed",
   "shown": {
