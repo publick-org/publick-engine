@@ -40,6 +40,7 @@ import io
 import json
 import re
 import sys
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -106,7 +107,8 @@ def known_body(body: str, known: dict, town: str) -> str:
     return known.get(identity.board_key(body, town), body)
 
 
-def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: dict) -> int:
+def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: dict,
+           recorded: dict[str, str] | None = None, filed: list[str] | None = None) -> int:
     """Name each recorded calendar listing as a new one would be named now, and as the Agenda Center
     names the meeting its event page links. A calendar lists only its upcoming meetings, so a listing it
     no longer lists keeps the name it was recorded with, however the parser, [meetings.aliases] or the
@@ -119,13 +121,17 @@ def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: di
     board's subcommittee ("Airport Commission Subcommittee", subcommittee_of: agendacenter.body_for) and
     the calendar names a subcommittee too ("Beverly Regional Airport Commission Subcommittee on Mission"):
     then the Agenda Center's listing takes the calendar's, which says which subcommittee, if no other
-    calendar listing links it. Returns how many were renamed."""
+    calendar listing links it. A calendar listing titled by its subject, not a board, then takes the name of
+    the board whose meeting it's part of (subject_boards), and is described in filed. recorded: each
+    listing's board as saved before this run, so a listing this run named from its title and filed back
+    under that board isn't counted as renamed. Returns how many were renamed."""
     known = identity.known_boards(store, town)
     renamed = 0
     linkers: dict[str, int] = {}
     for meeting in store.values():
         if meeting.get("agenda_listing"):
             linkers[meeting["agenda_listing"]] = linkers.get(meeting["agenda_listing"], 0) + 1
+    names: dict[str, str] = {}
     for meeting in store.values():
         calendar = next((c for c in town_calendars if c.owns(meeting)), None)
         if calendar is None:
@@ -142,10 +148,115 @@ def rename(store: dict, town_calendars: list, aliases: dict, town: str, seen: di
                     renamed += 1
             else:
                 body = linked["body"]
-        if body != meeting["body"]:
+        if calendar.title_body:
+            names[meeting["id"]] = body
+        elif body != meeting["body"]:
             meeting["body"] = body
             renamed += 1
+    for i, (board, line) in subject_boards(store, names, town).items():
+        names[i] = board
+        if filed is not None:
+            filed.append(line)
+    for i, body in names.items():
+        meeting = store[i]
+        if body != meeting["body"]:
+            renamed += body != (recorded or {}).get(i)
+            meeting["body"] = body
     return renamed
+
+
+# A word that names a kind of public body, or a body by itself, spelled as clerks spell it ("Commision",
+# "Committe"). A calendar listing whose title has none, nor the name of a board the town has recorded, is
+# titled by its subject, not its board: "FY27 Residential Factor Public Hearing" (Malden's calendar,
+# 2026-11-10), the City Council's hearing at its 7 PM meeting.
+BODY_WORD = re.compile(r"\b(?:boards?|(?:sub-?)?com+it+e+s?|com+is+ions?|com+is+ioners?|councils?|authority|"
+                       r"authorities|trusts?|trustees|departments?|associations?|task force|selectboard|selectmen|"
+                       r"aldermen|assessors|registrars|town meeting|caucus|delegation|panel|group|team|district|"
+                       r"agency|corporation|collaborative|cabinet|legislature|assembly|convention)\b", re.I)
+# What a listing titled by its subject says it is: a hearing, or another kind of session a board holds within
+# its meeting. A name that says neither ("Youth Advisory") may be a board's, and stays its own.
+SUBJECT_KIND = re.compile(r"\b(?:hearings?|workshops?|work sessions?|presentations?|forums?|briefings?|"
+                          r"informational|info sessions?|listening sessions?)\b", re.I)
+
+
+def by_time(store: dict, key) -> tuple[Counter, dict[tuple[str, str], list[dict]]]:
+    """How many listings name each board (key(m): its identity.board_key), and the listings that give a start
+    time, by their day and time. A listing the calendar no longer shows still names its meeting's time."""
+    count: Counter = Counter()
+    at: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for m in store.values():
+        count[key(m)] += 1
+        if m.get("start_time"):
+            at[(m["date"], m["start_time"])].append(m)
+    return count, at
+
+
+def subject_boards(store: dict, names: dict[str, str], town: str) -> dict[str, tuple[str, str]]:
+    """The calendar listings (names: those whose board is read from their title, to the board read) titled by
+    their subject, each with the board whose meeting it's part of and a line for the run's status. A name is a
+    subject's when every listing under it is such a calendar listing, each starts on the day and at the time
+    of a meeting of one other board, as another listing gives them, each title says it's a hearing or another
+    session held within a meeting (SUBJECT_KIND), and none names a board: neither its title nor its name after
+    [meetings.aliases] (names_a_board), so an alias can keep a board's name. As Malden's
+    calendar listed its tax classification hearing on the dates of the City Council's 7 PM meetings, it's a
+    hearing held at that board's meeting: each listing is that board's, so the two are one meeting
+    (pipeline/identity.py, by its time). A name with a listing at no other board's meeting, or at two boards'
+    meetings, is left as it is."""
+    key = lambda m: identity.board_key(names.get(m["id"], m["body"]), town)
+    count, at = by_time(store, key)
+    under: dict[str, list[dict]] = defaultdict(list)
+    for m in store.values():
+        under[key(m)].append(m)
+    # Names whose listings are all a calendar's, each at another board's listing's time, and none of whose
+    # titles or names names a board (looked at last: the time rules out most names).
+    subjects = {k for k, ms in under.items()
+                if all(m["id"] in names and m.get("start_time")
+                       and any(key(o) != k for o in at[(m["date"], m["start_time"])]) for m in ms)
+                and all(SUBJECT_KIND.search(m.get("title") or "") for m in ms)
+                and not any(names_a_board(m.get("title") or "", k, count, town) or BODY_WORD.search(names[m["id"]])
+                            for m in ms)}
+    found = {}
+    for k in sorted(subjects):
+        boards = {}
+        for m in under[k]:
+            there = {key(o): names.get(o["id"], o["body"]) for o in at[(m["date"], m["start_time"])]
+                     if key(o) != k and key(o) not in subjects}
+            if len(there) != 1:
+                break
+            boards[m["id"]] = next(iter(there.values()))
+        else:
+            for m in under[k]:
+                found[m["id"]] = (boards[m["id"]],
+                                  f"{m['id']} ({m['date']} {m['start_time']}): {names[m['id']]} -> {boards[m['id']]}")
+    return found
+
+
+def names_a_board(title: str, own: str, count: Counter, town: str) -> bool:
+    """Whether a listing's title names a board: a word for one (BODY_WORD), or a board another listing names
+    (count: every board key recorded, own: the listing's), as identity.board_key compares names."""
+    if BODY_WORD.search(title):
+        return True
+    text = f" {identity.board_key(title, town)} "
+    return any(k and k != own and f" {k} " in text for k in count)
+
+
+def seen_once_beside_another(store: dict, town: str, since: str) -> list[dict]:
+    """Listings from since on whose board no other listing names and that start on the day and at the time of
+    another board's meeting, newest first: a meeting listed by its subject, or under a name no other source
+    gives its board, that subject_boards didn't file under that board's meeting (its title names a board, or
+    two boards meet then). Kept in the run's status, and counted in the network's report of meetings
+    (pipeline/document_gaps.py), to be looked at."""
+    key = lambda m: identity.board_key(m["body"], town)
+    count, at = by_time(store, key)
+    found = []
+    for (day, time), group in sorted(at.items(), reverse=True):
+        if day < since:
+            continue
+        for m in sorted(group, key=lambda m: m["id"]):
+            others = sorted({o["body"] for o in group if key(o) != key(m)})
+            if count[key(m)] == 1 and others:
+                found.append({"id": m["id"], "date": day, "start_time": time, "board": m["body"], "beside": others})
+    return found
 
 
 def slugify(text: str) -> str:
@@ -270,8 +381,9 @@ class Calendar:
     filed_by_title: list[str] | None = None
 
 
-# How many of a calendar's listings filed under a committee their title names (Calendar.filed_by_title) the
-# run's status names, after the count of them all.
+# How many listings of each kind the run's status names, after the count of them all: a calendar's filed under
+# a committee their title names (Calendar.filed_by_title), and those filed under the board whose meeting they
+# share their time with (rename()).
 FILED_BY_TITLE = 10
 
 
@@ -699,6 +811,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     aliases = source.get("aliases", {})
 
     store = load_store(data_dir)
+    # Each listing's board as saved, so one this run names again and files back under it isn't renamed.
+    recorded = {i: m["body"] for i, m in store.items()}
     storage = open_documents(config, data_dir)
     status_path = meetings_dir(data_dir) / "status.json"
     previous = json.loads(status_path.read_text(encoding="utf-8")) if status_path.exists() else {}
@@ -800,7 +914,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         except Exception as e:  # one meeting's page doesn't stop the rest, or the save
             errors.append(f"{meeting['id']}: {e!r}")
 
-    renamed = rename(store, town_calendars, aliases, config["town"]["name"], seen)
+    filed: list[str] = []
+    renamed = rename(store, town_calendars, aliases, config["town"]["name"], seen, recorded, filed)
+    beside = seen_once_beside_another(store, config["town"]["name"], (today - timedelta(days=PAST_LINK_DAYS)).isoformat())
     save_store(data_dir, store, config)
     names = [c.name for c in calendars(config)]
     checked = {name: c for name, c in checked.items() if name in names}
@@ -814,14 +930,26 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "calendars": checked,
         "new_meetings": new_count,
         "event_pages_checked": pages,
-        # Recorded listings given another board's name this run (rename()).
+        # Recorded listings given another board's name this run than they were saved with (rename()).
         "renamed": renamed,
+        # Calendar listings titled by their subject, filed under the board whose meeting they share their
+        # day and time with (subject_boards): every one recorded, the newest named.
+        "filed_with_meeting": {"count": len(filed), "listings": sorted(filed, key=listing_day, reverse=True)[:FILED_BY_TITLE]},
+        # Listings from PAST_LINK_DAYS days ago on whose board is named only once, at the time of another
+        # board's meeting, left under their own name (seen_once_beside_another): all of them, for the network's
+        # report (pipeline/document_gaps.py).
+        "seen_once_beside_another": beside,
         "requests": getattr(client, "request_count", None),
         "errors": errors,
         "failed_calendars": failed,
     }
     save_json(status_path, status)
     return status
+
+
+def listing_day(line: str) -> str:
+    """The day and time in a status line: '6446 (2026-11-10 19:00): ...' -> '2026-11-10 19:00'."""
+    return line.split("(", 1)[1].split(")", 1)[0]
 
 
 def main() -> int:

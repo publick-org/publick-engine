@@ -37,7 +37,8 @@ pipeline/                   Python package
                             from its recording (summarized, the next day or later; minutes first; transcribed; found; not
                             matched; not found; no source) -> the run record (run.json), which network.py recordings adds up
   document_gaps.py          Each daily run: the last 90 days' meetings missing documents (boards with no agenda or minutes,
-                            agendas but no minutes, a calendar listing likely of a meeting listed under another name, and
+                            agendas but no minutes, a calendar listing likely of a meeting listed under another name, a
+                            board named once at another board's meeting time (the meetings run's status), and
                             readers' meetings or documents waiting, by unit, those older than the window apart) -> the
                             run record (run.json), which network.py documents adds up
   waiting.py                What a meetings reader leaves for a later run, and the newest meeting it's for, for its status file

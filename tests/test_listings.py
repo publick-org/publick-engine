@@ -359,6 +359,152 @@ def test_calendar_and_agenda_center_are_one_meeting(malden, tmp_path):
     assert m["source"] == "calendar"
 
 
+# ---- A calendar listing titled by its subject -----------------------------------
+
+HEARING = "FY27 Residential Factor Public Hearing"
+
+
+def listing(id, title, day="2026-11-10", time="19:00", **fields):
+    """A CivicPlus calendar listing of Malden's, as recorded."""
+    return {"id": id, "slug": f"{day}-{fetch_meetings.slugify(civicplus.parse_title(title)['body'])}", "date": day,
+            "start_time": time, "title": title, "body": civicplus.parse_title(title)["body"], "status": "scheduled",
+            "source_url": f"{BASE}/Calendar.aspx?EID={id}", "first_seen": "2026-11-03T04:15:02-05:00",
+            "last_seen": "2026-11-10T04:15:02-05:00", "listed": True, **fields}
+
+
+def test_a_hearing_listed_by_its_subject_is_the_council_meeting_it_shares_its_time_with(malden, tmp_path):
+    """Malden's calendar listed the City Council's tax classification hearing as "FY27 Residential Factor Public
+    Hearing" (6446, 7 PM, November 10), a week before the council's own 7 PM meeting (6453): it was recorded under a
+    board "FY27 Residential Factor", a meeting of its own. Its title names no board, and it's at the council's
+    meeting: it's the council's, and the two are one meeting. The meeting keeps the address it was given when
+    first identified (pipeline/identity.py)."""
+    (tmp_path / "meetings").mkdir()
+    save = lambda store: (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(store))
+    save({"6446": listing("6446", HEARING)})
+    fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)
+    assert load_store(tmp_path)["6446"]["body"] == "FY27 Residential Factor"
+
+    store = load_store(tmp_path)
+    store["6453"] = listing("6453", "City Council Meeting (Revised)", first_seen="2026-11-06T04:24:34-05:00")
+    save(store)
+    status = fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    assert store["6446"]["body"] == "City Council"
+    assert status["renamed"] == 1
+    assert status["filed_with_meeting"] == {
+        "count": 1, "listings": ["6446 (2026-11-10 19:00): FY27 Residential Factor -> City Council"]}
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    [m] = [m for m in built["all"] if m["date"] == "2026-11-10"]
+    assert (m["slug"], m["body"], m["start_time"]) == ("2026-11-10-fy27-residential-factor", "City Council", "19:00")
+    assert {x["id"] for x in m["listings"]} == {"6446", "6453"}
+    assert "fy27-residential-factor" not in {b["slug"] for b in built["boards"]}
+
+    # Named from its title again on the next run, it's filed there again, and not counted as renamed.
+    again = fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)
+    assert again["renamed"] == 0 and again["filed_with_meeting"]["count"] == 1
+    assert load_store(tmp_path)["6446"]["body"] == "City Council"
+
+
+def test_a_hearing_listed_the_same_run_as_the_council_meeting_is_that_meeting(malden, tmp_path):
+    """Both on the calendar this run, as every listing is when first read: the hearing at the council's 7 PM
+    meeting of October 6 is filed with it, and stays there run after run without being counted as renamed."""
+    calendar = LIST_PAGE.replace("<span>Rules & Ordinance Committee Meeting</span></a>", f"<span>{HEARING}</span></a>", 1)
+    calendar = calendar.replace("October&nbsp;6,&nbsp;2026,&nbsp;6:15 PM&thinsp;-&thinsp;7:00 PM",
+                                "October&nbsp;6,&nbsp;2026,&nbsp;7:00 PM", 1)
+    status = fetch_meetings.run(malden, FakeMalden(list_page=calendar), tmp_path, now=NOW)
+    assert load_store(tmp_path)["6394"]["body"] == "City Council"
+    assert status["filed_with_meeting"]["listings"] == ["6394 (2026-10-06 19:00): FY27 Residential Factor -> City Council"]
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    [m] = [m for m in built["all"] if m["date"] == "2026-10-06" and m["start_time"] == "19:00"]
+    assert (m["body"], {x["id"] for x in m["listings"]}) == ("City Council", {"6394", "6395"})
+    again = fetch_meetings.run(malden, FakeMalden(list_page=calendar), tmp_path, now=NOW)
+    assert again["renamed"] == 0 and load_store(tmp_path)["6394"]["body"] == "City Council"
+
+
+def subject_calendar(malden):
+    return fetch_meetings.civicplus_list_calendar(malden)
+
+
+def renamed_bodies(malden, *records):
+    store = {m["id"]: m for m in records}
+    filed = []
+    fetch_meetings.rename(store, [subject_calendar(malden)], {}, "Malden", {}, filed=filed)
+    return {i: m["body"] for i, m in store.items()}, filed
+
+
+def test_a_subject_listed_on_two_dates_is_each_dates_meeting(malden):
+    """Malden listed the hearing on October 27 too, also at the council's 7 PM meeting."""
+    bodies, filed = renamed_bodies(malden, listing("6419", HEARING, "2026-10-27"), listing("6437", "City Council Meeting", "2026-10-27"),
+                                   listing("6446", HEARING), listing("6453", "City Council Meeting (Revised)"))
+    assert bodies == {"6419": "City Council", "6437": "City Council", "6446": "City Council", "6453": "City Council"}
+    assert len(filed) == 2
+
+
+def test_a_subject_listing_stays_filed_when_the_boards_listing_is_removed(malden):
+    """A council listing the calendar no longer shows still says when the council met."""
+    bodies, _ = renamed_bodies(malden, listing("6446", HEARING), listing("6453", "City Council Meeting", listed=False))
+    assert bodies["6446"] == "City Council"
+
+
+def test_an_alias_keeps_a_boards_name(malden):
+    """A board whose name has no word for a body, at the council's time: an alias giving it one keeps it apart."""
+    malden["meetings"]["aliases"] = {"Youth Advisory": "Youth Advisory Council"}
+    store = {m["id"]: m for m in (listing("6446", "Youth Advisory Public Hearing"), listing("6453", "City Council Meeting"))}
+    fetch_meetings.rename(store, [subject_calendar(malden)], malden["meetings"]["aliases"], "Malden", {})
+    assert store["6446"]["body"] == "Youth Advisory Council"
+
+
+@pytest.mark.parametrize("others, why", [
+    # Two boards meet then: which one's it is isn't known.
+    ([listing("6453", "City Council Meeting"), listing("6460", "School Committee Meeting")], "two boards"),
+    # A date it's listed on has no other board's meeting at its time.
+    ([listing("6453", "City Council Meeting"), listing("6419", HEARING, "2026-10-27")], "alone on a date"),
+    # Another source lists a board by that name: it's a board.
+    ([listing("6453", "City Council Meeting"),
+      {"id": "agendacenter-1", "source": "agendacenter", "date": "2026-10-01", "start_time": None,
+       "body": "FY27 Residential Factor", "title": "FY27 Residential Factor Meeting"}], "listed elsewhere"),
+])
+def test_a_subject_listing_stays_where_its_board_isnt_known(malden, others, why):
+    bodies, filed = renamed_bodies(malden, listing("6446", HEARING), *others)
+    assert bodies["6446"] == "FY27 Residential Factor", why
+    assert filed == []
+
+
+@pytest.mark.parametrize("title", [
+    # A word naming a body: a board new to the town, meeting when the council does.
+    "Affordable Housing Trust Meeting",
+    "Special Town Meeting",
+    # A board the town has recorded, named with a subject.
+    "Mystic Valley Regional Charter School Budget Hearing",
+    # A word for a body, misspelled (Malden's calendar, 2026-06-16, at the Board of Registrars' 5 PM meeting).
+    "Malden Traffic Commision",
+    # A name that doesn't say it's a hearing or a session held within a meeting may be a board's.
+    "Youth Advisory",
+])
+def test_a_listing_whose_title_names_a_board_keeps_it(malden, title):
+    charter = {"id": "agendacenter-2", "source": "agendacenter", "date": "2026-10-01", "start_time": None,
+               "body": "Mystic Valley Regional Charter School", "title": "Mystic Valley Regional Charter School Meeting"}
+    bodies, filed = renamed_bodies(malden, listing("6446", title), listing("6453", "City Council Meeting"), charter)
+    assert bodies["6446"] == civicplus.parse_title(title)["body"]
+    assert filed == []
+
+
+def test_the_status_names_a_board_seen_once_beside_another_boards_meeting(malden, tmp_path):
+    """One left where it is (its title names a board) is in the run's status, to be looked at."""
+    (tmp_path / "meetings").mkdir()
+    store = {"6446": listing("6446", "Affordable Housing Trust Meeting", "2026-11-17"),
+             "6453": listing("6453", "City Council Meeting", "2026-11-17"),
+             "6454": listing("6454", "City Council Meeting", "2026-11-24"),
+             # Too long ago to report.
+             "5000": listing("5000", "Ad Hoc Review Panel", "2026-06-02"),
+             "5001": listing("5001", "City Council Meeting", "2026-06-02")}
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(store))
+    status = fetch_meetings.run(malden, FakeMalden(), tmp_path, now=NOW)
+    assert status["seen_once_beside_another"] == [{"id": "6446", "date": "2026-11-17", "start_time": "19:00",
+                                                   "board": "Affordable Housing Trust", "beside": ["City Council"]}]
+    assert status["filed_with_meeting"] == {"count": 0, "listings": []}
+
+
 # ---- The rule -----------------------------------------------------------------
 
 def record(id, body="Planning Board", date="2026-10-06", time=None, **fields):

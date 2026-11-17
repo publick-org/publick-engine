@@ -22,6 +22,11 @@ the last WINDOW_DAYS days (not today's, and not cancelled ones):
                 source: most likely one meeting listed under two names. A
                 listing marked postponed or rescheduled isn't one: it was
                 moved to another day
+  beside        a listing whose board no other listing names, on the day and at
+                the time of another board's meeting, that the meetings run left
+                under its own name (fetch_meetings.seen_once_beside_another, from
+                meetings/status.json): a meeting listed by its subject, or under a
+                name no other source gives its board
   waiting       each document reader's meetings still waiting for their
                 documents, from its status file under data/meetings/ (a reader
                 saves only so many documents a run, newest first)
@@ -60,6 +65,14 @@ def has_agenda(meeting: dict) -> bool:
 
 def has_minutes(meeting: dict) -> bool:
     return bool(meeting.get("minutes") or meeting.get("minutes_url"))
+
+
+def run_status(data_dir: Path) -> dict:
+    """The meetings run's status (meetings/status.json), or {} where there's none or it can't be read."""
+    try:
+        return json.loads((data_dir / "meetings" / "status.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def waiting(data_dir: Path, since: str = "") -> tuple[dict[str, dict], dict[str, dict]]:
@@ -127,6 +140,10 @@ def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
             if other:
                 pairs.append({"date": day, "board": m["body"], "other": other["body"]})
 
+    beside = [{"date": b["date"], "board": b["board"], "other": " and ".join(b["beside"])}
+              for b in run_status(data_dir).get("seen_once_beside_another", [])
+              if isinstance(b, dict) and since <= b.get("date", "") < today.isoformat()]
+
     no_documents.sort(key=lambda b: (-b["meetings"], b["board"]))
     no_minutes.sort(key=lambda b: (-b["meetings"], b["board"]))
     return {
@@ -134,9 +151,11 @@ def gaps(data_dir: Path, town: str = "", today: date | None = None) -> dict:
         "until": (today - timedelta(days=1)).isoformat(),
         "held": len(held),
         "boards": len(by_board),
-        "counts": {"no_documents": len(no_documents), "no_minutes": len(no_minutes), "pairs": len(pairs)},
+        "counts": {"no_documents": len(no_documents), "no_minutes": len(no_minutes), "pairs": len(pairs),
+                   "beside": len(beside)},
         "no_documents": no_documents[:MAX_LISTED],
         "no_minutes": no_minutes[:MAX_LISTED],
         "pairs": pairs[:MAX_LISTED],
+        "beside": beside[:MAX_LISTED],
         **dict(zip(("waiting", "backlog"), waiting(data_dir, since))),
     }

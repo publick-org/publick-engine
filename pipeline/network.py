@@ -790,6 +790,7 @@ GAPS = {
     "no_documents": "Boards with no agenda or minutes",
     "no_minutes": "Boards with agendas but no minutes",
     "pairs": "Meetings likely listed twice",
+    "beside": "Boards named once, at another board's meeting",
 }
 
 
@@ -836,11 +837,13 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
                      f"{', '.join(f'{c} {u}' for u, c in sorted(units.items()))} | {len(behind)} |")
 
     def score(g: dict) -> int:
-        return g["counts"].get("no_documents", 0) * 3 + g["counts"].get("pairs", 0) * 2 + g["counts"].get("no_minutes", 0)
+        return (g["counts"].get("no_documents", 0) * 3 + (g["counts"].get("pairs", 0) + g["counts"].get("beside", 0)) * 2
+                + g["counts"].get("no_minutes", 0))
 
     listed = sorted(((n, g) for n, g in counted if score(g) or g.get("waiting")), key=lambda ng: (-score(ng[1]), ng[0]))
     if listed:
-        lines += ["", "| Town | No agenda or minutes | Likely listed twice | No minutes | Waiting |", "|---|---|---|---|---|"]
+        lines += ["", "| Town | No agenda or minutes | Likely listed twice | Named once, beside another | No minutes | Waiting |",
+                  "|---|---|---|---|---|---|"]
         for name, g in listed[:COVERAGE_TOWNS]:
             def some(key: str, show) -> str:
                 items, more = g.get(key, []), g["counts"].get(key, 0)
@@ -850,6 +853,7 @@ def documents_text(root: Path, at: datetime | None = None) -> str:
                 name,
                 some("no_documents", lambda b: f"{b['board']} ({b['meetings']})"),
                 some("pairs", lambda p: f"{p['date']} {p['board']} / {p['other']}"),
+                some("beside", lambda p: f"{p['date']} {p['board']} / {p['other']}"),
                 some("no_minutes", lambda b: f"{b['board']} ({b['meetings']})"),
                 ", ".join(f"{c} {u} ({r})" for c, u, r in waits(g.get("waiting"))),
             ]) + " |")
