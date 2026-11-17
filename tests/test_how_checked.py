@@ -185,3 +185,45 @@ def test_built_site(site_dir):
     # The digest says how a meeting's decisions were checked only where they weren't in full.
     for page in (p.read_text() for p in issues):
         assert set(re.findall(r'class="small checked" data-checked="(\w+)"', page)) <= {"partial", "none"}
+
+
+def held(**fields) -> str:
+    """A past meeting as the Past meetings page and a board's page list it (held.html)."""
+    e = env()
+    e.globals.update(main_and_routine=build_site.main_and_routine, today="2026-10-14")
+    m = {"date": "2026-10-07", "start_time": None, "url": "/meetings/x/", "body": "Planning Board", "title": "Planning Board",
+         "preview_line": "Site plan for 12 Main St.", "preview_from": "agenda", "preview_checked": "pdf", "minutes_doc": None,
+         "agenda": {"file": "a.pdf"}, "status": "scheduled", "special": False, "listed": True, "recordings": [],
+         "decisions": {"decided": [], "recommended": [], "procedural": []}, "decisions_from": None,
+         "minutes_gap": None, **fields}
+    show_body, decisions = m.pop("show_body", True), m.pop("show_decisions", True)
+    return e.from_string('{% from "held.html" import held_meeting %}{{ held_meeting(m, show_body, decisions) }}').render(
+        m=m, show_body=show_body, decisions=decisions, gloss=None, meeting_links={"governing_body": "City Council"})
+
+
+def detail(html: str) -> str:
+    return text(re.search(r'<p class="item-detail">(.*?)</p>', html, re.S).group(1))
+
+
+def test_a_past_meetings_line_says_what_its_from():
+    """A line from the agenda says so, with minutes posted but not summarized too, so it isn't read as what
+    happened; where the minutes are waited for, it says they haven't come."""
+    assert detail(held()) == "Wednesday, October 7, 2026 · From the agenda"
+    minutes = detail(held(minutes_doc={"source_url": "https://city.example/m.pdf"}))
+    assert minutes == "Wednesday, October 7, 2026 · Minutes posted · From the agenda"
+    waiting = detail(held(minutes_gap={"reason": "not_posted"}))
+    assert waiting.endswith("From the agenda · Minutes not posted yet")
+    # With no summary at all, what was posted.
+    assert detail(held(preview_line=None, preview_from=None)) == "Wednesday, October 7, 2026 · Agenda posted"
+
+
+def test_a_boards_past_meeting_keeps_its_title_and_folds_to_a_line():
+    """On a board's page the meeting is its day, with its listing's title where it says more and whether it was
+    special; an older one, folded, is its line alone, without its decisions."""
+    html = held(show_body=False, title="Planning Board Public Hearing", special=True)
+    assert "<h3><a href=\"/meetings/x/\">Wednesday, October 7, 2026</a></h3>" in html
+    assert detail(html) == "Planning Board Public Hearing · Special meeting · From the agenda"
+    decided = {"decided": [{"text": "Approved the site plan.", "main": False}], "recommended": [], "procedural": []}
+    folded = held(show_body=False, show_decisions=False, decisions=decided, decisions_from="minutes",
+                  preview_from="minutes", minutes_doc={"source_url": "/m.pdf"}, minutes_summary={})
+    assert 'class="decision-rows"' not in folded and "Site plan for 12 Main St." in folded

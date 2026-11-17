@@ -7544,7 +7544,7 @@ msgstr ""
 "Fuentes: <a href=\"%(rates)s\">Departamento de Impuestos de Vermont</a>; <a "
 "href=\"%(population)s\">estimaciones de población de la Oficina del Censo de EE. UU.</a>"
 
-#: site/templates/macros.html site/templates/meeting.html
+#: site/templates/held.html site/templates/macros.html site/templates/meeting.html
 msgid "Special meeting"
 msgstr "Reunión especial"
 

@@ -25,14 +25,18 @@
 {% endif %}
 {%- endmacro %}
 
-{# One held meeting: its board (on a board's page, its day), when it was, and where what's said of it comes from; then
-   what it decided. A meeting whose summary says which decisions are main is one line, what it decided, with its
-   decisions a tap away; otherwise its first few decisions are shown, the rest folded. A meeting with no decisions
-   shown is the line its summary gives, with the document it's from: a line from the agenda is what was planned, and
-   says so, and that the minutes haven't come where they're waited for (pipeline/absences.py). #}
-{% macro held_meeting(m, show_body=true) -%}
+{# One held meeting: its board (on a board's page, its day, and its listing's title where that says more), when it
+   was, and where what's said of it comes from; then what it decided. A meeting whose summary says which decisions
+   are main is one line, what it decided, with its decisions a tap away; otherwise its first few decisions are shown,
+   the rest folded. With decisions=false (a board's older meetings, folded) it's one line whatever it decided, so the
+   page doesn't grow by every decision a board has made. The line shown is labeled with the document it's from
+   whenever that isn't the one already named: a line from the agenda is what was planned, not what happened. Where
+   the minutes are waited for, it says they haven't come (pipeline/absences.py). #}
+{% macro held_meeting(m, show_body=true, decisions=true) -%}
 {% set ds = m.decisions %}
 {% set n = ds.decided | length + ds.recommended | length + ds.procedural | length %}
+{% set labeled = (ds.decided + ds.recommended) | selectattr("main", "sameas", true) | list %}
+{% set show_line = m.preview_line and (labeled or not n or not decisions) %}
 <li class="decision-meeting">
   <h3><a href="{{ m.url }}{% if n %}#minutes{% endif %}">
     {%- if not show_body %}{{ m.date | date }}{% if m.get("day_part") %} ({{ m.day_part }}){% endif %}
@@ -40,30 +44,36 @@
     {%- else %}{{ m.body }}{% endif %}</a></h3>
   {# Each part a block, so the links and times in it stay markup when they're joined. #}
   {% set detail = [] %}
+  {% if not show_body and m.title != m.body and not m.get("same_day") %}{% set __ = detail.append(m.title) %}{% endif %}
   {% if show_body %}{% set x %}<time datetime="{{ m.date }}">{{ m.date | date }}</time>{% endset %}{% set __ = detail.append(x) %}{% endif %}
   {% if m.start_time %}{% set __ = detail.append(m.start_time | time) %}{% endif %}
+  {% if m.special %}{% set __ = detail.append(_("Special meeting")) %}{% endif %}
   {% set flags = meeting_flags(m) %}
   {% if flags %}{% set __ = detail.append(flags) %}{% endif %}
   {% set recording_link %}{% if m.recordings %}<a href="{{ m.recordings[0].url }}">{{ _("From the recording") }}</a>{% else %}{{ _("From the recording") }}{% endif %}{% endset %}
+  {# The document what's below is from: the decisions', or else the minutes where they're posted. #}
   {% if m.decisions_from == "recording" %}
-  {% set __ = detail.append(recording_link) %}
+  {% set named = "recording" %}{% set __ = detail.append(recording_link) %}
   {% set __ = detail.append(checked_short(how_checked(m.recording_summary, "recording"))) %}
   {% elif m.decisions_from == "minutes" %}
+  {% set named = "minutes" %}
   {% set x %}<a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes") }}</a>{% endset %}{% set __ = detail.append(x) %}
   {% set __ = detail.append(checked_short(how_checked(m.minutes_summary, "minutes"))) %}
-  {% else %}
-  {% if m.minutes_doc %}{% set x %}<a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes posted") }}</a>{% endset %}{% set __ = detail.append(x) %}
-  {% elif m.preview_from == "recording" %}{% set __ = detail.append(recording_link) %}
-  {% elif m.preview_from == "agenda" %}{% set __ = detail.append(_("From the agenda")) %}
-  {% elif m.agenda or m.get("documents_url") %}{% set __ = detail.append(_("Agenda posted")) %}{% endif %}
-  {% if m.preview_line and unchecked_note(m.preview_checked) %}{% set __ = detail.append(unchecked_note(m.preview_checked)) %}{% endif %}
-  {% if not m.minutes_doc and (m.minutes_gap or {}).get("reason") == "not_posted" %}{% set __ = detail.append(_("Minutes not posted yet")) %}{% endif %}
-  {% endif %}
+  {% elif m.minutes_doc %}
+  {% set named = none %}
+  {% set x %}<a href="{{ m.minutes_doc.source_url }}">{{ _("Minutes posted") }}</a>{% endset %}{% set __ = detail.append(x) %}
+  {% else %}{% set named = none %}{% endif %}
+  {# The line's own document, where it isn't the one named. #}
+  {% if show_line and m.preview_from != named %}
+  {% if m.preview_from == "recording" %}{% set __ = detail.append(recording_link) %}
+  {% elif m.preview_from == "agenda" %}{% set __ = detail.append(_("From the agenda")) %}{% endif %}
+  {% if unchecked_note(m.preview_checked) %}{% set __ = detail.append(unchecked_note(m.preview_checked)) %}{% endif %}
+  {% elif not m.preview_line and not named and not m.minutes_doc and (m.agenda or m.get("documents_url")) %}{% set __ = detail.append(_("Agenda posted")) %}{% endif %}
+  {% if not m.minutes_doc and not named and (m.minutes_gap or {}).get("reason") == "not_posted" %}{% set __ = detail.append(_("Minutes not posted yet")) %}{% endif %}
   {% set detail = detail | map("trim") | select | list %}
   {% if detail %}<p class="item-detail">{{ detail | join(" · ") }}</p>{% endif %}
-  {% set labeled = (ds.decided + ds.recommended) | selectattr("main", "sameas", true) | list %}
-  {% if m.preview_line and (labeled or not n) %}<p class="meeting-headline">{{ m.preview_line }}</p>{% endif %}
-  {% if n %}
+  {% if show_line %}<p class="meeting-headline">{{ m.preview_line }}</p>{% endif %}
+  {% if n and decisions %}
   {% if labeled and m.preview_line %}
   <details class="expand meeting-decisions">
     <summary>{% trans count=n, num=n | number %}Show its {{ num }} decision{% pluralize %}Show its {{ num }} decisions{% endtrans %}</summary>

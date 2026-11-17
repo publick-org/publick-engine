@@ -82,12 +82,13 @@
 {% if loop.index > 2 %}</details>{% endif %}
 {% endfor %}
 {% if meetings.decided %}
-<ul class="link-row">
+{# The download is written for a town that collects agendas and minutes (build_site.meeting_downloads). #}
+{% if meeting_links.documents %}<ul class="link-row">
   <li><a href="/meetings/data/decisions.csv" download>{{ _("Download all decisions (CSV)") }}</a></li>
-</ul>
+</ul>{% endif %}
 <h2 id="about">{{ _("About these decisions") }}</h2>
 <div class="about-notes">
-  <p>{{ _("Decisions are pulled from each meeting's minutes by AI.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  <p>{% if meetings.decided | selectattr("decisions_from", "equalto", "minutes") | list %}{{ _("Decisions are pulled from each meeting's minutes by AI.") }} {% endif %}<a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
   {% if meetings.decided | selectattr("decisions_from", "equalto", "recording") | list %}
   <p>{{ _("A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording, until its minutes replace them.") }}</p>
   {% endif %}

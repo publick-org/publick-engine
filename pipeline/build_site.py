@@ -1371,9 +1371,11 @@ def page_sources(config: dict) -> list[dict]:
     return found
 
 
-# Pages that have moved, each to where it is now: the meetings' search, which a town that collects agendas and
-# minutes had, became the site's (SEARCH_PAGE); its decisions page became part of the past meetings'.
-MOVED_PAGES = {"/meetings/search/": "/search/", "/meetings/decisions/": "/meetings/past/"}
+# Pages that have moved, each to where it is now, with the name of the page it's now part of, and whether only a
+# town that collects agendas and minutes had it: the meetings' search became the site's (SEARCH_PAGE); the
+# decisions page became part of the past meetings'.
+MOVED_PAGES = {"/meetings/search/": ("/search/", N_("Search"), False),
+               "/meetings/decisions/": ("/meetings/past/", N_("Past meetings"), True)}
 # The glossary's page, for a town whose glossary has terms (pipeline/glossary.py).
 GLOSSARY_PAGE = "meetings/glossary/index.html"
 # The repeat locations' page and map, for a 311 source with map points (pipeline/source_311.py).
@@ -2324,13 +2326,12 @@ def section_pages(pages: LanguagePages) -> None:
 
 
 def moved_pages(pages: LanguagePages) -> None:
-    """A page at each address the site's pages moved from (MOVED_PAGES), sending readers to the new one. The
-    decisions page's is only where there was one: a town that collects agendas and minutes."""
-    names = {"/search/": _("Search"), "/meetings/past/": _("Past meetings")}
-    for old, new in MOVED_PAGES.items():
-        if old == "/meetings/decisions/" and not pages.documents:
+    """A page at each address the site's pages moved from (MOVED_PAGES), sending readers to the new one, where the
+    town had the old page."""
+    for old, (new, name, documents_only) in MOVED_PAGES.items():
+        if documents_only and not pages.documents:
             continue
-        pages.render("moved.html", old, canonical=new, page_name=names[new], moved_page=new)
+        pages.render("moved.html", old, canonical=new, page_name=_(name), moved_page=new)
 
 
 def share_card_images(pages: LanguagePages, town_static: Path) -> None:
