@@ -185,6 +185,23 @@ def test_a_known_committee_doesnt_take_a_subcommittees_row():
     assert (event["body"], event["subcommittee_of"]) == ("City Council Workshop Subcommittee", None)
 
 
+def test_the_status_counts_the_rows_filed_under_a_committee_their_title_names(malden, tmp_path):
+    """The run's status gives how many rows the day's other listings filed under a committee, and names
+    them, so a wrong filing shows in the status; a row filed by the town's committees isn't one."""
+    page = PAGE.replace("City Council Agenda - September 22, 2026", "City Council Workshop Agenda, 6pm")
+    (tmp_path / "meetings").mkdir()
+    fetch_meetings.save_json(tmp_path / "meetings" / "meetings.json", {"2121": {
+        "id": "2121", "date": "2026-09-22", "body": "City Council Workshop", "title": "City Council Workshop",
+        "start_time": "18:00", "first_seen": "2026-09-01T07:00:00-04:00", "slug": "2026-09-22-city-council-workshop",
+        "status": "scheduled", "listed": True}})
+    status = fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    assert status["calendars"]["Agenda Center"]["filed_by_title"] == {
+        "count": 1, "rows": ["agendacenter-4441 (2026-09-22): City Council -> City Council Workshop"]}
+    # None, in a town whose rows are all filed by category: counted as none, not left out.
+    status = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path / "other", now=NOW)
+    assert status["calendars"]["Agenda Center"]["filed_by_title"] == {"count": 0, "rows": []}
+
+
 def test_only_a_committee_another_source_lists_that_day_takes_a_row(malden, tmp_path):
     """A committee another source listed on another day ("Leach Library Trustees Non-Public", one evening on the
     calendar) doesn't take the board's rows of other days: they stay the category's board's."""

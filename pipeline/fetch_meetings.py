@@ -255,7 +255,10 @@ class Calendar:
     the titles of the last events() that read like meetings but name none of the calendar's boards,
     kept in the run's status so a board's new committee isn't left out unseen. past_link(client, meeting,
     storage, stamp), if given, reads a past meeting's own page for the other listing it links (its agenda
-    in an Agenda Center, agenda_listing), once (PAST_LINK_DAYS)."""
+    in an Agenda Center, agenda_listing), once (PAST_LINK_DAYS). filed_by_title, if given, lists the
+    listings of the last events() filed under a committee their title names, not under the board the source
+    files them under (an Agenda Center's category: agendacenter.body_for), kept in the run's status
+    (FILED_BY_TITLE) so a wrong filing is seen in the status, not only on the site."""
     name: str
     events: Callable[..., list[dict]]
     owns: Callable[[dict], bool]
@@ -264,6 +267,12 @@ class Calendar:
     title_body: Callable[[dict], str] | None = None
     unmatched: list[str] | None = None
     past_link: Callable[..., None] | None = None
+    filed_by_title: list[str] | None = None
+
+
+# How many of a calendar's listings filed under a committee their title names (Calendar.filed_by_title) the
+# run's status names, after the count of them all.
+FILED_BY_TITLE = 10
 
 
 def matches(settings: dict, title: str) -> bool:
@@ -373,6 +382,7 @@ def agenda_center_calendar(config: dict) -> Calendar:
     settings = source["agenda_center"]
     excluded = {c.lower() for c in settings.get("exclude_categories", [])}
     town = config.get("town", {}).get("name", "")
+    filed_by_title: list[str] = []
 
     def events(client, today, store):
         # Every run lists every meeting since `since`, still one request: a board can
@@ -392,14 +402,24 @@ def agenda_center_calendar(config: dict) -> Calendar:
         for m in store.values():
             if m.get("source") != "agendacenter":
                 listed.setdefault(m["date"], set()).add(m["body"])
-        return [agendacenter.to_event(r, source.get("aliases", {}), settings.get("committees", {}),
-                                      sorted(listed.get(r["date"], ())), town)
-                for r in rows if r["category"].lower() not in excluded]
+        aliases, committees = source.get("aliases", {}), settings.get("committees", {})
+        found = []
+        filed_by_title.clear()
+        for r in rows:
+            if r["category"].lower() in excluded:
+                continue
+            event = agendacenter.to_event(r, aliases, committees, sorted(listed.get(r["date"], ())), town)
+            # Filed by the day's other listings, not by the category (or the town's committees) alone.
+            if event["body"] != (filed := agendacenter.body_for(r, aliases, committees)):
+                filed_by_title.append(f"{event['id']} ({r['date']}): {filed} -> {event['body']}")
+            found.append(event)
+        return found
 
     def details(client, meeting, storage, stamp):
         fetch_agenda(client, meeting, meeting, storage, stamp)
 
-    return Calendar("Agenda Center", events, lambda m: m.get("source") == "agendacenter", details)
+    return Calendar("Agenda Center", events, lambda m: m.get("source") == "agendacenter", details,
+                    filed_by_title=filed_by_title)
 
 
 def civicclerk_calendar(config: dict) -> Calendar:
@@ -707,6 +727,11 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         checked[calendar.name] = {"updated_at": stamp, "listed": len(events)}
         if calendar.unmatched:
             checked[calendar.name]["unmatched"] = sorted(set(calendar.unmatched))
+        if calendar.filed_by_title is not None:
+            # Every listing it lists now, not only this run's new ones: a jump from one run to the next is
+            # a board's rows filed anew.
+            checked[calendar.name]["filed_by_title"] = {"count": len(calendar.filed_by_title),
+                                                         "rows": sorted(calendar.filed_by_title)[:FILED_BY_TITLE]}
         for event in events:
             seen[event["id"]] = calendar
             event["body"] = known_body(normalize_body(event["body"], aliases), known, config["town"]["name"])
