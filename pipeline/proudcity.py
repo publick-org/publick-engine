@@ -26,7 +26,7 @@ and its page isn't read. exclude_pattern leaves out posts that aren't a board's 
 meeting (pipeline/meeting_names.py), and "Special" makes it a special meeting.
 
 The agenda is the attached file, else the agenda's text, saved as a PDF of its paragraphs
-(pipeline/wordfile.py). A post can be made months ahead with only the meeting's notice in its Agenda tab
+(pipeline/htmlfile.py). A post can be made months ahead with only the meeting's notice in its Agenda tab
 ("AGENDA PENDING"), and the agenda filled in days before the meeting. The minutes are the Minutes tab's file. A board can link its minutes only from a
 later meeting's packet instead (Holyoke's School Committee: "9.14.26 School Committee Meeting Minutes",
 a Google Doc, in the packet of 2026-10-13). A link in the Agenda or Agenda Packet tab whose line says
@@ -44,7 +44,7 @@ import html
 import re
 from urllib.parse import unquote, urljoin, urlsplit
 
-from pipeline import agenda_minutes, dates, wordpress
+from pipeline import agenda_minutes, dates, htmlfile, wordpress
 from pipeline.finalsite import recording
 from pipeline.linkpage import links_in, time_of
 from pipeline.meeting_names import find_board, parse_name
@@ -68,7 +68,6 @@ FILE_BOX = re.compile(r'<div\s+class="col-md-3\b')
 DOWNLOAD = re.compile(r'<a\b(?=[^>]*\bdownload\b)[^>]*\bhref="([^"]+)"', re.S)
 LINK = re.compile(r'<a\b[^>]*\bhref="([^"]+)"[^>]*>(.*?)</a>', re.S)
 FRAME = re.compile(r'<iframe\b[^>]*\bsrc="([^"]+)"', re.S)
-BLOCK_END = re.compile(r"</(?:p|li|h[1-6]|tr|div|blockquote)>", re.I)
 
 
 def text(fragment: str) -> str:
@@ -119,19 +118,6 @@ def tabs(page: str) -> dict[str, str]:
             for i, m in enumerate(found)}
 
 
-def paragraphs(fragment: str) -> list[str]:
-    """A fragment's text, a paragraph (or list item, heading, table row) at a time, its line breaks kept."""
-    fragment = re.sub(r"<(script|style)\b.*?</\1>", " ", fragment, flags=re.S | re.I)
-    fragment = re.sub(r"<br\s*/?>", "\n", fragment, flags=re.I)
-    found = []
-    for block in BLOCK_END.split(fragment):
-        lines = [" ".join(wordpress.rendered(line).split()) for line in re.sub(r"<[^>]+>", " ", block).split("\n")]
-        joined = "\n".join(line for line in lines if line)
-        if joined:
-            found.append(joined)
-    return found
-
-
 def attached(fragment: str, page_url: str) -> dict | None:
     """A tab's attached file: its address, and its file name."""
     found = DOWNLOAD.search(fragment)
@@ -175,7 +161,7 @@ def parse_meeting(page: str, page_url: str) -> dict:
         "start_time": time_of(text(start.group(1))) if start else None,
         "location": location,
         "agenda_file": attached(agenda, page_url),
-        "agenda_text": paragraphs(agenda[:box_at.start()] if box_at else agenda),
+        "agenda_text": htmlfile.paragraphs(agenda[:box_at.start()] if box_at else agenda),
         "minutes_file": attached(parts.get("minutes", ""), page_url),
         "links": links(parts.get("agenda-packet", ""), page_url),
         "video": video(parts.get("video", "")),

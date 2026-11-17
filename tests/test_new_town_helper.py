@@ -281,6 +281,69 @@ def test_helper_says_when_proudcity_and_a_portal_both_list_meetings(tmp_path, ne
     assert any("both list meetings" in todo for _, todo in town.todo)
 
 
+def wordpress_pages() -> list:
+    """A WordPress homepage, its REST API's index (The Events Calendar's namespace, and a document library's
+    route), and the calendar's categories: Brockton's saved list, one page here."""
+    home = '<html><head><link rel="https://api.w.org/" href="https://brockton.gov/wp-json/"></head><body></body></html>'
+    index = {"namespaces": ["oembed/1.0", "tribe/events/v1", "wp/v2"],
+             "routes": {"/tribe/events/v1/events": {}, "/wp/v2/public-documents": {}}}
+    categories = json.loads((FIXTURES / "wordpress" / "event_categories.json").read_text())
+    listing = {"categories": categories, "total": len(categories), "total_pages": 1}
+    return [(r"^https://brockton\.gov/?$", Page(home, "https://brockton.gov/")),
+            (r"/wp-json/$", Page(json.dumps(index))),
+            (r"/wp-json/tribe/events/v1/categories\?", Page(json.dumps(listing), headers={"X-TEC-TotalPages": "1"}))]
+
+
+def test_helper_finds_the_events_calendar_on_a_wordpress_site(tmp_path, network, monkeypatch):
+    town = new_town.NewTown("Brockton", "MA", "https://brockton.gov", today=TODAY)
+    out = tmp_path / "brockton-ma"
+    client = FakeClient(wordpress_pages())
+    assert new_town.run(town, client, network, out, checks=False) == 0 and not town.stopped
+    assert "WordPress with The Events Calendar" in town.site["platforms"]
+    text = (out / "config" / "brockton.toml").read_text()
+    config = tomllib.loads(text)
+    table = config["wordpress_meetings"]
+    assert table["site_url"] == "https://brockton.gov" and table["source_name"] == "City of Brockton"
+    # The categories naming a kind of body are taken, most events first; the others are left for a person.
+    assert list(table["categories"].items())[:2] == [("School Committee", "School Committee"), ("City Council", "City Council")]
+    assert "Local" not in table["categories"] and '# "Local" = "Local"   # 1098 events' in text
+    assert "To fill in: exclude_categories" in text and "To fill in: [wordpress_meetings.documents]" in text
+    assert config["meetings"]["archive_url"] == "https://brockton.gov/events/" and "base_url" not in config["meetings"]
+    assert {"label": "Meetings (city website)", "file": "meetings/wordpress_status.json", "max_days": 2} in \
+        config["freshness"]["sources"]
+    monkeypatch.setattr(config_mod, "CONFIG_DIR", out / "config")
+    loaded = config_mod.load_config("brockton")
+    loaded["sections"] = [s for s in loaded["sections"] if s["slug"] in ("meetings", "about")]
+    monkeypatch.setattr(build_site, "load_config", lambda slug: loaded)
+    build_site.build("brockton", tmp_path / "site", data_dir=out / "data", now=BUILT_AT, share_cards=False)
+    assert "https://brockton.gov/events/" in (tmp_path / "site" / "meetings" / "index.html").read_text()
+
+
+def test_a_wordpress_site_without_the_events_calendar_is_not_taken_for_one(tmp_path, network):
+    pages = wordpress_pages()
+    pages[1] = (r"/wp-json/$", Page(json.dumps({"namespaces": ["wp/v2"], "routes": {}})))
+    town = new_town.NewTown("Brockton", "MA", "https://brockton.gov", today=TODAY)
+    client = FakeClient(pages)
+    assert new_town.run(town, client, network, tmp_path / "brockton-ma", checks=False) == 2
+    assert "wordpress" not in town.site and not any("categories" in u for u in client.urls)
+
+
+def test_a_calendar_of_community_events_alone_is_not_the_citys_meetings(tmp_path, network):
+    """A WordPress site whose calendar has no category naming a body: its meetings are elsewhere (BoardDocs here),
+    and the helper stops there, as for a site without the calendar."""
+    pages = wordpress_pages()
+    home = ('<html><head><link rel="https://api.w.org/" href="https://brockton.gov/wp-json/"></head><body>'
+            '<a href="https://go.boarddocs.com/ma/brockton/Board.nsf">Agendas</a></body></html>')
+    listing = {"categories": [{"id": 1, "name": "Local", "count": 900}, {"id": 2, "name": "Community Event", "count": 30}],
+               "total": 2, "total_pages": 1}
+    pages[0] = (r"^https://brockton\.gov/?$", Page(home, "https://brockton.gov/"))
+    pages[2] = (r"/wp-json/tribe/events/v1/categories\?", Page(json.dumps(listing), headers={"X-TEC-TotalPages": "1"}))
+    town = new_town.NewTown("Brockton", "MA", "https://brockton.gov", today=TODAY)
+    assert new_town.run(town, FakeClient(pages), network, tmp_path / "brockton-ma", checks=False) == 2
+    assert "wordpress" not in town.site and "BoardDocs" in town.stopped
+    assert any("none of its 2 categories names a kind of body" in note for _, note in town.notes)
+
+
 def test_helper_stops_at_a_browser_check(tmp_path, network):
     pages = [(r"beverlyma\.gov", new_town.BrowserCheck(BASE + "/"))]
     town, out, code = beverly(tmp_path, network, pages)

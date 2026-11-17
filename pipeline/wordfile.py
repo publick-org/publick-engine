@@ -7,8 +7,7 @@ and tables, with a text layer, made here. Formatting, headers, footers and
 images are left out; the meeting page still links the city's own file.
 
 text_pdf() makes the PDF from any list of paragraphs, so a document posted
-as a web page's text (an agenda typed into a ProudCity meeting's page,
-pipeline/proudcity.py) is saved the same way. The same paragraphs make the
+as a web page's text (pipeline/htmlfile.py) is saved the same way. The same paragraphs make the
 same bytes: the PDF has no creation date, so a document fetched again
 unchanged isn't saved again as a new version.
 
@@ -20,6 +19,8 @@ from __future__ import annotations
 import io
 import zipfile
 from xml.etree import ElementTree
+
+from pipeline.http import FetchError
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
@@ -88,6 +89,16 @@ def text_pdf(texts: list[str], creator: str) -> bytes:
             pdf.multi_cell(0, 5.5, text, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2.5)
     return bytes(pdf.output())
+
+
+def as_pdf(content: bytes, url: str) -> tuple[bytes, str | None]:
+    """A downloaded file as a PDF, and what it was converted from: a Word file's text ("docx"), or a PDF as
+    it is (None). Anything else (a sign-in page where a file should be) is a FetchError naming the address."""
+    if is_docx(content):
+        return to_pdf(content), "docx"
+    if not content.startswith(b"%PDF"):
+        raise FetchError(f"{url}: not a PDF or a Word (.docx) file")
+    return content, None
 
 
 def to_pdf(content: bytes) -> bytes:

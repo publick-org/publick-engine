@@ -139,13 +139,8 @@ class Saver:
 
     def download(self, url: str) -> tuple[bytes, str | None]:
         """A file as a PDF, and what it was converted from: a Word file's text, or a PDF as it is."""
-        content = self.client.get(url).content
-        if wordfile.is_docx(content):
-            return wordfile.to_pdf(content), "docx"
-        if not content.startswith(b"%PDF"):
-            # A Google Doc or Drive file that isn't shared publicly answers with a sign-in page.
-            raise FetchError(f"{url}: not a PDF or a Word (.docx) file")
-        return content, None
+        # A Google Doc or Drive file that isn't shared publicly answers with a sign-in page: an error.
+        return wordfile.as_pdf(self.client.get(url).content, url)
 
     def site_file(self, meeting: dict, kind: str, file: dict) -> None:
         """An attached file of the meeting's page, unless the latest saved is from the same address."""

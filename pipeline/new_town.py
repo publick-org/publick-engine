@@ -13,7 +13,11 @@ leaves the rest marked for a person:
    or a CivicClerk portal (<city>.portal.civicclerk.com), or a ProudCity site's
    meeting posts (wp-proud-core on its homepage, and the last year's posts from
    /wp-json/wp/v2/meetings: a [proudcity_meetings] table whose bodies are the
-   names its titles begin with, for a person to map). A site that answers
+   names its titles begin with, for a person to map), or a WordPress site
+   with The Events Calendar (tribe/events/v1 among the namespaces /wp-json/
+   lists: a [wordpress_meetings] table of its event categories, those that
+   name a kind of body taken, the others left commented out, for a person to
+   map). A site that answers
    with a browser check ("Just a moment...") stops here: Publick never works
    around one, and asks the town to allow its crawler. So does a meeting
    platform the engine doesn't read, since that reader is its own piece of
@@ -84,10 +88,12 @@ from urllib.parse import urlencode, urljoin, urlsplit
 import requests
 from pypdf import PdfReader
 
-from pipeline import agendacenter, civicclerk, civicplus, dates, fetch_place, legistar, meeting_sources, primegov, proudcity, wordpress
+from pipeline import (
+    agendacenter, civicclerk, civicplus, dates, fetch_place, legistar, meeting_sources, primegov, proudcity, tribe, wordpress, wpdocs,
+)
 from pipeline.config import ENGINE_DIR, NETWORK_ENV, fill, layer_files, read_config, read_toml
 from pipeline.fetch_meetings import pdf_has_text
-from pipeline.http import FetchError, PoliteClient
+from pipeline.http import FetchError, PoliteClient, is_browser_check
 from pipeline.meeting_names import parse_name, words
 
 # Names Publick, with an address to write to, as BLS asks of automated requests.
@@ -106,14 +112,13 @@ BLS_AREAS = "https://download.bls.gov/pub/time.series/la/la.area"
 CENSUS_REPORTER = "https://api.censusreporter.org/1.0/geo/latest"
 SEECLICKFIX_PLACES = "https://seeclickfix.com/api/v2/places"
 
-# A page that checks the visitor's browser before showing the site (Cloudflare's, Imperva's).
-BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|cf-browser-verification|"
-                           r"challenges\.cloudflare\.com|_Incapsula_Resource", re.I)
 # Meeting platforms the engine doesn't read, found by their marks on the city's homepage.
 OTHER_PLATFORMS = {"Govstack": r"govstack", "Legistar, without its public API": r"legistar\.com", "BoardDocs": r"boarddocs\.com",
                    "Municode Meetings": r"municodemeetings\.com", "Drupal": r'name="Generator" content="Drupal',
                    # CivicLive's file servers, which serve the site's own pages (not a link to another body's site).
                    "CivicLive": r"//cdnsm\d*-[\w-]+\.civiclive\.com/"}
+# What on a site's homepage says it's WordPress: its files' folder, or its REST API's link.
+WORDPRESS = re.compile(r"/wp-content/|/wp-json/|api\.w\.org")
 # Platforms the engine reads that the helper doesn't set up: a config by hand, from the town named.
 BY_HAND = {"a DotNetNuke calendar ([meetings.dnn], as Manchester's)": r"DotNetNuke|dnn_ctr",
            "a Diligent Community portal ([diligent_meetings], as Burlington's)":
@@ -173,8 +178,7 @@ class Client(PoliteClient):
 
     @staticmethod
     def _check(response, *args, **kwargs):
-        if response.headers.get("cf-mitigated") == "challenge" or (
-                response.status_code in (403, 429, 503) and BROWSER_CHECK.search(response.text[:20000])):
+        if is_browser_check(response):
             raise BrowserCheck(response.url)
 
 
@@ -334,7 +338,21 @@ def find_platform(town: NewTown, client) -> None:
                        "there", proudcity.page_url({"site_url": base}))
         else:
             town.note(1, f"{base} is a ProudCity site, but its REST API listed no meetings (/wp-json/{proudcity.ROUTE}).")
-    if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity")) and not any(c["chosen"] for c in site.get("calendars", [])):
+    # A ProudCity site is WordPress too, with meetings of its own (above).
+    if WORDPRESS.search(page) and proudcity.MARK not in page:
+        found = read_tribe(client, base)
+        named = [name for name, _ in found["categories"] if re.search(BOARD, name, re.I)] if found else []
+        if named:
+            site["platforms"].append("WordPress with The Events Calendar")
+            site["wordpress"] = found
+            town.found(1, "The Events Calendar (WordPress)", f"{len(found['categories'])} event categories, {len(named)} "
+                       "naming a kind of body" + ("; and a document library (public-documents)" if found["library"] else ""),
+                       tribe.page_url({"site_url": base}))
+        elif found:
+            # A calendar of community events only: not where the city's boards post their meetings.
+            town.note(1, f"{base} has The Events Calendar, but none of its {len(found['categories'])} categories names a "
+                      "kind of body, so it isn't taken for the city's meetings.")
+    if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity", "wordpress")) and not any(c["chosen"] for c in site.get("calendars", [])):
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
             raise Stop(f"{town.url} has {', '.join(by_hand)}. The engine reads it, but the helper doesn't set it up: "
@@ -435,6 +453,30 @@ def read_proudcity(client, base: str, today: date) -> list[str]:
     except FetchError:
         return []
     return [wordpress.rendered(p.get("title")) for p in posts]
+
+
+def read_tribe(client, base: str) -> dict | None:
+    """A WordPress site's The Events Calendar, if /wp-json/ lists its namespace: its event categories, each with
+    its count of events, most first, and whether the site has a document library's post type (public-documents,
+    pipeline/wpdocs.py). None if it hasn't the plugin, or its REST API doesn't answer."""
+    index = try_get(client, f"{base}/wp-json/")
+    try:
+        data = json.loads(index.text) if index is not None else {}
+    except ValueError:
+        return None
+    if not isinstance(data, dict) or tribe.NAMESPACE not in data.get("namespaces", []):
+        return None
+    try:
+        found = wordpress.read_all(client, base, tribe.CATEGORIES_ROUTE, {"per_page": tribe.PER_PAGE}, key="categories",
+                                   max_pages=10)
+    except FetchError:
+        found = []
+    counts = Counter()
+    for category in found:
+        counts[wordpress.rendered(category.get("name"))] += int(category.get("count") or 0)
+    counts.pop("", None)
+    return {"site_url": base, "categories": counts.most_common(),
+            "library": f"/{wpdocs.ROUTE}" in (data.get("routes") or {})}
 
 
 def proudcity_bodies(titles: list[str], town: str, least: int = MIN_MEETINGS, most: int = 40) -> list[tuple[str, int]]:
@@ -805,7 +847,8 @@ def readers(config: dict) -> set[str]:
     """A config's meeting readers: agenda_center, civicplus, civicclerk..."""
     meetings = config.get("meetings", {})
     return {k for k in ("agenda_center", "civicplus", "civicclerk", "legistar", "primegov", "dnn", "file_list") if k in meetings} | (
-        {"civicplus"} if "calendar_feed" in meetings else set()) | ({"proudcity"} if "proudcity_meetings" in config else set())
+        {"civicplus"} if "calendar_feed" in meetings else set()) | ({"proudcity"} if "proudcity_meetings" in config else set()) | (
+        {"wordpress"} if "wordpress_meetings" in config else set())
 
 
 def closest_town(town: NewTown, network: Path) -> None:
@@ -832,7 +875,7 @@ def town_readers(town: NewTown) -> set[str]:
     return ({"agenda_center"} if "agenda_center" in site else set()) | (
         {"civicplus"} if any(c["chosen"] for c in site.get("calendars", [])) else set()) | (
         {"civicclerk"} if "civicclerk" in site else set()) | ({"legistar"} if "legistar" in site else set()) | ({"primegov"} if "primegov" in site else set()) | (
-        {"proudcity"} if "proudcity" in site else set())
+        {"proudcity"} if "proudcity" in site else set()) | ({"wordpress"} if "wordpress" in site else set())
 
 
 # Meeting systems with an address of their own (not the city website's), which a town on them alone links to.
@@ -1054,6 +1097,8 @@ def config_text(town: NewTown, short: bool = False) -> Config:
                 "file": "meetings/status.json", "max_days": 2}]
     if "proudcity" in site:
         sources.append({"label": "Meetings (ProudCity)", "file": "meetings/proudcity_status.json", "max_days": 2})
+    if "wordpress" in site:
+        sources.append({"label": "Meetings (city website)", "file": "meetings/wordpress_status.json", "max_days": 2})
     fr = shared(town, "freshness", "summary_grace_days")
     c.table("freshness", "How often each data source should update. Figures published monthly or yearly are judged by "
             "the engine, by the period they cover (pipeline/rhythms.py).",
@@ -1080,15 +1125,18 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
         archive_url, archive_name = primegov.portal_url(site["primegov"]["client"]), f"{place}'s PrimeGov portal"
     elif "proudcity" in site:
         archive_url, archive_name = proudcity.page_url(site["proudcity"]), f"{place}'s website"
+    elif "wordpress" in site:
+        archive_url, archive_name = tribe.page_url(site["wordpress"]), f"{place}'s calendar"
     else:
         archive_url, archive_name = f"{base}/Archive.aspx", f"{place}'s Archive Center"
     readers_found = [n for k, n in (("civicplus", f"the {place} calendar"), ("agenda_center", "its Agenda Center"),
                                     ("civicclerk", "its CivicClerk portal"), ("legistar", "its Legistar system"),
-                                    ("primegov", "its PrimeGov portal"), ("proudcity", "its website (ProudCity)"))
+                                    ("primegov", "its PrimeGov portal"), ("proudcity", "its website (ProudCity)"),
+                                    ("wordpress", "its website's calendar"))
                      if k in town_readers(town)]
     # A city website's meeting posts (ProudCity's) are read by a table of their own, not [meetings]: a town with
     # only them, or them and a portal, has no CivicPlus site for [meetings] base_url to name.
-    portal_only = town_readers(town) - {"proudcity"} <= PORTALS
+    portal_only = town_readers(town) - {"proudcity", "wordpress"} <= PORTALS
     c.table("meetings", f"Public meetings, from {' and '.join(readers_found)}.",
             base_url=base if not portal_only else None,
             calendar_url=archive_url if portal_only else None,
@@ -1178,7 +1226,10 @@ def config_meetings(c: Config, town: NewTown, governing: str, since: date, short
                   "a year, each summarized.")
     if "proudcity" in site:
         config_proudcity(c, town, since)
-    if "archive" in site and not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity")):
+    if "wordpress" in site:
+        config_wordpress(c, town, since)
+    if "archive" in site and not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity",
+                                                         "wordpress")):
         c.table("archive", "Minutes from the city's Archive Center. Minutes for meetings on or after minutes_since are "
                 "collected.", index="Archive.aspx", minutes_since=since.isoformat())
         c.fill_in(5, "[archive.aliases], the Archive Center's collection names for boards the calendar names otherwise.")
@@ -1213,6 +1264,32 @@ def config_proudcity(c: Config, town: NewTown, since: date) -> None:
               f"{town.kind} names it; leave out any that isn't a public body.")
     for name, n in proudcity_bodies(found["titles"], town.name):
         c.lines.append(f"{toml(name)} = {toml(name)}   # {n}")
+
+
+def config_wordpress(c: Config, town: NewTown, since: date) -> None:
+    """[wordpress_meetings]: the site, and its calendar's categories, those naming a kind of body taken as boards'
+    meetings, the others commented out."""
+    found = town.site["wordpress"]
+    others = sorted(town_readers(town) - {"wordpress"})
+    c.table("wordpress_meetings", f"Every board's meetings from the {town.kind}'s WordPress calendar (The Events Calendar).",
+            site_url=found["site_url"], source_name=f"City of {town.name}" if town.kind == "city" else f"Town of {town.name}",
+            since=since.isoformat())
+    if others:
+        c.fill_in(1, f"the calendar and {', '.join(others)} both list meetings: read each board from one of them, and leave "
+                  "the other's boards out.")
+    c.fill_in(5, "exclude_categories and exclude_pattern, for events in a board's category that aren't its meetings (a "
+              "community event filed under a department's category too, a school council).")
+    if found["library"]:
+        c.fill_in(5, "[wordpress_meetings.documents], agenda_category and minutes_category, if the site's document library "
+                  "(/wp-json/wp/v2/public-documents) posts the agendas and minutes, each linking its event, as Brockton's does "
+                  "(pipeline/wpdocs.py).")
+    c.header("[wordpress_meetings.categories]")
+    c.fill_in(5, "each category of a board's meetings mapped to the board's name as the "
+              f"{town.kind} names it (with its number of events); the others are commented out: take in any that is a "
+              "board's, leave out any that isn't.")
+    for name, n in found["categories"]:
+        line = f"{toml(name)} = {toml(name)}   # {n} events"
+        c.lines.append(line if re.search(BOARD, name, re.I) else f"# {line}")
 
 
 # A title naming a body of its own: a committee, a trust, a joint meeting with another board.
