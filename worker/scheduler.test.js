@@ -347,6 +347,20 @@ test("an issue without an unsubscribe link, or a mailing address, isn't sent", a
   }
 });
 
+test("a town whose site isn't published yet sends nothing, and doesn't fail the run", async () => {
+  const feeds = { "https://holyoke-ma.publick.org/digest/feed.xml": [404, "No site here."],
+                  "https://malden-ma.publick.org/digest/feed.xml": [200, digestFeed("Malden Publick", "Week of October 5, 2026",
+                    "https://malden-ma.publick.org/digest/2026-10-05/", DUE, `<p>Malden</p>${FOOTER}`)] };
+  withButtondown({ "GET /tags": [200, TAGS], "POST /emails": [201, {}] });
+  const results = await sendDigests(digestEnv("holyoke-ma.publick.org, malden-ma.publick.org", feeds), at("2026-10-04T21:35:00Z"));
+  assert.deepEqual(results.map((r) => r.done), ["no_site", "sent"]);
+  calls.length = 0;
+  // A published site without its feed is still a failure.
+  withButtondown({});
+  await assert.rejects(sendDigests(digestEnv("holyoke-ma.publick.org", { "https://holyoke-ma.publick.org/digest/feed.xml": [404, "Not found"] }),
+                                   at("2026-10-04T21:35:00Z")), /holyoke-ma\.publick\.org: its feed: HTTP 404/);
+});
+
 test("no towns named, nothing is read or sent", async () => {
   withButtondown({});
   assert.deepEqual(await sendDigests(digestEnv(""), at("2026-10-04T21:35:00Z")), []);
