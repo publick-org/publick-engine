@@ -100,6 +100,17 @@ def test_the_report_fails_only_on_a_wrong_outcome_shown():
     assert evaluate.report([caught])[1] is False
 
 
+def test_held_back_is_what_the_site_hides():
+    # In a summary that failed, a decision is held back for a problem of its own that isn't only noted.
+    problems = [{"field": "decisions", "entry": 1, "kind": "unanchored", "what": "x"},
+                {"field": "decisions", "entry": 2, "kind": "away", "what": "7"},
+                {"field": "decisions", "entry": 3, "kind": "tally", "what": "5-0"},
+                {"field": "decisions", "entry": 4, "kind": "quote", "what": "y"},
+                {"field": "decision_titles", "entry": 1, "kind": "number", "what": "9"}]
+    assert sorted(evaluate.held({"result": "failed", "problems": problems})) == [4]
+    assert evaluate.held({"result": "weak", "problems": problems}) == {}
+
+
 def test_a_summary_cut_off_is_reported_and_the_set_goes_on():
     import hashlib
 

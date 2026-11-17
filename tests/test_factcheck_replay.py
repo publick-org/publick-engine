@@ -65,3 +65,20 @@ def test_a_change_says_what_is_now_shown_or_hidden_and_why():
     assert any(line.startswith(f"  {hidden}: hidden -> shown: ") for line in lines)
     assert any(line.startswith("    no longer: " + hidden) for line in lines)
     assert evaluate_factcheck.differences(item, actual, copy.deepcopy(actual)) == []
+
+
+def test_a_decision_shown_again_says_why():
+    # Nashua's Budget Review Committee: decision 1's problems are only noted ("away"), in a summary that failed.
+    item = next(i for i in sample()["items"] if i["town"] == "nashua-nh" and i["sha256"].startswith("07672028416c"))
+    actual = evaluate_factcheck.replay(item, frozenset(sample()["words"]))
+    assert actual["result"] == "failed" and "decisions 1" not in actual["hidden"]
+    # As if it had been hidden before, with the same problems.
+    before = {**copy.deepcopy(actual), "hidden": ["decisions 1", *actual["hidden"]]}
+    lines = evaluate_factcheck.differences(item, before, actual)
+    assert "  decisions 1: hidden -> shown: " in "\n".join(lines)
+    assert "    its problems are still found, but are only noted (factcheck.NOTED)" in lines
+    # Problems that aren't only noted, still found, aren't said to be.
+    hard = next(h for h in actual["hidden"] if h.startswith("decisions "))
+    before = {**copy.deepcopy(actual), "hidden": [h for h in actual["hidden"] if h != hard]}
+    lines = evaluate_factcheck.differences(item, actual, before)
+    assert "    its problems are still found" in lines

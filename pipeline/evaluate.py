@@ -156,12 +156,10 @@ def compare(expected: dict, decisions: list[str], evidence: list[dict]) -> dict:
 
 def held(fact_check: dict) -> dict[int, list[dict]]:
     """The decisions the site doesn't show, by entry, with why: in a summary that failed, each with a
-    problem other than a vote count (factcheck.shown())."""
+    problem that isn't only noted (factcheck.hides(), as factcheck.shown() has it)."""
     out: dict[int, list[dict]] = {}
-    if fact_check["result"] != "failed":
-        return out
     for p in fact_check["problems"]:
-        if p["field"] == "decisions" and p["kind"] != "tally":
+        if p["field"] == "decisions" and factcheck.hides(fact_check, p):
             out.setdefault(p["entry"], []).append(p)
     return out
 

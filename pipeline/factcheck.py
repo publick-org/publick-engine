@@ -1102,6 +1102,12 @@ def sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])", text or "") if s]
 
 
+def hides(fc: dict, p: dict) -> bool:
+    """Whether a problem keeps its entry, or its headline or summary, off the site (shown()): one found
+    against the document's full text that isn't only noted. A decision's title is shown without its own."""
+    return fc["result"] == "failed" and p["kind"] not in NOTED and p["field"] != "decision_titles"
+
+
 def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     """A summary as the site shows it (display: the record, or its translation, entry by entry),
     after its fact check (record's "fact_check"):
@@ -1110,9 +1116,9 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
       (the whole summary, in another language, where its sentences can't be matched);
       "not_shown" counts the entries left out, for the page to say so;
     - what's only noted (NOTED: a number or name far from its decision's quote, a decision whose
-      result the minutes don't give near its quote) is shown, unless the summary failed for
-      something else: then the check has found the model wrong in this summary, and what it
-      could only note isn't shown either;
+      result the minutes don't give near its quote) is shown, as it is in a summary that passed,
+      even where another entry of the summary failed: a decision is held back for its own
+      problems, never for another decision's;
     - wherever it was checked, a vote count the document doesn't give (near its decision's quote,
       for a decision with one), or one that says no one was against beside someone who was, is left
       out of the text;
@@ -1146,7 +1152,7 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                     out[field] = [without_tally(t, p["what"]) if j == i else t for j, t in enumerate(out[field])]
             else:
                 out[field] = without_tally(out[field], p["what"])
-        elif fc["result"] == "failed":
+        elif hides(fc, p):
             hidden.setdefault(field, set()).add(p.get("entry"))
     gone = hidden.get("decisions", set())
     # Each decision's outcome (decision_evidence), kept beside the decisions shown, for the site to say it beside
