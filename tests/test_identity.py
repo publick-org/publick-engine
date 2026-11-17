@@ -122,6 +122,71 @@ def test_a_listing_moved_to_another_day_leaves_the_meeting():
                                "2026-10-08-planning-board": ["101", "agendacenter-9"]}
 
 
+NOV_9 = "2026-11-09"
+COTW = "Salem City Council Committee of the Whole"
+
+
+def test_a_meeting_whose_listings_move_to_a_board_meeting_that_day_joins_it():
+    """Salem's Agenda Center row "Salem City Council Committee of the Whole" was filed under City Council, a
+    meeting of its own beside the calendar's 6 PM listing of the committee. Filed under the committee, it
+    joins that meeting, which was identified first, and its own page leads there."""
+    calendar = record("3064", COTW, date=NOV_9, time="18:00", title=f"{COTW} Monday November 9, 2026")
+    row = record("agendacenter-8477", "City Council", date=NOV_9, source="agendacenter", title="City Council Meeting",
+                 posted_title=COTW)
+    store, ledger = arrive([calendar, row], town="Salem")
+    assert grouping(ledger) == {"2026-11-09-city-council": ["agendacenter-8477"],
+                                "2026-11-09-salem-city-council-committee-of-the-whole": ["3064"]}
+    store["agendacenter-8477"]["body"] = COTW
+    after = identity.assign(store, ledger, "Salem")
+    assert grouping(after) == {"2026-11-09-salem-city-council-committee-of-the-whole": ["3064", "agendacenter-8477"]}
+    assert after["meetings"]["2026-11-09-salem-city-council-committee-of-the-whole"]["addresses"] == ["2026-11-09-city-council"]
+    assert identity.assign(store, after, "Salem") == after
+
+
+def test_a_moved_meeting_with_a_time_takes_the_boards_meeting_without_one():
+    """The other way round: the listing that moves gives a time, and the meeting there has none."""
+    row = record("agendacenter-1176", "City Council Workshop", date=NOV_9, source="agendacenter",
+                 title="City Council Workshop Meeting", posted_title="City Council Workshop Agenda, 6pm")
+    calendar = record("2121", "City Council", date=NOV_9, time="18:00", title="City Council Workshop", seen="2026-10-02T07:00:00")
+    store, ledger = arrive([row], [calendar])
+    assert grouping(ledger) == {"2026-11-09-city-council": ["2121"], "2026-11-09-city-council-workshop": ["agendacenter-1176"]}
+    store["2121"]["body"] = "City Council Workshop"
+    after = identity.assign(store, ledger)
+    assert grouping(after) == {"2026-11-09-city-council-workshop": ["2121", "agendacenter-1176"]}
+    assert after["meetings"]["2026-11-09-city-council-workshop"]["addresses"] == ["2026-11-09-city-council"]
+
+
+def test_a_meeting_moved_only_to_another_day_keeps_its_address_beside_the_boards_meeting_there():
+    """Two of a board's agendas, neither with a time: the one moved to the other's day stays its own meeting."""
+    tuesday = record("agendacenter-5", source="agendacenter", title="Planning Board Agenda")
+    thursday = record("agendacenter-9", date="2026-10-08", source="agendacenter", title="Planning Board Agenda")
+    store, ledger = arrive([tuesday, thursday])
+    store["agendacenter-5"]["date"] = "2026-10-08"
+    assert grouping(identity.assign(store, ledger)) == {"2026-10-06-planning-board": ["agendacenter-5"],
+                                                        "2026-10-08-planning-board": ["agendacenter-9"]}
+
+
+def test_a_meeting_moved_to_another_board_leaves_the_boards_it_was_also_kept_for():
+    """A meeting kept for two names of a board (rule 5) whose listings all move to a third board is that board's
+    only: it isn't joined with a meeting of either earlier name that day."""
+    ledger = {"meetings": {"2026-10-06-planning-board": {
+        "date": DAY, "board": "planning board", "also_boards": ["planning commission"], "listings": ["1"]}}}
+    store = store_of(record("1", "Zoning Board", title="Zoning Board Meeting"),
+                     record("2", "Planning Commission", source="agendacenter", title="Planning Commission Agenda"))
+    after = identity.assign(store, ledger)
+    assert grouping(after) == {"2026-10-06-planning-board": ["1"], "2026-10-06-planning-commission": ["2"]}
+    assert after["meetings"]["2026-10-06-planning-board"]["board"] == "zoning board"
+    assert "also_boards" not in after["meetings"]["2026-10-06-planning-board"]
+
+
+def test_a_moved_meeting_stays_apart_from_another_meeting_of_the_board():
+    """A meeting that moves keeps its address where the board's meeting there is another: another time."""
+    store, ledger = arrive([record("1", time="17:00"), record("2", "Conservation Commission", time="19:00")])
+    store["2"]["body"] = "Planning Board"
+    assert grouping(identity.assign(store, ledger)) == {"2026-10-06-planning-board": ["1"],
+                                                        "2026-10-06-conservation-commission": ["2"]}
+
+
 def test_a_listing_given_a_new_id_goes_back_to_its_meeting():
     """A district's Drive meeting taken over by the city calendar (fetch_meetings.adopt_drive_meeting)
     keeps its record and own address under the calendar's id, and so its meeting."""

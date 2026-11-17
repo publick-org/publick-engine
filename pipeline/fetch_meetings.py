@@ -372,6 +372,7 @@ def agenda_center_calendar(config: dict) -> Calendar:
     source = config["meetings"]
     settings = source["agenda_center"]
     excluded = {c.lower() for c in settings.get("exclude_categories", [])}
+    town = config.get("town", {}).get("name", "")
 
     def events(client, today, store):
         # Every run lists every meeting since `since`, still one request: a board can
@@ -384,7 +385,15 @@ def agenda_center_calendar(config: dict) -> Calendar:
         end = today + timedelta(days=settings.get("days_ahead", 60))
         page = client.get(agendacenter.search_url(settings["base_url"], start, end))
         rows = agendacenter.parse_listing(page.text, settings["base_url"])
-        return [agendacenter.to_event(r, source.get("aliases", {}), settings.get("committees", {}))
+        # The boards the town's other sources list each day, the calendars' read this run among them: a row
+        # whose title names one of its category's board's committees listed that day is filed under it, so
+        # the two listings are one meeting (agendacenter.body_for).
+        listed: dict[str, set[str]] = {}
+        for m in store.values():
+            if m.get("source") != "agendacenter":
+                listed.setdefault(m["date"], set()).add(m["body"])
+        return [agendacenter.to_event(r, source.get("aliases", {}), settings.get("committees", {}),
+                                      sorted(listed.get(r["date"], ())), town)
                 for r in rows if r["category"].lower() not in excluded]
 
     def details(client, meeting, storage, stamp):

@@ -85,8 +85,14 @@ When a listing changes after it's placed:
     its history.
   - its date or board (a meeting moved to another day): when every listing of the meeting
     moves, the meeting moves with them and keeps its address (as a meeting listed in one
-    place always has); when only some do, those leave it and are placed again on their new
-    day, by the rules above, and the meeting stays with the listings that didn't move.
+    place always has), unless they moved to another board, which already has a meeting that
+    day that its listings would have joined had they been recorded so (join_moved): then the
+    two are one, and the address of the one identified later leads to the other's. A meeting
+    moved only to another day keeps its address beside the board's meetings there. An Agenda Center's listing
+    first filed under its category's board (the City Council's), and then under the council's
+    committee its title names, joins the calendar's listing of the committee's meeting that
+    way. When only some listings move, those leave the meeting and are placed again on their
+    new day, by the rules above, and the meeting stays with the listings that didn't move.
   - a listing given a new id by its source, keeping its own address (a district's Drive
     meeting taken over by the city calendar): it goes back to the meeting at that address.
 """
@@ -370,6 +376,37 @@ def join_at_agenda_time(clusters: list[Cluster]) -> list[tuple[Cluster, Cluster]
     return joined
 
 
+def join_moved(clusters: list[Cluster], moved: set[str]) -> list[tuple[Cluster, Cluster]]:
+    """A board's meetings on a day that are one because one of them moved there: a meeting every listing of
+    which moved to this board (moved: the addresses of such meetings), and the board's meeting that day
+    that its listings would have joined had they been recorded so: one that starts when it does (rule 1),
+    or for one without a time, the meeting place() puts each of its listings in (rules 2 and 3). A moved
+    meeting with a time that no meeting there shares is joined instead by the one meeting without a time
+    every listing of which place() would put in it. The meeting identified before the other keeps its address. Returns (gone, home) pairs, home having
+    gone's listings."""
+    joined = []
+    live = list(clusters)
+    for c in sorted((c for c in clusters if c.meeting in moved), key=lambda c: c.first.order):
+        if c not in live or c.unplaced:
+            continue
+        others = [o for o in live if o is not c]
+        if c.times:
+            at = [o for o in others if c.times & o.times and not o.unplaced]
+            untimed = [o for o in others if not o.times and not o.unplaced
+                       and all(place(x, [c, *(p for p in others if p is not o)]) is c for x in o.listings)]
+            found = at if at else untimed
+        else:
+            target = place(c.first, others)
+            found = [target] if isinstance(target, Cluster) and all(place(x, others) is target for x in c.listings) else []
+        if len(found) != 1:
+            continue
+        home, gone = sorted((c, found[0]), key=lambda k: (k.meeting is None, k.first.order))
+        home.listings += gone.listings
+        live.remove(gone)
+        joined.append((gone, home))
+    return joined
+
+
 def body_kind(board: str) -> str | None:
     """The kind of body a board's name says it is, by its last word that names one: 'school committee building
     and finance subcommittee' -> 'subcommittee'; 'planning board' -> 'board'."""
@@ -474,6 +511,8 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
     listing = {i: Listing(m, known, town, (times or {}).get(i)) for i, m in store.items()}
     meetings: dict[str, dict] = {}
     placed: dict[str, str] = {}
+    # Kept meetings every listing of which has moved to another board (join_moved).
+    moved: set[str] = set()
     # Each kept meeting keeps the listings that still fit it, or, when every one has moved to another
     # day (or board), moves with them.
     for mid, entry in sorted(ledger.get("meetings", {}).items()):
@@ -483,6 +522,10 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
         if xs and not fit:
             fit = [x for x in xs if (x.date, x.board) == (xs[0].date, xs[0].board)]
             entry = {**entry, "date": xs[0].date, "board": xs[0].board}
+            if xs[0].board not in boards:
+                # Now another board's: the boards it was kept for besides its own no longer name it.
+                entry.pop("also_boards", None)
+                moved.add(mid)
         meetings[mid] = {**entry, "listings": [x.id for x in fit]}
         for x in fit:
             placed[x.id] = mid
@@ -510,7 +553,9 @@ def assign(store: dict, ledger: dict | None, town: str = "", times: dict[str, st
         existing = kept[day]
         new = cluster_day(existing, days[day]) if days[day] else []
         gone = []
-        for c, home in join_at_agenda_time(existing + new):
+        joined = join_at_agenda_time(existing + new)
+        joined += join_moved([c for c in existing + new if all(c is not g for g, _ in joined)], moved)
+        for c, home in joined:
             gone.append(c)
             if c.meeting:
                 # Its address leads to the meeting it's part of, as its other addresses did.
