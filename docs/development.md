@@ -26,6 +26,7 @@ pipeline/                   Python package
   fetch_diligent_meetings.py   Daily: a school board's meetings, agendas and minutes (a Diligent Community portal) -> data/meetings/
   fetch_meetingdocs_meetings.py   Daily: a board's meetings, agendas and minutes (a city's listing of its events' documents) -> data/meetings/
   fetch_proudcity_meetings.py     Daily: every board's meetings, agendas and minutes (a city's ProudCity website, what changed since the last run) -> data/meetings/
+  fetch_wordpress_meetings.py     Daily: every board's meetings (a city's WordPress calendar, The Events Calendar), and their agendas and minutes (the site's document library, what changed since the last run) -> data/meetings/
   fetch_boardbook_meetings.py   Daily: a school board's meetings, agendas and minutes (its organization's page on BoardBook Premier) -> data/meetings/
   fetch_sharpschool_meetings.py   Daily: a board's minutes (a library of them on a district's SharpSchool website) -> data/meetings/
   fetch_opengov_meetings.py    Daily: public bodies' meetings, agendas and minutes (Rhode Island's Open Meetings portal), and their
@@ -112,7 +113,7 @@ pipeline/                   Python package
                             can't be read for a week, tried again each run until then) the run record keeps for
                             network.py officials, one issue for a person; it never changes the list
   rhythms.py                How often each figure source publishes: when it's checked, and when it's behind
-  civicplus.py, agendacenter.py, civicclerk.py, legistar.py, primegov.py, dnn.py, filelist.py, finalsite.py, ical.py, linkpage.py, apptegy.py (Apptegy pages: column layouts, document folders, short links), agenda_minutes.py (minutes linked from a later meeting's agenda), proudcity.py, wordpress.py (a WordPress site's REST API: paging, fields, what changed), schedule.py, seeclickfix.py, socrata.py   Source parsers
+  civicplus.py, agendacenter.py, civicclerk.py, legistar.py, primegov.py, dnn.py, filelist.py, finalsite.py, ical.py, linkpage.py, apptegy.py (Apptegy pages: column layouts, document folders, short links), agenda_minutes.py (minutes linked from a later meeting's agenda), proudcity.py, tribe.py (The Events Calendar's events), wpdocs.py (a WordPress document library's agendas and minutes), htmlfile.py (a web page's text as a PDF), wordpress.py (a WordPress site's REST API: paging, fields, what changed), schedule.py, seeclickfix.py, socrata.py   Source parsers
   meeting_names.py          Which board a calendar entry is for, from its name
   dates.py                  Dates in titles, file names, labels and pages, read the same way by every source parser
   geo.py                    Ward/precinct point-in-polygon lookup

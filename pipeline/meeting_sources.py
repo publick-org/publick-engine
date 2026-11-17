@@ -2,9 +2,9 @@
 
 A town's city calendar, Agenda Center, CivicClerk, Legistar, PrimeGov and file lists are read by
 pipeline/fetch_meetings.py from [meetings]. The sources here are the others: a school district's
-website or portal, the state's Open Meetings portal, a city's events calendar or website, a calendar
-feed, or a page of the year's dates. Each is a [<source>_meetings] table, and each meeting it lists carries its
-`source`.
+website or portal, the state's Open Meetings portal, a city's events calendar or website (ProudCity's,
+or a WordPress site's The Events Calendar), a calendar feed, or a page of the year's dates. Each is a
+[<source>_meetings] table, and each meeting it lists carries its `source`.
 
 This list is the one place a source is named. The daily update's steps (pipeline/update.py), the
 config's tables and the checks run as it's loaded (pipeline/config.py), the order a meeting's listings
@@ -74,6 +74,8 @@ SOURCES = (
                   "pipeline.fetch_meetingdocs_meetings", "pipeline.meetingdocs"),
     MeetingSource("proudcity", N_("city's website"), "Fetch the city website's meetings",
                   "pipeline.fetch_proudcity_meetings", "pipeline.proudcity", page_key="site_url", school=False),
+    MeetingSource("wordpress", N_("city's website"), "Fetch the city's WordPress meetings",
+                  "pipeline.fetch_wordpress_meetings", "pipeline.tribe", page_key="site_url", school=False),
     MeetingSource("sharpschool", N_("school district's website"), "Fetch the school district's minutes library",
                   "pipeline.fetch_sharpschool_meetings", "pipeline.sharpschool"),
     # Read by pipeline/fetch_meetings.py, with the city's listings: they only date a meeting.

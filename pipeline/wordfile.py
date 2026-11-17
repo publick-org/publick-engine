@@ -7,8 +7,7 @@ and tables, with a text layer, made here. Formatting, headers, footers and
 images are left out; the meeting page still links the city's own file.
 
 text_pdf() makes the PDF from any list of paragraphs, so a document posted
-as a web page's text (an agenda typed into a ProudCity meeting's page,
-pipeline/proudcity.py) is saved the same way. The same paragraphs make the
+as a web page's text (pipeline/htmlfile.py) is saved the same way. The same paragraphs make the
 same bytes: the PDF has no creation date, so a document fetched again
 unchanged isn't saved again as a new version.
 

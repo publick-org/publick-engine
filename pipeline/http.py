@@ -9,6 +9,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import re
 import ssl
 import tempfile
 import time
@@ -23,6 +24,17 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 
 RETRY_STATUS = {429, 500, 502, 503, 504}
+# A page that checks the visitor's browser before showing the site (Cloudflare's, Imperva's). Publick never
+# works around one: a reader that meets one stops.
+BROWSER_CHECK = re.compile(r"Just a moment(?:\.\.\.|…)|Checking your browser|cf-browser-verification|"
+                           r"challenges\.cloudflare\.com|_Incapsula_Resource", re.I)
+
+
+def is_browser_check(response) -> bool:
+    """Whether a response is a browser check instead of the page asked for: Cloudflare's header for it, or
+    a refusal whose page says so."""
+    return response.headers.get("cf-mitigated") == "challenge" or (
+        response.status_code in (403, 429, 503) and bool(BROWSER_CHECK.search(response.text[:20000])))
 # The longest a server's Retry-After is waited for, in seconds.
 MAX_RETRY_AFTER = 300
 

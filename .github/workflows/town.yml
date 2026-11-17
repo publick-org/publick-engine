@@ -137,6 +137,15 @@ jobs:
           STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
           STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
 
+      # Every board's meetings from the city's WordPress calendar, and their agendas and minutes from its document library.
+      - name: Fetch the city's WordPress meetings
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.fetch_wordpress_meetings --town "$TOWN"
+        env:
+          STORAGE_ACCESS_KEY_ID: ${{ secrets.STORAGE_ACCESS_KEY_ID }}
+          STORAGE_SECRET_ACCESS_KEY: ${{ secrets.STORAGE_SECRET_ACCESS_KEY }}
+
       # A board's minutes, from a library of them on the school district's SharpSchool website.
       - name: Fetch the school district's minutes library
         if: inputs.sources != '311'

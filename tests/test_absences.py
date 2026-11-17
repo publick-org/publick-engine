@@ -105,7 +105,7 @@ def test_a_meeting_in_two_sources_awaits_minutes_on_the_boards_own_website(first
 def test_minutes_source_order_is_documented():
     """The board's own sources (pipeline/meeting_sources.py, in its order) before the city's systems, and the
     city's posting of a meeting before its Archive Center."""
-    assert absences.MINUTES_ORDER == ("drive", "finalsite", "page", "diligent", "boardbook", "opengov", "meetingdocs", "proudcity",
+    assert absences.MINUTES_ORDER == ("drive", "finalsite", "page", "diligent", "boardbook", "opengov", "meetingdocs", "proudcity", "wordpress",
                                       "sharpschool", "agendacenter", "civicclerk", "legistar", "primegov", "filelist", "archive")
 
 

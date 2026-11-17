@@ -1,0 +1,895 @@
+[
+ {
+  "id": 88283,
+  "status": "publish",
+  "date": "2026-07-09 10:16:20",
+  "modified": "2026-07-09 10:16:20",
+  "url": "https://brockton.gov/event/library-meeting-44/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/88283",
+  "title": "Library Meeting",
+  "all_day": false,
+  "start_date": "2026-07-14 18:30:00",
+  "end_date": "2026-07-14 19:30:00",
+  "utc_start_date": "2026-07-14 22:30:00",
+  "utc_end_date": "2026-07-14 23:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 91,
+    "name": "Library",
+    "slug": "library",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5092,
+   "url": "https://brockton.gov/venue/brockton-main-library/",
+   "venue": "Brockton Main Library",
+   "address": "304 Main St.",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 88457,
+  "status": "publish",
+  "date": "2026-07-17 11:37:44",
+  "modified": "2026-07-17 11:37:44",
+  "url": "https://brockton.gov/event/bhs-project-engagement-meeting/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/88457",
+  "title": "Community Engagement Meeting for BHS Building Project",
+  "all_day": false,
+  "start_date": "2026-07-23 12:00:00",
+  "end_date": "2026-07-23 14:00:00",
+  "utc_start_date": "2026-07-23 16:00:00",
+  "utc_end_date": "2026-07-23 18:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 232,
+    "name": "Community Event",
+    "slug": "community-event",
+    "taxonomy": "tribe_events_cat"
+   },
+   {
+    "id": 92,
+    "name": "Planning",
+    "slug": "planning",
+    "taxonomy": "tribe_events_cat"
+   },
+   {
+    "id": 93,
+    "name": "Mayor's Office",
+    "slug": "mayors-office",
+    "taxonomy": "tribe_events_cat"
+   },
+   {
+    "id": 81,
+    "name": "Public Schools",
+    "slug": "public-schools",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": [],
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 88622,
+  "status": "publish",
+  "date": "2026-07-30 09:17:14",
+  "modified": "2026-07-31 11:57:20",
+  "url": "https://brockton.gov/event/special-license-commission-meeting-24/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/88622",
+  "title": "Special License Commission Meeting",
+  "all_day": false,
+  "start_date": "2026-08-04 18:00:00",
+  "end_date": "2026-08-04 19:00:00",
+  "utc_start_date": "2026-08-04 22:00:00",
+  "utc_end_date": "2026-08-04 23:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 96,
+    "name": "License Commission",
+    "slug": "license-commission",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89073,
+  "status": "publish",
+  "date": "2026-08-27 15:25:37",
+  "modified": "2026-08-27 15:25:37",
+  "url": "https://brockton.gov/event/planning-board-meeting-92/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89073",
+  "title": "Planning Board Meeting",
+  "all_day": false,
+  "start_date": "2026-09-01 18:00:00",
+  "end_date": "2026-09-01 19:00:00",
+  "utc_start_date": "2026-09-01 22:00:00",
+  "utc_end_date": "2026-09-01 23:00:00",
+  "timezone": "America/New_York",
+  "website": "https://us02web.zoom.us/j/89542653181",
+  "categories": [
+   {
+    "id": 92,
+    "name": "Planning",
+    "slug": "planning",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 18703,
+   "url": "https://brockton.gov/venue/online/",
+   "venue": "Online"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89122,
+  "status": "publish",
+  "date": "2026-08-31 16:08:36",
+  "modified": "2026-08-31 16:08:36",
+  "url": "https://brockton.gov/event/conservation-commission-meeting-103/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89122",
+  "title": "Conservation Commission Meeting",
+  "all_day": false,
+  "start_date": "2026-09-02 18:30:00",
+  "end_date": "2026-09-02 19:30:00",
+  "utc_start_date": "2026-09-02 22:30:00",
+  "utc_end_date": "2026-09-02 23:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 90,
+    "name": "Conservation Commission",
+    "slug": "conservation-commission",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 19612,
+   "url": "https://brockton.gov/venue/online-conference/",
+   "venue": "Online Conference",
+   "address": "Online Conference",
+   "city": "Online Conference"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89087,
+  "status": "publish",
+  "date": "2026-08-28 14:17:44",
+  "modified": "2026-08-28 14:17:44",
+  "url": "https://brockton.gov/event/school-policy-subcommittee-meeting-32/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89087",
+  "title": "School Policy Subcommittee Meeting",
+  "all_day": false,
+  "start_date": "2026-09-03 18:00:00",
+  "end_date": "2026-09-03 19:00:00",
+  "utc_start_date": "2026-09-03 22:00:00",
+  "utc_end_date": "2026-09-03 23:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 82,
+    "name": "School Committee",
+    "slug": "school-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 6507,
+   "url": "https://brockton.gov/venue/bhs-little-theater-470-forest-avenue-brockton-ma/",
+   "venue": "BHS Little Theater, 470 Forest Avenue, Brockton, MA",
+   "address": "470 Forest Avenue",
+   "city": "BROCKTON",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89092,
+  "status": "publish",
+  "date": "2026-08-28 14:26:36",
+  "modified": "2026-08-28 14:26:36",
+  "url": "https://brockton.gov/event/school-committee-meeting-108/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89092",
+  "title": "School Committee Meeting",
+  "all_day": false,
+  "start_date": "2026-09-03 19:00:00",
+  "end_date": "2026-09-03 20:00:00",
+  "utc_start_date": "2026-09-03 23:00:00",
+  "utc_end_date": "2026-09-04 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 82,
+    "name": "School Committee",
+    "slug": "school-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 6507,
+   "url": "https://brockton.gov/venue/bhs-little-theater-470-forest-avenue-brockton-ma/",
+   "venue": "BHS Little Theater, 470 Forest Avenue, Brockton, MA",
+   "address": "470 Forest Avenue",
+   "city": "BROCKTON",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 10008352,
+  "status": "publish",
+  "date": "2023-11-03 11:02:04",
+  "modified": "2026-01-15 08:54:51",
+  "url": "https://brockton.gov/event/brockton-residents-forum-2/2026-09-06/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/10008352",
+  "title": "Brockton Residents Forum",
+  "all_day": false,
+  "start_date": "2026-09-06 17:00:00",
+  "end_date": "2026-09-06 18:00:00",
+  "utc_start_date": "2026-09-06 21:00:00",
+  "utc_end_date": "2026-09-06 22:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 115,
+    "name": "Local",
+    "slug": "local",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": [],
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89174,
+  "status": "publish",
+  "date": "2026-09-02 12:42:27",
+  "modified": "2026-09-08 15:10:40",
+  "url": "https://brockton.gov/event/library-meeting-45/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89174",
+  "title": "Library Meeting &#8211; Canceled",
+  "all_day": false,
+  "start_date": "2026-09-08 18:30:00",
+  "end_date": "2026-09-08 19:30:00",
+  "utc_start_date": "2026-09-08 22:30:00",
+  "utc_end_date": "2026-09-08 23:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 91,
+    "name": "Library",
+    "slug": "library",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5092,
+   "url": "https://brockton.gov/venue/brockton-main-library/",
+   "venue": "Brockton Main Library",
+   "address": "304 Main St.",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89051,
+  "status": "publish",
+  "date": "2026-08-25 08:29:43",
+  "modified": "2026-08-25 08:29:43",
+  "url": "https://brockton.gov/event/finance-committee-meeting-158/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89051",
+  "title": "Finance Committee Meeting",
+  "all_day": false,
+  "start_date": "2026-09-08 19:00:00",
+  "end_date": "2026-09-08 20:00:00",
+  "utc_start_date": "2026-09-08 23:00:00",
+  "utc_end_date": "2026-09-09 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 70,
+    "name": "Finance Committee",
+    "slug": "finance-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89183,
+  "status": "publish",
+  "date": "2026-09-03 10:51:46",
+  "modified": "2026-09-03 10:53:15",
+  "url": "https://brockton.gov/event/masshire-job-fair/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89183",
+  "title": "MassHire Greater Brockton Career Center Job Fair",
+  "all_day": false,
+  "start_date": "2026-09-10 10:00:00",
+  "end_date": "2026-09-10 12:00:00",
+  "utc_start_date": "2026-09-10 14:00:00",
+  "utc_end_date": "2026-09-10 16:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [],
+  "venue": {
+   "id": 14578,
+   "url": "https://brockton.gov/venue/campanelli-stadium/",
+   "venue": "Campanelli Stadium",
+   "address": "1 Feinberg Way",
+   "city": "Brockton"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 88888,
+  "status": "publish",
+  "date": "2026-08-14 10:22:08",
+  "modified": "2026-08-14 10:23:12",
+  "url": "https://brockton.gov/event/coa-meeting-36/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/88888",
+  "title": "COA Meeting",
+  "all_day": false,
+  "start_date": "2026-09-14 10:00:00",
+  "end_date": "2026-09-14 11:00:00",
+  "utc_start_date": "2026-09-14 14:00:00",
+  "utc_end_date": "2026-09-14 15:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 86,
+    "name": "Council on Aging",
+    "slug": "council-on-aging",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5082,
+   "url": "https://brockton.gov/venue/council-on-aging/",
+   "venue": "Council on Aging",
+   "address": "10 Father Kennedy Way",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89159,
+  "status": "publish",
+  "date": "2026-09-02 09:18:14",
+  "modified": "2026-09-02 09:18:14",
+  "url": "https://brockton.gov/event/city-council-meeting-170/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89159",
+  "title": "City Council Meeting",
+  "all_day": false,
+  "start_date": "2026-09-14 19:00:00",
+  "end_date": "2026-09-14 20:00:00",
+  "utc_start_date": "2026-09-14 23:00:00",
+  "utc_end_date": "2026-09-15 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 61,
+    "name": "City Council",
+    "slug": "city-council",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89392,
+  "status": "publish",
+  "date": "2026-09-15 12:07:22",
+  "modified": "2026-09-15 16:24:03",
+  "url": "https://brockton.gov/event/plymouth-norfolk-5-meeting-11/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89392",
+  "title": "Plymouth Norfolk 5 Meeting &#8211; Canceled",
+  "all_day": false,
+  "start_date": "2026-09-17 10:30:00",
+  "end_date": "2026-09-17 11:30:00",
+  "utc_start_date": "2026-09-17 14:30:00",
+  "utc_end_date": "2026-09-17 15:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 94,
+    "name": "Board of Health",
+    "slug": "board-of-health",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 18703,
+   "url": "https://brockton.gov/venue/online/",
+   "venue": "Online"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89276,
+  "status": "publish",
+  "date": "2026-09-10 14:29:46",
+  "modified": "2026-09-10 14:29:46",
+  "url": "https://brockton.gov/event/bhs-school-building-committee-meeting-16/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89276",
+  "title": "BHS School Building Committee Meeting",
+  "all_day": false,
+  "start_date": "2026-09-17 18:30:00",
+  "end_date": "2026-09-17 19:30:00",
+  "utc_start_date": "2026-09-17 22:30:00",
+  "utc_end_date": "2026-09-17 23:30:00",
+  "timezone": "America/New_York",
+  "website": "https://us02web.zoom.us/j/84737423675?pwd=bwPBQado5GYpHO4LpLfa7ieSWiRbNJ.1",
+  "categories": [
+   {
+    "id": 82,
+    "name": "School Committee",
+    "slug": "school-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 6502,
+   "url": "https://brockton.gov/venue/west-middle-school-auditorium/",
+   "venue": "West Middle School",
+   "address": "271 West St.",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89449,
+  "status": "publish",
+  "date": "2026-09-17 08:22:54",
+  "modified": "2026-09-17 08:22:54",
+  "url": "https://brockton.gov/event/bha-meeting-37/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89449",
+  "title": "BHA Meeting",
+  "all_day": false,
+  "start_date": "2026-09-22 13:00:00",
+  "end_date": "2026-09-22 14:00:00",
+  "utc_start_date": "2026-09-22 17:00:00",
+  "utc_end_date": "2026-09-22 18:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 166,
+    "name": "Brockton Housing Authority",
+    "slug": "brockton-housing-authority",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 31672,
+   "url": "https://brockton.gov/venue/manning-tower/",
+   "venue": "Manning Tower",
+   "address": "45 Goddard Road",
+   "city": "Brockton"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89467,
+  "status": "publish",
+  "date": "2026-09-17 14:50:16",
+  "modified": "2026-09-17 14:50:16",
+  "url": "https://brockton.gov/event/dangerous-dog-hearing-8/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89467",
+  "title": "Dangerous Dog Hearing",
+  "all_day": false,
+  "start_date": "2026-09-22 17:00:00",
+  "end_date": "2026-09-22 18:00:00",
+  "utc_start_date": "2026-09-22 21:00:00",
+  "utc_end_date": "2026-09-22 22:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 170,
+    "name": "Public Hearing",
+    "slug": "public-hearing",
+    "taxonomy": "tribe_events_cat"
+   },
+   {
+    "id": 110,
+    "name": "Police",
+    "slug": "police",
+    "taxonomy": "tribe_events_cat"
+   },
+   {
+    "id": 141,
+    "name": "Public Safety",
+    "slug": "public-safety",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 38602,
+   "url": "https://brockton.gov/venue/public-safety-building/",
+   "venue": "Public Safety Building",
+   "address": "175 Warren Ave.",
+   "city": "Brockton"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 89166,
+  "status": "publish",
+  "date": "2026-09-02 09:38:38",
+  "modified": "2026-09-02 09:38:38",
+  "url": "https://brockton.gov/event/city-council-meeting-171/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/89166",
+  "title": "City Council Meeting",
+  "all_day": false,
+  "start_date": "2026-09-28 19:00:00",
+  "end_date": "2026-09-28 20:00:00",
+  "utc_start_date": "2026-09-28 23:00:00",
+  "utc_end_date": "2026-09-29 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 61,
+    "name": "City Council",
+    "slug": "city-council",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90026,
+  "status": "publish",
+  "date": "2026-10-09 16:20:21",
+  "modified": "2026-10-09 16:20:21",
+  "url": "https://brockton.gov/event/license-commission-meeting-84/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90026",
+  "title": "License Commission Meeting",
+  "all_day": false,
+  "start_date": "2026-10-15 18:00:00",
+  "end_date": "2026-10-15 19:00:00",
+  "utc_start_date": "2026-10-15 22:00:00",
+  "utc_end_date": "2026-10-15 23:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 96,
+    "name": "License Commission",
+    "slug": "license-commission",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90109,
+  "status": "publish",
+  "date": "2026-10-16 14:55:11",
+  "modified": "2026-10-16 14:55:11",
+  "url": "https://brockton.gov/event/school-committee-meeting-111/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90109",
+  "title": "School Committee Meeting",
+  "all_day": false,
+  "start_date": "2026-10-20 19:00:00",
+  "end_date": "2026-10-20 20:00:00",
+  "utc_start_date": "2026-10-20 23:00:00",
+  "utc_end_date": "2026-10-21 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 82,
+    "name": "School Committee",
+    "slug": "school-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 6507,
+   "url": "https://brockton.gov/venue/bhs-little-theater-470-forest-avenue-brockton-ma/",
+   "venue": "BHS Little Theater, 470 Forest Avenue, Brockton, MA",
+   "address": "470 Forest Avenue",
+   "city": "BROCKTON",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90361,
+  "status": "publish",
+  "date": "2026-11-02 15:33:13",
+  "modified": "2026-11-04 15:42:45",
+  "url": "https://brockton.gov/event/brockton-redevelopment-authority-meeting-6/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90361",
+  "title": "Brockton Redevelopment Authority Meeting &#8211; Rescheduled",
+  "all_day": false,
+  "start_date": "2026-11-04 18:00:00",
+  "end_date": "2026-11-04 19:00:00",
+  "utc_start_date": "2026-11-04 23:00:00",
+  "utc_end_date": "2026-11-05 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 212,
+    "name": "Redevelopment Authority",
+    "slug": "redevelopment-authority",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5113,
+   "url": "https://brockton.gov/venue/metro-south-chamber-of-commerce/",
+   "venue": "Metro South Chamber of Commerce",
+   "address": "60 School St.",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90605,
+  "status": "publish",
+  "date": "2026-11-13 17:34:12",
+  "modified": "2026-11-13 17:34:12",
+  "url": "https://brockton.gov/event/school-committee-meeting-112/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90605",
+  "title": "School Committee Meeting",
+  "all_day": false,
+  "start_date": "2026-11-17 19:00:00",
+  "end_date": "2026-11-17 20:00:00",
+  "utc_start_date": "2026-11-18 00:00:00",
+  "utc_end_date": "2026-11-18 01:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 82,
+    "name": "School Committee",
+    "slug": "school-committee",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 4474,
+   "url": "https://brockton.gov/venue/george-romm-little-theatre/",
+   "venue": "Arnone Theater",
+   "address": "135 Belmont St.",
+   "city": "Brockton",
+   "zip": "02301"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90654,
+  "status": "publish",
+  "date": "2026-11-17 08:11:04",
+  "modified": "2026-11-17 08:11:04",
+  "url": "https://brockton.gov/event/womens-commission-meeting-33/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90654",
+  "title": "Women&#8217;s Commission Meeting",
+  "all_day": false,
+  "start_date": "2026-11-18 17:30:00",
+  "end_date": "2026-11-18 18:30:00",
+  "utc_start_date": "2026-11-18 22:30:00",
+  "utc_end_date": "2026-11-18 23:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 97,
+    "name": "Women's Issues",
+    "slug": "womens-issues",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90583,
+  "status": "publish",
+  "date": "2026-11-13 11:28:07",
+  "modified": "2026-11-13 11:28:07",
+  "url": "https://brockton.gov/event/conservation-commission-meeting-106/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90583",
+  "title": "Conservation Commission Meeting",
+  "all_day": false,
+  "start_date": "2026-11-18 18:30:00",
+  "end_date": "2026-11-18 19:30:00",
+  "utc_start_date": "2026-11-18 23:30:00",
+  "utc_end_date": "2026-11-19 00:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 90,
+    "name": "Conservation Commission",
+    "slug": "conservation-commission",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 19612,
+   "url": "https://brockton.gov/venue/online-conference/",
+   "venue": "Online Conference",
+   "address": "Online Conference",
+   "city": "Online Conference"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90659,
+  "status": "publish",
+  "date": "2026-11-17 08:15:47",
+  "modified": "2026-11-17 08:15:47",
+  "url": "https://brockton.gov/event/plymouth-norfolk-5-meeting-14/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90659",
+  "title": "Plymouth Norfolk 5 Meeting",
+  "all_day": false,
+  "start_date": "2026-11-19 10:30:00",
+  "end_date": "2026-11-19 11:30:00",
+  "utc_start_date": "2026-11-19 15:30:00",
+  "utc_end_date": "2026-11-19 16:30:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 94,
+    "name": "Board of Health",
+    "slug": "board-of-health",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 19612,
+   "url": "https://brockton.gov/venue/online-conference/",
+   "venue": "Online Conference",
+   "address": "Online Conference",
+   "city": "Online Conference"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90538,
+  "status": "publish",
+  "date": "2026-11-12 10:31:20",
+  "modified": "2026-11-12 10:31:20",
+  "url": "https://brockton.gov/event/special-bha-meeting-4/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90538",
+  "title": "Special BHA Meeting",
+  "all_day": false,
+  "start_date": "2026-11-19 13:00:00",
+  "end_date": "2026-11-19 14:00:00",
+  "utc_start_date": "2026-11-19 18:00:00",
+  "utc_end_date": "2026-11-19 19:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 166,
+    "name": "Brockton Housing Authority",
+    "slug": "brockton-housing-authority",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 31672,
+   "url": "https://brockton.gov/venue/manning-tower/",
+   "venue": "Manning Tower",
+   "address": "45 Goddard Road",
+   "city": "Brockton"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ },
+ {
+  "id": 90512,
+  "status": "publish",
+  "date": "2026-11-10 10:21:23",
+  "modified": "2026-11-10 10:21:40",
+  "url": "https://brockton.gov/event/city-council-special-meeting-18/",
+  "rest_url": "https://brockton.gov/wp-json/tribe/events/v1/events/90512",
+  "title": "City Council Special Meeting",
+  "all_day": false,
+  "start_date": "2026-11-23 18:00:00",
+  "end_date": "2026-11-23 19:00:00",
+  "utc_start_date": "2026-11-23 23:00:00",
+  "utc_end_date": "2026-11-24 00:00:00",
+  "timezone": "America/New_York",
+  "website": "",
+  "categories": [
+   {
+    "id": 61,
+    "name": "City Council",
+    "slug": "city-council",
+    "taxonomy": "tribe_events_cat"
+   }
+  ],
+  "venue": {
+   "id": 5098,
+   "url": "https://brockton.gov/venue/brockton-city-hall/",
+   "venue": "Brockton City Hall"
+  },
+  "is_virtual": false,
+  "virtual_url": null
+ }
+]

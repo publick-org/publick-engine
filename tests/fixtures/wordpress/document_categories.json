@@ -1,0 +1,134 @@
+[
+ {
+  "id": 51,
+  "name": "Application"
+ },
+ {
+  "id": 77,
+  "name": "Assessor's Map"
+ },
+ {
+  "id": 220,
+  "name": "Budget"
+ },
+ {
+  "id": 55,
+  "name": "City Audit"
+ },
+ {
+  "id": 26,
+  "name": "Election Results"
+ },
+ {
+  "id": 109,
+  "name": "Flyer"
+ },
+ {
+  "id": 119,
+  "name": "Form"
+ },
+ {
+  "id": 76,
+  "name": "FY2014"
+ },
+ {
+  "id": 75,
+  "name": "FY2015"
+ },
+ {
+  "id": 74,
+  "name": "FY2016"
+ },
+ {
+  "id": 73,
+  "name": "FY2017"
+ },
+ {
+  "id": 71,
+  "name": "FY2018"
+ },
+ {
+  "id": 72,
+  "name": "FY2019"
+ },
+ {
+  "id": 128,
+  "name": "FY2020"
+ },
+ {
+  "id": 150,
+  "name": "FY2021"
+ },
+ {
+  "id": 158,
+  "name": "FY2022"
+ },
+ {
+  "id": 175,
+  "name": "FY2023"
+ },
+ {
+  "id": 182,
+  "name": "FY2024"
+ },
+ {
+  "id": 185,
+  "name": "FY2025"
+ },
+ {
+  "id": 218,
+  "name": "FY2026"
+ },
+ {
+  "id": 233,
+  "name": "FY2027"
+ },
+ {
+  "id": 234,
+  "name": "FY2027"
+ },
+ {
+  "id": 127,
+  "name": "Informational"
+ },
+ {
+  "id": 62,
+  "name": "Instructions"
+ },
+ {
+  "id": 112,
+  "name": "Map"
+ },
+ {
+  "id": 15,
+  "name": "Meeting Agendas"
+ },
+ {
+  "id": 17,
+  "name": "Meeting Minutes"
+ },
+ {
+  "id": 139,
+  "name": "Ordinance"
+ },
+ {
+  "id": 59,
+  "name": "Policy"
+ },
+ {
+  "id": 159,
+  "name": "Press Releases"
+ },
+ {
+  "id": 124,
+  "name": "Report"
+ },
+ {
+  "id": 228,
+  "name": "Resolution"
+ },
+ {
+  "id": 152,
+  "name": "Transcripts"
+ }
+]
