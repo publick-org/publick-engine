@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros.html" import calendar_behind_note, meeting_item %}
+{% from "held.html" import held_meeting with context %}
 {% from "search_text.html" import when_where %}
 {% set b = board %}
 {# Translators: %(board)s is a board's name, such as "City Council". #}
@@ -64,7 +65,8 @@
 </div>
 
 {# Meetings to come first, soonest first, with those after this week that have no agenda yet one short line each, as on
-   the Meetings page; then what was held, newest first, the latest few shown and the rest folded. #}
+   the Meetings page; then what was held, newest first, each with what it decided, as on the Past meetings page
+   (held.html), the latest few shown and the rest folded. #}
 {% set coming = b.meetings | selectattr("date", "ge", today) | list | reverse | list %}
 {% set later = coming | select("in", meetings.later) | list %}
 {% set held = b.meetings | selectattr("date", "lt", today) | list %}
@@ -86,14 +88,14 @@
 {% if held %}
 <h2 id="past">{{ _("Past meetings") }}</h2>
 {% set shown = 10 if held | length > 12 else held | length %}
-<ul class="meeting-list">
-  {% for m in held[:shown] %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
+<ul class="decision-list">
+  {% for m in held[:shown] %}{{ held_meeting(m, show_body=false) }}{% endfor %}
 </ul>
 {% if held | length > shown %}
 <details class="all-votes earlier-meetings">
   <summary>{% trans n=held | length - shown %}Show {{ n }} earlier meeting{% pluralize %}Show {{ n }} earlier meetings{% endtrans %}</summary>
-  <ul class="meeting-list">
-    {% for m in held[shown:] %}{{ meeting_item(m, show_date=true, show_body=false) }}{% endfor %}
+  <ul class="decision-list">
+    {% for m in held[shown:] %}{{ held_meeting(m, show_body=false) }}{% endfor %}
   </ul>
 </details>
 {% endif %}

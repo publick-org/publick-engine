@@ -235,7 +235,7 @@ def test_manchester_city_calendar_meeting_has_its_agenda(manchester_site):
 
 
 def test_manchester_decisions_and_cancellations(manchester_site):
-    decisions = page(manchester_site, "/meetings/decisions/")
+    decisions = page(manchester_site, "/meetings/past/")
     assert "Committee on Finance" in decisions and "12 Main St" in decisions
     assert "Cancelled" in meeting_page(manchester_site, "civicclerk-2065")
     assert "Cancelled" in meeting_page(manchester_site, "dnn-106925")
@@ -269,7 +269,7 @@ def test_malden_meeting_has_its_minutes(malden_site):
     # The stand-in summary's vote count isn't in these real minutes: the fact check
     # (pipeline/factcheck.py) leaves the count out, and the decision in.
     assert "What was decided" in appeal and ">The site plan for 12 Main St<" in appeal
-    assert "Board of Appeal" in page(malden_site, "/meetings/decisions/")
+    assert "Board of Appeal" in page(malden_site, "/meetings/past/")
 
 
 def test_malden_cancelled_meeting(malden_site):
@@ -307,7 +307,7 @@ def test_wallingford_meeting_from_its_documents_has_its_minutes(wallingford_site
     # The stand-in summary's vote count isn't in these real minutes: the fact check
     # (pipeline/factcheck.py) leaves the count out, and the decision in.
     assert "What was decided" in council and ">The site plan for 12 Main St<" in council
-    assert "Town Council" in page(wallingford_site, "/meetings/decisions/")
+    assert "Town Council" in page(wallingford_site, "/meetings/past/")
 
 
 def test_wallingford_cancellations_and_sources(wallingford_site):

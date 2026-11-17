@@ -72,7 +72,7 @@
 {% if meetings.decided %}
 <div class="section-head">
   <h2 id="decided">{{ _("Recently decided") }}</h2>
-  <a href="/meetings/decisions/">{{ _("All decisions") }}</a>
+  <a href="/meetings/past/">{{ _("All decisions") }}</a>
 </div>
 {% if meetings.decided[:3] | selectattr("decisions_from", "equalto", "recording") | list %}
 <p class="small" data-about>{{ _("From the latest minutes the city has posted, and from meetings' recordings until their minutes come. Minutes come out after a board approves them, usually a few weeks after the meeting.") }}</p>

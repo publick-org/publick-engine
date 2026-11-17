@@ -1,4 +1,4 @@
-// The Decisions page's topic filter: the meetings with a decision on one topic, and only those decisions,
+// The Past meetings page's topic filter: the meetings with a decision on one topic, and only those decisions,
 // opening a folded list or month that holds one. Without this script the filter stays hidden and every
 // decision is shown.
 (function () {
@@ -17,7 +17,8 @@
         row.hidden = !!topic && row.getAttribute("data-topic") !== topic;
         if (!row.hidden) any = true;
       });
-      meeting.hidden = !any;
+      // A meeting with no decisions (a past meeting whose minutes haven't come) is shown only under all topics.
+      meeting.hidden = !!topic && !any;
       // A label over a list with none of its decisions shown goes too; a folded list with one opens.
       each(".decision-label", meeting, function (label) {
         var list = label.nextElementSibling;

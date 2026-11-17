@@ -116,7 +116,7 @@ SUMMARY_RULES = """Summary rules:
 - Name at most three things in a row. For more, give the most important ones, or a count ("approved six permits").
 - The summary adds what the headline leaves out. Don't say again what the headline says."""
 
-# What each decision of minutes or a recording is about, for the decisions page to filter by
+# What each decision of minutes or a recording is about, for the past meetings page to filter by
 # (pipeline/build_site.py TOPIC_NAMES says each one).
 TOPICS = ("budget", "housing", "schools", "safety", "streets", "environment", "government", "other")
 

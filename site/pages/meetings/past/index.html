@@ -1,24 +1,110 @@
 {% extends "base.html" %}
-{% from "macros.html" import meeting_item %}
+{% from "macros.html" import report_button, outcome_word, topic_name %}
+{% from "held.html" import held_meeting with context %}
+{# Every meeting held, newest first, each with what it decided: the one page for what happened, where the Past meetings
+   and Decisions pages were (the old address sends readers here, build_site.moved_pages). #}
 {% block title %}{{ _("Past meetings") }}{% endblock %}
 {# Translators: the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% block head_title %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} past meetings and agendas{% endtrans %}{% endblock %}
-{# Translators: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". #}
-{% block description %}{% trans town=town.name, state=town.state_abbr %}Past public meetings in {{ town }}, {{ state }}, by month, with saved agendas.{% endtrans %}{% endblock %}
+{% block head_title %}{% if meeting_links.documents %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} past meetings, votes, and decisions{% endtrans %}
+{%- else %}{% trans town=town.name, state=town.state_abbr %}{{ town }}, {{ state }} past meetings and agendas{% endtrans %}{% endif %}{% endblock %}
+{# What the page holds, for search results and dataset search, with the governing body's name as the town's config gives it. #}
+{% macro about_text() -%}
+{% if meeting_links.documents %}
+{#- Translators: %(town)s is the town's name and %(council)s its governing body, such as "City Council". -#}
+{% trans town=town.name, council=meeting_links.governing_body %}Past meetings of {{ town }}'s {{ council }}, boards, and committees, with the decisions in their minutes.{% endtrans %}
+{%- else %}
+{#- Translators: %(town)s is the town and %(state)s its state's abbreviation, such as "MA". -#}
+{% trans town=town.name, state=town.state_abbr %}Past public meetings in {{ town }}, {{ state }}, by month, with saved agendas.{% endtrans %}
+{%- endif %}
+{%- endmacro %}
+{# What a search result shows under the title, in at most about 160 characters: the titles of the newest main decisions
+   (Decision.main, Decision.title), newest first, then what the page holds when there's room for all of it. Only those
+   the page shows in its own language: none in English on another language's page. #}
+{% block description %}
+{% set latest = [] %}
+{% for m in meetings.decided if not m.decisions_english %}{% for d in m.decisions.decided %}{% if d.main is defined and d.main and d.title and latest | length < 3 %}{% set __ = latest.append(d.title.rstrip(".")) %}{% endif %}{% endfor %}{% endfor %}
+{#- Translators: the start of the Past meetings page's description in search results; %(decisions)s is the titles of the newest main decisions, separated by semicolons. -#}
+{% macro latest_text(titles) %}{% trans decisions=titles | join("; ") %}Latest: {{ decisions }}.{% endtrans %}{% endmacro %}
+{# As many whole titles as fit, or the newest one cut to fit. #}
+{% set ns = namespace(lead=latest_text(latest[:1]) | fit(160) if latest else "") %}
+{% for n in range(2, latest | length + 1) %}{% set more = latest_text(latest[:n]) | fit(1000) %}{% if more | length <= 160 %}{% set ns.lead = more %}{% endif %}{% endfor %}
+{% set lead = ns.lead %}
+{% set full = [lead, about_text()] | select | join(" ") | fit(1000) %}
+{{- full if full | length <= 160 else lead or about_text() | fit(160) }}{% endblock %}
+{# The topic filter, where there are decisions to filter; and the download as a dataset for dataset search, once, on the English page. #}
+{% block head %}{% if meetings.decided %}<script src="{{ "/static/js/decisions.js" | versioned }}" defer></script>{% endif %}{% endblock %}
+{% block structured_data %}{% if lang == "en" and meetings.decided and meeting_links.documents %}{{ structured(dataset(town.name ~ " decisions from meeting minutes", about_text(),
+  canonical_url, ["/meetings/data/decisions.csv"], start=meetings.decided[-1].date, end=meetings.decided[0].date)) }}{% endif %}{% endblock %}
 {% block content %}
-<nav aria-label="{{ _("Breadcrumb") }}" class="breadcrumb">
-  <ol><li><a href="/meetings/">{{ _("Meetings") }}</a></li></ol>
-</nav>
-<h1>{{ _("Past meetings") }}</h1>
+<div class="page-head">
+  <h1>{{ _("Past meetings") }}</h1>
+  {#- Translators: %(council)s is the town's governing body, such as "City Council". -#}
+  {% if meeting_links.documents %}<p class="lede">{% trans council=meeting_links.governing_body %}What the {{ council }}, boards, and committees decided, from their minutes and recordings, newest meeting first.{% endtrans %}</p>{% endif %}
+</div>
+
 {% if meetings.past %}
-{% for month, items in group_by(meetings.past, "month") %}
-<h2 class="day-heading">{{ month | date("month") }}</h2>
-<ul class="meeting-list">
-  {% for m in items %}{{ meeting_item(m, show_date=true) }}{% endfor %}
+{# The topics the decisions are on (Decision.topic), for the filter (decisions.js), in summarize.TOPICS's order. #}
+{% set topics = [] %}
+{% for m in meetings.decided %}{% for d in m.decisions.decided + m.decisions.recommended + m.decisions.procedural %}{% if d.topic is defined and d.topic and d.topic not in topics %}{% set __ = topics.append(d.topic) %}{% endif %}{% endfor %}{% endfor %}
+{% if topics | length > 1 %}
+<div class="topic-filter" role="group" aria-label="{{ _("Decisions on") }}" hidden>
+  <button type="button" data-topic="" aria-pressed="true">{{ _("All topics") }}</button>
+  {% for t in decision_topics if t in topics %}<button type="button" data-topic="{{ t }}" aria-pressed="false">{{ topic_name(t) }}</button>{% endfor %}
+</div>
+{% endif %}
+{# The main decisions of the latest two months with any, by their titles (Decision.main, Decision.title), newest
+   first: what residents are most likely to look for, before every meeting's own. #}
+{% set mains = [] %}
+{% for month, items in group_by(meetings.decided, "month")[:2] %}{% for m in items %}{% for d in m.decisions.decided %}{% if d.main is defined and d.main and d.title %}{% set __ = mains.append((m, d)) %}{% endif %}{% endfor %}{% endfor %}{% endfor %}
+{% if mains %}
+<h2 id="main-decisions">{{ _("The main decisions") }}</h2>
+<ul class="decision-rows main-decisions">
+  {% for m, d in mains %}
+  <li{% if d.topic %} data-topic="{{ d.topic }}"{% endif %}><span class="outcome">{{ outcome_word(d.outcome) }}{% if d.tally %} <span class="tally">{{ d.tally }}</span>{% endif %}</span>
+    <span class="decision-text"><strong class="decision-title"{% if m.decisions_english %} lang="en"{% endif %}>{{ d.title }}</strong> <span class="decision-detail"><a href="{{ m.url }}#minutes">{{ m.body }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("mon_day") }}</time></span></span></li>
+  {% endfor %}
 </ul>
+<h2 id="by-meeting">{{ _("By meeting") }}</h2>
+{% endif %}
+{# The latest two months in full; each earlier one folded under its name, with how many meetings it has, so the page
+   stays short however many months it has. #}
+{% for month, items in group_by(meetings.past, "month") %}
+{% if loop.index == 3 %}<h2 id="earlier">{{ _("Earlier months") }}</h2>{% endif %}
+{% if loop.index <= 2 %}
+<h2 id="m-{{ month[:7] }}">{{ month | date("month") }}</h2>
+{% else %}
+<details class="expand month-fold" id="m-{{ month[:7] }}">
+<summary><span class="month-name">{{ month | date("month") }}</span> <span class="item-detail">{% trans count=items | length, num=items | length | number %}{{ num }} meeting{% pluralize %}{{ num }} meetings{% endtrans %}</span></summary>
+{% endif %}
+<ul class="decision-list">
+  {% for m in items %}{{ held_meeting(m) }}{% endfor %}
+</ul>
+{% if loop.index > 2 %}</details>{% endif %}
 {% endfor %}
+{% if meetings.decided %}
+<ul class="link-row">
+  <li><a href="/meetings/data/decisions.csv" download>{{ _("Download all decisions (CSV)") }}</a></li>
+</ul>
+<h2 id="about">{{ _("About these decisions") }}</h2>
+<div class="about-notes">
+  <p>{{ _("Decisions are pulled from each meeting's minutes by AI.") }} <a href="/about/#ai">{{ _("About AI summaries") }}</a></p>
+  {% if meetings.decided | selectattr("decisions_from", "equalto", "recording") | list %}
+  <p>{{ _("A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording, until its minutes replace them.") }}</p>
+  {% endif %}
+  {#- Translators: %(council)s is the town's governing body, such as "City Council". -#}
+  <p>{% trans council=meeting_links.governing_body %}Minutes come out after a board approves them, usually a few weeks after the meeting. Committee recommendations are listed separately. They become final only when the {{ council }} votes.{% endtrans %}</p>
+  <p>{{ report_button(report_link(page_url, "Past meetings page"), _("Report an error in a decision")) }}</p>
+</div>
+{% endif %}
 {% else %}
 <p>{{ _("No past meetings have been recorded yet. This list fills in as meetings take place.") }}</p>
+{% endif %}
+{% if meeting_links.documents and config.archive is defined %}
+<p class="source-note">{% if config.drive_meetings is defined %}{% trans url=config.meetings.base_url ~ "/" ~ config.archive.index, school_url=config.drive_meetings.page_url, since=config.archive.minutes_since | date %}From minutes posted on the <a href="{{ url }}">city's Archive Center</a> and the <a href="{{ school_url }}">School Committee website</a>, for meetings since {{ since }}.{% endtrans %}{% else %}{% trans url=config.meetings.base_url ~ "/" ~ config.archive.index, since=config.archive.minutes_since | date %}From minutes posted on the <a href="{{ url }}">city's Archive Center</a>, for meetings since {{ since }}.{% endtrans %}{% endif %}</p>
+{% elif meeting_links.documents and config.meetings.civicclerk is defined %}
+<p class="source-note">{% trans url=config.meetings.civicclerk.portal_url, since=config.meetings.civicclerk.since | date %}From minutes posted on the city's <a href="{{ url }}">meeting portal</a> (CivicClerk), for meetings since {{ since }}.{% endtrans %}</p>
+{% elif meeting_links.documents and config.meetings.agenda_center is defined %}
+<p class="source-note">{% trans url=config.meetings.agenda_center.base_url ~ "/AgendaCenter", since=config.meetings.agenda_center.since | date %}From minutes posted in the <a href="{{ url }}">city's Agenda Center</a>, for meetings since {{ since }}.{% endtrans %}</p>
 {% endif %}
 {# Translators: %(name)s is where the city keeps older documents, such as "city's Archive Center". #}
 {% if meeting_links.archive %}<p class="source-note">{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Meetings before this site began recording are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}</p>{% endif %}

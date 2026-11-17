@@ -229,7 +229,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. the label that shows a meeting's other decisions; %(count)s is how many, 1 or more.
-#: site/pages/meetings/decisions/index.html
+#: site/templates/held.html
 #, python-format
 msgid "%(count)s more decision"
 msgid_plural "%(count)s more decisions"
@@ -245,7 +245,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. the label that shows a meeting's other committee recommendations; %(count)s is how many, 1 or more.
-#: site/pages/meetings/decisions/index.html
+#: site/templates/held.html
 #, python-format
 msgid "%(count)s more recommendation"
 msgid_plural "%(count)s more recommendations"
@@ -428,7 +428,7 @@ msgid_plural "%(num)s have no map location and are only in the list."
 msgstr[0] "%(num)s no tiene ubicación en el mapa y solo aparece en la lista."
 msgstr[1] "%(num)s no tienen ubicación en el mapa y solo aparecen en la lista."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid "%(num)s meeting"
 msgid_plural "%(num)s meetings"
@@ -487,7 +487,7 @@ msgstr[1] ""
 "En los últimos 12 meses, en %(num)s lugares se volvió a informar un problema después de que se "
 "cerró una solicitud anterior allí."
 
-#: site/pages/meetings/decisions/index.html
+#: site/templates/held.html
 #, python-format
 msgid "%(num)s procedural step: minutes, continuances, referrals"
 msgid_plural "%(num)s procedural steps: minutes, continuances, referrals"
@@ -856,12 +856,17 @@ msgstr "%(town)s, %(state)s: reuniones de la semana del %(when)s"
 msgid "%(town)s, %(state)s open data: meetings, minutes, and decisions"
 msgstr "%(town)s, %(state)s: datos abiertos de reuniones, actas y decisiones"
 
-#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
-#. such as "MA".
 #: site/pages/meetings/past/index.html
 #, python-format
 msgid "%(town)s, %(state)s past meetings and agendas"
 msgstr "%(town)s, %(state)s: reuniones pasadas y agendas"
+
+#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
+#. such as "MA".
+#: site/pages/meetings/past/index.html
+#, python-format
+msgid "%(town)s, %(state)s past meetings, votes, and decisions"
+msgstr "%(town)s, %(state)s: reuniones pasadas, votaciones y decisiones"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -891,13 +896,6 @@ msgstr "%(town)s, %(state)s: registros públicos por calle"
 #, python-format
 msgid "%(town)s, %(state)s public schools: test scores and graduation"
 msgstr "%(town)s, %(state)s: escuelas públicas, exámenes y graduación"
-
-#. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
-#. such as "MA".
-#: site/pages/meetings/decisions/index.html
-#, python-format
-msgid "%(town)s, %(state)s votes and decisions from meeting minutes"
-msgstr "%(town)s, %(state)s: votaciones y decisiones de las reuniones"
 
 #. the page's title in search results: %(town)s is the town and %(state)s its state's abbreviation,
 #. such as "MA".
@@ -1868,7 +1866,7 @@ msgstr ""
 msgid "A correction from %(site)s"
 msgstr "Una corrección de %(site)s"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid ""
 "A meeting whose minutes haven't come yet may be listed with the decisions heard in its recording,"
 " until its minutes replace them."
@@ -1959,11 +1957,11 @@ msgstr "Resúmenes hechos con IA"
 msgid "About"
 msgstr "Acerca de"
 
-#: site/pages/meetings/decisions/index.html site/templates/digest.html
+#: site/pages/meetings/past/index.html site/templates/digest.html
 msgid "About AI summaries"
 msgstr "Sobre los resúmenes hechos con IA"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "About these decisions"
 msgstr "Sobre estas decisiones"
 
@@ -2089,7 +2087,7 @@ msgstr ""
 "La agenda no está registrada aquí. Puede estar en el <a href=\"%(url)s\">sitio web de "
 "%(name)s</a>."
 
-#: site/templates/macros.html
+#: site/templates/held.html site/templates/macros.html
 msgid "Agenda posted"
 msgstr "Agenda publicada"
 
@@ -2210,7 +2208,7 @@ msgstr "Todos los lugares con solicitudes repetidas"
 msgid "All the terms in the glossary"
 msgstr "Todos los términos del glosario"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "All topics"
 msgstr "Todos los temas"
 
@@ -2546,10 +2544,9 @@ msgstr "Calificaciones crediticias"
 
 #: site/pages/311/methodology/index.html site/pages/311/repeat-locations/index.html
 #: site/pages/about/accessibility/index.html site/pages/data/index.html
-#: site/pages/meetings/glossary/index.html site/pages/meetings/past/index.html
-#: site/templates/alerts.html site/templates/board.html site/templates/category.html
-#: site/templates/digest.html site/templates/digest_answer.html site/templates/meeting.html
-#: site/templates/ward.html
+#: site/pages/meetings/glossary/index.html site/templates/alerts.html site/templates/board.html
+#: site/templates/category.html site/templates/digest.html site/templates/digest_answer.html
+#: site/templates/meeting.html site/templates/ward.html
 msgid "Breadcrumb"
 msgstr "Ruta de navegación"
 
@@ -2619,7 +2616,7 @@ msgstr "Por categoría y distrito"
 msgid "By district"
 msgstr "Por distrito"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "By meeting"
 msgstr "Por reunión"
 
@@ -2944,7 +2941,7 @@ msgid "Committee recommendation"
 msgstr "Recomendación de comité"
 
 #. %(council)s is the town's governing body, such as "City Council".
-#: site/pages/meetings/decisions/index.html site/templates/digest.html
+#: site/templates/digest.html site/templates/held.html
 #, python-format
 msgid "Committee recommendations to the %(council)s"
 msgstr "%(council)s: recomendaciones de los comités"
@@ -3146,11 +3143,11 @@ msgctxt "month"
 msgid "December"
 msgstr "diciembre"
 
-#: pipeline/build_site.py site/pages/meetings/decisions/index.html site/pages/search/index.html
+#: site/pages/search/index.html
 msgid "Decisions"
 msgstr "Decisiones"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "Decisions are pulled from each meeting's minutes by AI."
 msgstr "Las decisiones se sacan de las actas de cada reunión con IA."
 
@@ -3170,7 +3167,7 @@ msgid_plural "Decisions from %(count)s meetings, including:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "Decisions on"
 msgstr "Decisiones sobre"
 
@@ -3254,7 +3251,7 @@ msgstr ""
 msgid "Download CSV"
 msgstr "Descargar CSV"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "Download all decisions (CSV)"
 msgstr "Descargar todas las decisiones (CSV)"
 
@@ -3500,7 +3497,7 @@ msgstr ""
 "Las reuniones anteriores están en el <a href=\"%(url)s\">portal de Reuniones Abiertas del "
 "estado</a>."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "Earlier months"
 msgstr "Meses anteriores"
 
@@ -3955,7 +3952,7 @@ msgctxt "weekday"
 msgid "Friday"
 msgstr "viernes"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid ""
 "From minutes posted in the <a href=\"%(url)s\">city's Agenda Center</a>, for meetings since "
@@ -3964,7 +3961,7 @@ msgstr ""
 "De las actas publicadas en el <a href=\"%(url)s\">Centro de Agendas de la ciudad</a>, para "
 "reuniones desde el %(since)s."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid ""
 "From minutes posted on the <a href=\"%(url)s\">city's Archive Center</a> and the <a "
@@ -3973,7 +3970,7 @@ msgstr ""
 "De las actas publicadas en el <a href=\"%(url)s\">Centro de Archivos de la ciudad</a> y en el <a "
 "href=\"%(school_url)s\">sitio web del Comité Escolar</a>, para reuniones desde el %(since)s."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid ""
 "From minutes posted on the <a href=\"%(url)s\">city's Archive Center</a>, for meetings since "
@@ -3982,7 +3979,7 @@ msgstr ""
 "De las actas publicadas en el <a href=\"%(url)s\">Centro de Archivos de la ciudad</a>, para "
 "reuniones desde el %(since)s."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid ""
 "From minutes posted on the city's <a href=\"%(url)s\">meeting portal</a> (CivicClerk), for "
@@ -4033,6 +4030,10 @@ msgstr ""
 "Del <a href=\"%(url)s\">portal de Reuniones Abiertas</a> de la Secretaría de Estado de Rhode "
 "Island, donde cada organismo público del estado presenta sus avisos y actas."
 
+#: site/templates/held.html
+msgid "From the agenda"
+msgstr "De la agenda"
+
 #: site/pages/meetings/index.html
 #, python-format
 msgid "From the city's <a href=\"%(portal)s\">meeting portal</a>."
@@ -4078,7 +4079,9 @@ msgstr ""
 msgid "From the posted agenda."
 msgstr "Según la agenda publicada."
 
-#: site/pages/meetings/decisions/index.html site/templates/macros.html
+#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
+#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
+#: site/templates/held.html site/templates/macros.html site/templates/meeting.html
 msgid "From the recording"
 msgstr "De la grabación"
 
@@ -4800,9 +4803,9 @@ msgstr "Últimos datos"
 msgid "Latest request on SeeClickFix"
 msgstr "Última solicitud en SeeClickFix"
 
-#. the start of the Decisions page's description in search results; %(decisions)s is the titles of the
-#. newest main decisions, separated by semicolons.
-#: site/pages/meetings/decisions/index.html
+#. the start of the Past meetings page's description in search results; %(decisions)s is the titles of
+#. the newest main decisions, separated by semicolons.
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid "Latest: %(decisions)s."
 msgstr "Lo más reciente: %(decisions)s."
@@ -5226,9 +5229,9 @@ msgstr ""
 "href=\"%(url)s\">Cómo se verifican</a>."
 
 #: pipeline/build_site.py pipeline/meeting_calendar.py site/pages/about/index.html
-#: site/pages/meetings/glossary/index.html site/pages/meetings/index.html
-#: site/pages/meetings/past/index.html site/pages/search/index.html site/templates/board.html
-#: site/templates/digest.html site/templates/digest_email.html site/templates/meeting.html
+#: site/pages/meetings/glossary/index.html site/pages/meetings/index.html site/pages/search/index.html
+#: site/templates/board.html site/templates/digest.html site/templates/digest_email.html
+#: site/templates/meeting.html
 msgid "Meetings"
 msgstr "Reuniones"
 
@@ -5344,7 +5347,7 @@ msgstr "Metodología"
 msgid "Mill rate"
 msgstr "Tasa de impuesto (mill rate)"
 
-#: pipeline/build_site.py site/pages/meetings/decisions/index.html
+#: pipeline/build_site.py site/templates/held.html
 msgid "Minutes"
 msgstr "Actas"
 
@@ -5399,7 +5402,7 @@ msgstr ""
 "enlace a las actas está abajo."
 
 #. %(council)s is the town's governing body, such as "City Council".
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
 msgid ""
 "Minutes come out after a board approves them, usually a few weeks after the meeting. Committee "
@@ -5426,7 +5429,11 @@ msgstr[1] ""
 "Las actas todavía no se han publicado, %(num)s días después de la reunión. Dónde se publicarán: "
 "<a href=\"%(url)s\">%(where)s</a>."
 
-#: site/templates/macros.html
+#: site/templates/held.html
+msgid "Minutes not posted yet"
+msgstr "Actas aún no publicadas"
+
+#: site/templates/held.html site/templates/macros.html
 msgid "Minutes posted"
 msgstr "Actas publicadas"
 
@@ -5662,12 +5669,6 @@ msgstr "Sin cambios desde {since}"
 #: site/pages/about/index.html
 msgid "No cookies, no ads, and no tracking across other sites."
 msgstr "Sin cookies, sin anuncios y sin rastreo en otros sitios."
-
-#: site/pages/meetings/decisions/index.html
-msgid "No decisions have been recorded yet. This page fills in as minutes are posted."
-msgstr ""
-"Todavía no hay decisiones registradas. Esta página se irá llenando a medida que se publiquen "
-"actas."
 
 #: site/templates/digest.html
 msgid "No decisions recorded"
@@ -6155,9 +6156,18 @@ msgstr ""
 "Últimos 12 meses. Las diferencias reflejan en parte con qué frecuencia la gente de cada distrito "
 "informa problemas."
 
-#: site/pages/meetings/index.html site/pages/meetings/past/index.html site/templates/board.html
+#: pipeline/build_site.py site/pages/meetings/index.html site/pages/meetings/past/index.html
+#: site/templates/board.html
 msgid "Past meetings"
 msgstr "Reuniones pasadas"
+
+#. %(town)s is the town's name and %(council)s its governing body, such as "City Council".
+#: site/pages/meetings/past/index.html
+#, python-format
+msgid ""
+"Past meetings of %(town)s's %(council)s, boards, and committees, with the decisions in their "
+"minutes."
+msgstr "%(council)s, juntas y comités de %(town)s: reuniones pasadas, con las decisiones de sus actas."
 
 #. %(town)s is the town and %(state)s its state's abbreviation, such as "MA".
 #: site/pages/meetings/past/index.html
@@ -6315,7 +6325,7 @@ msgstr ""
 "Las solicitudes privadas y las órdenes de trabajo internas no son públicas, así que no se "
 "cuentan. Las solicitudes que luego se borran o se hacen privadas se quitan."
 
-#: site/pages/meetings/decisions/index.html
+#: site/templates/held.html
 msgid "Procedural steps"
 msgstr "Pasos de procedimiento"
 
@@ -6569,7 +6579,7 @@ msgstr "Informar un problema a la ciudad"
 msgid "Report a problem with this page"
 msgstr "Informar un problema con esta página"
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "Report an error in a decision"
 msgstr "Informar un error en una decisión"
 
@@ -7047,7 +7057,7 @@ msgstr[1] "Mostrar %(n)s reuniones anteriores"
 msgid "Show earlier years"
 msgstr "Mostrar años anteriores"
 
-#: site/pages/meetings/decisions/index.html
+#: site/templates/held.html
 #, python-format
 msgid "Show its %(num)s decision"
 msgid_plural "Show its %(num)s decisions"
@@ -8640,7 +8650,7 @@ msgstr ""
 msgid "The license, and where its terms are."
 msgstr "La licencia, y dónde están sus condiciones."
 
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 msgid "The main decisions"
 msgstr "Las decisiones principales"
 
@@ -9387,16 +9397,6 @@ msgstr "Ver en SeeClickFix"
 msgid "Vote %(n)s of %(count)s"
 msgstr "Votación %(n)s de %(count)s"
 
-#. %(town)s is the town's name and %(council)s its governing body, such as "City Council".
-#: site/pages/meetings/decisions/index.html
-#, python-format
-msgid ""
-"Votes and other decisions recorded in the minutes of %(town)s's %(council)s, boards, and "
-"committees, newest meeting first."
-msgstr ""
-"%(council)s, juntas y comités de %(town)s: votaciones y otras decisiones registradas en sus "
-"actas, empezando por la reunión más reciente."
-
 #: site/templates/ward.html
 #, python-format
 msgid ""
@@ -9569,12 +9569,14 @@ msgid "What it should say, and where you saw it (if you know):"
 msgstr "Qué debería decir y dónde lo vio (si lo sabe):"
 
 #. %(council)s is the town's governing body, such as "City Council".
-#: site/pages/meetings/decisions/index.html
+#: site/pages/meetings/past/index.html
 #, python-format
-msgid "What the %(council)s, boards, and committees decided, from their minutes, newest meeting first."
+msgid ""
+"What the %(council)s, boards, and committees decided, from their minutes and recordings, newest "
+"meeting first."
 msgstr ""
-"%(council)s, juntas y comités: lo que decidieron, según sus actas, empezando por la reunión más "
-"reciente."
+"%(council)s, juntas y comités: lo que decidieron, según sus actas y grabaciones, empezando por la"
+" reunión más reciente."
 
 #: site/states/nh/budget.html
 #, python-format
@@ -9668,8 +9670,6 @@ msgstr "Lo que este sitio no incluye"
 msgid "What was decided"
 msgstr "Qué se decidió"
 
-#. a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as
-#. "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2".
 #: site/templates/meeting.html
 msgid "What was discussed"
 msgstr "Qué se habló"

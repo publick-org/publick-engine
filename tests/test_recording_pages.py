@@ -88,14 +88,16 @@ def test_before_the_minutes_the_recording_is_what_was_decided(built):
     assert "Sobre esta página" in es and "Grabación" in es[es.index('<p class="doc-links">'):] and ">Aprobado <span" in es
 
 
-def test_after_the_minutes_what_was_discussed_stays_under_them(built):
+def test_after_the_minutes_the_recordings_summary_stays_under_them(built):
     out, _, after = built
     page = (out / "meetings" / after["slug"] / "index.html").read_text()
     decided = section(page, '<h2 id="minutes">')
     assert 'class="decision-rows"' in decided and "Summary written by AI" in page[page.index('<h2 id="about">'):]
-    assert "supplemental appropriation" not in decided
-    # What was discussed, after the minutes'.
-    assert decided.index('class="decision-rows"') < decided.index('<h3 id="discussed">What was discussed</h3>')
+    # The recording's summary, then what was discussed, after the minutes'; its decisions aren't repeated, the
+    # minutes' being the record of the votes.
+    rows, recording = decided.index('class="decision-rows"'), decided.index('<h3 id="recording">From the recording</h3>')
+    assert rows < recording < decided.index('<h3 id="discussed">What was discussed</h3>')
+    assert "supplemental appropriation" in decided[recording:] and 'class="decision-rows"' not in decided[recording:]
     assert "Residents asked the council to keep the Flock camera pause in place." in decided
     links = section(page, '<p class="doc-links">', "</p>")
     assert 'href="https://videoplayer.telvue.com/player/x/media/2"' in links and "Recording" in links
@@ -103,7 +105,7 @@ def test_after_the_minutes_what_was_discussed_stays_under_them(built):
 
 def test_the_decisions_page_lists_a_recordings_decisions_until_the_minutes(built):
     out, before, after = built
-    page = (out / "meetings" / "decisions" / "index.html").read_text()
+    page = (out / "meetings" / "past" / "index.html").read_text()
     entry = page[page.index(f'<a href="{before["url"]}#minutes">'):]
     entry = entry[:entry.index("</li>\n  \n  <li") if "</li>\n  \n  <li" in entry else len(entry)]
     assert 'href="https://videoplayer.telvue.com/player/x/media/1"' in entry and "From the recording" in entry

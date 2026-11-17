@@ -138,7 +138,7 @@ def test_contact_route_present(site_dir, rel):
 
 
 def test_report_buttons_open_an_email(site_dir):
-    page = (site_dir / "meetings" / "decisions" / "index.html").read_text()
+    page = (site_dir / "meetings" / "past" / "index.html").read_text()
     assert 'class="report-link" href="mailto:gloucester-ma@publick.org?subject=Correction' in page
 
 
@@ -433,13 +433,13 @@ def test_glossary_matches_terms_and_boards():
 
 def test_decisions_page_and_csv(site_dir):
     import csv
-    page = (site_dir / "meetings" / "decisions" / "index.html").read_text()
-    assert "<h1>Decisions</h1>" in page
+    page = (site_dir / "meetings" / "past" / "index.html").read_text()
+    assert "<h1>Past meetings</h1>" in page
     rows = list(csv.reader((site_dir / "meetings" / "data" / "decisions.csv").open()))
     assert rows[0] == ["meeting_date", "board", "kind", "decision", "meeting_url", "minutes_url", "source", "recording_url"]
     assert {r[2] for r in rows[1:]} <= {"decided", "recommended", "procedural"}
     home = (site_dir / "index.html").read_text()
-    assert ('href="/meetings/decisions/"' in home) == (len(rows) > 1)
+    assert ('href="/meetings/past/">All decisions' in home) == (len(rows) > 1)
 
 
 def test_open_data_export(site_dir, data_dir):
@@ -1011,8 +1011,8 @@ def test_home_and_downloads_for_search_engines(site_dir):
     # A board whose name says the town's still has the town and state first: many towns share a name.
     assert "<title>Gloucester, MA Gloucester Retirement Board agendas and minutes</title>" in (
         meetings / "boards" / "gloucester-retirement-board" / "index.html").read_text()
-    decided = (meetings / "decisions" / "index.html").read_text()
-    assert "<title>Gloucester, MA votes and decisions from meeting minutes</title>" in decided
+    decided = (meetings / "past" / "index.html").read_text()
+    assert "<title>Gloucester, MA past meetings, votes, and decisions</title>" in decided
     assert "<title>Gloucester, MA 311 requests and response times</title>" in (site_dir / "311" / "index.html").read_text()
     assert "<title>Search Gloucester Publick</title>" in (site_dir / "search" / "index.html").read_text()
     # A page that isn't one people search for by topic keeps the site's name after its own.
@@ -1020,7 +1020,7 @@ def test_home_and_downloads_for_search_engines(site_dir):
     [site] = structured_data(site_dir / "index.html")
     assert site["@type"] == "WebSite" and site["name"] == "Gloucester Publick"
     assert site["url"] == "https://gloucester-ma.publick.org/"
-    [decisions] = structured_data(site_dir / "meetings" / "decisions" / "index.html")
+    [decisions] = structured_data(site_dir / "meetings" / "past" / "index.html")
     assert decisions["@type"] == "Dataset"
     assert decisions["distribution"][0]["contentUrl"] == "https://gloucester-ma.publick.org/meetings/data/decisions.csv"
     assert decisions["license"] == "https://creativecommons.org/licenses/by/4.0/"
@@ -1256,9 +1256,9 @@ def test_the_menu_and_its_tabs(site_dir):
     assert re.search(r'<li><a href="/search/" class="nav-search"><svg [^>]*aria-hidden="true"[^>]*>.*?</svg><span>Search</span></a></li>\s*</ul>',
                      read("/"), re.S)
     assert '<a href="/search/" aria-current="page" class="nav-search">' in read("/search/")
-    menu, tabs = menu_and_tabs(read("/meetings/decisions/"))
+    menu, tabs = menu_and_tabs(read("/meetings/past/"))
     assert ("/meetings/", "City Hall", "true") in menu
-    assert tabs == [("/meetings/", "Meetings", None), ("/meetings/decisions/", "Decisions", "page"),
+    assert tabs == [("/meetings/", "Meetings", None), ("/meetings/past/", "Past meetings", "page"),
                     ("/meetings/boards/", "Boards", None), ("/officials/", "Officials", None)]
     assert [t[0] for t in menu_and_tabs(read("/officials/"))[1]] == [t[0] for t in tabs]
     menu, tabs = menu_and_tabs(read("/311/"))
@@ -1282,24 +1282,24 @@ def test_the_menu_and_its_tabs(site_dir):
 def test_the_menu_has_only_the_towns_pages():
     """A group with none of its pages isn't in the menu, and a group goes to the first page it has."""
     sections = [{"slug": "meetings"}, {"slug": "housing"}]
-    nav = build_site.site_nav("/housing/", sections, "", documents=False)
+    nav = build_site.site_nav("/housing/", sections, "")
     assert nav["menu"] == [("/", "Home", None), ("/meetings/", "City Hall", None), ("/housing/", "Data", "page"),
                            ("/search/", "Search", None)]
     assert nav["tabs"] == [("/housing/", "Housing", "page"), ("/data/", "Downloads", None)]
-    assert build_site.site_nav("/meetings/", sections, "", documents=False)["tabs"] == [
-        ("/meetings/", "Meetings", "page"), ("/meetings/boards/", "Boards", None)]
-    nav = build_site.site_nav("/311/", [{"slug": "311"}], "", documents=False)
+    assert build_site.site_nav("/meetings/", sections, "")["tabs"] == [
+        ("/meetings/", "Meetings", "page"), ("/meetings/past/", "Past meetings", None), ("/meetings/boards/", "Boards", None)]
+    nav = build_site.site_nav("/311/", [{"slug": "311"}], "")
     assert nav["menu"][1] == ("/311/", "Neighborhood", "page")
     # A town's site says Town Hall.
     with i18n.use("en", "town"):
-        assert [m[1] for m in build_site.site_nav("/", sections + [{"slug": "budget"}], "", False)["menu"]] == [
+        assert [m[1] for m in build_site.site_nav("/", sections + [{"slug": "budget"}], "")["menu"]] == [
             "Home", "Town Hall", "Data", "Search"]
 
 
 def test_decisions_fold_earlier_months(site_dir):
-    """Decisions shows its latest two months in full; each earlier one is folded under its name, with how many
+    """Past meetings shows its latest two months in full; each earlier one is folded under its name, with how many
     meetings it has, and keeps its anchor."""
-    page = (site_dir / "meetings" / "decisions" / "index.html").read_text()
+    page = (site_dir / "meetings" / "past" / "index.html").read_text()
     months = re.findall(r'<h2 id="m-(\d{4}-\d{2})">', page)
     folded = re.findall(r'<details class="expand month-fold" id="m-(\d{4}-\d{2})">\s*<summary><span class="month-name">'
                         r'[^<]+</span> <span class="item-detail">(\d+) meetings?</span></summary>', page)
