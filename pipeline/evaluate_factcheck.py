@@ -262,6 +262,11 @@ def entry_text(item: dict, where: str) -> str:
     return value or ""
 
 
+def problem_kind(line: str) -> str:
+    """A problem's kind, from its line (problem())."""
+    return line.split(": ", 1)[1].split(" ", 1)[0]
+
+
 def why(result: dict, where: str) -> list[str]:
     """The problems at a place."""
     field, _, n = where.partition(" ")
@@ -297,8 +302,10 @@ def differences(item: dict, expected: dict | None, actual: dict) -> list[str]:
         lines += [f"    no longer: {p}" for p in causes]
         if not causes and expected["result"] != actual["result"]:
             lines.append(f"    its problems are still found, but the summary's result is now {actual['result']}")
-        elif not causes:
+        elif not causes and all(problem_kind(p) in factcheck.NOTED for p in why(actual, where)):
             lines.append("    its problems are still found, but are only noted (factcheck.NOTED)")
+        elif not causes:
+            lines.append("    its problems are still found")
         told |= set(causes)
     lines += [f"  problem found: {p}" for p in found if p not in told]
     lines += [f"  problem no longer found: {p}" for p in gone if p not in told]

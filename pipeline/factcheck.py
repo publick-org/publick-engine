@@ -1102,6 +1102,12 @@ def sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])", text or "") if s]
 
 
+def hides(fc: dict, p: dict) -> bool:
+    """Whether a problem keeps its entry, or its headline or summary, off the site (shown()): one found
+    against the document's full text that isn't only noted. A decision's title is shown without its own."""
+    return fc["result"] == "failed" and p["kind"] not in NOTED and p["field"] != "decision_titles"
+
+
 def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     """A summary as the site shows it (display: the record, or its translation, entry by entry),
     after its fact check (record's "fact_check"):
@@ -1146,7 +1152,7 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                     out[field] = [without_tally(t, p["what"]) if j == i else t for j, t in enumerate(out[field])]
             else:
                 out[field] = without_tally(out[field], p["what"])
-        elif fc["result"] == "failed" and p["kind"] not in NOTED:
+        elif hides(fc, p):
             hidden.setdefault(field, set()).add(p.get("entry"))
     gone = hidden.get("decisions", set())
     # Each decision's outcome (decision_evidence), kept beside the decisions shown, for the site to say it beside
@@ -1185,7 +1191,7 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
             # vote counts taken out of the text above).
             tallies = [p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] == "tally"]
             whats = [functools.reduce(without_tally, tallies, p["what"].rsplit(": says ", 1)[0]) if p["kind"] == "outcome"
-                     else p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] not in NOTED]
+                     else p["what"] for p in fc["problems"] if p["field"] == "summary" and p["kind"] != "tally"]
             out[field] = " ".join(s for s in sentences(out[field]) if not any(w in s for w in whats))
         else:
             out[field] = ""
