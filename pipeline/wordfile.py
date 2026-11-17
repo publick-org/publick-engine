@@ -20,6 +20,8 @@ import io
 import zipfile
 from xml.etree import ElementTree
 
+from pipeline.http import FetchError
+
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 # The PDF's built-in font covers Latin-1; Word's typographic punctuation is
@@ -87,6 +89,16 @@ def text_pdf(texts: list[str], creator: str) -> bytes:
             pdf.multi_cell(0, 5.5, text, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2.5)
     return bytes(pdf.output())
+
+
+def as_pdf(content: bytes, url: str) -> tuple[bytes, str | None]:
+    """A downloaded file as a PDF, and what it was converted from: a Word file's text ("docx"), or a PDF as
+    it is (None). Anything else (a sign-in page where a file should be) is a FetchError naming the address."""
+    if is_docx(content):
+        return to_pdf(content), "docx"
+    if not content.startswith(b"%PDF"):
+        raise FetchError(f"{url}: not a PDF or a Word (.docx) file")
+    return content, None
 
 
 def to_pdf(content: bytes) -> bytes:

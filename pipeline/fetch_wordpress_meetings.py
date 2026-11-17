@@ -120,7 +120,8 @@ def record_events(store: dict, events: list[dict], settings: dict, since: str, s
     """Record or update each board's meeting the events list. Returns the ids of the meetings listed, how many
     were created, the unlisted categories' counts, and the names filed under their category's board alone."""
     listed, created, unlisted, by_category = set(), 0, Counter(), {}
-    known = set(tribe.categories(settings)) | {c.strip().lower() for c in settings.get("exclude_categories", [])}
+    listed_categories = set(tribe.categories(settings))
+    known = listed_categories | {c.strip().lower() for c in settings.get("exclude_categories", [])}
     for event in events:
         if not event["date"] or event["date"] < since:
             continue
@@ -128,7 +129,7 @@ def record_events(store: dict, events: list[dict], settings: dict, since: str, s
         if info is None:
             names = [c.strip().lower() for c in event["categories"]]
             # An event exclude_categories leaves out says nothing of its other categories.
-            if not any(c in known and c not in tribe.categories(settings) for c in names):
+            if not any(c in known and c not in listed_categories for c in names):
                 unlisted.update(c for c in event["categories"] if c.strip().lower() not in known)
             continue
         name = tribe.name_of(event["title"])
@@ -179,22 +180,13 @@ class Saver:
             return True
         return doc["joined"] == "title" and any(d.get("joined") == "event" for d in saved)
 
-    def download(self, url: str) -> tuple[bytes, str | None]:
-        """A file as a PDF, and what it was converted from: a Word file's text, or a PDF as it is."""
-        content = self.client.get(url).content
-        if wordfile.is_docx(content):
-            return wordfile.to_pdf(content), "docx"
-        if not content.startswith(b"%PDF"):
-            raise FetchError(f"{url}: not a PDF or a Word (.docx) file")
-        return content, None
-
     def document(self, meeting: dict, doc: dict, file_urls: dict[str, str]) -> None:
         """Save a document's file, or its text as a PDF, unless it's the same as the meeting's latest of its kind."""
         if doc["media_id"]:
             url = file_urls.get(doc["media_id"])
             if not url:
                 raise FetchError(f"{doc['link']}: its file (media {doc['media_id']}) isn't listed")
-            content, converted = self.download(url)
+            content, converted = wordfile.as_pdf(self.client.get(url).content, url)
             source_url, original = url, unquote(urlsplit(url).path.rsplit("/", 1)[-1])
         else:
             if not htmlfile.paragraphs(doc["html"]):
@@ -226,9 +218,18 @@ class Saver:
         meeting.setdefault(field, []).append(saved_doc)
 
 
-def find_meeting(store: dict, doc: dict, settings: dict, since: str) -> tuple[dict | None, str]:
+def by_day(store: dict) -> dict[tuple[str, str], list[dict]]:
+    """The reader's meetings by board and date."""
+    found: dict[tuple[str, str], list[dict]] = {}
+    for meeting in store.values():
+        if meeting.get("source") == tribe.SOURCE:
+            found.setdefault((meeting["body"], meeting["date"]), []).append(meeting)
+    return found
+
+
+def find_meeting(store: dict, days: dict, doc: dict, settings: dict, since: str) -> tuple[dict | None, str]:
     """A document's meeting, and how it was found ("event", "title"), or None and why not ("before", "no
-    meeting", "no date")."""
+    meeting", "no date"). `days` is by_day(store)."""
     if doc["event_id"]:
         meeting = store.get(meeting_id(doc["event_id"]))
         if meeting:
@@ -238,19 +239,16 @@ def find_meeting(store: dict, doc: dict, settings: dict, since: str) -> tuple[di
         return None, "no date"
     if doc["date"] < since:
         return None, "before"
-    body = wpdocs.board_of(doc["title"], settings)
-    found = [m for m in store.values() if m.get("source") == tribe.SOURCE and m["body"] == body and m["date"] == doc["date"]]
-    return (found[0], "title") if body and len(found) == 1 else (None, "no meeting")
+    found = days.get((wpdocs.board_of(doc["title"], settings), doc["date"]), [])
+    return (found[0], "title") if len(found) == 1 else (None, "no meeting")
 
 
-def resolvable(entry: dict, store: dict, settings: dict) -> bool:
+def resolvable(entry: dict, store: dict, days: dict, settings: dict) -> bool:
     """Whether a document whose meeting wasn't recorded may now be: its event is, or a meeting of the board its
     title names, on its date."""
     if entry.get("event_id"):
         return meeting_id(entry["event_id"]) in store
-    body = wpdocs.board_of(entry["title"], settings)
-    return bool(body) and any(m.get("source") == tribe.SOURCE and m["body"] == body and m["date"] == entry.get("date")
-                              for m in store.values())
+    return bool(days.get((wpdocs.board_of(entry["title"], settings), entry.get("date"))))
 
 
 def read_documents(client, store: dict, settings: dict, previous: dict, saver: Saver, since: str, stamp: str,
@@ -271,11 +269,14 @@ def read_documents(client, store: dict, settings: dict, previous: dict, saver: S
     docs = {d["id"]: d for d in listed}
 
     # Documents left from earlier runs: those waiting, and those whose meeting may be recorded now.
+    # The documents waiting, and how many runs each has failed (kept if a document is listed again).
+    tries = {k: v.get("tries", 0) for k, v in previous.get("to_read", {}).items()}
     to_read = {k: v for k, v in previous.get("to_read", {}).items() if k not in docs}
+    days = by_day(store)
     year_ago = (datetime.fromisoformat(stamp).date() - KEEP_UNMATCHED).isoformat()
     unmatched = {k: v for k, v in previous.get("unmatched", {}).items()
                  if k not in docs and (v.get("date") or v.get("listed_on", "")) >= year_ago}
-    again = sorted(set(to_read) | {k for k, v in unmatched.items() if resolvable(v, store, settings)})
+    again = sorted(set(to_read) | {k for k, v in unmatched.items() if resolvable(v, store, days, settings)})
     for start in range(0, len(again), wordpress.PER_PAGE):
         ids = again[start:start + wordpress.PER_PAGE]
         for item in wordpress.read_all(client, site, wpdocs.ROUTE, wpdocs.include_params(ids),
@@ -292,7 +293,7 @@ def read_documents(client, store: dict, settings: dict, previous: dict, saver: S
         if doc["kind"] is None or (doc["kind"] == "minutes" and not settings.get("minutes", True)):
             to_read.pop(doc["id"], None)
             continue
-        meeting, how = find_meeting(store, doc, settings, since)
+        meeting, how = find_meeting(store, days, doc, settings, since)
         if meeting is None:
             to_read.pop(doc["id"], None)
             if how == "before":
@@ -327,7 +328,7 @@ def read_documents(client, store: dict, settings: dict, previous: dict, saver: S
             to_read.pop(doc["id"], None)
             continue
         if saver.saved >= limit:
-            to_read.setdefault(doc["id"], {"tries": 0})
+            to_read[doc["id"]] = {"tries": tries.get(doc["id"], 0)}
             waiting.add(meeting["date"])
             continue
         try:
@@ -335,9 +336,9 @@ def read_documents(client, store: dict, settings: dict, previous: dict, saver: S
         except FetchError as e:
             stop_if_refused(e)
             errors.append(str(e))
-            tries = to_read.get(doc["id"], {}).get("tries", 0) + 1
-            if tries < TRIES:
-                to_read[doc["id"]] = {"tries": tries}
+            failed = tries.get(doc["id"], 0) + 1
+            if failed < TRIES:
+                to_read[doc["id"]] = {"tries": failed}
                 continue
         to_read.pop(doc["id"], None)
 
@@ -379,7 +380,10 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         try:
             documents = read_documents(client, store, settings, previous, saver, since, stamp, errors, waiting)
         except FetchError as e:
-            stop_if_refused(e)
+            if isinstance(e, Blocked) or e.status in REFUSED:
+                # The meetings the calendar listed are kept; the run stops.
+                save_store(data_dir, store, config)
+                raise
             # Listed again from the same time on the next run.
             errors.append(str(e))
             documents = {k: previous[k] for k in ("documents_listed_at", "to_read", "unmatched") if k in previous}

@@ -338,7 +338,8 @@ def find_platform(town: NewTown, client) -> None:
                        "there", proudcity.page_url({"site_url": base}))
         else:
             town.note(1, f"{base} is a ProudCity site, but its REST API listed no meetings (/wp-json/{proudcity.ROUTE}).")
-    if WORDPRESS.search(page):
+    # A ProudCity site is WordPress too, with meetings of its own (above).
+    if WORDPRESS.search(page) and proudcity.MARK not in page:
         found = read_tribe(client, base)
         if found:
             site["platforms"].append("WordPress with The Events Calendar")

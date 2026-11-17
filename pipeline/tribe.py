@@ -24,8 +24,11 @@ A meeting. An event is a board's meeting when it's filed under one of the catego
 "Community Event" filed under "Planning" too), and its title isn't left out by exclude_pattern. Its board
 is the longest of [wordpress_meetings.bodies] its title names ("School NCN Subcommittee" for a category
 that holds a board's committees, or a school council), else its category's. Words after a dash give its
-status ("Library Meeting – Canceled", "... – Rescheduled"), and "Special" makes a special meeting
-(pipeline/meeting_names.py). Its link is kept only when it's a Zoom meeting's, as the meeting's way to
+status ("Library Meeting – Canceled", "City Council Meeting Postponed to ..."), and "Special" makes a
+special meeting (pipeline/meeting_names.py). An event is a meeting at its own date: a city that moves a
+meeting moves its event, so "– Rescheduled" in its title says it was moved there, and it's held then
+(Brockton's Redevelopment Authority meeting "– Rescheduled" to 2026-11-04 has that day's agenda), not that
+it was moved away, as the word means on a CivicPlus calendar. Its link is kept only when it's a Zoom meeting's, as the meeting's way to
 take part (pipeline/civicplus.py is_zoom_link).
 
 The reader's run is pipeline/fetch_wordpress_meetings.py. A city's document library on the same site,
@@ -114,7 +117,9 @@ def meeting_info(event: dict, settings: dict) -> dict | None:
     named = board_named(event["title"], settings)
     body = named or category
     found = parse_name(event["title"], [body], {})
-    return {"body": body, "status": found["status"], "special": found["special"], "by_category": not named}
+    # Moved to this date, not away from it (see above).
+    status = "scheduled" if found["status"] == "rescheduled" else found["status"]
+    return {"body": body, "status": status, "special": found["special"], "by_category": not named}
 
 
 def name_of(title: str) -> str:

@@ -159,7 +159,7 @@ def test_an_all_day_event_has_no_time():
     (89073, "Planning Board", "scheduled", False),                        # its category's board
     (89087, "School Committee Policy Subcommittee", "scheduled", False),  # bodies, in a board's category
     (89174, "Library Board of Trustees", "cancelled", False),             # "Library Meeting – Canceled"
-    (90361, "Brockton Redevelopment Authority", "rescheduled", False),
+    (90361, "Brockton Redevelopment Authority", "scheduled", False),   # "– Rescheduled": moved to this date
     (90538, "Brockton Housing Authority", "scheduled", True),             # "Special BHA Meeting"
     (90512, "City Council", "scheduled", True),                           # "City Council Special Meeting"
     (88622, "License Commission", "scheduled", True),
@@ -429,6 +429,48 @@ def test_a_failed_download_is_tried_on_the_next_runs(config, tmp_path):
 def test_a_refusal_stops_the_run(config, tmp_path, refused):
     with pytest.raises(FetchError, match="HTTP 403"):
         fetch.run(config, FakeSite(refuse=(refused,)), tmp_path, now=NOW)
+
+
+def test_a_refused_file_stops_the_run_but_keeps_the_meetings_listed(config, tmp_path):
+    with pytest.raises(FetchError, match="HTTP 403"):
+        fetch.run(config, FakeSite(refuse=("School_Agenda_111726.pdf",)), tmp_path, now=NOW)
+    assert load(tmp_path)["wordpress-89159"]["body"] == "City Council"
+    assert not (tmp_path / "meetings" / "wordpress_status.json").exists()
+
+
+def test_a_failing_documents_tries_are_kept_when_it_is_listed_again(config, tmp_path):
+    class Failing(FakeSite):
+        def get(self, url):
+            if url.endswith("School_Agenda_111726.pdf"):
+                raise FetchError(f"{url}: HTTP 404", 404)
+            return super().get(url)
+    docs = saved("documents")
+    status, _, _ = run(config, tmp_path, Failing(documents=docs))
+    assert status["to_read"] == {"90607": {"tries": 1}}
+    # Edited the next day: listed again, and its count goes on, so it's given up after the third run.
+    next(d for d in docs if d["id"] == 90607)["modified"] = "2026-11-18T09:00:00"
+    status, _, _ = run(config, tmp_path, Failing(documents=docs), now=NOW.replace(day=18))
+    assert status["to_read"] == {"90607": {"tries": 2}}
+    status, _, _ = run(config, tmp_path, Failing(documents=docs), now=NOW.replace(day=19))
+    assert status["to_read"] == {}
+
+
+def test_main_reports_and_stops(config, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(fetch, "load_config", lambda town: config)
+    monkeypatch.setattr(fetch, "run", lambda *a, **k: {
+        "documents_listed": 10, "documents_without_event": 9, "new_unlisted_categories": ["Local"],
+        "errors": ["one"], "to_read": {}, "unmatched": {}})
+    monkeypatch.setattr("sys.argv", ["fetch", "--town", "brockton", "--data", str(tmp_path)])
+    assert fetch.main() == 0
+    out = capsys.readouterr().out
+    assert "::warning::9 of the 10 documents listed link no event" in out
+    assert "::warning::An event category not in [wordpress_meetings.categories]: 'Local'" in out
+
+    def blocked(*a, **k):
+        raise fetch.Blocked(f"{SITE}/wp-json/: answered with a browser check", 403)
+    monkeypatch.setattr(fetch, "run", blocked)
+    assert fetch.main() == 1
+    assert "::error::" in (out := capsys.readouterr().out) and "doesn't work around" in out
 
 
 def test_a_browser_check_stops_the_run():
