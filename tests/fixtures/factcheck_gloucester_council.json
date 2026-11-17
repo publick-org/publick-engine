@@ -1,0 +1,174 @@
+{
+ "about": "Gloucester City Council, 2026-10-27: the summary of its recording (youtube-Kb0teFwRY1s), with the fact check its transcript gave it, and the summary's Spanish translation.",
+ "record": {
+  "kind": "recording",
+  "headline": "Commercial property tax shift set at 1.03; $132,000 state grant to refresh HarborWalk accepted.",
+  "summary": "Public Works gave an update on the wastewater treatment plant upgrade at 50 Essex Ave. No vote was taken on that item. Members also approved the fiscal 2027 tax shift, accepted a $132,000 state grant, and removed the newspaper publication requirement for fee changes.",
+  "decisions": [
+   "Approved the appointment of Angela Sanfilippo to the Fisheries Commission, 9 to 0.",
+   "Approved the consent agenda, as amended, 9 to 0.",
+   "Referred to the Planning and Development Committee and the planning board, with abutter notice waived and a public hearing set for December 8th, 2026, 9 to 0.",
+   "Approved accepting a $132,000 Massachusetts Downtown Initiative capital grant to refresh the HarborWalk, 8 to 1.",
+   "Approved accepting a framed portrait of former city clerk Joanne Senos, valued at about $150, 8 to 0 with 1 recused.",
+   "Withdrew, without prejudice, a proposal to raise the minimum lot area per dwelling unit in the RC40 Coastal Residential district from 20,000 to 40,000 square feet, 9 to 0.",
+   "Denied a motion to set a tax factor of one, equal rates for all property classes; it failed, with 2 in favor and 7 opposed.",
+   "Approved a residential tax factor of 0.9973, a 1.03 shift to commercial and industrial property, for fiscal 2027, 8 to 0 with 1 opposed.",
+   "Approved removing the requirement to publish fee changes in a local newspaper, 8 to 0 with 1 absent."
+  ],
+  "decision_titles": [
+   "Appointment of Angela Sanfilippo to the Fisheries Commission",
+   "Consent agenda",
+   "Zoning public hearing set for December 8th, 2026",
+   "$132,000 Massachusetts Downtown Initiative grant for HarborWalk",
+   "Donation of framed portrait of Joanne Senos",
+   "Minimum lot area change in the RC40 Coastal Residential district",
+   "Equal tax rates for all property classes (factor of one)",
+   "Fiscal 2027 commercial and industrial tax shift of 1.03",
+   "Removing newspaper publication of city fee changes"
+  ],
+  "decision_main": [
+   false,
+   false,
+   false,
+   true,
+   false,
+   true,
+   true,
+   true,
+   true
+  ],
+  "decision_topics": [
+   "government",
+   "government",
+   "housing",
+   "budget",
+   "other",
+   "housing",
+   "budget",
+   "budget",
+   "budget"
+  ],
+  "decision_evidence": [
+   {
+    "outcome": "approved",
+    "quote": "On a motion by Councilor Grow, seconded by Councilor Nolan, the Ordinances and Administration Committee voted two in favor, zero opposed, one absent to recommend that the City Council appoint Angela Sanfilippo to the Fisheries Commission, term to end 2/15/2029. ... Opposed? Ayes have it, 9 to 0."
+   },
+   {
+    "outcome": "approved",
+    "quote": "I'll entertain a motion to accept the consent agenda as amended. Second. Motion made by Councilor Memhard, seconded by Councilor Page. Um discussion? All those in favor? Aye. Aye. Opposed? Ayes have it, 9 to 0."
+   },
+   {
+    "outcome": "referred",
+    "quote": "I'd like to waive uh notice to abutters in accordance with GZO section 1.11.4b and set the public hearing date to Tuesday, December 8th, 2026, and vote to refer to P&D and planning board. And I so move. Motion made by Councilor Grow, seconded by Councilor Margiotta. Discussion? Seeing none, all those in favor? Aye. Aye. Opposed? Ayes have it, 9 to 0."
+   },
+   {
+    "outcome": "approved",
+    "quote": "to recommend that the City Council accept under Mass. General Law, chapter 44:53A, a state grant from the Massachusetts Executive Office of Economic Development, Massachusetts Downtown Initiative Capital Grant, and this is in the amount of $132,000, and is for the purpose of refreshing and strengthening the harbor walk. ... Opposed? Nay. Ayes have it 8 to 1."
+   },
+   {
+    "outcome": "approved",
+    "quote": "the city of Gloucester from Joanne Senos for a framed portrait with an estimated approximate value of $150, and I so move. ... Ayes have it 8 to 0, 1 recused."
+   },
+   {
+    "outcome": "withdrawn",
+    "quote": "So I would move to withdraw without prejudice. Second. Discussion? All those- oh, motion made by Counselor Memhard, second by Counselor Page. Back to discussion. Seeing none, all those in favor? Aye. Opposed? Ayes have it 9 to 0."
+   },
+   {
+    "outcome": "denied",
+    "quote": "Yes, I would like to make a motion for us to go to that flat, the parity of one. ... Aye. Aye. Opposed? No. Um, the it's uh, it's seven um opposed, two two in favor, seven opposed. Motion fails."
+   },
+   {
+    "outcome": "approved",
+    "quote": "to recommend that the City Council adopt a residential tax classification factor of 0.9973 that equates to a commercial industrial CIP shift of 1.03 for fiscal year 2027, and I so move. ... Ayes have it 8 to 0, 1 opposed."
+   },
+   {
+    "outcome": "approved",
+    "quote": "Delete and published in a local newspaper whenever fee changes or new fees are approved by the City Council, and I so move. ... Ayes have it 7 uh 8 to 0, 1 absent."
+   }
+  ],
+  "discussion": [
+   "Tax classification: Speakers from the business community urged keeping the 1.03 shift, and one resident urged 1.05. Members debated a factor of one for equal rates against the 1.03 shift.",
+   "HarborWalk grant: Members asked about the wayfinding signs, the thermoplastic markers, and effects on the working waterfront. Concerns were raised about public input before grants are applied for.",
+   "Wastewater plant upgrade: Members asked about cost, the construction schedule, piling, odor control, and cyber security at the plant. Staff answered each question."
+  ],
+  "fact_check": {
+   "version": 11,
+   "source": "recording",
+   "result": "failed",
+   "problems": [
+    {
+     "field": "decisions",
+     "entry": 8,
+     "kind": "tally",
+     "what": "8 to 0 with 1 opposed"
+    },
+    {
+     "field": "decisions",
+     "entry": 1,
+     "kind": "unanchored",
+     "what": "the minutes don't say how the motion ended near the quote"
+    },
+    {
+     "field": "decisions",
+     "entry": 2,
+     "kind": "unanchored",
+     "what": "the minutes don't say how the motion ended near the quote"
+    },
+    {
+     "field": "decisions",
+     "entry": 4,
+     "kind": "quote",
+     "what": "to recommend that the City Council accept under Mass. General Law, chapter 44:53A, a state grant from the Massachusetts Executive Office of Economic Development, Massachusetts Downtown Initiative Capi"
+    },
+    {
+     "field": "decisions",
+     "entry": 7,
+     "kind": "away",
+     "what": "7"
+    }
+   ],
+   "pages": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ]
+  }
+ },
+ "es": {
+  "headline": "Cambio de impuesto a la propiedad comercial fijado en 1.03; subvención estatal de $132,000 para renovar HarborWalk aceptada.",
+  "summary": "Obras Públicas dio una actualización sobre la mejora de la planta de tratamiento de aguas residuales en 50 Essex Ave. No se votó sobre ese punto. Integrantes también aprobaron el cambio de impuestos del año fiscal 2027, aceptaron una subvención estatal de $132,000 y eliminaron el requisito de publicar en un periódico los cambios de tarifas.",
+  "decisions": [
+   "Se aprobó nombrar a Angela Sanfilippo para la Comisión de Pesca, 9 a 0.",
+   "Se aprobó la agenda de consentimiento (consent agenda), con enmiendas, 9 a 0.",
+   "Se turnó al Comité de Planificación y Desarrollo y a la junta de planificación, con renuncia al aviso a los colindantes y audiencia pública fijada para el 8 de diciembre de 2026, 9 a 0.",
+   "Se aprobó aceptar una subvención de capital de $132,000 de Massachusetts Downtown Initiative para renovar HarborWalk, 8 a 1.",
+   "Se aprobó aceptar un retrato enmarcado de Joanne Senos, antes a cargo de la secretaría municipal, con un valor de unos $150, 8 a 0, con 1 integrante inhabilitado.",
+   "Se retiró una propuesta, con la opción de volver a presentarla, para subir el área mínima de lote por unidad de vivienda en el distrito RC40 Coastal Residential de 20,000 a 40,000 pies cuadrados, 9 a 0.",
+   "Se rechazó una moción para fijar un factor de impuesto de uno, con tasas iguales para todas las clases de propiedad; no prosperó, con 2 a favor y 7 en contra.",
+   "Se aprobó un factor residencial de 0.9973, con un cambio de 1.03 hacia la propiedad comercial e industrial, para el año fiscal 2027, 8 a 0, con 1 en contra.",
+   "Se aprobó eliminar el requisito de publicar los cambios de tarifas en un periódico local, 8 a 0, con 1 ausente."
+  ],
+  "decision_titles": [
+   "Nombramiento de Angela Sanfilippo a la Comisión de Pesca",
+   "Agenda de consentimiento",
+   "Audiencia pública de zonificación fijada para el 8 de diciembre de 2026",
+   "Subvención de $132,000 de Massachusetts Downtown Initiative para HarborWalk",
+   "Donación de retrato enmarcado de Joanne Senos",
+   "Cambio del área mínima de lote en el distrito RC40 Coastal Residential",
+   "Tasas de impuesto iguales para todas las clases de propiedad (factor de uno)",
+   "Cambio de impuesto comercial e industrial de 1.03 para el año fiscal 2027",
+   "Eliminación de la publicación en periódicos de los cambios de tarifas municipales"
+  ],
+  "discussion": [
+   "Clasificación de impuestos: Oradores de la comunidad empresarial pidieron mantener el cambio de 1.03, y un residente pidió 1.05. Integrantes debatieron un factor de uno, con tasas iguales, frente al cambio de 1.03.",
+   "Subvención de HarborWalk: Integrantes preguntaron sobre los letreros de orientación, los marcadores de termoplástico y los efectos en el frente marítimo de trabajo. Se expresaron preocupaciones sobre la participación pública antes de solicitar subvenciones.",
+   "Mejora de la planta de aguas residuales: Integrantes preguntaron sobre el costo, el calendario de construcción, los pilotes, el control de olores y la ciberseguridad en la planta. El personal respondió cada pregunta."
+  ]
+ }
+}
