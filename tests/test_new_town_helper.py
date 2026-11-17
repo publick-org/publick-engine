@@ -129,7 +129,7 @@ def test_helper_writes_a_town_from_saved_pages(tmp_path, network):
     assert [s["label"] for s in config["freshness"]["sources"]] == ["Meetings (Agenda Center)"]
 
 
-def test_helper_leaves_officials_and_the_digest_to_a_person(tmp_path, network):
+def test_helper_leaves_officials_to_a_person_and_turns_the_digest_on(tmp_path, network):
     town, out, _ = beverly(tmp_path, network)
     text = (out / "config" / "beverly.toml").read_text()
     config = tomllib.loads(text)
@@ -137,8 +137,8 @@ def test_helper_leaves_officials_and_the_digest_to_a_person(tmp_path, network):
     assert "bodies" not in config["officials"] and "next_election" not in config["officials"]
     assert "officials" not in [s["slug"] for s in config["sections"]]
     assert re.search(r"# To fill in: next_election", text)
-    # A town joins the digest a full week after launch.
-    assert "digest" not in config
+    # A town joins the digest at launch: an empty [digest] table, the network's settings.
+    assert config["digest"] == {}
     # Everything left is marked, and listed in the report, with the committees the council posts.
     left = new_town.left_to_fill_in(text)
     assert len(left) == len(town.todo) > 5

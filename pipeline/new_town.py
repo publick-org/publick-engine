@@ -43,8 +43,8 @@ leaves the rest marked for a person:
    and state): its shared settings, the answers above, and colors from the
    city's stylesheet. What the network's layers give every town, or every town
    in the state (defaults/network.toml, defaults/states/<st>.toml: see
-   pipeline/config.py), is left out. No [digest]: a town joins the weekly
-   digest once a full week has passed since launch.
+   pipeline/config.py), is left out. An empty [digest]: a town joins the
+   weekly digest at launch, with the network's signup settings.
 6. Checks, in a copy of the folder, so the town's data/ stays empty: build
    with no data, fetch a few weeks of meetings (--full: everything from
    `since`), build again, run the site checks, and list the meetings shown as
@@ -1064,6 +1064,9 @@ def config_text(town: NewTown, short: bool = False) -> Config:
 
     config_311(c, town)
     config_officials(c, town, governing)
+    c.table("digest", "The weekly digest by email, from launch: its signup's settings are the network's "
+            "(defaults/network.toml), and the network's scheduler emails every town with this table. A week with no "
+            "meetings and no new minutes has no issue, so a town with no data yet sends nothing.")
     return c
 
 
@@ -1418,8 +1421,6 @@ def report(town: NewTown, todo: list[tuple[int, str]]) -> str:
     if left:
         lines += ["", "## Left for a person", ""]
         lines += [f"{i}. Step {step}: {text}" for i, (step, text) in enumerate(left, 1)]
-    lines += ["", "Not in the config until a full week after launch: the weekly digest ([digest], which also puts the "
-              "town in the scheduler's DIGEST_TOWNS when the network deploys it)."]
     return "\n".join(lines) + "\n"
 
 
