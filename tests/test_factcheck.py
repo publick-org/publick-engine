@@ -1,6 +1,11 @@
 """Summaries checked against their documents' own text, without AI (pipeline/factcheck.py)."""
 
+import json
+from pathlib import Path
+
 from pipeline import factcheck
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 MINUTES = """CITY OF EXAMPLE CONSERVATION COMMISSION
 Meeting Minutes, June 4, 2026
@@ -617,7 +622,7 @@ def test_a_summary_sentence_that_turns_its_decision_round_fails():
     assert factcheck.shown(record, record, "minutes")["summary"] == "It also moved $175,000 to Public Works Salaries."
 
 
-def test_what_s_only_noted_is_hidden_where_the_summary_failed_for_something_else():
+def test_what_s_only_noted_is_shown_where_another_decision_failed():
     away = ("Approved $2,500 for Public Works Salaries (Order 201-26).", "approved",
             "201-26 Order: That the sum of $175,000 be transferred to Public Works Salaries.")
     record = {"kind": "minutes", "headline": "", "summary": "", "decisions": [away[0]],
@@ -625,12 +630,50 @@ def test_what_s_only_noted_is_hidden_where_the_summary_failed_for_something_else
     record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
     assert [p["kind"] for p in record["fact_check"]["problems"]] == ["away"] and record["fact_check"]["result"] == "ok"
     assert factcheck.shown(record, record, "minutes")["decisions"] == [away[0]]
-    # With a decision the minutes contradict, the summary fails, and neither is shown.
+    # With a decision the minutes contradict, the summary fails: that decision isn't shown, and the one only
+    # noted still is, as it was.
     record["decisions"].append("Approved $8,000 for the Senior Center roof, 4-7.")
     record["decision_evidence"].append({"outcome": "approved", "quote": "The motion did not carry, 4 yeas, 7 nays."})
     record["fact_check"] = factcheck.check(record, "minutes", [COUNCIL])
     assert record["fact_check"]["result"] == "failed"
-    assert factcheck.shown(record, record, "minutes")["decisions"] == []
+    shown = factcheck.shown(record, record, "minutes")
+    assert shown["decisions"] == [away[0]] and shown["not_shown"] == 1
+    assert shown["decision_outcomes"] == ["approved"]
+
+
+def test_one_failed_decision_hides_only_itself():
+    # Gloucester's City Council, 2026-10-27, from its recording: the grant's quote reorders the motion's words
+    # (decision 4, "quote"); the appointment and the consent agenda don't say how their motions ended near the
+    # quote (1 and 2, "unanchored"), and the tax factor's "7 opposed" is "seven" in the transcript (7, "away").
+    # The transcript bears out all four votes; only the grant's isn't shown.
+    fixture = json.loads((FIXTURES / "factcheck_gloucester_council.json").read_text(encoding="utf-8"))
+    record = fixture["record"]
+    fc = record["fact_check"]
+    assert fc["result"] == "failed"
+    assert sorted((p["entry"], p["kind"]) for p in fc["problems"]) == [
+        (1, "unanchored"), (2, "unanchored"), (4, "quote"), (7, "away"), (8, "tally")]
+    shown = factcheck.shown(record, record, "recording")
+    decisions = record["decisions"]
+    assert shown["decisions"] == [*decisions[:3], *decisions[4:7], "Approved a residential tax factor of 0.9973, a 1.03 "
+                                  "shift to commercial and industrial property, for fiscal 2027.", decisions[8]]
+    assert shown["not_shown"] == 1
+    # The decisions shown are as they'd be if the summary had passed (the same vote count taken out).
+    passed = {**record, "decisions": [d for i, d in enumerate(record["decisions"]) if i != 3],
+              "fact_check": {**fc, "result": "ok", "problems": [
+                  {**p, "entry": p["entry"] - (p["entry"] > 4)} for p in fc["problems"] if p["entry"] != 4]}}
+    for field in ("decision_titles", "decision_main", "decision_topics"):
+        passed[field] = [v for i, v in enumerate(record[field]) if i != 3]
+    passed["decision_evidence"] = [e for i, e in enumerate(record["decision_evidence"]) if i != 3]
+    as_passed = factcheck.shown(passed, passed, "recording")
+    for field in ("decisions", "decision_outcomes", "decision_titles", "decision_main", "decision_topics"):
+        assert shown[field] == as_passed[field], field
+    # The headline and the summary have no problems of their own, and are shown whole.
+    assert shown["headline"] == record["headline"] and shown["summary"] == record["summary"]
+    # The Spanish page loses the same decision.
+    spanish = factcheck.shown({**record, **fixture["es"]}, record, "recording")
+    es = fixture["es"]["decisions"]
+    assert len(spanish["decisions"]) == 8 and spanish["not_shown"] == 1
+    assert spanish["decisions"][:6] == [*es[:3], *es[4:7]]
 
 
 def test_names_however_the_document_writes_them():

@@ -295,8 +295,10 @@ def differences(item: dict, expected: dict | None, actual: dict) -> list[str]:
         lines.append(f"  {where}: hidden -> shown: {entry_text(item, where)[:200]!r}")
         causes = [p for p in why(expected, where) if p in gone]
         lines += [f"    no longer: {p}" for p in causes]
-        if not causes:
+        if not causes and expected["result"] != actual["result"]:
             lines.append(f"    its problems are still found, but the summary's result is now {actual['result']}")
+        elif not causes:
+            lines.append("    its problems are still found, but are only noted (factcheck.NOTED)")
         told |= set(causes)
     lines += [f"  problem found: {p}" for p in found if p not in told]
     lines += [f"  problem no longer found: {p}" for p in gone if p not in told]
