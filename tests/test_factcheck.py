@@ -846,3 +846,126 @@ def test_only_a_clear_misspelling_is_respelled():
     record = {"kind": "minutes", "headline": "", "summary": "", "decisions": ["Approved a garage at 6 Blane Street."]}
     assert not [p for p in factcheck.check(record, "minutes", ["6 Blane Street garage approved."], streets=STREETS)["problems"]
                 if p["kind"] == "spelling"]
+
+
+# Lawrence's City Council, 2026-11-04, and Lowell's Planning Board, 2026-11-02, as their agendas give them.
+AGENDA = """393/26 Order – Bond Authorization – Frost Elementary School Roof Replacement – $7,861,647.00
+434/26 Payment of Prior Year Invoice [$30,316.80] Brody, Hardoon, Perkins & Kesten
+Site Plan Review – 41 Hurd Street, 01852
+Permit approval to operate a car wash at 585 Pawtucket Boulevard. The subject property is in the
+165/26  Loading Zone – 67 Jackson Street [AF Café]
+o. 342 (aka 344, 346, & 348) Lake Avenue (CC-EO-2026-002)
+Location: 78 Oak Brook Drive.
+900/902/920/940 So. Colony Road
+2. 6 Woburn Street (PB-2026-024)
+Donations-$18,815.70
+"""
+
+
+def agenda_problems(text: str, noted: bool = True) -> list[tuple]:
+    return [(p["kind"], p["what"], p.get("agenda")) for p in factcheck.against_agenda(text, factcheck.Agenda(AGENDA), noted)]
+
+
+def test_a_recordings_amounts_are_held_to_the_agenda():
+    # The chair said $7,881,647 before the clerk read the order: the summary has what the transcript has.
+    assert agenda_problems("Approved $7,881,647 in borrowing for the Frost Elementary School roof replacement.") == [
+        ("agenda", "$7,881,647", "$7,861,647")]
+    assert agenda_problems("Approved $7,861,647 in borrowing for the Frost roof.") == []
+    assert agenda_problems("Approved paying a prior year invoice of $40,316.80.") == [("agenda", "$40,316.80", "$30,316.80")]
+    # The same dollars with other cents, and two figures next to each other swapped.
+    assert agenda_problems("Accepted an $18,815.17 donation.") == [("agenda", "$18,815.17", "$18,815.70")]
+    # The cents left off, or given where the agenda leaves them off ("$7,861,647.00" is $7,861,647), are the same amount.
+    assert agenda_problems("Accepted an $18,815 donation.") == []
+    assert agenda_problems("Approved $7,861,647.25 for the roof.") == []
+    assert agenda_problems("Approved $ 7,881,647 for the roof.") == [("agenda", "$ 7,881,647", "$7,861,647")]
+    assert agenda_problems("Approved $7,816,647 for the roof.") == [("agenda", "$7,816,647", "$7,861,647")]
+    # Rounded, or said to be about: only the figure the agenda has nothing near is listed.
+    assert agenda_problems("Approved about $7.9 million for the roof.") == []
+    # A figure the agenda has nothing like (set at the meeting: a fine, an amendment) is only listed, and only for a
+    # decision; a round one a figure off another of the agenda's is likely another item's.
+    assert agenda_problems("Fined the licensee $500.") == [("off_agenda", "$500", None)]
+    assert agenda_problems("Fined the licensee $500.", noted=False) == []
+    assert agenda_problems("Approved $20,000 for the study.") == [("off_agenda", "$20,000", None)]
+
+
+def test_a_recordings_addresses_are_held_to_the_agenda():
+    assert agenda_problems("Approved the site plan for 41 Third Street with conditions.") == [
+        ("agenda", "41 Third Street", "41 Hurd Street")]
+    # The transcript's words, in lowercase.
+    assert agenda_problems("Continued the car wash review at 585 protected Boulevard.") == [
+        ("agenda", "585 protected Boulevard", "585 Pawtucket Boulevard")]
+    # The same street, a house number one figure off.
+    assert agenda_problems("Sent a loading zone at 66 Jackson Street to the city engineer.") == [
+        ("agenda", "66 Jackson Street", "67 Jackson Street")]
+    # However the agenda writes it: another type's abbreviation, other house numbers between, the street's name in two
+    # words, a direction abbreviated, a house number among others.
+    assert agenda_problems("Approved the site plan for 41 Hurd St.") == []
+    assert agenda_problems("Amended the enforcement order for 342 Lake Avenue.") == []
+    assert agenda_problems("A certificate of compliance for 78 Oakbrook Drive.") == []
+    assert agenda_problems("Applications at 920 South Colony Road.") == []
+    assert agenda_problems("Applications at 920 Colony Road.") == []
+    # Not on the agenda at all: listed, not failed. Nor is another street at the same number with a name unlike it.
+    assert agenda_problems("Approved the definitive site plan for 10 Woburn Street.") == [("off_agenda", "10 Woburn Street", None)]
+    assert agenda_problems("A garage at 41 Elm Street.") == [("off_agenda", "41 Elm Street", None)]
+    # Not an address: a count, a word between, an amount.
+    assert agenda_problems("Approved 4 on Elm Street.") == []
+    assert agenda_problems("Voted 3 times on Main Street parking.") == []
+
+
+def test_a_recording_summary_with_an_amount_or_address_off_the_agenda_isnt_shown():
+    doc = ("[0:10:00] Order for $7,881,647 for the Frost School roof. All in favor? The ayes have it. "
+           "[0:20:00] Site plan for 41 Third Street, 205 units. All in favor? Motion passes. "
+           "[0:30:00] Fine of $500 for the Gold Lounge. All in favor? Motion passes.")
+    record = {"kind": "recording", "headline": "Site plan approved for 41 Third Street.",
+              "summary": "The Frost roof was approved. The 41 Third Street plan has 205 units.",
+              "decisions": ["Approved $7,881,647 for the Frost School roof.", "Approved the site plan for 41 Third Street.",
+                            "Approved a $500 fine for the Gold Lounge."],
+              "decision_titles": ["$7,881,647 for the Frost roof", "Site plan for 41 Third Street", "Gold Lounge fine"],
+              "decision_evidence": [{"outcome": "approved", "quote": "Order for $7,881,647 for the Frost School roof. All in "
+                                     "favor? The ayes have it."},
+                                    {"outcome": "approved", "quote": "Site plan for 41 Third Street. All in favor? Motion passes."},
+                                    {"outcome": "approved", "quote": "Fine of $500 for the Gold Lounge. All in favor? Motion passes."}],
+              "discussion": []}
+    # Without an agenda, as before.
+    assert factcheck.check(record, "recording", [doc])["result"] == "ok"
+    fc = factcheck.check(record, "recording", [doc], agenda=AGENDA)
+    assert fc["result"] == "failed" and fc["recording_version"] == factcheck.RECORDING_VERSION
+    assert sorted((p["field"], p.get("entry"), p["kind"]) for p in fc["problems"]) == [
+        ("decision_titles", 1, "agenda"), ("decision_titles", 2, "agenda"), ("decisions", 1, "agenda"),
+        ("decisions", 2, "agenda"), ("decisions", 3, "off_agenda"), ("headline", None, "agenda"), ("summary", None, "agenda")]
+    record["fact_check"] = fc
+    shown = factcheck.shown(record, record, "recording")
+    assert shown["decisions"] == ["Approved a $500 fine for the Gold Lounge."] and shown["not_shown"] == 2
+    assert shown["headline"] == "" and shown["summary"] == "The Frost roof was approved."
+    # A minutes' summary isn't held to an agenda: the minutes are the city's own record.
+    minutes = {**record, "kind": "minutes"}
+    assert not [p for p in factcheck.check(minutes, "minutes", [doc], agenda=AGENDA)["problems"] if "agenda" in p["kind"]]
+
+
+def test_an_address_respelled_for_the_town_is_held_to_the_agenda_as_shown():
+    record = {"kind": "recording", "headline": "", "summary": "", "decisions": ["Approved a garage at 6 Blane St."],
+              "decision_evidence": [{"outcome": "approved", "quote": "a garage at 6 Blane St. Motion passes."}]}
+    fc = factcheck.check(record, "recording", ["a garage at 6 Blane St. Motion passes."], streets=STREETS,
+                         agenda="Garage, 6 Blaine Street")
+    assert [(p["kind"], p["what"]) for p in fc["problems"]] == [("spelling", "6 Blane St")] and fc["result"] == "ok"
+
+
+def test_a_recordings_check_is_current_with_its_version_and_agendas():
+    checked = {"kind": "recording", "fact_check": {"version": factcheck.VERSION, "recording_version": factcheck.RECORDING_VERSION,
+                                                   "agendas": ["a" * 64], "result": "ok", "problems": []}}
+    assert factcheck.current(checked) and factcheck.current(checked, ["a" * 64])
+    # The meeting's agenda changed, or one came.
+    assert not factcheck.current(checked, ["b" * 64]) and not factcheck.current(checked, ["a" * 64, "b" * 64])
+    # Checked before the recording's own checks changed.
+    older = {**checked, "fact_check": {**checked["fact_check"], "recording_version": None}}
+    assert not factcheck.current(older)
+    # Every other summary only with VERSION.
+    assert factcheck.current({"kind": "minutes", "fact_check": {"version": factcheck.VERSION}})
+
+
+def test_the_report_gives_the_agendas_own_beside_what_differs(tmp_path):
+    (tmp_path / "summaries").mkdir()
+    fc = {"version": factcheck.VERSION, "source": "recording", "result": "failed", "problems": [
+        {"field": "decisions", "entry": 3, "kind": "agenda", "what": "41 Third Street", "agenda": "41 Hurd Street"}]}
+    (tmp_path / "summaries" / f"{'a' * 64}.json").write_text(json.dumps({"kind": "recording", "fact_check": fc}))
+    assert "  decisions 3: agenda '41 Third Street' (the agenda: '41 Hurd Street')" in factcheck.report(tmp_path)

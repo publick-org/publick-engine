@@ -9,7 +9,7 @@ import pytest
 from conftest import TZ
 from fakes import FakeAnthropic
 
-from pipeline import factcheck, listings, recordings, summarize
+from pipeline import factcheck, listings, pdftext, recordings, summarize
 from pipeline.config import load_config
 
 NOW = datetime(2026, 10, 28, 9, 0, tzinfo=TZ)
@@ -128,3 +128,56 @@ def test_a_recordings_streets_are_held_to_the_towns(config, tmp_path):
     # A town without address ranges is checked as before.
     checked = summarize.check_recording(config, meeting, record, transcript, frozenset())
     assert not [p for p in checked["fact_check"]["problems"] if p["kind"] == "spelling"]
+
+
+def test_a_recordings_amounts_and_addresses_are_held_to_its_meetings_agenda(config, tmp_path):
+    # Lowell's Planning Board, 2026-11-02: the transcript has "41 Third Street"; the agenda, 41 Hurd Street.
+    transcript = b"[0:20:00] Site plan for 41 Third Street. All in favor? Motion passes."
+    record = {"kind": "recording", "headline": "", "summary": "", "discussion": [],
+              "decisions": ["Approved the site plan for 41 Third Street."],
+              "decision_evidence": [{"outcome": "approved", "quote": "Site plan for 41 Third Street. All in favor? Motion passes."}]}
+    agenda, scan = "a" * 64, "b" * 64
+    meeting = {"body": "Planning Board", "agendas": [{"sha256": agenda}, {"sha256": scan}, {"sha256": "c" * 64}]}
+    folder = summarize.summaries_dir(tmp_path)
+    folder.mkdir(parents=True)
+    (folder / f"{agenda}.json").write_text(json.dumps({"kind": "agenda", "plain_text": "Site Plan Review – 41 Hurd Street"}))
+    # A scan's transcription by the model isn't held against: only the agenda's own text.
+    (folder / f"{scan}.json").write_text(json.dumps({"kind": "agenda", "transcript": "41 Third Street", "transcript_source": "ai"}))
+    assert summarize.meeting_agendas(tmp_path, meeting) == [agenda, scan]
+    checked = summarize.check_recording(config, meeting, record, transcript, frozenset(), tmp_path)
+    fc = checked["fact_check"]
+    assert [(p["kind"], p["what"], p["agenda"]) for p in fc["problems"]] == [("agenda", "41 Third Street", "41 Hurd Street")]
+    assert fc["result"] == "failed" and fc["agendas"] == [agenda, scan]
+    assert factcheck.current(checked, [agenda, scan])
+    # Checked again when the meeting has another agenda.
+    assert not factcheck.current(checked, [agenda, scan, "c" * 64])
+    # An agenda's record that can't be read: checked without it, the summary still saved.
+    (folder / f"{agenda}.json").write_text("{")
+    assert summarize.meeting_agenda_text(tmp_path, [agenda, scan]) == ""
+    # A meeting without an agenda: as before.
+    alone = summarize.check_recording(config, {"body": "Planning Board"}, record, transcript, frozenset(), tmp_path)
+    assert alone["fact_check"]["result"] == "ok" and alone["fact_check"]["agendas"] == []
+
+
+def test_a_recording_summarized_in_a_batch_is_checked_against_its_agenda(config, data_dir):
+    store = json.loads((data_dir / "meetings" / "meetings.json").read_text())
+    agenda = "a" * 64
+    store["ac-1"]["agendas"] = [{"id": "a-1", "sha256": agenda, "file": "a-1.pdf", "source_url": "x",
+                                 "fetched_at": "2026-10-20T08:00:00-04:00"}]
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+    folder = summarize.summaries_dir(data_dir)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{agenda}.json").write_text(json.dumps({
+        "kind": "agenda", "prompt_version": summarize.KINDS["agenda"]["version"], "headline": "", "summary": "", "items": [],
+        "start_time": "", "location": "", "plain_text": "Fire Department, $1.5 million", "text_version": pdftext.VERSION,
+        "fact_check": {"version": factcheck.VERSION, "source": "pdf", "result": "ok", "problems": []}}))
+    client = FakeAnthropic()
+    summarize.run(config, client, data_dir, limit=10, now=NOW, batch=True)
+    sent = json.loads((data_dir / summarize.BATCH_FILE).read_text())
+    assert [d["meeting"].get("agendas") for d in sent["documents"] if d["kind"] == "recording"] == [[{"sha256": agenda}]]
+    summarize.run(config, client, data_dir, limit=10, now=NOW, collecting=True)
+    meetings, _ = listings.read(data_dir)
+    record = summarize.cached(data_dir, meetings["ac-1"]["transcripts"][0]["sha256"], "recording")
+    # Checked as it's collected against the meeting's agenda, so the next run doesn't check it again.
+    assert record["fact_check"]["agendas"] == [agenda]
+    assert factcheck.current(record, summarize.meeting_agendas(data_dir, meetings["ac-1"]))

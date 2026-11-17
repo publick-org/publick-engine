@@ -30,7 +30,7 @@ def test_the_sample_and_its_expected_results_match():
     # What it's for: every kind of summary, and the check's every result.
     results = {r["result"] for r in expected().values()}
     assert {"ok", "failed", "weak"} <= results
-    assert {item["kind"] for item in sample()["items"]} == {"agenda", "minutes"}
+    assert {item["kind"] for item in sample()["items"]} == {"agenda", "minutes", "recording"}
     assert any(item["record"].get("transcript_source") == "ai" for item in sample()["items"])
     assert sample()["words"]
 
@@ -82,3 +82,20 @@ def test_a_decision_shown_again_says_why():
     before = {**copy.deepcopy(actual), "hidden": [h for h in actual["hidden"] if h != hard]}
     lines = evaluate_factcheck.differences(item, actual, before)
     assert "    its problems are still found" in lines
+
+
+def test_add_takes_each_summary_as_a_town_and_its_sha256s_start(capsys):
+    with pytest.raises(SystemExit):
+        evaluate_factcheck.main(["add", "network", "lawrence-ma"])
+    assert "lawrence-ma:cb192cd509" in capsys.readouterr().err
+
+
+def test_a_new_sample_keeps_only_the_hard_cases_recordings():
+    def candidate(town, kind, sha):
+        return {"town": town, "kind": kind, "platform": "calendar", "date": "2026-11-02", "sha256": sha, "bytes": 1000,
+                "record": {"decisions": ["a", "b", "c"], "fact_check": {"result": "ok", "source": kind}}}
+    town, start = evaluate_factcheck.HARD_CASES[-1]
+    hard = candidate(town, "recording", start + "0" * (64 - len(start)))
+    other = candidate("salem-ma", "recording", "f" * 64)
+    chosen = evaluate_factcheck.choose([hard, other, candidate("salem-ma", "minutes", "e" * 64)])
+    assert hard in chosen and other not in chosen

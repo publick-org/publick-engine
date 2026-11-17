@@ -2,7 +2,9 @@
 
 pipeline/factcheck.py decides what of each summary the site shows. evals/factcheck/ holds a sample
 of real summaries from the network's towns, each with its PDF's page text as factcheck.pages()
-reads it (sample.json.gz), and what the check made of each when its results were last accepted
+reads it, or for a recording's summary its transcript without times, with what else it's checked
+with: its body's members' words, the town's streets, and its meeting's agenda text
+(sample.json.gz); and what the check made of each when its results were last accepted
 (expected.json): the result, the problems, and what factcheck.shown() keeps of the headline,
 the summary, and each decision or agenda item. The tests replay the check on every summary
 (tests/test_factcheck_replay.py), so a change to the check that shows or hides anything fails
@@ -11,15 +13,18 @@ them until expected.json is rewritten, and the diff of expected.json is the chan
     python -m pipeline.evaluate_factcheck                    # what changed, entry by entry (exit status 1 if anything did)
     python -m pipeline.evaluate_factcheck --update           # accept it: rewrite expected.json
     python -m pipeline.evaluate_factcheck build <network repository> [--resample]
+    python -m pipeline.evaluate_factcheck add <network repository> <town>:<sha256 start>...
 
 build takes each summary as the network has it now, downloads its PDF (from the town's document
 storage, or the city's link), checks its sha256, and keeps only the pages' text; the summaries
 are those already in the sample, or with --resample (or no sample yet) a new sample: the hard
 cases in HARD_CASES, then at least one summary of each town's agendas and minutes and of each of
 its meeting platforms, and enough of each prompt version, scan, and result (failed, weak, and
-the kind of problem that failed it), filled up to about ENTRIES decisions and agenda items. The
+the kind of problem that failed it), filled up to about ENTRIES decisions and agenda items;
+recordings' summaries, each with its whole transcript, only those in HARD_CASES. The
 check is given the words a town's run gives it: the lowercase words of every town's summaries
-(translate.town_words()), saved with the sample. Nothing is sent to a model.
+(translate.town_words()), saved with the sample. add adds summaries to the sample, as the network
+has them now, and leaves the rest of it as it is. Nothing is sent to a model.
 """
 
 from __future__ import annotations
@@ -33,7 +38,7 @@ import re
 import sys
 from pathlib import Path
 
-from pipeline import factcheck, summarize, translate
+from pipeline import factcheck, summarize, transcribe, translate
 
 SAMPLE = Path(__file__).resolve().parent.parent / "evals" / "factcheck" / "sample.json.gz"
 EXPECTED = SAMPLE.with_name("expected.json")
@@ -52,6 +57,22 @@ HARD_CASES = [
     ("portland-me", "346a2e5be3"),
     # An amount the PDF's text breaks up: "$ 575, 578. 50".
     ("bangor-me", "b3a93e9e3b"),
+    # Recordings' summaries, with amounts and addresses their agendas give another way: "$7,881,647" for $7,861,647 and
+    # "$40,316.80" for $30,316.80; "41 Third Street" for 41 Hurd Street and "585 protected Boulevard" for 585 Pawtucket
+    # Boulevard; "46 Windsor Avenue" for 46 Winthrop and "66 Jackson Street" for 67; "333 Coppas Avenue" for Cohas;
+    # "439 Conger Street" for Congress; "14 to 18 Clara Drive" for 14-18 Kiara Drive.
+    ("lawrence-ma", "cb192cd509"),
+    ("lowell-ma", "ebf624c1a0"),
+    ("lawrence-ma", "ad162ea668"),
+    ("manchester-nh", "883f05a797"),
+    ("portland-me", "8fad4774dc"),
+    ("worcester-ma", "a60ad6700e"),
+    # One whose agenda writes its address another way ("78 Oak Brook Drive" for 78 Oakbrook Drive).
+    ("springfield-ma", "88b53e095e"),
+    # A committee's failed amendment, as the chair recounted it at the council (Malden); a roll call that failed, and
+    # an order amended and passed (Portland).
+    ("malden-ma", "95ca81687a"),
+    ("portland-me", "eeca81768e"),
 ]
 # About how many decisions and agenda items a new sample has in all.
 ENTRIES = 300
@@ -86,15 +107,21 @@ def candidates(network: Path) -> list[dict]:
         # Each document's own listing: a meeting listed in more than one place has every listing's documents.
         listed = json.loads((town / "data" / "meetings" / "meetings.json").read_text(encoding="utf-8"))
         listing = {d["sha256"]: m for m in listed.values() for field in ("agendas", "minutes") for d in m.get(field) or []}
+        streets = sorted(summarize.town_streets(town / "data"))
         for kind, meeting, doc, record in summarize.summarized_documents(town / "data"):
             if record.get("is_minutes") is False:
                 continue
             file_url = (f"{storage['public_url'].rstrip('/')}/{storage.get('prefix', town.name).strip('/')}/"
                         f"{summarize.KINDS[kind]['folder']}/{doc['file']}") if storage.get("public_url") else None
+            # A recording's summary is checked with its body's members' names, the town's streets, and its meeting's
+            # agenda (summarize.check_recording()).
+            extra = {"members": sorted(summarize.body_words(config, meeting["body"])), "streets": streets,
+                     "agenda": summarize.meeting_agenda_text(town / "data", summarize.meeting_agendas(town / "data", meeting))
+                     } if kind == "recording" else {}
             out.append({"town": town.name, "kind": kind, "platform": platform(listing.get(doc["sha256"], meeting)),
                         "body": meeting["body"], "title": meeting["title"], "date": meeting["date"], "sha256": doc["sha256"],
-                        "bytes": doc.get("bytes") or 0, "file_url": file_url, "source_url": doc["source_url"],
-                        "record": record})
+                        "bytes": doc.get("bytes") or 0, "file_url": file_url, "source_url": doc.get("source_url"),
+                        "record": record, **extra})
     return sorted(out, key=lambda c: c["sha256"])
 
 
@@ -112,7 +139,9 @@ def choose(found: list[dict]) -> list[dict]:
     """A new sample: the hard cases, then a summary for each stratum short of what it needs, then
     more until there are about ENTRIES entries, each in order of sha256."""
     chosen = [c for town, sha in HARD_CASES for c in found if c["town"] == town and c["sha256"].startswith(sha)]
-    rest = [c for c in found if c not in chosen and entries(c["record"]) <= MAX_ENTRIES and c["bytes"] <= MAX_BYTES]
+    # A recording's summary comes with its whole transcript: only the hard cases' are kept, not one of each town's.
+    rest = [c for c in found if c not in chosen and c["kind"] != "recording" and entries(c["record"]) <= MAX_ENTRIES
+            and c["bytes"] <= MAX_BYTES]
     needed = {}
     for s in sorted({s for c in found for s in strata(c)}):
         if s.startswith(("town ", "platform ")):
@@ -147,7 +176,7 @@ def download(url: str) -> bytes:
 
 def document(c: dict, get=download) -> bytes:
     """A summary's PDF, the one it was made from (by sha256): from the town's document storage,
-    or the city's link."""
+    or the city's link; a recording's transcript, from the town's storage."""
     tried = []
     for url in filter(None, (c["file_url"], c["source_url"])):
         try:
@@ -158,7 +187,7 @@ def document(c: dict, get=download) -> bytes:
         if hashlib.sha256(pdf).hexdigest() == c["sha256"]:
             return pdf
         tried.append(f"{url}: another document")
-    raise SystemExit(f"{c['town']} {c['sha256'][:12]}: no copy of its PDF\n  " + "\n  ".join(tried))
+    raise SystemExit(f"{c['town']} {c['sha256'][:12]}: no copy of its {'transcript' if c['kind'] == 'recording' else 'PDF'}\n  " + "\n  ".join(tried))
 
 
 def sample_item(c: dict, pdf: bytes) -> dict:
@@ -169,9 +198,14 @@ def sample_item(c: dict, pdf: bytes) -> dict:
     if record.get("transcript_source") != "ai":
         # The PDF's own text, which the check reads from the pages instead.
         record.pop("transcript", None)
-    return {"town": c["town"], "kind": c["kind"], "platform": c["platform"], "body": c["body"], "title": c["title"],
+    item = {"town": c["town"], "kind": c["kind"], "platform": c["platform"], "body": c["body"], "title": c["title"],
             "date": c["date"], "sha256": c["sha256"], "file_url": c["file_url"], "source_url": c["source_url"],
-            "record": record, "network_fact_check": c["record"].get("fact_check"), "pages": factcheck.pages(pdf)}
+            "record": record, "network_fact_check": c["record"].get("fact_check")}
+    if c["kind"] == "recording":
+        # The transcript without its times, as the check reads it, and what else it's checked with.
+        return {**item, "pages": [transcribe.untimed(pdf.decode("utf-8"))],
+                **{k: c[k] for k in ("members", "streets", "agenda")}}
+    return {**item, "pages": factcheck.pages(pdf)}
 
 
 def build(network: Path, resample: bool, get=download) -> dict:
@@ -186,14 +220,38 @@ def build(network: Path, resample: bool, get=download) -> dict:
         if gone:
             print("No longer in the network (left out): " + ", ".join(f"{t} {s[:12]}" for t, s in gone), file=sys.stderr)
         chosen = [by_key[k] for k in keys if k in by_key]
+    # Any town's words are every town's, in a network.
+    town = next(t for t in sorted((network / "towns").iterdir()) if (t / "data" / "summaries").is_dir())
+    return {"about": ABOUT, "words": sorted(translate.town_words(town / "data")), "items": fetched(chosen, get)}
+
+
+ABOUT = ("Summaries from the network's towns with their PDFs' page text, or their recordings' transcripts, for "
+         "pipeline/evaluate_factcheck.py.")
+
+
+def fetched(chosen: list[dict], get=download) -> list[dict]:
     items = []
     for c in chosen:
         print(f"{c['town']} {c['kind']} {c['date']} {c['sha256'][:12]}...", file=sys.stderr, flush=True)
         items.append(sample_item(c, document(c, get)))
-    # Any town's words are every town's, in a network.
-    town = next(t for t in sorted((network / "towns").iterdir()) if (t / "data" / "summaries").is_dir())
-    return {"about": "Summaries from the network's towns with their PDFs' page text, for pipeline/evaluate_factcheck.py.",
-            "words": sorted(translate.town_words(town / "data")), "items": items}
+    return items
+
+
+def add(network: Path, wanted: list[tuple[str, str]], get=download) -> dict:
+    """The sample with more summaries (each a town and the start of its document's sha256), as the network has
+    them now; the rest of the sample as it is."""
+    sample = load()
+    have = {(i["town"], i["sha256"]) for i in sample["items"]}
+    found = candidates(network)
+    chosen = []
+    for town, sha in wanted:
+        match = [c for c in found if c["town"] == town and c["sha256"].startswith(sha)]
+        if len(match) != 1:
+            raise SystemExit(f"{town} {sha}: {len(match)} summaries in the network")
+        if (town, match[0]["sha256"]) not in have:
+            chosen.append(match[0])
+    items = sorted(sample["items"] + fetched(chosen, get), key=lambda i: (i["town"], i["kind"], i["date"], i["sha256"]))
+    return {**sample, "about": ABOUT, "items": items}
 
 
 def load() -> dict:
@@ -225,7 +283,11 @@ def kept(checked: dict, kind: str, field: str) -> list[int]:
 def replay(item: dict, words: frozenset) -> dict:
     """The check of one summary of the sample, and what the site would show of it."""
     kind, record = item["kind"], item["record"]
-    fc = factcheck.check(record, kind, item["pages"], words)
+    if kind == "recording":
+        fc = summarize.recording_check(record, item["pages"][0], words, set(item["members"]), frozenset(item["streets"]),
+                                       item["agenda"])
+    else:
+        fc = factcheck.check(record, kind, item["pages"], words)
     checked = {**record, "fact_check": fc}
     out = factcheck.shown(checked, checked, kind)
     shown, hidden = {}, []
@@ -364,10 +426,16 @@ def main(argv: list[str] | None = None) -> int:
     made = sub.add_parser("build", help="write the sample from a network repository, and its expected results")
     made.add_argument("network", type=Path)
     made.add_argument("--resample", action="store_true", help="choose the summaries again")
+    more = sub.add_parser("add", help="add summaries to the sample, from a network repository, and their expected results")
+    more.add_argument("network", type=Path)
+    more.add_argument("summaries", nargs="+", metavar="TOWN:SHA256", help="a town and the start of its document's sha256")
     parser.add_argument("--update", action="store_true", help="accept the check's results: rewrite expected.json")
     args = parser.parse_args(argv)
-    if args.command == "build":
-        sample = build(args.network, args.resample)
+    if args.command == "add" and not all(re.fullmatch(r"[\w-]+:[0-9a-f]+", s) for s in args.summaries):
+        parser.error("each summary is a town and the start of its document's sha256: lawrence-ma:cb192cd509")
+    if args.command in ("build", "add"):
+        sample = (build(args.network, args.resample) if args.command == "build"
+                  else add(args.network, [tuple(s.split(":", 1)) for s in args.summaries]))
         SAMPLE.parent.mkdir(parents=True, exist_ok=True)
         SAMPLE.write_bytes(gzip.compress(json.dumps(sample, ensure_ascii=False).encode("utf-8"), mtime=0))
         actual = replay_all(sample)
