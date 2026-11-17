@@ -328,6 +328,22 @@ def test_a_wordpress_site_without_the_events_calendar_is_not_taken_for_one(tmp_p
     assert "wordpress" not in town.site and not any("categories" in u for u in client.urls)
 
 
+def test_a_calendar_of_community_events_alone_is_not_the_citys_meetings(tmp_path, network):
+    """A WordPress site whose calendar has no category naming a body: its meetings are elsewhere (BoardDocs here),
+    and the helper stops there, as for a site without the calendar."""
+    pages = wordpress_pages()
+    home = ('<html><head><link rel="https://api.w.org/" href="https://brockton.gov/wp-json/"></head><body>'
+            '<a href="https://go.boarddocs.com/ma/brockton/Board.nsf">Agendas</a></body></html>')
+    listing = {"categories": [{"id": 1, "name": "Local", "count": 900}, {"id": 2, "name": "Community Event", "count": 30}],
+               "total": 2, "total_pages": 1}
+    pages[0] = (r"^https://brockton\.gov/?$", Page(home, "https://brockton.gov/"))
+    pages[2] = (r"/wp-json/tribe/events/v1/categories\?", Page(json.dumps(listing), headers={"X-TEC-TotalPages": "1"}))
+    town = new_town.NewTown("Brockton", "MA", "https://brockton.gov", today=TODAY)
+    assert new_town.run(town, FakeClient(pages), network, tmp_path / "brockton-ma", checks=False) == 2
+    assert "wordpress" not in town.site and "BoardDocs" in town.stopped
+    assert any("none of its 2 categories names a kind of body" in note for _, note in town.notes)
+
+
 def test_helper_stops_at_a_browser_check(tmp_path, network):
     pages = [(r"beverlyma\.gov", new_town.BrowserCheck(BASE + "/"))]
     town, out, code = beverly(tmp_path, network, pages)

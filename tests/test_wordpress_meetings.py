@@ -159,7 +159,7 @@ def test_an_all_day_event_has_no_time():
     (89073, "Planning Board", "scheduled", False),                        # its category's board
     (89087, "School Committee Policy Subcommittee", "scheduled", False),  # bodies, in a board's category
     (89174, "Library Board of Trustees", "cancelled", False),             # "Library Meeting – Canceled"
-    (90361, "Brockton Redevelopment Authority", "scheduled", False),   # "– Rescheduled": moved to this date
+    (90361, "Brockton Redevelopment Authority", "rescheduled", False),   # "– Rescheduled": moved away, by default
     (90538, "Brockton Housing Authority", "scheduled", True),             # "Special BHA Meeting"
     (90512, "City Council", "scheduled", True),                           # "City Council Special Meeting"
     (88622, "License Commission", "scheduled", True),
@@ -167,6 +167,26 @@ def test_an_all_day_event_has_no_time():
 def test_a_meetings_board_and_status(event_id, body, status, special):
     info = tribe.meeting_info(event(event_id), SETTINGS)
     assert (info["body"], info["status"], info["special"]) == (body, status, special)
+
+
+@pytest.mark.parametrize("title, status", [
+    ("Brockton Redevelopment Authority Meeting – Rescheduled", "scheduled"),   # the event moved: held at its date
+    ("Brockton Redevelopment Authority Meeting – Rescheduled to November 20", "rescheduled"),
+    ("Brockton Redevelopment Authority Meeting – Rescheduled 11/20/2026", "rescheduled"),
+    ("Brockton Redevelopment Authority Meeting – Canceled", "cancelled"),
+])
+def test_a_city_that_moves_its_events_holds_a_rescheduled_one(title, status):
+    settings = {**SETTINGS, "rescheduled": "held"}
+    assert tribe.meeting_info({**event(90361), "title": title}, settings)["status"] == status
+    # By default, a meeting rescheduled is moved away, whatever the title says.
+    if "Rescheduled" in title:
+        assert tribe.meeting_info({**event(90361), "title": title}, SETTINGS)["status"] == "rescheduled"
+
+
+def test_the_first_listed_category_in_the_configs_order_gives_the_board():
+    both = {**event(89159), "categories": ["Public Safety", "City Council"]}
+    assert tribe.meeting_info(both, SETTINGS)["body"] == "City Council"
+    assert tribe.meeting_info({**both, "categories": ["City Council", "Public Safety"]}, SETTINGS)["body"] == "City Council"
 
 
 @pytest.mark.parametrize("event_id", [
@@ -270,9 +290,13 @@ def test_the_first_run_records_each_boards_meetings_and_their_documents(config, 
     assert store["wordpress-89073"]["remote_url"] == "https://us02web.zoom.us/j/89542653181"
     assert not any(k in store for k in ("wordpress-10008352", "wordpress-89183", "wordpress-89467", "wordpress-89392"))
     assert status["meetings_created"] == status["meetings_listed"] == len(store)
-    # The calendar's events from `since` to 90 days ahead, 10 a page here: read to the count the first page gives.
+    # The calendar's events from `since` to 90 days ahead, 92 days at a time, 10 a page here: each stretch read to
+    # the count its first page gives (the first has 13 events, the others fewer than 10).
     events = [u for u in site.urls if "/tribe/events/v1/events" in u]
-    assert len(events) == 3 and "start_date=2026-07-01+00%3A00%3A00" in events[0] and "2027-02-15+23%3A59%3A59" in events[0]
+    assert [(parse_qs(urlsplit(u).query)["start_date"][0][:10], parse_qs(urlsplit(u).query)["end_date"][0][:10],
+             parse_qs(urlsplit(u).query).get("page", ["1"])[0]) for u in events] == [
+        ("2026-07-01", "2026-09-30", "1"), ("2026-07-01", "2026-09-30", "2"),
+        ("2026-10-01", "2026-12-31", "1"), ("2027-01-01", "2027-02-15", "1")]
     # The events exclude_categories leaves out aren't counted under their other categories.
     assert status["unlisted_categories"] == {"Local": 1}
     assert status["filed_by_category"]["COA Meeting"] == "Council on Aging"
@@ -311,8 +335,8 @@ def test_the_first_run_records_each_boards_meetings_and_their_documents(config, 
     listing = next(u for u in site.urls if "/wp/v2/public-documents?" in u)
     assert "modified_after=2026-04-02T00%3A00%3A00" in listing and "document-categories=15%2C17" in listing
     assert sum("/wp/v2/media" in u for u in site.urls) == 1
-    # Three pages of events, the categories, the documents, their files' addresses, and three files.
-    assert status["requests"] == site.request_count == 3 + 1 + 1 + 1 + 3
+    # Four pages of events, the categories, the documents, their files' addresses, and three files.
+    assert status["requests"] == site.request_count == 4 + 1 + 1 + 1 + 3 and status["documents_error"] is None
 
 
 def test_the_next_run_reads_only_what_changed(config, tmp_path):
@@ -459,18 +483,77 @@ def test_main_reports_and_stops(config, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(fetch, "load_config", lambda town: config)
     monkeypatch.setattr(fetch, "run", lambda *a, **k: {
         "documents_listed": 10, "documents_without_event": 9, "new_unlisted_categories": ["Local"],
-        "errors": ["one"], "to_read": {}, "unmatched": {}})
+        "errors": ["one", "HTTP 500"], "documents_error": "HTTP 500", "to_read": {}, "unmatched": {}})
     monkeypatch.setattr("sys.argv", ["fetch", "--town", "brockton", "--data", str(tmp_path)])
     assert fetch.main() == 0
     out = capsys.readouterr().out
     assert "::warning::9 of the 10 documents listed link no event" in out
     assert "::warning::An event category not in [wordpress_meetings.categories]: 'Local'" in out
+    warnings = [line for line in out.splitlines() if line.startswith("::warning::")]
+    assert any(w.startswith("::warning::The document library wasn't read this run") for w in warnings)
+    assert sum("HTTP 500" in w for w in warnings) == 1
 
     def blocked(*a, **k):
         raise fetch.Blocked(f"{SITE}/wp-json/: answered with a browser check", 403)
     monkeypatch.setattr(fetch, "run", blocked)
     assert fetch.main() == 1
     assert "::error::" in (out := capsys.readouterr().out) and "doesn't work around" in out
+
+
+def test_stretches_of_the_calendar():
+    assert fetch.stretches("2026-07-01", "2026-07-01") == [("2026-07-01", "2026-07-01")]
+    assert fetch.stretches("2026-07-01", "2026-12-31", days=92) == [("2026-07-01", "2026-09-30"),
+                                                                     ("2026-10-01", "2026-12-31")]
+    assert len(fetch.stretches("2020-01-01", "2027-02-15")) == 29
+
+
+def test_a_first_run_from_long_ago_reads_a_stretch_at_a_time(config, tmp_path, monkeypatch):
+    """The page limit is a stretch's: a calendar of more events from `since` on than one listing may read
+    (three pages of 10 here, against a limit of 2) is read whole, and an event over two stretches is one."""
+    monkeypatch.setattr(fetch, "EVENT_PAGES", 2)
+    events = saved("events")
+    over = dict(next(e for e in events if e["id"] == 89159), id=1, end_date="2026-10-02 20:00:00")
+    over["start_date"] = "2026-09-30 19:00:00"
+    status, store, _ = run(config, tmp_path, FakeSite(events=events + [over], per_page=10))
+    assert status["events_listed"] == 28 and "wordpress-1" in store
+    # A stretch over the limit is still an error, not a part of the calendar.
+    monkeypatch.setattr(fetch, "EVENT_PAGES", 1)
+    with pytest.raises(FetchError, match="more than the 1 read"):
+        fetch.run(config, FakeSite(per_page=10), tmp_path / "again", now=NOW)
+
+
+def test_an_event_made_all_day_loses_its_time(config, tmp_path):
+    run(config, tmp_path)
+    events = saved("events")
+    school = next(e for e in events if e["id"] == 90605)
+    assert load(tmp_path)["wordpress-90605"]["start_time"] == "19:00"
+    school.update(all_day=True, start_date="2026-11-17 00:00:00", end_date="2026-11-17 23:59:59")
+    _, store, _ = run(config, tmp_path, FakeSite(events=events), now=NOW.replace(day=18))
+    assert store["wordpress-90605"]["start_time"] is None and store["wordpress-90605"]["end_time"] is None
+    assert {"field": "start_time", "old": "19:00", "new": None} in [
+        {k: h[k] for k in ("field", "old", "new")} for h in store["wordpress-90605"]["history"]]
+
+
+def test_a_document_two_meetings_could_be_is_not_asked_for_again(config, tmp_path):
+    """Two of a board's meetings that day: a document its title dates there is joined to neither, and isn't read
+    again on each run while that's so."""
+    store = {"a": {"id": "a", "source": "wordpress", "body": "School Committee", "date": "2026-10-20"},
+             "b": {"id": "b", "source": "wordpress", "body": "School Committee", "date": "2026-10-20"}}
+    entry = {"title": "2026-10-20 – School Committee Meeting – Meeting Agenda", "date": "2026-10-20", "event_id": None}
+    assert not fetch.resolvable(entry, store, fetch.by_day(store), SETTINGS)
+    del store["b"]
+    assert fetch.resolvable(entry, store, fetch.by_day(store), SETTINGS)
+
+
+def test_a_documents_half_that_fails_says_so(config, tmp_path):
+    class Down(FakeSite):
+        def get(self, url):
+            if "/wp/v2/public-documents" in url:
+                raise FetchError(f"{url}: HTTP 500", 500)
+            return super().get(url)
+    status, store, _ = run(config, tmp_path, Down())
+    assert "HTTP 500" in status["documents_error"] and status["documents_listed"] == 0
+    assert status["documents_listed_at"] is None and store["wordpress-89159"]["body"] == "City Council"
 
 
 def test_a_browser_check_stops_the_run():
@@ -500,6 +583,7 @@ def test_the_city_website_is_its_calendar():
     ({"days_ahead": 0}, "days_ahead must be a whole number"),
     ({"documents": {"agenda_category": "Meeting Agendas"}}, "needs minutes_category"),
     ({"documents": "Meeting Agendas"}, "must be a table"),
+    ({"rescheduled": "yes"}, 'rescheduled must be "moved"'),
 ])
 def test_the_config_is_checked(change, message):
     settings = {**copy.deepcopy(SETTINGS), **change}

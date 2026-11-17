@@ -25,10 +25,11 @@ A meeting. An event is a board's meeting when it's filed under one of the catego
 is the longest of [wordpress_meetings.bodies] its title names ("School NCN Subcommittee" for a category
 that holds a board's committees, or a school council), else its category's. Words after a dash give its
 status ("Library Meeting – Canceled", "City Council Meeting Postponed to ..."), and "Special" makes a
-special meeting (pipeline/meeting_names.py). An event is a meeting at its own date: a city that moves a
-meeting moves its event, so "– Rescheduled" in its title says it was moved there, and it's held then
-(Brockton's Redevelopment Authority meeting "– Rescheduled" to 2026-11-04 has that day's agenda), not that
-it was moved away, as the word means on a CivicPlus calendar. Its link is kept only when it's a Zoom meeting's, as the meeting's way to
+special meeting (pipeline/meeting_names.py). "Rescheduled" in a title says, as on other calendars, that the
+meeting was moved away from the event's date, and it isn't held then. A city that moves a meeting by moving
+its event, and marks the event "– Rescheduled" at its new date, sets `rescheduled = "held"` (Brockton's
+Redevelopment Authority meeting "– Rescheduled" to 2026-11-04 has that day's agenda); even there, a title
+that says where it was moved to ("Rescheduled to November 20") is a meeting moved away. Its link is kept only when it's a Zoom meeting's, as the meeting's way to
 take part (pipeline/civicplus.py is_zoom_link).
 
 The reader's run is pipeline/fetch_wordpress_meetings.py. A city's document library on the same site,
@@ -48,6 +49,10 @@ SOURCE = "wordpress"
 ROUTE = "tribe/events/v1/events"
 CATEGORIES_ROUTE = "tribe/events/v1/categories"
 PER_PAGE = 50
+# "Rescheduled" followed by where the meeting went: "Rescheduled to November 20", "rescheduled for 12/3".
+MOVED_TO = re.compile(r"\brescheduled\s+(?:to|for|until)\b", re.I)
+# The readings of an event titled "Rescheduled" ([wordpress_meetings] rescheduled).
+RESCHEDULED = ("moved", "held")
 # The namespace that says a site runs the plugin, among those /wp-json/ lists.
 NAMESPACE = "tribe/events/v1"
 
@@ -87,14 +92,14 @@ def categories(settings: dict) -> dict[str, str]:
 
 
 def category_board(event: dict, settings: dict) -> str | None:
-    """The board of the first of an event's categories listed in [wordpress_meetings.categories]; None if
-    none is, or if one is in exclude_categories."""
+    """The board of the first category of [wordpress_meetings.categories], in the config's order, that the
+    event is filed under; None if it's under none, or under one of exclude_categories."""
     listed = categories(settings)
     excluded = {c.strip().lower() for c in settings.get("exclude_categories", [])}
-    names = [c.strip().lower() for c in event["categories"]]
-    if any(c in excluded for c in names):
+    names = {c.strip().lower() for c in event["categories"]}
+    if names & excluded:
         return None
-    return next((listed[c] for c in names if c in listed), None)
+    return next((board for name, board in listed.items() if name in names), None)
 
 
 def excluded(title: str, settings: dict) -> bool:
@@ -117,9 +122,19 @@ def meeting_info(event: dict, settings: dict) -> dict | None:
     named = board_named(event["title"], settings)
     body = named or category
     found = parse_name(event["title"], [body], {})
-    # Moved to this date, not away from it (see above).
-    status = "scheduled" if found["status"] == "rescheduled" else found["status"]
+    status = found["status"]
+    if status == "rescheduled" and held_when_rescheduled(event["title"], settings):
+        status = "scheduled"
     return {"body": body, "status": status, "special": found["special"], "by_category": not named}
+
+
+def held_when_rescheduled(title: str, settings: dict) -> bool:
+    """Whether an event titled "Rescheduled" is its meeting, held at the event's date: only where the city moves
+    a meeting's event and marks it so (rescheduled = "held"), and its title doesn't say where it was moved to."""
+    if settings.get("rescheduled", "moved") != "held":
+        return False
+    after = re.split(r"\brescheduled\b", title, maxsplit=1, flags=re.I)[-1]
+    return not (MOVED_TO.search(title) or dates.find_date(after))
 
 
 def name_of(title: str) -> str:
@@ -172,6 +187,9 @@ def check(config: dict) -> None:
             raise SystemExit(f"{where}: {key} must be a whole number of at least 1.")
     if not isinstance(settings.get("minutes", True), bool):
         raise SystemExit(f"{where}: minutes must be true or false.")
+    if settings.get("rescheduled", "moved") not in RESCHEDULED:
+        raise SystemExit(f'{where}: rescheduled must be "moved" (an event titled "Rescheduled" isn\'t held at its date, '
+                         'the default) or "held" (the city moves the event, and marks it "Rescheduled" at its new date).')
     if "page_url" in settings and not str(settings["page_url"]).startswith("https://"):
         raise SystemExit(f"{where}: page_url must be the calendar's address, starting https://.")
     if "documents" in settings:

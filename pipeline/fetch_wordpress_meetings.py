@@ -8,7 +8,8 @@ a site with the calendar alone has no documents table.
 
 Each run:
 - lists the calendar's events from `since` (the first run) or recheck_days (default 60) ago to days_ahead
-  (default 90) ahead, 50 a page: a year of meetings and other events is a page or two a month. Each
+  (default 90) ahead, 50 a page, about three months at a time: a year of meetings and other events is a page
+  or two a month. Each
   board's meeting is recorded, or updated with what changed (its time, place, status), and an upcoming
   meeting the calendar no longer lists in that window is marked as no longer listed. The categories its
   settings don't list are reported (unlisted_categories), and the names whose board came from their
@@ -27,7 +28,7 @@ Each run:
 
 The status file counts the documents listed that link no event (documents_without_event): a few are saved
 without the link, but most of them is the sign that the site has changed its document fields, and the run
-warns of it.
+warns of it. A run that couldn't read the library says why (documents_error), rather than counting none.
 
 Requests are spaced request_delay (default 2) seconds apart, across every process on the machine that reads
 the same site (pipeline/http.py HostLimiter). A refusal (HTTP 401, 403, or 429 after the client's retries)
@@ -60,8 +61,11 @@ from pipeline.http import FetchError, HostLimiter, PoliteClient, is_browser_chec
 from pipeline.waiting import Waiting
 
 STATUS_FILE = "wordpress_status.json"
-# The most pages one listing reads: more is an error, not a part of the listing.
+# The most pages one listing reads: more is an error, not a part of the listing. The calendar is listed a
+# stretch of EVENT_DAYS at a time, so the limit is a stretch's, whatever the days asked for (a first run from
+# a `since` years back).
 EVENT_PAGES = 60
+EVENT_DAYS = 92
 DOCUMENT_PAGES = 50
 # How far before `since` the first run lists the documents changed from.
 FIRST_RUN_BACK = timedelta(days=90)
@@ -143,8 +147,8 @@ def record_events(store: dict, events: list[dict], settings: dict, since: str, s
                   "title": title_for(info["body"], info["special"]), "posted_title": event["title"],
                   "location_name": event["location_name"], "address": event["address"],
                   "remote_url": event["remote_url"], "documents_url": event["url"], "listed": True}
-        if event["start_time"]:
-            fields.update(start_time=event["start_time"], end_time=event["end_time"])
+        # An event made all-day has no time any longer.
+        fields.update(start_time=event["start_time"], end_time=event["end_time"])
         merge(meeting, fields, stamp, track=True)
         meeting["last_seen"] = stamp
         listed.add(meeting["id"])
@@ -248,7 +252,8 @@ def resolvable(entry: dict, store: dict, days: dict, settings: dict) -> bool:
     title names, on its date."""
     if entry.get("event_id"):
         return meeting_id(entry["event_id"]) in store
-    return bool(days.get((wpdocs.board_of(entry["title"], settings), entry.get("date"))))
+    # As find_meeting joins it: only to the one meeting of its board that day.
+    return len(days.get((wpdocs.board_of(entry["title"], settings), entry.get("date")), [])) == 1
 
 
 def read_documents(client, store: dict, settings: dict, previous: dict, saver: Saver, since: str, stamp: str,
@@ -352,6 +357,26 @@ def read_documents(client, store: dict, settings: dict, previous: dict, saver: S
     }
 
 
+def stretches(start: str, end: str, days: int = EVENT_DAYS) -> list[tuple[str, str]]:
+    """The days from start to end (YYYY-MM-DD, both included) in stretches of at most `days`."""
+    found, first, last = [], date.fromisoformat(start), date.fromisoformat(end)
+    while first <= last:
+        found.append((first.isoformat(), min(first + timedelta(days=days - 1), last).isoformat()))
+        first += timedelta(days=days)
+    return found
+
+
+def list_events(client, settings: dict, start: str, end: str) -> list[dict]:
+    """The calendar's events from start to end, a stretch at a time; an event over two stretches once."""
+    found = {}
+    for first, last in stretches(start, end):
+        for item in wordpress.read_all(client, settings["site_url"], tribe.ROUTE, tribe.listing_params(first, last),
+                                       key="events", max_pages=EVENT_PAGES):
+            event = tribe.parse_event(item)
+            found.setdefault(event["id"], event)
+    return list(found.values())
+
+
 def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> dict:
     now = now or datetime.now(ZoneInfo(config["site"]["timezone"]))
     stamp = now.isoformat(timespec="seconds")
@@ -367,15 +392,13 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
     recent = (now.date() - timedelta(days=settings.get("recheck_days", 60))).isoformat()
     start = since if "events_listed_at" not in previous else max(since, recent)
     until = (now.date() + timedelta(days=settings.get("days_ahead", 90))).isoformat()
-    events = [tribe.parse_event(item) for item in wordpress.read_all(
-        client, settings["site_url"], tribe.ROUTE, tribe.listing_params(start, until), key="events",
-        max_pages=EVENT_PAGES)]
+    events = list_events(client, settings, start, until)
     found = record_events(store, events, settings, since, stamp)
     mark_gone(store, found["listed"], max(today, start), until, stamp)
 
     errors, waiting = [], Waiting()
     saver = Saver(client, storage, settings, stamp)
-    documents = {}
+    documents, documents_error = {}, None
     if "documents" in settings:
         try:
             documents = read_documents(client, store, settings, previous, saver, since, stamp, errors, waiting)
@@ -386,6 +409,7 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
                 raise
             # Listed again from the same time on the next run.
             errors.append(str(e))
+            documents_error = str(e)
             documents = {k: previous[k] for k in ("documents_listed_at", "to_read", "unmatched") if k in previous}
 
     save_store(data_dir, store, config)
@@ -396,6 +420,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "events_listed": len(events),
         "meetings_listed": len(found["listed"]),
         "meetings_created": found["created"],
+        # Why the documents weren't read this run, if they weren't: then none are counted as listed.
+        "documents_error": documents_error,
         "documents_listed": documents.get("documents_listed", 0),
         "documents_without_event": documents.get("documents_without_event", 0),
         "documents_added": saver.added,
@@ -442,8 +468,12 @@ def main() -> int:
     if listed >= 4 and unlinked * 2 > listed:
         print(f"::warning::{unlinked} of the {listed} documents listed link no event: has the site changed its "
               f"document fields ({wpdocs.EVENT_FIELD}, {wpdocs.SNAPSHOT_FIELD})?")
+    if status["documents_error"]:
+        print("::warning::The document library wasn't read this run (listed again from the same time next run): "
+              f"{status['documents_error']}")
     for error in status["errors"]:
-        print(f"::warning::{error}")
+        if error != status["documents_error"]:
+            print(f"::warning::{error}")
     return 0
 
 

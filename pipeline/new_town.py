@@ -341,13 +341,17 @@ def find_platform(town: NewTown, client) -> None:
     # A ProudCity site is WordPress too, with meetings of its own (above).
     if WORDPRESS.search(page) and proudcity.MARK not in page:
         found = read_tribe(client, base)
-        if found:
+        named = [name for name, _ in found["categories"] if re.search(BOARD, name, re.I)] if found else []
+        if named:
             site["platforms"].append("WordPress with The Events Calendar")
             site["wordpress"] = found
-            named = [name for name, _ in found["categories"] if re.search(BOARD, name, re.I)]
             town.found(1, "The Events Calendar (WordPress)", f"{len(found['categories'])} event categories, {len(named)} "
                        "naming a kind of body" + ("; and a document library (public-documents)" if found["library"] else ""),
                        tribe.page_url({"site_url": base}))
+        elif found:
+            # A calendar of community events only: not where the city's boards post their meetings.
+            town.note(1, f"{base} has The Events Calendar, but none of its {len(found['categories'])} categories names a "
+                      "kind of body, so it isn't taken for the city's meetings.")
     if not any(k in site for k in ("agenda_center", "civicclerk", "legistar", "primegov", "proudcity", "wordpress")) and not any(c["chosen"] for c in site.get("calendars", [])):
         by_hand = [n for n, mark in BY_HAND.items() if re.search(mark, page, re.I)]
         if by_hand:
