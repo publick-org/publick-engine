@@ -79,6 +79,9 @@ def test_title_dates():
     assert recordings.title_date("City Council Meeting 10/27/2026") == "2026-10-27"
     assert recordings.title_date("City Council 10-27-26") == "2026-10-27"
     assert recordings.title_date("2026-10-27 City Council") == "2026-10-27"
+    # A year first with spaces (Sutton's cable channel).
+    assert recordings.title_date("HC 2026 10 26") == "2026-10-26"
+    assert recordings.title_date("COA  2026 10 20") == "2026-10-20"
     assert recordings.title_date("City Council - October 27, 2026") == "2026-10-27"
     assert recordings.title_date("School Committee Sept. 8th 2026") == "2026-09-08"
     assert recordings.title_date("Planning Board 21 October 2026") == "2026-10-21"

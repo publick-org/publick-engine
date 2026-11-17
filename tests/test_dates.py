@@ -235,6 +235,8 @@ def test_a_window_needs_a_day():
     # A period after the day, and figures with spaces at a title's end.
     ("Brockton City Council Meeting November 9. 2026", "Brockton City Council Meeting  "),
     ("Board of Assessors 11 5 26", "Board of Assessors  "), ("Ward 3 11 5 26", "Ward 3 11 5 26"),
+    # A year first with spaces, anywhere in a title.
+    ("PB 2026 08 03 EDITED", "PB   EDITED"), ("Ward 3 2026 10 26", "Ward 3 2026 10 26"),
 ])
 def test_without_dates(text, expected):
     assert dates.without_dates(text) == expected
