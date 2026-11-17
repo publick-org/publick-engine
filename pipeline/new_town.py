@@ -1418,8 +1418,8 @@ def report(town: NewTown, todo: list[tuple[int, str]]) -> str:
     if left:
         lines += ["", "## Left for a person", ""]
         lines += [f"{i}. Step {step}: {text}" for i, (step, text) in enumerate(left, 1)]
-    lines += ["", "Not in the config until a full week after launch: the weekly digest ([digest], and the town in "
-              "DIGEST_TOWNS in wrangler.scheduler.toml)."]
+    lines += ["", "Not in the config until a full week after launch: the weekly digest ([digest], which also puts the "
+              "town in the scheduler's DIGEST_TOWNS when the network deploys it)."]
     return "\n".join(lines) + "\n"
 
 
