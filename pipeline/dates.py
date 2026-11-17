@@ -12,6 +12,8 @@ that a reader meets is taught once and read by all of them:
   27 October 2026; 21st Oct 2026                      the day first
   Board of Assessors 11 5 26                          month, day, two-digit year with spaces: only as
                                                       the last thing in a title, not after a figure
+  HC 2026 10 26, PB 2026 08 03 EDITED                 a year from 2000 on, month and day with spaces:
+                                                      anywhere in a title, alone, not after a figure
 
 A run of figures that only looks like a date isn't one: a date inside a longer run of figures
 and separators ("1/2/3/4", "Item 4-10/15/2026"), a month and day without a year ("8/10", "1/2
@@ -33,7 +35,9 @@ as often something else's; it doesn't read figures with spaces ("11 5 26") eithe
 
 Figures with spaces are a date only as a title's last word, not after a figure, since in the middle of
 a title, or after another figure, they are as often an address, a phone number or an item's
-number ("Room 11 5 26", "Ward 3 11 5 26").
+number ("Room 11 5 26", "Ward 3 11 5 26"). A year first ("CC 2026 11 04") says it's a date, so it
+can be anywhere in a title, but still not after a figure or before another ("Ward 3 2026 10 26",
+"2026 10 26 7"), nor joined to a word ("2026 10 5th").
 
 Figures run together ("1132026", "152026": a month, a day, and a four-digit year from 2000 on,
 as a person types them in a file's name) are read only given `near`, the day the file was
@@ -80,6 +84,10 @@ FORMS = (
 # Board of Assessors 11 5 26: month, day and two-digit year with spaces, as the text's last word, not
 # after a figure (checked in _candidates, FIGURE_BEFORE).
 SPACED = re.compile(r"(?<!\S)(?P<mm>\d{1,2})\s+(?P<day>\d{1,2})\s+(?P<year>\d{2})\s*$")
+# HC 2026 10 26, PB 2026 08 03 EDITED: a year from 2000 on, month and day with spaces, anywhere in a title,
+# alone: nothing joined to it, and no figure after it (nor before it, checked in _candidates, FIGURE_BEFORE).
+YEAR_FIRST_SPACED = re.compile(r"(?<!\w)(?P<year>20\d{2})[ \t]+(?P<mm>\d{1,2})[ \t]+(?P<day>\d{1,2})"
+                               r"(?!\w)(?!\s+\d)(?![-/.:]\d)")
 # A figure, and nothing after it but spaces or punctuation: "Ward 3 ", "Item 4. ".
 FIGURE_BEFORE = re.compile(r"\d\W*$")
 # 1132026, 152026: month and day run together with a four-digit year, read only in a window (find_dates).
@@ -143,10 +151,10 @@ def _candidates(text: str, *, yearless: bool, short_dashed_years: bool, near: da
                 window: tuple[int, int] | None = None):
     """(start, end, year or None, month, day) for each date written in the text, read or not, in
     no order; a date with no year only if yearless, and figures run together only in a window."""
-    spaced = (SPACED,) if short_dashed_years else ()
+    spaced = (SPACED, YEAR_FIRST_SPACED) if short_dashed_years else ()
     for pattern in FORMS + spaced:
         for m in pattern.finditer(text):
-            if pattern is SPACED and FIGURE_BEFORE.search(text, 0, m.start()):
+            if pattern in spaced and FIGURE_BEFORE.search(text, 0, m.start()):
                 continue
             parts = m.groupdict()
             if parts.get("sep") == "-" and len(parts["year"]) == 2 and not short_dashed_years:

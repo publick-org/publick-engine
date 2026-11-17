@@ -45,6 +45,9 @@ def iso(text, **kwargs):
     # Month, day and two-digit year with spaces, as a title's last word (a station's recordings).
     ("Board of Assessors 11 5 26", "2026-11-05"), ("Conservation Commission 11 2 26", "2026-11-02"),
     ("Tax Increment Financing Board 10 28 26", "2026-10-28"), ("City Council 03 03 26 ", "2026-03-03"),
+    # A year first, month and day with spaces, anywhere in a title (Sutton's cable channel's recordings).
+    ("COA  2026 10 20", "2026-10-20"), ("HC 2026 10 26", "2026-10-26"), ("CC 2026 11 04", "2026-11-04"),
+    ("ATM 2026 10 19", "2026-10-19"), ("PB 2026 08 03 EDITED", "2026-08-03"), ("Meeting (2026 9 8)", "2026-09-08"),
 ])
 def test_forms(text, expected):
     assert iso(text) == expected
@@ -73,6 +76,10 @@ def test_dates_readers_once_missed(text, expected):
     # number, an item's number.
     "03 03 26 BOH Minutes", "Room 11 5 26 City Hall", "Ward 3 11 5 26", "Call 508 12 3 26", "Item 4. 11 5 26",
     "Board of Assessors-11 5 26", "Board of Assessors 11 5 2026x", "11 5 26 7",
+    # A year first with spaces after a figure, before another, or joined to a word; and the month first,
+    # with a four-digit year, isn't read.
+    "Ward 3 2026 10 26", "Call 508 2026 10 26", "2026 10 26 7", "PB 2026 08 03-2", "x2026 10 26", "2026 10 5th St",
+    "Sutton Leadership Group   09 15 2026", "Lot 2026 10 260",
     # Figures run together, without a day the file was posted.
     "LYNN CITY COUNCIL MEETING MINUTES 1132026", "City Council Minutes 4142026",
     # A figure after a month's name and a period, with no space: a decimal, not a year.
@@ -83,7 +90,7 @@ def test_not_dates(text):
 
 
 @pytest.mark.parametrize("text", [
-    "2026-02-30", "2/30/2026", "Agenda 2-30-2026", "February 30, 2026", "30 February 2026", "13/1/26 Agenda",
+    "2026 02 30", "HC 2026 13 01", "2026-02-30", "2/30/2026", "Agenda 2-30-2026", "February 30, 2026", "30 February 2026", "13/1/26 Agenda",
     "13.02.26 Minutes", "2026-13-01", "4/31/26", "February 29, 2027", "00/10/2026", "10/00/2026",
 ])
 def test_days_that_dont_exist(text):
@@ -128,6 +135,7 @@ def test_a_page_reads_dashes_only_with_a_full_year():
     assert dates.find_date("11-11-26 Board Meeting", short_dashed_years=False) is None
     # Nor figures with spaces.
     assert dates.find_date("Board of Assessors 11 5 26", short_dashed_years=False) is None
+    assert dates.find_date("HC 2026 10 26", short_dashed_years=False) is None
     assert iso("11-11-2026 Regular Board Meeting", short_dashed_years=False) == "2026-11-11"
     # Slashes and dots with a two-digit year are still dates.
     assert iso("10/26/26 BOE Meeting", short_dashed_years=False) == "2026-10-26"
@@ -227,6 +235,8 @@ def test_a_window_needs_a_day():
     # A period after the day, and figures with spaces at a title's end.
     ("Brockton City Council Meeting November 9. 2026", "Brockton City Council Meeting  "),
     ("Board of Assessors 11 5 26", "Board of Assessors  "), ("Ward 3 11 5 26", "Ward 3 11 5 26"),
+    # A year first with spaces, anywhere in a title.
+    ("PB 2026 08 03 EDITED", "PB   EDITED"), ("Ward 3 2026 10 26", "Ward 3 2026 10 26"),
 ])
 def test_without_dates(text, expected):
     assert dates.without_dates(text) == expected
