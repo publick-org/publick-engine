@@ -75,6 +75,48 @@ def test_a_time_isnt_part_of_the_board(title, body):
     assert meeting_names.parse_name(title)["body"] == body
 
 
+# Town Meeting is a board, "Meeting" and all; the words before it say which session (Sutton's calendar listed
+# its fall session as "Annual Fall Town Meeting", recorded under a board "Annual Fall Town").
+@pytest.mark.parametrize("title, body, special", [
+    ("Town Meeting", "Town Meeting", False),
+    ("Special Town Meeting", "Town Meeting", True),
+    ("Annual Fall Town Meeting", "Town Meeting", False),
+    ("Annual Spring Town Meeting", "Town Meeting", False),
+    ("Fall Town Meeting", "Town Meeting", False),
+    ("Spring Town Meeting", "Town Meeting", False),
+    ("Adjourned Annual Town Meeting", "Town Meeting", False),
+    ("October Special Town Meeting", "Town Meeting", True),
+    ("2026 Annual Town Meeting", "Town Meeting", False),
+    ("TOWN MEETING", "Town Meeting", False),
+    ("CANCELLED - Special Town Meeting", "Town Meeting", True),
+    ("7:00 PM Annual Town Meeting", "Town Meeting", False),
+    ("Annual Town Meeting - Night 2", "Town Meeting", False),
+    ("Annual Fall Town Meeting (Continued)", "Town Meeting", False),
+    ("Special Town Meeting #2", "Town Meeting", True),
+    ("Annual Town Meeting, Night 2", "Town Meeting", False),
+    ("Second Special Town Meeting", "Town Meeting", True),
+    ("2nd Special Town Meeting", "Town Meeting", True),
+    ("Open Town Meeting", "Town Meeting", False),
+    ("First Session of Annual Town Meeting (Deliberative Session)", "Town Meeting", False),
+    ("Adjourned Session of the Annual Town Meeting", "Town Meeting", False),
+    ("Representative Town Meeting", "Representative Town Meeting", False),
+    ("Special Representative Town Meeting", "Representative Town Meeting", True),
+    # The town's name stays, for identity.board_key to compare without it.
+    ("Sutton Annual Town Meeting", "Sutton Town Meeting", False),
+    # Other names keep the rules they had.
+    ("Town Council Meeting", "Town Council", False),
+    ("Town Meeting Day", "Town Meeting Day", False),
+    ("Town Meeting Day 2026", "Town Meeting Day 2026", False),
+    ("Downtown Meeting", "Downtown", False),
+])
+def test_town_meeting_is_a_board_whichever_session(title, body, special):
+    parsed = civicplus.parse_title(title)
+    assert (parsed["body"], parsed["special"]) == (body, special)
+    # The other platforms' names too (meeting_names.parse_name).
+    named = meeting_names.parse_name(title)
+    assert (named["body"], named["special"]) == (body, special)
+
+
 # What follows a colon isn't the board's name (Waltham's calendar), unless it names one of its committees.
 @pytest.mark.parametrize("title, body", [
     ("Waltham School Committee: FY28 Budget Workshop", "Waltham School Committee"),

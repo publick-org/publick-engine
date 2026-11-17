@@ -32,6 +32,7 @@ import re
 from datetime import date, datetime
 
 from pipeline import identity
+from pipeline.civicplus import town_meeting
 from pipeline.meeting_names import PLAIN_WORDS, find_board, parse_name
 
 ROW = re.compile(r'<tr id="row[^"]*" class="catAgendaRow">(.*?)</tr>', re.S)
@@ -111,9 +112,11 @@ SUBCOMMITTEE = re.compile(r"\bsub[\s-]?committees?\b", re.I)
 
 
 def board_of(row: dict, aliases: dict) -> str:
-    """The category's board: a town's alias for it, or its name the right way round."""
-    return next((target for name, target in aliases.items() if name.lower() == row["category"].lower()),
-                natural_name(row["category"]))
+    """The category's board: a town's alias for it, or its name the right way round. A category for one of
+    Town Meeting's sessions ("Special Town Meeting") is Town Meeting's (civicplus.town_meeting)."""
+    name = natural_name(row["category"])
+    return next((target for alias, target in aliases.items() if alias.lower() == row["category"].lower()),
+                town_meeting(name) or name)
 
 
 def names_more(named: str, body: str, town: str = "") -> bool:
@@ -177,7 +180,8 @@ def to_event(row: dict, aliases: dict | None = None, committees: dict | None = N
         "body": body,
         # The board whose subcommittee this is, where the row names no more of it than that (body_for).
         "subcommittee_of": board if body == f"{board} Subcommittee" else None,
-        "title": f"{body} {kind}",
+        # Town Meeting's own name says "Meeting".
+        "title": body if kind == "Meeting" and body.endswith(" Meeting") else f"{body} {kind}",
         "posted_title": row["title"],
         "status": parsed["status"],
         "special": parsed["special"],

@@ -104,6 +104,19 @@ def test_an_alias_comes_before_turning_a_name_round():
     assert agendacenter.body_for(row, {"Health, Board of": "Beverly Board of Health"}, {}) == "Beverly Board of Health"
 
 
+# A category for one of Town Meeting's sessions is Town Meeting's, as the calendar's listing of it is
+# (civicplus.town_meeting). Sutton's Agenda Center files "Spring Town Meeting Warrant" under "Town Meeting".
+@pytest.mark.parametrize("category, title", [
+    ("Town Meeting", "Spring Town Meeting Warrant"),
+    ("Special Town Meeting", "Warrant"),
+    ("Annual Town Meeting", "Annual Town Meeting Warrant"),
+])
+def test_a_category_for_a_town_meeting_session_is_town_meetings(category, title):
+    assert agendacenter.body_for({"category": category, "title": title}, {}, {}) == "Town Meeting"
+    # Its title doesn't say "Meeting" twice.
+    assert agendacenter.to_event(row_of(category, title))["title"] == "Town Meeting"
+
+
 def subcommittee_row(category, title):
     return {"category": category, "title": title, "number": "2943", "date": "2026-10-13", "posted_at": None,
             "agenda_url": "https://example.gov/AgendaCenter/ViewFile/Agenda/_10132026-2943", "minutes_url": None}

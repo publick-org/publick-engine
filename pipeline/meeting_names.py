@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from pipeline.civicplus import board_part, clean_text, status_of, without_status
+from pipeline.civicplus import board_part, clean_text, status_of, town_meeting, without_status
 
 # What a meeting is, as opposed to who is meeting: "Planning Board Public Hearings".
 KIND_SUFFIX = re.compile(r"\s+(?:(?:regular|business|organizational)\s+)?"
@@ -106,7 +106,8 @@ def parse_name(raw: str, boards: list[str] | None = None, aliases: dict | None =
         body = board_part(re.sub(r"\s*\([^)]*\)", "", title))
         body = re.split(r"\s+[-–:]\s+", body)[0]
         body = SPECIAL_MEETING_OF.sub("", body)
-        body = KIND_SUFFIX.sub("", body)
+        # Town Meeting is a board, whichever session it is (civicplus.town_meeting).
+        body = town_meeting(body) or KIND_SUFFIX.sub("", body)
         body = re.sub(r"^special\s+", "", body, flags=re.I).strip() or title
         body = next((target for name, target in aliases.items() if name.lower() == body.lower()), body)
     special = " special " in words(title).replace(words(body), " ")
