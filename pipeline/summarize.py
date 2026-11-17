@@ -1003,16 +1003,53 @@ def _streets(path: Path, _mtime: int) -> frozenset[str]:
     return frozenset(k for name in names if (k := street_key(name)))
 
 
+def meeting_agendas(data_dir: Path | None, meeting: dict) -> list[str]:
+    """The sha256 of each of the meeting's agendas that has a saved record, which a recording's summary is checked
+    against (meeting_agenda_text())."""
+    if not data_dir:
+        return []
+    return [d["sha256"] for d in meeting.get("agendas") or [] if (summaries_dir(data_dir) / f"{d['sha256']}.json").exists()]
+
+
+def meeting_agenda_text(data_dir: Path | None, agendas: list[str]) -> str:
+    """The agendas' own text (each record's plain_text, from its PDF's text layer), one after another. A scan's
+    transcription by the model isn't used: a figure it misread would be taken for the agenda's."""
+    texts = []
+    for sha in agendas:
+        try:
+            record = json.loads((summaries_dir(data_dir) / f"{sha}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            # Another document's record that can't be read doesn't stop a recording's summary being saved: it's
+            # checked without it, and again once it's made anew (meeting_agendas()).
+            continue
+        texts.append(record.get("plain_text") or "")
+    return "\n".join(t for t in texts if t)
+
+
 def check_recording(config: dict, meeting: dict, record: dict, transcript: bytes, words, data_dir: Path | None = None) -> dict:
     """A recording's summary with its fact check against the transcript, without its times
     (pipeline/factcheck.py). The board's members' names, which the summary spells from their list where the
     transcript mishears them, are taken as words, not checked as names; its addresses are held to the town's
-    street names, where the town has them (town_streets())."""
-    members = {w.lower() for name in votes.members_for(config, meeting["body"]) for w in re.findall(r"[\w'’-]+", name)}
-    text = transcribe.untimed(transcript.decode("utf-8"))
+    street names, where the town has them (town_streets()); and its amounts and addresses to the meeting's
+    agendas, where they have text (meeting_agenda_text()), with the agendas it was checked against kept, so it's
+    checked again when they change (factcheck.current())."""
+    agendas = meeting_agendas(data_dir, meeting)
+    fc = recording_check(record, transcribe.untimed(transcript.decode("utf-8")), words, body_words(config, meeting["body"]),
+                         town_streets(data_dir), meeting_agenda_text(data_dir, agendas), meeting["body"])
+    return {**record, "transcript_source": "recording", "fact_check": {**fc, "agendas": agendas}}
+
+
+def body_words(config: dict, body: str) -> set[str]:
+    """The words of the names of a body's members, lowercase, which a recording's summary spells from their list."""
+    return {w.lower() for name in votes.members_for(config, body) for w in re.findall(r"[\w'’-]+", name)}
+
+
+def recording_check(record: dict, text: str, words, members: set[str], streets: frozenset[str], agenda: str,
+                    body: str = "") -> dict:
+    """A recording's summary's fact check against its untimed transcript (check_recording()), with its body's members'
+    words (body_words()), the town's streets, its meeting's agenda text, and the body's name."""
     taken = frozenset(set(words) | translate.summary_words(record) | members)
-    return {**record, "transcript_source": "recording",
-            "fact_check": factcheck.check(record, "recording", [text], taken, town_streets(data_dir))}
+    return factcheck.check(record, "recording", [text], taken, streets, agenda, body)
 
 
 def unsaved(data_dir: Path, kind: str, doc: dict, model: str, error: Exception) -> str:
@@ -1074,8 +1111,11 @@ def send_batch(client, data_dir: Path, settings: dict, queued: list[tuple[str, d
         "id": created.id, "sent_at": sent_at.isoformat(timespec="seconds"), "model": settings["model"],
         # The prices the batch's model was sent at, so it's priced so when collected, whatever the settings by then.
         "prices": {k: settings[k] for k in PRICES + ("long_prompt_tokens",) if settings.get(k) is not None},
+        # A recording's meeting with its agendas, which its summary is checked against (check_recording()).
         "documents": [{"custom_id": f"doc-{i}", "kind": kind, "older": doc["sha256"] in older,
-                       "meeting": {k: meeting[k] for k in ("title", "date", "body") if k in meeting},
+                       "meeting": {**{k: meeting[k] for k in ("title", "date", "body") if k in meeting},
+                                   **({"agendas": [{"sha256": d["sha256"]} for d in meeting.get("agendas") or []]}
+                                      if kind == "recording" else {})},
                        "doc": {k: doc[k] for k in ("id", "sha256", "file", "source_url", "parts") if k in doc}}
                       for i, (kind, meeting, doc, _) in enumerate(queued)] + [
             {"custom_id": f"tr-{i}", "type": request["type"], "lang": lang, "kind": kind, "older": doc["sha256"] in older,
@@ -1603,8 +1643,9 @@ class SummaryRun:
             if self.laid_out >= TEXT_PER_RUN:
                 break
             if KINDS[kind].get("text"):
-                # A recording's summary has no text of its own to lay out: only its check is made again, when it changes.
-                if factcheck.current(record):
+                # A recording's summary has no text of its own to lay out: only its check is made again, when it, or
+                # the meeting's agendas, change.
+                if factcheck.current(record, meeting_agendas(self.data_dir, meeting)):
                     continue
                 try:
                     save_record(self.data_dir, doc["sha256"],

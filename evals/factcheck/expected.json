@@ -237,6 +237,77 @@
   "source": "ai",
   "town": "lawrence-ma"
  },
+ "lawrence-ma ad162ea668de": {
+  "document": "ad162ea668def54a6c919e763c7d428d14c4db020f41cf27e4e33bab0199a1e9",
+  "hidden": [
+   "decisions 12",
+   "decisions 13",
+   "decisions 19"
+  ],
+  "kind": "recording",
+  "meeting": "City Council, 2026-10-20",
+  "problems": [
+   "decision_titles 12: agenda 46 Windsor Avenue",
+   "decision_titles 13: number 404-26",
+   "decision_titles 18: number 433-26",
+   "decision_titles 19: agenda 66 Jackson Street",
+   "decisions 2: away 9.25",
+   "decisions 5: away Velincia",
+   "decisions 7: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 8: away 2025",
+   "decisions 8: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 9: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 10: away Cherise",
+   "decisions 11: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 12: agenda 46 Windsor Avenue",
+   "decisions 12: away 46",
+   "decisions 13: number 404-26",
+   "decisions 14: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 15: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 16: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 17: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 19: agenda 66 Jackson Street",
+   "transcript: unlisted I do as a for- as a formal recommendation. There is a motion in front of us to order a public hearing, properly second. Discussion? I hear none. All those in favor, please say aye. Aye. Any nays? The ayes have it",
+   "transcript: unlisted and I make as a formal motion. There's a There's a motion in front of us, properly second. Discussion? I hear none. This is to order a public hearing. Um, all those in favor, please say aye. Aye. The ayes have it",
+   "transcript: unlisted ull council to order a public hearing, and I make as a formal motion. There's a There's a motion in front of us, properly second. Discussion? I hear none. All those in favor, please say aye. Aye. The ayes have it"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {},
+   "discussion": {},
+   "headline": "Approved a new noise ordinance, a 90-day license plate reader pilot, and a 20-year solar power credit deal saving about $11 million.",
+   "summary": "A resolution of no confidence in Mayor Brian A. DePeña passed, with six in favor, three present, and one no. Members also approved a revised noise ordinance, a 90-day license plate reader pilot, and a 20-year solar power credit agreement. Velincia Linette Perez was approved as planning and development director, 7 to 2."
+  },
+  "source": "recording",
+  "town": "lawrence-ma"
+ },
+ "lawrence-ma cb192cd50954": {
+  "document": "cb192cd50954cb4bc38c5377b32c4dc4a73281a09f0adc173e46101e92ebe1e8",
+  "hidden": [
+   "decisions 2",
+   "decisions 5"
+  ],
+  "kind": "recording",
+  "meeting": "City Council, 2026-11-04",
+  "problems": [
+   "decision_titles 2: agenda $7,881,647",
+   "decision_titles 5: agenda $40,316.80",
+   "decisions 1: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 2: agenda $7,881,647",
+   "decisions 5: agenda $40,316.80",
+   "decisions 5: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 8: unanchored the minutes don't say how the motion ended near the quote"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {},
+   "discussion": {},
+   "headline": "Borrowing approved for $10,149,973 airport building, Frost and South Lawrence East school roofs.",
+   "summary": "The airport project is an administration building at Lawrence Municipal Airport. The Frost roof is at 33 Hamlet Street, and the South Lawrence East roof is at 165 Crawford Street. The school district's financial officer said the state's MSBA will cover 80% of the Frost costs. The city will spend $70,000 from Cataldo ambulance services money on the Lawrence Fire Department EMS coordinator salary."
+  },
+  "source": "recording",
+  "town": "lawrence-ma"
+ },
  "lewiston-me 027ce7c03392": {
   "document": "027ce7c03392328a9bf3e18aaacea2ab5ff6689ff87b228c4011acb081588437",
   "hidden": [],
@@ -331,6 +402,38 @@
   "source": "none",
   "town": "lowell-ma"
  },
+ "lowell-ma ebf624c1a0f5": {
+  "document": "ebf624c1a0f5757b20f974775ce874345f3c788e35b4c81c5643f0ead68c97e8",
+  "hidden": [
+   "headline",
+   "summary (1 of 3 sentences)",
+   "decisions 2",
+   "decisions 3",
+   "discussion 1"
+  ],
+  "kind": "recording",
+  "meeting": "Planning Board, 2026-11-02",
+  "problems": [
+   "decision_titles 2: agenda 585 protected Boulevard",
+   "decision_titles 3: agenda 41 Third Street",
+   "decisions 2: agenda 585 protected Boulevard",
+   "decisions 3: agenda 41 Third Street",
+   "decisions 3: away 41",
+   "decisions 3: unanchored the minutes don't say how the motion ended near the quote",
+   "discussion 1: agenda 41 Third Street",
+   "headline: agenda 41 Third Street",
+   "summary: agenda 585 protected Boulevard"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {},
+   "discussion": {},
+   "headline": "",
+   "summary": "The building would replace the existing courthouse with 205 apartments, around 6,000 square feet of commercial space, and 36 parking spaces on site. The developer has requested 300 spaces in the Lower Locks Municipal Garage for tenants, and its president said first residents could arrive in July 2029."
+  },
+  "source": "recording",
+  "town": "lowell-ma"
+ },
  "malden-ma 010cd02d1bdd": {
   "document": "010cd02d1bddae52b15a8628f0c6ad21517136dc817c63cb9655e32231518c87",
   "hidden": [],
@@ -396,6 +499,58 @@
   "source": "partial",
   "town": "malden-ma"
  },
+ "malden-ma 95ca81687ade": {
+  "document": "95ca81687ade3331c732f4e70376fd32382ef565c89525494a7a1351ef211461",
+  "hidden": [
+   "decisions 2",
+   "decisions 3",
+   "decisions 10",
+   "discussion 2"
+  ],
+  "kind": "recording",
+  "meeting": "City Council, 2026-10-27",
+  "problems": [
+   "decision_titles 3: spelling 6 Blane Street",
+   "decisions 2: quote Yes, so I'll make a motion to split the paper. Okay. So, motion by Councilor Sica to split the paper. ... You don't need a vote to split the paper, Yeah.",
+   "decisions 3: off_agenda 6 Blaine Street",
+   "decisions 3: quote Okay, on a Councillor Sica's motion to grant, seconded by Councilor Croll with the following conditions, ... Okay, so those petitions have been granted.",
+   "decisions 3: spelling 6 Blane Street",
+   "decisions 5: away 0",
+   "decisions 5: away 9",
+   "decisions 5: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 6: off_agenda $800,000",
+   "decisions 9: away 9",
+   "decisions 9: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 10: committee We did",
+   "decisions 12: away 1",
+   "decisions 12: away 9",
+   "decisions 12: away 10",
+   "decisions 12: away 15",
+   "decisions 13: away 0",
+   "decisions 13: away 9",
+   "decisions 13: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 14: away 0",
+   "decisions 14: away 9",
+   "decisions 14: off_agenda $157,000",
+   "decisions 15: away 0",
+   "decisions 15: away 9",
+   "decisions 15: off_agenda $220,000",
+   "discussion 2: number 0.7",
+   "discussion 3: spelling 6 Blane Street",
+   "transcript: unlisted s. Council Member Macdonald? Yes. Councillor O'Malley? Yes. Councillor Sica? Yes. Councillor Simonelli? Councillor Taylor? Yes. Councillor Winslow? Yes. Council President Linehan? Yes. Okay, so those petitions have been granted"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {},
+   "discussion": {
+    "3": "6 Blaine Street pole: Residents asked that the pole be moved away from the house, and petitioners agreed to move it 20 feet, to 30 feet south of pole 2023."
+   },
+   "headline": "Council enrolled inclusionary zoning changes with new incentives and granted National Grid poles on Blane Street and nearby streets.",
+   "summary": "The council enrolled changes to inclusionary zoning, lowering the affordable unit requirement from 15% to 10% and adding incentives for developers. It granted National Grid pole and conduit petitions at four locations, with conditions, and split off a Broadway and Eastern Avenue item to come back as a new petition. It referred a six-story hotel height proposal and an $800,000 Public Works budget change to committee."
+  },
+  "source": "recording",
+  "town": "malden-ma"
+ },
  "manchester-nh 0396fa3a14ee": {
   "document": "0396fa3a14ee890557ee89a72832b5cdb68d7bdea0de1c6b5d33940c823497a6",
   "hidden": [],
@@ -424,6 +579,29 @@
    "summary": "The agenda covers the yearly vote on executive officers, then reports from the Chair, Treasurer, Strategic Initiatives/Real Estate, and Marketing/Communications committees, plus an update from the Manchester Economic Development Office."
   },
   "source": "pdf",
+  "town": "manchester-nh"
+ },
+ "manchester-nh 883f05a79770": {
+  "document": "883f05a797704ce7d046851178e27bb7734eec64af1f1da1d23b51f761860637",
+  "hidden": [
+   "decisions 2"
+  ],
+  "kind": "recording",
+  "meeting": "Planning Board, 2026-11-05",
+  "problems": [
+   "decision_titles 2: agenda 333 Coppas Avenue",
+   "decisions 2: agenda 333 Coppas Avenue",
+   "decisions 3: away 1308",
+   "transcript: unlisted ah, right. So a motion has been made. Thank you, Vice Chair. Do we have a second second by Peter Lennon? All those in favor, please say aye. Aye. Opposed? Any abstentions? Hearing no abstentions, the motion carries"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {},
+   "discussion": {},
+   "headline": "Proposed 16-story, 196-unit tower at 99 Lowell Street draws objections over lost parking at hearing.",
+   "summary": "The tower would replace the city-owned Hartnett lot, which has about 205 parking spaces, with 196 apartments and up to 7,325 square feet of commercial space. The applicant's attorney said a three-story garage with about 305 spaces would be built, and an agreement with the city calls for replacement parking at the Pearl Street garage. Public speakers opposed the project, mainly over lost parking and the view of St. Joseph's Cathedral. The matter will be considered at a business meeting in two weeks, and three subdivision cases were continued to December 3."
+  },
+  "source": "recording",
   "town": "manchester-nh"
  },
  "methuen-ma 06e075d8218c": {
@@ -608,6 +786,141 @@
   "source": "pdf",
   "town": "portland-me"
  },
+ "portland-me 8fad4774dcd9": {
+  "document": "8fad4774dcd96fc8f939343c8a9d8f3eba97a0f47f5b30f17819e53c1c0e77ed",
+  "hidden": [
+   "headline",
+   "summary (1 of 3 sentences)",
+   "decisions 4",
+   "decisions 5"
+  ],
+  "kind": "recording",
+  "meeting": "Rent Board, 2026-10-28",
+  "problems": [
+   "decision_titles 4: agenda 439 Conger Street",
+   "decision_titles 5: agenda 439 Conger Street",
+   "decisions 1: off_agenda 24 Row Avenue",
+   "decisions 1: tally 4-0",
+   "decisions 1: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 2: off_agenda 56 and 58 Federal Street",
+   "decisions 2: tally 4-0",
+   "decisions 2: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 3: off_agenda 341 Cumberland Ave",
+   "decisions 3: tally 4-0",
+   "decisions 3: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 4: agenda 439 Conger Street",
+   "decisions 4: off_agenda $10,361",
+   "decisions 4: tally 4-0",
+   "decisions 4: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 5: agenda 439 Conger Street",
+   "decisions 5: off_agenda $7.98",
+   "decisions 5: tally 4-0",
+   "decisions 5: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 6: tally 4-0",
+   "decisions 6: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 7: tally 4-0",
+   "decisions 8: tally 4-0",
+   "decisions 9: off_agenda $75.80",
+   "decisions 9: tally 4-0",
+   "decisions 9: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 10: off_agenda $7,081.22",
+   "decisions 10: tally 4-0",
+   "decisions 10: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 11: away 131",
+   "decisions 11: away Sherman",
+   "decisions 11: off_agenda $1,381.22",
+   "decisions 11: tally 4-0",
+   "decisions 11: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 12: away 131",
+   "decisions 12: away Sherman",
+   "decisions 12: tally 4-0",
+   "decisions 12: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 13: off_agenda $50.69",
+   "decisions 13: off_agenda $168.71",
+   "decisions 13: tally 4-0",
+   "decisions 14: tally 4-0",
+   "decisions 14: unanchored the minutes don't say how the motion ended near the quote",
+   "headline: agenda 439 Conger Street",
+   "summary: agenda 439 Conger Street"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {
+    "1": "Approved, findings of fact and conclusions of law for 24 Row Avenue, units one and two.",
+    "10": "Approved, treating the $7,081.22 change in turnover expense as a capital improvement for unit six, amortized over five years.",
+    "11": "Approved, striking $1,381.22 in 2022 legal fees from the 131 Sherman Street application as a one-time expense.",
+    "12": "Approved, using the 2021 water and sewer cost increased by 3.7% in place of the 2022 figure for 131 Sherman Street.",
+    "13": "Approved, rent increase for 131 Sherman Street: $50.69 for units one through five and $168.71 for unit six.",
+    "14": "Approved, tentatively moving the November regular meeting to November 18 at 5 p.m. Eastern time.",
+    "2": "Approved, findings of fact and conclusions of law for 56 and 58 Federal Street.",
+    "3": "Approved, findings of fact and conclusions of law for 341 Cumberland Ave., all 29 units.",
+    "6": "Approved, changes to Article 11 of the rent board's rules of procedure on public access to applications and materials.",
+    "7": "Found complete, the application for 91 State Street, pending more information on normal repairs.",
+    "8": "Tabled, the application for 117 Preble Street until more detailed information is received.",
+    "9": "Approved, rent increase application for 90 Pine Street of $75.80 for all four units."
+   },
+   "discussion": {},
+   "headline": "",
+   "summary": "It tabled the application for 117 Preble Street until more information is received. It also approved several findings, changes to the public access rule, and a tentative November meeting date."
+  },
+  "source": "recording",
+  "town": "portland-me"
+ },
+ "portland-me eeca81768e36": {
+  "document": "eeca81768e360f5ceb08ec59306e30d460ec1f345b7fc59b0cc8d0edd7976bac",
+  "hidden": [
+   "headline",
+   "decisions 1",
+   "decisions 10",
+   "decisions 11",
+   "decisions 12",
+   "decisions 13"
+  ],
+  "kind": "recording",
+  "meeting": "City Council, 2026-11-02",
+  "problems": [
+   "decision_titles 1: number 20,000",
+   "decision_titles 11: number 735,000",
+   "decision_titles 12: number 735,000",
+   "decisions 1: number 10,000",
+   "decisions 1: number 20,000",
+   "decisions 2: away 54",
+   "decisions 2: away Danforth",
+   "decisions 2: tally 4-5",
+   "decisions 3: away 54",
+   "decisions 3: away Danforth",
+   "decisions 4: away 1",
+   "decisions 4: away 476",
+   "decisions 7: away 4",
+   "decisions 7: away 20",
+   "decisions 10: quote Chair would seek a motion and second to pass order 7426 27 as an emergency that will require. ... Motion fails.",
+   "decisions 10: tally 4-5",
+   "decisions 11: number 735,000",
+   "decisions 11: off_agenda $735,000",
+   "decisions 11: tally 9-0",
+   "decisions 11: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 12: number 735,000",
+   "decisions 12: off_agenda $735,000",
+   "decisions 12: tally 8-1",
+   "decisions 12: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 13: quote Councillor Sykes is going to move that order 682627 be postponed indefinitely. ... item is postponed indefinitely",
+   "discussion 3: tally 4-5",
+   "headline: number 735,000"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {
+    "2": "Denied the motion to postpone the 54 Danforth Street license to November 16th."
+   },
+   "discussion": {
+    "3": "54 Danforth Street license: Neighbors said doors had been left open during amplified entertainment. The applicant said it would have a staff member keep doors closed and check decibels at events. Members debated postponing the decision to November 16th, and the postponement failed."
+   },
+   "headline": "",
+   "summary": "The shelter money comes from the opioid settlement fund. Staff said the 166 Riverside shelter can open only as fast as it hires and trains staff. Staff said the Homeless Services Center option could open by December 15th. A 20-year extension of the Northeast Air ground lease also passed."
+  },
+  "source": "recording",
+  "town": "portland-me"
+ },
  "south-kingstown-ri 0b544127c2a6": {
   "document": "0b544127c2a604adee6f5f45044b3679f1cc12b7c81a9b4f2e5c8b5299c4fc8b",
   "hidden": [],
@@ -637,6 +950,22 @@
   },
   "source": "pdf",
   "town": "south-kingstown-ri"
+ },
+ "springfield-ma 88b53e095e47": {
+  "document": "88b53e095e4756f3bedc83e065391284114db6635f3cbe0864020174fd531f08",
+  "hidden": [],
+  "kind": "recording",
+  "meeting": "Conservation Commission, 2026-10-27",
+  "problems": [],
+  "result": "ok",
+  "shown": {
+   "decisions": {},
+   "discussion": {},
+   "headline": "Approved a partial certificate of compliance for 78 Oakbrook Drive, East Longmeadow, needed to sell the property.",
+   "summary": "The commission issued a partial certificate of compliance for 78 Oakbrook Drive in East Longmeadow. Part of the larger project lies outside the commission's jurisdiction. The meeting also discussed sewer pipe work on Jamaica Street, which began without notice to the commission; no vote was taken on it."
+  },
+  "source": "recording",
+  "town": "springfield-ma"
  },
  "wallingford-ct 04dbc5664013": {
   "document": "04dbc5664013b8123b2d3687e55779965cd6237128e337ac89514fe218ebdc31",
@@ -757,5 +1086,31 @@
   },
   "source": "pdf",
   "town": "waltham-ma"
+ },
+ "worcester-ma a60ad6700e9b": {
+  "document": "a60ad6700e9be27e3743f391f6ada708b894f58349fc8cd622b0d83024d34674",
+  "hidden": [
+   "decisions 2"
+  ],
+  "kind": "recording",
+  "meeting": "Zoning Board of Appeals, 2026-11-09",
+  "problems": [
+   "decision_titles 2: agenda 14-18 Clara Drive",
+   "decisions 2: agenda 14 to 18 Clara Drive",
+   "decisions 3: tally 4-1",
+   "decisions 4: unanchored the minutes don't say how the motion ended near the quote",
+   "decisions 5: unanchored the minutes don't say how the motion ended near the quote"
+  ],
+  "result": "failed",
+  "shown": {
+   "decisions": {
+    "3": "Continued the digital billboard request near 692 Millbury Street to the December 21st meeting, with a constructive deadline of January 12th."
+   },
+   "discussion": {},
+   "headline": "Digital billboard near 692 Millbury Street continued to December 21 after public comments",
+   "summary": "The applicant asked to convert the south-facing side of a two-sided billboard on Route 146 into a digital display. A public speaker asked the board to deny it, citing the purpose of the Blackstone River Parkway Sign Overlay District. The next hearing is December 21st, with a constructive deadline of January 12th. The board also approved a lot split at 118 Dana Avenue and a porch variance at 538 Grove Street."
+  },
+  "source": "recording",
+  "town": "worcester-ma"
  }
 }

@@ -117,6 +117,7 @@ def test_a_document_that_isnt_the_one_summarized_stops_the_run():
 
 def test_the_sample_has_what_the_set_needs():
     sample = evaluate_factcheck.load()
-    for i in sample["items"]:
+    made = [i for i in sample["items"] if i["kind"] in evaluate_shadow.PDF_KINDS]
+    for i in made:
         assert i["title"] and i["record"]["model"] and i["record"]["usage"]["input_tokens"] > 0, evaluate_factcheck.key(i)
-    assert {i["kind"] for i in sample["items"]} == {"agenda", "minutes"}
+    assert {i["kind"] for i in made} == {"agenda", "minutes"}

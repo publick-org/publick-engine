@@ -2,7 +2,8 @@
 
 The fact check replay's sample (evals/factcheck/sample.json.gz, pipeline/evaluate_factcheck.py) holds
 summaries of agendas and minutes from every town, as the network published them, with their
-documents' text. Each of its documents is downloaded (its sha256 checked), summarized again with the
+documents' text (and some recordings' summaries, which this set leaves out). Each of its agendas and
+minutes is downloaded (its sha256 checked), summarized again with the
 model and the current prompt, and checked as a town's run checks a new summary (factcheck.check(),
 then factcheck.shown(): what the site would show), with no answers written down by hand: the fact
 check is the grader. A scan is checked against the transcription the network already has, so both
@@ -111,13 +112,17 @@ def remade(item: dict, pdf: bytes, client, model: str, effort: str | None, price
     return {**out, **checked(item, record, words | translate.summary_words(record))}
 
 
+# The kinds of summary made again: a document's. A recording's summary is made from its transcript, by another prompt.
+PDF_KINDS = ("agenda", "minutes")
+
+
 def run(sample: dict, client, model: str, effort: str | None, prices: dict, only: str | None = None,
         get=evaluate_factcheck.download) -> list[dict]:
     words = frozenset(sample["words"])
     out = []
     for item in sample["items"]:
         key = evaluate_factcheck.key(item)
-        if only and not f"{item['town']} {item['sha256']}".startswith(only):
+        if item["kind"] not in PDF_KINDS or (only and not f"{item['town']} {item['sha256']}".startswith(only)):
             continue
         print(f"{key} {item['kind']}...", file=sys.stderr, flush=True)
         pdf = evaluate_factcheck.document(item, get)
@@ -233,7 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("Set ANTHROPIC_API_KEY: the set is run against the real model.")
     import anthropic
     sample = evaluate_factcheck.load()
-    if args.only and not any(f"{i['town']} {i['sha256']}".startswith(args.only) for i in sample["items"]):
+    if args.only and not any(f"{i['town']} {i['sha256']}".startswith(args.only) for i in sample["items"]
+                             if i["kind"] in PDF_KINDS):
         raise SystemExit(f"No document {args.only} in {evaluate_factcheck.SAMPLE}")
     docs = run(sample, anthropic.Anthropic(), args.model, args.effort, prices, args.only)
     info = {"set": "shadow", "model": args.model, "effort": args.effort, "prices": prices}

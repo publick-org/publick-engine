@@ -86,6 +86,38 @@ which the site shows instead (shown()). The town's streets are the Census
 Bureau's, from pipeline/fetch_addresses.py; a town without them has no such
 check.
 
+A transcript has what was said, and a chair can misread a figure the clerk then
+reads right ("$7,881,647", where the order is for $7,861,647), so a figure or
+address that is in the transcript can still be wrong. A recording's summary is
+also held to its meeting's agenda, where the agenda has text of its own
+(against_agenda()): each amount of money and street address in it that the
+agenda gives another way fails ("agenda", with the agenda's own, which
+python -m pipeline.factcheck lists): a figure one digit off, two digits
+swapped, or other cents, for an amount with at least MISHEARD_DIGITS
+significant digits; the same house number on a street of the same type whose
+name is alike ("41 Third Street" for 41 Hurd Street), or the same street with
+a house number one digit off. An amount or address in a decision the agenda
+has nothing like is noted ("off_agenda"): of the 46 such decisions in the
+network's recording summaries (2026-11-17), all but two or three were set at the
+meeting (a fine, an amendment) or given only in a report the agenda names. Of
+the 13 decisions that failed, all 13 had a wrong amount or address.
+
+A recording's decision can also be a vote recounted, not taken: a chair
+reporting what a committee did ("We did vote it and it failed at that point").
+One whose quote recounts a vote, with none announced or put in it, and a
+committee named in it or just before it, fails ("committee", recounted()). And
+each vote the transcript announces ("the motion carries", "that item is
+approved") that no decision's quote is near, and that isn't a procedural
+motion, is noted ("unlisted", field "transcript", unlisted()), for the
+summary to be made or read again: a summary can leave votes out, and nothing
+on the page says so.
+
+Once the minutes are summarized, the meeting's page shows the recording's
+summary and what was discussed beside the minutes' decisions. A sentence of
+it, or an entry of what was discussed, that says a decision of the minutes was
+approved where they say it wasn't, or the other way round, isn't shown there
+(beside_minutes(), when the site is built).
+
 Each decision whose quote is found also gets the page it's on, for the site
 to cite ("p. 3", linking the PDF at that page): the page the quote starts on,
 where every place the quote is found is on the same page. Checked against a
@@ -104,6 +136,7 @@ from __future__ import annotations
 
 import argparse
 import bisect
+import difflib
 import functools
 import itertools
 import json
@@ -112,6 +145,7 @@ import unicodedata
 from pathlib import Path
 
 from pipeline import translate
+from pipeline.streets import SUFFIXES
 
 # 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
 # after the quote; vote counts and who moved it, near the quote; the summary's outcome; names with capitals
@@ -124,9 +158,14 @@ from pipeline import translate
 # more of the minutes' words for continued, referred and denied. 11: a count with no one against beside someone
 # opposed; a recording's misheard street names.
 VERSION = 11
+# What only a recording's summary is checked for, beside what every summary is (VERSION): a recording's summary is
+# checked again when either changes, and every other summary only when VERSION does. 1: its amounts and addresses
+# held to its meeting's agenda (against_agenda()); a committee's vote recounted (recounted()), and the votes it leaves
+# out, listed (unlisted()).
+RECORDING_VERSION = 1
 
 # What's noted, not failed (see check() and shown()).
-NOTED = ("tally", "away", "unanchored", "spelling")
+NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda", "unlisted")
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
           "recording": ("headline", "summary", "decisions", "discussion")}
@@ -339,6 +378,38 @@ def tally_found(m: re.Match, doc: str) -> bool:
     return (int(parts[0]), int(parts[1])) in document_votes(doc)
 
 
+def number_found(text: str, v: str, s: int, e: int, doc_numbers: set[str], doc_amounts: list[float],
+                 doc_money: set[str], doc_scaled: list[float]) -> bool:
+    """Whether the number at text[s:e] (its value v) is in the document, however the document writes it
+    (check_text())."""
+    # Money as money; but an amount of $1,000 or more is unlikely to be in the document by chance,
+    # so it counts wherever it is (a table without dollar signs).
+    dollars = "$" in text[max(0, s - 2):s] and not re.fullmatch(r"\d{4,}(?:\.\d+)?", v)
+    if v in (doc_money if dollars else doc_numbers):
+        return True
+    try:
+        x = float(v)
+    except ValueError:
+        x = None
+    big = scaled_value(text, s, e, v)
+    if big is not None and rounds_to(big, doc_amounts):
+        return True
+    # "$8,000" where the document says "$8K".
+    if x is not None and any(abs(a - x) < 0.005 for a in doc_scaled):
+        return True
+    if x is not None and x >= 10:
+        if TOTAL.search(text[max(0, s - 40):e + 40]) and is_total(x, doc_amounts):
+            return True
+        # A sum of other amounts the summary itself gives, each in the document:
+        # "$10,000 in council funds ($7,500 for ward councillors and $2,500 at large)".
+        given = [float(n) for n, _, _ in numbers(text) if n != v and n in doc_numbers and re.fullmatch(r"[\d.]+", n)]
+        if is_total(x, sorted(set(given))):
+            return True
+        if APPROXIMATE.search(text[max(0, s - 20):s]) and rounds_to(x, doc_amounts):
+            return True
+    return False
+
+
 def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[float], doc_squashed: str,
                words: frozenset, doc_dates: set | None = None, doc_money: set | None = None,
                doc_scaled: list[float] | None = None) -> list[dict]:
@@ -373,32 +444,8 @@ def check_text(text: str, doc: str, doc_numbers: set[str], doc_amounts: list[flo
         problems.append({"kind": "number", "what": m.group(0)})
     taken = lambda pos: any(s <= pos < e for s, e in spans)
     for v, s, e in numbers(text):
-        # Money as money; but an amount of $1,000 or more is unlikely to be in the document by chance,
-        # so it counts wherever it is (a table without dollar signs).
-        dollars = "$" in text[max(0, s - 2):s] and not re.fullmatch(r"\d{4,}(?:\.\d+)?", v)
-        if taken(s) or (v in (doc_money if dollars else doc_numbers)):
-            continue
-        try:
-            x = float(v)
-        except ValueError:
-            x = None
-        big = scaled_value(text, s, e, v)
-        if big is not None and rounds_to(big, doc_amounts):
-            continue
-        # "$8,000" where the document says "$8K".
-        if x is not None and any(abs(a - x) < 0.005 for a in doc_scaled):
-            continue
-        if x is not None and x >= 10:
-            if TOTAL.search(text[max(0, s - 40):e + 40]) and is_total(x, doc_amounts):
-                continue
-            # A sum of other amounts the summary itself gives, each in the document:
-            # "$10,000 in council funds ($7,500 for ward councillors and $2,500 at large)".
-            given = [float(n) for n, _, _ in numbers(text) if n != v and n in doc_numbers and re.fullmatch(r"[\d.]+", n)]
-            if is_total(x, sorted(set(given))):
-                continue
-            if APPROXIMATE.search(text[max(0, s - 20):s]) and rounds_to(x, doc_amounts):
-                continue
-        problems.append({"kind": "number", "what": text[s:e]})
+        if not taken(s) and not number_found(text, v, s, e, doc_numbers, doc_amounts, doc_money, doc_scaled):
+            problems.append({"kind": "number", "what": text[s:e]})
     for name in sorted(translate.names(text, words)):
         if name in STATES or squashed(name) in doc_squashed:
             continue
@@ -447,8 +494,136 @@ def misheard_streets(text: str, streets: frozenset[str]) -> list[dict]:
     return out
 
 
+# ---- A recording's figures and addresses against its agenda --------------------------
+
+# A street's type, as an address writes it: each of pipeline.streets.SUFFIXES' words, capitalized or in capitals
+# ("Street", "ST", "Blvd"), with or without its period.
+STREET_TYPES = sorted({w for s in SUFFIXES for w in (s, s.title())}, key=len, reverse=True)
+# Words that end an address's street name rather than being part of it ("4 on Elm Street" isn't an address).
+NOT_STREET = r"(?:on|at|in|of|the|and|to|for|from|by|with|a|an|or|per|between|near)"
+# A street address, however the summary or the agenda writes it: its house numbers ("41", "14-18", "56 and 58",
+# "342 (aka 344, 346, & 348)"), then one to three words of its street's name in any case (a transcript's
+# "585 protected Boulevard"), then its type. Not an amount ("$1,200 Main") or a decimal.
+ADDRESS = re.compile(rf"(?<![\w$.,/#-])#?(\d{{1,5}}[A-Za-z]?(?:\s*(?:[-–/&,]|and|to|through)\s*\d{{1,5}}[A-Za-z]?)*)"
+                     rf"(?:\s*\([^)\n]{{0,40}}\))?\s+((?:(?!(?i:{NOT_STREET})\b)[A-Za-z][\w'’]*\.?\s+){{1,3}}?)"
+                     rf"({'|'.join(STREET_TYPES)})\b\.?")
+# A street's direction or title, however it's written, so "So. Colony Road" is South Colony Road.
+STREET_WORDS = {"N": "NORTH", "NO": "NORTH", "S": "SOUTH", "SO": "SOUTH", "E": "EAST", "W": "WEST", "MT": "MOUNT"}
+DIRECTIONS = ("NORTH", "SOUTH", "EAST", "WEST")
+# How alike two street names must be (difflib's ratio, 0 to 1) for one to be taken for the other misheard:
+# "Protected" and "Pawtucket" are 0.44, "Third" and "Hurd" 0.67; "Elm" and "Oak" are 0.
+MISHEARD = 0.4
+
+
+def address_parts(m: re.Match) -> tuple[set[str], str, str]:
+    """An ADDRESS match as (its house numbers, its street's name without spaces in capitals, its street's type
+    as pipeline.streets.street_key() gives it): "585 protected Boulevard" is ({"585"}, "PROTECTED", "BLVD")."""
+    houses = {n.lstrip("0") or "0" for n in re.findall(r"\d+", m.group(1))}
+    words = [STREET_WORDS.get(w, w) for w in re.findall(r"[A-Z0-9]+", m.group(2).upper().replace("’", "").replace("'", ""))]
+    return houses, "".join(words), SUFFIXES[m.group(3).upper()]
+
+
+def same_street(a: str, b: str) -> bool:
+    """Whether two street names (address_parts()) are the same street: alike, or alike but for a direction
+    one leaves out ("Colony" for "South Colony")."""
+    strip = lambda n: next((n[len(d):] for d in DIRECTIONS if n.startswith(d) and len(n) > len(d)), n)  # noqa: E731
+    return a == b or strip(a) == strip(b)
+
+
+def one_figure_off(a: str, b: str) -> bool:
+    """Whether two figures of the same length differ in one digit, or by two digits next to each other swapped."""
+    if len(a) != len(b) or a == b:
+        return False
+    diff = [i for i, (x, y) in enumerate(zip(a, b)) if x != y]
+    return len(diff) == 1 or (len(diff) == 2 and diff[1] == diff[0] + 1 and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]])
+
+
+def cents(x: float) -> str:
+    return str(round(x * 100))
+
+
+# The fewest significant digits an amount has for one of the agenda's a figure off to be taken for it misheard
+# ("$7,881,647" for "$7,861,647"): a round amount ("$30,000" for "$20,000") is more likely another item's.
+MISHEARD_DIGITS = 4
+
+
+class Agenda:
+    """A meeting's agenda text, for its recording's summary (against_agenda()): its numbers and amounts, as
+    facts() reads a document, and its street addresses."""
+
+    def __init__(self, text: str):
+        self.text = unicodedata.normalize("NFKC", text)
+        self.facts = facts(self.text)
+        self.money = sorted({float(v) for v in self.facts[4] if re.fullmatch(r"\d+(?:\.\d+)?", v)})
+        # Each address: its parts (address_parts()) and how the agenda writes it.
+        self.addresses = [(*address_parts(m), " ".join(m.group(0).rstrip(".").split())) for m in ADDRESS.finditer(self.text)]
+        # The agenda in capitals without spaces or punctuation, for an address with no street type ("41 Hurd, LLC"),
+        # or one ADDRESS doesn't read: "41HURD".
+        self.squashed = re.sub(r"[^A-Z0-9]+", "", self.text.upper())
+
+    def amount(self, text: str, v: str, s: int, e: int) -> tuple[bool, str | None]:
+        """Whether the summary's amount at text[s:e] is the agenda's, and if it isn't, the agenda's amount it's
+        likely a mishearing of: one figure off ("$40,316.80" for "$30,316.80"), two figures next to each other
+        swapped, or the same dollars with other cents."""
+        numbers_, amounts_, _, _, money_, scaled = self.facts
+        if number_found(text, v, s, e, numbers_, amounts_, money_, scaled):
+            return True, None
+        if scaled_value(text, s, e, v) is not None or APPROXIMATE.search(text[max(0, s - 20):s]):
+            return False, None
+        try:
+            x = float(v)
+        except ValueError:
+            return False, None
+        # The cents left off, or given where the agenda leaves them off: the same amount.
+        if any(int(a) == int(x) and (a == int(a) or x == int(x)) for a in self.money):
+            return True, None
+        if len(cents(x).rstrip("0")) < MISHEARD_DIGITS:
+            return False, None
+        near = [a for a in self.money if one_figure_off(cents(x), cents(a)) or (int(a) == int(x) and a != x)]
+        return False, (f"${near[0]:,.2f}".removesuffix(".00") if len(near) == 1 else None)
+
+    def address(self, m: re.Match) -> tuple[bool, str | None]:
+        """Whether a summary's address (an ADDRESS match) is the agenda's, and if it isn't, the agenda's address
+        it's likely a mishearing of: the same house number on a street of the same type with a name alike
+        (MISHEARD), or the same street with a house number one figure off ("66 Jackson Street" for 67)."""
+        houses, name, kind = address_parts(m)
+        if any(houses & h and same_street(name, n) for h, n, _, _ in self.addresses) \
+                or any(re.search(rf"(?<!\d){h}{name}", self.squashed) for h in houses):
+            return True, None
+        near = {written for h, n, k, written in self.addresses
+                if (same_street(name, n) and any(one_figure_off(a, b) for a in houses for b in h))
+                or (houses & h and k == kind and not same_street(name, n)
+                    and difflib.SequenceMatcher(None, name, n).ratio() >= MISHEARD)}
+        return False, (near.pop() if len(near) == 1 else None)
+
+
+def against_agenda(text: str, agenda: Agenda, noted: bool) -> list[dict]:
+    """The amounts of money and street addresses in a recording summary's text that its meeting's agenda doesn't
+    give. One the agenda gives another way, a figure off or a street misheard, fails ("agenda", with the agenda's
+    in "agenda"). One the agenda has nothing like is listed ("off_agenda"), where noted is true: an amount set or
+    amended at the meeting, a fine, or a figure in a report the agenda only names, isn't on it either."""
+    problems = []
+    for v, s, e in numbers(text):
+        if "$" not in text[max(0, s - 2):s]:
+            continue
+        found, near = agenda.amount(text, v, s, e)
+        what = text[text.rindex("$", max(0, s - 2), s):e]
+        if near:
+            problems.append({"kind": "agenda", "what": what, "agenda": near})
+        elif not found and noted:
+            problems.append({"kind": "off_agenda", "what": what})
+    for m in ADDRESS.finditer(text):
+        found, near = agenda.address(m)
+        what = m.group(0).rstrip(".")
+        if near:
+            problems.append({"kind": "agenda", "what": what, "agenda": near})
+        elif not found and noted:
+            problems.append({"kind": "off_agenda", "what": what})
+    return problems
+
+
 def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset(),
-          streets: frozenset[str] = frozenset()) -> dict:
+          streets: frozenset[str] = frozenset(), agenda: str | None = None, body: str = "") -> dict:
     """The fact check of a summary against its document's text, page by page (None for a PDF
     with no text at all). A scan is checked against the model's transcription, if it has one. A
     recording's summary is checked against its machine transcript (pages: the transcript, whole), as
@@ -463,7 +638,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         source, doc = "recording", "\n".join(pages or [])
         pages = None
         if not doc.strip():
-            return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
+            return {"version": VERSION, "recording_version": RECORDING_VERSION, "source": "none", "result": "unchecked",
+                    "problems": []}
     elif pages and len(texted) == len(pages):
         source, doc = "pdf", "\n".join(pages)
     elif texted:
@@ -474,6 +650,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
     else:
         return {"version": VERSION, "source": "none", "result": "unchecked", "problems": []}
     found = facts(doc)
+    on_agenda = Agenda(agenda) if kind == "recording" and agenda and agenda.strip() else None
     problems = []
     for field in FIELDS[kind]:
         entries = record.get(field) or ([] if field in ("items", "decisions", "discussion") else "")
@@ -481,8 +658,7 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
             entry = {"entry": i + 1} if isinstance(entries, list) else {}
             for p in check_text(text, doc, *found[:3], words, *found[3:]):
                 problems.append({"field": field, **entry, **p})
-            if kind == "recording" and streets:
-                problems += [{"field": field, **entry, **p} for p in misheard_streets(text, streets)]
+            problems += [{"field": field, **entry, **p} for p in recording_checks(kind, text, streets, on_agenda, field == "decisions")]
     # Each decision's title (summarize.DECISION_LABELS), held to the document as the decisions are: a title with a
     # number or name the document doesn't have isn't shown, and the decision is shown without it (shown()).
     # It never fails the summary.
@@ -490,8 +666,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for p in check_text(title or "", doc, *found[:3], words, *found[3:]):
             if p["kind"] != "tally":
                 problems.append({"field": "decision_titles", "entry": i + 1, **p})
-        if kind == "recording" and streets:
-            problems += [{"field": "decision_titles", "entry": i + 1, **p} for p in misheard_streets(title or "", streets)]
+        problems += [{"field": "decision_titles", "entry": i + 1, **p}
+                     for p in recording_checks(kind, title or "", streets, on_agenda, False)]
     on_page = None
     if kind in QUOTED and "decision_evidence" in record:
         located = Located(doc)
@@ -502,6 +678,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         for i, (text, evidence) in enumerate(zip(record.get("decisions") or [], record["decision_evidence"])):
             whole = {p["what"] for p in problems if p.get("entry") == i + 1 and p["field"] == "decisions"}
             found = anchored(text, evidence or {}, located, words, whole)
+            if kind == "recording":
+                found += recounted((evidence or {}).get("quote") or "", located, body)
             problems += [{"field": "decisions", "entry": i + 1, **p} for p in found]
             # The headline and the summary are held to how the motion ended, where the minutes say it didn't
             # carry, not to the outcome the model gave it.
@@ -509,12 +687,27 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         problems += [{"field": "headline", **p} for p in says_outcome(record, record.get("headline") or "", outcomes)]
         problems += [{"field": "summary", **p} for sentence in sentences(record.get("summary") or "")
                      for p in says_outcome(record, sentence, outcomes)]
+        if kind == "recording":
+            problems += [{"field": "transcript", **p} for p in unlisted(doc, located, [
+                (evidence or {}).get("quote") or "" for evidence in record["decision_evidence"]])]
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED and p["field"] != "decision_titles"]
     result = "ok" if not hard else ("failed" if source in ("pdf", "recording") else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems,
-            **({"pages": on_page} if on_page is not None else {})}
+            **({"pages": on_page} if on_page is not None else {}),
+            **({"recording_version": RECORDING_VERSION} if kind == "recording" else {})}
+
+
+def recording_checks(kind: str, text: str, streets: frozenset[str], agenda: Agenda | None, noted: bool) -> list[dict]:
+    """A recording summary's text's misheard street names (misheard_streets()), and its amounts and addresses held
+    to the agenda (against_agenda()), as the site shows the text: with the town's spelling of its streets."""
+    if kind != "recording":
+        return []
+    out = misheard_streets(text, streets) if streets else []
+    if agenda:
+        out += against_agenda(functools.reduce(lambda t, p: t.replace(p["what"], p["fix"]), out, text), agenda, noted)
+    return out
 
 
 def page_at(pages: list[str] | None, transcribed: list | None):
@@ -1019,6 +1212,18 @@ PROPOSED = re.compile(r"\b(?:motion|request|proposal|petition|bid|effort|attempt
                       r"(?:[^.;]*?\b(?:and|or)\s+to\s+\w+)*", re.I)
 
 
+def clauses_of(text: str) -> list[str]:
+    """A headline's or sentence's clauses (CLAUSES), a clause that goes on with "to" kept with the one before's:
+    "rejected motions to rescind the transfer and to adopt the Memorandum"."""
+    clauses = []
+    for clause in CLAUSES.split(text):
+        if clauses and re.match(r"\s*to\s", clause):
+            clauses[-1] += " and " + clause
+        else:
+            clauses.append(clause)
+    return clauses
+
+
 def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[dict]:
     """Each clause of a minutes headline, or of a sentence of its summary, that says yes where the decision
     it's about was denied (or its motion didn't carry: outcomes, one for each decision), or no where it was
@@ -1026,15 +1231,7 @@ def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[di
     clause that says both, or neither, isn't checked."""
     scored_decisions = [(subject_words(decision), outcome) for decision, outcome in zip(record.get("decisions") or [], outcomes)]
     problems = []
-    # A clause that goes on with "to" is the one before's: "rejected motions to rescind the transfer and to
-    # adopt the Memorandum".
-    clauses = []
-    for clause in CLAUSES.split(text):
-        if clauses and re.match(r"\s*to\s", clause):
-            clauses[-1] += " and " + clause
-        else:
-            clauses.append(clause)
-    for clause in clauses:
+    for clause in clauses_of(text):
         says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(PROPOSED.sub(" ", clause)))
         if says_no == says_yes:
             continue
@@ -1051,6 +1248,59 @@ def says_outcome(record: dict, text: str, outcomes: list[str | None]) -> list[di
     return problems
 
 
+# ---- A recording's summary beside the minutes' ------------------------------------------
+
+# What a decision of the minutes was, where a recording's summary says it was approved: not approved.
+NOT_APPROVED = {"denied", "referred", "tabled", "continued", "withdrawn"}
+
+
+def against_minutes(recording: dict, minutes: dict) -> list[dict]:
+    """The sentences of a recording's summary, and its discussion's entries, that the meeting's minutes contradict:
+    a clause that says yes (approved, adopted ...) about a decision of the minutes that wasn't (NOT_APPROVED), or no
+    about one that was, matched to it as says_outcome() matches a headline's clause (the decision sharing the most of
+    its words and numbers, at least two). A clause whose no is about a request or motion named for what it would have
+    done (PROPOSED: "a request to hold the decision ... was turned down") isn't held to a decision. Only the minutes'
+    decisions their own check shows are read. Lowell's City Council, 2026-10-27: the recording's discussion said a
+    letter opposing the ICC as a shelter "was approved", where the minutes say it was referred to the City Manager.
+    Of the 32 meetings in the network with both summaries (2026-11-17), it finds that one."""
+    mfc = minutes.get("fact_check") or {}
+    gone = {p.get("entry") for p in mfc.get("problems", []) if p["field"] == "decisions" and hides(mfc, p)}
+    evidence = minutes.get("decision_evidence") or []
+    decided = [(subject_words(d), labeled(d, (evidence[i] or {}).get("outcome") if i < len(evidence) else None), d)
+               for i, d in enumerate(minutes.get("decisions") or []) if i + 1 not in gone]
+    texts = [("summary", None, s) for s in sentences(recording.get("summary") or "")] + \
+            [("discussion", i + 1, d) for i, d in enumerate(recording.get("discussion") or [])]
+    problems = []
+    for field, entry, text in texts:
+        for clause in clauses_of(text):
+            says_no, says_yes = bool(DECISION_NO.search(clause)), bool(SAYS_YES.search(PROPOSED.sub(" ", clause)))
+            if says_no == says_yes or (says_no and PROPOSED.search(clause)):
+                continue
+            about = subject_words(clause)
+            scored = [(len(about & words), outcome, d) for words, outcome, d in decided]
+            best = max((n for n, _, _ in scored), default=0)
+            if best < 2:
+                continue
+            found = {outcome for n, outcome, _ in scored if n == best}
+            if (says_yes and found <= NOT_APPROVED) or (says_no and found == {"approved"}):
+                problems.append({"field": field, **({"entry": entry} if entry else {}), "kind": "minutes", "what": text,
+                                 "minutes": next(d for n, _, d in scored if n == best)})
+                break
+    return problems
+
+
+def beside_minutes(recording: dict | None, minutes: dict | None) -> dict | None:
+    """A recording's summary as it's shown beside its meeting's minutes' summary: with what the minutes contradict
+    (against_minutes()) as problems of its fact check, which shown() hides."""
+    if not recording or not minutes or minutes.get("is_minutes") is False or not minutes.get("decisions"):
+        return recording
+    found = against_minutes(recording, minutes)
+    if not found:
+        return recording
+    fc = recording.get("fact_check") or {"version": VERSION, "source": "none", "problems": []}
+    return {**recording, "fact_check": {**fc, "result": "failed", "problems": fc["problems"] + found}}
+
+
 def pages(pdf: bytes) -> list[str] | None:
     """The text layer of each page of a PDF (None if it can't be read, or has no text at all)."""
     import io
@@ -1063,11 +1313,90 @@ def pages(pdf: bytes) -> list[str] | None:
     return texts if any(t.strip() for t in texts) else None
 
 
-def current(record: dict) -> bool:
+def current(record: dict, agendas: list[str] | None = None) -> bool:
     """Whether the record's fact check is up to date: made with this VERSION, and, for a scan
-    checked before it had the model's transcription, not since given one."""
+    checked before it had the model's transcription, not since given one. A recording's, also made
+    with this RECORDING_VERSION, against the agendas its meeting has now (agendas: their sha256s, as
+    pipeline/summarize.py's meeting_agendas() gives them), where they're given."""
     fc = record.get("fact_check") or {}
+    if record.get("kind") == "recording" and (fc.get("recording_version") != RECORDING_VERSION
+                                              or (agendas is not None and fc.get("agendas", []) != agendas)):
+        return False
     return fc.get("version") == VERSION and not (fc.get("source") == "none" and record.get("transcript_source") == "ai")
+
+
+# ---- A recording's votes: a committee's, and those left out ------------------------------
+
+# A vote announced as it's taken: "the motion passes", "Motion carries 7-0", "that paper has been enrolled", "the ayes have
+# it", "Six in the affirmative, one absent" (SPOKEN_COUNT). Not "once it was approved": a vote talked about.
+ANNOUNCED = re.compile(r"(?i)\b(?:motion|amendment|order|paper|item|petition|resolution)s?\s+(?:ha(?:s|ve)\s+been\s+|is\s+|was\s+)?"
+                       r"(?:passe[sd]|carrie[sd]|fail(?:s|ed)|adopted|approved|defeated|enrolled|ordained|granted)\b|"
+                       r"\b(?:ayes|nays|yeas|noes)\s+have\s+it\b|" + SPOKEN_COUNT.pattern)
+# A vote recounted, not taken: "We did vote it and it failed at that point", "the committee needed to approve that
+# transfer, and we did".
+RECOUNTED = re.compile(r"(?i)\b(?:we|they|it|that|the\s+committee)\s+(?:did(?!\s*n[o'’]t)|voted|failed|passed|approved|"
+                       r"recommended|was\s+(?:voted|defeated|approved))\b|\bat\s+that\s+point\b")
+# A vote being taken: the roll called, or the question put. With RECOUNTED, a quote that has one is this meeting's vote.
+TAKEN = re.compile(r"(?i)\bcall\s+the\s+roll\b|\ball\s+(?:those\s+)?in\s+favou?r\b|\bwe\s+will\s+(?:call|take)\b")
+COMMITTEE = re.compile(r"(?i)\b(?:sub)?committee\b")
+# How much of the transcript before a quote is read for who voted ("the Ordinance Committee ... we did vote it").
+RECOUNTED_BEFORE = 1500
+
+
+def recounted(quote: str, located: Located, body: str = "") -> list[dict]:
+    """A recording's decision whose quote recounts a committee's vote rather than taking the board's: it says a vote
+    was taken (RECOUNTED), announces none and puts no question (ANNOUNCED, TAKEN), and a committee other than the board
+    (body: its name, "School Committee", which isn't taken for another) is named in it or in the transcript just
+    before it. Malden's City Council, 2026-10-27: the chair recounted an amendment that
+    "failed" in the Rules and Ordinance Committee, which the summary listed as the council's. Of the network's 575
+    decisions from recordings with their transcripts (2026-11-17), it finds 2, both a committee's."""
+    m = RECOUNTED.search(quote)
+    if not m or ANNOUNCED.search(quote) or TAKEN.search(quote):
+        return []
+    places = located.find(quote)
+    before = located.doc[max(0, places[0][0] - RECOUNTED_BEFORE):places[0][0]] if places else ""
+    said = before + " " + quote
+    if body.strip():
+        said = re.sub(r"\s+".join(map(re.escape, body.split())), " ", said, flags=re.I)
+    if not COMMITTEE.search(said):
+        return []
+    return [{"kind": "committee", "what": m.group(0)}]
+
+
+# How far from a decision's quote a vote announced (ANNOUNCED) is taken for that decision's, and how much of the
+# transcript before it says what the motion was, for a procedural one; and how close two announcements are taken for
+# the same vote, said twice ("Motion carries. Motion carries.").
+UNLISTED_NEAR, MOTION_BEFORE, SAME_VOTE = 1500, 600, 100
+# A procedural motion, which a recording's summary leaves out (summarize.KINDS["recording"]): the minutes, adjourning,
+# the agenda, a recess, more time for a speaker, opening or closing a public hearing, a closed session.
+PROCEDURAL = re.compile(r"(?i)\bminutes\b|\badjourn|\brecess\b|\b(?:the|this|tonight's)\s+agenda\b|\bmore\s+time\b|"
+                        r"\bextend\w*\s+(?:[\w'’]+\s+){0,3}time\b|\bsuspen\w+\s+(?:of\s+)?the\s+rules\b|"
+                        r"\b(?:executive|non-?public)\s+session\b|\b(?:open|close)\w*\s+(?:the\s+)?public\s+hearings?\b|"
+                        r"\bpass\s+time\b")
+
+
+def unlisted(doc: str, located: Located, quotes: list[str]) -> list[dict]:
+    """The votes a recording's transcript announces (ANNOUNCED) that none of its summary's decisions is about: none
+    of their quotes is within UNLISTED_NEAR of it, and it isn't a procedural motion's (PROCEDURAL). Each is listed
+    ("unlisted", noted: python -m pipeline.factcheck lists it, for the summary to be made or read again), with the
+    transcript's words before it. Nothing is shown or hidden for it: of the 27 in 14 of the network's 125 recording
+    summaries with their transcripts (2026-11-17), 21 were votes the summary left out (orders for a public hearing,
+    licenses renewed, items approved, roll calls), and the rest procedural motions PROCEDURAL doesn't read, a vote
+    talked about, or a decision's vote whose quote isn't found in the transcript."""
+    spans = [place for quote in quotes if quote.strip() for place in located.find(quote)]
+    out, last = [], None
+    for m in ANNOUNCED.finditer(doc):
+        # Said again right after: the same vote. Each is held to the one before it, so votes taken one after another
+        # (a consent agenda's items) are each read.
+        again = last is not None and m.start() - last < SAME_VOTE
+        last = m.end()
+        if again:
+            continue
+        if any(s - UNLISTED_NEAR <= m.start() <= e + UNLISTED_NEAR for s, e in spans) \
+                or PROCEDURAL.search(doc[max(0, m.start() - MOTION_BEFORE):m.start()]):
+            continue
+        out.append({"kind": "unlisted", "what": " ".join(doc[max(0, m.start() - 200):m.end()].split())})
+    return out
 
 
 # ---- What's shown ------------------------------------------------------------------
@@ -1238,7 +1567,7 @@ def report(data_dir: Path) -> str:
         lines.append(f"{file.stem[:12]} ({kind_of(record)}, {fc['source']}, {result}): {record.get('source_url', '')}")
         for p in fc["problems"]:
             where = p["field"] + (f" {p['entry']}" if "entry" in p else "")
-            lines.append(f"  {where}: {p['kind']} {p['what']!r}")
+            lines.append(f"  {where}: {p['kind']} {p['what']!r}" + (f" (the agenda: {p['agenda']!r})" if p.get("agenda") else ""))
     head = ", ".join(f"{n} {r}" for r, n in sorted(counts.items()))
     return f"Summaries: {head}\n" + "\n".join(lines) + ("\n" if lines else "")
 
