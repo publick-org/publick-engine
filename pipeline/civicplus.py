@@ -90,6 +90,30 @@ def board_part(name: str) -> str:
     return re.sub(r"\s{2,}", " ", re.sub(r"^[\s,\-–:]+|[\s,\-–:]+$", "", name))
 
 
+# Town Meeting is a board, "Meeting" and all, as is a Representative Town Meeting. The words before it that
+# say which of its sessions this is aren't part of its name: "Annual", "Special", "Adjourned", "Open", a
+# season, a month, a year or an ordinal ("Annual Fall Town Meeting", "October Special Town Meeting", "Second
+# Special Town Meeting", "First Session of the Annual Town Meeting"); nor is a session's number or
+# "Continued" after it ("Annual Town Meeting, Night 2"), though a year after "Day" is ("Town Meeting Day 2026").
+SESSION = (r"annual|special|adjourned|regular|continued|reconvened|open|fall|autumn|spring|summer|winter|"
+           r"january|february|march|april|may|june|july|august|september|october|november|december|"
+           r"first|second|third|fourth|fifth|\d{1,2}(?:st|nd|rd|th)|\d{4}|fy\s?\d{2,4}|"
+           r"(?:session|night|day|part)(?:\s+#?\d{1,2})?\s+of(?:\s+the)?")
+TOWN_MEETING = re.compile(rf"(?:^|\s)(?:(?:{SESSION})\s+)*(?P<board>(?:representative\s+)?town\s+meeting)"
+                          r"(?:[\s,;]+(?:continued|reconvened|(?:session|night|day|part)\s*#?\s*\d{1,2}|#\s*\d{1,2}))?$", re.I)
+
+
+def town_meeting(name: str) -> str | None:
+    """A meeting's name, as the board's, when it names Town Meeting: "Annual Fall Town Meeting" -> "Town
+    Meeting", "Special Representative Town Meeting" -> "Representative Town Meeting", "Sutton Annual Town
+    Meeting" -> "Sutton Town Meeting". None for any other name ("Town Meeting Day", "Downtown Meeting")."""
+    found = TOWN_MEETING.search(name.strip())
+    if not found:
+        return None
+    board = " ".join(w.capitalize() for w in found["board"].split())
+    return f"{name.strip()[:found.start()].strip()} {board}".strip()
+
+
 def clean_text(value: str | None) -> str:
     if not value:
         return ""
@@ -126,9 +150,10 @@ def parse_title(title: str) -> dict:
         body = f"{body} {committee}"
     body = re.sub(r"^regular\s+", "", body, flags=re.I)
     # The kind of meeting, and "Agenda", which a board's name never ends with ("…Subcommittee on Mission
-    # Meeting Agenda").
+    # Meeting Agenda"); but Town Meeting is a board, whichever session it is (town_meeting).
     body = re.sub(r"\s+agenda$", "", body, flags=re.I)
-    body = re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$", "", body, flags=re.I)
+    body = town_meeting(body) or re.sub(r"\s+(?:(?:regular|special)\s+)?(?:meeting|public hearings?)$|\s+regular$",
+                                        "", body, flags=re.I)
     body = re.sub(r"\bspecial\s+", "", body, flags=re.I).strip() or name
     return {"title": name, "body": body, "status": status, "special": special}
 

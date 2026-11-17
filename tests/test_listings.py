@@ -194,6 +194,48 @@ def test_a_calendar_entry_and_the_agenda_its_page_links_are_one_meeting_whatever
     assert load_store(tmp_path)["6309"]["body"] == "Commission on Climate Action and Sustainability"
 
 
+def test_town_meeting_on_the_calendar_and_in_the_agenda_center_is_one_meeting(malden, tmp_path):
+    """Sutton's calendar listed its fall session as "Annual Fall Town Meeting"; its Agenda Center files Town
+    Meeting's warrants under "Town Meeting". Without aliases, both are the board Town Meeting, and one
+    meeting (here, Malden's pages with October 13's entry and a category renamed)."""
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01"}
+    calendar = LIST_PAGE.replace("<span>Malden Housing Authority </span>", "<span>Annual Fall Town Meeting</span>", 1)
+    agendas = AGENDA_PAGE.replace('category-panel-2">Board of Appeal</h2>', 'category-panel-2">Town Meeting</h2>')
+    agendas = agendas.replace("09162026-4400", "10132026-4400")
+    fetch_meetings.run(malden, FakeMalden(agendas, calendar), tmp_path, now=NOW)
+
+    store = load_store(tmp_path)
+    assert (store["6309"]["body"], store["agendacenter-4400"]["body"]) == ("Town Meeting", "Town Meeting")
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    [m] = [m for m in built["all"] if m["date"] == "2026-10-13" and "Town" in m["body"]]
+    assert m["body"] == "Town Meeting"
+    assert {x["id"] for x in m["listings"]} == {"6309", "agendacenter-4400"}
+
+
+def test_a_town_meeting_recorded_as_a_board_named_town_joins_town_meetings_meeting(malden, tmp_path):
+    """A listing recorded before the parser kept Town Meeting's "Meeting" was filed under a board "Town", a meeting
+    of its own. The next run names it again from its title: it joins the Agenda Center's Town Meeting meeting that
+    day, and its page leads there."""
+    malden["meetings"]["agenda_center"] = {"base_url": BASE, "since": "2026-08-01"}
+    agendas = AGENDA_PAGE.replace('category-panel-2">Board of Appeal</h2>', 'category-panel-2">Town Meeting</h2>')
+    agendas = agendas.replace("09162026-4400", "11162026-4400")
+    (tmp_path / "meetings").mkdir()
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps({"7001": {
+        "id": "7001", "slug": "2026-11-16-town", "date": "2026-11-16", "start_time": "19:00", "body": "Town",
+        "title": "Special Town Meeting", "status": "scheduled", "special": True, "source_url": f"{BASE}/Calendar.aspx?EID=7001",
+        "first_seen": "2026-09-20T07:00:00-04:00", "last_seen": "2026-09-30T07:00:00-04:00", "listed": True}}))
+    identity.update(tmp_path, load_store(tmp_path), "Malden")
+    assert list(identity.load(tmp_path)["meetings"]) == ["2026-11-16-town"]
+
+    status = fetch_meetings.run(malden, FakeMalden(agendas), tmp_path, now=NOW)
+    assert load_store(tmp_path)["7001"]["body"] == "Town Meeting" and status["renamed"] == 1
+    built = build_site.load_meetings(tmp_path, NOW.date())
+    [m] = [m for m in built["all"] if m["date"] == "2026-11-16"]
+    assert m["body"] == "Town Meeting"
+    assert {x["id"] for x in m["listings"]} == {"7001", "agendacenter-4400"}
+    assert "town" not in {b["slug"] for b in built["boards"]}
+
+
 def test_a_calendar_entry_linking_another_boards_agenda_keeps_its_name(malden, tmp_path):
     """The Housing Authority's entry of October 13 links the climate commission's agenda of that day (a
     clerk's slip): the names share no word but kinds of body, so they stay two meetings."""
