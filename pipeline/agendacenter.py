@@ -9,9 +9,12 @@ minutes. There are no times or places; those are only in the agenda itself.
 
 Row titles are typed by each board's clerk ("Agenda for PCAC Meeting
 9/16/2026", "CANCELLED: CASC 8/12/26 agenda"), so the board comes from the
-category, and the title only for committees of a category the town lists
-([meetings.agenda_center.committees]): "Finance Committee Agenda" under City
-Council is the City Council Finance Committee. A row whose title names a
+category, and the title only for a committee of the category's board: one the
+town lists ([meetings.agenda_center.committees]), so "Finance Committee Agenda"
+under City Council is the City Council Finance Committee; or a board another
+source lists that day, whose name is the category's board's and more ("City
+Council Workshop Agenda, 6pm" under City Council is the City Council Workshop
+that the city calendar lists that day). A row whose title names a
 subcommittee, under a board whose name doesn't, is the board's subcommittee's
 ("Airport Commission Subcommittee"), not the board's: an Agenda Center files
 a board's subcommittees under the board. Which subcommittee comes from the
@@ -28,7 +31,8 @@ import html
 import re
 from datetime import date, datetime
 
-from pipeline.meeting_names import find_board, parse_name
+from pipeline import identity
+from pipeline.meeting_names import PLAIN_WORDS, find_board, parse_name
 
 ROW = re.compile(r'<tr id="row[^"]*" class="catAgendaRow">(.*?)</tr>', re.S)
 CATEGORY = re.compile(r'<h2 tabindex="0" role="button"[^>]*aria-controls="category-panel-(\d+)"[^>]*>(.*?)</h2>', re.S)
@@ -112,26 +116,54 @@ def board_of(row: dict, aliases: dict) -> str:
                 natural_name(row["category"]))
 
 
-def body_for(row: dict, aliases: dict, committees: dict) -> str:
-    """The category's board (board_of), or a committee of it named in the row's title (committees); else,
-    where the title names a subcommittee and the board's name doesn't, the board's subcommittee ("Airport
-    Commission Subcommittee"), not the board: which of its subcommittees is named by a calendar listing that
-    links the row, where there is one (fetch_meetings.rename())."""
+def names_more(named: str, body: str, town: str = "") -> bool:
+    """Whether a board's name is another board's and more, beyond words that name no board of their own
+    (meeting_names.PLAIN_WORDS: "Meeting", "Special", "Board"), compared as identity.board_key() compares
+    them: "Salem City Council Committee of the Whole" and "City Council Workshop" are the City Council's
+    and more; "City Council Special" isn't, nor is "Mystic Valley Regional Charter School Board" the
+    Mystic Valley Regional Charter School's; "School Committee" isn't the City Council's."""
+    mine, theirs = f" {identity.board_key(named, town)} ", f" {identity.board_key(body, town)} "
+    if mine == theirs or theirs not in mine:
+        return False
+    return any(not w.isdigit() and w not in PLAIN_WORDS for w in mine.replace(theirs, " ", 1).split())
+
+
+def body_for(row: dict, aliases: dict, committees: dict, known: list[str] | tuple = (), town: str = "") -> str:
+    """The category's board (board_of), or a committee of it named in the row's title: one the town lists
+    (committees), or a board another of the town's sources lists that day (known: the city calendar's
+    listing of the same meeting, under the committee's name) whose name is the category's board's and more
+    (names_more), so that the two listings have the same board. Else, where the title names a subcommittee and the board's name
+    doesn't, the board's subcommittee ("Airport Commission Subcommittee"), not the board: which of its
+    subcommittees is named by a calendar listing that links the row, where there is one
+    (fetch_meetings.rename()). A title naming another board ("Joint Meeting of the City Council and School
+    Committee"), or none ("For the purpose of counting Federal Write-In Absentee Ballots"), stays the
+    category's board's."""
     body = board_of(row, aliases)
     listed = committees.get(row["category"]) or committees.get(body) or {}
     named = find_board(row["title"], [], listed)
     if named:
         return named
-    if SUBCOMMITTEE.search(row["title"]) and not SUBCOMMITTEE.search(body):
+    subcommittee = SUBCOMMITTEE.search(row["title"]) and not SUBCOMMITTEE.search(body)
+    # Only the category's board's committees, so that another board the title names ("Conservation Commission
+    # Appointments") doesn't hide its committee's name; for a subcommittee's row, only subcommittees. Names
+    # are compared as identity compares boards (board_key): "Sub Committee", plurals, the town's name before.
+    title = f" {identity.board_key(row['title'], town)} "
+    named = [(len(key), b) for b in known if names_more(b, body, town) and (not subcommittee or SUBCOMMITTEE.search(b))
+             and f" {(key := identity.board_key(b, town))} " in title]
+    if named:
+        return max(named)[1]
+    if subcommittee:
         return f"{body} Subcommittee"
     return body
 
 
-def to_event(row: dict, aliases: dict | None = None, committees: dict | None = None) -> dict:
-    """A row as a meeting record for pipeline.fetch_meetings."""
+def to_event(row: dict, aliases: dict | None = None, committees: dict | None = None, known: list[str] | tuple = (),
+             town: str = "") -> dict:
+    """A row as a meeting record for pipeline.fetch_meetings. known: the boards the town's other sources
+    list on the row's day (body_for)."""
     parsed = parse_name(row["title"])
     board = board_of(row, aliases or {})
-    body = body_for(row, aliases or {}, committees or {})
+    body = body_for(row, aliases or {}, committees or {}, known, town)
     hearing = re.search(r"\bhearings?\b", row["title"], re.I) and not re.search(r"\bmeeting\b", row["title"], re.I)
     kind = "Special Meeting" if parsed["special"] else "Public Hearing" if hearing else "Meeting"
     posted = (row["posted_at"] or "").replace("-", "").replace(":", "").replace("T", "")

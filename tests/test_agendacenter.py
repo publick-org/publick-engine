@@ -7,7 +7,7 @@ import pytest
 from conftest import TZ
 from fakes import FIXTURES, FakeResponse
 
-from pipeline import agendacenter, fetch_meetings, fetch_minutes
+from pipeline import agendacenter, fetch_meetings, fetch_minutes, identity
 from pipeline.fetch_meetings import load_store
 
 BASE = "https://www.cityofmalden.org"
@@ -129,6 +129,126 @@ def test_a_committee_the_town_lists_comes_before_the_subcommittee_rule():
     row = subcommittee_row("Conservation Commission", "Conservation Commission: Rapid Response Subcommittee Meeting (PDF)")
     event = agendacenter.to_event(row, {}, committees)
     assert (event["body"], event["subcommittee_of"]) == ("Conservation Commission Rapid Response Subcommittee", None)
+
+
+def row_of(category, title, number="2978", day="2026-11-09"):
+    return {**subcommittee_row(category, title), "number": number, "date": day}
+
+
+# A committee of the category's board named in a row's title, as a board the town's calendar lists that day:
+# November 9, 2026, each also on its city's calendar under the committee's name.
+@pytest.mark.parametrize("town, title, known, body", [
+    ("Beverly", "City Council Budget Analyst Screening Committee Meeting Agenda (PDF)",
+     ["City Council", "City Council Budget Analyst Screening Committee"], "City Council Budget Analyst Screening Committee"),
+    ("Salem", "Salem City Council Committee of the Whole",
+     ["City Council", "Salem City Council Committee of the Whole"], "Salem City Council Committee of the Whole"),
+    ("Methuen", "City Council Workshop Agenda, 6pm", ["City Council", "City Council Workshop"], "City Council Workshop"),
+    # A title naming no board stays the category's board's (Salem's Board of Registrars, posting under City Council).
+    ("Salem", "For the purpose of counting Federal Write-In Absentee Ballots (FWAB) and ballots mailed by voters from "
+              "outside the U.S., postmarked on or before November 3, 2026, and received by 5:00 P.M. on Nov. 13, 2026. "
+              "(This meeting will be held only if necessary.)",
+     ["City Council", "Salem City Council Committee of the Whole", "Board of Registrars"], "City Council"),
+    # Another board named in the title isn't the category's board's committee: a joint meeting stays the council's.
+    ("Fitchburg", "Joint Convention City Council and School Committee January 20, 2026",
+     ["City Council", "School Committee"], "City Council"),
+    ("South Burlington", "City Council Meeting - Joint with Planning Commission", ["City Council", "Planning Commission"],
+     "City Council"),
+    # Names compared as boards are: the town's name, "Sub Committee", plurals.
+    ("Salem", "City Council Committee of the Whole Agenda", ["City Council", "Salem City Council Committee of the Whole"],
+     "Salem City Council Committee of the Whole"),
+    ("Lowell", "City Council Sub Committee on Ordinances", ["City Council Subcommittee on Ordinances"],
+     "City Council Subcommittee on Ordinances"),
+    # A committee named beside a longer name of another board is still found.
+    ("Methuen", "City Council Workshop on Conservation Commission Appointments",
+     ["City Council", "City Council Workshop", "Conservation Commission"], "City Council Workshop"),
+    # Nor is a name that adds only words naming no board of their own to the category's board's.
+    ("Salem", "Salem City Council Special Meeting", ["City Council", "City Council Special"], "City Council"),
+    ("Malden", "Mystic Valley Regional Charter School Board of Trustees Meeting",
+     ["Mystic Valley Regional Charter School Board"], None),
+])
+def test_a_committee_the_town_knows_named_in_a_title(town, title, known, body):
+    category = "Mystic Valley Regional Charter School" if town == "Malden" else "City Council"
+    event = agendacenter.to_event(row_of(category, title), {}, {}, known, town)
+    assert event["body"] == (body or category)
+    # Without the day's listings, the category's board's (or its subcommittee's, by the subcommittee rule).
+    assert agendacenter.to_event(row_of(category, title))["body"] in (category, f"{category} Subcommittee")
+
+
+def test_a_known_committee_doesnt_take_a_subcommittees_row():
+    """A row naming a subcommittee is still its board's subcommittee, not a committee it names without one;
+    a subcommittee the town knows takes it."""
+    row = row_of("City Council", "City Council Workshop Subcommittee Agenda")
+    event = agendacenter.to_event(row, {}, {}, ["City Council Workshop"], "Methuen")
+    assert (event["body"], event["subcommittee_of"]) == ("City Council Subcommittee", "City Council")
+    known = ["City Council Workshop", "City Council Workshop Subcommittee"]
+    event = agendacenter.to_event(row, {}, {}, known, "Methuen")
+    assert (event["body"], event["subcommittee_of"]) == ("City Council Workshop Subcommittee", None)
+
+
+def test_the_status_counts_the_rows_filed_under_a_committee_their_title_names(malden, tmp_path):
+    """The run's status gives how many rows the day's other listings filed under a committee, and names
+    them, so a wrong filing shows in the status; a row filed by the town's committees isn't one."""
+    page = PAGE.replace("City Council Agenda - September 22, 2026", "City Council Workshop Agenda, 6pm")
+    (tmp_path / "meetings").mkdir()
+    fetch_meetings.save_json(tmp_path / "meetings" / "meetings.json", {"2121": {
+        "id": "2121", "date": "2026-09-22", "body": "City Council Workshop", "title": "City Council Workshop",
+        "start_time": "18:00", "first_seen": "2026-09-01T07:00:00-04:00", "slug": "2026-09-22-city-council-workshop",
+        "status": "scheduled", "listed": True}})
+    status = fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    assert status["calendars"]["Agenda Center"]["filed_by_title"] == {
+        "count": 1, "rows": ["agendacenter-4441 (2026-09-22): City Council -> City Council Workshop"]}
+    # None, in a town whose rows are all filed by category: counted as none, not left out.
+    status = fetch_meetings.run(malden, FakeAgendaCenter(), tmp_path / "other", now=NOW)
+    assert status["calendars"]["Agenda Center"]["filed_by_title"] == {"count": 0, "rows": []}
+
+
+def test_only_a_committee_another_source_lists_that_day_takes_a_row(malden, tmp_path):
+    """A committee another source listed on another day ("Leach Library Trustees Non-Public", one evening on the
+    calendar) doesn't take the board's rows of other days: they stay the category's board's."""
+    page = PAGE.replace("City Council Agenda - September 22, 2026", "City Council Workshop Agenda, 6pm")
+    (tmp_path / "meetings").mkdir()
+    fetch_meetings.save_json(tmp_path / "meetings" / "meetings.json", {"2121": {
+        "id": "2121", "date": "2026-09-23", "body": "City Council Workshop", "title": "City Council Workshop",
+        "start_time": "18:00", "first_seen": "2026-09-01T07:00:00-04:00", "slug": "2026-09-23-city-council-workshop",
+        "status": "scheduled", "listed": True}})
+    fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    assert load_store(tmp_path)["agendacenter-4441"]["body"] == "City Council"
+
+
+def test_a_committee_the_town_lists_comes_before_one_it_knows():
+    committees = {"City Council": {"Preliminary Screening": "City Council Budget/Management Analyst Screening Committee"}}
+    row = row_of("City Council", "City Council Budget Analyst Preliminary Screening Committee Meeting Agenda (PDF)")
+    event = agendacenter.to_event(row, {}, committees, ["City Council Budget Analyst Screening Committee"], "Beverly")
+    assert event["body"] == "City Council Budget/Management Analyst Screening Committee"
+
+
+def test_a_row_filed_under_its_category_joins_the_calendars_committee_meeting_on_the_next_run(malden, tmp_path):
+    """Methuen's November 9 workshop: its Agenda Center row was filed under City Council, beside the calendar's
+    listing of the City Council Workshop, so the meeting had two pages. The next run files the row under the
+    workshop, the two are one meeting, and the row's page leads to the calendar's."""
+    page = PAGE.replace("City Council Agenda - September 22, 2026", "City Council Workshop Agenda, 6pm")
+    fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    row = store["agendacenter-4441"]
+    assert row["body"] == "City Council"
+    # As recorded before: the calendar's listing, recorded the same run, a meeting of its own.
+    store["2121"] = {"id": "2121", "date": "2026-09-22", "body": "City Council Workshop", "title": "City Council Workshop",
+                     "start_time": "18:00", "first_seen": row["first_seen"], "slug": "2026-09-22-city-council-workshop",
+                     "status": "scheduled", "listed": True}
+    fetch_meetings.save_json(tmp_path / "meetings" / "meetings.json", store)
+    (tmp_path / "meetings" / "identities.json").unlink()
+    identity.update(tmp_path, store, "Gloucester", previous={})
+    ours = {"2121", "agendacenter-4441"}
+    pages = {m["id"]: [r["id"] for r in m["records"]] for m in identity.meetings(store, identity.load(tmp_path))
+             if ours & {r["id"] for r in m["records"]}}
+    assert pages == {"2026-09-22-city-council": ["agendacenter-4441"], "2026-09-22-city-council-workshop": ["2121"]}
+
+    fetch_meetings.run(malden, FakeAgendaCenter(page), tmp_path, now=NOW.replace(day=21))
+    store = load_store(tmp_path)
+    assert store["agendacenter-4441"]["body"] == "City Council Workshop"
+    meetings = [m for m in identity.meetings(store, identity.load(tmp_path)) if ours & {r["id"] for r in m["records"]}]
+    assert [(m["id"], [r["id"] for r in m["records"]], m["addresses"]) for m in meetings] == [
+        ("2026-09-22-city-council-workshop", ["2121", "agendacenter-4441"], ["2026-09-22-city-council"])]
 
 
 def test_an_agenda_made_in_the_builder_is_read_as_its_pdf():
