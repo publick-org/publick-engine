@@ -1064,9 +1064,9 @@ def config_text(town: NewTown, short: bool = False) -> Config:
 
     config_311(c, town)
     config_officials(c, town, governing)
-    c.table("digest", "The weekly digest by email, from launch: its signup's settings are the network's "
-            "(defaults/network.toml), and the network's scheduler emails every town with this table. A week with no "
-            "meetings and no new minutes has no issue, so a town with no data yet sends nothing.")
+    c.table("digest", "The weekly digest by email, from launch: the signup on /digest/, and the network's scheduler "
+            "emails each town with this table. A week with no meetings and no new minutes has no issue, so a town with "
+            "no data yet sends nothing.", **shared(town, "digest", "signup", "provider", "privacy_url"))
     return c
 
 

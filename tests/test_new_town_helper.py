@@ -13,7 +13,7 @@ import pytest
 import requests
 from conftest import BUILT_AT
 
-from pipeline import build_site, civicplus, new_town
+from pipeline import build_site, civicplus, digest, new_town
 from pipeline import config as config_mod
 from pipeline.http import FetchError
 from pipeline.states.ma import lookups
@@ -137,8 +137,8 @@ def test_helper_leaves_officials_to_a_person_and_turns_the_digest_on(tmp_path, n
     assert "bodies" not in config["officials"] and "next_election" not in config["officials"]
     assert "officials" not in [s["slug"] for s in config["sections"]]
     assert re.search(r"# To fill in: next_election", text)
-    # A town joins the digest at launch: an empty [digest] table, the network's settings.
-    assert config["digest"] == {}
+    # A town joins the digest at launch, with the signup of the town the config started from (no layers here).
+    assert config["digest"] == {"signup": True, "provider": "Buttondown", "privacy_url": "https://buttondown.com/legal/privacy"}
     # Everything left is marked, and listed in the report, with the committees the council posts.
     left = new_town.left_to_fill_in(text)
     assert len(left) == len(town.todo) > 5
@@ -356,7 +356,8 @@ def test_helper_leaves_out_what_the_layers_give(tmp_path, network, monkeypatch):
         '[storage]\nendpoint = "https://6bbfee5a3892553c7993dbfa4b4e8453.r2.cloudflarestorage.com"\nbucket = "publick-documents"\n'
         'public_url = "https://files.publick.org"\n[summaries]\nmodel = "claude-sonnet-5"\ninput_price = 2.0\n'
         'output_price = 10.0\nmax_cost_per_run = 5.0\nmax_per_run = 40\n[freshness]\nsummary_grace_days = 2\n'
-        '[terms]\nADA = "Americans with Disabilities Act."\n')
+        '[terms]\nADA = "Americans with Disabilities Act."\n'
+        '[digest]\nsignup = true\nprovider = "Buttondown"\nprivacy_url = "https://buttondown.com/legal/privacy"\n')
     (network / "defaults" / "states" / "ma.toml").write_text(
         '[town]\nstate = "Massachusetts"\n[housing]\nbps_region = "Northeast Region"\nbps_prefix = "ne"\n'
         'bps_state = "25"\nstate_geo = "04000US25"\n'
@@ -375,11 +376,14 @@ def test_helper_leaves_out_what_the_layers_give(tmp_path, network, monkeypatch):
     assert own["analytics"] == own["storage"] == {"prefix": "beverly-ma"}
     assert own["housing"] == {"bps_place": "05595", "census_geo": "16000US2505595", "shi_name": "Beverly"}
     assert own["labor"] == {"local_series": "LAUCT250559500000003"} and "portal" not in own["schools"]
+    # The digest at launch: an empty table, the network's signup.
+    assert own["digest"] == {}
     assert "Prices per million tokens" not in text and "summary_grace_days" not in text
     assert any("needs only its term, for their definition: M.G.L., ADA" in todo for _, todo in town.todo)
     config = config_mod.read_config(out / "config" / "beverly.toml", network)
     assert config["summaries"]["model"] == "claude-sonnet-5" and config["town"]["state"] == "Massachusetts"
     assert config["housing"]["shi_url"].startswith("https://www.mass.gov") and config["site"]["timezone"]
+    assert digest.signup(config) is not None
     site = tmp_path / "site"
     monkeypatch.setattr(build_site, "load_config", lambda slug: config)
     build_site.build("beverly", site, data_dir=out / "data", now=BUILT_AT, share_cards=False)

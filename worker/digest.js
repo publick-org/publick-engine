@@ -50,6 +50,8 @@ export const MAX_FORM_BYTES = 4096;
 // Cloudflare numbers them 1 (Sunday) to 7, not cron's usual 0 to 6, and refuses a 0.
 export const DIGEST_CRON = "35 * * * SUN,MON";
 export const SEND_WINDOW_HOURS = 6;
+// What the sites Worker answers, with a 404, for a town it has no site for yet (worker/sites.js).
+const NO_SITE = "No site here.";
 // The digest's languages: English for now.
 export const LANGUAGES = ["en"];
 // The start of a test's subject, so it's never mistaken for (or taken as) the issue sent.
@@ -331,7 +333,12 @@ function emailBody(issue) {
 // Sends one town's newest issue if it's due and not sent yet. Returns what was done.
 export async function sendTown(env, host, now, cache) {
   const response = await env.SITES.fetch(`https://${host}/digest/feed.xml`);
-  if (!response.ok) throw new Error(`its feed: HTTP ${response.status}`);
+  if (!response.ok) {
+    // A town whose site isn't published yet (its first fetches haven't run: the sites Worker has no manifest
+    // for it, worker/sites.js) has nothing to send. Any other failure, a published site's included, fails the run.
+    if (response.status === 404 && (await response.text()).trim() === NO_SITE) return { host, done: "no_site" };
+    throw new Error(`its feed: HTTP ${response.status}`);
+  }
   const issue = newestIssue(await response.text());
   if (!issue || Number.isNaN(issue.due.getTime())) return { host, done: "no_issue" };
   const late = now - issue.due;
