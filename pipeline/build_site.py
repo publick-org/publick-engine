@@ -1174,7 +1174,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         problems += correct_summaries(m, fixes.get(m["id"], []), {"agenda": pv_raw, "minutes": ms_raw, "recording": rs_raw},
                                       english)
         ms_en, ms = english["minutes_summary"], m["minutes_summary"]
-        # The meeting's decisions, for the decisions page and the digest: the minutes', or until they're summarized,
+        # The meeting's decisions, for the past meetings page and the digest: the minutes', or until they're summarized,
         # those heard in the recording ("decisions_from").
         m["decisions_from"] = decisions_kind(m, ms_en, english["recording_summary"])
         sorted_decisions = {"decided": [], "recommended": [], "procedural": []}
@@ -1192,7 +1192,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         pv_en = english["preview"]
         m["public_hearing"] = bool(pv_en) and bool(PUBLIC_HEARING.search(
             " ".join([pv_en.get("summary") or "", doc_text(pv_en), *pv_en.get("items", [])])))
-        m["preview_line"] = preview_line(m)
+        m["preview_line"], m["preview_from"] = line_and_source(m)
         # How the summary that line comes from was checked, said beside it (factcheck.how_checked).
         m["preview_checked"] = factcheck.how_checked(*preview_source(m)) if m["preview_line"] else None
         m["glossary"] = glossary_for(english, terms or [])
@@ -1371,11 +1371,11 @@ def page_sources(config: dict) -> list[dict]:
     return found
 
 
-# Pages about agendas and minutes, left out for a town that doesn't collect them yet.
-DOCUMENT_PAGES = {"meetings/decisions/index.html"}
-# Pages that have moved, each to where it is now: the meetings' search, which a town that collects agendas and
-# minutes had, became the site's (SEARCH_PAGE).
-MOVED_PAGES = {"/meetings/search/": "/search/"}
+# Pages that have moved, each to where it is now, with the name of the page it's now part of, and whether only a
+# town that collects agendas and minutes had it: the meetings' search became the site's (SEARCH_PAGE); the
+# decisions page became part of the past meetings'.
+MOVED_PAGES = {"/meetings/search/": ("/search/", N_("Search"), False),
+               "/meetings/decisions/": ("/meetings/past/", N_("Past meetings"), True)}
 # The glossary's page, for a town whose glossary has terms (pipeline/glossary.py).
 GLOSSARY_PAGE = "meetings/glossary/index.html"
 # The repeat locations' page and map, for a 311 source with map points (pipeline/source_311.py).
@@ -1445,26 +1445,33 @@ def preview_line(meeting: dict) -> str | None:
     """One line for meeting lists: what the meeting is about, never the board,
     date, or time (those are already shown). Prefers the AI headline; older
     summaries without one fall back to their own items or decisions."""
+    return line_and_source(meeting)[0]
+
+
+def line_and_source(meeting: dict) -> tuple[str | None, str | None]:
+    """preview_line()'s line, and the document it's from: "recording", "minutes" or "agenda", for a list of past
+    meetings to say a line from the agenda is what was planned, not what happened."""
     minutes, agenda, recording = meeting.get("minutes_summary"), meeting.get("preview"), meeting.get("recording_summary")
     if recording and recording.get("headline") and not (minutes and minutes.get("is_minutes", True)):
-        return in_english(recording["headline"]) if recording.get("english") else recording["headline"]
+        return (in_english(recording["headline"]) if recording.get("english") else recording["headline"]), "recording"
     if minutes and minutes.get("is_minutes", True):
         if minutes.get("headline"):
-            return in_english(minutes["headline"]) if minutes.get("english") else minutes["headline"]
+            return (in_english(minutes["headline"]) if minutes.get("english") else minutes["headline"]), "minutes"
         if minutes.get("decisions"):
             final = meeting["decisions"]["decided"] if "decisions" in meeting else []
             line = clip((final or minutes["decisions"])[0])
-            return in_english(line) if minutes.get("english") else line
+            return (in_english(line) if minutes.get("english") else line), "minutes"
     if agenda:
         line = agenda.get("headline") or (clip("; ".join(i.rstrip(".") for i in agenda["items"][:4]) + ".")
                                           if agenda.get("items") else None)
-        return in_english(line) if line and agenda.get("english") else line
-    return None
+        if line:
+            return (in_english(line) if agenda.get("english") else line), "agenda"
+    return None, None
 
 
-def site_nav(page_url: str, sections: list[dict], street_sources: str, documents: bool) -> dict:
+def site_nav(page_url: str, sections: list[dict], street_sources: str) -> dict:
     """The menu and the tabs of the group a page is in. The menu is Home, three groups, each named for what a reader
-    comes for: City Hall (meetings, decisions, boards, officials), Neighborhood (the street lookup, 311), and Data
+    comes for: City Hall (meetings, past meetings and their decisions, boards, officials), Neighborhood (the street lookup, 311), and Data
     (budget, schools, housing, and the downloads), with only the pages the town has, and Search. A group's menu item
     goes to its first page. The tabs show on each of a group's own pages; a page under one (a meeting, a board, a 311
     category) has a breadcrumb instead. Each entry is (href, label, current), current being an aria-current
@@ -1473,7 +1480,7 @@ def site_nav(page_url: str, sections: list[dict], street_sources: str, documents
     slugs = {s["slug"] for s in sections}
     groups = [
         (_("City Hall"), [("/meetings/", _("Meetings"))] * ("meetings" in slugs)
-         + [("/meetings/decisions/", _("Decisions"))] * ("meetings" in slugs and documents)
+         + [("/meetings/past/", _("Past meetings"))] * ("meetings" in slugs)
          + [("/meetings/boards/", _("Boards"))] * ("meetings" in slugs)
          + [("/officials/", _("Officials"))] * ("officials" in slugs)),
         (pgettext("menu", "Neighborhood"), [("/streets/", _("Look up a street"))] * bool(street_sources)
@@ -1894,7 +1901,7 @@ def build_language(config: dict, lang: str, langs: list[str], out_dir: Path, dat
                   alerts=documents and mentions_mod.alerts(config),
                   built_at=built_at, meetings=meetings, scorecard=figures["scorecard"], schools=figures["schools"], budget=figures["budget"], tax_bill=figures["tax_bill"], housing=figures["housing"],
                   headline=headline_numbers(config, data_dir, figures["scorecard"]), map_points=map_points(figures["scorecard"]),
-                  site_nav=lambda url: site_nav(url, sections, street_sources, documents),
+                  site_nav=lambda url: site_nav(url, sections, street_sources),
                   # This language's feed and calendar file, which localize_links leaves as they are (they're files).
                   feed_url=f"{prefix}/feed.xml", calendar_url=f"{prefix}/meetings/calendar.ics")
     pages = LanguagePages(config=config, lang=lang, langs=langs, out_dir=out_dir, data_dir=data_dir, built_at=built_at, env=env,
@@ -2298,20 +2305,17 @@ class LanguagePages:
 # Each other page has no date in the sitemap: what's on it (an explanation, yearly figures) can't say when it
 # changed, except the lists of meetings, which change with their newest meeting.
 DAILY_PAGES = {"/", "/meetings/", "/311/", "/311/repeat-locations/"}
-MEETING_LISTS = {"/meetings/past/", "/meetings/decisions/", "/meetings/boards/"}
+MEETING_LISTS = {"/meetings/past/", "/meetings/boards/"}
 
 
 def section_pages(pages: LanguagePages) -> None:
     """Each page under site/pages/ the town has: a section's only where the town lists the section, the
-    decisions page where it saves agendas and minutes, the glossary where it has terms, and the 311
-    requests' repeat locations where their source records places."""
+    glossary where it has terms, and the 311 requests' repeat locations where their source records places."""
     today = pages.today.isoformat()
     newest = max(pages.changed.values(), default=None)
     for page_path in sorted(PAGES_DIR.rglob("*.html")):
         rel = page_path.relative_to(PAGES_DIR)
         if len(rel.parts) > 1 and rel.parts[0] not in pages.built_folders:
-            continue
-        if rel.as_posix() in DOCUMENT_PAGES and not pages.documents:
             continue
         if rel.as_posix() == GLOSSARY_PAGE and not pages.terms:
             continue
@@ -2322,9 +2326,12 @@ def section_pages(pages: LanguagePages) -> None:
 
 
 def moved_pages(pages: LanguagePages) -> None:
-    """A page at each address the site's pages moved from (MOVED_PAGES), sending readers to the new one."""
-    for old, new in MOVED_PAGES.items():
-        pages.render("moved.html", old, canonical=new, page_name=_("Search"), moved_page=new)
+    """A page at each address the site's pages moved from (MOVED_PAGES), sending readers to the new one, where the
+    town had the old page."""
+    for old, (new, name, documents_only) in MOVED_PAGES.items():
+        if documents_only and not pages.documents:
+            continue
+        pages.render("moved.html", old, canonical=new, page_name=_(name), moved_page=new)
 
 
 def share_card_images(pages: LanguagePages, town_static: Path) -> None:

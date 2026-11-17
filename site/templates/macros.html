@@ -254,7 +254,7 @@
 {%- elif o == "withdrawn" %}{{ pgettext("decision outcome", "Withdrawn") }}{% endif -%}
 {%- endmacro %}
 
-{# A decision's topic (pipeline/summarize.py TOPICS), as the Decisions page's filter names it. #}
+{# A decision's topic (pipeline/summarize.py TOPICS), as the Past meetings page's filter names it. #}
 {% macro topic_name(t) -%}
 {%- if t == "budget" %}{{ pgettext("decision topic", "Budget and taxes") }}
 {%- elif t == "housing" %}{{ pgettext("decision topic", "Housing and zoning") }}

@@ -231,7 +231,7 @@ def test_the_meeting_page_cites_the_page_in_both_languages(cited_site):
 
 def test_the_decisions_page_and_the_digest_cite_it(cited_site):
     for lang, short in (("", "p. 3"), ("es", "pág. 3")):
-        page = (cited_site / lang / "meetings" / "decisions" / "index.html").read_text(encoding="utf-8")
+        page = (cited_site / lang / "meetings" / "past" / "index.html").read_text(encoding="utf-8")
         found = cites(page)
         assert found and all(f'<span aria-hidden="true">{short}</span>' in c for c in found)
     # The digest, in English.
@@ -243,8 +243,8 @@ def test_the_decisions_page_and_the_digest_cite_it(cited_site):
     assert "#page=3" not in feed
 
 
-CITED_PATHS = ["/meetings/2026-08-25-city-council/", "/es/meetings/2026-08-25-city-council/", "/meetings/decisions/",
-               "/es/meetings/decisions/", "/digest/2026-10-05/"]
+CITED_PATHS = ["/meetings/2026-08-25-city-council/", "/es/meetings/2026-08-25-city-council/", "/meetings/past/",
+               "/es/meetings/past/", "/digest/2026-10-05/"]
 
 
 @pytest.mark.parametrize("path", CITED_PATHS)

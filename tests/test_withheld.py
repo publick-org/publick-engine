@@ -66,7 +66,9 @@ def test_a_withheld_summary_is_shown_nowhere(config, data_dir, tmp_path, monkeyp
     gone = [decision, headline, *[x for x in (m["preview"].get("headline"), m["preview"].get("summary")) if x]]
     for text in (page, es):
         assert not any(g in text for g in gone)
-    assert url not in (out / "meetings" / "decisions" / "index.html").read_text()
+    # Listed with the past meetings, but not as a meeting with decisions.
+    past = (out / "meetings" / "past" / "index.html").read_text()
+    assert url in past and url + "#minutes" not in past
     assert m["slug"] not in (out / "meetings" / "data" / "decisions.csv").read_text()
     # The site's search has the meeting, without what was withheld, and doesn't have its decision.
     results = site_search.results(out, "en")

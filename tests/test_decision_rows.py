@@ -203,7 +203,7 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     assert ('<h2 id="details">Meeting details</h2>' in page) == ('<dl class="facts">' in page)
     if '<dl class="facts">' in page:
         assert page.index('class="decision-rows"') < page.index('<h2 id="details">') < page.index('<dl class="facts">')
-    decisions = (tmp_path / "site" / "meetings" / "decisions" / "index.html").read_text()
+    decisions = (tmp_path / "site" / "meetings" / "past" / "index.html").read_text()
     # The main decisions first, by title; the meeting below is one line, its decisions folded.
     main = decisions[decisions.index('<h2 id="main-decisions">The main decisions</h2>'):decisions.index('<h2 id="by-meeting">')]
     assert "Main decision title" in main and "Library Board" not in main
@@ -215,7 +215,7 @@ def test_pages_show_main_decisions_by_title_and_filter_by_topic(tmp_path):
     import html
     import re
     description = html.unescape(re.search(r'<meta name="description" content="([^"]*)"', decisions).group(1))
-    assert description.startswith("Latest: Main decision title. Votes and other decisions") and len(description) <= 160
+    assert description.startswith("Latest: Main decision title. Past meetings of") and len(description) <= 160
 
 
 def test_the_decisions_page_names_the_towns_governing_body(tmp_path):
@@ -247,7 +247,7 @@ def test_the_decisions_page_names_the_towns_governing_body(tmp_path):
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(build_site, "load_config", lambda slug: config)
         build_site.build("gloucester", site, data_dir=data, now=datetime(2026, 10, 4, 7, 0, tzinfo=TZ))
-    decisions = (site / "meetings" / "decisions" / "index.html").read_text()
+    decisions = (site / "meetings" / "past" / "index.html").read_text()
     assert "Gloucester&#39;s Board of Aldermen, boards, and committees" in decisions
     assert '<p class="lede">What the Board of Aldermen, boards, and committees decided' in decisions
     assert '<p class="decision-label">Committee recommendations to the Board of Aldermen</p>' in decisions
@@ -255,7 +255,7 @@ def test_the_decisions_page_names_the_towns_governing_body(tmp_path):
     assert "They become final only when the Board of Aldermen votes." in decisions
     issue = (site / "digest" / "2026-10-05" / "index.html").read_text()
     assert '<h4 class="decision-group">Committee recommendations to the Board of Aldermen</h4>' in issue
-    spanish = (site / "es" / "meetings" / "decisions" / "index.html").read_text()
+    spanish = (site / "es" / "meetings" / "past" / "index.html").read_text()
     assert "Junta de Concejales (Board of Aldermen): recomendaciones de los comités" in spanish
     assert "Junta de Concejales (Board of Aldermen), juntas y comités: lo que decidieron" in spanish
     assert not [p for p in site.rglob("*.html") if "recommendations to the City Council" in p.read_text()
@@ -359,7 +359,7 @@ def test_the_meetings_page_lists_the_last_two_weeks(site_dir):
     """Under "Recent", the meetings of the last two weeks that were held, newest first, with what each decided."""
     import re
     page = (site_dir / "meetings" / "index.html").read_text()
-    recent = page[page.index('<h2 id="recent">Recent</h2>'):page.index('href="/meetings/past/"')]
+    recent = page[page.index('<h2 id="recent">Recent</h2>'):page.index('<p><a href="/meetings/past/">')]
     days = re.findall(r'<time datetime="(2026-\d\d-\d\d)">', recent)
     assert days and days == sorted(days, reverse=True) and min(days) >= "2026-09-18" and max(days) < "2026-10-02"
 

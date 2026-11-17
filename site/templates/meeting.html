@@ -19,22 +19,27 @@
 {%- endmacro %}
 {# Translators: a meeting's name when its board meets more than once that day: %(name)s is the meeting, such as "Planning Board", %(when)s the date, and %(part)s which meeting it is, such as "1 of 2". #}
 {# The summary of a meeting's recording: primary, before the minutes' summary (its decisions and what was discussed);
-   otherwise, under the minutes', what was discussed. #}
+   otherwise, under the minutes', its summary and what was discussed, which the minutes don't give in full. Its decisions
+   aren't repeated there: the minutes' are the record of the votes. #}
 {% macro recording_part(rs, primary, report_url, english_url, about) -%}
 {% if primary %}
 {% if rs.summary %}<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>{% endif %}
 {% if rs.decisions %}
 {{ decision_groups(none, rs.decisions, rs.get("english"), gloss, "recording-votes") }}
 {% endif %}
+{% elif rs.summary %}
+<h3 id="recording">{{ _("From the recording") }}</h3>
+<p class="summary"{{ english_attr(rs) }}>{{ gloss(rs.summary, rs.get("english")) }}</p>
 {% endif %}
+{% set shown = primary or rs.summary or rs.get("discussion") %}
+{% if not primary and shown %}{% set n %}<p>{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endset %}{% set __ = about.notes.append(n) %}{% endif %}
 {% if rs.get("discussion") %}
 <h3 id="discussed">{{ _("What was discussed") }}</h3>
-{% if not primary %}{% set n %}<p>{{ _("From the meeting's recording: the debate and public comment, which the minutes don't give in full.") }}</p>{% endset %}{% set __ = about.notes.append(n) %}{% endif %}
 <div class="discussion"{{ english_attr(rs) }}>
   {% for d in rs.discussion %}{% set parts = discussion_parts(d) %}<p>{% if parts[0] %}<strong>{{ parts[0] }}.</strong> {% endif %}{{ gloss(parts[1], rs.get("english")) }}</p>{% endfor %}
 </div>
 {% endif %}
-{% if primary or rs.get("discussion") %}
+{% if shown %}
 {% set nothing_shown = primary and not rs.summary and not rs.decisions and not rs.get("discussion") %}
 {% set n %}
 {{ ai_credit("recording", m.recordings[0].url if m.recordings else rs.source_url, none, none, english_url, rs) }}
@@ -286,7 +291,7 @@
 {% if not decided_first %}{{ logistics }}{% if not take_part_after_agenda %}{{ take_part }}{% endif %}{% endif %}
 
 {# The summary of the meeting's recording (pipeline/recordings.py), in "What was decided": before the minutes' summary,
-   the whole of it; after, what was discussed, which the minutes don't give. #}
+   the whole of it; after, its summary and what was discussed, which the minutes don't give. #}
 {% set rs = m.recording_summary if m.status != "cancelled" else none %}
 {% set from_recording = rs and not (m.minutes_summary and m.minutes_summary.get("is_minutes") != false) %}
 
