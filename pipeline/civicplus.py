@@ -10,6 +10,13 @@ community events included, so it reaches only a week or two ahead. The
 calendar's list view (Calendar.aspx?CID=0&view=list&month=11&year=2026)
 lists every event in a month, under each of the city's calendars ("City
 Meetings", "Board of Health"), with its date, time, place and address.
+
+CivicPlus's newer calendar answers at /m/calendar, and a city that has it
+redirects the addresses above there: a month's list to
+/m/calendar?startDate=2026-11-01&endDate=2026-11-30&cat=0, an event's page to
+/m/calendar/event/detail/13065 (the event keeps its number). Its list is by
+day and gives no address; the event's page does. parse_list() and
+parse_event_page() read either.
 """
 
 from __future__ import annotations
@@ -17,7 +24,7 @@ from __future__ import annotations
 import html
 import re
 from datetime import date, datetime
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote_plus, urljoin, urlsplit
 
 import feedparser
 
@@ -242,7 +249,10 @@ AGENDA_CENTER_LINK = re.compile(r"/AgendaCenter/.*_\d{8}-(\d+)$", re.I)
 
 
 def parse_event_page(page: str, base_url: str) -> dict:
-    """Pull structured details from a Calendar.aspx?EID=... page."""
+    """Pull structured details from an event's page: Calendar.aspx?EID=..., or the newer calendar's
+    /m/calendar/event/detail/..."""
+    if DETAIL_PAGE.search(page):
+        return parse_detail_page(page, base_url)
     details: dict = {}
 
     agenda = re.search(r'id="[^"]*lnkDownloadAgenda"[^>]*href="([^"]+)"', page, re.I)
@@ -311,7 +321,11 @@ def parse_list(page: str, base_url: str) -> list[dict]:
     The date line reads 'November 12, 2026, 5:30 PM - 8:30 PM' or '..., All Day'.
     The place is the event's facility, given in the page's hidden schema.org
     data; where a city typed a note in the location box instead ("This event is
-    virtual..."), there is none, and the note isn't taken for a place."""
+    virtual..."), there is none, and the note isn't taken for a place.
+
+    The newer calendar's list (parse_day_list) gives the same, without "address"."""
+    if DAY_HEAD.search(page):
+        return parse_day_list(page, base_url)
     base = base_url.rstrip("/")
     heads = list(LIST_CALENDAR.finditer(page))
     events = []
@@ -347,6 +361,111 @@ def parse_list(page: str, base_url: str) -> list[dict]:
             event.update(parse_title(item.group(2)))
             events.append(event)
     return events
+
+
+# ---- The newer calendar (/m/calendar) ---------------------------------------
+
+DAY_HEAD = re.compile(r'id="calendar-events-header-(\d{4}-\d{2}-\d{2})"')
+DAY_EVENT = re.compile(r'<li id="event-(\d+)"[^>]*\bcalendar-list-event\b')
+DAY_TITLE = re.compile(r'<a href="([^"]+)"[^>]*\bcalendar-title-link\b[^>]*>(.*?)</a>', re.S)
+DAY_TIMES = re.compile(r'<div class="events-category">.*?</svg>([^<]*)</div>', re.S)
+DAY_PLACE = re.compile(r'<div class="calendar-location-content">(.*?)</div>', re.S)
+DAY_CALENDAR = re.compile(r'<div class="badge\b[^>]*>(.*?)</div>', re.S)
+# The boxes to pick which calendars to show: each calendar's number and name.
+CATEGORY = re.compile(r'<input id="category-(\d+)"[^>]*\bdata-category-name="([^"]*)"')
+
+
+def calendar_names(page: str) -> dict[str, str]:
+    """The newer calendar page's calendars, by number."""
+    return {number: clean_text(name) for number, name in CATEGORY.findall(page)}
+
+
+def parse_day_list(page: str, base_url: str) -> list[dict]:
+    """Every event in the newer calendar's list of a month, with the calendar it is on.
+
+    The list is by day ("Wednesday, November 18"), and each event gives its times ("6:00 PM - No set end
+    time", "All Day"), its place, and its calendar's name. A place the city keeps is named with the building
+    it is in ("City Hall > City Council Committee Room") and is recorded as the older list names it, by the
+    room alone; a note typed in the location box is marked up as text (a paragraph) and isn't a place. There
+    is no address, so the events have no "address": it is on the event's page (parse_detail_page). An event
+    listed on more than one day is its first day's."""
+    numbers = {name.lower(): number for number, name in calendar_names(page).items()}
+    days = list(DAY_HEAD.finditer(page))
+    events, seen = [], set()
+    for i, day in enumerate(days):
+        section = page[day.end():days[i + 1].start() if i + 1 < len(days) else len(page)]
+        items = list(DAY_EVENT.finditer(section))
+        for j, item in enumerate(items):
+            chunk = section[item.end():items[j + 1].start() if j + 1 < len(items) else len(section)]
+            title = DAY_TITLE.search(chunk)
+            if not title or item.group(1) in seen:
+                continue
+            seen.add(item.group(1))
+            times = DAY_TIMES.search(chunk)
+            times = clean_text(times.group(1)) if times else ""
+            start, end = (None, None) if re.search(r"all day", times, re.I) else parse_times(times)
+            place = DAY_PLACE.search(chunk)
+            noted = bool(place) and place.group(1).lstrip().startswith("<")
+            location_name = clean_text(place.group(1)).rsplit(" > ", 1)[-1] if place and not noted else ""
+            calendar = DAY_CALENDAR.search(chunk)
+            calendar = clean_text(calendar.group(1)) if calendar else ""
+            event = {
+                "id": item.group(1),
+                "calendar_id": numbers.get(calendar.lower()),
+                "calendar": calendar,
+                "source_url": urljoin(base_url.rstrip("/") + "/", html.unescape(title.group(1))),
+                "raw_title": clean_text(title.group(2)),
+                "date": day.group(1),
+                "start_time": start,
+                "end_time": end,
+                "location_name": "" if location_name.lower() in PLACEHOLDER_LOCATIONS else location_name,
+            }
+            event.update(parse_title(title.group(2)))
+            events.append(event)
+    return events
+
+
+DETAIL_PAGE = re.compile(r'<h1 class="calendar-event-title\b')
+DETAIL_PLACE = re.compile(r'aria-label="Event location">(.*?)(?:<div class="col event-detail-sidebar">|<hr\b|$)', re.S)
+DETAIL_FACILITY = re.compile(r'<a href="[^"]*/Facilities/Facility/Details/[^"]*"[^>]*>(.*?)</a>', re.S)
+DETAIL_MAP = re.compile(r'<a href="https?://maps\.google\.com/maps\?q=([^"]*)"')
+DETAIL_SIDEBAR = re.compile(r'<div class="col event-detail-sidebar">(.*?)(?:aria-labelledby="calendar-related-events-heading"|$)',
+                            re.S)
+DETAIL_LINK = re.compile(r'<a\b[^>]*\bhref="([^"]*)"[^>]*>(.*?)</a>', re.S)
+
+
+def parse_detail_page(page: str, base_url: str) -> dict:
+    """An event's page on the newer calendar: what parse_event_page() reads from the older one.
+
+    Its place is a place the city keeps, by name, over a map link that searches for its address ("9 Dale
+    Ave, Gloucester, MA 01930", as the older list gave it); the text of that link adds the floor, so the
+    address is the one searched for. Its side column links the agenda ("View Agenda") and the event's own
+    link, which is kept only as a Zoom meeting's, as from the older page."""
+    details: dict = {}
+    place = DETAIL_PLACE.search(page)
+    if place:
+        name = DETAIL_FACILITY.search(place.group(1))
+        if name and clean_text(name.group(1)).lower() not in PLACEHOLDER_LOCATIONS:
+            details["location_name"] = clean_text(name.group(1))
+        searched = DETAIL_MAP.search(place.group(1))
+        searched = unquote_plus(html.unescape(searched.group(1))).strip() if searched else ""
+        # Only the town and state (", Lewiston, ME 04240", with no street before them) isn't an address.
+        if searched and not searched.startswith(","):
+            details["address"] = clean_text(searched)
+    side = DETAIL_SIDEBAR.search(page)
+    for href, text in DETAIL_LINK.findall(side.group(1)) if side else []:
+        url = urljoin(base_url, html.unescape(href).strip())
+        if clean_text(text).lower() == "view agenda":
+            if "agenda_url" not in details:
+                adid = re.search(r"ADID=(\d+)", url)
+                details["agenda_url"] = url
+                details["agenda_id"] = adid.group(1) if adid else None
+                center = AGENDA_CENTER_LINK.search(url)
+                if center:
+                    details["agenda_center_id"] = center.group(1)
+        elif "remote_url" not in details and is_zoom_link(url):
+            details["remote_url"] = url
+    return details
 
 
 # ---- Archive Center -------------------------------------------------------
