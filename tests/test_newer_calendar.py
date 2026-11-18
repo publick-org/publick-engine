@@ -183,7 +183,7 @@ def test_a_run_reads_the_newer_calendar(malden, tmp_path):
 
 def test_the_newer_list_changes_nothing_recorded_from_the_older(with_agenda_center, tmp_path):
     """The day a city's calendar is replaced: a meeting recorded from the older list, with its address, is
-    listed the same by the newer one, so nothing of it changed, its address stays, and no page is read for it."""
+    listed the same by the newer one, so nothing of it changed and its address stays."""
     fetch_meetings.run(with_agenda_center, FakeNewer(), tmp_path, now=NOW)
     store = load_store(tmp_path)
     for meeting in store.values():
@@ -202,8 +202,10 @@ def test_the_newer_list_changes_nothing_recorded_from_the_older(with_agenda_cent
     assert {i: (m["location_name"], m.get("address")) for i, m in after.items()} == before
     assert not any(m.get("history") for m in after.values())
     assert after["6441"]["source_url"] == f"{BASE}/m/calendar/event/detail/6441"
-    # Only the pages read for their agenda's listing, the next two weeks' (AGENDA_LINK_DAYS).
-    assert read_pages(client) and all(after[i]["date"] <= "2026-11-16" for i in read_pages(client))
+    # Past the days a page is read for its agenda's listing (AGENDA_LINK_DAYS), only one with no address
+    # recorded has its page read.
+    late = [i for i in read_pages(client) if after[i]["date"] > "2026-11-16"]
+    assert read_pages(client) and late and not any(before[i][1] for i in late)
 
 
 def test_a_town_with_an_agenda_center_reads_a_new_meetings_page_once_for_its_address(with_agenda_center, tmp_path):
@@ -215,12 +217,21 @@ def test_a_town_with_an_agenda_center_reads_a_new_meetings_page_once_for_its_add
     late = store["6458"]          # November 23, in Meeting Room 1
     assert "6458" in read_pages(client) and late["address"] == CITY_HALL
     assert "history" not in late and "address_checked" not in late
-    # A note for a place has no address to look for: its page isn't read for one.
-    assert "6445" not in read_pages(client) and "address" not in store["6445"]
+    # One the list shows no place for is somewhere its page may say: the Housing Authority's, November 24.
+    assert "6445" in read_pages(client) and store["6445"]["address"] == CITY_HALL
 
     again = FakeNewer(event_page=place("Meeting Room 1 #105"))
     fetch_meetings.run(with_agenda_center, again, tmp_path, now=NOW)
-    assert "6458" not in read_pages(again)
+    assert "6458" not in read_pages(again) and "6445" not in read_pages(again)
+    # In the next two weeks, a meeting with no named place has its page read each run: only it says where.
+    assert "6447" in read_pages(again)
+
+
+def test_a_meeting_first_seen_after_its_date_gets_its_pages_address(with_agenda_center, tmp_path):
+    """November 2's and 5's, first read on the 6th: their pages are read once, for the agenda they link."""
+    client = FakeNewer(event_page=place("Meeting Room 1 #105"))
+    fetch_meetings.run(with_agenda_center, client, tmp_path, now=NOW.replace(day=6))
+    assert load_store(tmp_path)["6443"]["address"] == CITY_HALL
 
 
 def test_a_page_without_an_address_is_not_read_for_it_again(with_agenda_center, tmp_path):
@@ -269,12 +280,62 @@ def test_a_meeting_moved_to_another_room_keeps_its_address(with_agenda_center, t
 
 
 def test_a_moved_meeting_whose_page_is_not_read_has_no_address(with_agenda_center, tmp_path):
-    """Its old place's address isn't shown for the new place; the page is read on a later run."""
+    """Its old place's address isn't shown for the new place, and isn't said to have changed, until the page
+    is read on a later run: then it is one change, or none."""
     meeting, client = moved(with_agenda_center, tmp_path, None, pages=0)
-    assert read_pages(client) == [] and meeting["address"] == ""
-    assert changes(meeting)[-1] == ("address", "110 Pleasant St., Malden, MA 02148", "")
+    room = ("location_name", "Meeting Room 2 #108", "Herbert L. Jackson Council Chamber Room 106")
+    assert read_pages(client) == [] and "address" not in meeting and changes(meeting) == [room]
 
     later = FakeNewer(event_pages={"6441": place("Herbert L. Jackson Council Chamber Room 106")})
     with_agenda_center["meetings"]["max_event_pages"] = 40
     fetch_meetings.run(with_agenda_center, later, tmp_path, now=NOW.replace(hour=11))
-    assert "6441" in read_pages(later) and load_store(tmp_path)["6441"]["address"] == CITY_HALL
+    meeting = load_store(tmp_path)["6441"]
+    assert "6441" in read_pages(later) and meeting["address"] == CITY_HALL and "address_before" not in meeting
+    assert changes(meeting) == [room, ("address", "110 Pleasant St., Malden, MA 02148", CITY_HALL)]
+
+
+def test_a_moved_meeting_read_later_in_the_same_building_has_no_address_change(with_agenda_center, tmp_path):
+    moved(with_agenda_center, tmp_path, None, pages=0)
+    same = place("Herbert L. Jackson Council Chamber Room 106", "110 Pleasant St., Malden, MA 02148")
+    with_agenda_center["meetings"]["max_event_pages"] = 40
+    fetch_meetings.run(with_agenda_center, FakeNewer(event_pages={"6441": same}), tmp_path, now=NOW.replace(hour=11))
+    meeting = load_store(tmp_path)["6441"]
+    assert meeting["address"] == "110 Pleasant St., Malden, MA 02148"
+    assert [c[0] for c in changes(meeting)] == ["location_name"]
+
+
+def test_a_meeting_moved_to_a_place_whose_page_gives_no_address_loses_its_address(with_agenda_center, tmp_path):
+    meeting, _ = moved(with_agenda_center, tmp_path, detail())
+    assert meeting["address"] == "" and changes(meeting)[-1] == ("address", "110 Pleasant St., Malden, MA 02148", "")
+
+
+# ---- A place written out, with no map link --------------------------------------
+
+WRITTEN = '<span class="d-block">\n City Hall -Second Floor Conference Room , 205 Main St. , Biddeford  ME 04005\n </span>'
+AS_LISTED = "City Hall -Second Floor Conference Room, Biddeford, ME 04005"
+
+
+def test_detail_page_with_its_place_written_out():
+    """Biddeford's: the older list gave the first line and the town; the page adds the street to it."""
+    assert civicplus.parse_event_page(detail(WRITTEN), BASE) == {
+        "address": AS_LISTED,
+        "address_readings": [AS_LISTED, "City Hall -Second Floor Conference Room, 205 Main St., Biddeford, ME 04005"],
+    }
+    # A marked-up note, or words without a town, state and ZIP code, isn't an address.
+    assert civicplus.parse_event_page(detail('<span class="d-block">Zoom only</span>'), BASE) == {}
+
+
+def test_a_written_place_recorded_either_way_is_unchanged(malden, tmp_path):
+    """A first line with a comma in it can't be told from two lines: a meeting recorded with either reading
+    keeps it, and a meeting whose page names another place has that recorded as a change."""
+    fetch_meetings.run(malden, FakeNewer(), tmp_path, now=NOW)
+    store = load_store(tmp_path)
+    store["6441"]["address"] = AS_LISTED
+    store["6440"]["address"] = "City Hall -Second Floor Conference Room, 205 Main St., Biddeford, ME 04005"
+    store["6474"]["address"] = "Somewhere Else, Biddeford, ME 04005"
+    save_store(tmp_path, store, malden)
+    fetch_meetings.run(malden, FakeNewer(event_page=detail(WRITTEN)), tmp_path, now=NOW.replace(hour=9))
+    store = load_store(tmp_path)
+    assert store["6441"]["address"] == AS_LISTED and "history" not in store["6441"]
+    assert store["6440"]["address"].count("205 Main St.") == 1 and "history" not in store["6440"]
+    assert changes(store["6474"]) == [("address", "Somewhere Else, Biddeford, ME 04005", AS_LISTED)]

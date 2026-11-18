@@ -425,11 +425,20 @@ def parse_day_list(page: str, base_url: str) -> list[dict]:
     return events
 
 
+def on_newer_calendar(url: str | None) -> bool:
+    """Whether a listing's address is the newer calendar's: its list gave no address for it."""
+    return "/m/calendar/" in (url or "")
+
+
 DETAIL_PAGE = re.compile(r'<h1 class="calendar-event-title\b')
 DETAIL_PLACE = re.compile(r'aria-label="Event location">(.*?)(?:<div class="col event-detail-sidebar">|<hr\b|$)', re.S)
 DETAIL_FACILITY = re.compile(r'<a href="[^"]*/Facilities/Facility/Details/[^"]*"[^>]*>(.*?)</a>', re.S)
 DETAIL_MAP = re.compile(r'<a href="https?://maps\.google\.com/maps\?q=([^"]*)"')
-DETAIL_SIDEBAR = re.compile(r'<div class="col event-detail-sidebar">(.*?)(?:aria-labelledby="calendar-related-events-heading"|$)',
+# A place typed in, not one the city keeps, where the page has no map link: its lines and the town in plain
+# text ("City Hall -Second Floor Conference Room , 205 Main St. , Biddeford ME 04005"). A note is marked up.
+DETAIL_WRITTEN = re.compile(r'<span class="d-block">([^<]*)</span>')
+WRITTEN_TOWN = re.compile(r"^(.+?)\s*,\s*([^,]+?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$")
+DETAIL_SIDEBAR = re.compile(r'<div class="col event-detail-sidebar">(.*?)(?:<hr\b|aria-labelledby="calendar-related-events-heading"|$)',
                             re.S)
 DETAIL_LINK = re.compile(r'<a\b[^>]*\bhref="([^"]*)"[^>]*>(.*?)</a>', re.S)
 
@@ -440,7 +449,13 @@ def parse_detail_page(page: str, base_url: str) -> dict:
     Its place is a place the city keeps, by name, over a map link that searches for its address ("9 Dale
     Ave, Gloucester, MA 01930", as the older list gave it); the text of that link adds the floor, so the
     address is the one searched for. Its side column links the agenda ("View Agenda") and the event's own
-    link, which is kept only as a Zoom meeting's, as from the older page."""
+    link, which is kept only as a Zoom meeting's, as from the older page.
+
+    Where the page has no map link, the place is written out, its second line with its first; the older
+    list gave the first line and the town ("City Hall -Second Floor Conference Room, Biddeford, ME 04005").
+    Which commas part the lines isn't marked, so "address" is that reading with the first line up to its
+    first comma, and "address_readings" has it with each longer first line: the page says nothing new of a
+    meeting recorded with any of them."""
     details: dict = {}
     place = DETAIL_PLACE.search(page)
     if place:
@@ -452,6 +467,12 @@ def parse_detail_page(page: str, base_url: str) -> dict:
         # Only the town and state (", Lewiston, ME 04240", with no street before them) isn't an address.
         if searched and not searched.startswith(","):
             details["address"] = clean_text(searched)
+        written = None if searched else DETAIL_WRITTEN.search(place.group(1))
+        written = WRITTEN_TOWN.match(clean_text(written.group(1))) if written else None
+        if written:
+            lines, town = written.group(1).split(", "), f"{written.group(2)}, {written.group(3)} {written.group(4)}"
+            readings = [f"{', '.join(lines[:n])}, {town}" for n in range(1, len(lines) + 1)]
+            details["address"], details["address_readings"] = readings[0], readings
     side = DETAIL_SIDEBAR.search(page)
     for href, text in DETAIL_LINK.findall(side.group(1)) if side else []:
         url = urljoin(base_url, html.unescape(href).strip())

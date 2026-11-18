@@ -438,56 +438,65 @@ def civicplus_list_calendar(config: dict) -> Calendar:
     upcoming meeting's page for its online link and its agenda, as from the feed.
 
     The newer calendar's list (civicplus.parse_day_list) gives no address, so a meeting it
-    lists gets its address from its own page: read with the page's other details, and, in a
-    town with an Agenda Center, for a meeting at a named place with no address recorded, once
-    for that place (address_checked, when its page gives none)."""
+    lists gets its address from its own page (page_address): read with the page's other
+    details, and, in a town with an Agenda Center, when the address isn't known or may have
+    changed (wants_address)."""
     source = config["meetings"]
     settings = source["civicplus"]
     base_url = settings.get("base_url", source.get("base_url"))
     wanted = {c.lower() for c in settings.get("calendars", [])}
     # The patterns can be given in [meetings], as for the feed.
     rules = {k: settings.get(k, source.get(k)) for k in ("include_pattern", "exclude_pattern")}
-    # The meetings the last events() listed without an address: the newer calendar's.
-    unaddressed: set[str] = set()
 
     def events(client, today, store):
-        month, found = today.replace(day=1), {}
-        unaddressed.clear()
+        month, found, moved = today.replace(day=1), {}, []
         for _ in range(settings.get("months_ahead", 2) + 1):
             for e in civicplus.parse_list(client.get(civicplus.list_url(base_url, month)).text, base_url):
                 if (not wanted or e["calendar"].lower() in wanted) and matches(rules, e["raw_title"]):
                     e.pop("calendar"), e.pop("calendar_id")
-                    if "address" not in e:
-                        unaddressed.add(e["id"])
-                        # Listed at another place than recorded, it isn't at the address recorded with that
-                        # place: the address is taken off until its page is read (page_address).
-                        recorded = store.get(e["id"])
-                        if recorded and recorded.get("address") and recorded.get("location_name") != e["location_name"]:
-                            e["address"] = ""
+                    recorded = store.get(e["id"])
+                    if ("address" not in e and recorded and e["date"] >= today.isoformat()
+                            and (recorded.get("location_name") or "") != e["location_name"]):
+                        moved.append(recorded)
                     found[e["id"]] = e
             month = (month + timedelta(days=32)).replace(day=1)
+        # An upcoming meeting listed without an address, at another place than recorded, isn't at the address
+        # recorded with that place. It is set aside until the meeting's page is read (page_address), once every
+        # month has been read, so a calendar that fails partway leaves the record as it was. A past meeting's
+        # page may not be read again, so its address stays.
+        for recorded in moved:
+            if recorded.get("address"):
+                recorded["address_before"] = recorded.pop("address")
         return list(found.values())
 
     def page_address(meeting, found, stamp):
-        """The address on the page of a meeting listed without one. One taken off this run, with its place's
-        change (events()), is put back first, so the page's is recorded as one change from it, or as none
-        when the new place is at the same address (another room of the building)."""
-        if meeting["id"] not in unaddressed:
+        """The address on the page of a meeting the newer calendar lists. One set aside when the place
+        changed (events()) is put back first, so what the page gives is recorded as one change from it: none
+        when the new place is at the same address (another room of the building), and its removal when the
+        page gives no address. Otherwise a page without one changes nothing."""
+        if not civicplus.on_newer_calendar(meeting.get("source_url")):
             return
-        history = meeting.get("history", [])
-        taken_off = next((h for h in history if (h["at"], h["field"], h["new"]) == (stamp, "address", "")), None)
-        if taken_off:
-            history.remove(taken_off)
-            meeting["address"] = taken_off["old"]
-            if not history:
-                del meeting["history"]
-        if found.get("address") or taken_off:
-            merge(meeting, {"address": found.get("address", "")}, stamp, track=True)
+        before = meeting.pop("address_before", None)
+        if before is not None:
+            meeting["address"] = before
+        address = found.get("address", "")
+        if meeting.get("address") in found.get("address_readings", ()):
+            address = meeting["address"]
+        if address or before is not None:
+            merge(meeting, {"address": address}, stamp, track=True)
 
-    def wants_address(meeting):
-        # A named place with no address, whose page hasn't been read for it.
-        return (meeting["id"] in unaddressed and bool(meeting.get("location_name")) and not meeting.get("address")
-                and meeting.get("address_checked") != meeting["location_name"])
+    def wants_address(meeting, today):
+        """Whether a meeting the newer calendar lists has its page read for its address: one whose place
+        changed; one with no address, once for the place it is listed at (address_checked); and one with no
+        named place in the next AGENDA_LINK_DAYS days, which only its page says the whereabouts of."""
+        if not civicplus.on_newer_calendar(meeting.get("source_url")):
+            return False
+        named = meeting.get("location_name", "")
+        if "address_before" in meeting:
+            return True
+        if not meeting.get("address"):
+            return meeting.get("address_checked") != named
+        return not named and today.isoformat() <= meeting["date"] <= (today + timedelta(days=AGENDA_LINK_DAYS)).isoformat()
 
     def details(client, meeting, storage, stamp):
         found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
@@ -495,25 +504,31 @@ def civicplus_list_calendar(config: dict) -> Calendar:
         page_address(meeting, found, stamp)
         fetch_agenda(client, meeting, found, storage, stamp)
 
+    def read_link(client, meeting, stamp):
+        """The page of a meeting in a town with an Agenda Center: its address, and the listing its agenda link names."""
+        found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
+        page_address(meeting, found, stamp)
+        if civicplus.on_newer_calendar(meeting.get("source_url")):
+            # A page that gives no address for this place isn't read for one again (wants_address).
+            if meeting.get("address"):
+                meeting.pop("address_checked", None)
+            else:
+                meeting["address_checked"] = meeting.get("location_name", "")
+        if found.get("agenda_center_id"):
+            meeting["agenda_listing"] = f"agendacenter-{found['agenda_center_id']}"
+        return found
+
     def agenda_link(client, meeting, storage, stamp):
         # A town with an Agenda Center has its agendas there: the page is read for the listing its
         # "Download Agenda" link names, which can be filed under another name for the board (rename()).
-        found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
+        found = read_link(client, meeting, stamp)
         merge(meeting, {k: found[k] for k in ("remote_url",) if found.get(k)}, stamp, track=True)
-        page_address(meeting, found, stamp)
-        if meeting["id"] in unaddressed and not meeting.get("address"):
-            # The page gives none for this place: it isn't read for one again (wants_address).
-            meeting["address_checked"] = meeting.get("location_name", "")
-        if found.get("agenda_center_id"):
-            meeting["agenda_listing"] = f"agendacenter-{found['agenda_center_id']}"
 
     def past_link(client, meeting, storage, stamp):
-        found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
-        if found.get("agenda_center_id"):
-            meeting["agenda_listing"] = f"agendacenter-{found['agenda_center_id']}"
+        read_link(client, meeting, stamp)
 
     def wants_link(meeting, store, today):
-        if wants_address(meeting):
+        if wants_address(meeting, today):
             return True
         # Otherwise only a meeting the next AGENDA_LINK_DAYS days, whose link isn't known yet, and whose board
         # the Agenda Center doesn't list that day by the same name: the rest are put together already.
