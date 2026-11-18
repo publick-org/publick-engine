@@ -248,9 +248,10 @@ class NewTown:
 # ---- Step 1: what the city uses ---------------------------------------------------------
 
 def calendar_names(page: str) -> dict[str, str]:
-    """A CivicPlus calendar page's calendars, by id: the boxes to pick which calendars to show."""
+    """A CivicPlus calendar page's calendars, by id: the boxes to pick which calendars to show, on the
+    older calendar's page or the newer one's."""
     found = re.findall(r'<label for="chkCalendarID_(\d+)">\s*<input[^>]*>\s*([^<]+?)\s*</label>', page)
-    return {cid: civicplus.clean_text(name) for cid, name in found}
+    return {cid: civicplus.clean_text(name) for cid, name in found} or civicplus.calendar_names(page)
 
 
 def civicclerk_name(page: str, town: NewTown) -> str:

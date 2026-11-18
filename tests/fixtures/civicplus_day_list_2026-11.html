@@ -1,0 +1,2392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Calendar &#x2022; Malden, MA</title></head>
+<body>
+<div id="contentarea" class="pageStyles content container p-md-4 p-3 grid">
+		<div class="mb-3 mb-sm-4">
+<div id="calendar-header-search" class="row row-gap-2 row-gap-md-3 gy-2 gy-md-0 mb-2 mb-sm-3 m-0 justify-content-end">
+    <input id="calendarActiveView" type="hidden" name="view" value="List" />
+    <div class="col-md-6 col-lg-3 px-1 ps-0 pe-md-1 pe-0">
+        <div class="input-group"><input class="form-control rounded-pill border search-input" name="searchTerms" placeholder="Search and Discover"
+       value="" aria-label="Search Input" type="search" id="search-input" hx-get="/m/calendar"
+       hx-trigger="change" hx-target="#main-wrapper" hx-swap="outerHTML"
+       hx-push-url="true" hx-include="[name=&#x27;searchTerms&#x27;],[name=&#x27;archCc&#x27;],[name=&#x27;startDate&#x27;],[name=&#x27;endDate&#x27;],[name=&#x27;cat&#x27;],[name=&#x27;view&#x27;],[name=&#x27;count&#x27;]" asp-for="SearchTerms">
+<span class="input-group-append position-absolute module-search end-0">
+    <button class="btn btn-outline-secondary btn-search rounded-pill border-0 shadow-none" type="button" aria-label="Search"
+            hx-get="/m/calendar" hx-target="#main-wrapper" hx-swap="outerHTML"
+            hx-push-url="true" hx-include="[name=&#x27;searchTerms&#x27;],[name=&#x27;archCc&#x27;],[name=&#x27;startDate&#x27;],[name=&#x27;endDate&#x27;],[name=&#x27;cat&#x27;],[name=&#x27;view&#x27;],[name=&#x27;count&#x27;]">
+        <svg></svg>
+    </button>
+</span></div>
+    </div>
+    <div class="col-sm-6 col-md-3 col-lg-2 calendar-date-filter px-1 ps-0 ps-md-1 pe-0 pe-sm-1">
+        <div class="t-picker-wrap">
+            <label class="screenRead" for="startDate">Start Date</label>
+            <input id="startDate" name="startDate" type="text" class="submittedStart"
+                   cp5ph="true"
+                   aria-label="Start Date" aria-invalid="false"
+                   autocomplete="off" maxlength="10" title="Start Date Picker" placeholder="Start Date"
+                   value="2026-11-01"
+                   hx-get="/m/calendar" hx-trigger="change" hx-target="#main-wrapper"
+                   hx-swap="outerHTML" hx-push-url="true" hx-include="[name=&#x27;searchTerms&#x27;],[name=&#x27;archCc&#x27;],[name=&#x27;startDate&#x27;],[name=&#x27;endDate&#x27;],[name=&#x27;cat&#x27;],[name=&#x27;view&#x27;],[name=&#x27;count&#x27;]" />
+        </div>
+        <span id="startDate-validation-error" class="calendar-date-error text-danger small d-none" aria-live="polite" aria-atomic="true"></span>
+    </div>
+    <div class="col-sm-6 col-md-3 col-lg-2 calendar-date-filter px-1 pe-lg-1 pe-0 ps-0 ps-sm-1">
+        <div class="t-picker-wrap">
+            <label class="screenRead" for="endDate">End Date</label>
+            <input id="endDate" name="endDate" type="text" class="submittedEnd"
+                   cp5ph="true"
+                   aria-label="End Date" aria-invalid="false"
+                   autocomplete="off" maxlength="10" title="End Date Picker" placeholder="End Date"
+                   value="2026-11-30"
+                   hx-get="/m/calendar" hx-trigger="change" hx-target="#main-wrapper"
+                   hx-swap="outerHTML" hx-push-url="true" hx-include="[name=&#x27;searchTerms&#x27;],[name=&#x27;archCc&#x27;],[name=&#x27;startDate&#x27;],[name=&#x27;endDate&#x27;],[name=&#x27;cat&#x27;],[name=&#x27;view&#x27;],[name=&#x27;count&#x27;]" />
+        </div>
+        <span id="endDate-validation-error" class="calendar-date-error text-danger small d-none" aria-live="polite" aria-atomic="true"></span>
+        <span id="endDate-error" class="text-danger small d-none" aria-live="polite" aria-atomic="true">
+            End date cannot be before start date.
+        </span>
+    </div>
+    <div class="all-categories-container px-1 ps-lg-1 ps-0 pe-0 pe-sm-1">
+        <input id="selectedCategories" type="hidden" name="cat" value="0" />
+        <button id="categories-button" class="form-select text-start" type="button"
+                data-bs-toggle="dropdown" aria-label="Select a Category" aria-expanded="false" aria-haspopup="true"
+                aria-controls="categories-options">
+            <span class="dropdown-text">All Categories</span>
+        </button>
+        <ul id="categories-options" role="menu" aria-labelledby="categories-button" class="dropdown-menu">
+            <li>
+                <div class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                    <input id="select-all-categories" type="checkbox" value="0" class="select-all"
+                           checked data-filter-url="/m/calendar" />
+                    <label for="select-all-categories" class="w-100">
+                        All Categories
+                    </label>
+                </div>
+            </li>
+            <li class="px-3">
+                <hr class="dropdown-divider" />
+            </li>
+            <div class="scroll-categories">
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-26" type="checkbox" value="26" data-category-name="Boards and Commissions Meetings"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-26" class="w-100">
+                                Boards and Commissions Meetings
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-38" type="checkbox" value="38" data-category-name="Career Connections Initiative Program"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-38" class="w-100">
+                                Career Connections Initiative Program
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-47" type="checkbox" value="47" data-category-name="Cemetery Board of Trustees Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-47" class="w-100">
+                                Cemetery Board of Trustees Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-57" type="checkbox" value="57" data-category-name="Cemetery Trustees"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-57" class="w-100">
+                                Cemetery Trustees
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-50" type="checkbox" value="50" data-category-name="Cemetery Trustees Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-50" class="w-100">
+                                Cemetery Trustees Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-43" type="checkbox" value="43" data-category-name="Commissioners Board Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-43" class="w-100">
+                                Commissioners Board Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-49" type="checkbox" value="49" data-category-name="Fire"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-49" class="w-100">
+                                Fire
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-41" type="checkbox" value="41" data-category-name="Human Resources Events Calendar"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-41" class="w-100">
+                                Human Resources Events Calendar
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-59" type="checkbox" value="59" data-category-name="Intranet"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-59" class="w-100">
+                                Intranet
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-60" type="checkbox" value="60" data-category-name="Liquor License Board"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-60" class="w-100">
+                                Liquor License Board
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-44" type="checkbox" value="44" data-category-name="Liquor Licensing Public Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-44" class="w-100">
+                                Liquor Licensing Public Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-14" type="checkbox" value="14" data-category-name="Main Calendar"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-14" class="w-100">
+                                Main Calendar
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-48" type="checkbox" value="48" data-category-name="Malden CPC Monthly Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-48" class="w-100">
+                                Malden CPC Monthly Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-42" type="checkbox" value="42" data-category-name="Malden Redevelopment Authority"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-42" class="w-100">
+                                Malden Redevelopment Authority
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-31" type="checkbox" value="31" data-category-name="Malden Retirement Board"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-31" class="w-100">
+                                Malden Retirement Board
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-56" type="checkbox" value="56" data-category-name="Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-56" class="w-100">
+                                Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-46" type="checkbox" value="46" data-category-name="Mystic Valley Regional Charter School Meeting"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-46" class="w-100">
+                                Mystic Valley Regional Charter School Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-22" type="checkbox" value="22" data-category-name="Parking Calendar"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-22" class="w-100">
+                                Parking Calendar
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-23" type="checkbox" value="23" data-category-name="Police Calendar"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-23" class="w-100">
+                                Police Calendar
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-53" type="checkbox" value="53" data-category-name="Sign Design Committee Meeting "
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-53" class="w-100">
+                                Sign Design Committee Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-29" type="checkbox" value="29" data-category-name="Sign Design Review Committee Meeting "
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-29" class="w-100">
+                                Sign Design Review Committee Meeting
+                            </label>
+                        </div>
+                    </li>
+                    <li>
+                        <div
+                            class="dropdown-item text-black text-decoration-none text-nowrap d-flex align-items-center gap-2">
+                            <input id="category-24" type="checkbox" value="24" data-category-name="Teen Center"
+                                   class="option" checked data-filter-url="/m/calendar" />
+                            <label for="category-24" class="w-100">
+                                Teen Center
+                            </label>
+                        </div>
+                    </li>
+            </div>
+        </ul>
+    </div>
+    <div class="more-tools-container px-1 pe-0">
+        <button id="more-tools-btn" class="p-1 btn btn-link black-link no-underline-link d-flex gap-1 text-nowrap"
+                type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true"
+                aria-controls="more-tools-options">
+            <svg></svg>
+            More Tools
+        </button>
+        <ul id="more-tools-options" role="menu" aria-labelledby="more-tools-btn"
+            class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a href="/list.aspx?Mode=Subscribe#calendar"
+                       class="dropdown-item text-black no-underline-link d-flex align-items-center gap-1 text-nowrap">
+                        <svg></svg>
+                        Notify Me
+                    </a>
+                </li>
+            <li>
+                <a href="/Facilities"
+                   class="dropdown-item text-black no-underline-link d-flex align-items-center gap-1 text-nowrap">
+                    <svg></svg>
+                    Find A Facility
+                </a>
+            </li>
+            <li id="calendar-print-link-container">
+<a href="/calendar.aspx?view=list&amp;PREVIEW=YES" target="_blank" rel="noopener noreferrer"
+   class="dropdown-item text-black no-underline-link d-flex align-items-center gap-1 text-nowrap">
+    <svg></svg>
+    Print
+</a>
+            </li>
+                <li>
+                    <a href="/iCalendar.aspx"
+                       class="dropdown-item text-black no-underline-link  d-flex align-items-center gap-1 text-nowrap">
+                        <svg></svg>
+                        Subscribe to iCalendar
+                    </a>
+                </li>
+            <li>
+                <a href="/rss.aspx#calendar"
+                   class="dropdown-item text-black no-underline-link  d-flex align-items-center gap-1 text-nowrap">
+                    <svg></svg>
+                    RSS Feed
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+		</div>
+		<div id="main-wrapper">
+			<div class="row d-flex align-items-stretch">
+				<div class="calendar-container">
+					<h1 class="directory-page-title headline mb-3">Calendar</h1>
+						<div class="calendar-header-text redesign-text fr-view mt-2 mb-4">
+							<p style="padding-left:5px">View All Calendars is the default. Choose Select a Calendar to view a specific calendar. Subscribe to calendar notifications by clicking on the Notify Me&reg; button, and you will automatically be alerted about the latest events in our community.</p>
+						</div>
+					<ul id="calendar-nav-tab" class="nav nav-pills redesign-nav-tabs" role="tablist">
+						<li class="nav-item pb-2 me-3" role="presentation">
+							<button class="nav-link position-relative active" id="nav-list-tab" data-bs-toggle="pill"
+									hx-get="/m/calendar/Home/PrintLink?viewType=List" hx-target="#calendar-print-link-container" hx-swap="innerHTML"
+									data-bs-target="#nav-list" type="button" role="tab" aria-controls="nav-list"
+									aria-selected="true" data-tab="list">
+								List
+							</button>
+						</li>
+						<li class="nav-item pb-2">
+							<button class="nav-link position-relative " id="nav-month-tab" data-bs-toggle="pill"
+									hx-get="/m/calendar/Home/PrintLink?viewType=Month" hx-target="#calendar-print-link-container" hx-swap="innerHTML"
+									data-bs-target="#nav-month" type="button" role="tab" aria-controls="nav-month"
+									aria-selected="false" data-tab="month">
+								Month
+							</button>
+						</li>
+					</ul>
+					<div class="tab-content" id="nav-tabContent">
+						<div class="tab-pane fade directory-categories my-4 show active" id="nav-list" role="tabpanel"
+							 aria-labelledby="nav-list-tab">
+    <div>
+        <div class="d-flex align-items-center position-relative mb-3">
+            <div class="col">
+                <h2 class="calendar-section-title subhead1 mb-0">Upcoming Featured Events</h2>
+            </div>
+            <div class="col-auto text-end">
+                1
+                Event
+            </div>
+        </div>
+        <div id="calendar-carousel" class="carousel carousel-dark slide" data-bs-interval="false">
+            <div class="overflow-hidden shadow rounded border bg-white">
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+<div id="calendar-carousel-slide-6439" class="row m-0">
+        <div class="carousel-image col-md-4 ps-0">
+                <img src="/ImageRepository/Document?documentID=12444" alt="" class="mw-100 mh-100" />
+        </div>
+    <div class="col-md-8 d-flex justify-content-center flex-column carousel-content p-3 p-md-4 ">
+        <div class="title-truncate title-truncate-4 title-truncate-sm-2 mb-3">
+            <h3 class="lh-sm fs-4 text-break mb-0">
+                    <a href="/m/calendar/event/detail/6439" class="no-underline-link">
+                        Malden Together Community Planning Workshop, Malden Comprehensive Plan
+                    </a>
+            </h3>
+            <div class="event-title-border my-4 d-none d-md-block"></div>
+        </div>
+        <div
+            class="calendar-carousel-footer fs-6 events-category">
+            <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                <div class="fw-bold d-flex gap-1 text-break">
+                    <svg></svg>
+                    SAT, NOV 7 | 10:00 AM - 1:00 PM
+                </div>
+                    <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                        <svg></svg>
+                        <div class="calendar-location-content">
+                            Malden Senior Community Center
+                        </div>
+                    </div>
+            </div>
+            <div class="badge rounded-pill text-dark text-border-primary fw-semibold text-truncate mw-100">
+                Main Calendar
+            </div>
+        </div>
+    </div>
+</div>
+                    </div>
+                </div>
+            </div>
+            <div aria-live="polite" id="carousel-live-region" aria-atomic="true" class="visually-hidden"></div>
+        </div>
+    </div>
+<div class="px-sm-4">
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-02">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Monday, November 2
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    3 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-02"
+                class="list-group list-group-flush gap-3">
+<li id="event-6338" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6338" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6093" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class="col-sm-8 p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6093" class="no-underline-link calendar-title-link">
+                                Food Policy Council
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            4:30 PM - 5:30 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Main Calendar
+                    </div>
+                </div>
+            </div>
+                <div class="col-sm-4 p-0 calendar-preview-image position-relative">
+                        <img class="mw-100 mh-100" alt="" src="/ImageRepository/Document?documentID=11502" />
+                </div>
+        </div>
+    </div>
+</li>
+<li id="event-6443" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6443" class="no-underline-link calendar-title-link">
+                                Transportation Commission Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:30 PM - 7:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-04">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Wednesday, November 4
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    1 Event
+                    Item
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-04"
+                class="list-group list-group-flush gap-3">
+<li id="event-6339" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6339" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-05">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Thursday, November 5
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-05"
+                class="list-group list-group-flush gap-3">
+<li id="event-6447" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6447" class="no-underline-link calendar-title-link">
+                                Municipal Building Committee Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            12:00 PM - 1:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    <p>This meeting is virtual. To attend, click the &quot;Virtual Teams Link.&quot;</p>
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6448" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6448" class="no-underline-link calendar-title-link">
+                                Comprehensive Master Plan Steering Committee Meeting- CANCELLED
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            1:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-06">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Friday, November 6
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-06"
+                class="list-group list-group-flush gap-3">
+<li id="event-6340" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6340" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6371" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6371" class="no-underline-link calendar-title-link">
+                                Boxing Class
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            4:00 PM - 5:30 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-07">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Saturday, November 7
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    1 Event
+                    Item
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-07"
+                class="list-group list-group-flush gap-3">
+<li id="event-6449" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6449" class="no-underline-link calendar-title-link">
+                                Notice of Post Election Tabulation of Vote By Mail Ballots
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            9:00 AM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Herbert L. Jackson Council Chamber Room 106
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-09">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Monday, November 9
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    3 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-09"
+                class="list-group list-group-flush gap-3">
+<li id="event-6341" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6341" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6452" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6452" class="no-underline-link calendar-title-link">
+                                School Committee Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Herbert L. Jackson Council Chamber Room 106
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6455" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6455" class="no-underline-link calendar-title-link">
+                                Conservation Commission Meeting
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            https://teams.microsoft.com/meet/2151334787383788?p=4ZZqLafIVzDNs6zTwH
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            7:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Virtual/Online
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-10">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Tuesday, November 10
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    5 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-10"
+                class="list-group list-group-flush gap-3">
+<li id="event-6450" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6450" class="no-underline-link calendar-title-link">
+                                Finance Committee Meeting
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Details for Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:30 PM - 6:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6451" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6451" class="no-underline-link calendar-title-link">
+                                Human Rights and Fair Housing Commission
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    <p>Human Rights and Fair Housing Commission-November</p>
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6454" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6454" class="no-underline-link calendar-title-link">
+                                Rules & Ordinance Committee Meeting
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Details for the Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 7:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6453" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6453" class="no-underline-link calendar-title-link">
+                                City Council Meeting (Revised)
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Detail for the Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            7:00 PM - 10:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Herbert L. Jackson Council Chamber Room 106
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6446" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6446" class="no-underline-link calendar-title-link">
+                                FY27 Residential Factor Public Hearing
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            7:00 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    <p>Herbert L. Jackson City Council Chambers</p>
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-12">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Thursday, November 12
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    3 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-12"
+                class="list-group list-group-flush gap-3">
+<li id="event-6456" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6456" class="no-underline-link calendar-title-link">
+                                Cannabis Licensing & Enforcement Commission
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6459" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6459" class="no-underline-link calendar-title-link">
+                                CANCELLED Disability Commission
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 8:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6457" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6457" class="no-underline-link calendar-title-link">
+                                Northeast District School Committee
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            7:00 PM - No set end time
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-13">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Friday, November 13
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-13"
+                class="list-group list-group-flush gap-3">
+<li id="event-6343" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6343" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6372" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6372" class="no-underline-link calendar-title-link">
+                                Boxing Class
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            4:00 PM - 5:30 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-16">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Monday, November 16
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-16"
+                class="list-group list-group-flush gap-3">
+<li id="event-6344" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6344" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6466" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6466" class="no-underline-link calendar-title-link">
+                                Comprehensive Master Plan Steering Committee Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:30 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-17">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Tuesday, November 17
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    5 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-17"
+                class="list-group list-group-flush gap-3">
+<li id="event-6473" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6473" class="no-underline-link calendar-title-link">
+                                Public Works Commission Hearing for Curb Cuts and Scheduled Water Abatements
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 6:00 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6469" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6469" class="no-underline-link calendar-title-link">
+                                PersonnelAppointments Meeting
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Details for Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:30 PM - 6:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6471" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6471" class="no-underline-link calendar-title-link">
+                                Library Committee
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Details for Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 6:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6470" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6470" class="no-underline-link calendar-title-link">
+                                Licensing Board
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 7:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 2 #108
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6472" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6472" class="no-underline-link calendar-title-link">
+                                Code of Conduct Committee Meeting
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Click More Details for Teams Link
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-18">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Wednesday, November 18
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    7 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-18"
+                class="list-group list-group-flush gap-3">
+<li id="event-6467" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6467" class="no-underline-link calendar-title-link">
+                                Monthly Meeting of the Malden Retirement Board
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            8:30 AM - 12:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Malden Retirement Board
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6345" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6345" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6475" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6475" class="no-underline-link calendar-title-link">
+                                Climate Action & Sustainability Commission Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:30 PM - 7:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 3 #113
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6301" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6301" class="no-underline-link calendar-title-link">
+                                Community Preservation Committee (CPC)
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 8:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    <p><strong>Malden Community Preservation Committee (CPC)</strong></p><p>Malden CPC meetings are held on the third Wednesday of the month and are open to the public in a hybrid manner:</p><ul><li>City Hall, Room 105</li><li>Online via Teams (check the agenda for the link)</li></ul><p><br></p>
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6441" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6441" class="no-underline-link calendar-title-link">
+                                Board of Appeal Public Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:30 PM - 8:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Herbert L. Jackson Council Chamber Room 106
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6440" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6440" class="no-underline-link calendar-title-link">
+                                Board of Health Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:30 PM - 9:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Meeting Room 2 #108
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6474" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6474" class="no-underline-link calendar-title-link">
+                                Police Community Advisory Council
+                            </a>
+                    </h3>
+                        <div class="redesign-text fr-view mt-3 d-none d-md-block">
+                            Monthly meeting of the Police Community Advisory Council.
+                        </div>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            7:00 PM - 8:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 3 #113
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-19">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Thursday, November 19
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    5 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-19"
+                class="list-group list-group-flush gap-3">
+<li id="event-6460" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6460" class="no-underline-link calendar-title-link">
+                                Cemetery Board of Trustees
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - 6:00 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Cemetery Board of Trustees Meeting
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6461" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6461" class="no-underline-link calendar-title-link">
+                                Cemetery Board of Trustees
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - 6:00 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Cemetery Board of Trustees Meeting
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6462" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6462" class="no-underline-link calendar-title-link">
+                                Cemetery Board of Trustees
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - 6:00 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Cemetery Board of Trustees Meeting
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6463" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6463" class="no-underline-link calendar-title-link">
+                                Cemetery Board of Trustees
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - 6:00 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6476" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6476" class="no-underline-link calendar-title-link">
+                                Malden Historical Commission Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            5:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-20">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Friday, November 20
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-20"
+                class="list-group list-group-flush gap-3">
+<li id="event-6346" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6346" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6373" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6373" class="no-underline-link calendar-title-link">
+                                Boxing Class
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            4:00 PM - 5:30 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-21">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Saturday, November 21
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    1 Event
+                    Item
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-21"
+                class="list-group list-group-flush gap-3">
+<li id="event-6444" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6444" class="no-underline-link calendar-title-link">
+                                Malden Cultural Council
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            10:00 AM - 3:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden City Hall > Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-23">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Monday, November 23
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-23"
+                class="list-group list-group-flush gap-3">
+<li id="event-6347" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6347" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6458" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6458" class="no-underline-link calendar-title-link">
+                                Rowe's Quarry Site Plan Review Committee- Public Project Review Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - No set end time
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Meeting Room 1 #105
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-24">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Tuesday, November 24
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-24"
+                class="list-group list-group-flush gap-3">
+<li id="event-6445" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6445" class="no-underline-link calendar-title-link">
+                                Malden Housing Authority Meeting
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            8:30 AM - No set end time
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6220" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6220" class="no-underline-link calendar-title-link">
+                                 Site Plan Review Committee for ADU's and Educational, Religious, and Childcare Facility Uses
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            6:00 PM - 9:00 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Mayor&#39;s Conference Room
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Boards and Commissions Meetings
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-25">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Wednesday, November 25
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    1 Event
+                    Item
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-25"
+                class="list-group list-group-flush gap-3">
+<li id="event-6348" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6348" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-27">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Friday, November 27
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    2 Event
+                    Items
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-27"
+                class="list-group list-group-flush gap-3">
+<li id="event-6349" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6349" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+<li id="event-6374" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6374" class="no-underline-link calendar-title-link">
+                                Boxing Class
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            4:00 PM - 5:30 PM
+                        </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+        <div class="mt-5">
+            <div class="d-sm-flex align-items-center position-relative edit-container mb-2"
+                 id="calendar-events-header-2026-11-30">
+                <div class="col">
+                    <h2 class="calendar-section-title subhead1 mb-1 mb-sm-0">
+                        Monday, November 30
+                    </h2>
+                </div>
+                <div class="col-auto text-sm-end">
+                    1 Event
+                    Item
+                </div>
+            </div>
+            <ul aria-labelledby="calendar-events-header-2026-11-30"
+                class="list-group list-group-flush gap-3">
+<li id="event-6350" class="list-group-item p-0 m-0 border-0 bg-transparent calendar-list-event edit-container position-relative">
+    <div class="overflow-hidden shadow-sm rounded border bg-white">
+        <div class="row m-0 flex-column-reverse flex-sm-row">
+            <div class=" p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div class="title-truncate title-truncate-3 title-truncate-sm-1 mb-3">
+                    <h3 class="fs-5 text-break mb-0">
+                            <a href="/m/calendar/event/detail/6350" class="no-underline-link calendar-title-link">
+                                Cardio & Weight Room
+                            </a>
+                    </h3>
+                </div>
+                <div class="events-category">
+                    <div class="d-lg-flex d-block flex-wrap column-gap-4 row-gap-2 mb-3">
+                        <div class="fw-bold d-flex gap-1 text-break">
+                            <svg></svg>
+                            3:30 PM - 7:30 PM
+                        </div>
+                            <div class="fw-bold d-flex gap-1 mt-2 mt-lg-0 text-break">
+                                <svg></svg>
+                                <div class="calendar-location-content">
+                                    Malden Teen Enrichment Center
+                                </div>
+                            </div>
+                    </div>
+                    <div class="badge rounded-pill text-dark text-border-primary fw-semibold mw-100 text-truncate">
+                        Teen Center
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</li>
+            </ul>
+        </div>
+</div>
+						</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
