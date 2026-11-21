@@ -547,6 +547,36 @@ def test_a_meeting_only_a_schedule_lists_joins_its_board_named_another_way():
     assert grouping(after) == {"2026-11-09-school-committee-building-and-finance-subcommittee": sorted([RENAMED["id"], "13030", SCHEDULED["id"]])}
 
 
+def test_a_meeting_kept_for_a_name_its_listings_no_longer_give_is_shown_under_their_name():
+    """Beverly, 2026-11-19: a meeting kept under the calendar's name for its board (rule 5), whose calendar listing
+    took the Agenda Center's name, is shown under that name, at the address it was kept at."""
+    ledger = {"meetings": {"2026-11-30-financial-forecast-committee": {
+        "date": "2026-11-30", "board": "financial forecast committee", "also_boards": ["financial forecasting committee"],
+        "addresses": ["2026-11-30-financial-forecasting-committee"], "listings": ["3972", "agendacenter-2996"]}}}
+    store = store_of(
+        record("3972", "Financial Forecasting Committee", date="2026-11-30", time="18:30", title="Financial Forecast Committee Meeting"),
+        record("agendacenter-2996", "Financial Forecasting Committee", date="2026-11-30", source="agendacenter",
+               title="Financial Forecasting Committee Meeting", seen="2026-10-02T07:00:00"))
+    shown = identity.meetings(store, ledger, "Beverly")
+    assert [(m["id"], m["body"], m["body_names"]) for m in shown] == [
+        ("2026-11-30-financial-forecast-committee", "Financial Forecasting Committee", ["Financial Forecasting Committee"])]
+
+
+def test_a_meeting_kept_for_three_names_of_a_board_and_renamed_is_still_one_boards():
+    """A meeting kept for three names of a board (rule 5), whose listing of the name it's kept for takes another of
+    them: shown under its first listing's name, not as a joint meeting of the two names left."""
+    calendar = record("3972", "Financial Forecast Committee", time="18:30")
+    agenda = record("agendacenter-2996", "Financial Forecasting Committee", source="agendacenter", seen="2026-10-02T07:00:00",
+                    agendas=AGENDA_DOC)
+    ical = record("ical-1", "Finance Forecasting Committee", source="ical", time="18:30", seen="2026-10-03T07:00:00")
+    store, ledger = arrive([calendar], [agenda], [ical], town="Beverly")
+    entry = ledger["meetings"]["2026-10-06-financial-forecast-committee"]
+    assert entry["board"] == "financial forecast committee" and len(entry["also_boards"]) == 2
+    store["3972"]["body"] = "Financial Forecasting Committee"
+    shown = identity.meetings(store, ledger, "Beverly")
+    assert [(m["id"], m["body"]) for m in shown] == [("2026-10-06-financial-forecast-committee", "Financial Forecasting Committee")]
+
+
 def test_two_meetings_already_identified_apart_become_one_and_the_seconds_address_leads_there():
     # Identified apart before rule 5: the meeting identified first keeps its address.
     before = {"meetings": {
