@@ -208,13 +208,41 @@
     results.appendChild(list);
   }
 
+  // The box's suggestions: the streets whose names start with what's typed, then those with a word that does,
+  // at most a dozen. A house number typed before the street, read as the lookup reads it (HOUSE_NUMBER), is
+  // kept in front of each ("55 Main Street"), and so are spaces typed first, since a browser shows only the
+  // suggestions with the typed text in them: for the same reason, with a number typed, a word inside a name
+  // ("55 North Main Street" for "55 Main") isn't offered. Never the whole list: Safari (WebKit) takes seconds
+  // a keystroke on a box with thousands of suggestions, and adding them to a box in use held the page for
+  // most of a minute.
+  var SUGGESTIONS = 12;
   if (input && names) {
+    var streetNames = null, upperNames = null;
+    var suggestNames = function () {
+      if (!streetNames) return;
+      var typed = input.value;
+      var lead = typed.slice(0, ((typed.toUpperCase().match(HOUSE_NUMBER) || typed.match(/^\s+/) || [""])[0]).length);
+      var text = typed.slice(lead.length).toUpperCase();
+      var words = !/\S/.test(lead);
+      var starts = [], within = [];
+      for (var i = 0; text && i < upperNames.length && starts.length < SUGGESTIONS; i++) {
+        if (upperNames[i].indexOf(text) === 0) starts.push(streetNames[i]);
+        else if (words && within.length < SUGGESTIONS && upperNames[i].indexOf(" " + text) > 0) within.push(streetNames[i]);
+      }
+      names.textContent = "";
+      starts.concat(within).slice(0, SUGGESTIONS).forEach(function (name) {
+        names.appendChild(el("option", "", { value: lead + name }));
+      });
+    };
     input.addEventListener("focus", function fill() {
       input.removeEventListener("focus", fill);
       load().then(function (data) {
-        Object.keys(data.streets).forEach(function (k) { names.appendChild(el("option", "", { value: data.streets[k].name })); });
+        streetNames = Object.keys(data.streets).map(function (k) { return data.streets[k].name; });
+        upperNames = streetNames.map(function (name) { return name.toUpperCase(); });
+        suggestNames();
       }).catch(function () {});
     });
+    input.addEventListener("input", suggestNames);
   }
 
   if (!query) return;
