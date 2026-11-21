@@ -1,12 +1,13 @@
 """Street lookup: street-name matching, the permit fetch, and the street index."""
 
 import json
+import time
 
 from conftest import BUILT_AT, FETCHED_AT
 from fakes import FakePermits
 from pipeline import build_site, fetch_permits
 from pipeline.config import load_config
-from pipeline.streets import addresses_in, street_keys, street_name
+from pipeline.streets import HOUSE_NUMBER, addresses_in, street_keys, street_name
 
 
 def test_street_names_match_across_sources():
@@ -19,6 +20,17 @@ def test_street_names_match_across_sources():
     assert street_keys("12 Main St Unit 3", "Gloucester") == ["MAIN ST"]
     assert street_keys("Ymca", "Gloucester") == [] and street_keys("", "Gloucester") == []
     assert street_name("EASTERN POINT BLVD") == "Eastern Point Boulevard"
+
+
+def test_a_long_run_of_digits_is_read_at_once():
+    # A pattern that could split the digits anywhere took time doubling with each one: 28 took tens of seconds.
+    started = time.monotonic()
+    assert street_keys("1" * 28 + " Main St", "Gloucester") == ["MAIN ST"]
+    assert street_keys("1" * 28 + "X", "Gloucester") == []
+    assert HOUSE_NUMBER.match("1" * 28) is None
+    assert time.monotonic() - started < 1
+    assert HOUSE_NUMBER.match("62 62R 64 EASTERN").group(0) == "62 62R 64 "
+    assert HOUSE_NUMBER.match("53-57 MAIN").group(0) == "53-57 "
 
 
 def test_addresses_in_agenda_text():

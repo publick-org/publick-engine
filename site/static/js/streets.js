@@ -39,9 +39,12 @@
     return node;
   }
 
+  // House numbers at the start, as pipeline/streets.py's HOUSE_NUMBER reads them: one way only, so a long
+  // run of digits doesn't take time doubling with each digit.
+  var HOUSE_NUMBER = /^\s*#?\d+(?:[A-Z]\d+)*[A-Z]?(?:(?:\s*[-–\/&]\s*|\s+)\d+(?:[A-Z]\d+)*[A-Z]?)*\s+/;
   function keyFor(text, suffixes) {
     var words = text.toUpperCase().replace(/[.,'’]/g, "").replace(/\s+(UNIT|APT|#)\s*\S+$/, "")
-      .replace(/^\s*#?\d+[A-Z]?(\s*[-–\/&]?\s*\d+[A-Z]?)*\s+/, "").trim().split(/\s+/);
+      .replace(HOUSE_NUMBER, "").trim().split(/\s+/);
     var last = words[words.length - 1];
     if (words.length > 1 && suffixes[last]) words[words.length - 1] = suffixes[last];
     return words.join(" ");

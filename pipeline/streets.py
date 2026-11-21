@@ -27,8 +27,11 @@ FULL_NAMES = {
     "HTS": "Heights", "SQ": "Square", "TER": "Terrace", "BLVD": "Boulevard", "CIR": "Circle", "PL": "Place",
     "LOOP": "Loop", "PT": "Point", "HWY": "Highway", "PKWY": "Parkway", "COVE": "Cove", "RDG": "Ridge",
 }
-# House numbers at the start: "33", "105R", "62-66", "62 62R 64".
-HOUSE_NUMBER = re.compile(r"^\s*#?\d+[A-Z]?(?:\s*[-–/&]?\s*\d+[A-Z]?)*\s+")
+# House numbers at the start: "33", "105R", "62-66", "62 62R 64". Each number is digits with single
+# letters between them ("1A2"), and numbers are joined by a separator or spaces, so a long run of
+# digits can be read only one way: a pattern that could split it anywhere takes time doubling with
+# each digit when nothing follows it. streets.js has the same pattern.
+HOUSE_NUMBER = re.compile(r"^\s*#?\d+(?:[A-Z]\d+)*[A-Z]?(?:(?:\s*[-–/&]\s*|\s+)\d+(?:[A-Z]\d+)*[A-Z]?)*\s+")
 MONTHS = {"January", "February", "March", "April", "May", "June", "July", "August",
           "September", "October", "November", "December"}
 # A street address in running text, such as an agenda: "38 Pleasant Street".
