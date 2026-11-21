@@ -470,9 +470,16 @@ def display_body(records: list[dict], known: dict[str, str], town: str, board: s
     'Waltham Historical Commission' on the calendar and 'Historical Commission' in the Agenda Center
     are one board, with one page; or, for a joint meeting posted under each of its boards, 'Joint
     City Council and School Committee'. board: the board a meeting of one board named two ways is kept
-    under (rule 5), whose name it's shown under."""
+    under (rule 5), whose name it's shown under. If no record names that board any more (its listings renamed
+    since), the meeting is still one board's, shown under its first listing's name, however many names its
+    listings now give it."""
     if board:
-        return known.get(board) or next(m["body"] for m in records if board_key(m["body"], town) == board)
+        name = known.get(board) or next((m["body"] for m in records if board_key(m["body"], town) == board), None)
+        if name:
+            return name
+        if " + " not in board:
+            first = min(records, key=first_recorded)
+            return known.get(board_key(first["body"], town), first["body"])
     first = min(records, key=first_recorded)
     if len({board_key(m["body"], town) for m in records}) == 1:
         return known.get(board_key(first["body"], town), first["body"])
