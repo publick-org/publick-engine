@@ -51,7 +51,7 @@ def judge(document: dict, result: dict, paid: float, transcript: str | None, pag
     record = summarize.split_items(result)
     if transcript is not None:
         record["transcript"], record["transcript_source"] = transcript, "ai"
-    record["fact_check"] = factcheck.check(record, "agenda", pages)
+    record["fact_check"] = factcheck.check(record, "agenda", pages, meeting_date=document.get("date"))
     items, actions = record.get("items") or [], record.get("item_actions") or []
     taken = {p["entry"] - 1 for p in record["fact_check"]["problems"] if p["field"] == "item_actions"}
     shown = factcheck.shown(record, record, "agenda")

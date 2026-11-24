@@ -44,6 +44,19 @@
       ]
     },
     {
+      "name": "concord-planning-board-2026-11-18",
+      "url": "https://files.publick.org/concord-nh/agendas/legistar-1486-agenda-20261117151632.pdf",
+      "sha256": "a9b37a631da9d108949a146bdbfdab6503d5460e75b3cc88fa0b318800e85e99",
+      "title": "Planning Board",
+      "date": "2026-11-18",
+      "items": [
+        {"match": "Palm Street", "action": ["continued"], "agenda": "3 Palm Street ... (PL-MIS-2026-0049) (Continued to the date certain of March 17, 2027, at the request of the applicant)"},
+        {"match": "Locke Road|[Mm]icro-data", "action": ["continued"], "agenda": "52 Locke Road ... (2026-087) (Continued to the date certain of December 16, 2026, at the request of the applicant)"},
+        {"match": "282 Loudon", "action": ["continued"], "agenda": "6. Determination of Completeness Items by Consent ... 282 Loudon Road ... (Continued to the date certain of December 16, 2026, at the request of the applicant)"},
+        {"match": "Manchester Street|kennel", "action": ["vote", "hearing"], "agenda": "7C. ... conditional use permit approval ... commercial kennel (Use #M8) ... 85 Manchester Street"}
+      ]
+    },
+    {
       "name": "pawtucket-council-2026-11-10",
       "url": "https://files.publick.org/pawtucket-ri/agendas/opengov-570774-d4b5eb41.pdf",
       "sha256": "d4b5eb41a6e505385a8301ef0256002f9e34697293b4028d988ccca0493d1c33",

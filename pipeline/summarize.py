@@ -147,7 +147,7 @@ ITEM_LABELS = """
     referred: it is to be sent on to a committee, a department, or another board, to be decided later, not at this meeting (for example "refer to Finance", "to be referred to the Committee on Claims", "first reading and referral").
     information: no decision is asked: a report, presentation, or communication received, read, or placed on file (on a consent agenda too), or one the agenda marks as information only.
     unstated: the agenda doesn't say.
-  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only", "Cont. to 12/8/2026"). An empty string when the action is unstated."""
+  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words: the note beside the item where it has one ("Cont. to 12/8/2026" beside a hearing listed under a heading of public hearings), not its section's heading (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only", "Cont. to 12/8/2026"). An empty string when the action is unstated."""
 ITEM_LABEL_PROPERTIES = {"item": {"type": "string"}, "action": {"type": "string", "enum": list(ITEM_ACTIONS)},
                          "action_words": {"type": "string"}}
 
@@ -1029,7 +1029,7 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
         if record.get("is_minutes") is not False:
             # Checked as it's saved, so no summary is ever shown unchecked (pipeline/factcheck.py).
             words |= translate.summary_words(record)
-            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words)
+            record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), words, meeting_date=meeting["date"])
     # Logged before its file is written: a run stopped between the two has paid for it, and the next run
     # makes it again (the log counts the first as replaced).
     new = log.add("summary", key, paid, doc=doc["sha256"], model=settings["model"], usage=usage)
@@ -1717,7 +1717,8 @@ class SummaryRun:
             try:
                 record = votes.read(record if text_current else own_text(record, pdf), pdf, members)
                 if record.get("is_minutes") is not False:
-                    record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), self.words)
+                    record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), self.words,
+                                                            meeting_date=meeting["date"])
                 save_record(self.data_dir, doc["sha256"], record)
             except Exception as e:  # free, and tried again next run; the rest go on
                 self.errors.append(f"{kind} {doc['id']}: its text couldn't be read ({e})")
@@ -1807,7 +1808,8 @@ class SummaryRun:
             try:
                 if record.get("is_minutes") is not False:
                     # A scan's summary can now be checked, against the transcription (weaker: both are the model's).
-                    record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), self.words)
+                    record["fact_check"] = factcheck.check(record, kind, factcheck.pages(pdf), self.words,
+                                                            meeting_date=meeting["date"])
                 save_record(self.data_dir, doc["sha256"], record)
             except Exception as e:  # one bad document must not stop the rest
                 self.failed += 1
