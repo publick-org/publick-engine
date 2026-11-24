@@ -1353,6 +1353,12 @@ SAYS_ACTION = {"referred": re.compile(r"(?i)\brefer(?:s|red|ral|ring)?\b"),
 # Words that put an item off: what follows "to" or "until" says to when, and a date there is read against the meeting's.
 PUT_OFF = re.compile(r"(?i)\b(?:cont(?:inued?|inuance|['’]?d)?\.?|postponed|deferred|tabled|rescheduled|held\s+over)"
                      r"(?:\s+[^\s.;:()]+){0,4}?\s*\b(?:to|until|till)\b(?P<when>[^;()]{0,40})")
+# Before words that put an item off, what makes them a motion the board is asked to vote on at this meeting: "That the
+# public hearing ... be continued to the ______ (November 24 or December 1) City Council meeting" (Lewiston's City
+# Council, 2026-11-17), "move to continue", "voted to table". Such an item is taken up at this meeting.
+PUT_OFF_PROPOSED = re.compile(r"(?i)\b(?:be|to|shall|will|should|may)\s*$")
+# A blank left for the date: the board fills it in at the meeting.
+PUT_OFF_BLANK = re.compile(r"_{3,}")
 # A hearing continued from a date: from this meeting, or a later one, it's heard another time.
 CONTINUED_FROM = re.compile(r"(?i)\bcont(?:inued|['’]?d|\.)?\s*from\b(?P<when>[^;()]{0,30})")
 
@@ -1365,10 +1371,13 @@ def said_date(text: str, meeting_date: str | None) -> date | None:
 
 def puts_off(words: str, meeting_date: str | None) -> bool:
     """Whether an item's words put it off to another meeting: "Cont. to 12/8/2026", "tabled to the next meeting".
-    Not "Continued to November 24, 2026" on the agenda of November 24: that's the hearing continued to this one. A
+    Not a motion the board is asked to vote on ("that the hearing be continued to the ______"), nor "Continued to
+    November 24, 2026" on the agenda of November 24: that's the hearing continued to this one. A
     date before the meeting (the year written wrong: "Cont. to 1/12/2026" on an agenda of November 2026) is another
     meeting all the same."""
     for match in PUT_OFF.finditer(words):
+        if PUT_OFF_PROPOSED.search(words[:match.start()]) or PUT_OFF_BLANK.search(match.group("when")):
+            continue
         when = said_date(match.group("when"), meeting_date)
         if not (when and meeting_date and when.isoformat() == meeting_date):
             return True

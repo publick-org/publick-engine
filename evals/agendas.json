@@ -114,9 +114,9 @@
       "items": [
         {"match": "Brann", "action": ["vote"], "agenda": "CONSENT AGENDA: All items with an asterisk (*) are considered routine and will be enacted by one motion. *1. Amendment to the Traffic Schedule to prohibit parking on a portion of Brann Avenue."},
         {"match": "Crestview", "action": ["vote"], "agenda": "*3. Order, Authorizing Execution of a Municipal Quitclaim Deed for Real Estate located at 10 Crestview Drive."},
-        {"match": "lot rent|[Mm]obile home", "unless": "[Aa]ttorney|[Pp]resentation", "action": ["hearing"], "agenda": "8. Continuation of Public Hearing for First Passage regarding an amendment to the Residential Rental Property Ordinance to regulate lot rent increases in mobile home parks."},
+        {"match": "lot rent|[Mm]obile home", "unless": "[Aa]ttorney|[Pp]resentation", "action": ["hearing"], "agenda": "8. Continuation of Public Hearing for First Passage regarding an amendment to the Residential Rental Property Ordinance to regulate lot rent increases in mobile home parks. ... REQUESTED ACTION: That the public hearing for First Passage on said ordinance be continued to the ______________ (November 24 or December 1) City Council meeting."},
         {"match": "[Ss]olid [Ww]aste|curbside", "action": ["hearing", "vote"], "agenda": "7. Public Hearing and Final Passage regarding an amendment to the Solid Waste Ordinance"},
-        {"match": "Charter Commission", "action": ["information"], "agenda": "12. Presentation regarding the newly established Charter Commission and review of next steps"}
+        {"match": "Charter Commission", "action": ["information", "vote"], "agenda": "12. Presentation regarding the newly established Charter Commission and review of next steps ... REQUESTED ACTION: To receive the presentation from the City Administrator and to determine a course of action."}
       ]
     }
   ]

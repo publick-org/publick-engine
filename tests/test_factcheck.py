@@ -1157,6 +1157,9 @@ def test_a_hearing_put_off_to_a_later_meeting_is_continued():
         "Continued to November 24, 2026": ("hearing", True),  # to this meeting
         "Continuation of Public Hearing": ("hearing", True),
         "Cont. from 11/24/2026": ("hearing", False),  # from this meeting: heard another time
+        # A motion the board votes on at this meeting (Lewiston's City Council, 2026-11-17).
+        "be continued to the ______________ (November 24 or December 1)": ("continued", False),
+        "That the hearing be continued to December 1, 2026": ("hearing", True),
     }
     names = [f"Item {chr(ord('A') + i)}" for i in range(len(words))]
     agenda = GLOUCESTER_AGENDA + "".join(f"{name}. {w}\n" for name, w in zip(names, words))
@@ -1170,7 +1173,8 @@ def test_a_hearing_put_off_to_a_later_meeting_is_continued():
     other["fact_check"] = factcheck.check(other, "agenda", [agenda], meeting_date="2026-11-24")
     taken = {p["entry"] - 1 for p in other["fact_check"]["problems"] if p["field"] == "item_actions"}
     for i, (w, (_, stands)) in enumerate(words.items()):
-        if stands and w not in ("Cont. from 10/13/2026", "Continuation of Public Hearing"):
+        if stands and w not in ("Cont. from 10/13/2026", "Continuation of Public Hearing",
+                                "That the hearing be continued to December 1, 2026"):
             assert i in taken, w
     # Saved with the item action check's version, and checked again when it changes.
     assert record["fact_check"]["item_action_version"] == factcheck.ITEM_ACTION_VERSION

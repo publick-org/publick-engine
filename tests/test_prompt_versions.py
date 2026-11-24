@@ -45,9 +45,9 @@ PROMPTS = {
 
 # (version, hash of the prompt).
 PINNED = {
-    # Version 8's wording on an item's action words (the note beside it, not its section's heading) changed before any
-    # release had it: nothing was made with the earlier wording.
-    "summary of an agenda (summarize.KINDS)": (8, "1a3e476ce8760714"),
+    # Version 8's wording (the note beside an item, not its section's heading; a motion to continue isn't continued)
+    # changed before any release had it: nothing was made with the earlier wording.
+    "summary of an agenda (summarize.KINDS)": (8, "dfd0f58d4c4f0d52"),
     "summary of minutes (summarize.KINDS)": (6, "39703cc72fdd10b9"),
     "summary of a recording's transcript (summarize.KINDS)": (5, "fd47319bfe6267c8"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),
