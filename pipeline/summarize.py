@@ -134,7 +134,7 @@ DECISION_LABEL_PROPERTIES = {"title": {"type": "string"}, "main": {"type": "bool
 # (pipeline/build_site.py agenda_groups()). The same few for every town, whatever its agenda calls them:
 # a consent agenda is adopted in one vote in one city and is a list of items sent to committees in
 # another, so an item's action is read from what its agenda says of it, not from its section's name.
-ITEM_ACTIONS = ("vote", "hearing", "referred", "information", "unstated")
+ITEM_ACTIONS = ("vote", "hearing", "continued", "referred", "information", "unstated")
 
 # What an agenda summary gives for each item: the item, its action (ITEM_ACTIONS), and the agenda's own words
 # that say so, which the fact check looks for in the agenda (pipeline/factcheck.py item_action_problems()).
@@ -142,11 +142,12 @@ ITEM_LABELS = """
   - item: a short plain-English phrase.
   - action: what the agenda says happens to the item at this meeting, in one word. Go by the agenda's own markings (an action column, a note beside the item, a section's heading or note), never by what the item is about:
     vote: the board is to vote or act on it at this meeting: the agenda marks it for a vote or for action, gives a motion or a recommended action, or lists it on a consent agenda that the board adopts by one vote. Not an item that is only received, read, or placed on file: that is information, on a consent agenda too.
-    hearing: a public hearing is held on it, or is listed as continued.
+    hearing: a public hearing is held on it at this meeting, including one continued from an earlier meeting to this one.
+    continued: the agenda says it is put off to a later meeting, and not taken up at this one (for example "Cont. to 12/8/2026", "postponed to December 8", "tabled to the next meeting"). A public hearing the agenda continues to a later date is continued, not a hearing.
     referred: it is to be sent on to a committee, a department, or another board, to be decided later, not at this meeting (for example "refer to Finance", "to be referred to the Committee on Claims", "first reading and referral").
     information: no decision is asked: a report, presentation, or communication received, read, or placed on file (on a consent agenda too), or one the agenda marks as information only.
     unstated: the agenda doesn't say.
-  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only"). An empty string when the action is unstated."""
+  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only", "Cont. to 12/8/2026"). An empty string when the action is unstated."""
 ITEM_LABEL_PROPERTIES = {"item": {"type": "string"}, "action": {"type": "string", "enum": list(ITEM_ACTIONS)},
                          "action_words": {"type": "string"}}
 
@@ -190,9 +191,11 @@ KINDS = {
         # summary rules on voice, lists, and repeating the headline (SUMMARY_RULES). Version 7: each item
         # with what the agenda says happens to it at the meeting (ITEM_ACTIONS) and the agenda's own words
         # for that, for the page to group the items by it: a consent agenda can be items sent to committees,
-        # not decided that night (Gloucester's City Council). Agendas of meetings before remake_since keep
-        # the version they have.
-        "version": 7,
+        # not decided that night (Gloucester's City Council). Version 8: an item the agenda puts off to a later
+        # meeting is "continued", not a public hearing held that night (Gloucester's City Council of 2026-11-24
+        # continued both of its hearings, and its page listed them as public hearings). Agendas of meetings
+        # before remake_since keep the version they have.
+        "version": 8,
         "remake_since": "2026-11-24",
         "folder": "agendas",
         # Room for a model's thinking at a high effort as well as the summary, which ran to about 2,100

@@ -18,8 +18,29 @@
         {"match": "[Ss]now (?:&|and) [Ii]ce|amortization", "action": ["vote"], "agenda": "adoption of the 3-year Snow & Ice Amortization Schedule. (FCV)"},
         {"match": "Route 127", "action": ["vote"], "agenda": "Memorandum from the Mayor regarding Route 127 road safety audit. (FCV)"},
         {"match": "Madison Ave", "action": ["vote"], "agenda": "PP2026-012: Petition by National Grid to install 1 JO Pole on Madison Avenue (FCV)"},
-        {"match": "Deacon Farm", "action": ["hearing"], "agenda": "SCHEDULED PUBLIC HEARINGS 1. PH2026-015: Petition to the City Council to accept and lay out a public way re: Deacon Farm Lane."},
+        {"match": "Deacon Farm", "action": ["continued"], "agenda": "SCHEDULED PUBLIC HEARINGS 1. PH2026-015: Petition to the City Council to accept and lay out a public way re: Deacon Farm Lane. (Cont. from 10/13/2026, Cont. to 12/8/2026)"},
         {"match": "[Ss]hopping cart", "action": ["hearing"], "agenda": "PH2026-034: Amend GCO Ch. 14 by ADDING a new Article IV \"Shopping Cart Regulations\""}
+      ]
+    },
+    {
+      "name": "gloucester-council-2026-11-24-revised",
+      "url": "https://files.publick.org/gloucester-ma/agendas/20291-1a44917c.pdf",
+      "sha256": "1a44917c239a0393fded00f14c6a48965b20541b014c68e7d481f4594f15e0b2",
+      "title": "City Council",
+      "date": "2026-11-24",
+      "scan": true,
+      "items": [
+        {"match": "Carola|Chief of Police", "unless": "GCO|Sec\\.|17-18|rules|manner", "action": ["referred"], "agenda": "Mayoral Appointment Chief of Police Scott A. Carola TTE 11/29/2029 (refer O&A)"},
+        {"match": "Republic Services", "action": ["referred"], "agenda": "approval to pay FY2026 invoices with FY2027 funds for Republic Services in the amount of $292,223.95. (refer B&F)"},
+        {"match": "Gloucester Crossing", "action": ["referred"], "agenda": "Determination of Insubstantial Modification. (refer P&D)"},
+        {"match": "[Dd]ata [Cc]enter", "action": ["referred"], "agenda": "Amend Sec. 2.3.8 \"Uses prohibited in all districts\" by ADDING Item #4 \"Data Center.\" (Refer P&D & PB)"},
+        {"match": "[Pp]reliminary [Ee]lection", "action": ["referred"], "agenda": "Amend City Charter Sec. 8-3 \"Preliminary Elections\" (Refer CC) & Legal)"},
+        {"match": "Kent Circle|Lobster Trap|Holiday Parade|special event", "action": ["information"], "agenda": "Approved Special Event Permit (#EVNT-26-59) re: Kent Circle Christmas Tree Lighting (Info only)"},
+        {"match": "[Ss]now (?:&|and) [Ii]ce|amortization", "action": ["vote"], "agenda": "adoption of the 3-year Snow & Ice Amortization Schedule. (FCV)"},
+        {"match": "Route 127", "action": ["vote"], "agenda": "Memorandum from the Mayor regarding Route 127 road safety audit. (FCV)"},
+        {"match": "Madison Ave", "action": ["vote"], "agenda": "PP2026-012: Petition by National Grid to install 1 JO Pole on Madison Avenue (FCV)"},
+        {"match": "Deacon Farm", "action": ["continued"], "agenda": "SCHEDULED PUBLIC HEARINGS 1. PH2026-015: Petition to the City Council to accept and lay out a public way re: Deacon Farm Lane. (Cont. from 10/13/2026, Cont. to 12/8/2026)"},
+        {"match": "[Ss]hopping cart", "action": ["continued"], "agenda": "PH2026-034: Amend GCO Ch. 14 by ADDING a new Article IV \"Shopping Cart Regulations\" (Cont. to 1/12/2026)"}
       ]
     },
     {

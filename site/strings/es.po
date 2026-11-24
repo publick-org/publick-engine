@@ -3006,6 +3006,10 @@ msgctxt "decision outcome"
 msgid "Continued"
 msgstr "Aplazado"
 
+#: site/templates/meeting.html
+msgid "Continued to a later meeting"
+msgstr "Aplazados para una reunión posterior"
+
 #. %(old)s is the words an AI summary of a meeting had wrong, %(new)s the words that replace them.
 #: site/templates/meeting.html
 #, python-format
@@ -8205,6 +8209,10 @@ msgstr ""
 #, python-format
 msgid "The agenda is on the <a href=\"%(url)s\">city's meeting portal</a>."
 msgstr "La agenda está en el <a href=\"%(url)s\">portal de reuniones de la ciudad</a>."
+
+#: site/templates/meeting.html
+msgid "The agenda puts these off to a later meeting. They aren't taken up at this one."
+msgstr "La agenda los aplaza para una reunión posterior. No se tratan en esta."
 
 #: site/templates/meeting.html
 msgid "The agenda's summary was taken down while a reported error is checked; the agenda is linked below."

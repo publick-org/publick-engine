@@ -156,8 +156,9 @@ from pipeline.streets import SUFFIXES
 # affirmative, none in the negative"). 9: each decision's title, against the document. 10: a PDF's ligatures,
 # Legistar's labels after their values, glyph numbers as no text, a quote's sentences joined without "...", and
 # more of the minutes' words for continued, referred and denied. 11: a count with no one against beside someone
-# opposed; a recording's misheard street names.
-VERSION = 11
+# opposed; a recording's misheard street names. 12: an agenda item put off to a later meeting ("Cont. to") is
+# "continued", not a public hearing.
+VERSION = 12
 # What only a recording's summary is checked for, beside what every summary is (VERSION): a recording's summary is
 # checked again when either changes, and every other summary only when VERSION does. 1: its amounts and addresses
 # held to its meeting's agenda (against_agenda()); a committee's vote recounted (recounted()), and the votes it leaves
@@ -1329,12 +1330,16 @@ def current(record: dict, agendas: list[str] | None = None) -> bool:
 
 # ---- An agenda item's action ---------------------------------------------------------------
 
-# What the agenda's words for an item sent on, or for a public hearing, say (summarize.ITEM_ACTIONS): "refer B&F",
-# "FIRST READING & REFERRAL", "to be referred to the Committee on Claims"; "PUBLIC HEARING", "Cont. to 12/8/2026".
-# Not a committee named ("STANDING COMMITTEE REPORTS", "the Committee on Claims returns"), "Referendum", or a board
-# that has hearing in its name ("Juvenile Hearing Board").
+# What the agenda's words for an item sent on, for a public hearing, or for an item put off to a later meeting say
+# (summarize.ITEM_ACTIONS): "refer B&F", "FIRST READING & REFERRAL", "to be referred to the Committee on Claims";
+# "PUBLIC HEARING", "Cont. from 10/13/2026" (a hearing continued to this meeting); "Cont. to 12/8/2026", "postponed",
+# "tabled until January". Not a committee named ("STANDING COMMITTEE REPORTS", "the Committee on Claims returns"),
+# "Referendum", a board that has hearing in its name ("Juvenile Hearing Board"), or a hearing's "Continuation of
+# Public Hearing", which is held at this meeting.
 SAYS_ACTION = {"referred": re.compile(r"(?i)\brefer(?:s|red|ral|ring)?\b"),
-               "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|\.)?\s+(?:to|from)\b")}
+               "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|\.)?\s+from\b"),
+               "continued": re.compile(r"(?i)\b(?:cont(?:inued|\.)?|postponed|deferred|tabled)\s+(?:to|until|till)\b"
+                                       r"|\bpostponed\b|\btabled\b")}
 # What a vote's words can't say: that the item is placed on file, or for information ("waive the reading and place
 # the communication on file", "Info only", "for information only"). Not "receive": "receive final passage" is a vote.
 NOT_A_VOTE = re.compile(r"(?i)\bon\s+file\b|\binfo(?:rmation)?\b")
@@ -1353,8 +1358,9 @@ def letters_only(text: str) -> str:
 def item_action_problems(record: dict, doc: str) -> list[dict]:
     """Each agenda item whose action (summarize.ITEM_ACTIONS) the agenda's text doesn't bear out: the words the
     summary gives for it are too short to mean anything, aren't in the agenda, or don't say what its action is (a
-    referral's or a hearing's), or say another action (a vote's or information's that say referral or hearing, a vote's
-    that say the item is placed on file, or for information). Noted ("action"), never failed:
+    referral's, a hearing's, or a continued item's), or say another action (a vote's or information's that say referral,
+    hearing or continued, a hearing's that put it off to a later meeting, a vote's that say the item is placed on file,
+    or for information). Noted ("action"), never failed:
     the item is shown, without its action (shown())."""
     actions, said = record.get("item_actions") or [], record.get("item_action_words") or []
     text = letters_only(doc)
@@ -1370,6 +1376,8 @@ def item_action_problems(record: dict, doc: str) -> list[dict]:
         if (len(letters_only(words)) < ACTION_WORDS_LEAST or short or letters_only(words) not in text
                 or (action in SAYS_ACTION and not SAYS_ACTION[action].search(words))
                 or (action not in SAYS_ACTION and any(p.search(words) for p in other))
+                # A hearing whose words put it off to a later meeting isn't held at this one.
+                or (action == "hearing" and SAYS_ACTION["continued"].search(words))
                 or (action == "vote" and NOT_A_VOTE.search(words))):
             out.append({"field": "item_actions", "entry": i + 1, "kind": "action", "what": f"{action}: {words}"})
     return out

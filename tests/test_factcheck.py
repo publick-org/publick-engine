@@ -1124,7 +1124,7 @@ def agenda_record(actions, words, items=None):
 def test_an_items_action_stands_where_the_agendas_words_for_it_do():
     """Each item's action is held to the agenda's own words for it: they must be in the agenda, and an item sent
     on or a hearing must be said to be one. One that isn't keeps its place, shown without its action."""
-    record = agenda_record(["referred", "referred", "information", "vote", "hearing"],
+    record = agenda_record(["referred", "referred", "information", "vote", "continued"],
                            ["(refer O&A)", "refer B&F", "Info only", "FCV", "Cont. to 12/8/2026"])
     record["fact_check"] = factcheck.check(record, "agenda", [GLOUCESTER_AGENDA])
     assert record["fact_check"]["result"] == "ok" and record["fact_check"]["problems"] == []
@@ -1137,6 +1137,23 @@ def test_an_items_action_stands_where_the_agendas_words_for_it_do():
     assert [(p["entry"], p["kind"]) for p in record["fact_check"]["problems"]] == [(1, "action"), (2, "action"), (3, "action")]
     shown = factcheck.shown(record, record, "agenda")
     assert shown["items"] == record["items"] and shown["item_actions"] == ["unstated", "unstated", "unstated", "vote", "hearing"]
+
+
+def test_a_hearing_put_off_to_a_later_meeting_is_continued():
+    """A hearing the agenda continues to a later meeting (Gloucester's City Council, 2026-11-24) isn't held at this
+    one: given as a hearing, the check takes its action away; one continued from an earlier meeting to this one is
+    a hearing."""
+    agenda = GLOUCESTER_AGENDA + "2. PH2026-020: Bass Avenue sidewalk. Cont. from 10/13/2026\n3. Item X. Postponed\n"
+    items = ["Public hearing on Deacon Farm Lane as a public way", "Public hearing on Bass Avenue sidewalk", "Item X"]
+    record = agenda_record(["hearing", "hearing", "continued"], ["Cont. to 12/8/2026", "Cont. from 10/13/2026", "Postponed"],
+                           items=items)
+    record["fact_check"] = factcheck.check(record, "agenda", [agenda])
+    assert [(p["entry"], p["kind"]) for p in record["fact_check"]["problems"]] == [(1, "action")]
+    assert factcheck.shown(record, record, "agenda")["item_actions"] == ["unstated", "hearing", "continued"]
+    # Continued, with words that don't put it off, isn't taken either.
+    record = agenda_record(["continued"], ["Cont. from 10/13/2026"], items=items[1:2])
+    record["fact_check"] = factcheck.check(record, "agenda", [agenda])
+    assert [p["kind"] for p in record["fact_check"]["problems"]] == ["action"]
 
 
 def test_an_items_action_goes_with_its_item():
