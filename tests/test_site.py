@@ -1340,22 +1340,23 @@ def test_a_long_agenda_shows_its_first_items(tmp_path):
 def test_agenda_items_are_grouped_by_what_happens_to_them():
     """Where most of an agenda's items say what happens to them at the meeting, the page groups them: votes, public
     hearings, items sent to committee, items for information, then the rest, each in the agenda's order."""
-    preview = {"items": ["Snow and ice", "Chief of Police", "Deacon Farm Lane", "Donations", "Parade", "Updates"],
-               "item_actions": ["vote", "referred", "hearing", "referred", "information", "unstated"]}
+    preview = {"items": ["Snow and ice", "Chief of Police", "Deacon Farm Lane", "Donations", "Parade", "Updates",
+                         "Shopping carts"],
+               "item_actions": ["vote", "referred", "hearing", "referred", "information", "unstated", "continued"]}
     assert build_site.agenda_groups(preview) == [
-        ("vote", ["Snow and ice"]), ("hearing", ["Deacon Farm Lane"]), ("referred", ["Chief of Police", "Donations"]),
-        ("information", ["Parade"]), ("unstated", ["Updates"])]
+        ("vote", ["Snow and ice"]), ("hearing", ["Deacon Farm Lane"]), ("continued", ["Shopping carts"]),
+        ("referred", ["Chief of Police", "Donations"]), ("information", ["Parade"]), ("unstated", ["Updates"])]
     # Not where fewer than half say, or all are in one group, or the actions don't match the items, or there are none.
     assert build_site.agenda_groups({**preview, "item_actions": ["vote", "referred", "unstated", "unstated", "unstated",
-                                                                 "unstated"]}) is None
-    assert build_site.agenda_groups({**preview, "item_actions": ["vote"] * 6}) is None
+                                                                 "unstated", "unstated"]}) is None
+    assert build_site.agenda_groups({**preview, "item_actions": ["vote"] * 7}) is None
     assert build_site.agenda_groups({**preview, "item_actions": ["vote", "referred"]}) is None
     assert build_site.agenda_groups({"items": preview["items"]}) is None and build_site.agenda_groups(None) is None
 
 
 def test_a_grouped_agenda_on_its_page(tmp_path):
     """The meeting page shows a grouped agenda under a heading for each group, and says the items sent to committee
-    aren't decided at the meeting; a group of more than ten shows its first eight, the rest a tap away."""
+    aren't decided at the meeting, and those continued aren't taken up at it; a group of more than ten shows its first eight, the rest a tap away."""
     import shutil
     from conftest import BUILT_AT, DATA_DIR
     data = tmp_path / "data"
@@ -1364,9 +1365,10 @@ def test_a_grouped_agenda_on_its_page(tmp_path):
     for path in sorted((data / "summaries").glob("*.json")):
         rec = json.loads(path.read_text())
         if rec.get("kind") == "agenda" and rec.get("items"):
-            rec["items"] = ["Snow and ice amortization schedule"] + [f"Referred item {n}" for n in range(1, 13)]
-            rec["item_actions"] = ["vote"] + ["referred"] * 12
-            rec["item_action_words"] = ["FCV"] + ["refer B&F"] * 12
+            rec["items"] = (["Snow and ice amortization schedule", "Public hearing on shopping cart rules"]
+                            + [f"Referred item {n}" for n in range(1, 13)])
+            rec["item_actions"] = ["vote", "continued"] + ["referred"] * 12
+            rec["item_action_words"] = ["FCV", "Cont. to 1/12/2026"] + ["refer B&F"] * 12
             rec["fact_check"] = {"version": factcheck.VERSION, "source": "pdf", "result": "ok", "problems": []}
             path.write_text(json.dumps(rec))
             grouped += 1
@@ -1379,6 +1381,11 @@ def test_a_grouped_agenda_on_its_page(tmp_path):
     assert '<h3 id="agenda-items">Up for a vote</h3>' in page and "<h3>Sent to committee</h3>" in page
     assert page.index("Snow and ice amortization schedule") < page.index("<h3>Sent to committee</h3>")
     assert "They aren't decided at this meeting." in page and "Agenda items</h3>" not in page
+    # An item put off to a later meeting is under its own heading, not with the public hearings.
+    assert "<h3>Continued to a later meeting</h3>" in page and "They aren't taken up at this one." in page
+    assert page.index("<h3>Continued to a later meeting</h3>") < page.index("Public hearing on shopping cart rules")
+    assert page.index("Public hearing on shopping cart rules") < page.index("<h3>Sent to committee</h3>")
+    assert "<h3>Public hearings</h3>" not in page
     referred = page[page.index("<h3>Sent to committee</h3>"):]
     shown, rest = referred.split('<details class="expand more-items">', 1)
     assert "Referred item 8<" in shown and "Referred item 9<" not in shown

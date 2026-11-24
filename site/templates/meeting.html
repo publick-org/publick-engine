@@ -440,6 +440,7 @@
 {% set group_names = {
   "vote": _("Up for a vote"),
   "hearing": _("Public hearings"),
+  "continued": _("Continued to a later meeting"),
   "referred": _("Sent to committee"),
   "information": _("For information"),
   "unstated": _("Other items"),
@@ -449,6 +450,7 @@
 {% for group, entries in groups %}
 <h3{% if loop.first %} id="agenda-items"{% endif %}>{{ group_names[group] }}</h3>
 {% if group == "referred" %}<p>{{ _("These are sent on, to a committee or where each one says, to be taken up later. They aren't decided at this meeting.") }}</p>{% endif %}
+{% if group == "continued" %}<p>{{ _("The agenda puts these off to a later meeting. They aren't taken up at this one.") }}</p>{% endif %}
 {% set in_view = entries | length if folded or entries | length <= 10 else 8 %}
 <ul{{ english_attr(m.preview) }}>
   {% for item in entries[:in_view] %}<li>{{ gloss(item, m.preview.get("english")) }}</li>{% endfor %}

@@ -144,7 +144,9 @@ import re
 import unicodedata
 from pathlib import Path
 
-from pipeline import translate
+from datetime import date
+
+from pipeline import dates as written_dates, translate
 from pipeline.streets import SUFFIXES
 
 # 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
@@ -163,6 +165,10 @@ VERSION = 11
 # held to its meeting's agenda (against_agenda()); a committee's vote recounted (recounted()), and the votes it leaves
 # out, listed (unlisted()).
 RECORDING_VERSION = 1
+# What only an agenda's item actions are checked for (item_action_problems()): an agenda with item actions is checked
+# again when it changes, and no other summary is. 1: an item put off to a later meeting ("Cont. to 12/8/2026") is
+# "continued", not a public hearing, and a date in its words is read against the meeting's.
+ITEM_ACTION_VERSION = 1
 
 # What's noted, not failed (see check() and shown()).
 NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda", "unlisted", "action")
@@ -623,12 +629,14 @@ def against_agenda(text: str, agenda: Agenda, noted: bool) -> list[dict]:
 
 
 def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = frozenset(),
-          streets: frozenset[str] = frozenset(), agenda: str | None = None, body: str = "") -> dict:
+          streets: frozenset[str] = frozenset(), agenda: str | None = None, body: str = "",
+          meeting_date: str | None = None) -> dict:
     """The fact check of a summary against its document's text, page by page (None for a PDF
     with no text at all). A scan is checked against the model's transcription, if it has one. A
     recording's summary is checked against its machine transcript (pages: the transcript, whole), as
     strictly as a PDF's against its text: what isn't in the transcript isn't shown. streets are the town's
-    (pipeline.streets.street_key()), for a recording's misheard street names (misheard_streets())."""
+    (pipeline.streets.street_key()), for a recording's misheard street names (misheard_streets()). meeting_date, an
+    agenda's meeting's (YYYY-MM-DD), for the dates in its items' actions (item_action_problems())."""
     # A PDF's ligatures ("ﬁ", "ﬂ") are one character in its text, where a summary has two: "certiﬁcation",
     # "Ofﬁcers" and "Grifﬁn" are read as "certification", "Officers" and "Griffin" (NFKC, which also reads
     # "…" as "...", and a non-breaking space as a space).
@@ -691,14 +699,15 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
             problems += [{"field": "transcript", **p} for p in unlisted(doc, located, [
                 (evidence or {}).get("quote") or "" for evidence in record["decision_evidence"]])]
     if kind == "agenda":
-        problems += item_action_problems(record, doc)
+        problems += item_action_problems(record, doc, meeting_date)
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED and p["field"] != "decision_titles"]
     result = "ok" if not hard else ("failed" if source in ("pdf", "recording") else "weak")
     return {"version": VERSION, "source": source, "result": result, "problems": problems,
             **({"pages": on_page} if on_page is not None else {}),
-            **({"recording_version": RECORDING_VERSION} if kind == "recording" else {})}
+            **({"recording_version": RECORDING_VERSION} if kind == "recording" else {}),
+            **({"item_action_version": ITEM_ACTION_VERSION} if kind == "agenda" and record.get("item_actions") else {})}
 
 
 def recording_checks(kind: str, text: str, streets: frozenset[str], agenda: Agenda | None, noted: bool) -> list[dict]:
@@ -1319,22 +1328,74 @@ def current(record: dict, agendas: list[str] | None = None) -> bool:
     """Whether the record's fact check is up to date: made with this VERSION, and, for a scan
     checked before it had the model's transcription, not since given one. A recording's, also made
     with this RECORDING_VERSION, against the agendas its meeting has now (agendas: their sha256s, as
-    pipeline/summarize.py's meeting_agendas() gives them), where they're given."""
+    pipeline/summarize.py's meeting_agendas() gives them), where they're given. An agenda's with item actions, also
+    with this ITEM_ACTION_VERSION."""
     fc = record.get("fact_check") or {}
     if record.get("kind") == "recording" and (fc.get("recording_version") != RECORDING_VERSION
                                               or (agendas is not None and fc.get("agendas", []) != agendas)):
+        return False
+    if record.get("item_actions") and fc.get("item_action_version") != ITEM_ACTION_VERSION:
         return False
     return fc.get("version") == VERSION and not (fc.get("source") == "none" and record.get("transcript_source") == "ai")
 
 
 # ---- An agenda item's action ---------------------------------------------------------------
 
-# What the agenda's words for an item sent on, or for a public hearing, say (summarize.ITEM_ACTIONS): "refer B&F",
-# "FIRST READING & REFERRAL", "to be referred to the Committee on Claims"; "PUBLIC HEARING", "Cont. to 12/8/2026".
-# Not a committee named ("STANDING COMMITTEE REPORTS", "the Committee on Claims returns"), "Referendum", or a board
-# that has hearing in its name ("Juvenile Hearing Board").
+# What the agenda's words for an item sent on, for a public hearing, or for an item put off to another meeting say
+# (summarize.ITEM_ACTIONS): "refer B&F", "FIRST READING & REFERRAL", "to be referred to the Committee on Claims";
+# "PUBLIC HEARING", "Cont. from 10/13/2026" (a hearing continued to this meeting); "Cont. to 12/8/2026", "Continued
+# public hearing to December 8", "Cont'd to", "postponed until January", "tabled to the next meeting". Not a committee
+# named ("STANDING COMMITTEE REPORTS", "the Committee on Claims returns"), "Referendum", a board that has hearing in its
+# name ("Juvenile Hearing Board"), a hearing's "Continuation of Public Hearing", which is held at this meeting, or a
+# bare "Postponed" or "Tabled", which can mean from another meeting to this one.
 SAYS_ACTION = {"referred": re.compile(r"(?i)\brefer(?:s|red|ral|ring)?\b"),
-               "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|\.)?\s+(?:to|from)\b")}
+               "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|['’]?d|\.)?\s*from\b")}
+# Words that put an item off: what follows "to" or "until" says to when, and a date there is read against the meeting's.
+PUT_OFF = re.compile(r"(?i)\b(?:cont(?:inued?|inuance|['’]?d)?\.?|postponed|deferred|tabled|rescheduled|held\s+over)"
+                     r"(?:\s+[^\s.;:()]+){0,4}?\s*\b(?:to|until|till)\b(?P<when>[^;()]{0,40})")
+# Before words that put an item off, what makes them a motion the board is asked to vote on at this meeting: "That the
+# public hearing ... be continued to the ______ (November 24 or December 1) City Council meeting" (Lewiston's City
+# Council, 2026-11-17), "move to continue", "voted to table". Such an item is taken up at this meeting.
+PUT_OFF_PROPOSED = re.compile(r"(?i)\b(?:be|to|shall|will|should|may)\s*$")
+# A blank left for the date: the board fills it in at the meeting.
+PUT_OFF_BLANK = re.compile(r"_{3,}")
+# A hearing continued from a date: from this meeting, or a later one, it's heard another time.
+CONTINUED_FROM = re.compile(r"(?i)\bcont(?:inued|['’]?d|\.)?\s*from\b(?P<when>[^;()]{0,30})")
+
+
+def said_date(text: str, meeting_date: str | None) -> date | None:
+    """The first date in text, a date without its year read in the meeting's."""
+    near = date.fromisoformat(meeting_date) if meeting_date else None
+    return written_dates.find_date(text, near=near)
+
+
+def puts_off(words: str, meeting_date: str | None) -> bool:
+    """Whether an item's words put it off to another meeting: "Cont. to 12/8/2026", "tabled to the next meeting".
+    Not a motion the board is asked to vote on ("that the hearing be continued to the ______"), nor "Continued to
+    November 24, 2026" on the agenda of November 24: that's the hearing continued to this one. A
+    date before the meeting (the year written wrong: "Cont. to 1/12/2026" on an agenda of November 2026) is another
+    meeting all the same."""
+    for match in PUT_OFF.finditer(words):
+        if PUT_OFF_PROPOSED.search(words[:match.start()]) or PUT_OFF_BLANK.search(match.group("when")):
+            continue
+        when = said_date(match.group("when"), meeting_date)
+        if not (when and meeting_date and when.isoformat() == meeting_date):
+            return True
+    return False
+
+
+def heard_later(words: str, meeting_date: str | None) -> bool:
+    """Whether a hearing's words say it's continued from this meeting or a later one: "Cont. from 11/24/2026" in the
+    list of upcoming hearings on the agenda of November 24 is heard another time."""
+    if not meeting_date:
+        return False
+    for match in CONTINUED_FROM.finditer(words):
+        when = said_date(match.group("when"), meeting_date)
+        if when and when.isoformat() >= meeting_date:
+            return True
+    return False
+
+
 # What a vote's words can't say: that the item is placed on file, or for information ("waive the reading and place
 # the communication on file", "Info only", "for information only"). Not "receive": "receive final passage" is a vote.
 NOT_A_VOTE = re.compile(r"(?i)\bon\s+file\b|\binfo(?:rmation)?\b")
@@ -1350,11 +1411,13 @@ def letters_only(text: str) -> str:
     return re.sub(r"[^0-9a-z]+", "", unicodedata.normalize("NFKC", text).casefold())
 
 
-def item_action_problems(record: dict, doc: str) -> list[dict]:
+def item_action_problems(record: dict, doc: str, meeting_date: str | None = None) -> list[dict]:
     """Each agenda item whose action (summarize.ITEM_ACTIONS) the agenda's text doesn't bear out: the words the
     summary gives for it are too short to mean anything, aren't in the agenda, or don't say what its action is (a
-    referral's or a hearing's), or say another action (a vote's or information's that say referral or hearing, a vote's
-    that say the item is placed on file, or for information). Noted ("action"), never failed:
+    referral's, a hearing's, or a continued item's), or say another action (a vote's or information's that say referral,
+    hearing or continued, a hearing's that put it off to another meeting or say it's continued from this one, a vote's
+    that say the item is placed on file, or for information). A date in a continued item's or a hearing's words is read
+    against the meeting's (meeting_date): "Continued to November 24" on November 24's agenda is a hearing that night. Noted ("action"), never failed:
     the item is shown, without its action (shown())."""
     actions, said = record.get("item_actions") or [], record.get("item_action_words") or []
     text = letters_only(doc)
@@ -1365,11 +1428,15 @@ def item_action_problems(record: dict, doc: str) -> list[dict]:
         words = said[i] if i < len(said) else ""
         # Words for a vote or for information that say the item is sent on or heard ("refer O&A" given for a vote)
         # say another action.
-        other = [p for a, p in SAYS_ACTION.items() if a != action]
+        says = {a for a, p in SAYS_ACTION.items() if p.search(words)} | ({"continued"} if puts_off(words, meeting_date) else set())
         short = len(letters_only(words)) < ACTION_WORDS_PLAIN and words != words.upper()
         if (len(letters_only(words)) < ACTION_WORDS_LEAST or short or letters_only(words) not in text
-                or (action in SAYS_ACTION and not SAYS_ACTION[action].search(words))
-                or (action not in SAYS_ACTION and any(p.search(words) for p in other))
+                or (action in ("referred", "continued") and action not in says)
+                # A hearing is said to be one, and not put off to another meeting or continued from this one.
+                or (action == "hearing" and ("hearing" not in says and not PUT_OFF.search(words)
+                                             or "continued" in says or heard_later(words, meeting_date)))
+                # Words for a vote or information that say the item is sent on, heard, or put off say another action.
+                or (action in ("vote", "information") and says)
                 or (action == "vote" and NOT_A_VOTE.search(words))):
             out.append({"field": "item_actions", "entry": i + 1, "kind": "action", "what": f"{action}: {words}"})
     return out
