@@ -147,7 +147,7 @@ ITEM_LABELS = """
     referred: it is to be sent on to a committee, a department, or another board, to be decided later, not at this meeting (for example "refer to Finance", "to be referred to the Committee on Claims", "first reading and referral").
     information: no decision is asked: a report, presentation, or communication received, read, or placed on file (on a consent agenda too), or one the agenda marks as information only.
     unstated: the agenda doesn't say.
-  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words: the note beside the item where it has one ("Cont. to 12/8/2026" beside a hearing listed under a heading of public hearings), not its section's heading (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only", "Cont. to 12/8/2026"). An empty string when the action is unstated."""
+  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words. Where the item has a note of its own, its note ("Cont. to 12/8/2026" beside a hearing listed under a heading of public hearings), not its section's heading; otherwise the words of its section that say what happens to its items (a consent agenda's "will be enacted by one motion") (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only", "Cont. to 12/8/2026"). An empty string when the action is unstated."""
 ITEM_LABEL_PROPERTIES = {"item": {"type": "string"}, "action": {"type": "string", "enum": list(ITEM_ACTIONS)},
                          "action_words": {"type": "string"}}
 
