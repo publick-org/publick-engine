@@ -665,6 +665,22 @@ def test_minutes_are_saved_with_each_decisions_outcome_and_quote():
     assert summarize.split_decisions(older) == older
 
 
+def test_agendas_are_saved_with_each_items_action_and_the_agendas_words():
+    result = summarize.split_items({"headline": "h", "items": [
+        {"item": "Chief of Police appointment", "action": "referred", "action_words": "refer O&A"},
+        {"item": "Snow and ice amortization schedule", "action": "vote", "action_words": "FCV"},
+        {"item": "Holiday parade permit", "action": "information", "action_words": "Info only"},
+        {"item": "Community updates", "action": "unstated", "action_words": ""}]})
+    assert result["items"] == ["Chief of Police appointment", "Snow and ice amortization schedule", "Holiday parade permit",
+                               "Community updates"]
+    assert result["item_actions"] == ["referred", "vote", "information", "unstated"]
+    assert result["item_action_words"] == ["refer O&A", "FCV", "Info only", ""]
+    # Agendas saved before, with their items as phrases, and minutes, pass through as they are.
+    older = {"items": ["ADA compliance"]}
+    assert summarize.split_items(older) == older
+    assert summarize.as_saved(FakeAnthropic.MINUTES) == summarize.split_decisions(FakeAnthropic.MINUTES)
+
+
 def test_minutes_from_an_older_prompt_are_made_again_only_since_remake_since(tmp_path, monkeypatch):
     model = "claude-test"
     monkeypatch.setitem(summarize.KINDS["minutes"], "remake_since", "2026-08-04")

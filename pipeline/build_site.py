@@ -750,6 +750,22 @@ def place_kind(m: dict, town: str = "") -> None:
     m["online_only"] = bool(place) and not m["in_person"] and bool(ONLINE.search(place)) and not IN_PERSON.search(place)
 
 
+def agenda_groups(preview: dict | None) -> list[tuple[str, list[str]]] | None:
+    """An agenda's items as the meeting page groups them, by what the agenda says happens to each at the meeting
+    (factcheck.shown()'s "item_actions", in summarize.ITEM_ACTIONS's order, the items unstated last), each group
+    in the agenda's order. None, for a list of all the items, where fewer than half say what happens to them or
+    they'd all be in one group: a heading over every item tells a reader nothing."""
+    items, actions = (preview or {}).get("items") or [], (preview or {}).get("item_actions") or []
+    if not items or len(actions) != len(items):
+        return None
+    actions = [a if a in summarize.ITEM_ACTIONS else "unstated" for a in actions]
+    groups = [(group, [item for item, a in zip(items, actions) if a == group]) for group in summarize.ITEM_ACTIONS]
+    groups = [(group, entries) for group, entries in groups if entries]
+    if 2 * sum(a != "unstated" for a in actions) < len(items) or len(groups) < 2:
+        return None
+    return groups
+
+
 def from_agenda(m: dict) -> None:
     """Fill in a meeting's time and place from its agenda summary when its listing has neither,
     as an Agenda Center's doesn't. m["from_agenda"] says so, for the page to say where they're from."""
@@ -2064,6 +2080,7 @@ def page_environment(config: dict, lang: str, state, out_static: Path, data_dir:
     env.globals["adds_to"] = adds_to
     env.globals["discussion_parts"] = discussion_parts
     env.globals["decision_topics"] = summarize.TOPICS
+    env.globals["agenda_groups"] = agenda_groups
     # A recommendation's text without its standard opening, which names the governing body in English.
     env.globals["tidy_recommendation"] = lambda text: tidy_recommendation(text, governing_body)
     env.globals["how_checked"] = factcheck.how_checked

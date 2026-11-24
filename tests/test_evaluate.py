@@ -280,7 +280,9 @@ def test_main_chooses_the_set_and_checks_its_prices_before_the_key(monkeypatch):
                           (["--set", "translations", "--model", "claude-haiku-5-5", "--review-model", "claude-haiku-5-5"],
                            "Set ANTHROPIC_API_KEY"),
                           (["--set", "translations", "--model", "claude-test"], "give --input-price"),
-                          (["--set", "nothing"], "minutes, translations, batch, or shadow")):
+                          (["--set", "agendas", "--model", "claude-test"], "give --input-price"),
+                          (["--set", "agendas", "--model", "claude-haiku-5-5", "--effort", "high"], "Set ANTHROPIC_API_KEY"),
+                          (["--set", "nothing"], "minutes, agendas, translations, batch, or shadow")):
         monkeypatch.setattr(sys, "argv", ["evaluate", *argv])
         with pytest.raises(SystemExit, match=message):
             evaluate.main()

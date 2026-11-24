@@ -3891,6 +3891,10 @@ msgstr ""
 "De cada una: la categoría, el tipo, el distrito, cuándo se envió, y su estado más reciente y "
 "cuándo se le dio."
 
+#: site/templates/meeting.html
+msgid "For information"
+msgstr "Para información"
+
 #: site/pages/data/index.html
 msgid "For minutes, false when the city filed another document as the minutes."
 msgstr "En las actas, false cuando la ciudad publicó otro documento como acta."
@@ -6031,6 +6035,10 @@ msgctxt "decision topic"
 msgid "Other"
 msgstr "Otros"
 
+#: site/templates/meeting.html
+msgid "Other items"
+msgstr "Otros puntos"
+
 #: pipeline/states/ma/housing.py
 msgid "Other residential"
 msgstr "Otras residenciales"
@@ -6421,6 +6429,10 @@ msgid "Public hearing: residents can speak"
 msgid_plural "Public hearings: residents can speak"
 msgstr[0] "Audiencia pública: los residentes pueden hablar"
 msgstr[1] "Audiencias públicas: los residentes pueden hablar"
+
+#: site/templates/meeting.html
+msgid "Public hearings"
+msgstr "Audiencias públicas"
 
 #: site/pages/311/index.html
 #, python-format
@@ -6934,6 +6946,10 @@ msgstr "Véalo en el mapa"
 #: pipeline/common_strings.py
 msgid "Select Board"
 msgstr "Junta de Gobierno"
+
+#: site/templates/meeting.html
+msgid "Sent to committee"
+msgstr "Se envían a una comisión"
 
 #: pipeline/i18n.py
 msgctxt "month, short"
@@ -8912,6 +8928,14 @@ msgstr ""
 "El mapa de distritos todavía no está disponible. El cargo de cada miembro aparece abajo, bajo su "
 "oficina."
 
+#: site/templates/meeting.html
+msgid ""
+"These are sent on, to a committee or where each one says, to be taken up later. They aren't "
+"decided at this meeting."
+msgstr ""
+"Se envían a una comisión o adonde indica cada uno, para tratarse más adelante. No se deciden en "
+"esta reunión."
+
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
 #, python-format
@@ -9296,6 +9320,10 @@ msgstr "Sin usar"
 #: site/states/ma/budget.html
 msgid "Unused levy capacity"
 msgstr "Capacidad de recaudación sin usar"
+
+#: site/templates/meeting.html
+msgid "Up for a vote"
+msgstr "Se someten a votación"
 
 #: site/pages/about/index.html
 msgctxt "data status"

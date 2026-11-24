@@ -6,7 +6,9 @@
 # What it runs depends on what the pull request changes:
 #   - the summary prompts (pipeline/summarize.py) or the fact check
 #     (pipeline/factcheck.py): the minutes set (evals/minutes.json,
-#     pipeline/evaluate.py), which fails when a wrong outcome would be shown;
+#     pipeline/evaluate.py), which fails when a wrong outcome would be shown,
+#     and the agenda set (evals/agendas.json, pipeline/evaluate_agendas.py),
+#     which fails when an item's wrong action would be shown;
 #   - the translator (pipeline/translate.py, pipeline/glossary.py): the
 #     translation set (evals/translations.json,
 #     pipeline/evaluate_translations.py), which fails when a threshold is
@@ -34,7 +36,9 @@ on:
       - pipeline/glossary.py
       - pipeline/evaluate.py
       - pipeline/evaluate_translations.py
+      - pipeline/evaluate_agendas.py
       - evals/minutes.json
+      - evals/agendas.json
       - evals/translations.json
 
 permissions:
@@ -83,6 +87,7 @@ jobs:
           changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
           sets=""
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate)\.py|evals/minutes\.json' <<< "$changed"; then sets="minutes"; fi
+          if grep -qxE 'pipeline/(summarize|factcheck|evaluate|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
           if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
           echo "Sets to run: ${sets:-none}"
           echo "sets=$sets" >> "$GITHUB_OUTPUT"
@@ -103,6 +108,7 @@ jobs:
           for set in $SETS; do
             case "$set" in
               minutes) args=(--model "$MODEL" --effort "$EFFORT") ;;
+              agendas) args=(--set agendas --model "$MODEL" --effort "$EFFORT") ;;
               translations) args=(--set translations --model "$MODEL" --effort "$EFFORT"
                                   --review-model "$REVIEW_MODEL" --review-effort "$REVIEW_EFFORT") ;;
             esac

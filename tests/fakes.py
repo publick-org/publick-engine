@@ -175,7 +175,10 @@ class FakeAnthropic:
     PREVIEW = {
         "headline": "ADA compliance with the city's operations director and a draft plan for recruiting a student member.",
         "summary": "The commission will meet with the city's Assistant Director of Operations about ADA compliance and review a draft description for recruiting a student member.",
-        "items": ["ADA compliance with Joe Lucido", "Student member recruitment description", "Community updates"],
+        # As the model returns them: each with what the agenda says happens to it (summarize.ITEM_LABELS).
+        "items": [{"item": "ADA compliance with Joe Lucido", "action": "unstated", "action_words": ""},
+                  {"item": "Student member recruitment description", "action": "unstated", "action_words": ""},
+                  {"item": "Community updates", "action": "unstated", "action_words": ""}],
         "start_time": "",
         "location": "",
     }

@@ -85,7 +85,7 @@ def test_both_summaries_are_checked_alike_and_counted():
     assert new["decisions"] == ["Approved the site plan for 12 Main St, 5-0"] and len(pub["decisions"]) == 2
     # A scan is checked against the network's transcription, for both.
     assert agenda["new"]["source"] == agenda["published"]["source"] == "ai"
-    assert agenda["new"]["items"] == FakeAnthropic.PREVIEW["items"] and agenda["published"]["paid"] is None
+    assert agenda["new"]["items"] == [i["item"] for i in FakeAnthropic.PREVIEW["items"]] and agenda["published"]["paid"] is None
     totals = evaluate_shadow.totals(docs)
     assert totals["all"]["new"]["documents"] == 2 and totals["minutes"]["published"]["hidden_entries"] == 1
     assert totals["all"]["published"]["input_tokens"] == 5000 and totals["agenda"]["new"]["entries"] == 3

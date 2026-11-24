@@ -165,7 +165,7 @@ VERSION = 11
 RECORDING_VERSION = 1
 
 # What's noted, not failed (see check() and shown()).
-NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda", "unlisted")
+NOTED = ("tally", "away", "unanchored", "spelling", "off_agenda", "unlisted", "action")
 
 FIELDS = {"agenda": ("headline", "summary", "items"), "minutes": ("headline", "summary", "decisions"),
           "recording": ("headline", "summary", "decisions", "discussion")}
@@ -690,6 +690,8 @@ def check(record: dict, kind: str, pages: list[str] | None, words: frozenset = f
         if kind == "recording":
             problems += [{"field": "transcript", **p} for p in unlisted(doc, located, [
                 (evidence or {}).get("quote") or "" for evidence in record["decision_evidence"]])]
+    if kind == "agenda":
+        problems += item_action_problems(record, doc)
     # A vote count the minutes don't give, a number or name far from its decision's quote, and a decision
     # whose result the minutes don't give near its quote, are noted.
     hard = [p for p in problems if p["kind"] not in NOTED and p["field"] != "decision_titles"]
@@ -1325,6 +1327,54 @@ def current(record: dict, agendas: list[str] | None = None) -> bool:
     return fc.get("version") == VERSION and not (fc.get("source") == "none" and record.get("transcript_source") == "ai")
 
 
+# ---- An agenda item's action ---------------------------------------------------------------
+
+# What the agenda's words for an item sent on, or for a public hearing, say (summarize.ITEM_ACTIONS): "refer B&F",
+# "FIRST READING & REFERRAL", "to be referred to the Committee on Claims"; "PUBLIC HEARING", "Cont. to 12/8/2026".
+# Not a committee named ("STANDING COMMITTEE REPORTS", "the Committee on Claims returns"), "Referendum", or a board
+# that has hearing in its name ("Juvenile Hearing Board").
+SAYS_ACTION = {"referred": re.compile(r"(?i)\brefer(?:s|red|ral|ring)?\b"),
+               "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|\.)?\s+(?:to|from)\b")}
+# What a vote's words can't say: that the item is placed on file, or for information ("waive the reading and place
+# the communication on file", "Info only", "for information only"). Not "receive": "receive final passage" is a vote.
+NOT_A_VOTE = re.compile(r"(?i)\bon\s+file\b|\binfo(?:rmation)?\b")
+# The fewest letters and digits an action's words have: "FCV" has three; "a" or "x" would be found in any agenda. Words
+# shorter than ACTION_WORDS_PLAIN are an abbreviation, in capitals ("FCV", "B&F"), not a word any agenda has ("the").
+ACTION_WORDS_LEAST = 3
+ACTION_WORDS_PLAIN = 6
+
+
+def letters_only(text: str) -> str:
+    """Text's letters and digits only, lowercase: an agenda's words found whatever their spacing, line breaks,
+    or punctuation ("(refer B&F)" in a scan's transcription as "refer B & F")."""
+    return re.sub(r"[^0-9a-z]+", "", unicodedata.normalize("NFKC", text).casefold())
+
+
+def item_action_problems(record: dict, doc: str) -> list[dict]:
+    """Each agenda item whose action (summarize.ITEM_ACTIONS) the agenda's text doesn't bear out: the words the
+    summary gives for it are too short to mean anything, aren't in the agenda, or don't say what its action is (a
+    referral's or a hearing's), or say another action (a vote's or information's that say referral or hearing, a vote's
+    that say the item is placed on file, or for information). Noted ("action"), never failed:
+    the item is shown, without its action (shown())."""
+    actions, said = record.get("item_actions") or [], record.get("item_action_words") or []
+    text = letters_only(doc)
+    out = []
+    for i, action in enumerate(actions):
+        if action == "unstated":
+            continue
+        words = said[i] if i < len(said) else ""
+        # Words for a vote or for information that say the item is sent on or heard ("refer O&A" given for a vote)
+        # say another action.
+        other = [p for a, p in SAYS_ACTION.items() if a != action]
+        short = len(letters_only(words)) < ACTION_WORDS_PLAIN and words != words.upper()
+        if (len(letters_only(words)) < ACTION_WORDS_LEAST or short or letters_only(words) not in text
+                or (action in SAYS_ACTION and not SAYS_ACTION[action].search(words))
+                or (action not in SAYS_ACTION and any(p.search(words) for p in other))
+                or (action == "vote" and NOT_A_VOTE.search(words))):
+            out.append({"field": "item_actions", "entry": i + 1, "kind": "action", "what": f"{action}: {words}"})
+    return out
+
+
 # ---- A recording's votes: a committee's, and those left out ------------------------------
 
 # A vote announced as it's taken: "the motion passes", "Motion carries 7-0", "that paper has been enrolled", "the ayes have
@@ -1458,7 +1508,8 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
     on a page they can't read."""
     if not display or not record or not record.get("fact_check"):
-        return display
+        # An item's action is shown only where the agenda's words for it were found.
+        return {k: v for k, v in display.items() if k != "item_actions"} if display and "item_actions" in display else display
     fc = record["fact_check"]
     out = dict(display)
     english = display is record or display.get("headline") == record.get("headline")
@@ -1505,6 +1556,15 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
                           for j, v in enumerate(values) if j + 1 not in gone]
         else:
             out.pop(field, None)
+    # Each agenda item's action (summarize.split_items), beside the items shown: "unstated" where the agenda's
+    # words for it weren't found (item_action_problems()); none at all for an agenda with no text to look in.
+    actions = record.get("item_actions") or []
+    if actions and fc["source"] != "none" and len(actions) == len(record.get("items") or []) == len(out.get("items") or []):
+        doubted = {p.get("entry") for p in fc["problems"] if p["field"] == "item_actions"}
+        out["item_actions"] = ["unstated" if j + 1 in doubted else a for j, a in enumerate(actions)
+                               if j + 1 not in hidden.get("items", set())]
+    else:
+        out.pop("item_actions", None)
     # Each decision's page and quote (check()), for the site to cite it, kept beside the decisions shown.
     on_page = fc.get("pages")
     if on_page and len(on_page) == len(record.get("decisions") or []) == len(out.get("decisions") or []):

@@ -1095,3 +1095,74 @@ def test_only_a_clear_contradiction_of_the_minutes_is_left_out():
     # Without minutes, or minutes with no decisions: as it is.
     assert factcheck.beside_minutes(LOWELL_RECORDING, None) is LOWELL_RECORDING
     assert factcheck.beside_minutes(LOWELL_RECORDING, {"decisions": []}) is LOWELL_RECORDING
+
+
+# Gloucester's City Council, 2026-11-24, as its agenda gives each item's action in a column beside it.
+GLOUCESTER_AGENDA = """CONSENT AGENDA ACTION
+MAYOR'S REPORT
+1. Mayoral Appointment Chief of Police Scott A. Carola TTE 11/29/2029 (refer O&A)
+2. Memorandum from the Cape Ann Veterans Services District Director requesting acceptance of donations in the
+amount of $4,545. (refer B&F)
+COMMUNICATIONS/INVITATIONS
+1. Approved Special Event Permit (#EVNT-26-62) re: Annual Holiday Parade (Info only)
+STANDING COMMITTEE REPORTS ACTION
+B&F 11/19/2026
+1. Memorandum from the City Auditor regarding adoption of the 3-year Snow & Ice Amortization Schedule. (FCV)
+SCHEDULED PUBLIC HEARINGS
+1. PH2026-015: Petition to the City Council to accept and lay out a public way re: Deacon Farm Lane. Cont. to 12/8/2026
+"""
+
+
+def agenda_record(actions, words, items=None):
+    items = items or ["Chief of Police Scott A. Carola, appointed by the mayor", "Accept $4,545 in donations",
+                      "Annual Holiday Parade permit", "3-year snow and ice amortization schedule",
+                      "Public hearing on Deacon Farm Lane as a public way"]
+    return {"kind": "agenda", "headline": "Deacon Farm Lane.", "summary": "", "items": items,
+            "item_actions": actions, "item_action_words": words}
+
+
+def test_an_items_action_stands_where_the_agendas_words_for_it_do():
+    """Each item's action is held to the agenda's own words for it: they must be in the agenda, and an item sent
+    on or a hearing must be said to be one. One that isn't keeps its place, shown without its action."""
+    record = agenda_record(["referred", "referred", "information", "vote", "hearing"],
+                           ["(refer O&A)", "refer B&F", "Info only", "FCV", "Cont. to 12/8/2026"])
+    record["fact_check"] = factcheck.check(record, "agenda", [GLOUCESTER_AGENDA])
+    assert record["fact_check"]["result"] == "ok" and record["fact_check"]["problems"] == []
+    assert factcheck.shown(record, record, "agenda")["item_actions"] == record["item_actions"]
+    # Words the agenda doesn't have; words that don't say the item is sent on; no words at all.
+    record = agenda_record(["referred", "referred", "information", "vote", "hearing"],
+                           ["refer P&D", "B&F 11/19/2026", "", "FCV", "SCHEDULED PUBLIC HEARINGS"])
+    record["fact_check"] = factcheck.check(record, "agenda", [GLOUCESTER_AGENDA])
+    assert record["fact_check"]["result"] == "ok"
+    assert [(p["entry"], p["kind"]) for p in record["fact_check"]["problems"]] == [(1, "action"), (2, "action"), (3, "action")]
+    shown = factcheck.shown(record, record, "agenda")
+    assert shown["items"] == record["items"] and shown["item_actions"] == ["unstated", "unstated", "unstated", "vote", "hearing"]
+
+
+def test_an_items_action_goes_with_its_item():
+    """An item held back takes its action with it; with no text to look in, or no check, no item has one."""
+    record = agenda_record(["referred", "vote"], ["refer O&A", "FCV"],
+                           items=["Chief of Police appointment, 14 Main Street", "Snow and ice amortization schedule"])
+    record["fact_check"] = factcheck.check(record, "agenda", [GLOUCESTER_AGENDA])
+    shown = factcheck.shown(record, record, "agenda")
+    assert shown["items"] == ["Snow and ice amortization schedule"] and shown["item_actions"] == ["vote"]
+    unread = {**record, "fact_check": factcheck.check(record, "agenda", None)}
+    assert unread["fact_check"]["source"] == "none" and "item_actions" not in factcheck.shown(unread, unread, "agenda")
+    unchecked = {k: v for k, v in record.items() if k != "fact_check"}
+    assert "item_actions" not in factcheck.shown(unchecked, unchecked, "agenda")
+    # A translation's items, with the English's actions.
+    spanish = {**record, "items": ["Nombramiento del jefe de policía, 14 Main Street", "Calendario de amortización"]}
+    assert factcheck.shown(spanish, record, "agenda")["item_actions"] == ["vote"]
+
+
+def test_an_items_action_isnt_taken_from_words_that_say_another():
+    """Words for a vote or information that say the item is sent on or heard, words too short to mean anything, a
+    committee named, or a board with hearing in its name, don't stand for an action."""
+    agenda = GLOUCESTER_AGENDA + ("STANDING COMMITTEE REPORTS\nReferendum question\nplace the communication on file\n"
+                                  "appointment as a member of the Juvenile Hearing Board, FOR CONFIRMATION\n")
+    cases = [("vote", "refer O&A"), ("information", "(refer B&F)"), ("vote", "Cont. to 12/8/2026"), ("vote", "a"),
+             ("information", "the"), ("referred", "STANDING COMMITTEE REPORTS"), ("referred", "Referendum question"),
+             ("hearing", "Juvenile Hearing Board"), ("vote", "place the communication on file"), ("vote", "Info only")]
+    record = agenda_record([a for a, _ in cases], [w for _, w in cases], items=[f"Item {n}" for n in range(len(cases))])
+    problems = factcheck.check(record, "agenda", [agenda])["problems"]
+    assert [p["entry"] for p in problems if p["kind"] == "action"] == list(range(1, len(cases) + 1))

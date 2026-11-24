@@ -130,6 +130,26 @@ DECISION_LABELS = """
 DECISION_LABEL_PROPERTIES = {"title": {"type": "string"}, "main": {"type": "boolean"},
                              "topic": {"type": "string", "enum": list(TOPICS)}}
 
+# What an agenda says happens to each of its items at the meeting, for the meeting page to group them by
+# (pipeline/build_site.py agenda_groups()). The same few for every town, whatever its agenda calls them:
+# a consent agenda is adopted in one vote in one city and is a list of items sent to committees in
+# another, so an item's action is read from what its agenda says of it, not from its section's name.
+ITEM_ACTIONS = ("vote", "hearing", "referred", "information", "unstated")
+
+# What an agenda summary gives for each item: the item, its action (ITEM_ACTIONS), and the agenda's own words
+# that say so, which the fact check looks for in the agenda (pipeline/factcheck.py item_action_problems()).
+ITEM_LABELS = """
+  - item: a short plain-English phrase.
+  - action: what the agenda says happens to the item at this meeting, in one word. Go by the agenda's own markings (an action column, a note beside the item, a section's heading or note), never by what the item is about:
+    vote: the board is to vote or act on it at this meeting: the agenda marks it for a vote or for action, gives a motion or a recommended action, or lists it on a consent agenda that the board adopts by one vote. Not an item that is only received, read, or placed on file: that is information, on a consent agenda too.
+    hearing: a public hearing is held on it, or is listed as continued.
+    referred: it is to be sent on to a committee, a department, or another board, to be decided later, not at this meeting (for example "refer to Finance", "to be referred to the Committee on Claims", "first reading and referral").
+    information: no decision is asked: a report, presentation, or communication received, read, or placed on file (on a consent agenda too), or one the agenda marks as information only.
+    unstated: the agenda doesn't say.
+  - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only"). An empty string when the action is unstated."""
+ITEM_LABEL_PROPERTIES = {"item": {"type": "string"}, "action": {"type": "string", "enum": list(ITEM_ACTIONS)},
+                         "action_words": {"type": "string"}}
+
 # Run limits for a town whose [summaries] table leaves them out.
 DEFAULT_MAX_PER_RUN = 50
 DEFAULT_MAX_COST_PER_RUN = 5.0
@@ -167,14 +187,19 @@ KINDS = {
     "agenda": {
         # Version 5: the headline leads with what residents look for (projects and their addresses,
         # new rules, money), for search results and the cards shared on social media. Version 6: the
-        # summary rules on voice, lists, and repeating the headline (SUMMARY_RULES). Agendas of meetings
-        # before remake_since keep the version they have.
-        "version": 6,
-        "remake_since": "2026-11-04",
+        # summary rules on voice, lists, and repeating the headline (SUMMARY_RULES). Version 7: each item
+        # with what the agenda says happens to it at the meeting (ITEM_ACTIONS) and the agenda's own words
+        # for that, for the page to group the items by it: a consent agenda can be items sent to committees,
+        # not decided that night (Gloucester's City Council). Agendas of meetings before remake_since keep
+        # the version they have.
+        "version": 7,
+        "remake_since": "2026-11-24",
         "folder": "agendas",
-        # Room for a model's thinking at a high effort as well as the summary, which has run to
-        # about 2,100 tokens at most; only what's written is paid for.
-        "max_tokens": 8000,
+        # Room for a model's thinking at a high effort as well as the summary, which ran to about 2,100
+        # tokens at most before each item had its action and the agenda's words for it (version 7), some 30
+        # tokens more an item: an agenda of 90 items or more (Lawrence's, Holyoke's) needs about 5,000. Only
+        # what's written is paid for.
+        "max_tokens": 16000,
         "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES,
         "prompt": """This is the posted agenda for: {title}, {date}.
@@ -182,7 +207,7 @@ KINDS = {
 Return:
 - headline: one sentence of at most 25 words saying what the meeting will take up. Lead with the business residents are most likely to look for, named as they would search for it: public hearings; projects and developments, with their street addresses or names; new rules, ordinances, or moratoriums; taxes, fees, budgets, and contracts, with their dollar amounts; schools. Put routine business (such as accepting a road, approving minutes, or hearing reports) after these, or leave it out. Start with the business itself, not with who is meeting (write "Public hearing on the 2026 Housing Compass Plan.", not "Board will hold a public hearing on ..."). Do not mention the board, the date, the time, or the place; readers already see those.
 - summary: 1 or 2 short sentences on what the meeting will cover. Name the main business items. Do not repeat the board's name, the date, the time, or the place.
-- items: each agenda item, in order, as short plain-English phrases. Skip routine items such as call to order, roll call, approval of minutes, and adjournment.
+- items: each agenda item, in order. Skip routine items such as call to order, roll call, approval of minutes, and adjournment. For each:""" + ITEM_LABELS + """
 - start_time: when the meeting starts, as the agenda gives it, in 24-hour HH:MM form (for example 19:00 for 7:00 PM). An empty string if the agenda gives no time.
 - location: where the meeting is held, as the agenda gives it, on one line: the room and building, and the street address if shown. For a meeting held only online, the service it names (for example "Zoom"). An empty string if the agenda gives no place.""",
         "schema": {
@@ -190,7 +215,12 @@ Return:
             "properties": {
                 "headline": {"type": "string"},
                 "summary": {"type": "string"},
-                "items": {"type": "array", "items": {"type": "string"}},
+                "items": {"type": "array", "items": {
+                    "type": "object",
+                    "properties": ITEM_LABEL_PROPERTIES,
+                    "required": list(ITEM_LABEL_PROPERTIES),
+                    "additionalProperties": False,
+                }},
                 "start_time": {"type": "string"},
                 "location": {"type": "string"},
             },
@@ -481,6 +511,22 @@ def split_decisions(result: dict) -> dict:
               if all(key in d for d in entries)}
     return {**result, "decisions": [d["decision"] for d in entries],
             "decision_evidence": [{"outcome": d["outcome"], "quote": d["quote"]} for d in entries], **labels}
+
+
+def split_items(result: dict) -> dict:
+    """An agenda summary as saved: its items as phrases, as every page and translation reads them, and beside
+    them each one's action (ITEM_ACTIONS) in "item_actions", and the agenda's words for it in "item_action_words"."""
+    if not result.get("items") or not isinstance(result["items"][0], dict):
+        return result
+    entries = result["items"]
+    return {**result, "items": [i["item"] for i in entries],
+            "item_actions": [i["action"] if i["action"] in ITEM_ACTIONS else "unstated" for i in entries],
+            "item_action_words": [i["action_words"] for i in entries]}
+
+
+def as_saved(result: dict) -> dict:
+    """A summary the model returned, as it's saved: its decisions' and items' labels beside them."""
+    return split_items(split_decisions(result))
 
 
 def needs_time(kind: str, meeting: dict, record: dict, today: str) -> bool:
@@ -962,7 +1008,7 @@ def save_summary(config: dict, data_dir: Path, kind: str, meeting: dict, doc: di
     its request (key) is in the cost log as a summary. Returns whether the log didn't have it yet. If the
     record can't be made (its PDF can't be read), it raises before anything is logged or saved."""
     record = {
-        **split_decisions(result),
+        **as_saved(result),
         "kind": kind,
         "source_url": doc["source_url"],
         "source_sha256": doc["sha256"],
