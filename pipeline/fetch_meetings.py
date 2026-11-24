@@ -314,7 +314,9 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, rechec
     Most sources give a revised agenda a new id (an Agenda Center's posting time, a new file). With recheck,
     for a source whose id names the document and not its revision (an Archive Center's ADID, whose file the
     city can replace), an agenda already saved is downloaded again in the AGENDA_RECHECK_DAYS before the
-    meeting, and saved as a new version, "<id>-<first 8 of its hash>", when its content changed."""
+    meeting. When its content changed, it's saved as a new version, "<id>-<first 8 of its hash>"; when it's
+    an earlier version again (the city put it back), that version becomes the latest again. A recheck that
+    fails keeps the saved agenda, and isn't an error: the next run tries again."""
     agenda_id = details.get("agenda_id")
     if not agenda_id:
         return
@@ -322,19 +324,32 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, rechec
     versions = [a for a in agendas if a["id"] == agenda_id or a.get("revision_of") == agenda_id]
     if versions and not (recheck and recheck_due(meeting, now)):
         return
-    response = client.get(details["agenda_url"])
-    content, converted = response.content, None
-    # What the city posted, compared with the saved version's: a Word file's PDF isn't the same bytes twice.
-    source_sha = hashlib.sha256(content).hexdigest()
-    if versions and versions[-1].get("source_sha256", versions[-1]["sha256"]) == source_sha:
-        return
-    if wordfile.is_docx(content):
-        # Saved as a PDF of its text (pipeline/wordfile.py); the page links the saved copy.
-        content, converted = wordfile.to_pdf(content), "docx"
-    if not content.startswith(b"%PDF"):
-        raise FetchError(f"agenda {agenda_id} is not a PDF or a Word (.docx) file")
+    try:
+        response = client.get(details["agenda_url"])
+        content, converted = response.content, None
+        if wordfile.is_docx(content):
+            # Saved as a PDF of its text (pipeline/wordfile.py); the page links the saved copy. The same text
+            # makes the same PDF, so a Word file saved again unchanged isn't a revision.
+            content, converted = wordfile.to_pdf(content), "docx"
+        if not content.startswith(b"%PDF"):
+            raise FetchError(f"agenda {agenda_id} is not a PDF or a Word (.docx) file")
+    except FetchError:
+        if versions:
+            return
+        raise
     sha = hashlib.sha256(content).hexdigest()
-    doc_id = f"{agenda_id}-{source_sha[:8]}" if versions else agenda_id
+    if versions and versions[-1]["sha256"] == sha:
+        return
+    earlier = next((a for a in versions if a["sha256"] == sha), None)
+    if earlier:
+        # Moved to the end, as the latest; a meeting combined from several listings orders its agendas by
+        # when they were fetched (listings.combine), so it's fetched now.
+        agendas.remove(earlier)
+        record_change(meeting, "agenda", agendas[-1]["id"], earlier["id"], now)
+        earlier.setdefault("first_fetched_at", earlier["fetched_at"])
+        agendas.append({**earlier, "fetched_at": now})
+        return
+    doc_id = f"{agenda_id}-{sha[:8]}" if versions else agenda_id
     disposition = response.headers.get("content-disposition", "")
     filename = re.search(r'filename="?([^";]+)', disposition)
     name = f"{doc_id}.pdf"
@@ -348,7 +363,6 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, rechec
         "file": name,
         "original_filename": filename.group(1).strip() if filename else None,
         "sha256": sha,
-        **({"source_sha256": source_sha} if converted else {}),
         "bytes": len(content),
         "has_text": pdf_has_text(content),
         "fetched_at": now,
@@ -956,7 +970,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
                 merge(meeting, {"listed": False}, stamp, track=True)
 
     # Event pages hold details the listing leaves out (location, agenda). Only
-    # upcoming meetings are re-checked, so a run makes a few dozen requests at most.
+    # upcoming meetings are re-checked, so a run makes a few dozen requests at most: a page each, and the
+    # agenda of those in the next AGENDA_RECHECK_DAYS from a source whose agendas are rechecked.
     pages = 0
     for meeting in sorted(store.values(), key=lambda m: (m["date"], m["id"])):
         calendar = seen.get(meeting["id"])
@@ -1023,6 +1038,9 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         # board's meeting, left under their own name (seen_once_beside_another): all of them, for the network's
         # report (pipeline/document_gaps.py).
         "seen_once_beside_another": beside,
+        # Meetings whose agenda was replaced this run (a revised one, from any source): a town whose count stays
+        # high may be one whose city serves a different file for each download.
+        "agendas_revised": sum(h["field"] == "agenda" and h["at"] == stamp for m in store.values() for h in m.get("history", [])),
         "requests": getattr(client, "request_count", None),
         "errors": errors,
         "failed_calendars": failed,

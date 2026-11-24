@@ -1,13 +1,17 @@
 """Tests for the meetings pipeline, run offline against saved city pages."""
 
+import hashlib
+import io
 import json
+import zipfile
 from datetime import datetime
 
 import pytest
 
 from conftest import FETCHED_AT, FIXTURES
-from fakes import FakeCityClient
-from pipeline import civicplus, fetch_meetings, meeting_names
+from fakes import FakeCityClient, FakeResponse
+from pipeline import civicplus, fetch_meetings, listings, meeting_names
+from pipeline.http import FetchError
 from pipeline.config import load_config
 
 BASE = "https://www.gloucester-ma.gov"
@@ -253,6 +257,82 @@ def test_run_records_revised_agenda(config, tmp_path):
     m = load(tmp_path)["12928"]
     assert [a["id"] for a in m["agendas"]] == ["20124", "20200"]
     assert {"field": "agenda", "old": "20124", "new": "20200"}.items() <= m["history"][-1].items()
+
+
+class Stored:
+    """A documents store that keeps what's put in it."""
+    def __init__(self):
+        self.files = {}
+
+    def put(self, folder, name, content):
+        self.files[f"{folder}/{name}"] = content
+
+
+class Serves:
+    """A client that serves one file for the agenda, or fails."""
+    def __init__(self, content=None, error=None):
+        self.content, self.error = content, error
+
+    def get(self, url):
+        if self.error:
+            raise self.error
+        return FakeResponse(self.content)
+
+
+def word_file(text: str, extra: bytes = b"") -> bytes:
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("word/document.xml", '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                   f"<w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p></w:body></w:document>")
+        if extra:
+            z.writestr("docProps/core.xml", extra)  # saved again: other bytes, the same text
+    return out.getvalue()
+
+
+AGENDA = {"agenda_id": "20291", "agenda_url": f"{BASE}/Archive.aspx?ADID=20291"}
+PDF_A, PDF_B = b"%PDF-1.7 first", b"%PDF-1.7 revised"
+
+
+def recheck(meeting, content=None, error=None, day=23):
+    store = Stored()
+    fetch_meetings.fetch_agenda(Serves(content, error), meeting, AGENDA, store, f"2026-11-{day}T09:00:00-05:00", recheck=True)
+    return store
+
+
+def test_an_agenda_put_back_is_the_latest_again():
+    m = {"date": "2026-11-24"}
+    recheck(m, PDF_A, day=20)
+    recheck(m, PDF_B, day=22)
+    stored = recheck(m, PDF_A)
+    assert [a["id"] for a in m["agendas"]] == [f"20291-{hashlib.sha256(PDF_B).hexdigest()[:8]}", "20291"]
+    assert m["agendas"][-1]["fetched_at"].startswith("2026-11-23") and m["agendas"][-1]["first_fetched_at"].startswith("2026-11-20")
+    assert m["history"][-1]["new"] == "20291" and stored.files == {}  # nothing saved again
+    # Combined with another listing, the agenda put back is still the latest (listings.combine).
+    other = {"id": "agendacenter-1", "source": "agendacenter", "date": "2026-11-24", "slug": "b", "agendas": []}
+    combined = listings.combine([{**m, "id": "12357", "slug": "a"}, other], "the same meeting")
+    assert combined["agendas"][-1]["sha256"] == hashlib.sha256(PDF_A).hexdigest()
+
+
+def test_a_word_agenda_saved_again_with_the_same_text_isnt_a_revision():
+    m = {"date": "2026-11-24"}
+    recheck(m, word_file("City Council agenda"), day=20)
+    recheck(m, word_file("City Council agenda", b"<modified>2026-11-23</modified>"))
+    assert len(m["agendas"]) == 1 and "history" not in m
+
+
+@pytest.mark.parametrize("error", [FetchError("503 from the city"), None])
+def test_a_failed_recheck_keeps_the_saved_agenda(error):
+    m = {"date": "2026-11-24"}
+    recheck(m, PDF_A, day=20)
+    # A server error, or a page in place of the file (None: HTML served), isn't an error, and changes nothing.
+    recheck(m, b"<html>not found</html>" if error is None else None, error=error)
+    assert len(m["agendas"]) == 1 and "history" not in m
+
+
+def test_a_first_download_that_fails_is_still_an_error():
+    with pytest.raises(FetchError):
+        recheck({"date": "2026-11-24"}, b"<html>not found</html>")
 
 
 def test_run_records_changes_and_keeps_links_stable(data_dir):
