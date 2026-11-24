@@ -14,8 +14,9 @@ says, for the whole set and each agenda:
 - which model ran, at what effort, and for each agenda its pages, tokens, seconds, and cost.
 
 A wrong action the page would show (the item in a group it doesn't belong in) fails the run (exit status 1), and so
-does a summary cut off at the prompt's max_tokens. "unstated" is never wrong for the page: the item is shown with the
-items the agenda says nothing of, or in the list of all of them.
+do a summary cut off at the prompt's max_tokens, and fewer than RIGHT_AT_LEAST of the items written down given a
+right action (a prompt that stopped giving actions would otherwise pass). "unstated" is never wrong for the page: the
+item is shown with the items the agenda says nothing of, or in the list of all of them.
 
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set agendas [--only NAME] [--model MODEL] [--effort EFFORT] [--json FILE]
 """
@@ -33,6 +34,8 @@ from pipeline import build_site, factcheck, summarize
 from pipeline import evaluate as minutes_set
 
 SET = Path(__file__).resolve().parent.parent / "evals" / "agendas.json"
+# The least share of the items written down that a run must give a right action, whether or not the check keeps it.
+RIGHT_AT_LEAST = 0.5
 
 
 def found(expected: dict, items: list[str]) -> int | None:
@@ -58,6 +61,10 @@ def judge(document: dict, result: dict, paid: float, transcript: str | None, pag
               if p["field"] == "items" and factcheck.hides(record["fact_check"], p)}
     on_page = [None if i in hidden or "item_actions" not in shown else ("unstated" if i in taken else a)
                for i, a in enumerate(actions)]
+    # Where the page wouldn't group the items, it shows them in one list, and no action at all.
+    groups = build_site.agenda_groups(shown)
+    if not groups:
+        on_page = [None] * len(on_page)
     rows = []
     for expected in document["items"]:
         i = found(expected, items)
@@ -73,7 +80,6 @@ def judge(document: dict, result: dict, paid: float, transcript: str | None, pag
         row["caught"] = status == "wrong" and row["on_page"] in (None, "unstated")
         row["taken_away"] = status == "right" and given != "unstated" and row["on_page"] in (None, "unstated")
         rows.append(row)
-    groups = build_site.agenda_groups(shown)
     return {"name": document["name"], "source": record["fact_check"]["source"], "cost": round(paid, 4),
             "items": items, "actions": actions, "action_words": record.get("item_action_words") or [],
             "given": sum(a != "unstated" for a in actions), "taken_away": len(taken),
@@ -128,7 +134,7 @@ def totals_of(results: list[dict]) -> dict:
 
 
 def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
-    """The report, and whether it fails: a wrong action the page would show, or a summary cut off."""
+    """The report, and whether it fails: a wrong action the page would show, a summary cut off, or too few right."""
     money = minutes_set.money
     lines = ["# Agenda prompt against item actions read by hand", ""]
     for r in results:
@@ -156,6 +162,7 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
             lines.append(f"  - item {p['entry']}, action taken away ({p['what'][:120]}): {r['items'][p['entry'] - 1][:120]}")
         lines.append("")
     t = totals_of(results)
+    written = t["right"] + t["wrong"] + t["missing"]
     lines[2:2] = [
         *([minutes_set.run_text(run), ""] if run else []),
         f"- Items: {t['items']}; given an action: {t['given']}; taken away by the check: {t['taken_away']}.",
@@ -163,10 +170,11 @@ def report(results: list[dict], run: dict | None = None) -> tuple[str, bool]:
         f"shown), {t['missing']} missing; right but taken away: {t['right_taken_away']}.",
         f"- Agendas the page would group: {t['grouped']} of {t['agendas'] - t['stopped']}.",
         f"- Agendas whose summary was cut off: {t['stopped']}.",
+        f"- Right: {t['right']} of {written} written down (at least {RIGHT_AT_LEAST:.0%} to pass).",
         f"- Cost: {money(t['cost'])} ({money(t['cost'] / max(len(results), 1), 4)} an agenda).",
         "",
     ]
-    return "\n".join(lines), bool(t["wrong_shown"] or t["stopped"])
+    return "\n".join(lines), bool(t["wrong_shown"] or t["stopped"] or t["right"] < RIGHT_AT_LEAST * written)
 
 
 def main(argv: list[str] | None = None) -> int:

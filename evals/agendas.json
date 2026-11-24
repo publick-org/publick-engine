@@ -13,7 +13,7 @@
         {"match": "Republic Services", "action": ["referred"], "agenda": "approval to pay FY2026 invoices with FY2027 funds for Republic Services in the amount of $292,223.95. (refer B&F)"},
         {"match": "Gloucester Crossing", "action": ["referred"], "agenda": "Determination of Insubstantial Modification. (refer P&D)"},
         {"match": "[Dd]ata [Cc]enter", "action": ["referred"], "agenda": "Amend Sec. 2.3.8 \"Uses prohibited in all districts\" by ADDING Item #4 \"Data Center.\" (Refer P&D & PB)"},
-        {"match": "[Pp]reliminary", "action": ["referred"], "agenda": "Amend City Charter Sec. 8-3 \"Preliminary Elections\" (Refer CC) & Legal)"},
+        {"match": "[Pp]reliminary [Ee]lection", "action": ["referred"], "agenda": "Amend City Charter Sec. 8-3 \"Preliminary Elections\" (Refer CC) & Legal)"},
         {"match": "Kent Circle|Lobster Trap|Holiday Parade|special event", "action": ["information"], "agenda": "Approved Special Event Permit (#EVNT-26-59) re: Kent Circle Christmas Tree Lighting (Info only)"},
         {"match": "[Ss]now (?:&|and) [Ii]ce|amortization", "action": ["vote"], "agenda": "adoption of the 3-year Snow & Ice Amortization Schedule. (FCV)"},
         {"match": "Route 127", "action": ["vote"], "agenda": "Memorandum from the Mayor regarding Route 127 road safety audit. (FCV)"},
@@ -35,7 +35,7 @@
         {"match": "Farinelli", "action": ["referred"], "agenda": "THE FOLLOWING CLAIM FOR DAMAGES AGAINST THE CITY TO BE REFERRED TO THE LAW DEPARTMENT AND RI INTERLOCAL TRUST: Lynn Farinelli"},
         {"match": "Cooper|Juvenile Hearing", "action": ["vote"], "agenda": "appointment as a member of the Juvenile Hearing Board, FOR CONFIRMATION ... ROLL CALL FOR CONFIRMATION"},
         {"match": "Daggett", "action": ["vote"], "agenda": "petition for relocation of multiple existing poles at Daggett Ave. TO BE APPROVED PENDING THE APPROVAL FROM THE DIRECTOR OF PUBLIC WORKS"},
-        {"match": "Vieira|returns?|returned", "action": ["vote", "unstated"], "agenda": "THE COMMITTEE ON CLAIMS AND PENDING SUITS RETURNS THE FOLLOWING CLAIMS FOR DAMAGES AGAINST THE CITY"},
+        {"match": "Vieira|Gonsalves|Jensen", "action": ["vote", "unstated"], "agenda": "THE COMMITTEE ON CLAIMS AND PENDING SUITS RETURNS THE FOLLOWING CLAIMS FOR DAMAGES AGAINST THE CITY"},
         {"match": "pedestrian signal", "action": ["information", "vote"], "agenda": "*CONSENT AGENDA ... *CORRESPONDENCE: a resident's request for a pedestrian signal light"}
       ]
     },
@@ -49,7 +49,7 @@
         {"match": "[Tt]obacco", "action": ["vote"], "agenda": "Category 7. Consent Agenda ... Type Action (Consent) ... Recommended Action approve the 2026-2027 Tobacco License ... Renewals"},
         {"match": "SS4A|Main Street Signals", "action": ["vote"], "agenda": "Type Action (Consent) ... to approve and authorize the Director of Public Works to establish the SS4A Main Street Signals project budget"},
         {"match": "Kiviranna", "action": ["information"], "agenda": "Communication: Travis Kiviranna, re: planBTV New North End feedback ... waive the reading and place the communication on file"},
-        {"match": "[Cc]harter|[Ss]tormwater", "action": ["referred", "vote"], "agenda": "to waive and approve the first reading of the proposed Charter Changes and to refer the proposed to the Charter Change Committee"},
+        {"match": "[Ss]tormwater|[Cc]harter [Cc]hange", "action": ["referred", "vote"], "agenda": "to waive and approve the first reading of the proposed Charter Changes and to refer the proposed to the Charter Change Committee"},
         {"match": "planBTV", "unless": "Kiviranna|feedback|[Cc]ommunication", "action": ["hearing"], "agenda": "Public Hearing Regarding planBTV: New North End ... open the Public Hearing close the Public Hearing"},
         {"match": "SECORD", "unless": "Watershed|[Aa]greement|[Rr]esolution", "action": ["hearing"], "agenda": "Public Hearing Regarding SECORD Phase 1 Community and Housing Infrastructure Program Application"},
         {"match": "Watershed", "action": ["vote"], "agenda": "Type Action Resolution ... move to adopt the attached resolution"},

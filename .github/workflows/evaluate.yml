@@ -87,7 +87,7 @@ jobs:
           changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
           sets=""
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate)\.py|evals/minutes\.json' <<< "$changed"; then sets="minutes"; fi
-          if grep -qxE 'pipeline/(summarize|factcheck|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
+          if grep -qxE 'pipeline/(summarize|factcheck|evaluate|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
           if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
           echo "Sets to run: ${sets:-none}"
           echo "sets=$sets" >> "$GITHUB_OUTPUT"

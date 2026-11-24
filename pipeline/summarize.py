@@ -195,9 +195,11 @@ KINDS = {
         "version": 7,
         "remake_since": "2026-11-24",
         "folder": "agendas",
-        # Room for a model's thinking at a high effort as well as the summary, which has run to
-        # about 2,100 tokens at most; only what's written is paid for.
-        "max_tokens": 8000,
+        # Room for a model's thinking at a high effort as well as the summary, which ran to about 2,100
+        # tokens at most before each item had its action and the agenda's words for it (version 7), some 30
+        # tokens more an item: an agenda of 90 items or more (Lawrence's, Holyoke's) needs about 5,000. Only
+        # what's written is paid for.
+        "max_tokens": 16000,
         "system": "You summarize public meeting agendas from a city government for residents. Agendas are often scanned images, so read every character carefully.\n\n"
                   + SUMMARY_RULES,
         "prompt": """This is the posted agenda for: {title}, {date}.
