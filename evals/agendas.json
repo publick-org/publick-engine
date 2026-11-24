@@ -1,0 +1,89 @@
+{
+  "about": "Agendas whose items' actions were read by hand from the agenda, for the agenda prompt's item actions (pipeline/evaluate_agendas.py). Each expected item: match, a pattern for the item's text (the first item it finds, not one unless finds); action, the actions right for it (summarize.ITEM_ACTIONS), more than one where the agenda reads either way; agenda, the agenda's words for it.",
+  "documents": [
+    {
+      "name": "gloucester-council-2026-11-24",
+      "url": "https://files.publick.org/gloucester-ma/agendas/20291.pdf",
+      "sha256": "2753696c3e1d2bd1d7279e52175c6485188528838df26c7b44b39afe51f01a76",
+      "title": "City Council",
+      "date": "2026-11-24",
+      "scan": true,
+      "items": [
+        {"match": "Carola|Chief of Police", "unless": "GCO|Sec\\.|17-18|rules|manner", "action": ["referred"], "agenda": "Mayoral Appointment Chief of Police Scott A. Carola TTE 11/29/2029 (refer O&A)"},
+        {"match": "Republic Services", "action": ["referred"], "agenda": "approval to pay FY2026 invoices with FY2027 funds for Republic Services in the amount of $292,223.95. (refer B&F)"},
+        {"match": "Gloucester Crossing", "action": ["referred"], "agenda": "Determination of Insubstantial Modification. (refer P&D)"},
+        {"match": "[Dd]ata [Cc]enter", "action": ["referred"], "agenda": "Amend Sec. 2.3.8 \"Uses prohibited in all districts\" by ADDING Item #4 \"Data Center.\" (Refer P&D & PB)"},
+        {"match": "[Pp]reliminary", "action": ["referred"], "agenda": "Amend City Charter Sec. 8-3 \"Preliminary Elections\" (Refer CC) & Legal)"},
+        {"match": "Kent Circle|Lobster Trap|Holiday Parade|special event", "action": ["information"], "agenda": "Approved Special Event Permit (#EVNT-26-59) re: Kent Circle Christmas Tree Lighting (Info only)"},
+        {"match": "[Ss]now (?:&|and) [Ii]ce|amortization", "action": ["vote"], "agenda": "adoption of the 3-year Snow & Ice Amortization Schedule. (FCV)"},
+        {"match": "Route 127", "action": ["vote"], "agenda": "Memorandum from the Mayor regarding Route 127 road safety audit. (FCV)"},
+        {"match": "Madison Ave", "action": ["vote"], "agenda": "PP2026-012: Petition by National Grid to install 1 JO Pole on Madison Avenue (FCV)"},
+        {"match": "Deacon Farm", "action": ["hearing"], "agenda": "SCHEDULED PUBLIC HEARINGS 1. PH2026-015: Petition to the City Council to accept and lay out a public way re: Deacon Farm Lane."},
+        {"match": "[Ss]hopping cart", "action": ["hearing"], "agenda": "PH2026-034: Amend GCO Ch. 14 by ADDING a new Article IV \"Shopping Cart Regulations\""}
+      ]
+    },
+    {
+      "name": "pawtucket-council-2026-11-10",
+      "url": "https://files.publick.org/pawtucket-ri/agendas/opengov-570774-d4b5eb41.pdf",
+      "sha256": "d4b5eb41a6e505385a8301ef0256002f9e34697293b4028d988ccca0493d1c33",
+      "title": "City Council",
+      "date": "2026-11-10",
+      "items": [
+        {"match": "Piccadilly|Beecher", "action": ["referred"], "agenda": "Piccadilly LLC Tax Stabilization Agreement Request for 30 Beecher Street – TO BE REFERRED TO THE FINANCE COMMITTEE"},
+        {"match": "22,312|April, May,? and June", "action": ["referred"], "agenda": "IN THE TOTAL AMOUNT OF $22,312.67. – TO BE REFERRED TO THE FINANCE COMMITTEE"},
+        {"match": "Elisha", "action": ["referred"], "agenda": "(Elisha Project Lease request from George Ortiz) – TO BE REFERRED TO THE CITY PROPERTY COMMITTEE AND ORDINANCE COMMITTEE"},
+        {"match": "Farinelli", "action": ["referred"], "agenda": "THE FOLLOWING CLAIM FOR DAMAGES AGAINST THE CITY TO BE REFERRED TO THE LAW DEPARTMENT AND RI INTERLOCAL TRUST: Lynn Farinelli"},
+        {"match": "Cooper|Juvenile Hearing", "action": ["vote"], "agenda": "appointment as a member of the Juvenile Hearing Board, FOR CONFIRMATION ... ROLL CALL FOR CONFIRMATION"},
+        {"match": "Daggett", "action": ["vote"], "agenda": "petition for relocation of multiple existing poles at Daggett Ave. TO BE APPROVED PENDING THE APPROVAL FROM THE DIRECTOR OF PUBLIC WORKS"},
+        {"match": "Vieira|returns?|returned", "action": ["vote", "unstated"], "agenda": "THE COMMITTEE ON CLAIMS AND PENDING SUITS RETURNS THE FOLLOWING CLAIMS FOR DAMAGES AGAINST THE CITY"},
+        {"match": "pedestrian signal", "action": ["information", "vote"], "agenda": "*CONSENT AGENDA ... *CORRESPONDENCE: a resident's request for a pedestrian signal light"}
+      ]
+    },
+    {
+      "name": "burlington-council-2026-11-23",
+      "url": "https://files.publick.org/burlington-vt/agendas/civicclerk-21728.pdf",
+      "sha256": "001337292cc517fe3bbc34a36fc57c0503c19ade141715fce2149e43f680785b",
+      "title": "City Council",
+      "date": "2026-11-23",
+      "items": [
+        {"match": "[Tt]obacco", "action": ["vote"], "agenda": "Category 7. Consent Agenda ... Type Action (Consent) ... Recommended Action approve the 2026-2027 Tobacco License ... Renewals"},
+        {"match": "SS4A|Main Street Signals", "action": ["vote"], "agenda": "Type Action (Consent) ... to approve and authorize the Director of Public Works to establish the SS4A Main Street Signals project budget"},
+        {"match": "Kiviranna", "action": ["information"], "agenda": "Communication: Travis Kiviranna, re: planBTV New North End feedback ... waive the reading and place the communication on file"},
+        {"match": "[Cc]harter|[Ss]tormwater", "action": ["referred", "vote"], "agenda": "to waive and approve the first reading of the proposed Charter Changes and to refer the proposed to the Charter Change Committee"},
+        {"match": "planBTV", "unless": "Kiviranna|feedback|[Cc]ommunication", "action": ["hearing"], "agenda": "Public Hearing Regarding planBTV: New North End ... open the Public Hearing close the Public Hearing"},
+        {"match": "SECORD", "unless": "Watershed|[Aa]greement|[Rr]esolution", "action": ["hearing"], "agenda": "Public Hearing Regarding SECORD Phase 1 Community and Housing Infrastructure Program Application"},
+        {"match": "Watershed", "action": ["vote"], "agenda": "Type Action Resolution ... move to adopt the attached resolution"},
+        {"match": "[Ll]egislative priorities", "action": ["information"], "agenda": "Work Session - Burlington Legislative Priorities ... Type Information"},
+        {"match": "Winooski Valley", "action": ["information"], "agenda": "Presentation: Winooski Valley Park District's FY26 Annual Report ... Type Presentation"}
+      ]
+    },
+    {
+      "name": "bangor-council-2026-11-23",
+      "url": "https://files.publick.org/bangor-me/agendas/988.pdf",
+      "sha256": "7c5fb98fdc1b90d019eb7bea6fe4c5e5bb7e269c4a67f30628a5531c8c14e6a3",
+      "title": "City Council",
+      "date": "2026-11-23",
+      "items": [
+        {"match": "Hammond", "action": ["vote"], "agenda": "CONSENT AGENDA: All items listed in the Consent Agenda are considered routine and are proposed for adoption by the City Council by one motion"},
+        {"match": "[Dd]eicer", "action": ["vote"], "agenda": "CONSENT AGENDA ... ORDER Authorizing the Purchase of a 2026 Extended Reach Aircraft Deicer"},
+        {"match": "1397 Ohio", "action": ["referred"], "agenda": "FIRST READING & REFERRAL"},
+        {"match": "House of Entertainment|128B Main", "action": ["hearing"], "agenda": "NEW BUSINESS ... Public Hearing"},
+        {"match": "Godsoe", "action": ["vote", "unstated"], "agenda": "UNFINISHED BUSINESS"}
+      ]
+    },
+    {
+      "name": "lewiston-council-2026-11-17",
+      "url": "https://files.publick.org/lewiston-me/agendas/7034.pdf",
+      "sha256": "da3a1aab639feb46d5a8cbd45cc6c9f5233b192a49610688aeedc24648e4edf5",
+      "title": "City Council",
+      "date": "2026-11-17",
+      "items": [
+        {"match": "Brann", "action": ["vote"], "agenda": "CONSENT AGENDA: All items with an asterisk (*) are considered routine and will be enacted by one motion. *1. Amendment to the Traffic Schedule to prohibit parking on a portion of Brann Avenue."},
+        {"match": "Crestview", "action": ["vote"], "agenda": "*3. Order, Authorizing Execution of a Municipal Quitclaim Deed for Real Estate located at 10 Crestview Drive."},
+        {"match": "lot rent|[Mm]obile home", "unless": "[Aa]ttorney|[Pp]resentation", "action": ["hearing"], "agenda": "8. Continuation of Public Hearing for First Passage regarding an amendment to the Residential Rental Property Ordinance to regulate lot rent increases in mobile home parks."},
+        {"match": "[Ss]olid [Ww]aste|curbside", "action": ["hearing", "vote"], "agenda": "7. Public Hearing and Final Passage regarding an amendment to the Solid Waste Ordinance"},
+        {"match": "Charter Commission", "action": ["information"], "agenda": "12. Presentation regarding the newly established Charter Commission and review of next steps"}
+      ]
+    }
+  ]
+}

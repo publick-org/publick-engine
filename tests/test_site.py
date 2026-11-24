@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from pipeline import build_site, i18n, structured
+from pipeline import build_site, factcheck, i18n, structured
 from pipeline import search_index as site_search
 
 
@@ -1335,6 +1335,54 @@ def test_a_long_agenda_shows_its_first_items(tmp_path):
     shown, rest = decided[0].split('<details class="expand more-items">')
     assert "Item number 1<" not in shown
     assert "<summary>Show the agenda's 12 items</summary>" in rest and "Item number 1<" in rest and "Item number 12<" in rest
+
+
+def test_agenda_items_are_grouped_by_what_happens_to_them():
+    """Where most of an agenda's items say what happens to them at the meeting, the page groups them: votes, public
+    hearings, items sent to committee, items for information, then the rest, each in the agenda's order."""
+    preview = {"items": ["Snow and ice", "Chief of Police", "Deacon Farm Lane", "Donations", "Parade", "Updates"],
+               "item_actions": ["vote", "referred", "hearing", "referred", "information", "unstated"]}
+    assert build_site.agenda_groups(preview) == [
+        ("vote", ["Snow and ice"]), ("hearing", ["Deacon Farm Lane"]), ("referred", ["Chief of Police", "Donations"]),
+        ("information", ["Parade"]), ("unstated", ["Updates"])]
+    # Not where fewer than half say, or all are in one group, or the actions don't match the items, or there are none.
+    assert build_site.agenda_groups({**preview, "item_actions": ["vote", "referred", "unstated", "unstated", "unstated",
+                                                                 "unstated"]}) is None
+    assert build_site.agenda_groups({**preview, "item_actions": ["vote"] * 6}) is None
+    assert build_site.agenda_groups({**preview, "item_actions": ["vote", "referred"]}) is None
+    assert build_site.agenda_groups({"items": preview["items"]}) is None and build_site.agenda_groups(None) is None
+
+
+def test_a_grouped_agenda_on_its_page(tmp_path):
+    """The meeting page shows a grouped agenda under a heading for each group, and says the items sent to committee
+    aren't decided at the meeting; a group of more than ten shows its first eight, the rest a tap away."""
+    import shutil
+    from conftest import BUILT_AT, DATA_DIR
+    data = tmp_path / "data"
+    shutil.copytree(DATA_DIR, data)
+    grouped = 0
+    for path in sorted((data / "summaries").glob("*.json")):
+        rec = json.loads(path.read_text())
+        if rec.get("kind") == "agenda" and rec.get("items"):
+            rec["items"] = ["Snow and ice amortization schedule"] + [f"Referred item {n}" for n in range(1, 13)]
+            rec["item_actions"] = ["vote"] + ["referred"] * 12
+            rec["item_action_words"] = ["FCV"] + ["refer B&F"] * 12
+            rec["fact_check"] = {"version": factcheck.VERSION, "source": "pdf", "result": "ok", "problems": []}
+            path.write_text(json.dumps(rec))
+            grouped += 1
+    assert grouped
+    build_site.build("gloucester", tmp_path / "site", data_dir=data, now=BUILT_AT)
+    pages = [p.read_text() for p in (tmp_path / "site" / "meetings").glob("20*/index.html")
+             if "Referred item 12" in p.read_text() and 'class="decision-rows"' not in p.read_text()]
+    assert pages
+    page = pages[0]
+    assert '<h3 id="agenda-items">Up for a vote</h3>' in page and "<h3>Sent to committee</h3>" in page
+    assert page.index("Snow and ice amortization schedule") < page.index("<h3>Sent to committee</h3>")
+    assert "They aren't decided at this meeting." in page and "Agenda items</h3>" not in page
+    referred = page[page.index("<h3>Sent to committee</h3>"):]
+    shown, rest = referred.split('<details class="expand more-items">', 1)
+    assert "Referred item 8<" in shown and "Referred item 9<" not in shown
+    assert "<summary>Show 4 more items</summary>" in rest and "Referred item 12<" in rest
 
 
 def test_dates_this_year_leave_out_the_year():

@@ -45,7 +45,7 @@ PROMPTS = {
 
 # (version, hash of the prompt).
 PINNED = {
-    "summary of an agenda (summarize.KINDS)": (6, "9578a4a9fbdf38f1"),
+    "summary of an agenda (summarize.KINDS)": (7, "ee30ea4b79466838"),
     "summary of minutes (summarize.KINDS)": (6, "39703cc72fdd10b9"),
     "summary of a recording's transcript (summarize.KINDS)": (5, "fd47319bfe6267c8"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),

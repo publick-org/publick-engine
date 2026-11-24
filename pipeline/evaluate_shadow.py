@@ -104,7 +104,7 @@ def remade(item: dict, pdf: bytes, client, model: str, effort: str | None, price
                long_prompt=bool(used["long_prompts"]))
     if result is None:
         return out
-    record = {**summarize.split_decisions(result), "kind": item["kind"]}
+    record = {**summarize.as_saved(result), "kind": item["kind"]}
     if item["record"].get("transcript_source") == "ai" and item["record"].get("transcript"):
         # A scan: checked against the network's transcription, as the published summary is.
         record.update(transcript=item["record"]["transcript"], transcript_source="ai")
