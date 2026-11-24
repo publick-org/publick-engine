@@ -141,10 +141,10 @@ ITEM_ACTIONS = ("vote", "hearing", "referred", "information", "unstated")
 ITEM_LABELS = """
   - item: a short plain-English phrase.
   - action: what the agenda says happens to the item at this meeting, in one word. Go by the agenda's own markings (an action column, a note beside the item, a section's heading or note), never by what the item is about:
-    vote: the board is to vote or act on it at this meeting: the agenda marks it for a vote or for action, gives a motion or a recommended action, or lists it on a consent agenda that the board adopts by one vote.
+    vote: the board is to vote or act on it at this meeting: the agenda marks it for a vote or for action, gives a motion or a recommended action, or lists it on a consent agenda that the board adopts by one vote. Not an item that is only received, read, or placed on file: that is information, on a consent agenda too.
     hearing: a public hearing is held on it, or is listed as continued.
     referred: it is to be sent on to a committee, a department, or another board, to be decided later, not at this meeting (for example "refer to Finance", "to be referred to the Committee on Claims", "first reading and referral").
-    information: no decision is asked: a report, presentation, or communication received or placed on file, or one the agenda marks as information only.
+    information: no decision is asked: a report, presentation, or communication received, read, or placed on file (on a consent agenda too), or one the agenda marks as information only.
     unstated: the agenda doesn't say.
   - action_words: the agenda's own words that say what happens to the item, copied exactly as written, at most 12 words (for example "refer B&F", "FCV", "TO BE REFERRED TO THE COMMITTEE ON CLAIMS AND PENDING SUITS", "Information only"). An empty string when the action is unstated."""
 ITEM_LABEL_PROPERTIES = {"item": {"type": "string"}, "action": {"type": "string", "enum": list(ITEM_ACTIONS)},

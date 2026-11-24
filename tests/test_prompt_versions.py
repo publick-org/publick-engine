@@ -45,7 +45,9 @@ PROMPTS = {
 
 # (version, hash of the prompt).
 PINNED = {
-    "summary of an agenda (summarize.KINDS)": (7, "ee30ea4b79466838"),
+    # Version 7's wording on items received or placed on file changed before any release had it: nothing was made with
+    # the earlier wording.
+    "summary of an agenda (summarize.KINDS)": (7, "30e182df0cefd498"),
     "summary of minutes (summarize.KINDS)": (6, "39703cc72fdd10b9"),
     "summary of a recording's transcript (summarize.KINDS)": (5, "fd47319bfe6267c8"),
     "transcription (summarize.TRANSCRIBE)": (1, "4294fa5198b8819f"),

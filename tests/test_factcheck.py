@@ -1158,11 +1158,11 @@ def test_an_items_action_goes_with_its_item():
 def test_an_items_action_isnt_taken_from_words_that_say_another():
     """Words for a vote or information that say the item is sent on or heard, words too short to mean anything, a
     committee named, or a board with hearing in its name, don't stand for an action."""
-    agenda = GLOUCESTER_AGENDA + ("STANDING COMMITTEE REPORTS\nReferendum question\n"
+    agenda = GLOUCESTER_AGENDA + ("STANDING COMMITTEE REPORTS\nReferendum question\nplace the communication on file\n"
                                   "appointment as a member of the Juvenile Hearing Board, FOR CONFIRMATION\n")
     cases = [("vote", "refer O&A"), ("information", "(refer B&F)"), ("vote", "Cont. to 12/8/2026"), ("vote", "a"),
              ("information", "the"), ("referred", "STANDING COMMITTEE REPORTS"), ("referred", "Referendum question"),
-             ("hearing", "Juvenile Hearing Board")]
+             ("hearing", "Juvenile Hearing Board"), ("vote", "place the communication on file"), ("vote", "Info only")]
     record = agenda_record([a for a, _ in cases], [w for _, w in cases], items=[f"Item {n}" for n in range(len(cases))])
     problems = factcheck.check(record, "agenda", [agenda])["problems"]
     assert [p["entry"] for p in problems if p["kind"] == "action"] == list(range(1, len(cases) + 1))

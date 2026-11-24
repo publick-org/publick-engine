@@ -1335,6 +1335,9 @@ def current(record: dict, agendas: list[str] | None = None) -> bool:
 # that has hearing in its name ("Juvenile Hearing Board").
 SAYS_ACTION = {"referred": re.compile(r"(?i)\brefer(?:s|red|ral|ring)?\b"),
                "hearing": re.compile(r"(?i)\bpublic\s+hearings?\b|\bcont(?:inued|\.)?\s+(?:to|from)\b")}
+# What a vote's words can't say: that the item is placed on file, or for information ("waive the reading and place
+# the communication on file", "Info only", "for information only"). Not "receive": "receive final passage" is a vote.
+NOT_A_VOTE = re.compile(r"(?i)\bon\s+file\b|\binfo(?:rmation)?\b")
 # The fewest letters and digits an action's words have: "FCV" has three; "a" or "x" would be found in any agenda. Words
 # shorter than ACTION_WORDS_PLAIN are an abbreviation, in capitals ("FCV", "B&F"), not a word any agenda has ("the").
 ACTION_WORDS_LEAST = 3
@@ -1350,7 +1353,8 @@ def letters_only(text: str) -> str:
 def item_action_problems(record: dict, doc: str) -> list[dict]:
     """Each agenda item whose action (summarize.ITEM_ACTIONS) the agenda's text doesn't bear out: the words the
     summary gives for it are too short to mean anything, aren't in the agenda, or don't say what its action is (a
-    referral's or a hearing's), or say another action (a vote's or information's that say referral or hearing). Noted ("action"), never failed:
+    referral's or a hearing's), or say another action (a vote's or information's that say referral or hearing, a vote's
+    that say the item is placed on file, or for information). Noted ("action"), never failed:
     the item is shown, without its action (shown())."""
     actions, said = record.get("item_actions") or [], record.get("item_action_words") or []
     text = letters_only(doc)
@@ -1365,7 +1369,8 @@ def item_action_problems(record: dict, doc: str) -> list[dict]:
         short = len(letters_only(words)) < ACTION_WORDS_PLAIN and words != words.upper()
         if (len(letters_only(words)) < ACTION_WORDS_LEAST or short or letters_only(words) not in text
                 or (action in SAYS_ACTION and not SAYS_ACTION[action].search(words))
-                or (action not in SAYS_ACTION and any(p.search(words) for p in other))):
+                or (action not in SAYS_ACTION and any(p.search(words) for p in other))
+                or (action == "vote" and NOT_A_VOTE.search(words))):
             out.append({"field": "item_actions", "entry": i + 1, "kind": "action", "what": f"{action}: {words}"})
     return out
 
