@@ -208,10 +208,42 @@ def test_run_saves_agenda_once(config, tmp_path):
     assert agenda["has_text"] is False  # the city's agendas are scanned images
     assert agenda["original_filename"] == "September 28 2026.pdf"
 
+    # Two days before the meeting, the agenda is downloaded again, and the same file isn't saved twice.
+    second = FakeCityClient()
+    fetch_meetings.run(config, second, tmp_path, now=FETCHED_AT)
+    assert any("Archive.aspx?ADID=20124" in u for u in second.urls)
+    assert len(load(tmp_path)["12928"]["agendas"]) == 1
+    assert "history" not in load(tmp_path)["12928"]
+
+
+def test_agenda_isnt_downloaded_again_before_the_recheck_days(config, tmp_path, monkeypatch):
+    fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    monkeypatch.setattr(fetch_meetings, "AGENDA_RECHECK_DAYS", 1)  # the meeting is two days off
     second = FakeCityClient()
     fetch_meetings.run(config, second, tmp_path, now=FETCHED_AT)
     assert not any("Archive.aspx" in u for u in second.urls), "agenda should not be downloaded again"
-    assert len(load(tmp_path)["12928"]["agendas"]) == 1
+
+
+def test_agenda_revised_under_the_same_adid_is_a_new_version(config, tmp_path):
+    # Gloucester replaced its City Council agenda of 2026-11-24 the day before, under the same ADID.
+    fetch_meetings.run(config, FakeCityClient(), tmp_path, now=FETCHED_AT)
+    first = load(tmp_path)["12928"]["agendas"][0]
+    revised = FakeCityClient()
+    revised.agenda += b"\n% REVISED\n"
+    fetch_meetings.run(config, revised, tmp_path, now=FETCHED_AT.replace(day=27))
+    m = load(tmp_path)["12928"]
+    new = m["agendas"][-1]
+    assert [a["id"] for a in m["agendas"]] == ["20124", new["id"]]
+    assert new["id"].startswith("20124-") and new["revision_of"] == "20124" and new["sha256"] != first["sha256"]
+    assert (tmp_path / "meetings" / "agendas" / new["file"]).read_bytes().endswith(b"% REVISED\n")
+    assert (tmp_path / "meetings" / "agendas" / first["file"]).exists()  # the first version is kept
+    assert {"field": "agenda", "old": "20124", "new": new["id"]}.items() <= m["history"][-1].items()
+
+    # The revision, downloaded again unchanged, isn't saved again.
+    again = FakeCityClient()
+    again.agenda = revised.agenda
+    fetch_meetings.run(config, again, tmp_path, now=FETCHED_AT.replace(day=27))
+    assert len(load(tmp_path)["12928"]["agendas"]) == 2
 
 
 def test_run_records_revised_agenda(config, tmp_path):

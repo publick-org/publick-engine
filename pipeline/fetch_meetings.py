@@ -302,32 +302,53 @@ def merge(meeting: dict, updates: dict, at: str, track: bool) -> None:
         meeting[field] = new
 
 
-def fetch_agenda(client, meeting: dict, details: dict, storage, now: str) -> None:
+def recheck_due(meeting: dict, now: str) -> bool:
+    """Whether a saved agenda is downloaded again: the meeting is today or in the next AGENDA_RECHECK_DAYS."""
+    today = date.fromisoformat(now[:10])
+    return today.isoformat() <= meeting["date"] <= (today + timedelta(days=AGENDA_RECHECK_DAYS)).isoformat()
+
+
+def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, recheck: bool = False) -> None:
+    """Save the agenda the details name (agenda_id, agenda_url) as the meeting's latest, if it isn't saved yet.
+
+    Most sources give a revised agenda a new id (an Agenda Center's posting time, a new file). With recheck,
+    for a source whose id names the document and not its revision (an Archive Center's ADID, whose file the
+    city can replace), an agenda already saved is downloaded again in the AGENDA_RECHECK_DAYS before the
+    meeting, and saved as a new version, "<id>-<first 8 of its hash>", when its content changed."""
     agenda_id = details.get("agenda_id")
     if not agenda_id:
         return
     agendas = meeting.setdefault("agendas", [])
-    if any(a["id"] == agenda_id for a in agendas):
+    versions = [a for a in agendas if a["id"] == agenda_id or a.get("revision_of") == agenda_id]
+    if versions and not (recheck and recheck_due(meeting, now)):
         return
     response = client.get(details["agenda_url"])
     content, converted = response.content, None
+    # What the city posted, compared with the saved version's: a Word file's PDF isn't the same bytes twice.
+    source_sha = hashlib.sha256(content).hexdigest()
+    if versions and versions[-1].get("source_sha256", versions[-1]["sha256"]) == source_sha:
+        return
     if wordfile.is_docx(content):
         # Saved as a PDF of its text (pipeline/wordfile.py); the page links the saved copy.
         content, converted = wordfile.to_pdf(content), "docx"
     if not content.startswith(b"%PDF"):
         raise FetchError(f"agenda {agenda_id} is not a PDF or a Word (.docx) file")
+    sha = hashlib.sha256(content).hexdigest()
+    doc_id = f"{agenda_id}-{source_sha[:8]}" if versions else agenda_id
     disposition = response.headers.get("content-disposition", "")
     filename = re.search(r'filename="?([^";]+)', disposition)
-    name = f"{agenda_id}.pdf"
+    name = f"{doc_id}.pdf"
     storage.put("agendas", name, content)
     if agendas:
-        record_change(meeting, "agenda", agendas[-1]["id"], agenda_id, now)
+        record_change(meeting, "agenda", agendas[-1]["id"], doc_id, now)
     agendas.append({
-        "id": agenda_id,
+        "id": doc_id,
+        **({"revision_of": agenda_id} if versions else {}),
         "source_url": details["agenda_url"],
         "file": name,
         "original_filename": filename.group(1).strip() if filename else None,
-        "sha256": hashlib.sha256(content).hexdigest(),
+        "sha256": sha,
+        **({"source_sha256": source_sha} if converted else {}),
         "bytes": len(content),
         "has_text": pdf_has_text(content),
         "fetched_at": now,
@@ -397,6 +418,11 @@ def matches(settings: dict, title: str) -> bool:
 # How far ahead a CivicPlus calendar's event pages are read for the Agenda Center listing their
 # "Download Agenda" link names: a board posts its agenda a week or less before it meets.
 AGENDA_LINK_DAYS = 14
+# How many days before a meeting a CivicPlus calendar's agenda, already saved, is downloaded again
+# (fetch_agenda's recheck): the city can replace the Archive Center file under the same ADID, as
+# Gloucester's City Council's was the day before its meeting of 2026-11-24, moving two public hearings.
+# One request a run for each meeting this close, on top of its event page, which is read anyway.
+AGENDA_RECHECK_DAYS = 7
 # How far back a calendar's past listings have their event pages read, once each, for the agenda they link
 # (Calendar.past_link): the window of the network's report of meetings listed twice
 # (document_gaps.WINDOW_DAYS). A listing the calendar showed only after its meeting, or recorded before the
@@ -423,7 +449,7 @@ def civicplus_calendar(config: dict) -> Calendar:
         page = client.get(meeting["source_url"])
         found = civicplus.parse_event_page(page.text, base_url)
         merge(meeting, {k: found[k] for k in ("location_name", "address", "remote_url") if found.get(k)}, stamp, track=True)
-        fetch_agenda(client, meeting, found, storage, stamp)
+        fetch_agenda(client, meeting, found, storage, stamp, recheck=True)
 
     return Calendar("city calendar", events, lambda m: m.get("source", "calendar") == "calendar" and not m["id"].startswith("dnn-"),
                     details, title_body=civicplus_title_body)
@@ -502,7 +528,7 @@ def civicplus_list_calendar(config: dict) -> Calendar:
         found = civicplus.parse_event_page(client.get(meeting["source_url"]).text, base_url)
         merge(meeting, {k: found[k] for k in ("remote_url",) if found.get(k)}, stamp, track=True)
         page_address(meeting, found, stamp)
-        fetch_agenda(client, meeting, found, storage, stamp)
+        fetch_agenda(client, meeting, found, storage, stamp, recheck=True)
 
     def read_link(client, meeting, stamp):
         """The page of a meeting in a town with an Agenda Center: its address, and the listing its agenda link names."""
