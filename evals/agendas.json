@@ -30,12 +30,12 @@
       "date": "2026-11-10",
       "items": [
         {"match": "Piccadilly|Beecher", "action": ["referred"], "agenda": "Piccadilly LLC Tax Stabilization Agreement Request for 30 Beecher Street – TO BE REFERRED TO THE FINANCE COMMITTEE"},
-        {"match": "22,312|April, May,? and June", "action": ["referred"], "agenda": "IN THE TOTAL AMOUNT OF $22,312.67. – TO BE REFERRED TO THE FINANCE COMMITTEE"},
+        {"match": "22,312", "action": ["referred"], "agenda": "IN THE TOTAL AMOUNT OF $22,312.67. – TO BE REFERRED TO THE FINANCE COMMITTEE"},
         {"match": "Elisha", "action": ["referred"], "agenda": "(Elisha Project Lease request from George Ortiz) – TO BE REFERRED TO THE CITY PROPERTY COMMITTEE AND ORDINANCE COMMITTEE"},
         {"match": "Farinelli", "action": ["referred"], "agenda": "THE FOLLOWING CLAIM FOR DAMAGES AGAINST THE CITY TO BE REFERRED TO THE LAW DEPARTMENT AND RI INTERLOCAL TRUST: Lynn Farinelli"},
         {"match": "Cooper|Juvenile Hearing", "action": ["vote"], "agenda": "appointment as a member of the Juvenile Hearing Board, FOR CONFIRMATION ... ROLL CALL FOR CONFIRMATION"},
         {"match": "Daggett", "action": ["vote"], "agenda": "petition for relocation of multiple existing poles at Daggett Ave. TO BE APPROVED PENDING THE APPROVAL FROM THE DIRECTOR OF PUBLIC WORKS"},
-        {"match": "Vieira|Gonsalves|Jensen", "action": ["vote", "unstated"], "agenda": "THE COMMITTEE ON CLAIMS AND PENDING SUITS RETURNS THE FOLLOWING CLAIMS FOR DAMAGES AGAINST THE CITY"},
+        {"match": "Vieira|Gonsalves|Jensen|returned by the Committee on Claims", "action": ["vote", "unstated"], "agenda": "THE COMMITTEE ON CLAIMS AND PENDING SUITS RETURNS THE FOLLOWING CLAIMS FOR DAMAGES AGAINST THE CITY"},
         {"match": "pedestrian signal", "action": ["information", "vote"], "agenda": "*CONSENT AGENDA ... *CORRESPONDENCE: a resident's request for a pedestrian signal light"}
       ]
     },
