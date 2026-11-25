@@ -42,6 +42,7 @@ from pipeline import freshness
 from pipeline import glossary
 from pipeline import common_strings
 from pipeline import digest
+from pipeline import digest_subject
 from pipeline import dnn
 from pipeline import legistar
 from pipeline import meeting_sources
@@ -2405,12 +2406,16 @@ def digest_pages(pages: LanguagePages) -> list[dict]:
         issue["decided"] = digest.decided(issue, main_boards(config))
         # The week at a glance, for the top of the email (digest.glance()).
         issue["glance"] = digest.glance(issue)
-        # The email's subject, preheader and top story: as the model wrote them (pipeline/digest_subject.py) where
-        # they pass digest.problems(), else the week's lead decision (digest.subject()).
-        issue["subject"] = digest.subject(issue, main_boards(config), digest.stored(pages.data_dir, issue), pages.built_at)
+        # The email's subject, preheader and top story: as the model wrote them where they pass its check, else the
+        # week's lead decision (digest_subject.subject()). The top story links its meeting, so it's shown only while
+        # the meeting is one of the issue's: an issue sent weeks ago keeps its subject, and loses a story whose
+        # meeting has moved, rather than link a page the site no longer has.
+        issue["subject"] = digest_subject.subject(issue, main_boards(config), digest_subject.stored(pages.data_dir, issue),
+                                                  pages.built_at)
         pick = issue["subject"]["pick"]
         shown = issue["meetings"] + [e["meeting"] for e in issue["decided"]["entries"]]
-        issue["top"] = pick and {"pick": pick, "meeting": next((m for m in shown if m["url"] == pick["url"]), None)}
+        meeting = next((m for m in shown if pick and m["url"] == pick["url"]), None)
+        issue["top"] = {"pick": pick, "meeting": meeting} if meeting else None
         issue["lastmod"] = min(max([issue["sunday"], *(pages.changed[id(m)] for m in issue["meetings"] + issue["minutes"]
                                                       + issue["minutes_posted"])]), today.isoformat())
         pages.render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
@@ -2655,13 +2660,13 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
 def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: str, built_at: datetime) -> None:
     """RSS feed of the weekly digest (pipeline/digest.py), for an email provider to send: each issue
     whole, as HTML, dated when its email is due (digest.SEND_TIME on its Sunday). Each one's title, which the
-    email's subject is made from, is its subject (digest.subject()) where it has one."""
+    email's subject is made from, is its subject (digest_subject.subject()) where it has one."""
     site = config["site"]
 
     def title(issue: dict) -> str:
         monday = date.fromisoformat(issue["monday"])
         lead = (issue.get("subject") or {}).get("subject")
-        # The week's subject (digest.subject(): the model's, or the lead decision as a headline), or the week.
+        # The week's subject (digest_subject.subject(): the model's, or the lead decision as a headline), or the week.
         return lead or _("Week of {when}").format(when=plain_date(monday))
 
     entries = "".join(

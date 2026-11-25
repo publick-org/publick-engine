@@ -4,8 +4,8 @@
    (worker/digest.js), so its footer has what the law asks for: a link to unsubscribe (unsubscribe,
    the provider's tag for each reader's own) and a postal address (mailing_address, pipeline/digest.py).
    It opens with a preheader, the line an inbox shows beside the subject, hidden in the email itself: the model's
-   (digest.subject()), or a count of the week's meetings, hearings and decisions. Then the top story, where the issue
-   has one (issue.top: the candidate the subject is about, digest.subject()), said once as written by AI. Then
+   (digest_subject.subject()), or a count of the week's meetings, hearings and decisions. Then the top story, where the issue
+   has one (issue.top: the candidate the subject is about, digest_subject.subject()), said once as written by AI. Then
    "This week", a short list from digest.glance(); then the week's meetings,
    each with where it is (digest.short_place()); then what was decided, the strongest meeting first: a main board's
    and the lead's main decisions by their titles with their outcomes (up to shown_decisions,

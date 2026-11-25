@@ -727,11 +727,11 @@ def test_collecting_a_towns_batch_of_summaries_publishes_it_again(tmp_path, step
     assert collect["env"]["PUBLICK_SUMMARY_COLLECT"] == "1"
     assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in collect["env"]} == set(network.COLLECT_KEYS)
     # The summaries collected may change what the week's digest leads with: its subject is asked about again, with the
-    # model's key and the cost log's, and no other.
+    # model's key and the cost log's, and not the summaries' budget.
     subject = calls[1]
     assert subject["cmd"][2:] == ["pipeline.digest_subject", "--town", "gloucester"]
     assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in subject["env"]} == \
-        {"ANTHROPIC_API_KEY", *network.PRIVATE_KEYS, *network.BUDGET_KEYS}
+        {"ANTHROPIC_API_KEY", *network.PRIVATE_KEYS}
     assert result["collected"] and result["deployed"]
 
 

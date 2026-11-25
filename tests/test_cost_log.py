@@ -641,11 +641,12 @@ def test_only_the_steps_with_costs_get_the_private_store_and_the_budget():
     assert set(network.keyed(env, network.FETCH_KEYS)) == set(env) - {"SITES_BUCKET"}
     assert set(network.keyed(env, network.COLLECT_KEYS)) == set(env) - {"SITES_BUCKET"}
     assert set(network.keyed(env, network.PRIVATE_KEYS)) == set(cost_log.PRIVATE_KEYS)
-    # Within the fetch, the summaries and the digest's subject alone (pipeline/digest_subject.py, which logs its request).
+    # Within the fetch, the summaries alone; and the cost log alone to the digest's subject (pipeline/digest_subject.py,
+    # which logs its request, outside the summaries' budget).
     for source in update.SOURCES:
         given = set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS) & set(source.secrets)
-        assert given == (set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS)
-                         if source.module in ("pipeline.summarize", "pipeline.digest_subject") else set())
+        assert given == {"pipeline.summarize": set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS),
+                         "pipeline.digest_subject": set(cost_log.PRIVATE_KEYS)}.get(source.module, set())
 
 
 def test_the_digest_subjects_cost_counts_apart():

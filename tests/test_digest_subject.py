@@ -1,5 +1,5 @@
 """The weekly digest's subject, preheader and top story, chosen and written by a model (pipeline/digest_subject.py),
-and how the build uses them (digest.subject())."""
+and how the build uses them (digest_subject.subject())."""
 
 import json
 import shutil
@@ -124,18 +124,35 @@ def test_an_answer_cut_short_isnt_used(town):
     assert "stopped early (max_tokens)" in said
 
 
-def test_every_number_and_name_comes_from_the_candidate():
-    source = "City Council Tuesday Public hearing on FY27 tax rates, and $2,383,850 for 448 High Street; a 4-4 tie"
-    assert digest.ungrounded("Council hearing Tue on FY27 tax rates", source) == []
-    assert digest.ungrounded("$2,383,850 for 448 High Street", source) == []
-    assert digest.ungrounded("Council tie, 4-4", source) == []
-    # Rounded, changed or made up: each is named.
-    assert digest.ungrounded("$2.4M for 448 High St", source) == ["2.4", "M", "St"]
-    assert digest.ungrounded("Council hearing Tue on FY28 tax rates", source) == ["28"]
-    assert digest.ungrounded("Mayor Smith on tax rates", source) == ["Mayor", "Smith"]
-    # A sentence's first word may be capitalized where the source has it lowercase; a lead-in and a day are allowed.
-    assert digest.ungrounded("Tax rates hearing Tuesday", source) == []
-    assert digest.ungrounded("Also: Hearing on tax rates", source) == []
+def test_every_number_name_day_and_outcome_comes_from_the_candidate():
+    source = ("City Council Tuesday Public hearing on FY27 tax rates, and approved: $2,383,850 for 448 High Street; "
+              "a 4-4 tie at 1.75")
+    days = {"Tuesday", "Tue", "Tues"}
+    check = lambda text: digest_subject.ungrounded(text, source, days)
+    assert check("Council hearing Tue on FY27 tax rates") == []
+    assert check("Council approved $2,383,850 for 448 High Street") == []
+    assert check("Council tie, 4-4, at 1.75") == []
+    # Rounded, changed, cut from a bigger number, or made up: each is named.
+    assert check("$2.4M for 448 High St") == ["2.4", "M", "St"]
+    assert check("Council approves $2 million for schools") == ["2"]
+    assert check("$850 for 448 High Street") == ["850"]
+    assert check("Council hearing Tue on FY28 tax rates") == ["28"]
+    assert check("Mayor Smith on tax rates") == ["Mayor", "Smith"]
+    # A day not the meeting's, and an outcome the decisions don't have.
+    assert check("Council hearing Wed on FY27 tax rates") == ["Wed"]
+    assert check("Council denied $2,383,850 for 448 High Street") == ["denied"]
+    # A sentence's first word may be capitalized where the source has it lowercase; a lead-in is allowed.
+    assert check("Tax rates hearing Tuesday") == []
+    assert check("Also: Hearing on tax rates") == []
+
+
+def test_a_subject_may_give_the_meetings_date_and_time():
+    c = {"id": "A1", "kind": "ahead", "board": "City Council", "day": "Tuesday", "date": "2026-11-17", "time": "18:30",
+         "line": "Public hearing on FY27 tax rates.", "items": []}
+    answer = {"pick": "A1", "subject": "Council hearing Nov 17 at 6:30 PM on FY27 tax rates", "preheader": ""}
+    assert digest_subject.problems(answer, [c]) == []
+    assert digest_subject.problems({**answer, "subject": "Council hearing Nov 18 on FY27 tax rates"}, [c]) == \
+        ["its subject's '18' isn't in what the site says of A1"]
 
 
 @pytest.mark.parametrize("answer, expected", [
@@ -150,9 +167,9 @@ def test_every_number_and_name_comes_from_the_candidate():
      ["its preheader's 'Mayor' isn't in what the site says of any candidate"]),
 ])
 def test_what_keeps_an_answer_from_being_used(answer, expected):
-    cands = [{"id": "A1", "kind": "ahead", "board": "City Council", "day": "Tuesday",
+    cands = [{"id": "A1", "kind": "ahead", "board": "City Council", "day": "Tuesday", "date": "2026-11-17",
               "line": "Public hearing on FY27 tax rates.", "items": []}]
-    assert digest.problems(answer, cands) == expected
+    assert digest_subject.problems(answer, cands) == expected
 
 
 def test_an_issue_already_sent_keeps_its_subject():
@@ -163,7 +180,48 @@ def test_an_issue_already_sent_keeps_its_subject():
                        "date": "2026-11-17", "line": "Public hearing on FY27 tax rates.", "items": []}}
     issue = {"meetings": [], "send_at": datetime(2026, 11, 15, 7, 0, tzinfo=TZ),
              "decided": {"entries": [], "lead": None, "lead_title": None}}
-    before = digest.subject(issue, ["City Council"], record, datetime(2026, 11, 14, 12, 0, tzinfo=TZ))
+    before = digest_subject.subject(issue, ["City Council"], record, datetime(2026, 11, 14, 12, 0, tzinfo=TZ))
     assert (before["subject"], before["pick"], before["written"]) == (None, None, False)
-    after = digest.subject(issue, ["City Council"], record, datetime(2026, 11, 16, 12, 0, tzinfo=TZ))
+    after = digest_subject.subject(issue, ["City Council"], record, datetime(2026, 11, 16, 12, 0, tzinfo=TZ))
     assert (after["subject"], after["pick"]["url"], after["written"]) == (record["subject"], "/meetings/gone/", True)
+
+
+@pytest.mark.parametrize("now, asking", [
+    (datetime(2026, 11, 20, 23, 59, tzinfo=TZ), False),  # Friday night
+    (datetime(2026, 11, 21, 0, 0, tzinfo=TZ), True),     # Saturday: the issue of Sunday, November 22 is built
+    (datetime(2026, 11, 22, 6, 59, tzinfo=TZ), True),    # Sunday, before the send
+    (datetime(2026, 11, 22, 7, 0, tzinfo=TZ), False),    # sent
+    (datetime(2026, 11, 25, 12, 0, tzinfo=TZ), False),   # Wednesday
+    (datetime(2026, 10, 4, 9, 0, tzinfo=TZ), True),      # an evening issue's Sunday (before digest.MORNING_FROM)
+])
+def test_the_step_reads_nothing_outside_an_issues_weekend(now, asking):
+    assert digest_subject.asking_now(now) is asking
+
+
+def test_an_answer_that_fails_keeps_the_last_one_that_passed(town):
+    base, config = town
+    data = base / "data"
+    digest_subject.run(config, data, FakeClient(GOOD), SUNDAY_MORNING)
+    record = json.loads((data / "digest" / "2026-10-05.json").read_text())
+    # The candidates change (another run's summaries), and the next answer has a made-up figure.
+    record["input"] = "older"
+    (data / "digest" / "2026-10-05.json").write_text(json.dumps(record))
+    said = digest_subject.run(config, data, FakeClient({**GOOD, "subject": "Open Space Committee Tue on a $9M plan"}),
+                              SUNDAY_MORNING)
+    assert "wasn't used" in said
+    kept = json.loads((data / "digest" / "2026-10-05.json").read_text())
+    assert (kept["subject"], kept["tries"]) == (GOOD["subject"], 2) and kept["problems"]
+    title, _ = build(base, SUNDAY_MORNING.replace(hour=10))
+    assert title == GOOD["subject"]
+
+
+def test_a_sent_issue_whose_meeting_moved_keeps_its_subject_and_loses_its_story(town):
+    """An issue in the feed weeks after it was sent links no page the site no longer has."""
+    base, config = town
+    data = base / "data"
+    digest_subject.run(config, data, FakeClient(GOOD), SUNDAY_MORNING)
+    record = json.loads((data / "digest" / "2026-10-05.json").read_text())
+    record["pick"]["url"] = "/meetings/2026-10-06-gone/"
+    (data / "digest" / "2026-10-05.json").write_text(json.dumps(record))
+    title, body = build(base, datetime(2026, 10, 7, 9, 0, tzinfo=TZ))
+    assert title == GOOD["subject"] and "Coming up this week" not in body and "/meetings/2026-10-06-gone/" not in body

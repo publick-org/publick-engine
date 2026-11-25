@@ -13,6 +13,7 @@ ISSUE = {"name": "town 2026-11-22", "town": "Gloucester", "send": "Sunday, Novem
                         {"id": "D1", "kind": "decided", "board": "School Committee", "day": "Wednesday",
                          "date": "2026-11-18", "main_board": True, "source": "minutes", "line": "",
                          "decisions": ["approved: $25,000 Hate Crime Prevention Grant"]}]}
+# What the set's issues have of each candidate (all but its page's address).
 PRICES = {"input_price": 1.0, "output_price": 5.0}
 
 
@@ -37,7 +38,7 @@ def test_a_made_up_figure_or_a_poor_pick_fails_the_set():
 
 
 def test_the_set_is_as_the_prompt_takes_it():
-    """Each issue of the set has candidates as digest.candidates() gives them, and good picks among them."""
+    """Each issue of the set has candidates as digest_subject.candidates() gives them, and good picks among them."""
     issues = json.loads(evaluate_digest.SET.read_text())["issues"]
     assert len(issues) >= 10
     for issue in issues:

@@ -373,7 +373,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         # The summaries collected can change what the week's digest leads with: its subject is asked about again
         # where they did (pipeline/digest_subject.py, which does nothing outside an issue's weekend).
         steps.append(step("Write digest subject", [python, "-m", "pipeline.digest_subject", "--town", town],
-                          keyed(env, ("ANTHROPIC_API_KEY", *PRIVATE_KEYS, *BUDGET_KEYS)), town_dir, step_timeout))
+                          keyed(env, ("ANTHROPIC_API_KEY", *PRIVATE_KEYS)), town_dir, step_timeout))
 
     if fetch:
         update_report = town_dir / ".update-report.json"

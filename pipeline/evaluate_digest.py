@@ -1,8 +1,8 @@
 """The digest subject prompt run against the real model, on issues whose best stories were read by hand, before a
-change to the prompt (pipeline/digest_subject.py) or to how its answer is checked (digest.problems()) ships.
+change to the prompt (pipeline/digest_subject.py) or to how its answer is checked (problems(), there too) ships.
 
 Each issue in evals/digest_subjects.json, taken from the network's weekly digests, has the candidates its subject
-could be about, as digest.candidates() gives them, and the ones a reader would want it to lead with ("good"). Each is
+could be about, as digest_subject.candidates() gives them, and the ones a reader would want it to lead with ("good"). Each is
 sent as a town's run sends it, and its answer checked as the build checks it. The report says, for the set and each
 issue: the candidate picked, and whether it's a good one; the subject and preheader; and whatever would keep the
 build from using the answer (then the email's subject is the lead decision's headline, as without a model).
@@ -21,7 +21,7 @@ import os
 import sys
 from pathlib import Path
 
-from pipeline import digest, digest_subject, summarize
+from pipeline import digest_subject, summarize
 from pipeline import evaluate as minutes_set
 
 SET = Path(__file__).resolve().parent.parent / "evals" / "digest_subjects.json"
@@ -45,7 +45,7 @@ def evaluate(issue: dict, client, model: str, prices: dict) -> dict:
             answer = json.loads(text)
         except ValueError:
             found = ["its answer isn't JSON"]
-    found = found or digest.problems(answer, issue["candidates"])
+    found = found or digest_subject.problems(answer, issue["candidates"])
     return {"name": issue["name"], "pick": answer.get("pick"), "good": answer.get("pick") in issue["good"],
             "expected": issue["good"], "subject": answer.get("subject"), "preheader": answer.get("preheader"),
             "problems": found, "used": not found, "usage": usage, "cost": summarize.cost(usage, prices)}
