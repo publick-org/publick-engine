@@ -596,13 +596,19 @@ def test_a_daily_run_takes_the_towns_that_are_due(tmp_path):
                                 at=datetime(2026, 10, 3, 9, 0, tzinfo=timezone.utc))) == [["manchester-nh", "salem-ma"]]
 
 
-def test_run_record_keeps_the_last_full_fetch_through_a_partial_one(tmp_path, steps):
+def test_run_record_keeps_the_last_full_fetch_through_a_partial_one(tmp_path, steps, monkeypatch):
+    # Each call a minute later, so the partial run finishes after the full one.
+    from datetime import datetime, timedelta, timezone
+    from itertools import count
+    minutes = count()
+    start = datetime(2026, 11, 24, 9, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(network, "now", lambda: (start + timedelta(minutes=next(minutes))).isoformat())
     root = make_root(tmp_path)
     (root / "towns" / "gloucester-ma" / "data").mkdir()
     full = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
     assert full["full_fetch_at"] == full["finished_at"]
     meetings = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None, sources="meetings")
-    assert meetings["full_fetch_at"] == full["finished_at"]
+    assert meetings["finished_at"] > full["finished_at"] and meetings["full_fetch_at"] == full["finished_at"]
     assert network.last_fetched(root, "gloucester-ma") == full["finished_at"]
     # A run that only rebuilds and publishes leaves it as it was.
     network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None)

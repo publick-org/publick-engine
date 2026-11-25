@@ -210,7 +210,7 @@ def full_fetch_at(record: dict) -> str | None:
 
 
 def due(root: Path, towns: list[str], hours: float, at: datetime | None = None) -> list[str]:
-    """The towns whose last fetching run finished more than `hours` ago, or never ran, oldest first."""
+    """The towns whose last full fetch finished more than `hours` ago, or that never had one, oldest first."""
     at = at or datetime.now(timezone.utc)
     last = {t: last_fetched(root, t) for t in towns}
     waiting = [t for t in towns if not last[t] or datetime.fromisoformat(last[t]) <= at - timedelta(hours=hours)]
@@ -452,7 +452,7 @@ def republished(path: Path, result: dict) -> None:
     the last fetching run's, with this run's build, checks, and publish in place of that run's. So a
     site fixed and published after a daily run that couldn't publish it isn't shown as not
     published, on the status page and in the daily alert, until the next daily run. When the
-    fetching run was due is unchanged (finished_at)."""
+    town is next due is unchanged (full_fetch_at)."""
     record = json.loads(path.read_text(encoding="utf-8"))
     record["steps"] = ([s for s in record.get("steps", []) if s["name"] not in PUBLISH_STEPS]
                        + [s for s in result["steps"] if s["name"] in PUBLISH_STEPS])
