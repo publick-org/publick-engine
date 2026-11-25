@@ -101,7 +101,7 @@ def combine(records: list[dict], why: str, listing_of=lambda m: m.get("source", 
         value = next((m[field] for m in placed if m.get(field)), None)
         if value:
             out[field] = value
-    for field in ("documents_url", "agenda_url", "minutes_url"):
+    for field in ("documents_url", "agenda_url", "minutes_url", "notice_url"):
         out[field] = next((m[field] for m in newest[::-1] if m.get(field)), None)
     rank = {m["id"]: i for i, m in enumerate(newest)}
     for field in ("agendas", "minutes"):

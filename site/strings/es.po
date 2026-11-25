@@ -5212,6 +5212,10 @@ msgstr "Mediana, últimos 12 meses"
 msgid "Meeting details"
 msgstr "Detalles de la reunión"
 
+#: site/templates/meeting.html
+msgid "Meeting notice"
+msgstr "Aviso de la reunión"
+
 #: pipeline/freshness.py
 msgid "Meeting summaries"
 msgstr "Resúmenes de reuniones"
@@ -8382,6 +8386,21 @@ msgstr "El cambio es en el impuesto recaudado. Las cantidades no están ajustada
 #: site/templates/meeting.html
 msgid "The city"
 msgstr "La ciudad"
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The city posted a <a href=\"%(url)s\">notice of this meeting</a>, but no agenda."
+msgstr "La ciudad publicó un <a href=\"%(url)s\">aviso de esta reunión</a>, pero no la agenda."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The city posted a <a href=\"%(url)s\">notice of this meeting</a>."
+msgstr "La ciudad publicó un <a href=\"%(url)s\">aviso de esta reunión</a>."
+
+#: site/templates/meeting.html
+#, python-format
+msgid "The city's <a href=\"%(url)s\">notice of this meeting</a> may say how to comment."
+msgstr "El <a href=\"%(url)s\">aviso de esta reunión</a> de la ciudad puede decir cómo hacer comentarios."
 
 #: site/states/nh/budget.html
 msgid "The city's adopted budget, where the tax goes, and the average single-family tax bill."

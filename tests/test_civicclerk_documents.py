@@ -126,6 +126,23 @@ def test_turning_documents_on_rereads_from_since(config, tmp_path):
     assert "2026-07-30" in client.urls[0]  # then back to 60 days
 
 
+def test_first_run_that_reads_notices_rereads_from_since(config, tmp_path):
+    """With documents on too, meetings recorded before notices were told apart are read again from `since`, once."""
+    config["meetings"]["civicclerk"]["since"] = "2026-06-01"
+    fetch_meetings.run(config, FakeManchesterFiles(), tmp_path, now=AFTER)
+    path = fetch_meetings.meetings_dir(tmp_path) / "meetings.json"
+    store = json.loads(path.read_text())
+    for m in store.values():
+        m.pop("notice_url", None)
+    path.write_text(json.dumps(store))
+    client = FakeManchesterFiles()
+    fetch_meetings.run(config, client, tmp_path, now=AFTER.replace(day=27))
+    assert "2026-06-01" in client.urls[0]
+    client = FakeManchesterFiles()
+    fetch_meetings.run(config, client, tmp_path, now=AFTER.replace(day=28))
+    assert "2026-07-30" in client.urls[0]
+
+
 # Early September: the city calendar's September meetings are upcoming.
 SEPTEMBER = datetime(2026, 9, 5, 7, 0, tzinfo=TZ)
 

@@ -1100,6 +1100,7 @@ def load_meetings(data_dir: Path, today: date, summary_model: str | None = None,
         for key, default in optional.items():
             m.setdefault(key, default)
         m.setdefault("documents_url", None)
+        m.setdefault("notice_url", None)
         # Where the meeting is listed, in sentences like "Removed from the city calendar".
         m["listing"] = _(LISTINGS.get(m["source"], CALENDAR))
         m["url"] = f"/meetings/{m['slug']}/"

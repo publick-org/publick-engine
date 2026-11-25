@@ -222,7 +222,8 @@
   {% endif %}
   {% if m.minutes_doc %}{% set __ = links.append({"url": document_url('minutes', m.minutes_doc.file) if m.minutes_doc.get('converted_from') else m.minutes_doc.source_url, "label": _("Minutes (PDF)")}) %}{% endif %}
   {% if m.agenda %}{% set __ = links.append({"url": document_url('agendas', m.agenda.file) if m.agenda.get('converted_from') else m.agenda.source_url, "label": _("Agenda (PDF)")}) %}
-  {% elif m.documents_url %}{% set __ = links.append({"url": m.documents_url, "label": _("Agenda and minutes") if m.source == "civicclerk" and not upcoming else _("Agenda")}) %}{% endif %}
+  {% elif m.documents_url %}{% set __ = links.append({"url": m.documents_url, "label": _("Agenda and minutes") if m.source == "civicclerk" and not upcoming else _("Agenda")}) %}
+  {% elif m.notice_url %}{% set __ = links.append({"url": m.notice_url, "label": _("Meeting notice")}) %}{% endif %}
   {% if m.transcript_doc and m.status != "cancelled" %}
   {% set transcripts = m.transcript_doc.get("parts") or [m.transcript_doc] %}
   {% for part in transcripts %}
@@ -279,7 +280,8 @@
   {# Translators: %(title)s is a local TV station or video channel. #}
   {% if recording %}<li>{% trans url=recording %}Watch it on <a href="{{ url }}">YouTube</a>.{% endtrans %}</li>
   {% elif part.get("video_url") %}<li>{% trans url=part.video_url, title=part.video_title %}Meetings are broadcast and recorded by <a href="{{ url }}">{{ title }}</a>.{% endtrans %}</li>{% endif %}
-  {% if m.agenda or m.documents_url %}<li>{% trans url=m.agenda.source_url if m.agenda else m.documents_url %}The <a href="{{ url }}">posted agenda</a> is the official notice and may say how to comment.{% endtrans %}</li>{% endif %}
+  {% if m.agenda or m.documents_url %}<li>{% trans url=m.agenda.source_url if m.agenda else m.documents_url %}The <a href="{{ url }}">posted agenda</a> is the official notice and may say how to comment.{% endtrans %}</li>
+  {% elif m.notice_url %}<li>{% trans url=m.notice_url %}The city's <a href="{{ url }}">notice of this meeting</a> may say how to comment.{% endtrans %}</li>{% endif %}
   {% if meeting_links.notify %}<li>{% trans url=meeting_links.notify %}For official email or text alerts about this board, sign up for the city's <a href="{{ url }}">Notify Me</a> service.{% endtrans %}</li>{% endif %}
 </ul>
 {% elif recording and m.status != "cancelled" %}
@@ -309,7 +311,9 @@
 {% set archive_note %}{% trans url=meeting_links.archive, name=meeting_links.archive_name %}Minutes are on the <a href="{{ url }}">{{ name }}</a>.{% endtrans %}{% endset %}
 <p>{% trans url=m.documents_url %}The <a href="{{ url }}">agenda</a> is posted on the city website.{% endtrans %}{% if not upcoming and meeting_links.archive %} {{ archive_note }}{% endif %}</p>
 {% elif upcoming %}
-<p>{{ _("No agenda posted yet.") }}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
+<p>{{ _("No agenda posted yet.") }}{% if m.notice_url %} {% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>.{% endtrans %}{% endif %}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
+{% elif m.notice_url %}
+<p>{% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>, but no agenda.{% endtrans %}</p>
 {% elif m.board_documents_url %}
 <p>{% trans url=m.board_documents_url %}No agenda for this meeting was recorded here. The city's listing links to <a href="{{ url }}">the board's documents</a>.{% endtrans %}</p>
 {% elif meeting_links.archive %}
@@ -519,7 +523,7 @@
 {% endif %}
 {% endset %}{% set __ = about.notes.append(n) %}
 {% elif m.date >= built_at.date().isoformat() %}
-<p>{{ _("No agenda posted yet.") }}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
+<p>{{ _("No agenda posted yet.") }}{% if m.notice_url %} {% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>.{% endtrans %}{% endif %}{% if m.board_documents_url %} {% trans url=m.board_documents_url %}The city's listing links to <a href="{{ url }}">the board's documents</a>, which aren't this meeting's agenda.{% endtrans %}{% endif %}</p>
 {% elif m.board_documents_url %}
 <p>{% trans url=m.board_documents_url %}No agenda for this meeting was recorded here. The city's listing links to <a href="{{ url }}">the board's documents</a>.{% endtrans %}</p>
 {% elif m.source == "archive" %}
@@ -532,6 +536,8 @@
 <p>{% trans url=m.get("agenda_url") or m.documents_url %}A copy of the agenda wasn't saved here. It is on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% elif m.agenda_gap and m.agenda_gap.reason == "not_held" %}
 <p>{{ _("This meeting didn't take place as listed, so no agenda is recorded here.") }}</p>
+{% elif m.notice_url %}
+<p>{% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>, but no agenda.{% endtrans %}</p>
 {% elif m.agenda_gap %}
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
 <p>{% trans listing=m.listing %}The {{ listing }} doesn't link an agenda for this meeting.{% endtrans %}</p>
