@@ -44,6 +44,15 @@ def file_url(api_url: str, file_id) -> str:
     return f"{api_url.rstrip('/')}/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
 
 
+def has_documents(event: dict) -> bool:
+    """Whether the event has published an agenda or minutes: a file whose type names
+    one ("Agenda", "Agenda Packet", "Minutes", "Unsealed Non-Public Minutes"). A
+    portal can post a meeting's notice first (type "Notice", as Nashua's "Meeting
+    Notice" or "Affidavit"), which says only when and where it meets."""
+    return any(re.search(r"\b(?:agenda|minutes)\b", f.get("type") or "", re.I)
+               for f in event.get("publishedFiles") or [])
+
+
 def documents(event: dict, api_url: str) -> dict:
     """The agenda and minutes an event has published, as fields for its meeting record."""
     found = {}
@@ -105,7 +114,7 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
             "end_time": None,
             "address": address(e.get("eventLocation"), states),
             # The agenda and minutes stay on the portal for now; this links to them once posted.
-            "documents_url": url if e.get("publishedFiles") else None,
+            "documents_url": url if has_documents(e) else None,
         }
         # The portal can put the event's recurrence before its name: "One Time EventJoint Public Hearing ...",
         # or give it as the whole name, the board then only in the event's category ("Peaks Island Council").

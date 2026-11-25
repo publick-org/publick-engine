@@ -153,6 +153,21 @@ def test_civicclerk_events():
     assert "skiptoken" in civicclerk.next_page(json.loads((FIXTURES / "civicclerk_events_1.json").read_text()))
 
 
+def test_civicclerk_notice_alone_is_not_an_agenda():
+    """A meeting whose only published file is its notice (Nashua's "Meeting Notice", "Affidavit") links to
+    no documents, so it isn't listed as "Agenda posted"; an agenda, packet, or minutes of any kind is."""
+    def event(id_, *types):
+        return {"id": id_, "startDateTime": "2026-12-01T08:00:00Z", "eventName": "201 Main St Financing Meeting",
+                "publishedFiles": [{"type": t, "name": f"{t} file", "fileId": id_ * 10 + i} for i, t in enumerate(types)]}
+    data = {"value": [event(1, "Notice"), event(2, "Notice", "Agenda"), event(3, "Agenda Packet"),
+                      event(4, "Unsealed Non-Public Minutes"), event(5, "Other"), event(6)]}
+    for api_url in (None, "https://nashuanh.api.civicclerk.com/v1"):
+        found = {e["id"]: e for e in civicclerk.parse_events(data, PORTAL, api_url=api_url)}
+        linked = {i for i in range(1, 7) if found[f"civicclerk-{i}"]["documents_url"]}
+        assert linked == {2, 3, 4}
+        assert "agenda_id" not in found["civicclerk-1"]
+
+
 def test_civicclerk_event_name_without_its_recurrence():
     data = {"value": [{"id": 7, "startDateTime": "2026-09-09T18:30:00Z", "publishedFiles": [],
                        "eventName": "One Time EventJoint Public Hearing with the Planning Board September 9, 2026"}]}
