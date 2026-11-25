@@ -45,7 +45,9 @@ VERSION = 1
 # The most an issue is asked about: its candidates can change as the Saturday run and the batch it sends are
 # collected, but an issue's subject isn't worth more requests than that.
 MAX_TRIES = 3
-MAX_TOKENS = 600
+# Room for the answer and the thinking before it: the current models think by default, and their thinking counts
+# against max_tokens, so a tight cap cuts most answers off (the first runs of the evaluation set, at 600).
+MAX_TOKENS = 16000
 # Where the answers are kept, in the town's data folder.
 SUBJECTS_DIR = "digest"
 
@@ -112,14 +114,19 @@ def candidates(issue: dict, main_boards: list[str]) -> list[dict]:
     return found
 
 
+def clock(start: str) -> str:
+    """A meeting's start time as the site writes it: "18:30" is "6:30 PM"."""
+    at = time.fromisoformat(start)
+    return f"{at.hour % 12 or 12}:{at.minute:02d} {'PM' if at.hour >= 12 else 'AM'}"
+
+
 def when_words(c: dict) -> list[str]:
     """A candidate's day, date and time in the ways a subject may give them: "Tuesday", "November 17", "Nov 17",
     "6:30 PM", "6:30"."""
     day = date.fromisoformat(c["date"])
     words = [c["day"], f"{day:%B} {day.day}", f"{day:%b} {day.day}"]
     if c.get("time"):
-        at = time.fromisoformat(c["time"])
-        words += [f"{at.hour % 12 or 12}:{at.minute:02d} {'PM' if at.hour >= 12 else 'AM'}", f"{at.hour % 12 or 12}"]
+        words += [clock(c["time"]), clock(c["time"]).split(":")[0]]
     return words
 
 
@@ -258,7 +265,7 @@ SCHEMA = {
 def describe(c: dict) -> str:
     """A candidate as the prompt lists it."""
     if c["kind"] == "ahead":
-        head = [c["id"], "meeting to come", c["board"], c["day"] + (f" at {c['time']}" if c.get("time") else "")]
+        head = [c["id"], "meeting to come", c["board"], c["day"] + (f" at {clock(c['time'])}" if c.get("time") else "")]
         if c["main_board"]:
             head.append("the town's main board")
         if c["hearing"]:

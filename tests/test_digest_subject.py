@@ -63,7 +63,10 @@ def test_the_model_writes_the_subject_once_and_the_email_uses_it(town):
     # The model was given the week's meetings as the site shows them, and nothing else.
     request = client.calls[0]
     assert request["model"] == config["summaries"]["model"]
-    assert "A2 · meeting to come · Open Space and Recreation Committee · Tuesday at 17:00" in request["messages"][0]["content"]
+    # Its start time as the site writes it, which a subject may then give as written.
+    assert "A2 · meeting to come · Open Space and Recreation Committee · Tuesday at 5:00 PM" in request["messages"][0]["content"]
+    # Room for the model's thinking before its answer, which counts against max_tokens.
+    assert request["max_tokens"] >= 8000
     assert "ADA compliance with the city's operations director" in request["messages"][0]["content"]
     record = json.loads((data / "digest" / "2026-10-05.json").read_text())
     assert (record["subject"], record["preheader"], record["problems"], record["tries"]) == (GOOD["subject"], GOOD["preheader"], [], 1)
