@@ -88,6 +88,7 @@ DEFAULT_PRICES = {"input_price": 2.0, "output_price": 10.0}
 PRICES = {
     "claude-sonnet-5": DEFAULT_PRICES,
     "claude-sonnet-5-5": {"input_price": 2.0, "output_price": 10.0},
+    "claude-opus-5-5": {"input_price": 4.0, "output_price": 20.0},
     "claude-haiku-5-5": {"input_price": 0.1, "output_price": 0.5,
                          "long_prompt_tokens": 100_000, "long_input_price": 0.5, "long_output_price": 2.5},
 }

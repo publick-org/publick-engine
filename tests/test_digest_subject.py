@@ -225,3 +225,23 @@ def test_a_sent_issue_whose_meeting_moved_keeps_its_subject_and_loses_its_story(
     (data / "digest" / "2026-10-05.json").write_text(json.dumps(record))
     title, body = build(base, datetime(2026, 10, 7, 9, 0, tzinfo=TZ))
     assert title == GOOD["subject"] and "Coming up this week" not in body and "/meetings/2026-10-06-gone/" not in body
+
+
+def test_the_subject_has_a_model_of_its_own_or_the_summaries():
+    summaries = {"model": "claude-haiku-5-5", "input_price": 0.1, "output_price": 0.5, "effort": "high"}
+    assert digest_subject.settings({"summaries": summaries}) == {
+        "model": "claude-haiku-5-5", "input_price": 0.1, "output_price": 0.5, "effort": None}
+    chosen = digest_subject.settings({"summaries": {**summaries, "digest_model": "claude-sonnet-5-5",
+                                                    "digest_input_price": 2.0, "digest_output_price": 10.0,
+                                                    "digest_effort": "low"}})
+    assert chosen == {"model": "claude-sonnet-5-5", "input_price": 2.0, "output_price": 10.0, "effort": "low"}
+    request = digest_subject.request(chosen["model"], "Gloucester", "Sunday", [], chosen["effort"])
+    assert request["model"] == "claude-sonnet-5-5" and request["output_config"]["effort"] == "low"
+
+
+def test_a_digest_model_without_its_prices_asks_nothing(town):
+    base, config = town
+    client = FakeClient(GOOD)
+    config = {**config, "summaries": {**config["summaries"], "digest_model": "claude-sonnet-5-5"}}
+    assert digest_subject.run(config, base / "data", client, SUNDAY_MORNING).startswith("skipped:")
+    assert client.calls == []

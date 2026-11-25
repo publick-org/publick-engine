@@ -22,8 +22,8 @@ def test_a_good_answer_passes():
                          "preheader": "Last week: School Committee approved $25,000 grant"})
     result = evaluate_digest.evaluate(ISSUE, client, "claude-haiku-5-5", PRICES)
     assert (result["good"], result["used"], result["problems"]) == (True, True, [])
-    text, failed = evaluate_digest.report([result], {"model": "claude-haiku-5-5"})
-    assert not failed and "1 of 1 answers would be used" in text and "| A1 (good) |" in text
+    text, failed = evaluate_digest.report([{"model": "claude-haiku-5-5", "results": [result]}])
+    assert not failed and "| claude-haiku-5-5 | default | 1 of 1 | 1 of 1 |" in text and "| A1 (good) |" in text
 
 
 def test_a_made_up_figure_or_a_poor_pick_fails_the_set():
@@ -33,8 +33,19 @@ def test_a_made_up_figure_or_a_poor_pick_fails_the_set():
     poor = evaluate_digest.evaluate(ISSUE, FakeClient({"pick": "D1", "subject": "School Committee approved $25,000 grant",
                                                        "preheader": ""}), "m", PRICES)
     assert poor["used"] and not poor["good"]
-    text, failed = evaluate_digest.report([made_up, poor], {"model": "m"})
-    assert failed and "(expected A1)" in text
+    text, failed = evaluate_digest.report([{"model": "m", "results": [made_up, poor]}])
+    assert failed and "(expected A1)" in text and "| m | default | 1 of 2 | 1 of 2 |" in text
+
+
+def test_models_are_compared_side_by_side():
+    good = evaluate_digest.evaluate(ISSUE, FakeClient({"pick": "A1", "subject": "Council hearing Tue on FY27 tax rates",
+                                                       "preheader": ""}), "a", PRICES, effort="low")
+    poor = evaluate_digest.evaluate(ISSUE, FakeClient({"pick": "D1", "subject": "School Committee approved $25,000 grant",
+                                                       "preheader": ""}), "b", PRICES)
+    text, failed = evaluate_digest.report([{"model": "a", "effort": "low", "results": [good]},
+                                           {"model": "b", "results": [poor]}])
+    assert failed and "| a | low | 1 of 1 | 1 of 1 |" in text and "| b | default | 1 of 1 | 0 of 1 |" in text
+    assert "## a, effort low" in text and "## b" in text
 
 
 def test_the_set_is_as_the_prompt_takes_it():

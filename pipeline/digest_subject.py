@@ -14,8 +14,8 @@ the check are both here, so a change to either runs the prompt's evaluation set 
 It runs after the summaries in each daily run (pipeline/update.py, town.yml), and again after a batch of them is
 collected (pipeline/network.py), for a town whose digest is emailed ([digest] signup). It does nothing outside an
 issue's Saturday and Sunday morning (asking_now(), before it reads anything), so it asks about one issue a week, a
-request or two of the summaries' model
-([summaries] model, at its prices), written to the town's cost log as kind "digest" (pipeline/cost_log.py). Needs
+request or two of the model [summaries] digest_model names, with its digest_input_price, digest_output_price and
+digest_effort, or else of the summaries' model at their prices (settings()), written to the town's cost log as kind "digest" (pipeline/cost_log.py). Needs
 ANTHROPIC_API_KEY; without it, the step is skipped, and the subject is the lead decision's headline.
 
 Usage:
@@ -277,21 +277,36 @@ def describe(c: dict) -> str:
     return "\n".join(lines)
 
 
-def request(model: str, town: str, send: str, cands: list[dict]) -> dict:
-    """The request for an issue's subject."""
+def settings(config: dict) -> dict:
+    """The subject's model, its prices, and its effort: [summaries] digest_model, digest_input_price,
+    digest_output_price and digest_effort; or, for a town that names no digest_model, the summaries' own model and
+    prices, with digest_effort if it gives one. Without an effort, the model's default."""
+    s = config.get("summaries", {})
+    if "digest_model" in s:
+        found = {"model": s["digest_model"], "input_price": s.get("digest_input_price"),
+                 "output_price": s.get("digest_output_price")}
+    else:
+        found = {k: s.get(k) for k in ("model", "input_price", "output_price")}
+        found.update({k: s[k] for k in ("long_prompt_tokens", "long_input_price", "long_output_price") if k in s})
+    return {**found, "effort": s.get("digest_effort")}
+
+
+def request(model: str, town: str, send: str, cands: list[dict], effort: str | None = None) -> dict:
+    """The request for an issue's subject. Without an effort, the model's default."""
     return {
         "model": model,
         "max_tokens": MAX_TOKENS,
         "system": SYSTEM,
         "messages": [{"role": "user", "content": PROMPT.format(
             town=town, send=send, candidates="\n\n".join(describe(c) for c in cands))}],
-        "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
+        "output_config": {**({"effort": effort} if effort else {}), "format": {"type": "json_schema", "schema": SCHEMA}},
     }
 
 
-def fingerprint(model: str, cands: list[dict]) -> str:
-    """What an issue was asked: the prompt's version, the model, and the candidates."""
-    text = json.dumps({"version": VERSION, "model": model, "candidates": cands}, sort_keys=True, ensure_ascii=False)
+def fingerprint(model: str, cands: list[dict], effort: str | None = None) -> str:
+    """What an issue was asked: the prompt's version, the model and its effort, and the candidates."""
+    text = json.dumps({"version": VERSION, "model": model, "effort": effort, "candidates": cands}, sort_keys=True,
+                      ensure_ascii=False)
     return hashlib.sha256(text.encode()).hexdigest()
 
 
@@ -331,18 +346,18 @@ def run(config: dict, data_dir: Path, client, now: datetime) -> str:
     """Ask about the coming issue, if its candidates changed. Returns what was done, a line for the run's log."""
     if not asking_now(now):
         return "no issue waiting to be sent"
-    settings = summarize.summary_settings(config)
-    missing = summarize.missing_prices(settings)
-    if missing:
-        return f"skipped: {missing}"
+    chosen = settings(config)
+    if chosen["model"] is None or chosen["input_price"] is None or chosen["output_price"] is None:
+        return ("skipped: [summaries] digest_model needs digest_input_price and digest_output_price, and the summaries' "
+                "model their input_price and output_price, for the cost log")
     issue, boards = coming_issue(config, data_dir, now)
     if not issue:
         return "no issue waiting to be sent"
     cands = candidates(issue, boards)
     if not cands:
         return f"the issue of {issue['monday']} has nothing to lead with"
-    model = settings["model"]
-    asked = fingerprint(model, cands)
+    model, effort = chosen["model"], chosen["effort"]
+    asked = fingerprint(model, cands, effort)
     path = record_path(data_dir, issue)
     before = stored(data_dir, issue) or {}
     if before.get("input") == asked:
@@ -350,12 +365,13 @@ def run(config: dict, data_dir: Path, client, now: datetime) -> str:
     tries = before.get("tries", 0)
     if tries >= MAX_TRIES:
         return f"the issue of {issue['monday']} was asked {tries} times already"
-    log = summarize.open_log(data_dir, settings, now, config)
+    # The log is opened with the summaries' settings, which a town's first log is seeded from.
+    log = summarize.open_log(data_dir, summarize.summary_settings(config), now, config)
     try:
         response = client.messages.create(**request(model, config["town"]["name"],
-                                                     issue["send_at"].strftime("%A, %B %-d, at %-I:%M %p"), cands))
+                                                     issue["send_at"].strftime("%A, %B %-d, at %-I:%M %p"), cands, effort))
         usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
-        log.request(response, "digest", summarize.cost(usage, settings), model=model, usage=usage,
+        log.request(response, "digest", summarize.cost(usage, chosen), model=model, usage=usage,
                     issue=issue["monday"])
     finally:
         log.close()
@@ -370,7 +386,7 @@ def run(config: dict, data_dir: Path, client, now: datetime) -> str:
             found = ["its answer isn't JSON"]
     found = found or problems(answer, cands)
     pick = next((c for c in cands if c["id"] == answer.get("pick")), None)
-    record = {"monday": issue["monday"], "version": VERSION, "model": model, "input": asked, "tries": tries + 1,
+    record = {"monday": issue["monday"], "version": VERSION, "model": model, "effort": effort, "input": asked, "tries": tries + 1,
               "generated_at": now.isoformat(timespec="seconds"), "answer": answer, "problems": found}
     if not found:
         record.update(subject=answer["subject"].strip(), preheader=answer["preheader"].strip(), pick=pick)
