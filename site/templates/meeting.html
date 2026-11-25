@@ -532,12 +532,12 @@
 {% elif district %}
 {# Translators: %(name)s is a school district, such as "Beverly Public Schools". #}
 <p>{% trans url=m.source_url, name=m.source_name %}Agenda not recorded here. It may be on the <a href="{{ url }}">{{ name }} website</a>.{% endtrans %}</p>
-{% elif m.notice_url %}
-<p>{% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>, but no agenda.{% endtrans %}</p>
 {% elif m.get("agenda_url") or m.documents_url %}
 <p>{% trans url=m.get("agenda_url") or m.documents_url %}A copy of the agenda wasn't saved here. It is on the <a href="{{ url }}">city website</a>.{% endtrans %}</p>
 {% elif m.agenda_gap and m.agenda_gap.reason == "not_held" %}
 <p>{{ _("This meeting didn't take place as listed, so no agenda is recorded here.") }}</p>
+{% elif m.notice_url %}
+<p>{% trans url=m.notice_url %}The city posted a <a href="{{ url }}">notice of this meeting</a>, but no agenda.{% endtrans %}</p>
 {% elif m.agenda_gap %}
 {# Translators: %(listing)s is where the meeting is listed, such as "city calendar". #}
 <p>{% trans listing=m.listing %}The {{ listing }} doesn't link an agenda for this meeting.{% endtrans %}</p>
