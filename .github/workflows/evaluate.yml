@@ -10,9 +10,10 @@
 #     and the agenda set (evals/agendas.json, pipeline/evaluate_agendas.py),
 #     which fails when an item's wrong action would be shown;
 #   - the weekly digest's subject prompt (pipeline/digest_subject.py): the
-#     digest set
-#     (evals/digest_subjects.json, pipeline/evaluate_digest.py), which fails
-#     when too few answers would be used or too few picks are good;
+#     digest set (evals/digest_subjects.json, pipeline/evaluate_digest.py),
+#     run on each of DIGEST_MODELS and compared side by side, which fails
+#     when too few of a model's answers would be used or too few of its
+#     picks are good;
 #   - the translator (pipeline/translate.py, pipeline/glossary.py): the
 #     translation set (evals/translations.json,
 #     pipeline/evaluate_translations.py), which fails when a threshold is
@@ -20,7 +21,9 @@
 #   - a set or its runner: that set.
 # Each with the models the network runs (its defaults/network.toml
 # [summaries]): MODEL and EFFORT for summaries and translation drafts, and
-# REVIEW_MODEL and REVIEW_EFFORT for the review of each translation.
+# REVIEW_MODEL and REVIEW_EFFORT for the review of each translation; and
+# for the digest's subject, the models a town may choose between ([summaries]
+# digest_model), so the set shows which writes the better subjects.
 #
 # The report is the run's summary, and every result the artifact
 # evaluation-<set>. The log and the report leave out what the run cost
@@ -56,6 +59,7 @@ env:
   EFFORT: high
   REVIEW_MODEL: claude-sonnet-5-5
   REVIEW_EFFORT: low
+  DIGEST_MODELS: claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5-5
 
 jobs:
   evaluate:
@@ -117,7 +121,7 @@ jobs:
             case "$set" in
               minutes) args=(--model "$MODEL" --effort "$EFFORT") ;;
               agendas) args=(--set agendas --model "$MODEL" --effort "$EFFORT") ;;
-              digest) args=(--set digest --model "$MODEL") ;;
+              digest) args=(--set digest --models "$DIGEST_MODELS") ;;
               translations) args=(--set translations --model "$MODEL" --effort "$EFFORT"
                                   --review-model "$REVIEW_MODEL" --review-effort "$REVIEW_EFFORT") ;;
             esac
