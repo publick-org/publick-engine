@@ -155,7 +155,8 @@ def test_civicclerk_events():
 
 def test_civicclerk_notice_alone_is_not_an_agenda():
     """A meeting whose only published file is its notice (Nashua's "Meeting Notice", "Affidavit") links to
-    no documents, so it isn't listed as "Agenda posted"; an agenda, packet, or minutes of any kind is."""
+    its notice, not to documents, so it isn't listed as "Agenda posted"; an agenda, packet, or minutes of
+    any kind is."""
     def event(id_, *types):
         return {"id": id_, "startDateTime": "2026-12-01T08:00:00Z", "eventName": "201 Main St Financing Meeting",
                 "publishedFiles": [{"type": t, "name": f"{t} file", "fileId": id_ * 10 + i} for i, t in enumerate(types)]}
@@ -165,6 +166,10 @@ def test_civicclerk_notice_alone_is_not_an_agenda():
         found = {e["id"]: e for e in civicclerk.parse_events(data, PORTAL, api_url=api_url)}
         linked = {i for i in range(1, 7) if found[f"civicclerk-{i}"]["documents_url"]}
         assert linked == {2, 3, 4}
+        # The notice alone is linked as a notice; "Other" isn't a notice, nor are no files.
+        notices = {i for i in range(1, 7) if found[f"civicclerk-{i}"]["notice_url"]}
+        assert notices == {1, 5}
+        assert found["civicclerk-1"]["notice_url"] == f"{PORTAL}/event/1/files"
         assert "agenda_id" not in found["civicclerk-1"]
 
 
@@ -275,6 +280,24 @@ def test_later_runs_recheck_recent_weeks_only(config, tmp_path):
     assert months == ["11-01-2026", "12-01-2026"]
 
 
+def test_first_run_that_reads_notices_rereads_every_meeting(config, tmp_path):
+    """Meetings recorded before notices were told apart (no notice_url) are read again from `since`, once."""
+    fetch_meetings.run(config, FakeManchester(), tmp_path, now=FETCHED_AT)
+    path = fetch_meetings.meetings_dir(tmp_path) / "meetings.json"
+    store = json.loads(path.read_text())
+    for m in store.values():
+        m.pop("notice_url", None)
+    path.write_text(json.dumps(store))
+    later = datetime(2026, 11, 20, 12, tzinfo=FETCHED_AT.tzinfo)
+    first = FakeManchester()
+    fetch_meetings.run(config, first, tmp_path, now=later)
+    assert any("startDateTime%20ge%202026-08-01" in u for u in first.urls)
+    assert all("notice_url" in m for m in load(tmp_path).values() if m.get("source") == "civicclerk")
+    second = FakeManchester()
+    fetch_meetings.run(config, second, tmp_path, now=later)
+    assert any("startDateTime%20ge%202026-09-21" in u for u in second.urls)
+
+
 def test_meeting_dropped_from_civicclerk_is_marked_removed(config, tmp_path):
     fetch_meetings.run(config, FakeManchester(), tmp_path, now=FETCHED_AT)
     pages = [json.loads((FIXTURES / f"civicclerk_events_{n}.json").read_text()) for n in (1, 2)]
@@ -346,7 +369,12 @@ def manchester_site(tmp_path_factory):
         "note": "The commission now meets on the fourth Tuesday; this entry is left over from its old schedule.",
         "evidence": "https://www.manchesternh.gov/arts-commission-schedule"}]
     data_dir = tmp_path_factory.mktemp("manchester-data")
-    fetch_meetings.run(town, FakeManchester(), data_dir, now=FETCHED_AT)
+    # The Board of Registrars (past) and October 6's Board of Mayor and Aldermen (upcoming) posted only a notice.
+    pages = [json.loads((FIXTURES / f"civicclerk_events_{n}.json").read_text()) for n in (1, 2)]
+    for e in pages[0]["value"] + pages[1]["value"]:
+        if e["id"] in (2063, 1970):
+            e["publishedFiles"] = [{"type": "Notice", "name": "Meeting Notice", "fileId": e["id"] * 10}]
+    fetch_meetings.run(town, FakeManchester(pages), data_dir, now=FETCHED_AT)
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(build_site, "load_config", lambda slug: town)
         out = tmp_path_factory.mktemp("manchester") / "site"
@@ -381,6 +409,19 @@ def test_calendar_only_meeting_links_to_the_city_documents(manchester_site):
     index = (manchester_site / "meetings" / "past" / "index.html").read_text()
     item = index[index.index("/meetings/2026-10-01-planning-board/"):]
     assert item.index("Agenda posted") < item.index("</li>")
+
+
+def test_a_meeting_notice_is_linked_as_a_notice_not_an_agenda(manchester_site):
+    upcoming = (manchester_site / "meetings" / "2026-10-06-board-of-mayor-and-aldermen" / "index.html").read_text()
+    assert f'No agenda posted yet. The city posted a <a href="{PORTAL}/event/1970/files"' in upcoming
+    assert "Meeting notice" in upcoming and ">Agenda<" not in upcoming and "posted agenda" not in upcoming
+    assert "notice of this meeting<span class=\"visually-hidden\"> (opens in new tab)</span></a> may say how to comment." in upcoming
+    past = (manchester_site / "meetings" / "2026-08-28-board-of-registrars" / "index.html").read_text()
+    assert f'The city posted a <a href="{PORTAL}/event/2063/files"' in past and "but no agenda." in past
+    for listing, slug in (("index.html", "2026-10-06-board-of-mayor-and-aldermen"), ("past/index.html", "2026-08-28-board-of-registrars")):
+        page = (manchester_site / "meetings" / listing).read_text()
+        item = page[page.index(f"/meetings/{slug}/"):]
+        assert "Agenda posted" not in item[:item.index("</li>")], listing
 
 
 def test_calendar_only_town_links_resolve(manchester_site):

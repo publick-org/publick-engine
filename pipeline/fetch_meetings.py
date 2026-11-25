@@ -646,8 +646,11 @@ def civicclerk_calendar(config: dict) -> Calendar:
         # The first run collects every meeting since `since`. Later runs re-read
         # the last few weeks and everything ahead, where changes happen. So does
         # the first run after documents are turned on, for earlier meetings' files.
+        # So does the first run that reads notices (notice_url), which re-reads every meeting once:
+        # older ones were listed with their notice as an agenda.
         recorded = [m for m in store.values() if m.get("source") == "civicclerk"]
-        if recorded and (not api_url or any("agenda_id" in m for m in recorded)):
+        if (recorded and (not api_url or any("agenda_id" in m for m in recorded))
+                and any("notice_url" in m for m in recorded)):
             since = max(since, today - timedelta(days=settings.get("recheck_days", 60)))
         url, found = civicclerk.events_url(settings["api_url"], since), []
         for _ in range(settings.get("max_pages", 200)):

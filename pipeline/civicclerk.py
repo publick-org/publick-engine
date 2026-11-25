@@ -115,6 +115,8 @@ def parse_events(data: dict, portal_url: str, boards: list[str] | None = None, a
             "address": address(e.get("eventLocation"), states),
             # The agenda and minutes stay on the portal for now; this links to them once posted.
             "documents_url": url if has_documents(e) else None,
+            # A meeting whose only file is its notice links to that, as a notice and not an agenda.
+            "notice_url": url if e.get("publishedFiles") and not has_documents(e) else None,
         }
         # The portal can put the event's recurrence before its name: "One Time EventJoint Public Hearing ...",
         # or give it as the whole name, the board then only in the event's category ("Peaks Island Council").
