@@ -63,7 +63,7 @@ Subsidized Housing Inventory, and DESE's school figures: see
 pipeline/states/ma/statewide.py); each town's steps read their rows from there. A
 state's statewide checks that keep failing are listed by behind.
 
-    python -m pipeline.network plan   [--root .] [--due-hours 18 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
+    python -m pipeline.network plan   [--root .] [--due-hours 12 | --slots 4 --slot N] [--towns a,b] [--changed FILE]
                                       [--batch-size 4]
     python -m pipeline.network run    [--root .] --towns a,b [--fetch [--sources all|meetings|figures|311] [--force] | --collect [--ready]]
                                       [--deploy] [--sample-checks] [--reports DIR]
@@ -75,8 +75,8 @@ state's statewide checks that keep failing are listed by behind.
     python -m pipeline.network states [--root .]
 
 A daily run takes the towns that are due (--due-hours): those whose last run
-that fetched their data finished more than that many hours ago, or never ran,
-oldest first. So a run that starts late, twice, or not at all does no harm: a
+that fetched all their data finished more than that many hours ago, or never
+ran, oldest first. So a run that starts late, twice, or not at all does no harm: a
 second start finds nothing due, and the next run makes up a missed one. (Towns
 can also be spread over --slots runs a day by a stable hash of their folder
 name.)
@@ -128,9 +128,11 @@ RUN_RECORD = "run.json"
 WAITING_KEPT = 10
 # Hours without a good update before a town is listed as behind.
 BEHIND_HOURS = 30
-# Hours after a town's last fetching run before a daily run takes it again. Under a day, so each
-# morning's runs take every town once, even one that finished late the day before.
-DUE_HOURS = 18
+# Hours after a town's last full fetch before a daily run takes it again. More than the morning's
+# starts span (the scheduler's, 09:05 to 14:05 UTC) and a run, so no town is taken twice in a morning;
+# few enough that a fetch finished the evening before, up to 02:05 UTC (9 pm Eastern), is due again by
+# the last start. At 18, a town fetched after 20:05 UTC missed the next morning's runs altogether.
+DUE_HOURS = 12
 # A town's expected time in a batch when it has no run record to go by, in seconds.
 UNKNOWN_RUN_SECONDS = 30 * 60
 # The part of the monthly summary budget older documents can't use, kept for new ones.
@@ -192,9 +194,19 @@ def town_state(root: Path, name: str) -> str:
 
 
 def last_fetched(root: Path, name: str) -> str | None:
-    """When the town's last run that fetched its data finished (its run record), or None if none has."""
+    """When the town's last run that fetched all its data finished (its run record), or None if none has."""
     path = root / TOWNS / name / "data" / RUN_RECORD
-    return json.loads(path.read_text()).get("finished_at") if path.exists() else None
+    return full_fetch_at(json.loads(path.read_text())) if path.exists() else None
+
+
+def full_fetch_at(record: dict) -> str | None:
+    """When the run record's town last had all its data fetched. A run that fetched only some of it (a
+    meetings run for new recordings, a manual one) keeps the time of the full fetch before it: it
+    doesn't put off the town's next daily one."""
+    if "full_fetch_at" in record:
+        return record["full_fetch_at"]
+    # A record from before full_fetch_at: its run's, unless that run says it fetched only some sources.
+    return record.get("finished_at") if (record.get("update") or {}).get("sources", "all") == "all" else None
 
 
 def due(root: Path, towns: list[str], hours: float, at: datetime | None = None) -> list[str]:
@@ -412,6 +424,7 @@ def run_town(root: Path, name: str, fetch: bool, deploy: bool, reports: Path | N
         record = town_dir / "data" / RUN_RECORD
         previous = json.loads(record.read_text()) if record.exists() else {}
         result["last_good_at"] = result["finished_at"] if good(result) else last_good(previous)
+        result["full_fetch_at"] = result["finished_at"] if sources == "all" else full_fetch_at(previous)
         # What the town's data takes up, and how much this run added, for the status page.
         result["data_bytes"] = folder_bytes(town_dir / "data")
         result["data_bytes_added"] = result["data_bytes"] - data_before
@@ -1059,7 +1072,7 @@ def main() -> int:
     p.add_argument("--towns", help="only these town folders, comma-separated")
     p.add_argument("--changed", type=Path, help="a file listing changed paths; only towns they touch")
     p.add_argument("--batch-size", type=int, default=4)
-    p.add_argument("--due-hours", type=float, help="only towns whose last fetching run finished this many hours ago")
+    p.add_argument("--due-hours", type=float, help="only towns whose last full fetch finished this many hours ago")
     r = sub.add_parser("run")
     r.add_argument("--root", type=Path, default=Path.cwd())
     r.add_argument("--towns", required=True, help="town folders, comma- or space-separated")

@@ -596,6 +596,46 @@ def test_a_daily_run_takes_the_towns_that_are_due(tmp_path):
                                 at=datetime(2026, 10, 3, 9, 0, tzinfo=timezone.utc))) == [["manchester-nh", "salem-ma"]]
 
 
+def test_run_record_keeps_the_last_full_fetch_through_a_partial_one(tmp_path, steps):
+    root = make_root(tmp_path)
+    (root / "towns" / "gloucester-ma" / "data").mkdir()
+    full = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None)
+    assert full["full_fetch_at"] == full["finished_at"]
+    meetings = network.run_town(root, "gloucester-ma", fetch=True, deploy=True, reports=None, sources="meetings")
+    assert meetings["full_fetch_at"] == full["finished_at"]
+    assert network.last_fetched(root, "gloucester-ma") == full["finished_at"]
+    # A run that only rebuilds and publishes leaves it as it was.
+    network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None)
+    assert network.last_fetched(root, "gloucester-ma") == full["finished_at"]
+
+
+def test_a_partial_fetch_the_evening_before_doesnt_keep_a_town_from_the_morning(tmp_path):
+    from datetime import datetime, timezone
+    root = make_root(tmp_path)
+    morning = datetime(2026, 11, 25, 9, 5, tzinfo=timezone.utc)
+    # Fetched in full the morning before, then only its meetings at 7:46 pm Eastern: due.
+    write_record(root, "gloucester-ma", finished_at="2026-11-25T00:46:20+00:00",
+                 full_fetch_at="2026-11-24T09:10:00+00:00", update={"sources": "meetings"})
+    # A record from before full_fetch_at, of a meetings run: due (when it was last fetched in full is unknown).
+    write_record(root, "manchester-nh", finished_at="2026-11-25T01:46:12+00:00", update={"sources": "meetings"})
+    # A record from before full_fetch_at, of a full run this morning: not due.
+    write_record(root, "salem-ma", finished_at="2026-11-25T09:00:00+00:00", update={"sources": "all"})
+    assert network.due(root, network.town_dirs(root), network.DUE_HOURS, morning) == ["manchester-nh", "gloucester-ma"]
+
+
+def test_a_full_fetch_the_evening_before_is_due_by_the_last_morning_start(tmp_path):
+    from datetime import datetime, timezone
+    root = make_root(tmp_path)
+    # Fetched in full at 9 pm Eastern (02:05 UTC): due again by the last start, 14:05 UTC.
+    write_record(root, "gloucester-ma", finished_at="2026-11-25T02:05:00+00:00")
+    assert network.due(root, ["gloucester-ma"], network.DUE_HOURS,
+                       datetime(2026, 11, 25, 14, 5, tzinfo=timezone.utc)) == ["gloucester-ma"]
+    # One fetched at the first start (09:05 UTC) isn't taken again by the last.
+    write_record(root, "gloucester-ma", finished_at="2026-11-25T09:30:00+00:00", full_fetch_at="2026-11-25T09:30:00+00:00")
+    assert network.due(root, ["gloucester-ma"], network.DUE_HOURS,
+                       datetime(2026, 11, 25, 14, 5, tzinfo=timezone.utc)) == []
+
+
 def test_run_record_counts_boards_and_coming_meetings_for_the_homepage(tmp_path):
     from datetime import date
     meetings = tmp_path / "meetings"
