@@ -11,7 +11,9 @@ An issue is built from the first build on or after its Saturday, the day before 
 what the site knows about that week as of the latest build. A week with no meetings and no new
 minutes has no issue. Issues dated before MORNING_FROM were built from their Sunday's run and list
 the minutes collected Monday to Sunday; their pages keep those weeks, so no minutes move from one
-issue to another.
+issue to another. A meeting summarized from its recording is listed in the issue of the week it was
+transcribed; when its minutes come in a later week, that issue says so in a line ("minutes_posted")
+rather than list its decisions again.
 
 The issues are published at /digest/<Monday>/ with a list at /digest/ and a feed at
 /digest/feed.xml (build_site.py). Each feed item's date is when its email is due: the Sunday at
@@ -36,6 +38,7 @@ The form posts to the site's own /digest/subscribe, which only the network's Wor
 from __future__ import annotations
 
 import html
+import json
 import re
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -119,38 +122,74 @@ def short_place(m: dict, town: str) -> str | None:
     return ", ".join(p for p in parts[:PLACE_PARTS] if p) or None
 
 
+# A decision that is routine whatever its summary says: a consent agenda, minutes, bills or payroll approved, by its
+# title (or its text, for one without). Titles start with what was decided ("Consent agenda as presented", "Minutes
+# of October 21, 2026 meeting"); a decision that only mentions minutes ("Release of executive session minutes on
+# Flock cameras") isn't one.
+ROUTINE = re.compile(r"^(?:approv\w*\s+)?(?:of\s+)?(?:the\s+)?(?:consent agenda|(?:prior |previous |meeting )?minutes\b|"
+                     r"warrants?\b|bills\b|payrolls?\b|(?:the\s+)?agenda as\b|adjourn)", re.I)
+
+
 def main_decisions(m: dict) -> tuple[list, int]:
     """A meeting's decisions residents look for, those that settled a matter first, then those that put one off
-    (PUT_OFF), each in the order taken; and how many routine ones there were besides (Decision.main False). A
-    summary that doesn't say which are routine has them all as main."""
+    (PUT_OFF), each in the order taken; and how many routine ones there were besides: those its summary labels
+    routine (Decision.main False) and those ROUTINE names. A summary that labels none of them routine, or all of
+    them, hasn't told them apart, so only ROUTINE does; and a meeting whose every decision is routine has them all
+    as main."""
     decided = m["decisions"]["decided"]
-    routine = [d for d in decided if getattr(d, "main", None) is False]
-    if not routine or len(routine) == len(decided):
-        main, routine = list(decided), []
-    else:
-        main = [d for d in decided if getattr(d, "main", None) is not False]
+    labeled = [d for d in decided if getattr(d, "main", None) is False]
+    told_apart = 0 < len(labeled) < len(decided)
+    routine = [d for d in decided if (told_apart and getattr(d, "main", None) is False)
+               or ROUTINE.match(getattr(d, "title", None) or str(d))]
+    if len(routine) == len(decided):
+        routine = []
+    main = [d for d in decided if not any(d is r for r in routine)]
     settled = [d for d in main if getattr(d, "outcome", None) not in PUT_OFF]
     return settled + [d for d in main if getattr(d, "outcome", None) in PUT_OFF], len(routine)
 
 
+# How recent a meeting must be to lead an issue, before its Sunday: minutes come 2 to 6 weeks after a meeting, and one
+# older than this is listed after the week's newer ones, and never leads.
+LEAD_MAX_AGE = timedelta(days=21)
+# Words that say a meeting's headline reports what was decided ("Approved ...", "... tabled", "Council adopts ..."),
+# rather than what was discussed or said ("Neighbors ask the city to ...", "Superintendent estimates ..."). A headline
+# without one isn't shown under "What was decided"; the meeting's first main decision is, as a row.
+DECIDED_WORDS = re.compile(
+    r"\b(?:approv\w*|adopt(?:s|ed)|pass(?:es|ed)|den(?:ies|ied)|reject(?:s|ed)|fail(?:s|ed)|vot(?:es|ed)|tabled|referred|"
+    r"continued|postponed|grant(?:s|ed)|award(?:s|ed)|accept(?:s|ed)|ratif(?:ies|ied)|confirm(?:s|ed)|elect(?:s|ed)|"
+    r"appoint(?:s|ed)|recommend(?:s|ed)|authoriz(?:es|ed)|allow(?:s|ed)|amend(?:s|ed)|enact(?:s|ed)|revoked|"
+    r"overr(?:ode|ides|idden)|agreed|dismissed|certified|selected|chose|withdr(?:ew|awn)|signed|supported|opposed|"
+    r"declined|ordered|suspended|expelled|kept|set|sent|hired|funded|renewed|extended|sold|bought|banned|held over|tie)\b", re.I)
+
+
+def decided_line(m: dict) -> str | None:
+    """A meeting's headline where it reports what was decided (DECIDED_WORDS), for "What was decided"; else None."""
+    line = m.get("preview_line")
+    return line if line and DECIDED_WORDS.search(line) else None
+
+
 def decided(issue: dict, main_boards: list[str]) -> dict:
     """What an issue says was decided: the meetings whose minutes, or else whose recordings, came that week, the
-    strongest first: a main board's (main_boards), then by how many of their main decisions settled a matter, then
-    how many main decisions, then the newest. Meetings that decided nothing are listed apart ("quiet"). The lead is
-    the first, and its title (lead_title) its headline's first clause, for the email's subject (headline())."""
+    strongest first: those of the last LEAD_MAX_AGE before the issue's Sunday before older ones, then a main board's
+    (main_boards), then by how many of their main decisions settled a matter, then how many main decisions, then the
+    newest. Meetings that decided nothing are listed apart ("quiet"). Each entry's line is its headline where that
+    reports a decision (decided_line()). The lead is the first, if it's recent, and its title (lead_title) its
+    headline's first clause, for the email's subject where no subject was written for it (headline())."""
+    sunday = issue.get("sunday")
+    since = (date.fromisoformat(sunday) - LEAD_MAX_AGE).isoformat() if sunday else ""
     entries, quiet = [], []
     for source, meetings in (("minutes", issue["minutes"]), ("recording", issue["recorded"])):
         for m in meetings:
             main, routine = main_decisions(m)
             entry = {"meeting": m, "name": meeting_name(m), "source": source, "main": main, "routine": routine,
                      "recommended": m["decisions"]["recommended"], "main_board": m["body"] in main_boards,
-                     "count": len(m["decisions"]["decided"])}
+                     "count": len(m["decisions"]["decided"]), "recent": m["date"] >= since, "line": decided_line(m)}
             (entries if main or entry["recommended"] else quiet).append(entry)
     settled = lambda e: sum(getattr(d, "outcome", None) not in PUT_OFF for d in e["main"])
-    entries.sort(key=lambda e: (e["main_board"], settled(e), len(e["main"]), len(e["recommended"]), e["meeting"]["date"]),
-                 reverse=True)
+    entries.sort(key=lambda e: (e["recent"], e["main_board"], settled(e), len(e["main"]), len(e["recommended"]),
+                                e["meeting"]["date"]), reverse=True)
     quiet.sort(key=lambda e: e["meeting"]["date"], reverse=True)
-    lead = entries[0] if entries else None
+    lead = entries[0] if entries and entries[0]["recent"] else None
     return {"entries": entries, "quiet": quiet, "lead": lead, "lead_title": headline(lead) if lead else None}
 
 
@@ -183,13 +222,33 @@ PAST_TENSE = {"overrode", "held", "heard", "set", "sent", "took", "gave", "made"
               "swore", "spent", "found", "built", "brought", "laid", "led", "told", "said", "left", "ran", "saw"}
 # Where a headline's first clause ends: "Approved $200,000 soil cleanup at 448 High Street, and asked for ...".
 CLAUSE_END = re.compile(r",\s|;\s|\s(?:and|after|while)\s")
+# A decision's outcome (factcheck.OUTCOMES) as the verb before its title, for a headline made from it.
+OUTCOME_VERBS = {"approved": "Approved", "denied": "Denied", "tabled": "Tabled", "referred": "Referred",
+                 "continued": "Continued"}
+
+
+def lowercase_start(title: str) -> bool:
+    """Whether a decision's title can start lowercase after a verb: not a name ("Boynton Yards zoning"), an
+    abbreviation ("FY27 budget", "GHS plan") or a figure ("$25,000 grant")."""
+    words = title.split()
+    if not words or not words[0].isalpha() or not words[0][0].isupper() or any(c.isupper() for c in words[0][1:]):
+        return False
+    return not (len(words) > 1 and words[1][:1].isupper())
 
 
 def headline(entry: dict, limit: int = SUBJECT_LENGTH) -> str | None:
     """The lead's headline as a newspaper's: its first clause (the summary's headline leads with what residents
     look for), cut at a word to at most limit characters; after its board's name where that's at most SUBJECT_NAME
-    characters ("City Council approved ..."), or alone. None for a meeting without a headline."""
-    line = (entry["meeting"].get("preview_line") or "").strip().rstrip(".")
+    characters ("City Council approved ..."), or alone. An entry whose headline doesn't report a decision (its line,
+    from decided()) has its first main decision's instead ("City Council approved retiree cost-of-living increase").
+    None for a meeting with neither."""
+    line = entry["line"] if "line" in entry else entry["meeting"].get("preview_line")
+    if not line and entry.get("main"):
+        first = entry["main"][0]
+        outcome, title = getattr(first, "outcome", None), getattr(first, "title", None)
+        if outcome in OUTCOME_VERBS and title:
+            line = f"{OUTCOME_VERBS[outcome]} {title[0].lower() + title[1:] if lowercase_start(title) else title}"
+    line = (line or "").strip().rstrip(".")
     if not line:
         return None
     end = CLAUSE_END.search(line)
@@ -204,6 +263,149 @@ def headline(entry: dict, limit: int = SUBJECT_LENGTH) -> str | None:
                                                  and (first.endswith("ed") or first.lower() in PAST_TENSE)):
         return line
     return f"{entry['name']} {first.lower()}{line[len(first):]}"
+
+
+# ---- The email's subject -------------------------------------------------------------------------------------------
+#
+# A language model chooses each issue's top story and writes the email's subject and preheader (the preview line an
+# inbox shows beside the subject), once the issue is built (pipeline/digest_subject.py), from candidates(): the week's
+# meetings to come, by their agenda's headline and items, and the recent meetings whose decisions came in, by their
+# headline and decisions, all as the site already shows them. Its answer is kept in data/digest/<Monday>.json, and
+# the build uses it where problems() finds nothing wrong: a candidate picked, a subject short enough, and every number
+# and name in it found in the candidate's own words, so it says nothing the site doesn't. Otherwise, as for a town
+# without a model, the subject is the week's lead decision as a headline (headline()).
+
+# Candidates: a main board's and those with a public hearing first, then by day; and the strongest recent decisions.
+AHEAD_CANDIDATES = 8
+DECIDED_CANDIDATES = 6
+AGENDA_ITEMS = 4
+DECISION_TITLES = 5
+# The longest a subject may be, after the site's name worker/digest.js puts before it, and a preheader.
+SUBJECT_MAX = 60
+PREHEADER_MAX = 90
+# Where the model's answers are kept, in the town's data folder.
+SUBJECTS_DIR = "digest"
+# Words a subject or preheader may use without the candidate's words having them: days, and a preheader's lead-ins.
+DAY_WORDS = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+             "Mon", "Tue", "Tues", "Wed", "Thu", "Thurs", "Fri", "Sat", "Sun"}
+LEAD_INS = {"Also", "Plus", "Coming", "Last", "This", "Next", "Earlier"}
+NUMBER = re.compile(r"\d+(?:[.,:]\d+)*")
+WORD = re.compile(r"[A-Za-z][A-Za-z'’-]*")
+
+
+def live_meetings(issue: dict) -> list[dict]:
+    """The week's meetings that take place as listed: not cancelled, postponed, or taken off the town's listing."""
+    return [m for m in issue["meetings"] if m["status"] not in ("cancelled", "postponed") and m.get("listed", True)]
+
+
+def candidates(issue: dict, main_boards: list[str]) -> list[dict]:
+    """What an issue's subject may be about, each with an id for the model to pick it by and its page's address,
+    which identifies it from one build to the next: the week's meetings with an agenda's headline (AHEAD_CANDIDATES),
+    a main board's (main_boards) and those with a public hearing first, then by day and time; and the recent meetings whose decisions
+    came in (issue["decided"], from decided()), the strongest first (DECIDED_CANDIDATES). Each carries the words the
+    site shows for it, which are all the model is given, and all a subject's facts may come from."""
+    ahead = [m for m in live_meetings(issue) if m.get("preview_line") and m.get("preview_from", "agenda") == "agenda"]
+    ahead.sort(key=lambda m: (m["body"] not in main_boards, not m.get("public_hearing"), m["date"], m.get("start_time") or ""))
+    found = []
+    for n, m in enumerate(ahead[:AHEAD_CANDIDATES], 1):
+        found.append({
+            "id": f"A{n}", "kind": "ahead", "url": m["url"], "board": meeting_name(m), "date": m["date"],
+            "day": date.fromisoformat(m["date"]).strftime("%A"), "time": m.get("start_time"),
+            "main_board": m["body"] in main_boards, "hearing": bool(m.get("public_hearing")), "line": m["preview_line"],
+            "items": [str(i) for i in ((m.get("preview") or {}).get("items") or [])[:AGENDA_ITEMS]],
+        })
+    recent = [e for e in issue["decided"]["entries"] if e["recent"] and e["main"]]
+    for n, e in enumerate(recent[:DECIDED_CANDIDATES], 1):
+        m = e["meeting"]
+        found.append({
+            "id": f"D{n}", "kind": "decided", "url": m["url"], "board": e["name"], "date": m["date"],
+            "day": date.fromisoformat(m["date"]).strftime("%A"), "main_board": e["main_board"], "source": e["source"],
+            "line": e["line"] or "",
+            "decisions": [f"{getattr(d, 'outcome', None) or 'decided'}: {getattr(d, 'title', None) or d}"
+                          for d in e["main"][:DECISION_TITLES]],
+        })
+    return found
+
+
+def candidate_words(c: dict) -> str:
+    """Everything a candidate says, which a subject about it may use."""
+    return " ".join([c["board"], c["day"], c["line"], *c.get("items", []), *c.get("decisions", [])])
+
+
+def ungrounded(text: str, source: str) -> list[str]:
+    """The numbers and capitalized words in text that source doesn't have: each number as written, and each name
+    with its capitals (a sentence's first word, or a preheader's after its lead-in, in any case). Days of the week
+    and a preheader's lead-ins ("Also:", "Coming up:") are allowed."""
+    missing = []
+    for n in NUMBER.findall(text):
+        if not re.search(rf"(?<![\d]){re.escape(n)}(?![\d])", source):
+            missing.append(n)
+    for match in WORD.finditer(text):
+        word = re.sub(r"['’]s$", "", match.group()).rstrip("'’-")
+        if not word[0].isupper() or word in DAY_WORDS or word in LEAD_INS:
+            continue
+        before = text[:match.start()].rstrip()
+        starts = not before or before[-1] in ":;.!?"
+        if not re.search(rf"(?<![A-Za-z]){re.escape(word)}(?![A-Za-z])", source, 0 if not starts else re.I):
+            missing.append(word)
+    return missing
+
+
+def problems(answer: dict, cands: list[dict]) -> list[str]:
+    """What's wrong with a model's answer ({"pick", "subject", "preheader"}) for these candidates, one line each;
+    empty when the build may use it. The subject is checked against the candidate it picked, the preheader against
+    every candidate (it may name a second story)."""
+    out = []
+    pick = next((c for c in cands if c["id"] == answer.get("pick")), None)
+    subject, preheader = str(answer.get("subject") or "").strip(), str(answer.get("preheader") or "").strip()
+    if not pick:
+        out.append(f"it picked {answer.get('pick')!r}, which isn't a candidate")
+    if not subject:
+        out.append("it has no subject")
+    if len(subject) > SUBJECT_MAX:
+        out.append(f"its subject is {len(subject)} characters, past {SUBJECT_MAX}")
+    if len(preheader) > PREHEADER_MAX:
+        out.append(f"its preheader is {len(preheader)} characters, past {PREHEADER_MAX}")
+    for name, text in (("subject", subject), ("preheader", preheader)):
+        if "…" in text or "..." in text or "\n" in text:
+            out.append(f"its {name} is cut off or runs over a line")
+    if pick:
+        out += [f"its subject's {w!r} isn't in what the site says of {pick['id']}"
+                for w in ungrounded(subject, candidate_words(pick))]
+    every = " ".join(candidate_words(c) for c in cands)
+    out += [f"its preheader's {w!r} isn't in what the site says of any candidate" for w in ungrounded(preheader, every)]
+    return out
+
+
+def stored(data_dir: Path, issue: dict) -> dict | None:
+    """The model's answer for an issue, as pipeline/digest_subject.py kept it, or None."""
+    path = data_dir / SUBJECTS_DIR / f"{issue['monday']}.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def subject(issue: dict, main_boards: list[str], record: dict | None, now: datetime) -> dict:
+    """An issue's subject, preheader, and top story ("pick", a candidate, or None), and whether a model wrote them
+    ("written"). The model's answer (record, from stored()) is used where it has a subject and, for an issue not yet
+    due, its candidate is still one of the issue's (by its page's address) and problems() finds nothing wrong with it
+    there; an issue already due keeps the answer it was sent with. Otherwise the subject is the week's lead decision
+    as a headline (decided()'s lead_title, or None for the week's date), and the email makes its own preheader."""
+    cands = candidates(issue, main_boards)
+    if record and record.get("subject") and record.get("pick"):
+        if now >= issue["send_at"]:
+            return {"subject": record["subject"], "preheader": record.get("preheader") or None, "pick": record["pick"],
+                    "written": True}
+        current = next((c for c in cands if c["url"] == record["pick"].get("url")), None)
+        if current:
+            answer = {"pick": current["id"], "subject": record["subject"], "preheader": record.get("preheader")}
+            if not problems(answer, cands):
+                return {"subject": record["subject"], "preheader": record.get("preheader") or None, "pick": current,
+                        "written": True}
+    lead = issue["decided"]["lead"]
+    pick = next((c for c in cands if lead and c["url"] == lead["meeting"]["url"]), None)
+    return {"subject": issue["decided"]["lead_title"], "preheader": None, "pick": pick, "written": False}
 
 
 def signup(config: dict) -> dict | None:
@@ -280,6 +482,10 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
         minutes = [m for m in meetings
                    if minutes_day[id(m)] and start <= minutes_day[id(m)] <= end
                    and m["date"] >= (sunday - MINUTES_MAX_AGE).isoformat()]
+        # Minutes of a meeting an earlier issue listed from its recording: said in a line, not listed again, so a
+        # meeting is never an issue's news twice.
+        posted = [m for m in minutes if recording_day[id(m)] and recording_day[id(m)] < start]
+        minutes = [m for m in minutes if not any(m is p for p in posted)]
         # Meetings summarized from their recordings, transcribed that week, whose minutes hadn't come by its end.
         recorded = [m for m in meetings
                     if recording_day[id(m)] and start <= recording_day[id(m)] <= end
@@ -292,7 +498,7 @@ def issues(meetings: list[dict], tracking_since: str | None, today: date, tz: Zo
             "minutes_from": start.isoformat(), "minutes_to": end.isoformat(),
             "url": f"/digest/{monday.isoformat()}/",
             "send_at": send_at(sunday, tz),
-            "meetings": week, "minutes": minutes, "recorded": recorded,
+            "meetings": week, "minutes": minutes, "recorded": recorded, "minutes_posted": posted,
             # The week's meetings by day, for the page.
             "days": [(day, [m for m in week if m["date"] == day]) for day in sorted({m["date"] for m in week})],
         })

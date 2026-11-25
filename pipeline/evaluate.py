@@ -26,6 +26,7 @@ are for; and so does a summary cut off at the prompt's max_tokens, which the sit
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate [--only NAME] [--model MODEL] [--effort EFFORT] [--json FILE]
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set agendas [--only NAME] [--model MODEL] [--effort EFFORT] [--json FILE]   # the agenda prompt's item actions
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set translations [--model MODEL] [--review-model MODEL] [--json FILE]   # the translation prompt's set
+    ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set digest [--only NAME] [--model MODEL] [--json FILE]   # the weekly digest's subject prompt
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set batch [--efforts low,medium,high] [--json FILE]   # as a batch, by effort
     ANTHROPIC_API_KEY=... python -m pipeline.evaluate --set shadow [--model MODEL] [--effort EFFORT] [--json FILE]   # real summaries made again
 
@@ -494,8 +495,11 @@ def main() -> int:
         if chosen == "agendas":
             from pipeline import evaluate_agendas
             return evaluate_agendas.main(rest)
+        if chosen == "digest":
+            from pipeline import evaluate_digest
+            return evaluate_digest.main(rest)
         if chosen != "minutes":
-            raise SystemExit(f"--set is minutes, agendas, translations, batch, or shadow, not {chosen}")
+            raise SystemExit(f"--set is minutes, agendas, translations, digest, batch, or shadow, not {chosen}")
         sys.argv[1:] = rest
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="the one document of the set to run (its name)")

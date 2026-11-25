@@ -36,7 +36,7 @@ SCRIPT = block(LABEL, "run")
 
 def test_the_label_check_names_the_files_evaluate_runs_for():
     paths = {line[2:] for line in block(text("evaluate.yml"), "paths").splitlines()}
-    assert len(paths) == 10 and all(re.fullmatch(r"[a-z_/.]+", p) for p in paths), paths
+    assert len(paths) == 13 and all(re.fullmatch(r"[a-z_/.]+", p) for p in paths), paths
     files = {p.relative_to(ROOT).as_posix() for folder in ("pipeline", "evals") for p in (ROOT / folder).rglob("*") if p.is_file()}
     assert paths <= files, "evaluate.yml names a file that isn't there"
     assert {f for f in files if re.search(EVALUATED, f)} == paths

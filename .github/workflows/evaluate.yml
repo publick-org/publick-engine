@@ -9,6 +9,10 @@
 #     pipeline/evaluate.py), which fails when a wrong outcome would be shown,
 #     and the agenda set (evals/agendas.json, pipeline/evaluate_agendas.py),
 #     which fails when an item's wrong action would be shown;
+#   - the weekly digest's subject prompt (pipeline/digest_subject.py): the
+#     digest set
+#     (evals/digest_subjects.json, pipeline/evaluate_digest.py), which fails
+#     when too few answers would be used or too few picks are good;
 #   - the translator (pipeline/translate.py, pipeline/glossary.py): the
 #     translation set (evals/translations.json,
 #     pipeline/evaluate_translations.py), which fails when a threshold is
@@ -37,9 +41,12 @@ on:
       - pipeline/evaluate.py
       - pipeline/evaluate_translations.py
       - pipeline/evaluate_agendas.py
+      - pipeline/digest_subject.py
+      - pipeline/evaluate_digest.py
       - evals/minutes.json
       - evals/agendas.json
       - evals/translations.json
+      - evals/digest_subjects.json
 
 permissions:
   contents: read
@@ -89,6 +96,7 @@ jobs:
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate)\.py|evals/minutes\.json' <<< "$changed"; then sets="minutes"; fi
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
           if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
+          if grep -qxE 'pipeline/(digest_subject|evaluate_digest)\.py|evals/digest_subjects\.json' <<< "$changed"; then sets="$sets digest"; fi
           echo "Sets to run: ${sets:-none}"
           echo "sets=$sets" >> "$GITHUB_OUTPUT"
 
@@ -109,6 +117,7 @@ jobs:
             case "$set" in
               minutes) args=(--model "$MODEL" --effort "$EFFORT") ;;
               agendas) args=(--set agendas --model "$MODEL" --effort "$EFFORT") ;;
+              digest) args=(--set digest --model "$MODEL") ;;
               translations) args=(--set translations --model "$MODEL" --effort "$EFFORT"
                                   --review-model "$REVIEW_MODEL" --review-effort "$REVIEW_EFFORT") ;;
             esac

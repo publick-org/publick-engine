@@ -16,7 +16,7 @@ import json
 
 import pytest
 
-from pipeline import summarize, translate
+from pipeline import digest_subject, summarize, translate
 
 
 def fingerprint(*parts) -> str:
@@ -41,6 +41,8 @@ PROMPTS = {
                     translate.schema("agenda"), translate.schema("minutes"))),
     "drafted text (translate.NAMES_VERSION)": lambda: (
         translate.NAMES_VERSION, fingerprint(translate.NAMES_SYSTEM, translate.NAMES_PROMPT, translate.GLOSSARY)),
+    "digest subject (digest_subject.VERSION)": lambda: (
+        digest_subject.VERSION, fingerprint(digest_subject.SYSTEM, digest_subject.PROMPT, digest_subject.SCHEMA)),
 }
 
 # (version, hash of the prompt).
@@ -55,6 +57,7 @@ PINNED = {
     # The town's glossary added to the drafting prompt (2026-10-16) without a bump: it only adds words, and
     # drafts made before it, each checked and reviewed, stay shown rather than all made again at once.
     "drafted text (translate.NAMES_VERSION)": (2, "3df0dba9c6397f65"),
+    "digest subject (digest_subject.VERSION)": (1, "adfb5068ffa7d1f8"),
 }
 
 

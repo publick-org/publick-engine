@@ -720,12 +720,18 @@ def test_collecting_a_towns_batch_of_summaries_publishes_it_again(tmp_path, step
     assert calls == [] and result["ok"] and not result["collected"]
     (data / network.SUMMARY_BATCH).write_text("{}")
     result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True)
-    assert [c["name"] for c in calls] == ["Collect summaries", "Build site", "Check site", "Publish site",
-                                          "Check live site"]
+    assert [c["name"] for c in calls] == ["Collect summaries", "Write digest subject", "Build site", "Check site",
+                                          "Publish site", "Check live site"]
     collect = calls[0]
     assert collect["cmd"][2:] == ["pipeline.summarize", "--town", "gloucester"]
     assert collect["env"]["PUBLICK_SUMMARY_COLLECT"] == "1"
     assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in collect["env"]} == set(network.COLLECT_KEYS)
+    # The summaries collected may change what the week's digest leads with: its subject is asked about again, with the
+    # model's key and the cost log's, and no other.
+    subject = calls[1]
+    assert subject["cmd"][2:] == ["pipeline.digest_subject", "--town", "gloucester"]
+    assert {k for k in network.FETCH_KEYS + network.PUBLISH_KEYS if k in subject["env"]} == \
+        {"ANTHROPIC_API_KEY", *network.PRIVATE_KEYS, *network.BUDGET_KEYS}
     assert result["collected"] and result["deployed"]
 
 
@@ -768,5 +774,6 @@ def test_a_ready_batch_followed_by_the_next_one_publishes_the_town_again(tmp_pat
     (data / network.SUMMARY_BATCH).write_text(json.dumps({"id": "batch-1"}))
     result = network.run_town(root, "gloucester-ma", fetch=False, deploy=True, reports=None, collect=True,
                               ready_only=True)
-    assert calls == ["Collect summaries", "Build site", "Check site", "Publish site", "Check live site"]
+    assert calls == ["Collect summaries", "Write digest subject", "Build site", "Check site", "Publish site",
+                     "Check live site"]
     assert result["collected"] and result["deployed"]

@@ -2405,7 +2405,14 @@ def digest_pages(pages: LanguagePages) -> list[dict]:
         issue["decided"] = digest.decided(issue, main_boards(config))
         # The week at a glance, for the top of the email (digest.glance()).
         issue["glance"] = digest.glance(issue)
-        issue["lastmod"] = min(max([issue["sunday"], *(pages.changed[id(m)] for m in issue["meetings"] + issue["minutes"])]), today.isoformat())
+        # The email's subject, preheader and top story: as the model wrote them (pipeline/digest_subject.py) where
+        # they pass digest.problems(), else the week's lead decision (digest.subject()).
+        issue["subject"] = digest.subject(issue, main_boards(config), digest.stored(pages.data_dir, issue), pages.built_at)
+        pick = issue["subject"]["pick"]
+        shown = issue["meetings"] + [e["meeting"] for e in issue["decided"]["entries"]]
+        issue["top"] = pick and {"pick": pick, "meeting": next((m for m in shown if m["url"] == pick["url"]), None)}
+        issue["lastmod"] = min(max([issue["sunday"], *(pages.changed[id(m)] for m in issue["meetings"] + issue["minutes"]
+                                                      + issue["minutes_posted"])]), today.isoformat())
         pages.render("digest.html", issue["url"], lastmod=issue["lastmod"], issue=issue)
         issue["email"] = pages.env.get_template("digest_email.html").render(**pages.common, issue=issue, ref=digest.EMAIL_REF,
                                                                             palette=colors(config), shown=digest.EMAIL_MEETINGS,
@@ -2648,13 +2655,13 @@ def write_feed(path: Path, meetings: list[dict], config: dict, base_url: str, bu
 def write_digest_feed(path: Path, issues: list[dict], config: dict, base_url: str, built_at: datetime) -> None:
     """RSS feed of the weekly digest (pipeline/digest.py), for an email provider to send: each issue
     whole, as HTML, dated when its email is due (digest.SEND_TIME on its Sunday). Each one's title, which the
-    email's subject is made from, is its week's lead as a headline where it has one (digest.headline())."""
+    email's subject is made from, is its subject (digest.subject()) where it has one."""
     site = config["site"]
 
     def title(issue: dict) -> str:
         monday = date.fromisoformat(issue["monday"])
-        lead = (issue.get("decided") or {}).get("lead_title")
-        # The week's lead, as a headline ("City Council approved $200,000 soil cleanup at 448 High Street"), or the week.
+        lead = (issue.get("subject") or {}).get("subject")
+        # The week's subject (digest.subject(): the model's, or the lead decision as a headline), or the week.
         return lead or _("Week of {when}").format(when=plain_date(monday))
 
     entries = "".join(

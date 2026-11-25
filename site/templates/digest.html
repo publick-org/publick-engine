@@ -28,11 +28,12 @@
 {% endif %}
 
 {# What was decided (digest.decided()): each meeting whose minutes, or else whose recording, came that week, the strongest
-   first, by its headline and its main decisions as rows with their outcome; its routine decisions a link away; and the
-   meetings that decided nothing, a line each, after. That it's written by AI is said once, above; how a meeting's was
+   first, by its headline where that reports a decision (e.line) and its main decisions as rows with their outcome; its
+   routine decisions a link away; the meetings that decided nothing, a line each, after; and the meetings whose minutes
+   came after an earlier issue listed them from their recordings (issue.minutes_posted). That it's written by AI is said once, above; how a meeting's was
    checked, only where it wasn't in full. #}
 {% set dz = issue.decided %}
-{% if dz.entries or dz.quiet %}
+{% if dz.entries or dz.quiet or issue.minutes_posted %}
 <h2 id="decided">{{ _("What was decided") }}</h2>
 {# Translators: %(start)s and %(end)s are dates, such as "October 5, 2026". #}
 <p>{% trans start=issue.minutes_from | date("plain"), end=issue.minutes_to | date("plain") %}At the meetings whose minutes this site collected from {{ start }}, to {{ end }}, and those it summarized from their recordings before their minutes came.{% endtrans %}</p>
@@ -48,7 +49,7 @@
     <h3><a href="{{ m.url }}">{{ e.name }}</a></h3>
     <p class="item-detail"><time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time>
       {%- if e.source == "recording" %} · {{ _("from its recording") }}{% if m.recordings %} · <a href="{{ m.recordings[0].url }}">{{ _("Watch the recording") }}</a>{% endif %}{% endif %}</p>
-    {% if m.preview_line %}<p class="summary">{{ m.preview_line }}</p>{% endif %}
+    {% if e.line %}<p class="summary">{{ e.line }}</p>{% endif %}
     {% if e.main %}{{ decision_rows(m.minutes_doc if e.source == "minutes" else none, e.main, false, none, "decision", titled=true) }}{% endif %}
     {% if e.recommended %}
     {#- Translators: %(council)s is the town's governing body, such as "City Council". -#}
@@ -59,6 +60,16 @@
     {% if e.routine %}<p class="small"><a href="{{ m.url }}">{% trans count=e.routine %}{{ count }} routine decision on the meeting's page{% pluralize %}{{ count }} routine decisions on the meeting's page{% endtrans %}</a></p>{% endif %}
     {% if how in ("partial", "none") %}<p class="small checked" data-checked="{{ how }}">{{ checked_short(how) }}</p>{% endif %}
   </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if issue.minutes_posted %}
+{# Translators: a heading in the weekly digest, over the meetings whose minutes came this week, whose decisions an earlier digest listed from their recordings. #}
+<h3 class="decision-group">{{ _("Minutes now posted") }}</h3>
+<p class="small">{{ _("These meetings' decisions were in an earlier digest, from their recordings. Their minutes, the official record, came this week.") }}</p>
+<ul class="digest-quiet">
+  {% for m in issue.minutes_posted %}
+  <li><a href="{{ m.url }}">{{ meeting_name(m) }}</a>, <time datetime="{{ m.date }}">{{ m.date | date("plain") }}</time></li>
   {% endfor %}
 </ul>
 {% endif %}
