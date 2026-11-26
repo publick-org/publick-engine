@@ -126,7 +126,9 @@ pipeline/                   Python package
   search_answers.py         The search's answers: the streets, boards and officials a search names, shown above its
                             results, from the town's own data, in _site/search/answers.json
   digest.py                 The weekly digest: each Sunday's issue of the week's meetings and the minutes posted the week
-                            before (no AI), built into /digest/ with a feed for email
+                            before, built into /digest/ with a feed for email
+  digest_subject.py         Daily, on an issue's weekend: the digest email's top story, subject and preheader, picked and
+                            written by the model from the issue's candidates -> data/digest/<Monday>.json
   structured.py             Structured data (schema.org JSON-LD) for search engines: the site's name, meetings as events,
                             breadcrumbs, and the downloads as datasets
   i18n.py                   The sites' wording in other languages: the language being built, and

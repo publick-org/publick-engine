@@ -641,8 +641,19 @@ def test_only_the_steps_with_costs_get_the_private_store_and_the_budget():
     assert set(network.keyed(env, network.FETCH_KEYS)) == set(env) - {"SITES_BUCKET"}
     assert set(network.keyed(env, network.COLLECT_KEYS)) == set(env) - {"SITES_BUCKET"}
     assert set(network.keyed(env, network.PRIVATE_KEYS)) == set(cost_log.PRIVATE_KEYS)
-    # Within the fetch, the summaries alone.
+    # Within the fetch, the summaries alone; and the cost log alone to the digest's subject (pipeline/digest_subject.py,
+    # which logs its request, outside the summaries' budget).
     for source in update.SOURCES:
         given = set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS) & set(source.secrets)
-        assert given == (set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS) if source.module == "pipeline.summarize"
-                         else set())
+        assert given == {"pipeline.summarize": set(cost_log.PRIVATE_KEYS + cost_log.BUDGET_KEYS),
+                         "pipeline.digest_subject": set(cost_log.PRIVATE_KEYS)}.get(source.module, set())
+
+
+def test_the_digest_subjects_cost_counts_apart():
+    """A digest subject's request (pipeline/digest_subject.py) is paid for: it counts in the month's row as digest_cost."""
+    entries = [{"kind": "summary", "key": "a", "doc": "x", "cost": 0.5},
+               {"kind": "digest", "key": "b", "issue": "2026-11-23", "cost": 0.002}]
+    row = cost_log.totals(entries)
+    assert row == {"cost": 0.5, "documents": 1, "digest_cost": 0.002}
+    assert cost_log.month_cost(row) == pytest.approx(0.502)
+    assert cost_log.parse(json.dumps(entries[1]) + "\n") == [entries[1]]

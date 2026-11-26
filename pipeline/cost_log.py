@@ -9,7 +9,8 @@ zone, as the run's), one JSON object a line:
 
 kind is what the request was for: summary (a summary saved), transcript (some pages of a scan
 transcribed), translation (a summary translated), draft (a batch of the town's own text drafted in
-another language), review (a translation's or a draft's meaning reviewed), failed (one that stopped
+another language), review (a translation's or a draft's meaning reviewed), digest (the weekly digest's
+subject chosen and written, pipeline/digest_subject.py, with the issue's Monday, "issue"), failed (one that stopped
 early, or whose result couldn't be read or saved), or seed (the month's costs from before its log,
 below). A translation's, draft's, or review's line also has its language, "lang". key names the
 request: its response's id, or for one request of a batch, the batch's id and the request's
@@ -56,7 +57,7 @@ made from the month's lines after each line, in the form it has always had: cost
 each document's latest summary this month, replaced_cost for the earlier summaries of a document
 made again this month, failed_cost, transcript_cost, and translation_cost and translations
 (translations, their reviews, and drafts; each document's translation into a language counts once,
-and a batch of drafts as one). Making it reads the one month's lines, never the summaries. A month
+and a batch of drafts as one), and digest_cost. Making it reads the one month's lines, never the summaries. A month
 with no lines keeps its row as it is, as do the months before the town had a log.
 
 The summary, transcription, and translation records saved in the town's data folder, and its
@@ -97,10 +98,10 @@ FOLDER = "costs"
 # What each month cost, made from the lines; the network reads it (pipeline/network.py's town_ledger).
 LEDGER = "summary-costs.json"
 # What a month's row of the ledger counts as paid for.
-COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced_cost")
+COSTS = ("cost", "failed_cost", "transcript_cost", "translation_cost", "replaced_cost", "digest_cost")
 # The kinds of line that count as translation_cost.
 TRANSLATING = ("translation", "draft", "review")
-KINDS = ("summary", "transcript", "failed", "seed") + TRANSLATING
+KINDS = ("summary", "transcript", "failed", "seed", "digest") + TRANSLATING
 # What a request cost and the tokens it took, which records saved in the town's data folder don't carry:
 # its lines in the log hold them (the module docstring).
 ON_RECORDS = ("cost", "usage", "replaced_cost", "transcript_cost", "transcript_usage")
@@ -399,6 +400,8 @@ def totals(entries: list[dict]) -> dict:
             paid["failed_cost"] += cost
         elif kind == "transcript":
             paid["transcript_cost"] += cost
+        elif kind == "digest":
+            paid["digest_cost"] += cost
         else:
             paid["translation_cost"] += cost
             if kind == "translation":
@@ -409,7 +412,7 @@ def totals(entries: list[dict]) -> dict:
     row = {"cost": round(sum(latest.values()) + paid["cost"], 4), "documents": len(latest)}
     if translated or drafts or paid["translation_cost"]:
         row.update(translation_cost=round(paid["translation_cost"], 4), translations=len(translated) + drafts)
-    for key in ("failed_cost", "transcript_cost", "replaced_cost"):
+    for key in ("failed_cost", "transcript_cost", "replaced_cost", "digest_cost"):
         if paid[key]:
             row[key] = round(paid[key], 4)
     return row

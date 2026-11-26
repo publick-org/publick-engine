@@ -187,14 +187,16 @@ def test_new_minutes_and_their_decisions(with_new_minutes):
     assert decided.count("Written by AI from each meeting's minutes") == 1 and 'class="small checked"' not in decided
     feed = minidom.parse(str(with_new_minutes / "digest" / "feed.xml"))
     titles = [t.firstChild.data for t in feed.getElementsByTagName("title")]
-    # The week's lead as a headline, for the email's subject; a week without decisions keeps its date.
-    assert titles.index("City Council approved a site plan for 12 Main St") < titles.index("Week of September 28, 2026")
+    # The meeting is 40 days before the issue, past digest.LEAD_MAX_AGE, so it doesn't lead: with no model's subject
+    # (pipeline/digest_subject.py), each week keeps its date.
+    assert titles[1:] == ["Week of October 5, 2026", "Week of September 28, 2026"]
     body = feed.getElementsByTagName("item")[0].getElementsByTagName("description")[0].firstChild.data
-    # "This week" names the week's lead, as the subject does, and links its meeting; what was decided there is below.
+    # "This week" counts the meetings whose decisions came in; what was decided there is below. No top story.
     glance = body[body.index("This week</p>"):body.index("<h2")]
-    assert re.search(r'>Decisions from 1 meeting: <a href="https://gloucester-ma\.publick\.org/meetings/2026-08-25-city-council/'
-                     r'\?ref=digest-email" style="[^"]*">City Council approved a site plan for 12 Main St</a></li>', glance)
+    assert ">Decisions from 1 meeting</li>" in glance and "Coming up this week" not in body
     assert ">1 meeting without an agenda yet</li>" in glance
+    # The preheader, hidden, counts the week: no other was written.
+    assert re.search(r'mso-hide:all;">8 meetings this week; decisions from 1 meeting(&zwnj;&nbsp;)+</div>', body)
     decided = body[body.index("What was decided"):]
     assert decided.count("<p style=\"margin:2px 0 0;\">Approved a site plan for 12 Main St.</p>") == 1
     # Where each meeting of the week is.
@@ -515,3 +517,51 @@ def test_an_email_that_cant_be_sent_is_caught(with_new_minutes, monkeypatch):
 def test_where_a_meeting_is_in_the_email(place, expected):
     """A meeting's place, short: without the town, its state and ZIP code, and at most its first two parts."""
     assert digest.short_place({"location": place}, "Beverly") == expected
+
+
+def test_minutes_after_a_recording_are_a_line_not_news_again():
+    """A meeting listed from its recording in one issue isn't listed again when its minutes come in a later week: that
+    issue says its minutes are posted."""
+    recorded = meeting("2026-11-10", "2026-11-20T06:00:00-05:00", recording_summary={"headline": "x"},
+                       transcript_doc={"fetched_at": "2026-11-12T06:00:00-05:00"})
+    fresh = meeting("2026-11-17", "2026-11-19T06:00:00-05:00", body="Planning Board")
+    meetings = [recorded, fresh, meeting("2026-11-16"), meeting("2026-11-23")]
+    found = digest.issues(meetings, "2026-09-01T06:00:00-04:00", date(2026, 11, 21), TZ)
+    later, earlier = found[0], found[1]
+    assert earlier["recorded"] == [recorded] and earlier["minutes"] == []
+    assert later["minutes"] == [fresh] and later["minutes_posted"] == [recorded] and later["recorded"] == []
+
+
+def test_routine_decisions_by_their_titles():
+    """A consent agenda, minutes, bills or payroll is routine whatever the summary says; a decision that only mentions
+    minutes isn't."""
+    m = decided_meeting("School Committee", "2026-11-18", [
+        decision("Approved the consent agenda", main=False, title="Consent agenda as presented"),
+        decision("Approved the operating protocols", main=False, title="Updated school committee operating protocols"),
+        decision("Accepted the grant", main=False, title="$25,000 Hate Crime Prevention Grant"),
+    ])
+    main, routine = digest.main_decisions(m)
+    assert [d.title for d in main] == ["Updated school committee operating protocols", "$25,000 Hate Crime Prevention Grant"]
+    assert routine == 1
+    m = decided_meeting("City Council", "2026-11-03", [
+        decision("Released the minutes", title="Release of executive session minutes on Flock cameras"),
+        decision("Approved the minutes", title="Minutes of October 21, 2026 meeting"),
+    ])
+    assert ([d.title for d in digest.main_decisions(m)[0]], digest.main_decisions(m)[1]) == \
+        (["Release of executive session minutes on Flock cameras"], 1)
+
+
+def test_an_old_meeting_doesnt_lead_and_a_headline_that_decides_nothing_isnt_shown():
+    old = decided_meeting("City Council", "2026-10-08", [decision("Approved the budget", title="FY27 budget")],
+                          preview_line="Approved the FY27 budget.")
+    recent = decided_meeting("Board of Health", "2026-11-12", [
+        decision("Approved septic variances at 8 Rouse Road", title="Septic variances at 8 Rouse Road")],
+        preview_line="Neighbors ask the board to stop blasting at 10 Hudson Road.")
+    found = digest.decided({"sunday": "2026-11-22", "minutes": [old, recent], "recorded": []}, ["City Council"])
+    # The recent meeting first, though the old one is a main board's; the old one never leads.
+    assert [e["meeting"]["body"] for e in found["entries"]] == ["Board of Health", "City Council"]
+    assert found["lead"]["meeting"] is recent
+    # Its headline reports no decision, so it isn't shown; the subject's headline is its first decision.
+    assert found["entries"][0]["line"] is None and found["entries"][1]["line"] == "Approved the FY27 budget."
+    assert found["lead_title"] == "Board of Health approved septic variances at 8 Rouse Road"
+    assert digest.decided({"sunday": "2026-11-22", "minutes": [old], "recorded": []}, ["City Council"])["lead"] is None

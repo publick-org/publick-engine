@@ -173,6 +173,20 @@ jobs:
           SUMMARY_BUDGET: ${{ secrets.SUMMARY_BUDGET }}
           SUMMARY_BUDGET_MONTH: ${{ secrets.SUMMARY_BUDGET_MONTH }}
 
+      # The weekly digest's subject and top story, written by the model between an issue's Saturday build and
+      # its Sunday send, for a town whose digest is emailed ([digest]); otherwise it does nothing. Its one request a
+      # week goes in the cost log (the private store's keys), outside the summaries' budget.
+      - name: Write digest subject
+        if: inputs.sources != '311'
+        continue-on-error: true
+        run: python -m pipeline.digest_subject --town "$TOWN"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PRIVATE_ENDPOINT: ${{ secrets.PRIVATE_ENDPOINT }}
+          PRIVATE_BUCKET: ${{ secrets.PRIVATE_BUCKET }}
+          PRIVATE_ACCESS_KEY_ID: ${{ secrets.PRIVATE_ACCESS_KEY_ID }}
+          PRIVATE_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_SECRET_ACCESS_KEY }}
+
       # One step per source, so one failing source doesn't stop the others.
       - name: Fetch tax bill
         if: inputs.sources != '311'

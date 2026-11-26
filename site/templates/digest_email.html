@@ -3,11 +3,16 @@
    stylesheet; every link in full. It's sent with none of the email provider's template around it
    (worker/digest.js), so its footer has what the law asks for: a link to unsubscribe (unsubscribe,
    the provider's tag for each reader's own) and a postal address (mailing_address, pipeline/digest.py).
-   It starts with "This week", a short list from digest.glance(); then the week's meetings,
+   It opens with a preheader, the line an inbox shows beside the subject, hidden in the email itself: the model's
+   (digest_subject.subject()), or a count of the week's meetings, hearings and decisions. Then the top story, where the issue
+   has one (issue.top: the candidate the subject is about, digest_subject.subject()), said once as written by AI. Then
+   "This week", a short list from digest.glance(); then the week's meetings,
    each with where it is (digest.short_place()); then what was decided, the strongest meeting first: a main board's
    and the lead's main decisions by their titles with their outcomes (up to shown_decisions,
-   digest.EMAIL_DECISIONS), another meeting by its headline, each linking the rest; up to shown (digest.EMAIL_MEETINGS) meetings, then a
-   link to the issue's page; and the meetings that decided nothing, one line. What was decided says once,
+   digest.EMAIL_DECISIONS), another meeting by its headline where that reports a decision (e.line, digest.decided()),
+   or else its first main decision, each linking the rest; up to shown (digest.EMAIL_MEETINGS) meetings, then a
+   link to the issue's page; the meetings that decided nothing, one line; and the meetings whose minutes came after an
+   earlier issue listed them from their recordings (issue.minutes_posted), one line. What was decided says once,
    above its lines, that they're written by AI; how a line was checked is said only where it wasn't in full. Each link says it's from the email (?ref=,
    digest.EMAIL_REF), for the page counts. Meetings are named as digest.meeting_name() names them. #}
 {% from "macros.html" import meeting_flags, checked_short, outcome_word %}
@@ -19,6 +24,18 @@
 {% set note = "margin:0 0 4px;font-size:14px;line-height:1.5;color:#545c65;" %}
 {% set link = "color:" ~ palette.primary_dark ~ ";font-weight:700;text-decoration:none;" %}
 <div style="{{ sans }}font-size:16px;line-height:1.55;color:#1b1f24;max-width:640px;">
+{# The preheader: hidden in the email, shown by an inbox beside the subject; the spaces after it keep the email's
+   first words out of that preview. #}
+{% set g = issue.glance %}
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+{%- if issue.subject.preheader %}{{ issue.subject.preheader }}{% else -%}
+{# Translators: the preview line of the weekly digest's email, when no other was written: how many meetings take place this week. #}
+{%- trans count=g.live | length %}{{ count }} meeting this week{% pluralize %}{{ count }} meetings this week{% endtrans -%}
+{# Translators: after "5 meetings this week" in the weekly digest's preview line. #}
+{%- if g.hearings %}, {% trans count=g.hearings | length %}{{ count }} with a public hearing{% pluralize %}{{ count }} with a public hearing{% endtrans %}{% endif -%}
+{# Translators: after "5 meetings this week" in the weekly digest's preview line. #}
+{%- if g.decided %}; {% trans count=g.decided | length %}decisions from {{ count }} meeting{% pluralize %}decisions from {{ count }} meetings{% endtrans %}{% endif -%}
+{%- endif %}{% for __ in range(40) %}&zwnj;&nbsp;{% endfor %}</div>
 {# The masthead: the town's site, as on its pages. #}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-bottom:3px solid {{ palette.primary_dark }};">
   <tr>
@@ -30,11 +47,27 @@
     </td>
   </tr>
 </table>
+{# The top story: the meeting the subject is about, with its own line from the site and a link to its page. #}
+{% set top = issue.top if issue.top and issue.subject.subject else none %}
+{% if top %}
+{% set t, tm = top.pick, top.meeting %}
+{% set where = short_place(tm, town.name) if tm and t.kind == "ahead" and tm.status != "cancelled" else none %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:22px 0 0;">
+  <tr><td style="padding:14px 16px;border-left:4px solid {{ palette.accent }};background:#f3f5f7;">
+    {# Translators: above the weekly digest's top story: a meeting to come this week, or a meeting's decisions. #}
+    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:{{ palette.accent }};">{% if t.kind == "ahead" %}{{ _("Coming up this week") }}{% else %}{{ _("Decided") }}{% endif %}</p>
+    <p style="{{ serif }}margin:0;font-size:21px;line-height:1.25;font-weight:700;"><a href="{{ site_url }}{{ t.url }}{{ q }}" style="color:{{ palette.primary_dark }};text-decoration:none;">{{ issue.subject.subject }}</a></p>
+    <p style="margin:6px 0 0;font-size:14px;color:#545c65;">{{ t.board }} · {{ t.date | date }}{% if tm and tm.start_time and t.kind == "ahead" %} · {{ tm.start_time | time }}{% endif %}{% if where %} · {{ where }}{% endif %}</p>
+    {% if t.line %}<p style="margin:6px 0 0;">{{ t.line }}</p>{% endif %}
+    <p style="margin:8px 0 0;font-size:14px;"><a href="{{ site_url }}{{ t.url }}{{ q }}" style="color:{{ palette.primary }};font-weight:700;">{% if t.kind == "ahead" %}{{ _("The agenda, and how to take part") }}{% else %}{{ _("Every decision, on the meeting's page") }}{% endif %}</a></p>
+    <p style="margin:8px 0 0;font-size:13px;color:#545c65;font-style:italic;">{% if issue.subject.written %}{{ _("Chosen and written by AI from the site's summaries, which are written by AI from the meetings' documents.") }}{% else %}{{ _("Written by AI from the meeting's minutes, or from its recording until the minutes come.") }}{% endif %}</p>
+  </td></tr>
+</table>
+{% endif %}
 {# "This week" (digest.glance()): a short list of what the sections below have: how many meetings, by day; the public
-   hearings, by day; how many meetings' decisions, with the week's lead (digest.decided(), the email's subject); how many
+   hearings, by day; how many meetings' decisions; how many
    meetings have no agenda yet; and those off the schedule, by day. Up to g.names meetings named on a line. #}
 {% set dz = issue.decided %}
-{% set g = issue.glance %}
 {% set plain_link = "color:#1b1f24;text-decoration:underline;" %}
 {% set li = "margin:0 0 4px;padding:0;" %}
 {% macro names(items) -%}
@@ -52,8 +85,8 @@
 {# Translators: "This week" in the weekly digest, before the meetings with a public hearing that day; %(day)s is a weekday. #}
 {% for day, items in g.hearings | groupby("date") %}<li style="{{ li }}">{% trans count=items | length, day=day | date("weekday") %}Public hearing {{ day }}:{% pluralize %}Public hearings {{ day }}:{% endtrans %} {{ names(items) }}</li>
 {% endfor %}
-{# Translators: "This week" in the weekly digest; %(count)s is how many meetings' decisions the email lists, then one of them, such as "City Council approved repairs at two schools". #}
-{% if g.decided %}<li style="{{ li }}">{% if dz.lead_title %}{% trans count=g.decided | length %}Decisions from {{ count }} meeting:{% pluralize %}Decisions from {{ count }} meetings, including:{% endtrans %} <a href="{{ site_url }}{{ dz.lead.meeting.url }}{{ q }}" style="{{ plain_link }}">{{ dz.lead_title }}</a>{% else %}{% trans count=g.decided | length %}Decisions from {{ count }} meeting{% pluralize %}Decisions from {{ count }} meetings{% endtrans %}{% endif %}</li>{% endif %}
+{# Translators: "This week" in the weekly digest; %(count)s is how many meetings' decisions the email lists. #}
+{% if g.decided %}<li style="{{ li }}">{% trans count=g.decided | length %}Decisions from {{ count }} meeting{% pluralize %}Decisions from {{ count }} meetings{% endtrans %}</li>{% endif %}
 {% if g.no_agenda %}<li style="{{ li }}">{% trans count=g.no_agenda %}{{ count }} meeting without an agenda yet{% pluralize %}{{ count }} meetings without an agenda yet{% endtrans %}</li>{% endif %}
 {# Translators: "This week" in the weekly digest, before the meetings cancelled, postponed, or taken off the town's listing that day; %(day)s is a weekday. #}
 {% for day, items in g.off | groupby("date") %}<li style="{{ li }}">{% trans day=day | date("weekday") %}Off the schedule {{ day }}:{% endtrans %} {{ names(items) }}</li>
@@ -76,14 +109,14 @@
 {% endfor %}
 {% endfor %}
 {% endif %}
-{% if dz.entries or dz.quiet %}
+{% if dz.entries or dz.quiet or issue.minutes_posted %}
 <h2 style="{{ h2 }}">{{ _("What was decided") }}</h2>
 <p style="{{ note }}font-style:italic;">{{ _("Written by AI from each meeting's minutes, or from its recording until the minutes come. The minutes are the official record.") }}</p>
 {% for e in dz.entries[:shown] %}
 {% set m = e.meeting %}
-{% set rows = e.main[:shown_decisions] if e.main_board or e is sameas dz.lead else [] %}
+{% set rows = e.main[:shown_decisions] if e.main_board or e is sameas dz.lead else ([] if e.line else e.main[:1]) %}
 <p style="margin:20px 0 0;"><a href="{{ site_url }}{{ m.url }}{{ q }}" style="{{ link }}">{{ e.name }}</a><span style="color:#545c65;"> · {{ m.date | date("mon_day") }}{% if e.source == "recording" %} · {{ _("from its recording") }}{% endif %}</span></p>
-{% if m.preview_line %}<p style="margin:2px 0 0;">{{ m.preview_line }}</p>{% endif %}
+{% if e.line %}<p style="margin:2px 0 0;">{{ e.line }}</p>{% endif %}
 {% if rows %}
 <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:6px 0 0;width:100%;">
   {% for d in rows %}
@@ -101,6 +134,10 @@
 {% if m.preview_checked in ("partial", "none") %}<p style="margin:2px 0 0;font-size:14px;color:#545c65;">{{ checked_short(m.preview_checked) }}</p>{% endif %}
 {% endfor %}
 {% if dz.entries | length > shown %}<p style="margin:18px 0 0;font-size:15px;"><a href="{{ issue_url }}#decided" style="{{ link }}">{% trans count=dz.entries | length - shown %}What {{ count }} more meeting decided, on the site{% pluralize %}What {{ count }} more meetings decided, on the site{% endtrans %}</a></p>{% endif %}
+{% if issue.minutes_posted %}
+{# Translators: before the meetings whose minutes came this week, whose decisions an earlier weekly digest listed from their recordings. #}
+<p style="margin:18px 0 0;font-size:14px;color:#545c65;">{{ _("Minutes now posted, for meetings an earlier digest covered from their recordings:") }} {% for m in issue.minutes_posted %}<a href="{{ site_url }}{{ m.url }}{{ q }}" style="color:{{ palette.primary }};">{{ meeting_name(m) }}</a> ({{ m.date | date("mon_day") }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}
 {% if dz.quiet %}
 <p style="margin:18px 0 0;font-size:14px;color:#545c65;">{{ _("No decisions recorded:") }} {% for e in dz.quiet %}<a href="{{ site_url }}{{ e.meeting.url }}{{ q }}" style="color:{{ palette.primary }};">{{ e.name }}</a> ({{ e.meeting.date | date("mon_day") }}){% if not loop.last %}, {% endif %}{% endfor %}.</p>
 {% endif %}

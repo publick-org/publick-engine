@@ -221,6 +221,15 @@ msgid_plural "%(count)s meetings"
 msgstr[0] ""
 msgstr[1] ""
 
+#. the preview line of the weekly digest's email, when no other was written: how many meetings take
+#. place this week.
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s meeting this week"
+msgid_plural "%(count)s meetings this week"
+msgstr[0] ""
+msgstr[1] ""
+
 #: site/templates/digest_email.html
 #, python-format
 msgid "%(count)s meeting without an agenda yet"
@@ -280,6 +289,14 @@ msgstr[1] ""
 #, python-format
 msgid "%(count)s routine decision on the meeting's page"
 msgid_plural "%(count)s routine decisions on the meeting's page"
+msgstr[0] ""
+msgstr[1] ""
+
+#. after "5 meetings this week" in the weekly digest's preview line.
+#: site/templates/digest_email.html
+#, python-format
+msgid "%(count)s with a public hearing"
+msgid_plural "%(count)s with a public hearing"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2760,6 +2777,12 @@ msgstr "Verificado con la transcripción de la grabación"
 msgid "Checked against the transcript."
 msgstr "Verificado con la transcripción."
 
+#: site/templates/digest_email.html
+msgid ""
+"Chosen and written by AI from the site's summaries, which are written by AI from the meetings' "
+"documents."
+msgstr ""
+
 #: site/states/ct/schools.html site/states/ma/schools.html site/states/me/schools.html
 #: site/states/ri/schools.html site/states/vt/schools.html
 msgid "Chronic absenteeism"
@@ -2915,6 +2938,11 @@ msgstr "El color nunca es la única forma de mostrar la información."
 #: site/pages/index.html site/templates/board.html
 msgid "Coming up"
 msgstr "Lo que viene"
+
+#. above the weekly digest's top story: a meeting to come this week, or a meeting's decisions.
+#: site/templates/digest_email.html
+msgid "Coming up this week"
+msgstr ""
 
 #: site/states/ri/budget.html
 msgid "Commercial"
@@ -3147,6 +3175,10 @@ msgctxt "month"
 msgid "December"
 msgstr "diciembre"
 
+#: site/templates/digest_email.html
+msgid "Decided"
+msgstr ""
+
 #: site/pages/search/index.html
 msgid "Decisions"
 msgstr "Decisiones"
@@ -3155,19 +3187,11 @@ msgstr "Decisiones"
 msgid "Decisions are pulled from each meeting's minutes by AI."
 msgstr "Las decisiones se sacan de las actas de cada reunión con IA."
 
+#. "This week" in the weekly digest; %(count)s is how many meetings' decisions the email lists.
 #: site/templates/digest_email.html
 #, python-format
 msgid "Decisions from %(count)s meeting"
 msgid_plural "Decisions from %(count)s meetings"
-msgstr[0] ""
-msgstr[1] ""
-
-#. "This week" in the weekly digest; %(count)s is how many meetings' decisions the email lists, then
-#. one of them, such as "City Council approved repairs at two schools".
-#: site/templates/digest_email.html
-#, python-format
-msgid "Decisions from %(count)s meeting:"
-msgid_plural "Decisions from %(count)s meetings, including:"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -3643,6 +3667,10 @@ msgid "Every chart on this site has a table with the same numbers, and a CSV dow
 msgstr ""
 "Cada gráfica de este sitio tiene una tabla con los mismos números, y debajo, un enlace para "
 "descargarla en CSV."
+
+#: site/templates/digest_email.html
+msgid "Every decision, on the meeting's page"
+msgstr ""
 
 #. %(num)s is a number of meetings.
 #: site/pages/data/index.html
@@ -5444,6 +5472,18 @@ msgstr[1] ""
 #: site/templates/held.html
 msgid "Minutes not posted yet"
 msgstr "Actas aún no publicadas"
+
+#. a heading in the weekly digest, over the meetings whose minutes came this week, whose decisions an
+#. earlier digest listed from their recordings.
+#: site/templates/digest.html
+msgid "Minutes now posted"
+msgstr ""
+
+#. before the meetings whose minutes came this week, whose decisions an earlier weekly digest listed
+#. from their recordings.
+#: site/templates/digest_email.html
+msgid "Minutes now posted, for meetings an earlier digest covered from their recordings:"
+msgstr ""
 
 #: site/templates/held.html site/templates/macros.html
 msgid "Minutes posted"
@@ -8224,6 +8264,10 @@ msgstr ""
 "El resumen de la agenda se retiró mientras se revisa un error que se nos informó; la agenda está "
 "enlazada abajo."
 
+#: site/templates/digest_email.html
+msgid "The agenda, and how to take part"
+msgstr ""
+
 #: site/templates/alerts.html
 #, python-format
 msgid ""
@@ -8962,6 +9006,12 @@ msgid ""
 msgstr ""
 "Se envían a una comisión o adonde indica cada uno, para tratarse más adelante. No se deciden en "
 "esta reunión."
+
+#: site/templates/digest.html
+msgid ""
+"These meetings' decisions were in an earlier digest, from their recordings. Their minutes, the "
+"official record, came this week."
+msgstr ""
 
 #. "They" are the visit totals of the sentence before.
 #: site/pages/about/index.html
@@ -9909,6 +9959,10 @@ msgid ""
 "minutes are the official record."
 msgstr ""
 
+#: site/templates/digest_email.html
+msgid "Written by AI from the meeting's minutes, or from its recording until the minutes come."
+msgstr ""
+
 #: site/templates/meeting.html
 msgctxt "roll call"
 msgid "Yea"
@@ -10129,6 +10183,14 @@ msgstr "portal de reuniones de la ciudad"
 #: pipeline/meeting_sources.py
 msgid "city's website"
 msgstr "sitio web de la ciudad"
+
+#. after "5 meetings this week" in the weekly digest's preview line.
+#: site/templates/digest_email.html
+#, python-format
+msgid "decisions from %(count)s meeting"
+msgid_plural "decisions from %(count)s meetings"
+msgstr[0] ""
+msgstr[1] ""
 
 #. the end of a sentence, such as "If something is hard to use, email ... or open an issue ...".
 #: site/templates/macros.html

@@ -9,6 +9,11 @@
 #     pipeline/evaluate.py), which fails when a wrong outcome would be shown,
 #     and the agenda set (evals/agendas.json, pipeline/evaluate_agendas.py),
 #     which fails when an item's wrong action would be shown;
+#   - the weekly digest's subject prompt (pipeline/digest_subject.py): the
+#     digest set (evals/digest_subjects.json, pipeline/evaluate_digest.py),
+#     run on each of DIGEST_MODELS and compared side by side, which fails
+#     when too few of a model's answers would be used or too few of its
+#     picks are good;
 #   - the translator (pipeline/translate.py, pipeline/glossary.py): the
 #     translation set (evals/translations.json,
 #     pipeline/evaluate_translations.py), which fails when a threshold is
@@ -16,7 +21,9 @@
 #   - a set or its runner: that set.
 # Each with the models the network runs (its defaults/network.toml
 # [summaries]): MODEL and EFFORT for summaries and translation drafts, and
-# REVIEW_MODEL and REVIEW_EFFORT for the review of each translation.
+# REVIEW_MODEL and REVIEW_EFFORT for the review of each translation; and
+# for the digest's subject, the models a town may choose between ([summaries]
+# digest_model), so the set shows which writes the better subjects.
 #
 # The report is the run's summary, and every result the artifact
 # evaluation-<set>. The log and the report leave out what the run cost
@@ -37,9 +44,12 @@ on:
       - pipeline/evaluate.py
       - pipeline/evaluate_translations.py
       - pipeline/evaluate_agendas.py
+      - pipeline/digest_subject.py
+      - pipeline/evaluate_digest.py
       - evals/minutes.json
       - evals/agendas.json
       - evals/translations.json
+      - evals/digest_subjects.json
 
 permissions:
   contents: read
@@ -49,6 +59,7 @@ env:
   EFFORT: high
   REVIEW_MODEL: claude-sonnet-5-5
   REVIEW_EFFORT: low
+  DIGEST_MODELS: claude-haiku-5-5,claude-sonnet-5-5,claude-opus-5-5
 
 jobs:
   evaluate:
@@ -89,6 +100,7 @@ jobs:
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate)\.py|evals/minutes\.json' <<< "$changed"; then sets="minutes"; fi
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
           if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
+          if grep -qxE 'pipeline/(digest_subject|evaluate_digest)\.py|evals/digest_subjects\.json' <<< "$changed"; then sets="$sets digest"; fi
           echo "Sets to run: ${sets:-none}"
           echo "sets=$sets" >> "$GITHUB_OUTPUT"
 
@@ -109,6 +121,7 @@ jobs:
             case "$set" in
               minutes) args=(--model "$MODEL" --effort "$EFFORT") ;;
               agendas) args=(--set agendas --model "$MODEL" --effort "$EFFORT") ;;
+              digest) args=(--set digest --models "$DIGEST_MODELS") ;;
               translations) args=(--set translations --model "$MODEL" --effort "$EFFORT"
                                   --review-model "$REVIEW_MODEL" --review-effort "$REVIEW_EFFORT") ;;
             esac

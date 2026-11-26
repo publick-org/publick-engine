@@ -1,0 +1,2077 @@
+{
+ "about": "Issues of the weekly digest from November 2026, each with the candidates its subject may be about, as digest.candidates() gives them (but their addresses), for the subject prompt (pipeline/digest_subject.py, pipeline/evaluate_digest.py). good: the candidates a reader of that town's site would want the email to lead with, read by hand; more than one where two matter about as much.",
+ "issues": [
+  {
+   "name": "gloucester-ma 2026-11-22",
+   "town": "Gloucester",
+   "send": "Sunday, November 22, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:30",
+     "main_board": true,
+     "hearing": true,
+     "line": "Hearings on Deacon Farm Lane and shopping cart rules are postponed; proposed data center ban and police chief rule changes also up.",
+     "items": [
+      "Reappointment of Scott A. Carola as Chief of Police, term to 11/29/2029",
+      "Accept $4,545 in donations from Cape Ann Veterans Services District",
+      "Pay $292,223.95 in FY2026 Republic Services invoices with FY2027 funds",
+      "Accept a 2010 surplus Lark utility trailer"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Waterways Finance Committee",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Current and upcoming budgets, Waterways accounts, grants, and known and potential projects and expenses.",
+     "items": [
+      "Public comment",
+      "Review of current fiscal year budget",
+      "Discussion of upcoming budget process and timing",
+      "Review of all Waterways accounts"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Gloucester Contributory Retirement System Board",
+     "date": "2026-11-25",
+     "day": "Wednesday",
+     "time": "09:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Votes on a disability retirement application, new members, and superannuation requests; also a proposed 2027 budget.",
+     "items": [
+      "Executive session on an involuntary disability retirement application",
+      "November 2026 warrant",
+      "November 2026 PRIM wire",
+      "October 2026 PRIM statement and performance summary"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "",
+     "decisions": [
+      "approved: Updated school committee operating protocols",
+      "approved: $25,000 Hate Crime Prevention Grant",
+      "approved: $60,000 Massachusetts Fair Share Earmark Grant"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "",
+     "decisions": [
+      "approved: Retiree cost-of-living increase, base to $15,000",
+      "denied: Reconsider retiree cost-of-living increase",
+      "approved: Marijuana equity standards, Chapter 28 ordinance",
+      "approved: Letter supporting Senate Bill S457"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Zoning Board of Appeals",
+     "date": "2026-11-12",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Demolition and rebuild of the house at 81 Western Avenue approved, with more lot coverage than allowed.",
+     "decisions": [
+      "approved: Conversion of Addison Street two-family to three-family",
+      "approved: Demolition and rebuild at 81 Western Avenue",
+      "approved: Accessory dwelling unit at 9 King Philip Road",
+      "approved: Access to 7 Keystone Road by shared driveway",
+      "approved: Second-floor addition at 3 Highland Court"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "worcester-ma 2026-11-15",
+   "town": "Worcester",
+   "send": "Sunday, November 15, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "18:30",
+     "main_board": true,
+     "hearing": true,
+     "line": "Public hearings on utility conduits at 116 and 124 Rodney St. and on FY27 tax rates, plus a draft public camping ordinance.",
+     "items": [
+      "Public hearing and order granting National Grid a conduit location at 116 Rodney St.",
+      "Public hearing and order granting National Grid a conduit location at 124 Rodney St.",
+      "Public hearing to set FY27 tax rates for residential, commercial, industrial, and personal property",
+      "City Manager reports on two proposed FY27 tax classification rules, an FY27 tax rate FAQ, and two proposed FY27 budget adjustments"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "School Committee",
+     "date": "2026-11-19",
+     "day": "Thursday",
+     "time": "17:00",
+     "main_board": true,
+     "hearing": false,
+     "line": "Union contract talks, a $450,000 state grant for school repairs and playgrounds, and school boundary realignment.",
+     "items": [
+      "Executive session on union contract negotiations with several Educational Association of Worcester units",
+      "Review of executive session minutes from the November 12 meeting",
+      "Donation of $4,385 from District Attorney Joseph D Early Jr for Chandler Elementary's Thanksgiving Feast",
+      "Donation of 500 coats from the WEDF for WPS Coats for Kids"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Conservation Commission",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": true,
+     "line": "Wetlands review of school turf fields and playground at 2 New Bond Street, and a dock at 413 Lake Avenue.",
+     "items": [
+      "Mill Street right-of-way: whether utility pole replacement needs wetlands review (CC-2026-071)",
+      "321 Greenwood Street: whether the lot needs wetlands review (CC-2026-072)",
+      "2 New Bond Street (Abby Kelley Foster Charter Public School): replace two synthetic turf fields, a playground, and fencing (CC-2026-068)",
+      "413 Lake Avenue: replace deck and dock, install new footings (CC-2026-070)"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Planning Board",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearings on five projects, including 417 and 421 Cambridge Street and 195 Mill Street.",
+     "items": [
+      "23 Everton Avenue (PB-2026-083): public meeting on definitive site plan",
+      "18 Crown Street (PB-2026-039): public meeting on definitive site plan",
+      "29 Firglade Street, Firglade Street ROW, and Tihonet Street ROW (PB-2026-057): public meeting on definitive site plan and on private street improvement under MGL 81-G and/or GRO Ch. 12, §12",
+      "18-20 Crompton Street (PB-2026-068): public meeting on definitive site plan and public hearing on special permit for relief from parking, loading, and landscaping requirements"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "School Committee Standing Committee on Operations and Governance",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Recommendations from the district boundary and realignment report for Worcester public schools.",
+     "items": [
+      "Public comment, two minutes per speaker",
+      "Boundary realignment information (gb 6-72): recommendations of the district boundary and realignment report",
+      "Recommendation: hold for further discussion"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "Board of Health",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "09:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Tobacco hearing for Fire and Ice Smoke Shop at 8 Boylston St.",
+     "items": [
+      "Tobacco hearing for Fire and Ice Smoke Shop, 8 Boylston St, Worcester, MA 01605"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Standing Committee on Public Works",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Sidewalk, street resurfacing, and sidewalk repair petitions, plus a guardrail and honorary street names.",
+     "items": [
+      "Sidewalk on Clover St., South Ludlow St. to Heard St. (Councilor Jose A. Rivera)",
+      "Sidewalk on Clover St., between Heard St. and Pine View Ave. (Councilor Jose A. Rivera)",
+      "Sidewalk on Clover St., Mohawk Ave. to Heard St. (Julie Goering)",
+      "Sidewalk extension on Clover St., Mohawk Ave. to Heard St. (Julie Goering)"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "Affordable Housing Trust Fund Board of Trustees",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Joint presentation and discussion on Community Preservation Committees and Affordable Housing Trust Fund boards.",
+     "items": [
+      "Joint presentation and discussion on Community Preservation Committees and Affordable Housing Trust Fund boards, led by Shelly Goehring of the Massachusetts Housing Partnership"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Advertised zoning changes for Grove, Brookfield and Milton streets, set a tax classification hearing, and denied a Roosevelt Elementary pickup report.",
+     "decisions": [
+      "other: Commercial Corridor Overlay zoning for 416 Belmont St.",
+      "other: Rodeo draft ordinance",
+      "other: FY27 tax classification hearing",
+      "approved: Reappointment of Benetta Kuffour to Affordable Housing Trust Fund",
+      "approved: Reappointments to the Citizens Advisory Council"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "Standing Committee on Municipal and Legislative Operations",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Approved a request that the City Manager consider a City Council budget priority process; proposed meeting-time and public comment rule changes were placed on file.",
+     "decisions": [
+      "approved: City Council budget priority process",
+      "other: City Council budget priority process",
+      "other: Proposed changes to Rules 4 and 39 on meetings and public comment"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "License Commission",
+     "date": "2026-11-05",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Revoked licenses for Hurricane Betty's at 350 Southbridge and Icy Gaming at 117 Lovell Street.",
+     "decisions": [
+      "approved: Revocation of common victualer and entertainment licenses for Icy Gaming, 117 Lovell Street",
+      "approved: Revocation of liquor and entertainment licenses for Hurricane Betty’s, 350 Southbridge"
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "License Commission",
+     "date": "2026-11-12",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Lodging houses at 16 and 18 Claremont Street approved for Broadview Holdings LLC.",
+     "decisions": [
+      "approved: Lodging houses at 16 and 18 Claremont Street"
+     ]
+    },
+    {
+     "id": "D5",
+     "kind": "decided",
+     "board": "Zoning Board of Appeals",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Digital billboard near 692 Millbury Street continued to December 21 after public comments",
+     "decisions": [
+      "approved: 118 Dana Avenue lot split and variances"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "lawrence-ma 2026-11-22",
+   "town": "Lawrence",
+   "send": "Sunday, November 22, at 7:00 AM",
+   "good": [
+    "D1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "Retirement Board",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "08:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Executive session on Michael Espinola's involuntary ordinary/accidental disability, and an annual PRIM review.",
+     "items": [
+      "Executive session on Michael Espinola's involuntary ordinary/accidental disability",
+      "PRIM annual review",
+      "COLA information (tabled)",
+      "Items on appeal"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "Council adopts 1.75 residential tax factor for FY 2027, the maximum split rate allowed.",
+     "decisions": [
+      "approved: $280 for deaf awareness event",
+      "approved: Residential tax factor of 1.75 for FY 2027",
+      "approved: $425,000 EEA grant for Bennington Triangle park",
+      "approved: Appointment of Leonardo G. Mirabal to Cultural Council",
+      "approved: Credited service petition for six firefighters"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "beverly-ma 2026-11-08",
+   "town": "Beverly",
+   "send": "Sunday, November 8, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": true,
+     "line": "Public hearing on a temporary data center moratorium, plus $107,614 for Lynch Park and several grants.",
+     "items": [
+      "Resolution honoring Finance Director and Treasurer Bryant Ayles",
+      "Presentation by David Alden-St. Pierre of the Open Space Recreation Committee",
+      "Public comment from Beverly residents and workers, up to 5 speakers at 3 minutes each",
+      "Public hearing on a temporary moratorium on data center use"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Airport Commission",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "On-airport tree removal, Building 45 lease with Massachusetts Air and Space Museum, and proposed Airport Mission Statement.",
+     "items": [
+      "Public comments, including tenant comments",
+      "Presentation from Airport Solutions Group by Craig Schuster",
+      "Airport operations and fee report",
+      "Year-to-date budget summary"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "City Council Budget Analyst Screening Committee Meeting Agenda",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:45",
+     "main_board": false,
+     "hearing": false,
+     "line": "Approval of executive session minutes from September 28, October 5, and October 6, 2026.",
+     "items": [
+      "Motion to enter executive session to review previously withheld minutes, by roll-call vote",
+      "Review and consideration of approval of executive session minutes for September 28, October 5, and October 6, 2026"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Council on Aging Board of Grant",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "14:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Review of two grant applications.",
+     "items": [
+      "Review two grant applications"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Council on Aging Board of Directors",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "14:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Two grants, plus discussion of by-laws, new members, and a new chair and vice chair.",
+     "items": [
+      "Director's report from Chris Gomez on programs and events",
+      "Grants Committee report on 2 grants",
+      "Awards Committee report, marked N/A",
+      "Discussion of new members"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "Beverly Golf & Tennis Club Commission",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "19:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "FY27 budget discussions, Hole #18 fairway project, clubhouse window restoration, and irrigation work.",
+     "items": [
+      "FY27 budget discussions",
+      "Community Preservation Committee Round 5 status: no change, holding",
+      "Clubhouse off-season project",
+      "Clubhouse window restoration"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Commission on Disabilities",
+     "date": "2026-11-12",
+     "day": "Thursday",
+     "time": "12:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Winter accessibility goals, snow and ice clearing, and setting a January 28th, 2027 officer election date.",
+     "items": [
+      "Access check-in: sign language interpretation, captioning, large-print agenda, and braille on request",
+      "Public discussion, limited to 5 minutes per speaker",
+      "Election of officers: who can vote and serve, nominations, term length, and how votes are cast",
+      "Vote to set the election date for January 28th, 2027"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "Bicycle and Pedestrian Advisory Committee",
+     "date": "2026-11-12",
+     "day": "Thursday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Working session on recommendations to City Council from incident analysis, bike map paving plan, and walk audits.",
+     "items": [
+      "Working session to prepare or review recommendations to City Council (Jared Porter, Lisa Chandler, John Hersey)",
+      "Incident analysis (2020-2026YTD)",
+      "Bike map implementation with paving plan",
+      "Ward and school based walk audits"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-10-19",
+     "day": "Monday",
+     "main_board": true,
+     "source": "recording",
+     "line": "Council approved taking easements for and accepting portions of Millbrook Road as a public way; public hearings set for Woodbury and Dane Streets.",
+     "decisions": [
+      "approved: Taking of easements in portions of Millbrook Road",
+      "approved: Accepting portions of Millbrook Road as a public way"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "School Committee of the Whole",
+     "date": "2026-10-28",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Spring 2027 eighth-grade trip to San Juan, Puerto Rico approved; international travel and micro-mobility device policies advance to first reading.",
+     "decisions": [
+      "approved: School-sanctioned international travel policy (JJHA)",
+      "approved: Powered micro-mobility device policy (JLIDA)",
+      "approved: Spring 2027 eighth-grade trip to San Juan, Puerto Rico"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Planning Board",
+     "date": "2026-10-27",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Data center moratorium recommended to City Council; 37 Enon Street apartment hearing continued to November 17.",
+     "decisions": [
+      "other: Public hearing date for 38 Standley Street"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pawtucket-ri 2026-11-22",
+   "town": "Pawtucket",
+   "send": "Sunday, November 22, at 7:00 AM",
+   "good": [
+    "D1",
+    "A1",
+    "A3",
+    "A4"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": true,
+     "line": "Ratification of the teachers' contract through August 2029, and a circuses and carnivals ordinance.",
+     "items": [
+      "Town of Warren resolution asking the General Assembly to amend the real estate non-utilization tax law",
+      "Town of West Greenwich resolutions on emergency action plans for private dams and 2025 affordable housing laws",
+      "Finance Director's annual vehicle report for FY 2026",
+      "Finance Director's revenue statement for July 1 to September 30, 2026"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "City Council Finance Committee",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Piccadilly LLC tax stabilization request for 30 Beecher Street, two tax abatements ($22,312.67 and $152,458.08), and a pay rate ordinance for Local 3960.",
+     "items": [
+      "Public input period",
+      "Tax abatements for April, May, and June 2026 ($22,312.67)",
+      "Tax abatements for July, August, and September 2026 ($152,458.08)",
+      "Tax assessor's communication on Piccadilly LLC tax stabilization agreement request for 30 Beecher Street"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "City Council Committee of the Whole",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:15",
+     "main_board": false,
+     "hearing": true,
+     "line": "Pawtucket teachers' union contract for 2026 through 2029, plus two letters about it.",
+     "items": [
+      "Public input period",
+      "Letter from William J. Conley, Jr., to Mark Wildenhain about the teachers' collective bargaining agreement",
+      "Letter from Scott F. Bielecki to Frank J. Milos, Jr., City Solicitor, about the teachers' collective bargaining agreement",
+      "Contract between the Pawtucket School Committee and the Pawtucket Teachers' Alliance, Local 930, for September 1, 2026 through August 31, 2029"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "City Council Finance Committee",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:15",
+     "main_board": false,
+     "hearing": true,
+     "line": "Pawtucket teachers' union contract, covering September 1, 2026 through August 31, 2029, and related letters.",
+     "items": [
+      "Public input period",
+      "Letter from William J. Conley Jr. about the teachers' bargaining agreement",
+      "Letter from Scott F. Bielecki to the City Solicitor about the teachers' bargaining agreement",
+      "Contract between the Pawtucket School Committee and the Pawtucket Teachers' Alliance, September 1, 2026 through August 31, 2029"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Board of License Commissioners",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "18:45",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearings on Wendy's at 120 Broad Street, Stateline Wine & Spirits liquor renewal, and Mornin Sunshine Café.",
+     "items": [
+      "Tattoo license renewals (4 shops)",
+      "First class victualling license renewals (18 businesses)",
+      "Second class victualling license renewals (4 businesses)",
+      "Police activity report on Wendy's, 120 Broad Street"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "School Committee Facilities Subcommittee",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "10:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Approval of AHERA inspection services and asbestos training, plus summer work updates at two schools.",
+     "items": [
+      "Approval of AHERA inspection services and asbestos training",
+      "Jenks Middle School summer work update",
+      "Agnes Little Elementary School summer work update",
+      "Varieur Elementary School unit update"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Housing Authority",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "11:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Executive session on potential litigation and settlement negotiations, with a vote.",
+     "items": [
+      "Executive session on potential litigation and settlement negotiations, with discussion, approval, and a vote"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "Pawtucket Redevelopment Agency",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "12:15",
+     "main_board": false,
+     "hearing": false,
+     "line": "Possible vote on up to $15,000,000 in taxable bond notes for the Apex Properties Project, plus Tidewater Landing update.",
+     "items": [
+      "Note resolution for up to $15,000,000 in Apex Properties Project bond anticipation notes",
+      "Jeanne Boyle Consulting, LLC update",
+      "PRA financial information and budget update",
+      "Tidewater Landing project update (Lance Hill, Pare Corporation)"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "Pawtucket High School construction contract, $274,459,564 with Shawmut Design and Construction, approved.",
+     "decisions": [
+      "approved: Girls' flag football program",
+      "approved: Updated district organizational chart",
+      "approved: $245,000 master planning contract with Civic",
+      "approved: $240,229 owner's project manager contract with Colliers Project Leaders",
+      "approved: Cunningham Elementary School playground fencing and gate installation"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Referred 30 Beecher Street tax request and $22,312.67 and $152,458.08 abatements to Finance Committee; approved Rice Street signs.",
+     "decisions": [
+      "approved: Stop signs, speed limit signs, and crosswalk on Rice Street",
+      "approved: Roosevelt Avenue traffic study and intersection work"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Board of License Commissioners",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved dozens of restaurant, store, and liquor license renewals, plus new licenses for two restaurants and a door-to-door sales company.",
+     "decisions": [
+      "approved: Class A liquor license renewals with stipulations",
+      "approved: Pawtucket Wine & Spirits renewal at 380 Cottage St.",
+      "approved: Class T license renewals"
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "City Council Committee on Claims and Pending Suits",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Recommended paying two pothole claims of $275.00 and $300.00, and recommended denying a $1,349.08 tire claim.",
+     "decisions": [
+      "other: Wayne Lema v. City of Pawtucket (C.A. No.: PC-2022-06919)"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "somerville-ma 2026-11-22",
+   "town": "Somerville",
+   "send": "Sunday, November 22, at 7:00 AM",
+   "good": [
+    "A1",
+    "D1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": true,
+     "line": "Funding for Artfarm Park construction, including a $2,600,000 bond and $2,400,000 in Community Preservation funds.",
+     "items": [
+      "Citation commending Reebee Garofalo on his 82nd birthday",
+      "Order on the status and future plans for affordable housing development",
+      "Resolution on discussing the federal 21st Century ROAD to Housing Act and grant plans",
+      "Order for Election Commissioner to discuss AutoMARK terminal malfunctions in the November 3, 2026 election"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-12",
+     "day": "Thursday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved a 60-month trash hauling contract, a $2,383,850 tax-rate reduction, and new ordinances; tabled parking and entrance zoning changes.",
+     "decisions": [
+      "approved: Air rifle rodent control in Ward 7",
+      "approved: Emergency Streets Protocol",
+      "approved: Data on city purchases of AI products",
+      "approved: $100,000 from Encore fund for Local Cultural Council grants",
+      "approved: $545,649 transfer in Health and Human Services budget"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "main_board": true,
+     "source": "recording",
+     "line": "",
+     "decisions": [
+      "approved: Policy manual section B, except BGB, BDFA-E, BEDH, BEDH-E",
+      "approved: $1,530 payment to Bunker Hill Community College"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "springfield-ma 2026-11-15",
+   "town": "Springfield",
+   "send": "Sunday, November 15, at 7:00 AM",
+   "good": [
+    "A1",
+    "A5"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "18:30",
+     "main_board": true,
+     "hearing": false,
+     "line": "Bond order of $36,786,032 for roof replacements at Springfield Public Schools, plus dirt bike and food truck ordinances.",
+     "items": [
+      "September revenue vs. expenditure report",
+      "Petition: Eversource gas, Sherman Street",
+      "Petition: Eversource, 1400 State Streret",
+      "Petition: Eversource, Barrington Drive"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Planning Board",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on an all-alcoholic liquor license expansion at 1295 Liberty Street, requested by Ivys Events, LLC.",
+     "items": [
+      "Public hearing on all-alcoholic liquor license (expansion) at 1295 Liberty Street, petitioner Ivys Events, LLC",
+      "Non-subdivision plans",
+      "All other matters properly before the board"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Zoning Board of Appeals",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearings on zoning variance requests for 5 Ridgewood Ter and 346 Maple St.",
+     "items": [
+      "Public hearing on continued variance petition for 5 Ridgewood Ter, applicant Philip Burdick, Residence A district",
+      "Request to build a detached garage in the front yard that is taller than allowed and blocks the view on a corner lot",
+      "Public hearing on continued variance petition for 346 Maple St, applicant Dmytro Pershyn, Residence A district",
+      "Request to change an existing single-family house into a two-family house in a Residence A district"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Board of Public Works",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "15:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Zayo petition to install fiber optic lines from Armory Street to Stafford Street.",
+     "items": [
+      "Zayo petition to install and maintain fiber optic telecommunication facilities in the public way, 409 Armory St., from an existing hand hole on Armory St across from Grover St. to Utility Pole#1469/E1 on Stafford St."
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Finance Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "17:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Bond order of $36,786,032 for roof replacements at various Springfield public schools, plus grants and donations.",
+     "items": [
+      "September revenue vs. expenditure report",
+      "$10.00 donation to Springfield City Library",
+      "$100.00 donation to Springfield City Library",
+      "$547.00 donation of goods to Elder Affairs"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "Board of Public Works",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "15:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Hearing on Zayo petition to install underground fiber optic conduit across Stafford Street.",
+     "items": [
+      "Zayo petition to install and maintain underground fiber optic telecommunication facilities in the public way",
+      "Trench across Stafford St from utility pole #40T and install one 2-inch conduit about 80 feet north to the property line of 271 Carew St in Springfield, MA"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Public Safety Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "16:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Continued review of draft ordinance prohibiting automated license plate reader systems (Flock cameras).",
+     "items": [
+      "Continued review and discussion of draft ordinance prohibiting automated license plate reader systems (Flock cameras)"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "Committee of the Whole",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "The New Springfield Housing and Neighborhood Revitalization Plan is the only item on the agenda.",
+     "items": [
+      "The New Springfield Housing and Neighborhood Revitalization Plan"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "Animal Control Board",
+     "date": "2026-11-19",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Deemed dogs at four addresses nuisance or dangerous and set owner conditions; dismissed one dangerous dog hearing.",
+     "decisions": [
+      "approved: Nuisance dogs Zoro and Choloe, 57 Forest Park Ave.",
+      "approved: Conditions for Zoro and Choloe, 57 Forest Park Ave.",
+      "approved: Dangerous dogs Onyx and Junior, 179 Ashland Ave.",
+      "approved: Conditions for Onyx and Junior, 179 Ashland Ave.",
+      "approved: Nuisance dogs Angelo and Babble, 106 Edgemont St."
+     ]
+    }
+   ]
+  },
+  {
+   "name": "malden-ma 2026-11-15",
+   "town": "Malden",
+   "send": "Sunday, November 15, at 7:00 AM",
+   "good": [
+    "D1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "Licensing Board",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on Heli Corp's application to take over a liquor license and move it to 790 Main Street.",
+     "items": [
+      "Public hearing on the application of Heli Corp, dba Dandea's Superette",
+      "Transfer of license to sell all alcoholic beverages as a package store, from Vishwaraja Crop dba Jay's Fine Wine & Sprits",
+      "Change of location from 77 Commercial Street to 790 Main Street"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Community Preservation Committee (CPC)",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on three FY27 applications: Amerige Field, Florence Street Pocket Park, and First Parish in Malden restoration.",
+     "items": [
+      "Public hearing on FY27 Historic Preservation and Open Space and Recreation Applications",
+      "0040_Amerige Field Rehabilitation",
+      "0041_Florence Street Pocket Park Rehabilitation",
+      "0042_First Parish in Malden Restoration"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Board of Appeal Public",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "18:30",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on sign variance requests at 616 Broadway and 290 Ferry Street, and a variance to exceed 2½ stories at 58-60 Bainbridge Street.",
+     "items": [
+      "Petition 26-008: sign variance at 616 Broadway, requested by 616 Broadway Holding LLC on behalf of Delight Medicals Inc.",
+      "Petition 26-009: sign variance at 290 Ferry Street, requested by Malden Cosmetic Dentistry and Implant",
+      "Petition 26-010: variance to exceed 2½ stories for a two-family dwelling at 58-60 Bainbridge Street, requested by Fesehaye Zewdie"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Comprehensive Master Plan Steering Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "18:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Review of the Existing Conditions chapter and the Community Planning Workshop Survey for the master plan.",
+     "items": [
+      "Debrief of the November 7, 2026 Community Planning Workshop",
+      "Status of the Community Planning Workshop Survey",
+      "Latest revised version of the Existing Conditions Chapter of the plan",
+      "Set December and January meeting dates"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Council on Aging",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "09:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Staff changes, a new monitor, a dementia class, and a therapy dog event.",
+     "items": [
+      "Change in personnel",
+      "New monitor",
+      "Increase in activities",
+      "Voting"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "City Council Personnel Appointments Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Mayoral appointments of Jonathan Sullivan, Michele Ferguson, and James Tarr to city boards.",
+     "items": [
+      "Appoint Jonathan Sullivan to the Parks and Recreation Commission, term to expire June 30, 2027",
+      "Appoint Michele Ferguson as a full member of the Planning Board, term to expire March 1, 2031",
+      "Appoint James Tarr as an associate member of the Planning Board, term to expire March 1, 2027",
+      "Public comment from K.Dillon, attached to the James Tarr appointment"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "City Council Library Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Further discussion of the March 3, 2026 draft City of Malden Library Committee Goals and Actions.",
+     "items": [
+      "Further discussion of the March 3, 2026 draft City of Malden Library Committee Goals and Actions (162-26)"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "City Council Code of Conduct Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "18:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Continued discussion on what should be included in a code of conduct for the Malden City Council.",
+     "items": [
+      "Continue discussion on what should be included in a code of conduct for the Malden City Council",
+      "MIAA Code of Conduct Handout 22426"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "$800,000 cut from Public Works snow and ice budget, and 35% residential tax exemption set, for FY 2027 taxes.",
+     "decisions": [
+      "approved: 35% residential exemption and 0.9059 minimum residential factor",
+      "approved: Linden Park playground improvements, $420,000 state grant",
+      "approved: Inclusionary zoning ordinance, Code section 12.12.300",
+      "approved: Inclusionary zoning incentives, new subsection F",
+      "approved: Animal control officer moved to health department"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": true,
+     "source": "recording",
+     "line": "$400,000 for school resource officer salaries and curriculum approved",
+     "decisions": [
+      "approved: $400,000 for school resource officer salaries and curriculum"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Malden Housing Authority",
+     "date": "2026-10-27",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved Springdale paving work and a $76,744 state contract to replace Forestdale toilets.",
+     "decisions": [
+      "approved: $4,500 Odyssey Advisors Inc. invoice for pension valuation",
+      "approved: $4,166.67 YMCA invoice for resident memberships",
+      "approved: Performance bonuses for MHA staff, Linden window and siding project",
+      "approved: Home heating oil contract with Marchetti Commercial Fuels",
+      "approved: Springdale Development Paving Project notice to proceed"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "methuen-ma 2026-11-01",
+   "town": "Methuen",
+   "send": "Sunday, November 1, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-02",
+     "day": "Monday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": false,
+     "line": "Data center moratorium ordinance, a curbside trash and recycling contract at $2,689,790 in Year 1, and a Taft Avenue utility pole grant.",
+     "items": [
+      "Public participation",
+      "Organizational business",
+      "Proclamations and correspondence: none",
+      "Appointment of Jeffrey Farelli as Superintendent of Building Maintenance"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "lowell-ma 2026-11-08",
+   "town": "Lowell",
+   "send": "Sunday, November 8, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "18:30",
+     "main_board": true,
+     "hearing": true,
+     "line": "Public hearings on the FY2027 minimum residential factor and four utility projects; loan orders for Bailey, McAvinnue, and Shaughnessy schools.",
+     "items": [
+      "Remote and Zoom participation information",
+      "Cancel council meetings on December 1 and December 29, 2026",
+      "Public hearing on the FY2027 minimum residential factor (MRF)",
+      "Public hearing: Boston Gas gas main replacement at 61 Durant Street"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Historic Board",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearings on repairs at 55 Kearney Square (Valve Island) and 145 Pawtucket Street (North Canal Waste Gatehouse).",
+     "items": [
+      "Public hearing on repairs to stabilize the intake channel and remove fallen granite stones at 55 Kearney Square (Valve Island)",
+      "Public hearing on canal wall repair at 145 Pawtucket Street (North Canal Waste Gatehouse)",
+      "Minor development review: 15-19 Merrimack Street",
+      "Preliminary hearing: 520 Merrimack Street"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Zoning Board of Appeals",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:30",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on a variance to build a single-family home at 384 Butman Road, plus sign and addition requests.",
+     "items": [
+      "Variance to build a single-family home at 384 Butman Road (continued business)",
+      "Special permit for an illuminated sign at 2 Prince Avenue",
+      "Special permit for an internally illuminated sign at 524 Chelmsford Street",
+      "Variance to build an addition at 65 Garden Road"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Council on Aging Board",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "09:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Reports on grants, outreach, behavioral health, senior center work group, and heritage, plus old and new business.",
+     "items": [
+      "Director's report",
+      "Chairperson's report",
+      "Committee and liaison reports",
+      "Grant updates"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-10-21",
+     "day": "Wednesday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved a pilot camera program on school buses, a $3,725 budget modification, and grant and donation acceptances.",
+     "decisions": [
+      "approved: Pilot camera program on school buses",
+      "approved: Exploring move of LPS administrative offices from Merrimack Street",
+      "approved: Report on replacing teacher devices with MacBook Neos",
+      "approved: Allocated FY27 grant awards",
+      "approved: $3,725 budget modification"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-03",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "Council votes to release October 6 executive session minutes on Flock cameras, after public comment on the cameras.",
+     "decisions": [
+      "approved: Report on enforcing conditions of the appallorchard project",
+      "approved: Residential tax exemption and good landlord tax abatement study",
+      "approved: Finance subcommittee meetings for FY 28 budget process",
+      "approved: Acre urban renewal plan change at 276 Broadway Street",
+      "approved: Purchase of the Senior Center at 276 Broadway Street"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-10-27",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved $1.5mil for Fire, $1.1mil for police, and a $180,430 PEG Fund transfer; amended 278 Middlesex Street JAM Plan.",
+     "decisions": [
+      "approved: Amendment to JAM Plan for 278 Middlesex Street",
+      "approved: $1.5mil supplemental appropriation for Fire",
+      "approved: $180,430 PEG Fund transfer",
+      "denied: Cut PEG Fund transfer to $152,000.00",
+      "approved: $1.1mil Free Cash transfer for LPD"
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "School Committee",
+     "date": "2026-11-04",
+     "day": "Wednesday",
+     "main_board": true,
+     "source": "recording",
+     "line": "Approved accepting FY27 grant awards and a $3,912.79 donation for James J. Sullivan Middle School uniforms and equipment.",
+     "decisions": [
+      "approved: Monthly year-to-date General fund expenditure reports",
+      "approved: Accepting and spending allocated FY27 grant awards",
+      "approved: $3,912.79 donation from the Justin J. Watt Foundation"
+     ]
+    },
+    {
+     "id": "D5",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-10-20",
+     "day": "Tuesday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved loan order to buy 276 Broadway for the senior center.",
+     "decisions": [
+      "approved: Loan order for land acquisition at 276 Broadway (senior center)",
+      "approved: $115k FY27 earmarked funds for rapid rectangular flash beacons",
+      "approved: $65,000 FY27 Municipal Road Safety Grant for LPD"
+     ]
+    },
+    {
+     "id": "D6",
+     "kind": "decided",
+     "board": "License Commission",
+     "date": "2026-11-05",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Lowell alcohol rules for bars and restaurants approved, including new permit for 18-to-20-year-old events.",
+     "decisions": [
+      "approved: Section 1: regulations for bars and restaurants",
+      "approved: Special 18 to 20 event permit procedures",
+      "approved: Section 3: manager and promoter responsibilities",
+      "approved: Deadline for license change applications"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "burlington-vt 2026-11-15",
+   "town": "Burlington",
+   "send": "Sunday, November 15, at 7:00 AM",
+   "good": [
+    "D1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "Collaborative Working Group on Inclusionary Zoning",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public comment and a staff presentation on the ZA-27-01 inclusionary zoning amendment, with a possible decision on next steps.",
+     "items": [
+      "Public forum on ZA-27-01 inclusionary zoning",
+      "Staff presentation and discussion of the ZA-27-01 amendment",
+      "Public forum on ZA-27-01 inclusionary zoning (second)",
+      "Discussion and possible action on the ZA-27-01 amendment"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Retirement Board",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "09:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Retirement applications for three people, contribution returns for three, and an October 2026 performance update.",
+     "items": [
+      "2027 board meeting schedule",
+      "Public forum",
+      "Return of contributions for Morgan Donhoff, $5,587.84",
+      "Return of contributions for John T. Jacobs, $2,560.34"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Advisory Committee on Accessibility",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "15:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Department Title II Assessment is on the agenda, along with a public forum and introductions.",
+     "items": [
+      "Introductions",
+      "Public forum",
+      "Department Title II Assessment",
+      "Other committee business"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Board of Health",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "17:45",
+     "main_board": false,
+     "hearing": false,
+     "line": "Discussion and possible vote on the syringe report, plus a problem property update from Director Ward.",
+     "items": [
+      "Public forum: verbal comments",
+      "Discussion on syringe report and possible vote",
+      "Problem property update from Director Ward",
+      "Health equity"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Tax Fairness Ad Hoc Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Verbal public comment on tax fairness proposals.",
+     "items": [
+      "Verbal public comments on tax fairness proposals"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "City Council Tax Abatement Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Public hearings on tax abatement requests from six property owners, including requests for hardship relief and refunds.",
+     "items": [
+      "Public forum for verbal comments",
+      "Delia Properties LLC, 131 Main Street, Unit C-1: hardship help for about 30% of 2026 taxes due",
+      "Fisk, 52 Loaldo Drive: abatement of multiple years of back taxes due to medical problems, requested before a city tax sale",
+      "Hajrovic, 58 Valade Road: abatement of late fee and penalty for taxes paid late"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Development Review Board",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Master sign plan for the North building at 75 Cherry Street.",
+     "items": [
+      "Master sign plan for the North building, 75 Cherry Street (ZP-26-499)"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "City Council Racial Equity, Inclusion, and Belonging Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Non-citizen voter protections policy and upcoming charter amendments, plus youth investment presentations.",
+     "items": [
+      "Public forum",
+      "Office of REIB updates",
+      "Non-citizen voter protections policy and upcoming charter amendments (Councilor Allie Schachter)",
+      "Strategizing and investing in Burlington's youth memo"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Confirmed Anthony Geraci as police chief; approved up to $558,500 in water fund spending; referred recycling ordinance to committee.",
+     "decisions": [
+      "approved: Appointment of Anthony Geraci as Chief of Police",
+      "approved: Tobacco Substitute Endorsement for Henry Street Deli Mart, 11 Henry Street",
+      "approved: Tobacco License for Wolfs Convenience Store LLC, 457 St. Paul Street",
+      "approved: Joanna Grossman to Church Street Marketplace Commission"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "Board of Finance",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved $460,855 contract for airport vehicle wash systems; recommended $1,470,800 SS4A Main Street Signals budget and water excavation contracts.",
+     "decisions": [
+      "approved: $460,855 contract to replace airport vehicle wash systems"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "City Council With Mayor Presiding",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Appointed John Ellis Stilley as alternate member of the Development Review Board, term expiring 6/30/27.",
+     "decisions": [
+      "approved: Development Review Board alternate appointment"
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "Burlington Electric Commission",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "recording",
+     "line": "Wood pyrolysis demonstration project at McNeil recommended, with Vermont Renewable Gas as developer",
+     "decisions": [
+      "approved: Property, boiler and machinery insurance renewal, up to $741,500"
+     ]
+    },
+    {
+     "id": "D5",
+     "kind": "decided",
+     "board": "Parks Commission",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved a dog ordinance and policy that allow off-leash dogs only in listed areas.",
+     "decisions": [
+      "approved: Dog ordinance (Appendix D, Section 7) and dog policy"
+     ]
+    },
+    {
+     "id": "D6",
+     "kind": "decided",
+     "board": "Local Control Commission",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved the 2026-2027 liquor license renewal for Always Full Asian Market LLC at 179 Bank Street.",
+     "decisions": [
+      "approved: Liquor license renewal: Always Full Asian Market LLC"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nashua-nh 2026-11-22",
+   "town": "Nashua",
+   "send": "Sunday, November 22, at 7:00 AM",
+   "good": [
+    "D1",
+    "A3"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "Board of Aldermen",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": true,
+     "line": "Public hearing on R-26-077, a $146,617.94 supplemental appropriation of unanticipated revenue to the Opioid Abatement Expendable Trust Fund.",
+     "items": [
+      "Public hearing on R-26-077: supplemental appropriation of $146,617.94 of FY2027 unanticipated revenue into Fund #7024, Opioid Abatement Expendable Trust Fund",
+      "Public testimony"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Board of Aldermen",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": false,
+     "line": "Presentation and discussion on Nashua School District finances.",
+     "items": [
+      "Nashua School District finances"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Board of Aldermen",
+     "date": "2026-11-24",
+     "day": "Tuesday",
+     "time": "19:30",
+     "main_board": true,
+     "hearing": false,
+     "line": "Million Dollar contract awards for Allegiance Fire & Rescue and sanitary equipment, and a $900,000 bond for a 14 Mulberry Street resource center.",
+     "items": [
+      "Request to convene a Joint Committee on Infrastructure and Fire Commission",
+      "Million Dollar Contract Award to Allegiance Fire & Rescue",
+      "2026 Kenworth T280 Service Truck",
+      "Million Dollar Contract Award for Sanitary Equipment"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Historic District Commission",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": true,
+     "line": "Public hearing on a second-floor ADU unit at 66 Concord Street and a shed at 85 Concord Street.",
+     "items": [
+      "Old business: add an ADU unit on the second floor of a replica of the demolished Carriage House at 66 Concord Street (Crimson Properties, LLC)",
+      "New business: proposed 8' by 12' shed custom-built to look like the house at 85 Concord Street (Kristine & David Mitchell)",
+      "Communications: 2027 Meeting Calendar",
+      "Communications: CLG Renewal"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Budget Review Committee - 11/23/26",
+     "date": "2026-11-23",
+     "day": "Monday",
+     "time": "19:15",
+     "main_board": false,
+     "hearing": false,
+     "line": "Supplemental appropriation of $146,617.94 in unanticipated FY2027 revenue into the Opioid Abatement Expendable Trust Fund; healthcare presentation.",
+     "items": [
+      "Public comment",
+      "Resolution R-26-077: supplemental appropriation of $146,617.94 of FY2027 unanticipated revenue into Fund #7024 \"Opioid Abatement Expendable Trust Fund\"",
+      "Healthcare presentation",
+      "Tabled in committee"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "Board of Education",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "EEI roof, HVAC, and solar contracts for three schools, up to $9.4 million, ended in a 4-4 tie.",
+     "decisions": [
+      "denied: EEI presentation on roof, HVAC, and solar work",
+      "approved: Removing School Administration Building from EEI contracts",
+      "approved: $73,075 purchase of a 15-passenger van for CTE programs",
+      "approved: $120,780 Champion Speech Therapy contract",
+      "approved: $45,250 BlazerWorks LLC staffing contract"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "Board of Aldermen",
+     "date": "2026-11-14",
+     "day": "Saturday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Certified recount on statutory question required by HB 1300, Chapter 324: yes 18895, no 13244.",
+     "decisions": [
+      "approved: Recount of statutory question required by HB 1300, Chapter 324"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Finance Committee",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved purchase and installation of a Bauer Unicus 4S breathing air compressor system from Fire Tech & Safety for up to $109,338.88.",
+     "decisions": [
+      "approved: $109,338.88 breathing air compressor for Fire Rescue",
+      "approved: $581,997 training building for Fire Rescue",
+      "approved: $1,360,789.65 Pierce rescue truck",
+      "approved: $261,373 Kenworth T280 service truck",
+      "approved: $660,616 two Freightliner trucks with plows"
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "Committee on Infrastructure",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved Nashua library contract amendments, including $2,180,155 for DesignLab, and accepted the schematic design.",
+     "decisions": [
+      "approved: Accepted the library schematic design as presented; motion carried, with Alderman Johnson opposed.",
+      "approved: DesignLab invoice #26-06.1026 for $213,526.25",
+      "approved: Consigli invoice 2 for $15,451.74",
+      "approved: LeftField PM Amendment 1 for $581,224",
+      "approved: DesignLab Architects Amendment 1 for $2,180,155"
+     ]
+    },
+    {
+     "id": "D5",
+     "kind": "decided",
+     "board": "Nashua Public Library Board of Trustees Special",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved five library building invoices and contract amendments, including a $2,180,155 DesignLab contract amendment.",
+     "decisions": [
+      "approved: Five building invoices and contract amendments, including $2,180,155 DesignLab amendment"
+     ]
+    },
+    {
+     "id": "D6",
+     "kind": "decided",
+     "board": "Board of Education Human Resources Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved personnel recommendations, including a school nurse nomination and an HR director resignation; discussed 92 job openings and contractor staffing.",
+     "decisions": [
+      "approved: Personnel Recommendations dated 11-16-26"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "salem-ma 2026-11-08",
+   "town": "Salem",
+   "send": "Sunday, November 8, at 7:00 AM",
+   "good": [
+    "A1"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "School Committee",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "19:00",
+     "main_board": true,
+     "hearing": false,
+     "line": "Policy banning smart glasses and wearable recording devices up for first reading, plus Pioneer Charter School resolution.",
+     "items": [
+      "Public comment",
+      "Consent agenda: field trip to Orlando, Florida for Salem High School basketball team, January 15-19, 2027",
+      "Consent agenda: FY27 warrants of $892,622.43 and $1,417,430.02",
+      "Student representative report"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "City Council",
+     "date": "2026-11-13",
+     "day": "Friday",
+     "time": "17:05",
+     "main_board": true,
+     "hearing": false,
+     "line": "Counting of Federal Write-In Absentee Ballots and mailed ballots from voters outside the U.S., if needed.",
+     "items": [
+      "Count Federal Write-In Absentee Ballots (FWAB)",
+      "Count ballots mailed by voters from outside the U.S."
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Licensing Board",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Liquor and lodging license requests for Maitland Farm Kitchen & Spirits and The Windward Inn, plus four one-day liquor licenses.",
+     "items": [
+      "Change of class from seasonal to annual all alcohol liquor license for Maitland Farm LLC, d/b/a Maitland Farm Kitchen & Spirits, 84-86 Derby Street, Salem",
+      "Lodging house license for Windward Hospitality Group LLC, d/b/a The Windward Inn, 19 Washington Square North, Salem",
+      "One day liquor license for North Shore Pride, Inc., June 26, 2027, 11am – 5pm, Salem Common, approximately 40,000 people, applicant Hope Watt-Bucci",
+      "One day liquor license for Root NS, Inc., Harbor Point at Root, 35 Congress Street, Salem, November 19, 2026, 6pm – 9pm, 80 people"
+     ]
+    },
+    {
+     "id": "A4",
+     "kind": "ahead",
+     "board": "Salem City Council Committee of the Whole Monday November 9, 2026",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Possible amendments to rules and orders, and changes to standing committees, to better align procedures with responsibilities.",
+     "items": [
+      "Discuss rules and orders to identify amendments, additions, or removals",
+      "Discuss standing committees to evaluate changes"
+     ]
+    },
+    {
+     "id": "A5",
+     "kind": "ahead",
+     "board": "Salem Human Rights Coalition",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Old business on the Salem Housing Authority language access issue, plus reports from the Mayor's Office liaison, clerk, and treasurer.",
+     "items": [
+      "Introduction of guests and public comment",
+      "Mayor's Office liaison report",
+      "Clerk report",
+      "Treasurer report on financials"
+     ]
+    },
+    {
+     "id": "A6",
+     "kind": "ahead",
+     "board": "Cemetery Commission",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Broad Street retaining wall, Greenlawn Chapel Restoration, and West Chapel Slope projects, plus cemetery pond plans.",
+     "items": [
+      "Public comment, limited to 15 minutes",
+      "Superintendent Kieran Kavanaugh's report on daily cemetery operations",
+      "Broad Street Cemetery: trespassing concerns, retaining wall project, Elijah Sanderson marker",
+      "Greenlawn Cemetery: Chapel Restoration Project and ribbon cutting ceremony"
+     ]
+    },
+    {
+     "id": "A7",
+     "kind": "ahead",
+     "board": "Community Preservation Committee",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Votes on FY27 funding application form and eligibility of received applications, plus a draft community preservation plan for public comment.",
+     "items": [
+      "Public comment",
+      "Vote on draft FY27 funding application form",
+      "Vote on eligibility determinations for applications received",
+      "Review of written comments received"
+     ]
+    },
+    {
+     "id": "A8",
+     "kind": "ahead",
+     "board": "Beautification Committee",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "time": "18:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Sponsorship signs, Luna sign removal, Artist Row potential storage, and a 2027 MOU proposal.",
+     "items": [
+      "2026 Coloring Contest Winners",
+      "Bulb Updates",
+      "Sponsorship Signs and Luna Sign Removal",
+      "Ladies of Salem Updates (10 minutes)"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "Design Review Board Meetings",
+     "date": "2026-10-28",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved Lifebridge Main Campus design and 24 Congress Street facade changes; continued several projects, including 16 Bridge Street.",
+     "decisions": [
+      "approved: Facade painting, tile trim, and new entry doors at 24 Congress Street",
+      "approved: Lifebridge Main Campus design review, 56 Margin Street"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "Public Art Commission",
+     "date": "2026-10-20",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved a Where Do We Stand art installation on Essex Street, pending artist talks, and outreach to six sculptures for loan.",
+     "decisions": [
+      "approved: Where Do We Stand public art installation on Essex Street",
+      "approved: Six sculptures for the Sculpture Garden Loan Program"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "concord-nh 2026-11-15",
+   "town": "Concord",
+   "send": "Sunday, November 15, at 7:00 AM",
+   "good": [
+    "D1",
+    "A3"
+   ],
+   "candidates": [
+    {
+     "id": "A1",
+     "kind": "ahead",
+     "board": "Ad-Hoc City Manager Search Committee",
+     "date": "2026-11-16",
+     "day": "Monday",
+     "time": "18:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Non-public session under RSA 91-A:3, II (b), along with a meeting overview.",
+     "items": [
+      "Meeting overview",
+      "Non-public session under RSA 91-A:3, II (b)"
+     ]
+    },
+    {
+     "id": "A2",
+     "kind": "ahead",
+     "board": "Diversity, Equity, Inclusion, Justice & Belonging Committee",
+     "date": "2026-11-17",
+     "day": "Tuesday",
+     "time": "17:30",
+     "main_board": false,
+     "hearing": false,
+     "line": "Continued discussion of Racial Equity Group Report recommendations and the committee's role, including City Council referrals.",
+     "items": [
+      "Meeting overview",
+      "Continued discussion of recommendations from the Racial Equity Group Report",
+      "Discussion of the needs and role of the committee, including responses to City Council referrals"
+     ]
+    },
+    {
+     "id": "A3",
+     "kind": "ahead",
+     "board": "Planning Board",
+     "date": "2026-11-18",
+     "day": "Wednesday",
+     "time": "19:00",
+     "main_board": false,
+     "hearing": false,
+     "line": "Site plans for 7 Rectory Road and 44 South Main Street, a kennel at 85 Manchester Street, and a 59-unit Sonoma Lane development.",
+     "items": [
+      "Sign design approvals at 124-130 Hall Street (Spectrum Signs & Graphics, Concord Center LLC)",
+      "Sign design recommendations at 273 Loudon Road (Dave's Hot Chicken)",
+      "Sign panel recommendation at 310 Sheep Davis Rd (NEOPCO Signs, Northern NE Conf. of 7th Day Adventist)",
+      "Sign recommendation at 56 Fort Eddy Road (Five Guys)"
+     ]
+    },
+    {
+     "id": "D1",
+     "kind": "decided",
+     "board": "City Council",
+     "date": "2026-11-09",
+     "day": "Monday",
+     "main_board": true,
+     "source": "minutes",
+     "line": "Approved demolition of Garrison Park Pool and restoring Oak Hill Road to Merrimack Valley School District.",
+     "decisions": [
+      "approved: Tax deeds on certain properties",
+      "approved: $70,589.24 in opioid settlement funds to Opioid Abatement Reserve",
+      "approved: Golf Course Improvement Reserve, $8,300 transfer",
+      "approved: Restoring Oak Hill Road to Merrimack Valley School District",
+      "approved: Human Resources Administrative Coordinator position made full-time"
+     ]
+    },
+    {
+     "id": "D2",
+     "kind": "decided",
+     "board": "Zoning Board of Adjustment",
+     "date": "2026-11-04",
+     "day": "Wednesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved zoning variances for projects at 276 N State St, 44 S Main St, 124 Hall Street, 16 Prince St and 148 Loudon Rd.",
+     "decisions": [
+      "approved: Outdoor storage variances at 276 N State St",
+      "approved: Sign variances at 44 S Main St",
+      "approved: Sign in public right-of-way at 44 S Main St",
+      "approved: Sign area and freestanding sign variances at 124 Hall Street",
+      "approved: Front yard setback variances at 16 Prince St"
+     ]
+    },
+    {
+     "id": "D3",
+     "kind": "decided",
+     "board": "Board of Assessors",
+     "date": "2026-11-10",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Granted three tax abatements for Red Eagle Management, 1 Monitor Dr and Wheelabrator Concord; denied one hardship request.",
+     "decisions": [
+      "approved: Granted abatement 31767-25PT for Red Eagle Management LLC.",
+      "approved: Granted abatement 31802-25PT for 1 Monitor Dr LLC.",
+      "approved: Granted abatement 32012-25PT for Wheelabrator Concord Co LP."
+     ]
+    },
+    {
+     "id": "D4",
+     "kind": "decided",
+     "board": "Ad-Hoc City Manager Search Committee",
+     "date": "2026-10-29",
+     "day": "Thursday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Agreed to hold a nonpublic meeting to finalize interview questions for City Manager search firms.",
+     "decisions": [
+      "other: Nonpublic meeting on search firm interview questions",
+      "other: Process for hiring an interim City Manager",
+      "other: Interim City Manager question for search firm interviews"
+     ]
+    },
+    {
+     "id": "D5",
+     "kind": "decided",
+     "board": "Architectural Design Review Committee",
+     "date": "2026-11-03",
+     "day": "Tuesday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Continued 110-unit multifamily building at 270 Loudon Road; asked for revisions to 80 Storrs Street plan; gave feedback on Sonoma Lane development.",
+     "decisions": [
+      "other: 59-unit planned development on Sonoma Lane parcel"
+     ]
+    },
+    {
+     "id": "D6",
+     "kind": "decided",
+     "board": "Planning Board",
+     "date": "2026-11-02",
+     "day": "Monday",
+     "main_board": false,
+     "source": "minutes",
+     "line": "Approved conditional development plan for mixed-use project at 282 Loudon Rd and nearby lots",
+     "decisions": [
+      "approved: Mixed-use development at 282 Loudon Rd and nearby lots"
+     ]
+    }
+   ]
+  }
+ ]
+}

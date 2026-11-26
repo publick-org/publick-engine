@@ -37,7 +37,7 @@ jobs:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           FROM_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
           EVALUATED: >-
-            ^(pipeline/(summarize|factcheck|translate|glossary|evaluate|evaluate_translations|evaluate_agendas)\.py|evals/(minutes|translations|agendas)\.json)$
+            ^(pipeline/(summarize|factcheck|translate|glossary|evaluate|evaluate_translations|evaluate_agendas|digest_subject|evaluate_digest)\.py|evals/(minutes|translations|agendas|digest_subjects)\.json)$
         run: |
           # On its own line: a diff that fails stops the step, where in a pipeline grep's result would hide it.
           files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")

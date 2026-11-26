@@ -74,6 +74,11 @@ SOURCES = [
     *(Source(s.step, s.module, "meetings", secrets=STORAGE, table=s.table) for s in meeting_sources.READERS),
     Source("Summarize agendas", "pipeline.summarize", "meetings", secrets=("ANTHROPIC_API_KEY", *STORAGE, *COSTS),
            table="summaries"),
+    # The weekly digest's subject and top story, from the summaries just made (pipeline/digest_subject.py): only
+    # between an issue's Saturday build and its Sunday send, for a town whose digest is emailed.
+    Source("Write digest subject", "pipeline.digest_subject", "meetings",
+           secrets=("ANTHROPIC_API_KEY", *cost_log.PRIVATE_KEYS),
+           table="digest"),
     Source("Fetch tax bill", "pipeline.fetch_finance", "figures", table="finance"),
     Source("Fetch unemployment", "pipeline.fetch_labor", "figures", secrets=("BLS_API_KEY",), table="labor"),
     Source("Fetch school figures", "pipeline.fetch_schools", "figures", table="schools"),
