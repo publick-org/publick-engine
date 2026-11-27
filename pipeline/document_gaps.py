@@ -47,6 +47,7 @@ from pathlib import Path
 from pipeline import identity, listings
 from pipeline.absences import NOT_HELD
 from pipeline.meeting_names import distinct_words
+from pipeline.waiting import readers
 
 WINDOW_DAYS = 90
 MINUTES_DAYS = 45
@@ -55,8 +56,6 @@ MAX_LISTED = 20
 # Sources that list a meeting's date and time, with no documents of their own; and a Drive reader's
 # entries from a district's schedule (from_schedule).
 CALENDARS = identity.CALENDARS
-# Status files of readers that don't save documents.
-NOT_DOCUMENTS = ("recordings_status.json",)
 
 
 def has_agenda(meeting: dict) -> bool:
@@ -82,23 +81,12 @@ def waiting(data_dir: Path, since: str = "") -> tuple[dict[str, dict], dict[str,
     doesn't give its newest is counted in the window. Older ones are a new town's first reading of its past
     meetings, which shrinks every run: counted with the window's, they'd hide a reader that's stuck."""
     window, older = {}, {}
-    for path in sorted((data_dir / "meetings").glob("*status.json")):
-        if path.name in NOT_DOCUMENTS:
-            continue
-        try:
-            status = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        counted = [(k.removesuffix("_waiting"), v) for k, v in status.items()
-                   if k.endswith("_waiting") and isinstance(v, int) and not isinstance(v, bool) and v]
-        if not counted:
-            continue
-        unit, count = counted[0][0], sum(v for _, v in counted)
-        newest = status.get("waiting_newest")
+    for name, reader in readers(data_dir).items():
+        newest = reader["newest"]
         if newest and newest < since:
-            older[path.name.removesuffix(".json")] = {"count": count, "unit": unit, "newest": newest}
+            older[name] = {"count": reader["count"], "unit": reader["unit"], "newest": newest}
         else:
-            window[path.name.removesuffix(".json")] = {"count": count, "unit": unit}
+            window[name] = {"count": reader["count"], "unit": reader["unit"]}
     return window, older
 
 
