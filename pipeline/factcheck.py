@@ -24,7 +24,10 @@ and name in them is in the document's own text.
   can't be checked this way, so it's noted ("tally"), not failed. Nor can a
   count that says no one voted against beside words that say someone did
   ("8 to 0, with 1 opposed", a chair's slip copied from a recording): which
-  part is right can't be told, so it's noted too, and left out.
+  part is right can't be told, so it's noted too, and left out. A count left
+  out of the English is left out of its translations too, found there by its
+  numbers and that language's words for a count (COUNT_WORDS: "8 a 0, con 1
+  en contra").
 - A name is a capitalized word that isn't an ordinary English word, one with
   capitals inside ("McCallum", "O'Brien"), or any capitalized word after a
   title or "moved by" ("Councilor Hall") (pipeline/translate.py's names()),
@@ -82,7 +85,8 @@ A recording's machine transcript can mishear a street's name ("38 Stanley
 Street" for Standley Street). In a recording's summary, an address whose
 street isn't one of the town's, but is one letter from exactly one of them
 with the same street type, is noted ("spelling") with the town's spelling,
-which the site shows instead (shown()). The town's streets are the Census
+which the site shows instead (shown()), in a translation too, where the
+street's name is kept beside its house number. The town's streets are the Census
 Bureau's, from pipeline/fetch_addresses.py; a town without them has no such
 check.
 
@@ -146,8 +150,8 @@ from pathlib import Path
 
 from datetime import date
 
-from pipeline import dates as written_dates, translate
-from pipeline.streets import SUFFIXES
+from pipeline import dates as written_dates, i18n, translate
+from pipeline.streets import HOUSE_NUMBER, SUFFIXES
 
 # 4: an "other" outcome where the motion failed, and the headline's outcome. 5: how the motion ended, read
 # after the quote; vote counts and who moved it, near the quote; the summary's outcome; names with capitals
@@ -200,11 +204,32 @@ def readable(page: str) -> bool:
 TALLY = re.compile(r"(?<![\d$#.,/-])(\d{1,2})\s*[-–]\s*(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?(?![\d/-]|[.,]\d)")
 UNANIMOUS = re.compile(r"unanim|all\s+(?:members\s+)?(?:present\s+)?(?:voted\s+)?in\s+favor|all\s+present\s+in\s+favor|"
                        r"all\s+voted\s+(?:yes|aye|in\s+favor)|without\s+objection|all\s+ayes", re.I)
-# Words that make an amount approximate, or a total.
+# The words of a vote count, in each language a summary is shown in (pipeline.i18n.LANGUAGES), for a count the
+# check finds in the English to be found in a translation too (written_count()): "to" between its numbers, "with"
+# before those against, the words for those against, and the numbers one to nine written out.
+COUNT_WORDS = {
+    "en": {"to": r"to", "with": r"with|and", "against": r"opposed|against|nays?|noes|no(?![\w-])|voting\s+no|dissent\w*",
+           "numbers": ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine")},
+    "es": {"to": r"(?:votos?\s+)?a", "with": r"con|y",
+           "against": r"(?:(?:votos?|integrantes?|miembros?)\s+)?en\s+contra|opuest[oa]s?|votos?\s+negativos?|disidentes?|"
+                      r"se\s+opus(?:o|ieron)|vot(?:ó|aron)\s+(?:en\s+contra|que\s+no|no)",
+           "numbers": ("uno|una?", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve")},
+}
+
+
+def against_pattern(lang: str, first: str = r"\d{1,2}", third: str = r"(?:\s*[-–]\s*\d{1,2})?", count: str | None = None) -> str:
+    """A count with no one against, and then someone against, as a language writes it: first, its count in favor;
+    third, what may follow its 0 ("-1"); count, the number against, in figures or words."""
+    words = COUNT_WORDS[lang]
+    count = count or rf"[1-9]\d?|{'|'.join(words['numbers'])}"
+    return (rf"(?<![\d$#.,/-]){first}\s*(?:[-–]|{words['to']})\s*0(?![\d/]|[.,]\d){third}[,;]?\s*"
+            rf"(?:(?:{words['with']})\s+)?(?:{count})\s+(?:{words['against']})")
+
+
 # A count with no one against, and then someone against: "8 to 0 with 1 opposed", "5-0, one opposed".
-CONTRADICTED = re.compile(r"(?<![\d$#.,/-])\d{1,2}\s*(?:[-–]|to)\s*0(?![\d/]|[.,]\d)(?:\s*[-–]\s*\d{1,2})?[,;]?\s*"
-                          r"(?:with\s+|and\s+)?(?:[1-9]\d?|one|two|three|four|five|six|seven|eight|nine)\s+"
-                          r"(?:opposed|against|nays?|noes|no(?![\w-])|voting\s+no|dissent\w*)", re.I)
+CONTRADICTED = re.compile(against_pattern("en", r"(?P<first>\d{1,2})", r"(?:\s*[-–]\s*(?P<third>\d{1,2}))?",
+                                          rf"(?P<count>[1-9]\d?|{'|'.join(COUNT_WORDS['en']['numbers'])})"), re.I)
+# Words that make an amount approximate, or a total.
 APPROXIMATE = re.compile(r"\b(?:about|approximately|nearly|almost|over|more\s+than|less\s+than|under|roughly|around)\s*\$?$", re.I)
 # A US state's name: places a summary may spell out where the document abbreviates ("MA", "Mass.").
 STATES = {"Massachusetts", "Connecticut", "Hampshire", "Maine", "Vermont", "Rhode", "Island", "York", "Jersey"}
@@ -1522,7 +1547,8 @@ def without_tally(text: str, tally: str) -> str:
     """The text without a vote count, and the words that only introduce it: "Approved the plan,
     5-0." is "Approved the plan."; "voted 2-0-1 to recommend" is "voted to recommend"; and the
     Spanish "con votación 5-0" goes as well."""
-    t = re.escape(tally)
+    # The count itself, not the end of a longer figure ("15-1" for "5-1") or the start of one ("vote 5-10").
+    t = rf"(?<![\d$#.,/-]){re.escape(tally)}(?![\d/-]|[.,]\d)"
     for pattern in (
         rf"\s*\(\s*{t}\s*\)",                                                       # "(4-0)"
         rf",\s*(?:approved|passed|passing)\s+{t}(?=\s*(?:[.;]|$))",                     # ", approved 5-0." at the end
@@ -1530,7 +1556,7 @@ def without_tally(text: str, tally: str) -> str:
         rf"[,;]?\s*(?:(?:con|por)\s+(?:una\s+)?)?votaci[oó]n\s+(?:de\s+)?{t}",           # "con votación 5-0"
         rf"[,;]?\s*(?:by\s+a\s+)?vote\s+(?:of\s+)?{t}",                                 # "vote 4-1", "by a vote of 4-1"
         rf"[,;]?\s*{t}\s+(?:vote|votos?)\b",                                           # ", 3-2 vote"
-        rf"[,;]?\s*(?:por\s+)?{t}(?=\s*(?:[.;,)]|$))",                                  # ", 5-0." at the end
+        rf"[,;]?\s*(?:por\s+)?{t}(?=\s*(?:[.;,:)—]|$))",                                # ", 5-0." at the end
         rf"\s+{t}(?=\s)",                                                              # "approved 5-0 with"
     ):
         new = re.sub(pattern, "", text, count=1, flags=re.I)
@@ -1541,6 +1567,66 @@ def without_tally(text: str, tally: str) -> str:
     text = re.sub(r",\s*\(", " (", text)
     text = re.sub(r"([,;])\s*([.;])", r"\2", text)
     return re.sub(r"\s{2,}", " ", text).strip()
+
+
+def written_count(text: str, tally: str, lang: str) -> str | None:
+    """A vote count the check found in an English text (tally, a TALLY or CONTRADICTED match) as another text in
+    lang writes it: the same numbers, joined by that language's words (COUNT_WORDS), so "8 to 0 with 1 opposed" is
+    "8 a 0, con 1 en contra" in Spanish. The first such count in the text, or None where it has none."""
+    # As the English writes it (a count in figures, most often), else in the language's words.
+    found = re.search(rf"(?<![\d$#.,/-]){re.escape(tally)}(?![\d/-]|[.,]\d)", text)
+    if found:
+        return found.group(0)
+    words = COUNT_WORDS.get(lang)
+    if m := TALLY.fullmatch(tally):
+        first, second, third = m.groups()
+        third = rf"\s*[-–]\s*{third}" if third else ""
+        # With a dash of another kind ("4–1"), else the language's words ("4 a 1"): a range written that way
+        # before it ("de 4 a 1 carriles") isn't taken for it.
+        for to in (r"[-–]", *([words["to"]] if words else [])):
+            found = re.search(rf"(?<![\d$#.,/-]){first}\s*(?:{to})\s*{second}{third}(?![\d/-]|[.,]\d)", text, re.I)
+            if found:
+                return found.group(0)
+        return None
+    elif (m := CONTRADICTED.fullmatch(tally)) and words:
+        count = m.group("count")
+        n = int(count) if count.isdigit() else COUNT_WORDS["en"]["numbers"].index(count.lower()) + 1
+        count = rf"{n}(?!\d)" + (rf"|{words['numbers'][n - 1]}" if n <= len(words["numbers"]) else "")
+        third = rf"\s*[-–]\s*{m.group('third')}" if m.group("third") else r"(?!\s*[-–]\s*\d)"
+        pattern = against_pattern(lang, m.group("first"), third, rf"(?<!\w)(?:{count})(?!\w)")
+    else:
+        return None
+    found = re.search(pattern, text, re.I)
+    return found.group(0) if found else None
+
+
+def respelled(text: str, what: str, fix: str) -> str:
+    """A text with a misheard street address (a "spelling" problem's what) as the town spells it (its fix). A
+    translation may write the address in its own way ("la calle Stanley 38" for "38 Stanley Street"), but keeps the
+    street's name as it is: there, the name is respelled where its house number is right beside it ("la calle
+    Stanley 38"), not where another number is near ("Stanley, 38 votos", "el 38% de Stanley Park")."""
+    if what in text:
+        return text.replace(what, fix)
+    number = HOUSE_NUMBER.match(what)
+    if not number or not fix.startswith(number.group(0)):
+        return text
+    *name, kind = what[number.end():].split()
+    name, fixed = " ".join(name), " ".join(fix[number.end():].split()[:-1])
+    if not name or name == fixed:
+        return text
+    # The number right before the name ("38 Stanley"), or right after it or the street's type as the English writes
+    # it ("calle Stanley 38", "Stanley Street 38"), and then not a word of its own ("Stanley 38 votos").
+    between = re.compile(rf"\s+(?:{re.escape(kind.rstrip('.'))}\.?\s+)?")
+    house = re.escape(number.group(0).strip())
+    before = [h.end() for h in re.finditer(rf"(?<![\w.,#]){house}(?=\s)", text)]
+    after = [h.start() for h in re.finditer(rf"(?<![\w.,#]){house}(?!\w|[.,]\d|\s*%|\s+[^\W\d_])", text)]
+    out, end = [], 0
+    for m in re.finditer(rf"(?<!\w){re.escape(name)}(?!\w)", text):
+        if any(re.fullmatch(r"\s+", text[e:m.start()]) for e in before if e <= m.start()) \
+                or any(between.fullmatch(text[m.end():s]) for s in after if s >= m.end()):
+            out += [text[end:m.start()], fixed]
+            end = m.end()
+    return "".join(out) + text[end:]
 
 
 def sentences(text: str) -> list[str]:
@@ -1554,9 +1640,9 @@ def hides(fc: dict, p: dict) -> bool:
     return fc["result"] == "failed" and p["kind"] not in NOTED and p["field"] != "decision_titles"
 
 
-def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
-    """A summary as the site shows it (display: the record, or its translation, entry by entry),
-    after its fact check (record's "fact_check"):
+def shown(display: dict | None, record: dict | None, kind: str, lang: str | None = None) -> dict | None:
+    """A summary as the site shows it (display: the record, or its translation, entry by entry, in lang,
+    by default the language being built), after its fact check (record's "fact_check"):
     - checked against the document's full text, a decision or agenda item with something not
       in the document isn't shown, nor is such a headline, or such a sentence of the summary
       (the whole summary, in another language, where its sentences can't be matched);
@@ -1567,9 +1653,9 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
       problems, never for another decision's;
     - wherever it was checked, a vote count the document doesn't give (near its decision's quote,
       for a decision with one), or one that says no one was against beside someone who was, is left
-      out of the text;
+      out of the text, in a translation as it writes the count (written_count());
     - a recording's misheard street name ("spelling") is shown as the town spells it, in a
-      translation too;
+      translation too (respelled());
     - each decision shown has its page and the quote found there under "decision_pages" ([page,
       quote], or [None, None] where the page isn't known), where the check gave them.
     Weaker checks (scanned pages, a transcription) hide nothing else: what they can't find may be
@@ -1579,14 +1665,22 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
         return {k: v for k, v in display.items() if k != "item_actions"} if display and "item_actions" in display else display
     fc = record["fact_check"]
     out = dict(display)
-    english = display is record or display.get("headline") == record.get("headline")
+    english = (lang == "en") if lang else (display is record or display.get("headline") == record.get("headline"))
+    lang = "en" if english else lang or i18n.language()
+
+    def untallied(text: str, tally: str) -> str:
+        if english:
+            return without_tally(text, tally)
+        written = written_count(text, tally, lang)
+        return without_tally(text, written) if written else text
+
     hidden: dict[str, set] = {}
     for p in fc["problems"]:
         field = p["field"]
         if field not in out or not out[field] or field == "decision_titles":
             continue
         if p["kind"] == "spelling":
-            fix = lambda t: t.replace(p["what"], p["fix"])  # noqa: E731
+            fix = lambda t: respelled(t, p["what"], p["fix"])  # noqa: E731
             if isinstance(out[field], list):
                 i = p["entry"] - 1
                 out[field] = [fix(t) if j == i and t else t for j, t in enumerate(out[field])]
@@ -1596,9 +1690,9 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
             if isinstance(out[field], list):
                 i = p["entry"] - 1
                 if i < len(out[field]):
-                    out[field] = [without_tally(t, p["what"]) if j == i else t for j, t in enumerate(out[field])]
+                    out[field] = [untallied(t, p["what"]) if j == i else t for j, t in enumerate(out[field])]
             else:
-                out[field] = without_tally(out[field], p["what"])
+                out[field] = untallied(out[field], p["what"])
         elif hides(fc, p):
             hidden.setdefault(field, set()).add(p.get("entry"))
     gone = hidden.get("decisions", set())
@@ -1612,13 +1706,13 @@ def shown(display: dict | None, record: dict | None, kind: str) -> dict | None:
     # And each one's title, whether it's main, and its topic (summarize.split_decisions), beside the decisions
     # shown; a translation's titles are its own, or none.
     untitled = {p.get("entry") for p in fc["problems"] if p["field"] == "decision_titles" and p["kind"] != "spelling"}
-    respelled = [p for p in fc["problems"] if p["field"] == "decision_titles" and p["kind"] == "spelling"]
+    respellings = [p for p in fc["problems"] if p["field"] == "decision_titles" and p["kind"] == "spelling"]
     for field in ("decision_titles", "decision_main", "decision_topics"):
         values = (record if english or field != "decision_titles" else display).get(field) or []
         if values and len(values) == len(record.get("decisions") or []) == len(out.get("decisions") or []):
             if field == "decision_titles":
-                values = [functools.reduce(lambda t, q: t.replace(q["what"], q["fix"]) if t else t,
-                                           [q for q in respelled if q["entry"] == j + 1], v) for j, v in enumerate(values)]
+                values = [functools.reduce(lambda t, q: respelled(t, q["what"], q["fix"]) if t else t,
+                                           [q for q in respellings if q["entry"] == j + 1], v) for j, v in enumerate(values)]
             out[field] = [None if field == "decision_titles" and j + 1 in untitled else v
                           for j, v in enumerate(values) if j + 1 not in gone]
         else:

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from pipeline import factcheck
+from pipeline import factcheck, i18n
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -676,6 +676,59 @@ def test_one_failed_decision_hides_only_itself():
     assert spanish["decisions"][:6] == [*es[:3], *es[4:7]]
 
 
+def test_a_vote_count_left_out_of_a_decision_is_left_out_of_its_translation():
+    # Gloucester's tax factor (decision 8): "8 to 0 with 1 opposed" in English, "8 a 0, con 1 en contra" in Spanish.
+    fixture = json.loads((FIXTURES / "factcheck_gloucester_council.json").read_text(encoding="utf-8"))
+    record, es = fixture["record"], fixture["es"]["decisions"]
+    spanish = factcheck.shown({**record, **fixture["es"]}, record, "recording", lang="es")
+    assert spanish["decisions"][6] == ("Se aprobó un factor residencial de 0.9973, con un cambio de 1.03 hacia la propiedad "
+                                       "comercial e industrial, para el año fiscal 2027.")
+    # The decisions with no problem of their own keep their counts.
+    assert spanish["decisions"] == [*es[:3], *es[4:7], spanish["decisions"][6], es[8]]
+    # The language is the one being built, by default.
+    with i18n.use("es"):
+        assert factcheck.shown({**record, **fixture["es"]}, record, "recording") == spanish
+
+
+def test_a_vote_count_is_found_as_a_translation_writes_it():
+    found = lambda text, tally, lang="es": factcheck.written_count(text, tally, lang)  # noqa: E731
+    assert found("Se aprobó el plan, 8 a 0, con 1 en contra.", "8 to 0 with 1 opposed") == "8 a 0, con 1 en contra"
+    assert found("Se aprobó el plan, 8-0 con un voto en contra.", "8 to 0, one opposed") == "8-0 con un voto en contra"
+    assert found("Se aprobó el plan por 5 a 0.", "5-0") == "5 a 0"
+    assert found("Se aprobó el plan (4–1).", "4-1") == "4–1"
+    assert found("Se aprobó el plan, 5-0-1.", "5-0-1") == "5-0-1"
+    # Not other numbers, nor the same ones in another count.
+    assert found("Se aprobó, 8 a 0, con 2 en contra.", "8 to 0 with 1 opposed") is None
+    assert found("Un plan de 5 a 10 años, 5-1.", "5-1") == "5-1"
+    assert found("Un plan de 5 a 10 años.", "5-1") is None
+    assert found("Informe 2025-03, aprobado 5 a 0.", "5-0") == "5 a 0" and found("Aprobado por 15-1.", "5-1") is None
+    assert found("Redujo de 4 a 1 los carriles, aprobado 4–1.", "4-1") == "4–1"
+    assert found("Aprobado por 8 votos a 0.", "8-0") == "8 votos a 0"
+    assert found("Aprobado 8 a 0 y uno se opuso.", "8 to 0, 1 against") == "8 a 0 y uno se opuso"
+    assert found("Se aprobó, 8 a 0-1, con 1 en contra.", "8 to 0 with 1 opposed") is None
+    # A language with no words for a count of its own: its count in figures only.
+    assert found("Approuvé, 5–0.", "5-0", "fr") == "5–0" and found("Approuvé, 8 à 0, 1 contre.", "8 to 0, 1 against", "fr") is None
+    # Each language a site can be built in has its words for a count.
+    assert set(i18n.LANGUAGES) <= set(factcheck.COUNT_WORDS)
+    for lang in i18n.LANGUAGES:
+        assert len(factcheck.COUNT_WORDS[lang]["numbers"]) == len(factcheck.COUNT_WORDS["en"]["numbers"]), lang
+    # And its summary's text is shown without the count, as the English is.
+    record = {"kind": "minutes", "headline": "Plan", "summary": "", "decisions": ["Approved the plan, 8 to 0, one opposed."],
+              "fact_check": {"result": "ok", "source": "pdf", "problems": [
+                  {"field": "decisions", "entry": 1, "kind": "tally", "what": "8 to 0, one opposed"}]}}
+    translation = {**record, "headline": "El plan", "decisions": ["Se aprobó el plan, 8 a 0, con uno en contra."]}
+    assert factcheck.shown(record, record, "minutes")["decisions"] == ["Approved the plan."]
+    assert factcheck.shown(translation, record, "minutes", lang="es")["decisions"] == ["Se aprobó el plan."]
+
+
+def test_a_vote_count_is_left_out_whole():
+    # Not the end of an item's number, nor the start of a longer count.
+    assert factcheck.without_tally("Items 15-1 and 15-2 approved 5-1.", "5-1") == "Items 15-1 and 15-2 approved."
+    assert factcheck.without_tally("Approved by a vote of 5-10, 5-1.", "5-1") == "Approved by a vote of 5-10."
+    # Before a colon too.
+    assert factcheck.without_tally("Se aprobó, 8 a 0, con 1 en contra: el plan.", "8 a 0, con 1 en contra") == "Se aprobó: el plan."
+
+
 def test_names_however_the_document_writes_them():
     doc = "Motion by ALDERMAN O’BRIEN, seconded by Councillor Colon Hayes. Present: McCallum, Sanchez Parkinson."
     for text in ("Alderman O'Brien and Councillor Colon Hayes spoke.", "McCallum and Sanchez-Parkinson spoke."):
@@ -831,6 +884,16 @@ def test_a_recordings_misheard_street_is_shown_as_the_town_spells_it():
                "decision_titles": ["Audiencia para 38 Stanley Street"]}
     assert factcheck.shown(spanish, record, "recording")["decisions"] == [
         "Fijó una audiencia pública el 17 de noviembre sobre 38 Standley Street."]
+    # Where the translation writes the address its own way, the name beside its house number is respelled.
+    spanish = {**record, "headline": "Audiencia pública", "decisions": ["Fijó una audiencia sobre la calle Stanley 38, junto a Stanley Park."],
+               "decision_titles": ["Audiencia para Stanley Street 38"]}
+    shown = factcheck.shown(spanish, record, "recording", lang="es")
+    assert shown["decisions"] == ["Fijó una audiencia sobre la calle Standley 38, junto a Stanley Park."]
+    assert shown["decision_titles"] == ["Audiencia para Standley Street 38"]
+    # Not a name beside another number, or with none beside it.
+    for text in ("Stanley Street, desde el número 1 hasta el 38.", "Stanley Park recibió 38 votos.", "El 38% de Stanley Park.",
+                 "Los vecinos de Stanley, 38 a favor.", "Stanley 38 votos.", "Stanley y 38 Main Street."):
+        assert factcheck.respelled(text, "38 Stanley Street", "38 Standley Street") == text, text
 
 
 def test_only_a_clear_misspelling_is_respelled():
