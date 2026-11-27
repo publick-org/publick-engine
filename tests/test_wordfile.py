@@ -10,6 +10,7 @@ from test_agendacenter import BASE, NOW, PAGE
 
 from pipeline import fetch_meetings, fetch_minutes, pdftext, wordfile
 from pipeline.fetch_meetings import load_store
+from pipeline.http import FetchError
 
 NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
 
@@ -82,6 +83,42 @@ class WordAgendaCenter:
         if "/AgendaCenter/Search/" in url:
             return FakeResponse(self.page.encode())
         return FakeResponse(self.content, {"content-disposition": 'attachment; filename="Minutes.docx"'})
+
+
+OLD_DOC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + bytes(504)
+
+
+def xlsx() -> bytes:
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("xl/workbook.xml", "<workbook/>")
+    return out.getvalue()
+
+
+@pytest.mark.parametrize("content", [OLD_DOC, b"{\\rtf1\\ansi agenda}", b"\xff\xd8\xff\xe0 a scan", b"II*\x00 a scan",
+                                     xlsx()], ids=["doc", "rtf", "jpeg", "tiff", "xlsx"])
+def test_a_file_of_another_kind_is_unreadable(content):
+    """A reader can tell a file it won't ever read from a download that failed."""
+    with pytest.raises(wordfile.Unreadable, match=r"^https://example.org/a: a file of a kind that isn't read") as e:
+        wordfile.as_pdf(content, "https://example.org/a")
+    assert isinstance(e.value, FetchError) and e.value.status is None
+
+
+def test_a_word_file_that_cant_be_read_is_unreadable():
+    broken = io.BytesIO()
+    with zipfile.ZipFile(broken, "w") as z:
+        z.writestr("word/document.xml", "<w:document")
+    with pytest.raises(wordfile.Unreadable, match=r"^https://example.org/a.docx: a Word \(.docx\) file that can't be read"):
+        wordfile.as_pdf(broken.getvalue(), "https://example.org/a.docx")
+
+
+@pytest.mark.parametrize("content", [b"<html>Sign in</html>", b"", docx(p("Agenda"))[:40]], ids=["html", "empty", "cut"])
+def test_what_may_read_another_time_isnt_unreadable(content):
+    """A sign-in page where a file should be, an empty body, a download cut short."""
+    with pytest.raises(FetchError, match="not a PDF or a Word") as e:
+        wordfile.as_pdf(content, "https://example.org/a")
+    assert not isinstance(e.value, wordfile.Unreadable)
+    assert wordfile.as_pdf(b"%PDF-1.7 ...", "https://example.org/a.pdf") == (b"%PDF-1.7 ...", None)
 
 
 def test_word_minutes_are_saved_as_a_pdf(malden, tmp_path):
