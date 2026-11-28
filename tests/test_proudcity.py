@@ -15,7 +15,7 @@ from test_wordfile import docx, p
 
 from pipeline import build_site, fetch_proudcity_meetings, pdftext, proudcity, wordfile, wordpress
 from pipeline.config import load_config
-from pipeline.http import FetchError
+from pipeline.http import FetchError, Refused
 
 SAVED = FIXTURES / "proudcity"
 SITE = "https://www.holyoke.org"
@@ -118,9 +118,15 @@ class FakeSite:
             return FakeResponse(self.pages[post].encode())
         if url.endswith(".docx"):
             return FakeResponse(docx(p("Board of Public Works Agenda") + p("Monday, November 16, 2026")))
+        if url.endswith(".doc"):
+            return FakeResponse(OLD_DOC)
         if "storage.googleapis.com/proudcity/" in url or "docs.google.com/document/" in url:
             return FakeResponse(self.pdf + f"\n% {url}\n".encode())
         raise AssertionError(f"unexpected URL {url}")
+
+
+# An old binary Word file (.doc), which isn't read.
+OLD_DOC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + bytes(504)
 
 
 def every_post() -> list[dict]:
@@ -554,6 +560,151 @@ def test_a_linked_minutes_download_that_fails_is_tried_again(config, tmp_path):
     fetch_proudcity_meetings.run(config, Failing(every_post(), fail=False), tmp_path, now=NOW.replace(day=14))
     assert meeting(tmp_path, "school-committee-2026-09-14")["minutes"][0]["source_url"].startswith(
         "https://docs.google.com/document/d/1_OWokQeN")
+
+
+PLANNING_PDF = "https://storage.googleapis.com/proudcity/holyokema/2026/11/stamped-11-10-26-agenda-b51bc933.pdf"
+PLANNING_DOC = "https://storage.googleapis.com/proudcity/holyokema/2026/11/11-10-26-agenda-final-8f1f7fbf.doc"
+PLANNING_MINUTES = "https://storage.googleapis.com/proudcity/holyokema/2026/11/11-10-26-minutes-4c5d6e7f.pdf"
+UNREAD = "a file of a kind that isn't read (not a PDF or a Word .docx file)"
+
+
+def doc_agenda(typed: bool = True) -> str:
+    """The Planning Board's page with its agenda attached as an old Word .doc, and minutes; without the agenda's
+    typed text unless `typed`."""
+    found = page("planning-2026-11-10").replace(PLANNING_PDF, PLANNING_DOC).replace(
+        '<div id="tab-agenda-packet"',
+        f'<div id="tab-minutes" class="tab-pane fade "><a href="{PLANNING_MINUTES}" class="btn" download="x">Download'
+        '</a></div>\n<div id="tab-agenda-packet"')
+    if not typed:
+        typed_at = found.index('<div class="col-md-9" style="padding-top:10px;">')
+        found = found[:typed_at] + '<div class="col-md-9"></div>\n' + found[found.index('<div class="col-md-3', typed_at):]
+    return found
+
+
+def test_an_agenda_file_that_isnt_read_is_reported_and_the_page_read_on(config, tmp_path):
+    """An old Word .doc agenda isn't read: it's reported once, the agenda typed into the page is saved in its
+    place, the minutes are saved, and the page isn't read again until the post changes."""
+    client = FakeSite(every_post(), {"51010": doc_agenda()})
+    status = fetch_proudcity_meetings.run(config, client, tmp_path, now=NOW)
+    assert status["errors"] == [f"{PLANNING_DOC}: {UNREAD}"]
+    assert status["to_read"] == {}
+    planning = meeting(tmp_path, "planning-2026-11-10")
+    assert [a["converted_from"] for a in planning["agendas"]] == ["html"]
+    saved = (tmp_path / "meetings" / "agendas" / planning["agendas"][0]["file"]).read_bytes()
+    assert "HOLYOKE PLANNING BOARD" in pdftext.plain_text(saved)
+    assert planning["minutes"][0]["source_url"] == PLANNING_MINUTES
+    # The next run lists the post again (the listing overlaps the last), unchanged: not read, nothing reported.
+    again = FakeSite(every_post(), {"51010": doc_agenda()})
+    status = fetch_proudcity_meetings.run(config, again, tmp_path, now=NOW.replace(day=14))
+    assert status["errors"] == [] and status["pages_read"] == 0
+    assert page_url("planning-2026-11-10") not in again.urls and PLANNING_DOC not in again.urls
+    # Changed, it's read again: the agenda's file still isn't read, and its text is the same.
+    posts = [p for p in every_post() if p["id"] != 51010] + [listed("planning-2026-11-10", "2026-11-14T09:00:00")]
+    status = fetch_proudcity_meetings.run(config, FakeSite(posts, {"51010": doc_agenda()}), tmp_path,
+                                          now=NOW.replace(day=15))
+    assert status["pages_read"] == 1 and status["errors"] == [f"{PLANNING_DOC}: {UNREAD}"]
+    assert status["documents_added"] == status["documents_changed"] == 0 and status["to_read"] == {}
+
+
+def test_an_agenda_file_that_isnt_read_with_no_text_on_the_page(config, tmp_path):
+    status = fetch_proudcity_meetings.run(config, FakeSite(every_post(), {"51010": doc_agenda(typed=False)}),
+                                          tmp_path, now=NOW)
+    assert status["errors"] == [f"{PLANNING_DOC}: {UNREAD}"] and status["to_read"] == {}
+    planning = meeting(tmp_path, "planning-2026-11-10")
+    assert "agendas" not in planning and planning["minutes"][0]["source_url"] == PLANNING_MINUTES
+
+
+def test_a_saved_agenda_file_isnt_replaced_by_the_text_when_its_new_file_isnt_read(config, tmp_path):
+    fetch_proudcity_meetings.run(config, FakeSite(every_post()), tmp_path, now=NOW)
+    posts = [p for p in every_post() if p["id"] != 51010] + [listed("planning-2026-11-10", "2026-11-13T09:00:00")]
+    status = fetch_proudcity_meetings.run(config, FakeSite(posts, {"51010": doc_agenda()}), tmp_path,
+                                          now=NOW.replace(day=14))
+    assert status["errors"] == [f"{PLANNING_DOC}: {UNREAD}"]
+    agendas = meeting(tmp_path, "planning-2026-11-10")["agendas"]
+    assert [a["source_url"] for a in agendas] == [PLANNING_PDF]
+
+
+def test_linked_minutes_that_arent_read_are_not_tried_again(config, tmp_path):
+    class OldWord(FakeSite):
+        def get(self, url):
+            if "1_OWokQeN" in url:
+                self.urls.append(url)
+                return FakeResponse(OLD_DOC)
+            return super().get(url)
+    status = fetch_proudcity_meetings.run(config, OldWord(every_post()), tmp_path, now=NOW)
+    assert [e for e in status["errors"] if "1_OWokQeN" in e] and "minutes" not in meeting(tmp_path, "school-committee-2026-09-14")
+    assert not any("1_OWokQeN" in url for url in status["linked_minutes"])
+    again = OldWord(every_post())
+    status = fetch_proudcity_meetings.run(config, again, tmp_path, now=NOW.replace(day=14))
+    assert status["errors"] == [] and not any("1_OWokQeN" in u for u in again.urls)
+
+
+def test_minutes_that_arent_read_are_reported_and_not_tried_again(config, tmp_path):
+    minutes = PLANNING_MINUTES.replace(".pdf", ".doc")
+    planning = doc_agenda().replace(PLANNING_DOC, PLANNING_PDF).replace(PLANNING_MINUTES, minutes)
+    status = fetch_proudcity_meetings.run(config, FakeSite(every_post(), {"51010": planning}), tmp_path, now=NOW)
+    assert status["errors"] == [f"{minutes}: {UNREAD}"] and status["to_read"] == {}
+    found = meeting(tmp_path, "planning-2026-11-10")
+    assert found["agendas"][0]["source_url"] == PLANNING_PDF and "minutes" not in found
+
+
+def test_a_file_that_fails_to_download_has_its_page_read_again_a_few_times(config, tmp_path):
+    """A download that failed may work next time: the rest of the page is read, and the page read again on the
+    next runs, unlike a file of a kind that isn't read. A file that goes on failing is left until the post changes."""
+    class Failing(FakeSite):
+        def get(self, url):
+            if url == PLANNING_PDF:
+                self.urls.append(url)
+                raise FetchError(f"{url}: HTTP 503", 503)
+            return super().get(url)
+    planning = doc_agenda().replace(PLANNING_DOC, PLANNING_PDF)
+    status = fetch_proudcity_meetings.run(config, Failing(every_post(), {"51010": planning}), tmp_path, now=NOW)
+    assert status["errors"] == [f"{PLANNING_PDF}: HTTP 503"] and list(status["to_read"]) == ["51010"]
+    assert status["to_read"]["51010"]["tries"] == 1
+    found = meeting(tmp_path, "planning-2026-11-10")
+    # The minutes are saved; the agenda's text isn't taken for a file that may download next time.
+    assert found["minutes"][0]["source_url"] == PLANNING_MINUTES and "agendas" not in found
+    for hour, left in ((8, ["51010"]), (9, [])):
+        client = Failing(every_post(), {"51010": planning})
+        status = fetch_proudcity_meetings.run(config, client, tmp_path, now=NOW.replace(hour=hour))
+        assert status["pages_read"] == 1 and list(status["to_read"]) == left
+        assert PLANNING_MINUTES not in client.urls   # saved already
+    # Given up on, on the last try: the agenda's text is taken in its place.
+    assert [a["converted_from"] for a in meeting(tmp_path, "planning-2026-11-10")["agendas"]] == ["html"]
+    # Left until the post changes: then read again.
+    client = Failing(every_post(), {"51010": planning})
+    status = fetch_proudcity_meetings.run(config, client, tmp_path, now=NOW.replace(hour=10))
+    assert status["pages_read"] == 0 and PLANNING_PDF not in client.urls
+    posts = [p for p in every_post() if p["id"] != 51010] + [listed("planning-2026-11-10", "2026-11-13T09:00:00")]
+    status = fetch_proudcity_meetings.run(config, FakeSite(posts, {"51010": planning}), tmp_path, now=NOW.replace(day=14))
+    assert status["errors"] == [] and status["to_read"] == {}
+    assert meeting(tmp_path, "planning-2026-11-10")["agendas"][-1]["source_url"] == PLANNING_PDF
+
+
+def test_an_attached_file_thats_gone_is_given_up_at_once(config, tmp_path):
+    class Gone(FakeSite):
+        def get(self, url):
+            if url == PLANNING_PDF:
+                raise FetchError(f"{url}: HTTP 404", 404)
+            return super().get(url)
+    planning = doc_agenda().replace(PLANNING_DOC, PLANNING_PDF)
+    status = fetch_proudcity_meetings.run(config, Gone(every_post(), {"51010": planning}), tmp_path, now=NOW)
+    assert status["errors"] == [f"{PLANNING_PDF}: HTTP 404"] and status["to_read"] == {}
+    found = meeting(tmp_path, "planning-2026-11-10")
+    assert [a["converted_from"] for a in found["agendas"]] == ["html"] and found["minutes"]
+
+
+def test_a_refused_file_leaves_the_page_to_read_again(config, tmp_path):
+    class Refusing(FakeSite):
+        def get(self, url):
+            if url == PLANNING_PDF:
+                raise Refused(f"{url}: HTTP 403", 403)
+            return super().get(url)
+    planning = doc_agenda().replace(PLANNING_DOC, PLANNING_PDF)
+    status = fetch_proudcity_meetings.run(config, Refusing(every_post(), {"51010": planning}), tmp_path, now=NOW)
+    assert status["errors"] == [f"{PLANNING_PDF}: HTTP 403"] and list(status["to_read"]) == ["51010"]
+    # Stopped at the refusal: the minutes on the same host aren't asked for.
+    assert "minutes" not in meeting(tmp_path, "planning-2026-11-10")
 
 
 def test_the_document_cap_leaves_the_rest_for_the_next_run(config, tmp_path):
