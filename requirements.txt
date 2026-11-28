@@ -4,7 +4,7 @@ feedparser==6.0.14
 pypdf==7.1.1
 pdfplumber==0.11.10
 fpdf2==2.9.0
-anthropic==2.10.0
+anthropic==2.14.0
 boto3==1.44.6
 markdown==3.11.3
 openpyxl==3.1.5
