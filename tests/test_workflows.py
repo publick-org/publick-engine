@@ -31,15 +31,25 @@ def block(source, key):
 
 LABEL = text("evaluate-label.yml")
 EVALUATED = block(LABEL, "EVALUATED")
+SDK_PIN = block(LABEL, "SDK_PIN")
 SCRIPT = block(LABEL, "run")
 
 
+EVALUATE = text("evaluate.yml")
+# The pinned requirements: evaluated when a pull request is labeled for it, but held for a label only when the SDK's
+# pin changes (SDK_PIN), not by the file's name.
+UNLABELED = {"requirements.txt"}
+REQUIREMENTS = "anthropic==1.11.0\nboto3==1.44.6\n"
+
+
 def test_the_label_check_names_the_files_evaluate_runs_for():
-    paths = {line[2:] for line in block(text("evaluate.yml"), "paths").splitlines()}
-    assert len(paths) == 13 and all(re.fullmatch(r"[a-z_/.]+", p) for p in paths), paths
+    paths = {line[2:] for line in block(EVALUATE, "paths").splitlines()}
+    assert len(paths) == 14 and all(re.fullmatch(r"[a-z_/.]+", p) for p in paths), paths
     files = {p.relative_to(ROOT).as_posix() for folder in ("pipeline", "evals") for p in (ROOT / folder).rglob("*") if p.is_file()}
+    files |= {p.name for p in ROOT.glob("requirements*.txt")}
     assert paths <= files, "evaluate.yml names a file that isn't there"
-    assert {f for f in files if re.search(EVALUATED, f)} == paths
+    assert UNLABELED <= paths
+    assert {f for f in files if re.search(EVALUATED, f)} == paths - UNLABELED
 
 
 def test_the_label_check_runs_again_when_a_label_is_added_or_taken_off():
@@ -68,22 +78,29 @@ def pull_request(tmp_path):
                                "-c", "core.hooksPath=/dev/null", *args], cwd=tmp_path, check=True, capture_output=True,
                               text=True).stdout.strip()
     git("init", "-q")
-    for name in ("pipeline/summarize.py", "pipeline/dates.py", "evals/minutes.json", "README.md"):
+    for name in ("pipeline/summarize.py", "pipeline/dates.py", "pipeline/translate.py", "evals/minutes.json", "README.md",
+                 "requirements.txt"):
         (tmp_path / name).parent.mkdir(exist_ok=True)
-        (tmp_path / name).write_text("1\n")
+        (tmp_path / name).write_text(REQUIREMENTS if name == "requirements.txt" else "1\n")
     git("add", "."), git("commit", "-qm", "Base")
     base = git("rev-parse", "HEAD")
 
-    def run(changed, labels, from_fork="false", base_sha=None):
+    def run(changed, labels="", from_fork="false", base_sha=None, script=SCRIPT):
+        """changed: the files to change, each a name (written "2") or (name, its new text)."""
         git("checkout", "-q", "--detach", base)
-        for name in changed:
-            (tmp_path / name).write_text("2\n")
+        for name, new in (c if isinstance(c, tuple) else (c, "2\n") for c in changed):
+            (tmp_path / name).write_text(new)
         if changed:
             git("commit", "-qam", "Change")
+        output = tmp_path.parent / "github_output"
+        output.write_text("")
         env = {"PATH": "/usr/bin:/bin:/usr/local/bin", "BASE_SHA": base_sha or base, "HEAD_SHA": git("rev-parse", "HEAD"),
-               "LABELS": labels, "EVALUATED": EVALUATED, "FROM_FORK": from_fork}
+               "LABELS": labels, "EVALUATED": EVALUATED, "SDK_PIN": SDK_PIN, "FROM_FORK": from_fork,
+               "GITHUB_OUTPUT": str(output)}
         # As Actions runs a step: bash, stopping at the first command that fails.
-        return subprocess.run(["bash", "-e", "-c", SCRIPT], cwd=tmp_path, env=env, capture_output=True, text=True)
+        result = subprocess.run(["bash", "-e", "-c", script], cwd=tmp_path, env=env, capture_output=True, text=True)
+        result.output = output.read_text()
+        return result
     return run
 
 
@@ -95,6 +112,16 @@ def pull_request(tmp_path):
     (["pipeline/summarize.py"], "evaluate", True),
     (["pipeline/summarize.py", "pipeline/dates.py"], "public-ok,no evaluate", True),
     (["pipeline/summarize.py"], "evaluated,no evaluate yet", False),
+    # A dependency update can be evaluated, but is held for a label only when it moves the SDK.
+    ([("requirements.txt", "anthropic==1.11.0\nboto3==1.44.7\n")], "", True),
+    ([("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "", False),
+    ([("requirements.txt", "anthropic[aiohttp]==1.11.0\nboto3==1.44.6\n")], "", False),
+    ([("requirements.txt", "Anthropic==2.10.0\nboto3==1.44.6\n")], "", False),
+    ([("requirements.txt", "anthropic==1.11.0\nanthropic-tools==1.0\nboto3==1.44.6\n")], "", True),
+    ([("requirements.txt", "boto3==1.44.6\n")], "", False),
+    ([("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "evaluate", True),
+    ([("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "no evaluate", True),
+    (["requirements.txt", "pipeline/summarize.py"], "", False),
 ])
 def test_the_label_check_asks_for_a_label_only_when_the_evaluated_files_change(pull_request, changed, labels, passes):
     result = pull_request(changed, labels)
@@ -112,3 +139,37 @@ def test_evaluate_on_a_pull_request_from_a_fork_doesn_t_pass(pull_request):
     assert pull_request(["pipeline/summarize.py"], "evaluate", from_fork="true").returncode == 1
     assert pull_request(["pipeline/summarize.py"], "no evaluate", from_fork="true").returncode == 0
     assert pull_request(["pipeline/dates.py"], "", from_fork="true").returncode == 0
+
+
+@pytest.mark.parametrize("changed, sets", [
+    (["pipeline/summarize.py"], "minutes agendas"),
+    (["pipeline/translate.py"], "translations"),
+    (["pipeline/dates.py"], ""),
+    # The SDK and the other pinned requirements are under every set.
+    (["requirements.txt"], "minutes agendas translations digest"),
+    ([("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "minutes agendas translations digest"),
+    (["requirements.txt", "pipeline/summarize.py"], "minutes agendas translations digest"),
+])
+def test_evaluate_runs_every_set_when_the_requirements_change(pull_request, changed, sets):
+    result = pull_request(changed, script=block(EVALUATE, "run"))
+    assert result.returncode == 0, result.stdout + result.stderr
+    key, _, value = result.output.strip("\n").partition("=")
+    assert key == "sets" and value.split() == sets.split(), result.output
+
+
+def test_the_label_check_names_the_sdk_s_pin_it_held(pull_request):
+    result = pull_request([("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "")
+    assert result.returncode == 1 and "requirements.txt (the anthropic SDK's pin)" in result.stdout, result.stdout
+    result = pull_request(["pipeline/summarize.py", ("requirements.txt", "anthropic==2.10.0\nboto3==1.44.6\n")], "")
+    assert result.returncode == 1 and "pipeline/summarize.py\nrequirements.txt (the anthropic SDK's pin)\n" in result.stdout
+
+
+def test_evaluate_says_why_a_push_by_dependabot_doesn_t_run():
+    """Dependabot's pushes get no repository secrets: the run says to add the label again, not to set the secret."""
+    run = block(EVALUATE[EVALUATE.index("Run the sets against the model"):], "run")
+    for actor, says in (("dependabot[bot]", "take the 'evaluate' label off and add it again"),
+                        ("someone", "Set the repository secret ANTHROPIC_API_KEY")):
+        result = subprocess.run(["bash", "-e", "-c", run], env={"PATH": "/usr/bin:/bin", "ANTHROPIC_API_KEY": "",
+                                                                "ACTOR": actor, "SETS": "minutes"},
+                                capture_output=True, text=True)
+        assert result.returncode == 1 and says in result.stdout, result.stdout
