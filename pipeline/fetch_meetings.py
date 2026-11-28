@@ -329,7 +329,7 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, rechec
         content, converted = response.content, None
         if wordfile.is_docx(content):
             # Saved as a PDF of its text (pipeline/wordfile.py); the page links the saved copy. The same text
-            # makes the same PDF, so a Word file saved again unchanged isn't a revision.
+            # is the same agenda (wordfile.unchanged), so a Word file saved again unchanged isn't a revision.
             content, converted = wordfile.to_pdf(content), "docx"
         if not content.startswith(b"%PDF"):
             raise FetchError(f"agenda {agenda_id} is not a PDF or a Word (.docx) file")
@@ -338,7 +338,7 @@ def fetch_agenda(client, meeting: dict, details: dict, storage, now: str, rechec
             return
         raise
     sha = hashlib.sha256(content).hexdigest()
-    if versions and versions[-1]["sha256"] == sha:
+    if versions and wordfile.unchanged(versions[-1], content, converted, storage, "agendas"):
         return
     earlier = next((a for a in versions if a["sha256"] == sha), None)
     if earlier:

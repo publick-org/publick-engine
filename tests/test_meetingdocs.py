@@ -8,7 +8,7 @@ from datetime import datetime
 
 import pytest
 from conftest import TZ
-from fakes import FIXTURES, FakeResponse
+from fakes import FIXTURES, FakeResponse, convert_with_another_fpdf2
 from test_wordfile import docx, p
 
 from pipeline import absences, build_site, fetch_meetingdocs_meetings, meetingdocs
@@ -199,6 +199,24 @@ def test_a_newer_agenda_is_saved_as_a_new_version(config, tmp_path):
     regular = load(tmp_path)["meetingdocs-2026-10-19-school-committee-regular-meeting"]
     assert [a["original_filename"] for a in regular["agendas"]][-1] == "Amended Regular SC Agenda 10-19-26_2.pdf"
     assert regular["history"][-1]["field"] == "agenda"
+
+
+def test_a_word_agenda_posted_again_with_the_same_text_isnt_a_new_version(config, tmp_path, monkeypatch):
+    """Converted again by a new fpdf2, which writes the same text as other bytes: the same agenda."""
+    fetch_meetingdocs_meetings.run(config, FakeCity(), tmp_path, now=NOW)
+    convert_with_another_fpdf2(monkeypatch)
+    reposted = [page.replace("Thu, 08/27/2026 - 1:23pm", "Fri, 08/28/2026 - 11:00am") for page in pages()]
+    client = FakeCity(reposted)
+    status = fetch_meetingdocs_meetings.run(config, client, tmp_path, now=NOW)
+    assert any(u.endswith(".docx") for u in client.urls)
+    assert status["documents_added"] == status["documents_changed"] == 0
+    august = load(tmp_path)["meetingdocs-2026-08-31-school-committee-regular-meeting"]
+    assert len(august["agendas"]) == 1 and "agenda" not in [h["field"] for h in august.get("history", [])]
+    # Remembered as posted again, so it isn't downloaded again.
+    assert august["agendas"][0]["posted"] == "2026-08-28T11:00"
+    again = FakeCity(reposted)
+    fetch_meetingdocs_meetings.run(config, again, tmp_path, now=NOW)
+    assert not any(u.endswith(".docx") for u in again.urls)
 
 
 def test_an_upcoming_meeting_that_leaves_the_listing(config, tmp_path):

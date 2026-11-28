@@ -28,6 +28,12 @@ From each page read:
   meeting's notice, and the agenda is filled in later by editing the post, which has it read again. A
   cancelled meeting's agenda isn't saved;
 - the minutes: the Minutes tab's file, unless minutes = false;
+- an attached file of a kind that isn't read (an old Word .doc, pipeline/wordfile.py), or that's gone
+  (HTTP 404, 410), isn't saved: it's reported in errors, the agenda's text is taken in its place where the
+  page has some (unless an agenda file was saved before), and the page is done with, read again only once
+  the post changes. A linked minutes file of a kind that isn't read isn't tried again either. An attached
+  file whose download fails otherwise (a timeout, a sign-in page) doesn't stop the rest of the page being
+  read, and the page is read again on the next FILE_TRIES - 1 runs, the agenda's text taken on the last;
 - the minutes of earlier meetings its Agenda or Agenda Packet tab links (but those exclude_pattern leaves
   out by their label) (a Google Doc exported as a PDF,
   a Drive file as Google gives it for download), each the minutes of the meeting that day of the board
@@ -64,7 +70,7 @@ from pipeline.fetch_meetings import (
     load_store, meetings_dir, merge, pdf_has_text, record_change, save_json, save_store, slugify, unique_slug,
 )
 from pipeline.filelist import title_for
-from pipeline.http import FetchError, PoliteClient
+from pipeline.http import FetchError, PoliteClient, Refused
 from pipeline.waiting import Waiting
 
 STATUS_FILE = "proudcity_status.json"
@@ -74,6 +80,9 @@ LISTING_PAGES = 50
 FIRST_RUN_BACK = timedelta(days=366)
 # How many times a linked minutes' download is tried, a run each, before it's given up.
 LINKED_TRIES = 3
+# How many runs a page is read on while one of its attached files fails to download, before it's left until the
+# post changes.
+FILE_TRIES = 3
 # How soon before its meeting an agenda typed into the page is taken for the agenda. A post made weeks ahead
 # holds the meeting's notice ("AGENDA PENDING") until the clerk fills in the agenda, a few days before the
 # meeting (the law's 48 hours at least), by editing the post, which has it read again.
@@ -122,8 +131,9 @@ class Saver:
         docs = meeting.get(field, [])
         latest = docs[-1] if docs else None
         sha = hashlib.sha256(content).hexdigest()
-        if latest and latest["sha256"] == sha:
-            # The same content at a new address: remember it, so it isn't downloaded again.
+        if wordfile.unchanged(latest, content, record.get("converted_from"), self.storage, field):
+            # The same content (or, converted, the same text: pipeline/wordfile.py) at a new address: remember it,
+            # so it isn't downloaded again.
             latest.update(source_url=record["source_url"])
             return
         doc_id = f"{record.pop('key')}-{sha[:8]}"
@@ -142,16 +152,27 @@ class Saver:
         # A Google Doc or Drive file that isn't shared publicly answers with a sign-in page: an error.
         return wordfile.as_pdf(self.client.get(url).content, url)
 
-    def site_file(self, meeting: dict, kind: str, file: dict) -> None:
-        """An attached file of the meeting's page, unless the latest saved is from the same address."""
+    def site_file(self, meeting: dict, kind: str, file: dict, errors: list) -> str:
+        """An attached file of the meeting's page, unless the latest saved is from the same address. Returns
+        "saved" (or saved before), "unreadable" for a file of a kind that isn't read (an old Word .doc) or one
+        that's gone (HTTP 404, 410), or "failed" for a download that failed otherwise; either of those is
+        reported in `errors`, and not saved. A refusal (pipeline/http.py Refused) is raised."""
         field = "agendas" if kind == "agenda" else "minutes"
         docs = meeting.get(field, [])
         if docs and docs[-1]["source_url"] == file["url"]:
-            return
-        content, converted = self.download(file["url"])
+            return "saved"
+        try:
+            content, converted = self.download(file["url"])
+        except Refused:
+            raise
+        except FetchError as e:
+            # A file of a kind that isn't read, or gone, is the same next time; a failed download may not fail again.
+            errors.append(str(e))
+            return "unreadable" if isinstance(e, wordfile.Unreadable) or e.status in (404, 410) else "failed"
         self.keep(meeting, kind, content, {
             "key": f"{proudcity.SOURCE}-{meeting['post_id']}", "title": file["file"], "source_url": file["url"],
             "original_filename": file["file"], **({"converted_from": converted} if converted else {})})
+        return "saved"
 
     def agenda_text(self, meeting: dict, paragraphs: list[str], page_url: str) -> None:
         """The agenda typed into the page, saved as a PDF of its paragraphs."""
@@ -171,18 +192,21 @@ class Saver:
 
 
 def read_page(client, store: dict, post: dict, settings: dict, saver: Saver, pending: dict, stamp: str,
-              since: str, today: str) -> tuple[str, dict | None]:
-    """Read a post's page: record its meeting, save its documents, and note the minutes it links.
-    Returns what became of it ("created", "recorded", "before", "excluded", "no date") and its meeting."""
+              since: str, today: str, errors: list, last_try: bool = True) -> tuple[str, dict | None, bool]:
+    """Read a post's page: record its meeting, save its documents, and note the minutes it links. An attached
+    file that isn't saved (Saver.site_file) is reported in `errors`, and the rest of the page read; on the
+    `last_try`, an agenda file that failed to download is taken for one that isn't read.
+    Returns what became of it ("created", "recorded", "before", "excluded", "no date"), its meeting, and
+    whether an attached file's download failed, for the page to be read again."""
     found = proudcity.parse_meeting(client.get(post["link"]).text, post["link"])
     title = found["title"] or post["title"]
     info = proudcity.meeting_info(title, settings)
     if info is None:
-        return "excluded", None
+        return "excluded", None, False
     if not found["date"]:
-        return "no date", None
+        return "no date", None, False
     if found["date"] < since:
-        return "before", None
+        return "before", None, False
     meeting = store.get(meeting_id(post["id"]))
     created = meeting is None
     if created:
@@ -196,21 +220,28 @@ def read_page(client, store: dict, post: dict, settings: dict, saver: Saver, pen
     merge(meeting, fields, stamp, track=True)
     meeting.update(post_modified=post["modified"], last_seen=stamp, checked_at=stamp)
 
+    files = []
     if info["status"] != "cancelled":
-        if found["agenda_file"]:
-            saver.site_file(meeting, "agenda", found["agenda_file"])
-        elif found["agenda_text"] and found["date"] <= text_until(today):
+        agenda = saver.site_file(meeting, "agenda", found["agenda_file"], errors) if found["agenda_file"] else None
+        files.append(agenda)
+        latest = (meeting.get("agendas") or [None])[-1]
+        from_file = latest is not None and latest.get("converted_from") != "html"
+        # Its text where it has no file, or a file given up on (one that isn't read, or that failed on the last
+        # try), unless an agenda file was saved before.
+        given_up = agenda == "unreadable" or (agenda == "failed" and last_try)
+        typed = agenda is None or (given_up and not from_file)
+        if typed and found["agenda_text"] and found["date"] <= text_until(today):
             saver.agenda_text(meeting, found["agenda_text"], post["link"])
     if settings.get("minutes", True):
         if found["minutes_file"]:
-            saver.site_file(meeting, "minutes", found["minutes_file"])
+            files.append(saver.site_file(meeting, "minutes", found["minutes_file"], errors))
         for linked in found["linked_minutes"]:
             # exclude_pattern leaves out minutes of what isn't a board's meeting ("Executive Session Minutes").
             if linked["date"] < found["date"] and not proudcity.excluded(linked["label"], settings):
                 body = proudcity.linked_board(linked["label"], settings) or info["body"]
                 pending[linked["url"]] = {"date": linked["date"], "body": body, "label": linked["label"],
                                           "linked_from": post["link"]}
-    return "created" if created else "recorded", meeting
+    return "created" if created else "recorded", meeting, "failed" in files
 
 
 def text_until(today: str) -> str:
@@ -249,10 +280,11 @@ def attach_linked(store: dict, pending: dict, saver: Saver, limit: int, since: s
         try:
             saver.linked_minutes(meeting, url, link["linked_from"])
         except FetchError as e:
-            # Tried again on the next runs, a few times: a timeout passes, a Doc not shared publicly doesn't.
+            # Tried again on the next runs, a few times: a timeout passes, a Doc not shared publicly may not. A file
+            # of a kind that isn't read (an old Word .doc) isn't tried again.
             errors.append(str(e))
             link["tries"] = link.get("tries", 0) + 1
-            if link["tries"] < LINKED_TRIES:
+            if link["tries"] < LINKED_TRIES and not isinstance(e, wordfile.Unreadable):
                 continue
         del pending[url]
     return unmatched
@@ -317,15 +349,22 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             continue
         read += 1
         try:
-            outcome, _ = read_page(client, store, post, settings, saver, pending, stamp, since, today)
+            outcome, _, again = read_page(client, store, post, settings, saver, pending, stamp, since, today, errors,
+                                          last_try=post.get("tries", 0) + 1 >= FILE_TRIES)
         except FetchError as e:
             errors.append(str(e))
             if e.status not in (404, 410):
                 continue   # left to read again on the next run; a page that's gone isn't
-            outcome = "gone"
+            outcome, again = "gone", False
         if outcome == "no date":
             errors.append(f"{post['link']}: no meeting date in the page's header")
         created += outcome == "created"
+        if again:
+            # An attached file's download failed: the page is read again on the next runs, a few times. Its
+            # count is kept while the post is unchanged, and starts again when it changes (listed anew).
+            post["tries"] = post.get("tries", 0) + 1
+            if post["tries"] < FILE_TRIES:
+                continue
         del to_read[post["id"]]
 
     unmatched = attach_linked(store, pending, saver, limit, since, errors)

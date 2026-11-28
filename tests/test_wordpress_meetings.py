@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from conftest import TZ
-from fakes import FIXTURES, FakeResponse
+from fakes import FIXTURES, FakeResponse, convert_with_another_fpdf2
 from test_wordfile import docx, p
 
 from pipeline import fetch_wordpress_meetings as fetch
@@ -367,6 +367,24 @@ def test_a_document_changed_is_saved_as_a_new_version_only_when_its_content_did(
     assert women["agendas"][-1]["post_modified"] == "2026-11-17T15:00:00"
     council = store["wordpress-89159"]
     assert len(council["minutes"]) == 1 and council["minutes"][0]["post_modified"] == "2026-11-17T15:00:00"
+    assert status["documents_changed"] == 1 and status["documents_added"] == 0
+
+
+def test_a_document_converted_again_with_the_same_text_isnt_a_new_version(config, tmp_path, monkeypatch):
+    """A new fpdf2 writes a post's text as other bytes: the same text is the same document."""
+    run(config, tmp_path)
+    convert_with_another_fpdf2(monkeypatch)
+    docs = saved("documents")
+    changed = next(d for d in docs if d["id"] == 90656)
+    changed["modified"] = "2026-11-17T15:00:00"
+    changed["content"]["rendered"] += "<p>10. Adjournment (amended)</p>"
+    same = next(d for d in docs if d["id"] == 90622)
+    same["modified"] = "2026-11-17T15:00:00"
+    status, store, _ = run(config, tmp_path, FakeSite(documents=docs), now=NOW.replace(hour=18))
+    council = store["wordpress-89159"]
+    assert len(council["minutes"]) == 1 and council["minutes"][0]["post_modified"] == "2026-11-17T15:00:00"
+    assert "minutes" not in [h["field"] for h in council.get("history", [])]
+    assert len(store["wordpress-90654"]["agendas"]) == 2
     assert status["documents_changed"] == 1 and status["documents_added"] == 0
 
 

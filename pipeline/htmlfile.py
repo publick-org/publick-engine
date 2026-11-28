@@ -5,8 +5,8 @@ cities post an agenda or minutes as the text of a web page, with no file: an age
 meeting's page (pipeline/proudcity.py), or a document library's "Online/Text" post (pipeline/wpdocs.py).
 Such a page is saved as a plain PDF of its paragraphs, list items, headings and table rows, with a text
 layer, as a Word file is (pipeline/wordfile.py). Formatting and images are left out; the meeting page
-still links the city's own page. The same text makes the same bytes, so a page fetched again unchanged
-isn't saved again as a new version.
+still links the city's own page. A page fetched again with the same text isn't saved again as a new
+version (wordfile.unchanged).
 """
 
 from __future__ import annotations
