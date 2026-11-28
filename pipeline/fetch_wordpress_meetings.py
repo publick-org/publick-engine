@@ -206,8 +206,9 @@ class Saver:
         latest = saved[-1] if saved else None
         sha = hashlib.sha256(content).hexdigest()
         post = {"post_id": doc["id"], "post_modified": doc["modified"], "joined": doc["joined"]}
-        if latest and latest["sha256"] == sha:
-            # The post changed, not its document: remember the change, so it isn't read again.
+        if wordfile.unchanged(latest, content, record.get("converted_from"), self.storage, field):
+            # The post changed, not its document (or, converted, not its text: pipeline/wordfile.py): remember the
+            # change, so it isn't read again.
             latest.update(post, source_url=record["source_url"])
             return
         doc_id = f"{tribe.SOURCE}-{doc['id']}-{sha[:8]}"

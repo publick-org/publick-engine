@@ -76,8 +76,9 @@ def save_document(client, meeting: dict, kind: str, picked: dict, storage, setti
     if not content.startswith(b"%PDF"):
         raise FetchError(f"{picked['url']}: not a PDF or a Word (.docx) file")
     sha = hashlib.sha256(content).hexdigest()
-    if latest and latest["sha256"] == sha:
-        # Posted again with the same content: remember it, so it isn't downloaded again.
+    if wordfile.unchanged(latest, content, converted, storage, field):
+        # Posted again with the same content (or, converted, the same text: pipeline/wordfile.py): remember it,
+        # so it isn't downloaded again.
         latest.update(source_url=picked["url"], posted=picked["posted"])
         return
     doc_id = f"{meetingdocs.SOURCE}-{meetingdocs.posted_stamp(picked['posted']) or 'undated'}-{sha[:8]}"

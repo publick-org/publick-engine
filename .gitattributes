@@ -1,0 +1,2 @@
+# PDFs are binary: a small one made by fpdf2 has no byte that tells git so, and its diff is not text.
+*.pdf binary

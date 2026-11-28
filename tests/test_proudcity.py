@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from conftest import TZ
-from fakes import FIXTURES, FakeResponse
+from fakes import FIXTURES, FakeResponse, convert_with_another_fpdf2
 from test_wordfile import docx, p
 
 from pipeline import build_site, fetch_proudcity_meetings, pdftext, proudcity, wordfile, wordpress
@@ -488,6 +488,26 @@ def test_a_changed_agenda_is_saved_as_a_new_version(config, tmp_path):
     assert status["documents_changed"] == 1
     finance = meeting(tmp_path, "finance-2026-11-10")
     assert len(finance["agendas"]) == 2 and finance["history"][-1]["field"] == "agenda"
+
+
+def test_an_agenda_converted_again_with_the_same_text_isnt_a_new_version(config, tmp_path, monkeypatch):
+    """A new fpdf2 writes the same text as other bytes: an agenda typed into the page, or a Word file at a new
+    address, with the same text is the same agenda; one whose text changed is a new version."""
+    fetch_proudcity_meetings.run(config, FakeSite(every_post()), tmp_path, now=NOW)
+    convert_with_another_fpdf2(monkeypatch)
+    moved = page("public-works-2026-11-16").replace("-6b017dc3.docx", "-0c1d2e3f.docx")
+    edited = page("finance-2026-11-10").replace("Published November 6, 2026", "Amended November 9, 2026")
+    names = ("council-2026-09-15", "public-works-2026-11-16", "finance-2026-11-10")
+    posts = [p for p in every_post() if p["id"] not in (49960, 51242, 49999)] + [
+        listed(name, "2026-11-13T09:00:00") for name in names]
+    site = FakeSite(posts, {"51242": moved, "49999": edited})
+    status = fetch_proudcity_meetings.run(config, site, tmp_path, now=NOW.replace(day=14))
+    assert status["pages_read"] == 3 and any(u.endswith("-0c1d2e3f.docx") for u in site.urls)
+    assert status["documents_added"] == 0 and status["documents_changed"] == 1
+    assert len(meeting(tmp_path, "council-2026-09-15")["agendas"]) == 1
+    works = meeting(tmp_path, "public-works-2026-11-16")["agendas"]
+    assert len(works) == 1 and works[0]["source_url"].endswith("-0c1d2e3f.docx")
+    assert len(meeting(tmp_path, "finance-2026-11-10")["agendas"]) == 2
 
 
 def test_minutes_added_to_a_post_are_saved(config, tmp_path):

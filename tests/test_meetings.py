@@ -9,7 +9,7 @@ from datetime import datetime
 import pytest
 
 from conftest import FETCHED_AT, FIXTURES
-from fakes import FakeCityClient, FakeResponse
+from fakes import FakeCityClient, FakeResponse, convert_with_another_fpdf2
 from pipeline import civicplus, fetch_meetings, listings, meeting_names
 from pipeline.http import FetchError
 from pipeline.config import load_config
@@ -267,6 +267,11 @@ class Stored:
     def put(self, folder, name, content):
         self.files[f"{folder}/{name}"] = content
 
+    def get(self, folder, name):
+        if f"{folder}/{name}" not in self.files:
+            raise FileNotFoundError(f"{folder}/{name}")
+        return self.files[f"{folder}/{name}"]
+
 
 class Serves:
     """A client that serves one file for the agenda, or fails."""
@@ -294,8 +299,8 @@ AGENDA = {"agenda_id": "20291", "agenda_url": f"{BASE}/Archive.aspx?ADID=20291"}
 PDF_A, PDF_B = b"%PDF-1.7 first", b"%PDF-1.7 revised"
 
 
-def recheck(meeting, content=None, error=None, day=23):
-    store = Stored()
+def recheck(meeting, content=None, error=None, day=23, store=None):
+    store = Stored() if store is None else store
     fetch_meetings.fetch_agenda(Serves(content, error), meeting, AGENDA, store, f"2026-11-{day}T09:00:00-05:00", recheck=True)
     return store
 
@@ -319,6 +324,24 @@ def test_a_word_agenda_saved_again_with_the_same_text_isnt_a_revision():
     recheck(m, word_file("City Council agenda"), day=20)
     recheck(m, word_file("City Council agenda", b"<modified>2026-11-23</modified>"))
     assert len(m["agendas"]) == 1 and "history" not in m
+
+
+def test_a_word_agenda_converted_again_by_another_fpdf2_isnt_a_revision(monkeypatch):
+    """A new fpdf2 writes the same text as other bytes: the agenda's text is the same, so it's the same agenda."""
+    m, store = {"date": "2026-11-24"}, Stored()
+    recheck(m, word_file("City Council agenda"), day=20, store=store)
+    saved = dict(store.files)
+    convert_with_another_fpdf2(monkeypatch)
+    recheck(m, word_file("City Council agenda"), day=22, store=store)
+    assert len(m["agendas"]) == 1 and "history" not in m and store.files == saved
+    # Its text changed: a revision.
+    recheck(m, word_file("City Council agenda, amended"), store=store)
+    assert len(m["agendas"]) == 2 and m["history"][-1]["field"] == "agenda"
+    # Its saved copy can't be read: taken as changed, as before.
+    monkeypatch.undo()
+    store.files.clear()
+    recheck(m, word_file("City Council agenda, amended"), day=24, store=store)
+    assert len(m["agendas"]) == 3
 
 
 @pytest.mark.parametrize("error", [FetchError("503 from the city"), None])

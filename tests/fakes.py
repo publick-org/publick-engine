@@ -1,8 +1,29 @@
 """Offline stand-ins for network access, serving saved fixtures."""
 
+import io
 from pathlib import Path
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def rewritten(pdf: bytes) -> bytes:
+    """The same PDF written again by pypdf: the same pages and text, other bytes."""
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf)))
+    writer.add_metadata({"/Producer": "another version"})
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def convert_with_another_fpdf2(monkeypatch) -> None:
+    """From now on, a Word file or a web page's text is converted as another version of fpdf2 might: the same
+    text as before (pipeline/wordfile.py's text_pdf), written as other bytes."""
+    from pipeline import wordfile
+
+    text_pdf = wordfile.text_pdf
+    monkeypatch.setattr(wordfile, "text_pdf", lambda *args, **kwargs: rewritten(text_pdf(*args, **kwargs)))
 
 
 class FakeResponse:
