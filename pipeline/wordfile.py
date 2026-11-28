@@ -11,6 +11,14 @@ as a web page's text (pipeline/htmlfile.py) is saved the same way. The same para
 same bytes: the PDF has no creation date, so a document fetched again
 unchanged isn't saved again as a new version.
 
+The bytes are the same for one version of fpdf2 only: another can write the
+same text as other bytes (the numbers of its page size, a creation date, its
+/ID). So a reader that converts a document asks unchanged() whether it's the
+same as the latest saved: the same bytes, or, for a document converted from
+the same kind of file, the same words in its PDF and in the saved one
+(same_text()). Only a converted document whose hash differs is read for its
+text, so a city's own PDF is still compared by its hash alone.
+
 The older binary Word format (.doc) isn't read. as_pdf() raises Unreadable for
 it and for the other kinds of file it can tell aren't read (an RTF file, an
 image, a zip that isn't a .docx), so a reader can tell a file it will never
@@ -19,11 +27,13 @@ read from a download that failed or a page served where a file should be.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import zipfile
 import zlib
 from xml.etree import ElementTree
 
+from pipeline import pdftext
 from pipeline.http import FetchError
 
 
@@ -141,3 +151,31 @@ def as_pdf(content: bytes, url: str) -> tuple[bytes, str | None]:
 def to_pdf(content: bytes) -> bytes:
     """A letter-size PDF of the Word document's text, one paragraph after another."""
     return text_pdf(paragraphs(content), "Publick (from a Word document)")
+
+
+def same_text(one: bytes, other: bytes) -> bool:
+    """Whether two PDFs hold the same words in the same order, whatever the spacing and line breaks between
+    them (pipeline/pdftext.py's plain_text, from pypdf). A PDF with no text, or one that can't be read, is the
+    same as no other."""
+    words = [" ".join(pdftext.plain_text(pdf).split()) for pdf in (one, other)]
+    return bool(words[0]) and words[0] == words[1]
+
+
+def unchanged(latest: dict | None, content: bytes, converted: str | None, storage, folder: str) -> bool:
+    """Whether a document fetched again, as a PDF (`content`, converted from `converted`: "docx", "html", or
+    None for a city's own PDF), is the latest saved one, `latest`, a record kept in `folder` of `storage`
+    (pipeline/documents.py). It is if the bytes are the same. A document converted here, from the same kind of
+    file as the latest, is also unchanged if its text is the same as the saved copy's (same_text()): a new
+    version of fpdf2 can write the same text as other bytes. A saved copy that can't be read counts as changed,
+    so the document is saved again."""
+    if latest is None:
+        return False
+    if latest["sha256"] == hashlib.sha256(content).hexdigest():
+        return True
+    if not converted or latest.get("converted_from") != converted or not latest.get("file"):
+        return False
+    try:
+        saved = storage.get(folder, latest["file"])
+    except (OSError, FetchError):
+        return False
+    return same_text(content, saved)

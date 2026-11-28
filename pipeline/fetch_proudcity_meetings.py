@@ -131,8 +131,9 @@ class Saver:
         docs = meeting.get(field, [])
         latest = docs[-1] if docs else None
         sha = hashlib.sha256(content).hexdigest()
-        if latest and latest["sha256"] == sha:
-            # The same content at a new address: remember it, so it isn't downloaded again.
+        if wordfile.unchanged(latest, content, record.get("converted_from"), self.storage, field):
+            # The same content (or, converted, the same text: pipeline/wordfile.py) at a new address: remember it,
+            # so it isn't downloaded again.
             latest.update(source_url=record["source_url"])
             return
         doc_id = f"{record.pop('key')}-{sha[:8]}"
