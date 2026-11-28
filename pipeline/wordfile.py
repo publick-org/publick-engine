@@ -8,8 +8,11 @@ images are left out; the meeting page still links the city's own file.
 
 text_pdf() makes the PDF from any list of paragraphs, so a document posted
 as a web page's text (pipeline/htmlfile.py) is saved the same way. The same paragraphs make the
-same bytes: the PDF has no creation date, so a document fetched again
-unchanged isn't saved again as a new version.
+same bytes: the PDF's creation date is a fixed one (MADE), not the time it
+was made, so a document fetched again unchanged isn't saved again as a new
+version. That holds for one version of fpdf2; a new version can lay out the
+same file differently, and a document fetched again after the upgrade is
+saved once more.
 
 The older binary Word format (.doc) isn't read.
 """
@@ -18,11 +21,16 @@ from __future__ import annotations
 
 import io
 import zipfile
+from datetime import datetime, timezone
 from xml.etree import ElementTree
 
 from pipeline.http import FetchError
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+# The creation date written in every PDF made here, in place of the time it was made: the PDF's /ID is
+# a hash of its bytes and this date, so both stay the same for the same text. (fpdf2 2.9 needs a date.)
+MADE = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 # The PDF's built-in font covers Latin-1; Word's typographic punctuation is
 # written as its plain equivalent, and anything else as "?".
@@ -77,8 +85,8 @@ def text_pdf(texts: list[str], creator: str) -> bytes:
 
     pdf = FPDF(format="letter")
     pdf.set_creator(creator)
-    # No creation date, so the same paragraphs always make the same file.
-    pdf.creation_date = None
+    # A fixed creation date, so the same paragraphs always make the same file.
+    pdf.set_creation_date(MADE)
     pdf.set_margins(25, 25)
     pdf.set_auto_page_break(True, margin=25)
     pdf.add_page()

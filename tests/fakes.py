@@ -865,11 +865,11 @@ def boardbook_package(title: str, agenda_pages: int = 2, attachments: tuple = ("
     for page in reader.pages:
         writer.add_page(page)
     if bookmarks:
-        root = writer.add_outline_item("Agenda", 0)
+        root = writer.add_outline_item(title="Agenda", page_number=0)
         for n in range(agenda_pages):
-            item = writer.add_outline_item(f"{n + 1}. ITEM {n + 1}", n, parent=root)
+            item = writer.add_outline_item(title=f"{n + 1}. ITEM {n + 1}", page_number=n, parent=root)
             if n < len(attachments):
-                writer.add_outline_item(attachments[n], agenda_pages + n, parent=item)
+                writer.add_outline_item(title=attachments[n], page_number=agenda_pages + n, parent=item)
     out = io.BytesIO()
     writer.write(out)
     return out.getvalue()
