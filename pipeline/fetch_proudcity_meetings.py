@@ -43,6 +43,14 @@ From each page read:
   listed there (linked_minutes_unmatched), never made into a meeting;
 - the packet's links, kept as `links`, never downloaded, and the YouTube recording.
 
+A page whose header shows the time it was made, not a meeting's (pipeline/proudcity.py shows_clock), is
+dated by its title (title_day), with no start time; one whose title has no date isn't recorded, and is
+reported. A town's meetings recorded before the reader knew this, dated and timed when their page was read
+(recorded_from_clock), are marked (clock_pending) and read again, once (clock_checked in the status file):
+each one's date and time replaced, not recorded as the city's change, and its page's address kept
+(pipeline/identity.py); or, if its page now leaves it out (no date, a date before `since`, a title it doesn't
+take, or gone), forgotten, or kept without the time where something was saved or found for it, and reported.
+
 A document is saved again, as a new version with the change in the meeting's history, only when its
 content changed. The same file address is the same file: ProudCity names each upload with a hash.
 
@@ -60,10 +68,11 @@ import hashlib
 import json
 import sys
 from datetime import date, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pipeline import finalsite, proudcity, wordfile, wordpress
+from pipeline import dates, finalsite, proudcity, wordfile, wordpress
 from pipeline.config import DATA_DIR, DEFAULT_TOWN, configured, load_config
 from pipeline.documents import open_documents
 from pipeline.fetch_meetings import (
@@ -191,26 +200,54 @@ class Saver:
             **({"converted_from": converted} if converted else {})})
 
 
+def served_at(response, default: datetime) -> datetime:
+    """When a page was made, as the server says: its Date, less its Age if a cache kept it; else `default`."""
+    try:
+        served = parsedate_to_datetime(response.headers["Date"])
+    except (KeyError, TypeError, ValueError):
+        return default
+    if served.tzinfo is None:
+        return default
+    try:
+        age = max(0, int(response.headers.get("Age") or 0))
+    except (TypeError, ValueError):
+        age = 0
+    return served - timedelta(seconds=age)
+
+
 def read_page(client, store: dict, post: dict, settings: dict, saver: Saver, pending: dict, stamp: str,
               since: str, today: str, errors: list, last_try: bool = True) -> tuple[str, dict | None, bool]:
     """Read a post's page: record its meeting, save its documents, and note the minutes it links. An attached
     file that isn't saved (Saver.site_file) is reported in `errors`, and the rest of the page read; on the
     `last_try`, an agenda file that failed to download is taken for one that isn't read.
-    Returns what became of it ("created", "recorded", "before", "excluded", "no date"), its meeting, and
-    whether an attached file's download failed, for the page to be read again."""
-    found = proudcity.parse_meeting(client.get(post["link"]).text, post["link"])
+    A meeting marked clock_pending (recorded under its page's clock: run()) has its date and time replaced, not
+    changed in its history, or is forgotten (forget()).
+    Returns what became of it ("created", "recorded", "before", "excluded", "no date", "forgotten"), its meeting,
+    and whether an attached file's download failed, for the page to be read again."""
+    response = client.get(post["link"])
+    found = proudcity.parse_meeting(response.text, post["link"])
     title = found["title"] or post["title"]
+    if proudcity.shows_clock(found["date"], found["start_time"], served_at(response, datetime.fromisoformat(stamp))):
+        # The post's date and time weren't filled in: the meeting's date is its title's, if it has one, and it has
+        # no start time (a meeting starting as its page is read loses its time, rather than one getting the clock's).
+        found.update(date=proudcity.title_day(title, post.get("posted")), start_time=None)
     info = proudcity.meeting_info(title, settings)
-    if info is None:
-        return "excluded", None, False
-    if not found["date"]:
-        return "no date", None, False
-    if found["date"] < since:
-        return "before", None, False
     meeting = store.get(meeting_id(post["id"]))
+    clocked = meeting is not None and bool(meeting.get("clock_pending"))
+    outcome = ("excluded" if info is None else "no date" if not found["date"]
+               else "before" if found["date"] < since else None)
+    if outcome:
+        if clocked:
+            forget(store, meeting, stamp, outcome, errors)
+            return "forgotten", None, False
+        return outcome, None, False
     created = meeting is None
     if created:
         meeting = new_meeting(store, post, found, info, settings, stamp)
+    elif clocked:
+        # Its date and time were the page's clock, not the city's: what's read now isn't a change to record.
+        del meeting["date"], meeting["clock_pending"]
+        meeting.pop("start_time", None)
     fields = {"date": found["date"], "body": info["body"], "status": info["status"], "special": info["special"],
               "title": title_for(info["body"], info["special"]), "posted_title": title,
               "documents_url": post["link"], "location": found["location"], "links": found["links"], "listed": True}
@@ -218,7 +255,10 @@ def read_page(client, store: dict, post: dict, settings: dict, saver: Saver, pen
         fields["start_time"] = found["start_time"]
     fields.update(found["video"] or {})
     merge(meeting, fields, stamp, track=True)
+    meeting.setdefault("start_time", None)
     meeting.update(post_modified=post["modified"], last_seen=stamp, checked_at=stamp)
+    if post.get("posted"):
+        meeting["post_published"] = post["posted"]   # for title_day, when the page is read again from the meeting
 
     files = []
     if info["status"] != "cancelled":
@@ -242,6 +282,31 @@ def read_page(client, store: dict, post: dict, settings: dict, saver: Saver, pen
                 pending[linked["url"]] = {"date": linked["date"], "body": body, "label": linked["label"],
                                           "linked_from": post["link"]}
     return "created" if created else "recorded", meeting, "failed" in files
+
+
+def forget(store: dict, meeting: dict, stamp: str, outcome: str, errors: list) -> None:
+    """A meeting recorded under its page's clock whose page now leaves it out (`outcome`: "no date", "before"
+    `since`, "excluded", or "gone"): forgotten if nothing was saved or found for it; else kept without the time.
+    Either is reported."""
+    what = f"{meeting['source_url']}: recorded on {meeting['date']}, the day its page was read, but "
+    what += {"no date": "its page now has no meeting date", "before": "its page now dates it before since",
+             "excluded": "its title is now one exclude_pattern leaves out, or has no board",
+             "gone": "its page is gone"}[outcome]
+    if any(meeting.get(field) for field in ("agendas", "minutes", "video_id", "links")):
+        del meeting["clock_pending"]
+        meeting.update(start_time=None, checked_at=stamp)
+        errors.append(f"{what}: kept, for what was saved or found for it")
+    else:
+        del store[meeting["id"]]
+        errors.append(f"{what}: removed")
+
+
+def queued(meeting: dict) -> dict:
+    """A recorded meeting's post, as the listing gives it, to read its page again."""
+    day = dates.find_date(meeting.get("posted_title"))
+    return {"id": meeting["post_id"], "link": meeting["source_url"], "title": meeting.get("posted_title") or "",
+            "posted": meeting.get("post_published") or "", "modified": meeting.get("post_modified") or "",
+            "title_date": day.isoformat() if day else None}
 
 
 def text_until(today: str) -> str:
@@ -336,6 +401,13 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         elif not proudcity.excluded(post["title"], settings) and proudcity.board_for(post["title"], settings):
             to_read[post_id] = post
             del skipped[post_id]
+    # Meetings recorded under the time their page was read, before the reader knew a page's clock: marked, once,
+    # and read again (on later runs too, past max_pages_per_run, until each is read).
+    if not previous.get("clock_checked"):
+        for meeting in store.values():
+            if meeting.get("source") == proudcity.SOURCE and proudcity.recorded_from_clock(meeting):
+                meeting["clock_pending"] = True
+                to_read.setdefault(meeting["post_id"], queued(meeting))
     unrecognized = sorted({proudcity.name_of(p["title"]) for p in skipped.values()
                            if not proudcity.excluded(p["title"], settings)})
 
@@ -356,8 +428,12 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
             if e.status not in (404, 410):
                 continue   # left to read again on the next run; a page that's gone isn't
             outcome, again = "gone", False
+            meeting = store.get(meeting_id(post["id"]))
+            if meeting and meeting.get("clock_pending"):
+                forget(store, meeting, stamp, "gone", errors)
         if outcome == "no date":
-            errors.append(f"{post['link']}: no meeting date in the page's header")
+            errors.append(f"{post['link']}: no meeting date in the page's header, or in its title where the header "
+                          "shows the time the page was made")
         created += outcome == "created"
         if again:
             # An attached file's download failed: the page is read again on the next runs, a few times. Its
@@ -395,6 +471,8 @@ def run(config: dict, client, data_dir: Path, now: datetime | None = None) -> di
         "to_read": to_read,
         "skipped": skipped,
         "linked_minutes": pending,
+        # Meetings recorded under their page's clock have been marked to read again (proudcity.recorded_from_clock).
+        "clock_checked": True,
     }
     save_json(status_path, status)
     return status
