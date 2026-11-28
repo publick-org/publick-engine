@@ -5,7 +5,11 @@ REST listing and meeting pages, saved in November 2026 and trimmed to each page'
 
 import copy
 import json
-from datetime import datetime
+import os
+import subprocess
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -388,11 +392,38 @@ def test_check(change, message):
 
 # ---- An agenda typed into the page ---------------------------------------------------------
 
-def test_the_same_paragraphs_make_the_same_pdf():
-    """No creation date in the file, so an agenda read again unchanged isn't saved again."""
+def test_the_same_paragraphs_make_the_same_pdf(monkeypatch):
+    """A fixed creation date in the file, not the time it was made, so an agenda read again unchanged on a
+    later run isn't saved again."""
     one = wordfile.text_pdf(["AGENDA", "1. Call to order"], "test")
-    assert one == wordfile.text_pdf(["AGENDA", "1. Call to order"], "test")
     assert "Call to order" in pdftext.plain_text(one)
+    assert b"/CreationDate (D:19700101000000Z)" in one
+    # Another process, as the next run is, with a hash seed other than this one's.
+    seed = "2" if os.environ.get("PYTHONHASHSEED") == "1" else "1"
+    later_run = subprocess.run(
+        [sys.executable, "-c", "import sys; from pipeline import wordfile; "
+         "sys.stdout.buffer.write(wordfile.text_pdf(['AGENDA', '1. Call to order'], 'test'))"],
+        cwd=Path(__file__).parent.parent, env={**os.environ, "PYTHONHASHSEED": seed}, capture_output=True,
+        check=True)
+    assert later_run.stdout == one
+
+    # A run more than a year later: the clock fpdf2 reads, moved on. Any datetime still counts as one of its
+    # datetimes, so fpdf2's own type checks pass.
+    class Clock(type):
+        def __instancecheck__(cls, value):
+            return isinstance(value, datetime)
+
+    class YearLater(datetime, metaclass=Clock):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(days=400)
+
+    for name, module in list(sys.modules.items()):
+        if name.split(".")[0] == "fpdf" and getattr(module, "datetime", None) is datetime:
+            monkeypatch.setattr(module, "datetime", YearLater)
+    from fpdf import FPDF
+    assert FPDF().creation_date.year > datetime.now().year
+    assert wordfile.text_pdf(["AGENDA", "1. Call to order"], "test") == one
 
 
 # ---- Collecting ---------------------------------------------------------------------------
