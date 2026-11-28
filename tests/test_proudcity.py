@@ -65,6 +65,10 @@ POSTS = {
     "license-board-2026-09-02": ("50299", "holyoke-license-board-meeting-september-2-2026",
                                  "Holyoke License Board Meeting September 2, 2026", "2026-11-03T13:38:09"),
 }
+# A post whose date and time weren't filled in: its page, read at 14:43 UTC on November 28, 2026, shows that
+# moment for them. Not one of every_post().
+UNDATED = ("50829", "board-of-health-monthly-meeting-10-22-26", "Board of Health Monthly Meeting 10-22-26",
+           "2026-10-20T16:30:44")
 
 
 def page(name: str) -> str:
@@ -87,9 +91,13 @@ class FakeSite:
     first, `per_page` to a page), its meeting pages (`pages`, by post id, defaulting to the saved ones),
     its attached files (a Word file for .docx, else a PDF), and Google Docs exported as PDFs."""
 
-    def __init__(self, posts: list[dict], pages: dict | None = None, per_page: int = 100, gone: tuple = ()):
+    def __init__(self, posts: list[dict], pages: dict | None = None, per_page: int = 100, gone: tuple = (),
+                 served: dict | None = None):
         self.posts = sorted(posts, key=lambda p: p["modified"], reverse=True)
-        self.pages = {POSTS[name][0]: page(name) for name in POSTS} | (pages or {})
+        self.pages = {POSTS[name][0]: page(name) for name in POSTS} | {UNDATED[0]: page("board-of-health-undated")} \
+            | (pages or {})
+        # The headers a meeting page is served with (a Date).
+        self.served = served
         self.per_page, self.gone = per_page, set(gone)
         self.pdf = (FIXTURES / "legistar_minutes.pdf").read_bytes()
         self.urls, self.request_count = [], 0
@@ -119,7 +127,7 @@ class FakeSite:
             post = next((str(p["id"]) for p in self.posts if p["link"] == url), None)
             if post is None or post in self.gone:
                 raise FetchError(f"{url}: HTTP 404", 404)
-            return FakeResponse(self.pages[post].encode())
+            return FakeResponse(self.pages[post].encode(), self.served)
         if url.endswith(".docx"):
             return FakeResponse(docx(p("Board of Public Works Agenda") + p("Monday, November 16, 2026")))
         if url.endswith(".doc"):
@@ -814,6 +822,211 @@ def test_a_site_whose_api_is_off_fails_the_run(config, tmp_path):
             return FakeResponse(b"<html>Not here</html>", {})
     with pytest.raises(FetchError, match="REST API"):
         fetch_proudcity_meetings.run(config, Off(every_post()), tmp_path, now=NOW)
+
+
+# ---- A post whose date wasn't filled in --------------------------------------------------
+
+# When the saved page of UNDATED was served, and the run then.
+UNDATED_SERVED = {"Date": "Sat, 28 Nov 2026 14:43:40 GMT"}
+UNDATED_NOW = datetime(2026, 11, 28, 9, 40, tzinfo=TZ)
+
+
+def undated(post_id: str = UNDATED[0], slug: str = UNDATED[1], title: str = UNDATED[2],
+            modified: str = UNDATED[3]) -> dict:
+    return {"id": int(post_id), "link": f"{SITE}/meetings/{slug}/", "title": {"rendered": title},
+            "date": modified, "modified": modified}
+
+
+def test_a_header_showing_the_pages_clock():
+    found = proudcity.parse_meeting(page("board-of-health-undated"), f"{SITE}/meetings/{UNDATED[1]}/")
+    assert (found["date"], found["start_time"]) == ("2026-11-28", "14:43")
+    served = fetch_proudcity_meetings.served_at(FakeResponse(b"", UNDATED_SERVED), UNDATED_NOW)
+    assert proudcity.shows_clock(found["date"], found["start_time"], served)
+    # A cache's copy, made when its Age says; with no Date, the run's time.
+    cached = fetch_proudcity_meetings.served_at(FakeResponse(b"", {"Date": "Sat, 28 Nov 2026 15:43:40 GMT",
+                                                                    "Age": "3600"}), UNDATED_NOW)
+    assert cached == served
+    assert fetch_proudcity_meetings.served_at(FakeResponse(b""), UNDATED_NOW) == UNDATED_NOW
+    # Read hours later, or on another day, it's a date and time.
+    assert not proudcity.shows_clock("2026-11-28", "14:43", served + timedelta(hours=3))
+    # A meeting at 6:30 pm whose page was read at 18:33 UTC that day.
+    assert not proudcity.shows_clock("2026-11-17", "18:30", datetime.fromisoformat("2026-11-17T13:33:37-05:00"))
+    assert not proudcity.shows_clock("2026-11-28", None, served)
+
+
+def test_meetings_recorded_under_their_pages_clock():
+    """As Holyoke's were: dated and timed a minute or two after the run that read them began, in UTC."""
+    assert proudcity.recorded_from_clock({"date": "2026-11-17", "start_time": "18:35",
+                                          "checked_at": "2026-11-17T13:33:37-05:00"})
+    assert proudcity.recorded_from_clock({"date": "2026-11-24", "start_time": "09:20",
+                                          "checked_at": "2026-11-24T04:17:22-05:00"})
+    # The City Council's 6:30 pm meeting, read that day at 13:33 local time.
+    assert not proudcity.recorded_from_clock({"date": "2026-11-17", "start_time": "18:30",
+                                              "checked_at": "2026-11-17T13:33:37-05:00"})
+    assert not proudcity.recorded_from_clock({"date": "2026-11-17", "start_time": None,
+                                              "checked_at": "2026-11-17T13:33:37-05:00"})
+    # A 7 pm meeting read that day: its title's date is its date.
+    assert not proudcity.recorded_from_clock({"date": "2026-11-17", "start_time": "19:00",
+                                              "checked_at": "2026-11-17T13:33:37-05:00",
+                                              "posted_title": "Holyoke City Council Meeting November 17, 2026",
+                                              "post_modified": "2026-11-16T13:14:10"})
+
+
+@pytest.mark.parametrize("title, posted, day", [
+    ("Board of Health Monthly Meeting 10-22-26", "2026-10-20", "2026-10-22"),
+    ("Board of Health Meeting October 22, 2025", "2026-10-20", "2026-10-22"),   # a mistyped year
+    ("School Committee Meeting, December 15, 2025", "2026-01-02", "2025-12-15"),
+    ("Planning Board Minutes June 3, 2025", "2026-01-15", "2025-06-03"),     # posted long after
+    ("School Committee Organizational Meeting, January 6, 2026", "2025-12-30", "2026-01-06"),
+    ("Board of Health Meeting October 22, 2025", "", "2025-10-22"),
+    ("Holyoke Housing Authority Regular Meeting", "2026-10-02", None),
+])
+def test_the_date_in_a_title(title, posted, day):
+    assert proudcity.title_day(title, posted) == day
+
+
+@pytest.fixture
+def health(config):
+    config["proudcity_meetings"]["bodies"].update({"Board of Health": "Board of Health",
+                                                   "Housing Authority": "Housing Authority"})
+    return config
+
+
+def test_a_post_with_no_date_filled_in_is_dated_by_its_title(health, tmp_path):
+    site = FakeSite([undated()], served=UNDATED_SERVED)
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW)
+    assert status["errors"] == []
+    found = load(tmp_path)["proudcity-50829"]
+    assert (found["date"], found["start_time"], found["slug"]) == ("2026-10-22", None, "2026-10-22-board-of-health")
+    assert found["agendas"][0]["original_filename"] == "10-22-26-agenda.docx-1-c293f0a2.pdf"
+
+
+def test_a_meeting_starting_as_its_page_is_read_keeps_its_date(config, tmp_path):
+    """The Planning Board's 5:30 pm meeting on November 10, its page read at 17:30 UTC that day: the header's date and
+    time are the moment the page is read, so they're taken for the clock. Its title's date is the same; its
+    time, which can't be told from the clock's, isn't recorded."""
+    site = FakeSite([listed("planning-2026-11-10")], served={"Date": "Tue, 10 Nov 2026 17:30:30 GMT"})
+    fetch_proudcity_meetings.run(config, site, tmp_path, now=datetime(2026, 11, 10, 12, 29, tzinfo=TZ))
+    found = meeting(tmp_path, "planning-2026-11-10")
+    assert (found["date"], found["start_time"]) == ("2026-11-10", None)
+
+
+def test_a_post_with_no_date_anywhere_is_reported_not_recorded(health, tmp_path):
+    empty = page("board-of-health-undated").replace(UNDATED[2], "Holyoke Housing Authority Regular Meeting")
+    empty = empty[:empty.index('<ul class="nav nav-tabs"')] + "</main>\n</body>\n</html>\n"
+    post = undated("50630", "holyoke-housing-authority-regular-meeting", "Holyoke Housing Authority Regular Meeting",
+                   "2026-10-02T15:45:15")
+    status = fetch_proudcity_meetings.run(health, FakeSite([post], {"50630": empty}, served=UNDATED_SERVED),
+                                          tmp_path, now=UNDATED_NOW)
+    assert load(tmp_path) == {}
+    assert status["errors"] == [f"{post['link']}: no meeting date in the page's header, or in its title where the "
+                                "header shows the time the page was made"]
+
+
+def test_meetings_recorded_under_their_pages_clock_are_read_again(health, tmp_path):
+    """Recorded before the reader knew a page's clock, as Holyoke's were: each is read again though its post
+    hasn't changed. One dated by its title is corrected, without a change in its history, and keeps its page's
+    address; one with no date and no documents is forgotten."""
+    empty_post = undated("50630", "holyoke-housing-authority-regular-meeting",
+                         "Holyoke Housing Authority Regular Meeting", "2026-10-02T15:45:15")
+    empty = page("board-of-health-undated").replace(UNDATED[2], empty_post["title"]["rendered"])
+    empty = empty[:empty.index('<ul class="nav nav-tabs"')] + "</main>\n</body>\n</html>\n"
+    site = FakeSite(every_post() + [undated(), empty_post], {"50630": empty}, served=UNDATED_SERVED)
+    fetch_proudcity_meetings.run(health, site, tmp_path, now=NOW)
+    store = load(tmp_path)
+    checked = "2026-11-17T13:33:37-05:00"
+    store["proudcity-50829"].update(date="2026-11-17", start_time="18:35", slug="2026-11-17-board-of-health",
+                                    checked_at=checked)
+    store["proudcity-50630"] = {**store["proudcity-50829"], "id": "proudcity-50630", "post_id": "50630",
+                                "source_url": empty_post["link"], "documents_url": empty_post["link"],
+                                "posted_title": empty_post["title"]["rendered"], "body": "Housing Authority",
+                                "slug": "2026-11-17-housing-authority", "post_modified": "2026-10-02T15:45:15"}
+    del store["proudcity-50630"]["agendas"]
+    (tmp_path / "meetings" / "meetings.json").write_text(json.dumps(store))
+    status_file = tmp_path / "meetings" / "proudcity_status.json"
+    # As written before the reader knew a page's clock.
+    status_file.write_text(json.dumps({k: v for k, v in status_of(tmp_path).items() if k != "clock_checked"}))
+    council = store[f"proudcity-{POSTS['council-2026-09-15'][0]}"]
+
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW)
+    # Neither listed as changed (nor any other post since it was read): only these two pages are read.
+    assert status["pages_read"] == 2 and status["to_read"] == {}
+    store = load(tmp_path)
+    found = store["proudcity-50829"]
+    assert (found["date"], found["start_time"], found["slug"]) == ("2026-10-22", None, "2026-11-17-board-of-health")
+    assert not any(h["field"] in ("date", "start_time") for h in found.get("history", []))
+    assert len(found["agendas"]) == 1 and found["checked_at"] == UNDATED_NOW.isoformat(timespec="seconds")
+    assert "clock_pending" not in found
+    assert "proudcity-50630" not in store
+    assert status["errors"] == [f"{empty_post['link']}: recorded on 2026-11-17, the day its page was read, but its "
+                                "page now has no meeting date: removed"]
+    assert store[council["id"]] == council
+    # Read again once: the next run reads nothing.
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW + timedelta(days=1))
+    assert status["pages_read"] == 0 and status["clock_checked"] is True
+
+
+def clocked_store(data_dir: Path, site: FakeSite, health: dict, **meeting) -> None:
+    """The Board of Health's meeting as recorded under its page's clock, by a run before the reader knew it."""
+    fetch_proudcity_meetings.run(health, site, data_dir, now=NOW)
+    store = load(data_dir)
+    store["proudcity-50829"].update(date="2026-11-17", start_time="18:35", checked_at="2026-11-17T13:33:37-05:00",
+                                    **meeting)
+    (data_dir / "meetings" / "meetings.json").write_text(json.dumps(store))
+    status_file = data_dir / "meetings" / "proudcity_status.json"
+    status_file.write_text(json.dumps({k: v for k, v in status_of(data_dir).items() if k != "clock_checked"}))
+
+
+def test_a_meeting_recorded_under_its_pages_clock_with_no_date_found_and_an_agenda(health, tmp_path):
+    site = FakeSite([undated()], served=UNDATED_SERVED)
+    clocked_store(tmp_path, site, health)
+    site.pages[UNDATED[0]] = page("board-of-health-undated").replace(UNDATED[2], "Board of Health Monthly Meeting")
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW)
+    # Kept for its agenda, without the time, and reported once.
+    found = load(tmp_path)["proudcity-50829"]
+    assert (found["date"], found["start_time"]) == ("2026-11-17", None) and found["agendas"]
+    assert status["errors"] == [f"{SITE}/meetings/{UNDATED[1]}/: recorded on 2026-11-17, the day its page was read, "
+                                "but its page now has no meeting date: kept, for what was saved or found for it"]
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW + timedelta(days=1))
+    assert status["pages_read"] == 0 and status["errors"] == []
+
+
+def test_a_meeting_recorded_under_its_pages_clock_whose_post_is_gone(health, tmp_path):
+    site = FakeSite([undated()], served=UNDATED_SERVED)
+    clocked_store(tmp_path, site, health)
+    site.gone.add(UNDATED[0])
+    status = fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW)
+    found = load(tmp_path)["proudcity-50829"]
+    assert (found["date"], found["start_time"]) == ("2026-11-17", None) and "clock_pending" not in found
+    assert any(e.endswith("but its page is gone: kept, for what was saved or found for it") for e in status["errors"])
+
+
+def test_a_meeting_recorded_under_its_pages_clock_is_corrected_though_its_post_changes_first(health, tmp_path):
+    """Marked, it's corrected when its page is read, by a later run or for a changed post."""
+    site = FakeSite([undated()], served=UNDATED_SERVED)
+    clocked_store(tmp_path, site, health)
+    health["proudcity_meetings"]["max_pages_per_run"] = 1
+    other = FakeSite([listed("finance-2026-11-10", "2026-11-27T09:00:00")], served=UNDATED_SERVED)
+    other.posts.append(undated(modified="2026-11-27T10:00:00"))
+    fetch_proudcity_meetings.run(health, other, tmp_path, now=UNDATED_NOW)
+    assert load(tmp_path)["proudcity-50829"].get("clock_pending") is True
+    status = fetch_proudcity_meetings.run(health, other, tmp_path, now=UNDATED_NOW + timedelta(days=1))
+    found = load(tmp_path)["proudcity-50829"]
+    assert (found["date"], found["start_time"]) == ("2026-10-22", None) and "history" not in found
+    assert status["to_read"] == {}
+
+
+def test_a_meeting_recorded_under_its_pages_clock_whose_page_now_has_its_date(health, tmp_path):
+    """The city filled in the post's date and time since: they're the meeting's, not a change in its history."""
+    filled = page("board-of-health-undated").replace('Nov <span class="date-big">28</span>',
+                                                     'Oct <span class="date-big">22</span>').replace("2:43 pm", "6:00 pm")
+    site = FakeSite([undated()], served=UNDATED_SERVED)
+    clocked_store(tmp_path, site, health)
+    site.pages[UNDATED[0]] = filled
+    fetch_proudcity_meetings.run(health, site, tmp_path, now=UNDATED_NOW)
+    found = load(tmp_path)["proudcity-50829"]
+    assert (found["date"], found["start_time"]) == ("2026-10-22", "18:00")
+    assert "history" not in found
 
 
 # ---- Site ---------------------------------------------------------------------------------

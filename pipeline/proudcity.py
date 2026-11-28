@@ -10,7 +10,12 @@ The API lists each post's id, address, title and when it was last changed (`modi
 body. Each meeting's page has the rest:
 - a header with the meeting's date ("Sep 15 2026"), time ("6:30 pm"), place ("City Hall Holyoke") and
   address ("536 Dwight St, Holyoke 01040"). The date is read from here, not from the title: a title can
-  carry the wrong year ("Parent and Community Engagement Committee, October 5, 2025", held 2026-10-05);
+  carry the wrong year ("Parent and Community Engagement Committee, October 5, 2025", held 2026-10-05).
+  A post whose date and time weren't filled in shows the moment its page was made in their place, in
+  UTC (shows_clock): "Board of Health Monthly Meeting 10-22-26" read "Nov 28 2026", "2:43 pm" at 14:43
+  UTC on November 28. Its REST post has no date field (nor has a dated one), and the site serves its pages
+  uncached (Cache-Control: max-age=0). Its date is then its title's (title_day), if it has one, and it has
+  no start time;
 - tabs, each shown only when it has something:
   - Agenda: the agenda typed in as text, and an attached file (a PDF, or a Word file) beside it;
   - Agenda Packet: links to the packet's files, or to a Google Drive folder of them;
@@ -42,6 +47,7 @@ from __future__ import annotations
 
 import html
 import re
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import unquote, urljoin, urlsplit
 
 from pipeline import agenda_minutes, dates, htmlfile, wordpress
@@ -50,6 +56,12 @@ from pipeline.linkpage import links_in, time_of
 from pipeline.meeting_names import find_board, parse_name
 
 SOURCE = "proudcity"
+# How far a page's header may be from when the page was served (or, for a recorded meeting, after the run
+# that read it started: a run reads its pages over minutes) and still be taken for the page's clock. Kept
+# close: a real meeting whose start time, read as UTC, is the time its page is read would be taken for it.
+CLOCK_BEHIND = timedelta(minutes=2)
+CLOCK_AHEAD = timedelta(minutes=1)
+RUN_LENGTH = timedelta(hours=2)
 # The REST route that lists a ProudCity site's meetings, and the fields read from it.
 ROUTE = "wp/v2/meetings"
 LISTING_FIELDS = ("id", "link", "title", "date", "modified")
@@ -167,6 +179,48 @@ def parse_meeting(page: str, page_url: str) -> dict:
         "video": video(parts.get("video", "")),
         "linked_minutes": list({m["url"]: m for m in linked}.values()),
     }
+
+
+def shows_clock(day: str | None, start: str | None, at: datetime, behind: timedelta = CLOCK_BEHIND,
+                ahead: timedelta = CLOCK_AHEAD) -> bool:
+    """Whether a header's date and start time (as parse_meeting reads them), read in UTC, are the moment `at`,
+    from `behind` before it to `ahead` after: the time the page was made, shown for a meeting post whose date
+    and time weren't filled in (WordPress runs PHP in UTC), not the meeting's."""
+    if not (day and start):
+        return False
+    shown = datetime.fromisoformat(f"{day}T{start}").replace(tzinfo=timezone.utc)
+    return at - behind <= shown <= at + ahead
+
+
+# How near the day its post was published a title's date, in that year, must be to be taken for a mistyped year.
+MISTYPED_YEAR_DAYS = 90
+
+
+def title_day(title: str | None, posted: str | None) -> str | None:
+    """The date in a title; where its year is behind the year its post was published (`posted`), and the same day
+    in that year is within MISTYPED_YEAR_DAYS of it, as a mistyped year is, that day: "October 5, 2025" posted
+    2026-09-30 is 2026-10-05, "December 15, 2025" posted 2026-01-02 and "June 3, 2025" posted 2026-01-15 stay."""
+    day = dates.find_date(title)
+    if day and posted and day.year < int(posted[:4]):
+        on = date.fromisoformat(posted[:10])
+        try:
+            moved = day.replace(year=on.year)
+        except ValueError:   # February 29
+            moved = None
+        if moved and abs((moved - on).days) <= MISTYPED_YEAR_DAYS:
+            day = moved
+    return day.isoformat() if day else None
+
+
+def recorded_from_clock(meeting: dict) -> bool:
+    """Whether a recorded meeting's date and start time look like the time its page was read (shows_clock), as
+    recorded before the reader knew the page's clock: up to RUN_LENGTH after the run that last read it began
+    (checked_at), and not the date its title gives. Reading its page again tells."""
+    checked = meeting.get("checked_at")
+    return (bool(checked) and shows_clock(meeting.get("date"), meeting.get("start_time"),
+                                          datetime.fromisoformat(checked), behind=timedelta(minutes=1),
+                                          ahead=RUN_LENGTH)
+            and title_day(meeting.get("posted_title"), None) != meeting["date"])
 
 
 def page_url(settings: dict) -> str:
