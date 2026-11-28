@@ -18,7 +18,10 @@
 #     translation set (evals/translations.json,
 #     pipeline/evaluate_translations.py), which fails when a threshold is
 #     missed;
-#   - a set or its runner: that set.
+#   - a set or its runner: that set;
+#   - the pinned requirements (requirements.txt), above all the anthropic
+#     SDK that every set calls the model through: every set. Of them only a
+#     change to the SDK's pin is held for a label (evaluate-label.yml).
 # Each with the models the network runs (its defaults/network.toml
 # [summaries]): MODEL and EFFORT for summaries and translation drafts, and
 # REVIEW_MODEL and REVIEW_EFFORT for the review of each translation; and
@@ -29,7 +32,8 @@
 # evaluation-<set>. The log and the report leave out what the run cost
 # (PUBLICK_HIDE_COSTS). The job gets the repository secret ANTHROPIC_API_KEY
 # and nothing else; a pull request from a fork gets no secrets, so it's
-# skipped. Adding the label is limited to people who can triage the
+# skipped. A run started by a push from Dependabot says how to run the sets
+# again. Adding the label is limited to people who can triage the
 # repository. The network's own Evaluate workflow runs the same sets by hand.
 name: Evaluate
 
@@ -50,6 +54,7 @@ on:
       - evals/agendas.json
       - evals/translations.json
       - evals/digest_subjects.json
+      - requirements.txt
 
 permissions:
   contents: read
@@ -101,6 +106,8 @@ jobs:
           if grep -qxE 'pipeline/(summarize|factcheck|evaluate|evaluate_agendas)\.py|evals/agendas\.json' <<< "$changed"; then sets="$sets agendas"; fi
           if grep -qxE 'pipeline/(translate|glossary|evaluate_translations)\.py|evals/translations\.json' <<< "$changed"; then sets="$sets translations"; fi
           if grep -qxE 'pipeline/(digest_subject|evaluate_digest)\.py|evals/digest_subjects\.json' <<< "$changed"; then sets="$sets digest"; fi
+          # The requirements are under every set: all of them, each once.
+          if grep -qx 'requirements\.txt' <<< "$changed"; then sets="minutes agendas translations digest"; fi
           echo "Sets to run: ${sets:-none}"
           echo "sets=$sets" >> "$GITHUB_OUTPUT"
 
@@ -110,8 +117,13 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PUBLICK_HIDE_COSTS: "1"
           SETS: ${{ steps.sets.outputs.sets }}
+          ACTOR: ${{ github.actor }}
         # Each report goes to the run's summary whether or not it passes; the job fails if either set does.
         run: |
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ "$ACTOR" = "dependabot[bot]" ]; then
+            echo "::error::A push by Dependabot runs without the repository's secrets: take the 'evaluate' label off and add it again to run the sets (a re-run of this one fails the same way)."
+            exit 1
+          fi
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Set the repository secret ANTHROPIC_API_KEY to run the sets against the model."
             exit 1

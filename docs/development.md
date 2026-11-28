@@ -170,8 +170,10 @@ worker/                     The Cloudflare Workers: index.js serves every site p
 .github/workflows/ci.yml    The engine's lint (ruff, ruff.toml) and tests, on pushes to main and every pull request
 .github/workflows/release.yml   The daily release (see stand-alone.md, Versions)
 .github/workflows/evaluate.yml  The minutes and translation sets against the model, on a pull request labeled `evaluate`
-                                that changes a summary prompt, the fact check, or the translator (never on any other)
-.github/workflows/evaluate-label.yml  Fails a pull request that changes those files until it's labeled `evaluate` or `no evaluate`
+                                that changes a summary prompt, the fact check, the translator, or the pinned requirements
+                                (requirements.txt, which runs every set; never on any other)
+.github/workflows/evaluate-label.yml  Fails a pull request that changes those files (of requirements.txt, only the anthropic
+                                      SDK's pin) until it's labeled `evaluate` or `no evaluate`
 .github/scripts/commit-data.sh  Commits a run's data, retrying against other runs' pushes
 ```
 
